@@ -2,7 +2,8 @@
 // ---------- fight modes: play / grid (parameter sweep) / gallery (every move); each cell is an independent World ----------
 const canvas = $('c'), ctx = canvas.getContext('2d');
 let dpr = 1;
-const lab = { mode: 'play', scen: 'you vs dummy', x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep' };
+const lab = { mode: 'play', scen: 'you vs dummy', x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
+  seeds: 1, meter: true, inputs: true, tape: null, rec: false, replay: false, target: 'dummy' };
 const newWorld = (...a) => Object.assign(new World(...a), { loop: app.loop });
 
 // what the little plot under a grid cell shows, by the swept variable
@@ -22,9 +23,12 @@ const PRESET_TIPS = {
 };
 
 // n values across [lo, hi] snapped to the slider step; categorical vars just take their options
+// 'scenario' (Y only) runs each row on a different scripted fight
+const AXIS_SCENS = ['J,J,K', 'sweep', 'ai vs ai'];
 function axisValues(ax, n) {
   const s = SPEC[ax.k];
-  if (s.opts) return s.opts.slice(0, n);
+  if (ax.k === 'scenario') return AXIS_SCENS;
+  if (s.opts) return s.opts;
   if (typeof s.v === 'boolean') return [false, true];
   const lo = isNaN(ax.lo) ? s.min : ax.lo, hi = isNaN(ax.hi) ? s.max : ax.hi;
   return Array.from({ length: n }, (_, i) => +(Math.round((lo + (hi - lo) * i / (n - 1)) / s.step) * s.step).toFixed(4));
@@ -34,19 +38,26 @@ const galleryMoves = (ms = currentChar().moves) => [...GALLERY.filter(m => ms[m]
 function build() {
   const scen = SCENARIOS[lab.scen];
   lab.cells = []; lab.cols = 3; lab.zoom = false;
-  if (lab.mode === 'play') { lab.cells.push({ w: newWorld(scen) }); lab.cols = 1; }
-  else if (lab.mode === 'gallery') for (const m of galleryMoves()) lab.cells.push({ w: newWorld(galleryScen(m)), move: m, label: m });
+  if (lab.mode === 'play') {
+    const replay = lab.replay && lab.tape?.length && scen.a === 'human';
+    lab.cells.push({ w: newWorld(replay ? { ...scen, b: { tape: lab.tape } } : scen) }); lab.cols = 1;
+  }
+  else if (lab.mode === 'gallery') for (const m of galleryMoves()) lab.cells.push({ w: newWorld({ ...galleryScen(m), ...GALLERY_TARGETS[lab.target][1] }), move: m, label: m });
   else if (lab.kind !== 'sweep') lab.cells = lab.kind === 'breed' ? breedCells() : attackCells();
   else {
     const xs = axisValues(lab.x, lab.y.k ? 3 : 9), ys = lab.y.k ? axisValues(lab.y, 3) : [null];
     if (lab.y.k) lab.cols = xs.length;
     for (const yv of ys) for (const xv of xs) {
-      const over = { [lab.x.k]: xv };
-      if (lab.y.k) over[lab.y.k] = yv;
+      const over = { [lab.x.k]: xv }, sy = lab.y.k === 'scenario';
+      if (lab.y.k && !sy) over[lab.y.k] = yv;
       // same seed everywhere: every cell replays the identical fight, only the swept values differ
-      lab.cells.push({ w: newWorld(scen, over, 7), over, label: Object.entries(over).map(([k, v]) => `${k}=${fmt(v)}`).join('  ') });
+      lab.cells.push({ w: newWorld(sy ? SCENARIOS[yv] : scen, over, 7), over,
+        label: Object.entries(over).map(([k, v]) => `${k}=${fmt(v)}`).join('  ') + (sy ? `  ${yv}` : '') });
     }
   }
+  // extra seeds: the same cell fought again with other random rolls (AI, sparks); the stats average them
+  if (lab.mode === 'grid' && lab.kind !== 'attacks' && lab.seeds > 1)
+    for (const c of lab.cells) c.extra = Array.from({ length: lab.seeds - 1 }, (_, i) => newWorld(c.w.scen, c.over, 8 + i));
   lab.focus = lab.cells[0];
 }
 
@@ -78,15 +89,44 @@ function drawCell(c, r, { full = false, plot = true, selected = false } = {}) {
   ctx.strokeStyle = selected ? '#222' : '#0000'; ctx.lineWidth = 2 * dpr;
   ctx.strokeRect(r.x + dpr, r.y + dpr, r.w - 2 * dpr, r.h - 2 * dpr);
   if (c.label) text(c.label, r.x + 8 * dpr, r.y + 16 * dpr, '#444', 12, 'bold');
-  const w = c.w;
-  if (!full) text(`frozen ${Math.round(100 * w.frozenT / (w.simT || 1))}%  ${w.hits} hits${w.adv === null ? '' : `  ${w.adv >= 0 ? '+' : ''}${w.adv}f`}`,
-    r.x + 8 * dpr, r.y + 30 * dpr, '#999', 11);
+  if (lab.meter) drawMeter(c.w, { x: r.x + 6 * dpr, y: r.y + r.h - ph - (full ? 40 : 16) * dpr, w: r.w - 12 * dpr, h: (full ? 30 : 10) * dpr }, full);
+  if (!full) text(cellStats(c), r.x + 8 * dpr, r.y + 30 * dpr, '#999', 11);
+}
+// hits / whiffs / frozen % (averaged over the cell's seeds) and the last hit's frame advantage
+const METRICS = {
+  hits: ['Most hits first', w => w.hits], whiffs: ['Most whiffs first', w => w.whiffs],
+  frozen: ['Most time in hit stop first', w => w.frozenT / (w.simT || 1)], adv: ['Best frame advantage first', w => w.adv ?? -99],
+};
+const avg = (c, f) => { const ws = [c.w, ...(c.extra || [])]; return ws.reduce((s, w) => s + f(w), 0) / ws.length; };
+function cellStats(c) {
+  const n = v => c.extra ? v.toFixed(1) : v, w = c.w;
+  return `frozen ${Math.round(100 * avg(c, METRICS.frozen[1]))}%  ${n(avg(c, METRICS.hits[1]))} hits  ${n(avg(c, METRICS.whiffs[1]))} whiffs` +
+    (w.adv === null ? '' : `  ${w.adv >= 0 ? '+' : ''}${w.adv}f`);
+}
+// frame meter: one column per frame, newest on the right; top row = left fighter, bottom = right fighter
+const METER_COLS = { idle: null, air: '#cfd8e0', move: '#b3a79a', startup: '#3a9d5d', active: '#c0392b', recovery: '#2c6fb0', hit: '#e6b422', down: '#e8dcb5', stop: '#fff' };
+const METER_TIPS = 'frame meter: green startup · red active · blue recovery · yellow hitstun · pale knocked down · white hit stop · grey air / other';
+function drawMeter(w, r, full) {
+  const fs = w.hist.fs, n = full ? 120 : 60, cw = r.w / n, rh = r.h / 2 - dpr;
+  ctx.fillStyle = '#0000000d'; ctx.fillRect(r.x, r.y, r.w, r.h);
+  fs.slice(-n).forEach((st, i) => st.forEach((s, j) => {
+    if (!METER_COLS[s]) return;
+    ctx.fillStyle = METER_COLS[s];
+    ctx.fillRect(r.x + (n - Math.min(n, fs.length) + i) * cw, r.y + j * (rh + 2 * dpr), Math.max(dpr, cw - (full ? dpr : 0)), rh);
+  }));
+  if (full) text(METER_TIPS, r.x, r.y - 4 * dpr, '#aaa', 10);
+}
+// input display: the human's last inputs in numpad notation, newest on top, with how many frames each was held
+function drawInputs(w, x, y) {
+  [...w.inputs].reverse().slice(0, 16).forEach((e, i) =>
+    text(`${e.n}${e.b ? ' ' + e.b : ''}`.padEnd(6) + String(e.f).padStart(3), x, y + i * 14 * dpr, e.b ? '#c0392b' : '#888', 11, e.b ? 'bold' : ''));
 }
 function labRender() {
   clear();
   const cells = shown(), play = lab.mode === 'play', rects = cellRects(cells.length, lab.zoom ? 1 : lab.cols, fullArea());
   cells.forEach((c, i) => drawCell(c, rects[i], { full: play, plot: !play,
     selected: !play && !lab.zoom && (lab.mode === 'grid' && lab.kind !== 'sweep' ? c.parent : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) : c === lab.focus) }));
+  if (play && lab.inputs && cells[0].w.ctl[0] === 'human') drawInputs(cells[0].w, 10 * dpr, 60 * dpr);
   drawScope();
 }
 
@@ -224,7 +264,8 @@ function axisButton(ax, name) {
       return inp;
     });
     const pick = k => { ax.k = k; ax.lo = SPEC[k]?.min; ax.hi = SPEC[k]?.max; build(); };
-    popup(b, name === 'Y' && h('div', { cls: 'bar' }, button('none', 'Only one axis: 9 values of X', () => { pick(''); closePop(); })),
+    popup(b, name === 'Y' && h('div', { cls: 'bar' }, button('none', 'Only one axis: 9 values of X', () => { pick(''); closePop(); }),
+      button('scenario', `One row per fight: ${AXIS_SCENS.join(' · ')}`, () => { pick('scenario'); closePop(); })),
       ...groups.flatMap(([g, vars]) => [h('h4', { textContent: g }), h('div', { cls: 'bar' }, vars.map(s => {
         const o = button(s.k, s.tip, () => pick(s.k));
         reg(o, () => o.classList.toggle('on', ax.k === s.k));
@@ -235,8 +276,34 @@ function axisButton(ax, name) {
   reg(b, () => { b.textContent = `${name}: ${ax.k || 'none'}`; });
   return b;
 }
+const GALLERY_TARGETS = {
+  dummy: ['A dummy stands in range: hits, hit stop and advantage', {}],
+  whiff: ['Nobody in range: the move whiffs, pure animation', { bx: 720 }],
+  ai: ['The engine AI: moves, attacks back', { b: 'ai' }],
+};
+const meterToggle = () => toggle('meter', METER_TIPS, () => lab.meter, v => { lab.meter = v; });
+const boxesToggle = () => toggle('boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; });
+// training tools (play): record your inputs, then the dummy replays them (mirrored to its facing)
+function trainingCtl() {
+  const human = () => SCENARIOS[lab.scen].a === 'human';
+  const rec = toggle('rec', 'Record your inputs (from now until you switch it off); the replay dummy then plays them back', () => lab.rec, v => {
+    const w = lab.cells[0].w;
+    lab.rec = v;
+    if (v) { lab.replay = false; w.tape = []; } else { lab.tape = w.tape; w.tape = null; }
+  });
+  const rep = toggle('replay', 'The dummy plays your recording in a loop: practise against your own combo or pressure', () => lab.replay, v => { lab.replay = v; build(); });
+  reg(rec, () => { rec.disabled = !human(); });
+  reg(rep, () => { rep.disabled = !human() || lab.rec || !lab.tape?.length; });
+  return [meterToggle(), toggle('inputs', 'Input display: your inputs in numpad notation (6 forward, 2 down, 8 jump) and frames held', () => lab.inputs, v => { lab.inputs = v; }),
+    rec, rep, boxesToggle()];
+}
+function sortButton() {
+  return button('sort', 'Reorder the cells once by a metric (they keep running)', (e, b) => popup(b, h('div', { cls: 'bar' },
+    Object.entries(METRICS).map(([k, [tip, f]]) => button(k, tip, () => { lab.cells.sort((p, q) => avg(q, f) - avg(p, f)); closePop(); })))));
+}
 function labCtx() {
-  if (lab.mode === 'gallery') return [h('span', { cls: 'note', textContent: 'click a move to focus it' })];
+  if (lab.mode === 'gallery') return [seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0])),
+    meterToggle(), boxesToggle(), toggle('ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; })];
   const els = [];
   if (lab.mode === 'grid') els.push(seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS));
   if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(scenButton(k => { lab.scen = k; build(); }));
@@ -245,8 +312,15 @@ function labCtx() {
     const adopt = button('use these values', 'Copy the focused cell\'s values into the settings (side panel)', () => Object.assign(CFG, lab.focus.over));
     const back = button('◱ back to grid', 'Show all cells again (Esc)', () => { lab.zoom = false; });
     reg(adopt, () => { adopt.hidden = !lab.zoom; }); reg(back, () => { back.hidden = !lab.zoom; });
-    els.push(axisButton(lab.x, 'X'), axisButton(lab.y, 'Y'), adopt, back);
+    els.push(axisButton(lab.x, 'X'), axisButton(lab.y, 'Y'),
+      button('collision test', 'Every hitTest mode (columns) on three fights (rows): compare hits and whiffs of the collision modes', () => {
+        Object.assign(lab.x, { k: 'hitTest' }); Object.assign(lab.y, { k: 'scenario' }); build();
+      }), adopt, back);
   }
+  if (lab.mode === 'grid' && lab.kind !== 'attacks') els.push(
+    seg([1, 3, 5], () => lab.seeds, v => { lab.seeds = v; build(); }, { 1: 'One fight per cell', 3: 'Each cell fought with 3 seeds; stats averaged (AI fights differ per seed)', 5: '5 seeds per cell, averaged' }, v => `${v} seed${v > 1 ? 's' : ''}`),
+    sortButton(), meterToggle());
+  if (lab.mode === 'play') els.push(...trainingCtl());
   return els;
 }
 
@@ -286,7 +360,7 @@ function labClick(x, y, e) {
 const labMode = {
   enter(m) { lab.mode = m; build(); },
   restart: build,
-  worlds: () => lab.cells.map(c => c.w),
+  worlds: () => lab.cells.flatMap(c => [c.w, ...(c.extra || [])]),
   render: labRender,
   ctxBar: labCtx,
   side: labSide,

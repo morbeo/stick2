@@ -6,6 +6,18 @@ const COLS = [INK, RED, ['#2c6fb0', '#94b7d8'], ['#2e8b57', '#97c5ab'], ['#8e44a
 const NOIN = { left: false, right: false, down: false, jump: false, punch: false, kick: false };
 const HIST = 240;
 
+// what a training-mode frame meter shows for a fighter this frame
+function frameState(f) {
+  if (f.freeze > 0) return 'stop';
+  if (f.kd) return 'down';
+  if (!f.free) return 'hit';
+  const a = f.action;
+  if (!a) return f.grounded ? 'idle' : 'air';
+  if (!a.m.power) return 'move';
+  const ks = a.m.keys, first = ks.findIndex(k => k.active), last = ks.findLastIndex(k => k.active);
+  return a.i < first ? 'startup' : a.i <= last ? 'active' : 'recovery';
+}
+
 class World {
   // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, more?, period? } (see brain.js)
   // chars: character per fighter slot (the last one fills the rest); default = the current character
@@ -18,7 +30,7 @@ class World {
     const s = this.scen, scripted = Array.isArray(s.a);
     Object.assign(this, { rand: makeRand(this.seed), parts: [], trauma: 0, zoom: 0, slowT: 0, T: 0, simT: 0,
       frozenT: 0, hits: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
-      pend: null, adv: null, hist: { tgt: [], disp: [], vx: [], y: [] } });
+      pend: null, adv: null, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
     // a vs b, plus any extra fighters: { c: controller, x, team }
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0 }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1 }, ...(s.more || [])];
     const chars = this.chars || [currentChar()];
@@ -55,7 +67,17 @@ class World {
     for (const f of this.fighters) if (f.freeze <= 0) f.recordTrail();
     const h = this.hist, j = this.cfg.scope;
     h.tgt.push(this.a.target[j] ?? 0); h.disp.push(this.a.disp[j] ?? 0); h.vx.push(this.a.vx); h.y.push(this.a.y);
+    h.fs.push([frameState(this.a), frameState(this.b)]);
+    if (this.ctl[0] === 'human') this.logInput(inp);
     if (h.tgt.length > HIST) for (const k in h) h[k].shift();
+  }
+
+  // input display: the human's input in numpad notation (6 = forward, 2 = down, 8 = jump…) + buttons, repeats merged
+  logInput(i) {
+    const x = (i.right - i.left) * this.a.dir, n = 5 + x + (i.down ? -3 : i.jump ? 3 : 0), b = (i.punch ? 'P' : '') + (i.kick ? 'K' : '');
+    const last = this.inputs[this.inputs.length - 1];
+    if (last && last.n === n && !b && !last.b) last.f++;
+    else { this.inputs.push({ n, b, f: 1 }); if (this.inputs.length > 20) this.inputs.shift(); }
   }
 
   step(h, inp) {
@@ -70,6 +92,11 @@ class World {
     const fs = this.fighters, tg = fs.map(f => this.nearestFoe(f));
     const ins = this.ctl.map((c, i) => c === 'human' ? inp : !c || !tg[i] ? NOIN : c.input(fs[i], tg[i], h));
     fs.forEach((f, i) => f.bufferInput(ins[i]));
+    // recording for the replay dummy: one entry per substep the human is not frozen, directions relative to facing
+    if (this.tape && this.ctl[0] === 'human' && this.a.freeze <= 0) {
+      const i = ins[0], d = this.a.dir > 0;
+      this.tape.push({ fwd: d ? i.right : i.left, back: d ? i.left : i.right, down: i.down, jump: i.jump, punch: i.punch, kick: i.kick });
+    }
     fs.forEach((f, i) => {
       if (f.freeze > 0) f.freeze -= h; // hit stop: this fighter sits out the substep
       else f.update(h, ins[i], this.foes(f));
@@ -83,6 +110,8 @@ class World {
       }
     }
     fs.forEach((f, i) => { if (tg[i] && !f.action && f.free && f.grounded) f.dir = Math.sign(tg[i].x - f.x) || f.dir; });
+    // whiff: an attack that ended (or was interrupted) without touching anyone
+    fs.forEach((f, i) => { const a = this.acts[i]; if (a && a !== f.action && a.m.power && !a.hit) this.whiffs++; this.acts[i] = f.action; });
 
     // frame advantage of the last hit: who can act first afterwards, in 60 fps frames (+ = attacker)
     const pd = this.pend;

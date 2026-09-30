@@ -36,6 +36,17 @@ class Script {
   }
 }
 
+// replays a recorded tape (see World.step), one entry per substep, looping; like scripts, it waits out hit stop
+class Replay {
+  constructor(tape) { Object.assign(this, { tape, i: 0 }); }
+  input(f) {
+    if (f.freeze > 0 || !this.tape.length) return { ...NOIN };
+    const e = this.tape[this.i], d = f.dir > 0;
+    this.i = (this.i + 1) % this.tape.length;
+    return { left: d ? e.back : e.fwd, right: d ? e.fwd : e.back, down: e.down, jump: e.jump, punch: e.punch, kick: e.kick };
+  }
+}
+
 // engine AI: re-thinks every reaction-time interval, walks to range and throws random chains
 const CHAINS = [['punch'], ['punch', 'punch'], ['punch', 'punch', 'punch'], ['kick'], ['kick', 'kick'],
   ['punch', 'kick'], ['punch', 'punch', 'kick'], ['down+kick']];
@@ -73,6 +84,7 @@ function makeCtl(spec, world) {
   if (spec === 'human') return 'human';
   if (spec === 'ai') return new Brain(world.rand);
   if (Array.isArray(spec)) return new Script(spec);
+  if (spec?.tape) return new Replay(spec.tape);
   return null;
 }
 

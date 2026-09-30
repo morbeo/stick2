@@ -27,6 +27,7 @@ const KEYS = [
   ['fight', 'A/D or ←/→ move · W/↑/Space jump · S/↓ crouch · J punch · K kick\nchains: J,J,J · K,K · J,K · J,J,K · S+K sweep · run+J dash punch · air J/K'],
   ['transport', 'P pause · N step one frame · R restart · M scrub with the mouse · 1-5 modes · ⌘Z undo · ⇧⌘Z redo (character and moves)'],
   ['view', 'H hide the side panel · G ghost (keyframe pose) · B hitboxes · Esc back / close'],
+  ['grid', 'click a cell: focus it (breed / attacks: breed around it) · Shift+click: focus'],
   ['character', 'drag a joint: length + angle · Shift+drag: angle only · Del delete bone'],
   ['animate', 'drag a joint: IK · Alt+drag: rotate one bone · Shift+←/→ prev/next key · , . step a frame · Enter play/pause move · O onion · I aim'],
 ];
