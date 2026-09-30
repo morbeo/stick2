@@ -17,8 +17,8 @@ class World {
     Object.assign(this, { rand: makeRand(this.seed), parts: [], trauma: 0, zoom: 0, slowT: 0, T: 0, simT: 0,
       frozenT: 0, hits: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
       hist: { tgt: [], disp: [], vx: [], y: [] } });
-    this.a = new Fighter(this, s.ax ?? (scripted ? 330 : 300), 1, INK);
-    this.b = new Fighter(this, s.bx ?? (scripted ? 375 : 500), -1, RED);
+    this.a = new Fighter(this, s.ax ?? (scripted ? 330 : 300), 1, INK, CHARS.stick);
+    this.b = new Fighter(this, s.bx ?? (scripted ? 375 : 500), -1, RED, CHARS.stick);
     this.fighters = [this.a, this.b];
     this.ctl = [makeCtl(s.a, this), makeCtl(s.b, this)];
     this.cam = (this.a.x + this.b.x) / 2;

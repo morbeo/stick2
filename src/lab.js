@@ -132,7 +132,7 @@ function drawPlot(c, r) {
     note('vx (black) / height (red)');
   } else if (kind === 'timeline') {
     // keyframes of the move: width = duration, red = active, marker = current key
-    const m = MOVES[c.move], total = m.keys.reduce((s, k) => s + k.d, 0), a = w.a.action;
+    const m = w.a.ch.moves[c.move], total = m.keys.reduce((s, k) => s + k.d, 0), a = w.a.action;
     let x = r.x, at = null;
     m.keys.forEach((k, i) => {
       const kw = k.d / total * r.w;

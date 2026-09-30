@@ -1,6 +1,5 @@
 'use strict';
 // ---------- config (every tunable is exposed in the side panel) ----------
-const JOINTS = ['torso', 'head', 'afU', 'afL', 'abU', 'abL', 'lfU', 'lfL', 'lbU', 'lbL'];
 const SCHEMA = [
   ['Movement'],
   { k: 'maxSpeed', v: 260, min: 50, max: 600, step: 10 },
@@ -37,7 +36,7 @@ const SCHEMA = [
   { k: 'timeScale', v: 1, min: 0.05, max: 1, step: 0.05 },
   ['Debug'],
   { k: 'ghost', v: false },
-  { k: 'scope', v: 'afU', opts: JOINTS },
+  { k: 'scope', v: 'uarmF', opts: [] }, // filled with the default character's bones (rig.js)
 ];
 const CFG = {}, DEFAULTS = {}, SPEC = {};
 for (const s of SCHEMA) if (!Array.isArray(s)) { DEFAULTS[s.k] = CFG[s.k] = s.v; SPEC[s.k] = s; }

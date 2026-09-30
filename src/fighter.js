@@ -1,40 +1,46 @@
 'use strict';
 class Fighter {
-  constructor(w, x, dir, col, over = {}) {
-    Object.assign(this, { w, x, groundY: w.groundY, dir, face: dir, col, over, y: 0, vx: 0, vy: 0, grounded: true,
+  constructor(w, x, dir, col, ch, over = {}) {
+    Object.assign(this, { w, x, groundY: w.groundY, dir, face: dir, col, ch, over, y: 0, vx: 0, vy: 0, grounded: true,
       time: 0, seed: w.rand(0, 100), walkPh: 0, lean: 0, inp: NOIN,
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
       kd: null, downT: 0, bounced: false, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [] });
     this.target = this.basePose();
     this.disp = { ...this.target };
-    this.flt = {};
-    for (const j of JOINTS) this.flt[j] = new SecondOrder(this.target[j]);
+    this.prev = { ...this.target };
+    this.flt = {}; this.lens = {};
+    for (const b of ch.bones) { this.flt[b.id] = new SecondOrder(this.target[b.id]); this.lens[b.id] = b.len; }
   }
   c(k) { return this.over[k] ?? this.w.cfg[k]; }
   get free() { return this.hurtT <= 0 && !this.kd; }
 
+  // the procedural layer, driven by bone roles so any skeleton breathes, walks and leans
   basePose() {
-    const P = { ...STANCE }, t = this.time;
-    if (this.kd) return Object.assign(P, this.kd === 'down' ? LIE : FALL);
-    const br = Math.sin(t * 2.2);
-    P.torso += br * 1.5; P.afU += br * 2; P.abU += br * 2; // breathing
-    for (const j in WANDER) P[j] += wander(t * 0.8 + this.seed + JOINTS.indexOf(j) * 13) * WANDER[j];
+    const ch = this.ch, ps = ch.poses, P = { ...ps.stance }, t = this.time;
+    if (this.kd) return Object.assign(P, this.kd === 'down' ? ps.lie : ps.fall);
+    const turn = (b, d) => { if (b) P[b.id] += b.fwd * d; }; // + swings the bone's end forward
+    const flex = (b, d) => { if (b) P[b.id] += b.flex * d; };
+    const spine = ch.chains.spine[0]?.[0], br = Math.sin(t * 2.2);
+    turn(spine, br * 1.5); for (const c of ch.chains.arm) turn(c[0], br * 2); // breathing
+    // slow idle wander, stronger on loose bones; legs excluded so planted feet don't slide
+    ch.bones.forEach((b, i) => { if (b.role !== 'leg') P[b.id] += wander(t * 0.8 + this.seed + i * 13) * (1.5 + 2.2 * b.lag); });
     if (!this.grounded) {
       const k = clamp(this.vy / 500, 0, 1); // tuck while rising, reach for the ground while falling
-      for (const j in AIR) P[j] = AIR[j] + (AIR_FALL[j] - AIR[j]) * k;
-    } else if (this.crouching || this.squatT > 0) Object.assign(P, CROUCH);
+      for (const j in ps.air) P[j] = ps.air[j] + ((ps.airFall[j] ?? ps.air[j]) - ps.air[j]) * k;
+    } else if (this.crouching || this.squatT > 0) Object.assign(P, ps.crouch);
     else {
-      const w = Math.min(1, Math.abs(this.vx) / this.c('maxSpeed')), ph = this.walkPh, s = Math.sin(ph);
-      P.lfU += s * 28 * w; P.lbU -= s * 28 * w;
-      P.lfL -= Math.max(0, Math.cos(ph)) * 40 * w; P.lbL -= Math.max(0, -Math.cos(ph)) * 40 * w;
-      P.afU -= s * 22 * w; P.abU += s * 22 * w; // arms counter-swing the legs
-      P.afL += Math.max(0, -s) * 15 * w; P.abL += Math.max(0, s) * 15 * w;
-      P.torso += 4 * w * Math.sign(this.vx * this.dir);
+      const w = Math.min(1, Math.abs(this.vx) / this.c('maxSpeed')), ph = this.walkPh;
+      // legs alternate; each arm counter-swings the leg on its side
+      ch.chains.leg.forEach((c, i) => { const q = ph + i * Math.PI; turn(c[0], Math.sin(q) * 28 * w); flex(c[1], Math.max(0, Math.cos(q)) * 40 * w); });
+      ch.chains.arm.forEach((c, i) => { const q = ph + (i + 1) * Math.PI; turn(c[0], Math.sin(q) * 22 * w); flex(c[1], Math.max(0, Math.sin(q)) * 15 * w); });
+      turn(spine, 4 * w * Math.sign(this.vx * this.dir));
     }
-    P.torso += this.lean;
+    turn(spine, this.lean);
     return P;
   }
+  // push a bone's spring: + swings its end forward
+  jolt(b, v) { if (b) this.flt[b.id].yd += b.fwd * v; }
 
   bufferInput(inp) {
     if (inp.punch) this.buffer = { b: 'punch', t: 0.2 };
@@ -48,7 +54,7 @@ class Fighter {
     return b === 'punch' ? 'jab' : 'kick';
   }
   start(m) {
-    this.action = { m: typeof m === 'string' ? MOVES[m] : m, i: 0, t: 0, from: { ...this.target }, hit: false };
+    this.action = { m: typeof m === 'string' ? this.ch.moves[m] : m, i: 0, t: 0, from: { ...this.target }, hit: false };
   }
 
   update(dt, inp, opp) {
@@ -100,7 +106,8 @@ class Fighter {
         const imp = Math.min(1, this.vy / 800);
         this.y = 0; this.vy = 0; this.grounded = true;
         this.sqv -= c('squash') * 25 * imp;
-        this.flt.lfL.yd -= 500 * imp; this.flt.lbL.yd -= 400 * imp; this.flt.torso.yd += 250 * imp; // knees absorb
+        this.ch.chains.leg.forEach((c, i) => { if (c[1]) this.flt[c[1].id].yd += c[1].flex * (i ? 400 : 500) * imp; }); // knees absorb
+        this.jolt(this.ch.chains.spine[0]?.[0], 250 * imp);
         this.w.dust(this.x, this.groundY, imp);
         if (this.action?.m.air) this.action = null;
         if (this.kd === 'fly') {
@@ -130,35 +137,39 @@ class Fighter {
     if (this.action) {
       const a = this.action, k = a.m.keys[a.i], to = resolve(base, k.p);
       const e = EASE[c('easing') === 'authored' ? k.e || 'linear' : c('easing')](a.t / k.d);
-      for (const j of JOINTS) this.target[j] = a.from[j] + (to[j] - a.from[j]) * e;
+      for (const j of this.ch.ids) this.target[j] = a.from[j] + (to[j] - a.from[j]) * e;
     } else Object.assign(this.target, base);
 
     // filter layer: displayed pose chases the target pose
     const mode = c('filter');
-    for (const j of JOINTS) {
-      const x = this.target[j];
-      if (mode === 'spring') {
-        this.disp[j] = this.flt[j].update(dt, x, c('freq') * c('followThru') ** DEPTH[j], c('zeta'), c('response'));
-        continue;
+    for (const b of this.ch.bones) {
+      const j = b.id, x = this.target[j];
+      this.prev[j] = this.disp[j];
+      if (mode === 'spring') this.disp[j] = this.flt[j].update(dt, x, c('freq') * b.stiff * c('followThru') ** b.lag, c('zeta') * b.damp, c('response'));
+      else {
+        this.disp[j] = mode === 'damp' ? this.disp[j] + (x - this.disp[j]) * (1 - Math.exp(-c('dampRate') * dt)) : x;
+        this.flt[j].reset(this.disp[j]);
       }
-      this.disp[j] = mode === 'damp' ? this.disp[j] + (x - this.disp[j]) * (1 - Math.exp(-c('dampRate') * dt)) : x;
-      this.flt[j].reset(this.disp[j]);
+      // limits are applied after the filter so spring overshoot never hyperextends a joint
+      if (b.min !== undefined) this.disp[j] = clamp(this.disp[j], b.min, b.max);
+      // stretch: fast-swinging bones lengthen, then ease back
+      const want = b.len * (1 + b.stretch * Math.min(1, Math.abs(this.disp[j] - this.prev[j]) / dt / 1500));
+      this.lens[j] += (want - this.lens[j]) * (1 - Math.exp(-30 * dt));
     }
-    for (const j in LIMITS) this.disp[j] = clamp(this.disp[j], ...LIMITS[j]);
 
     // hits are tested against what is drawn, not the target
     const a = this.action;
     if (a && opp && !a.hit && a.m.keys[a.i].active) {
-      const pt = this.points(this.disp)[a.m.hit];
+      const pt = this.body()[a.m.hit];
       if (opp.hurtBy(pt)) { a.hit = true; this.w.onHit(this, opp, pt, a.m); }
     }
   }
 
   hurtBy(pt) {
     if (this.kd === 'down' || this.action?.m.inv) return false;
-    const P = this.points(this.disp);
-    return distSeg(pt, P.hip, P.neck) < 12 || Math.hypot(pt[0] - P.head[0], pt[1] - P.head[1]) < B.head + 4 ||
-      [[P.hip, P.fk], [P.fk, P.ff], [P.hip, P.bk], [P.bk, P.bf]].some(([a, b]) => distSeg(pt, a, b) < 8);
+    const P = this.body();
+    return this.ch.bones.some(b => b.hurt > 0 && (b.shape === 'circle'
+      ? Math.hypot(pt[0] - P[b.id][0], pt[1] - P[b.id][1]) : distSeg(pt, P[b.parent || 'hip'], P[b.id])) < b.hurt);
   }
   takeHit(att, m) {
     const combo = this.combo = (this.free ? 0 : this.combo) + 1;
@@ -170,31 +181,33 @@ class Fighter {
       this.kd = 'fly'; this.bounced = false; this.grounded = false; this.action = null; this.hurtT = 0;
       this.vy = -(m.launch || 300);
     } else {
-      const set = HURT[m.height].filter(p => p !== this.lastHurt);
+      const set = this.ch.hurt[m.height].filter(p => p !== this.lastHurt);
       this.lastHurt = set[Math.floor(this.w.rand() * set.length)];
       const stun = m.stun * Math.max(0.45, 1 - 0.07 * (combo - 1)); // long combos stun less
-      this.start(makeHurt(this.lastHurt, stun, this.w.rand));
+      this.start(makeHurt(this.lastHurt, stun, this.w.rand, this.ch.poses.stance));
       this.hurtT = stun;
     }
     // kick the limb springs so every impact lands a little differently
     const k = 200 * m.power;
-    for (const j of JOINTS) this.flt[j].yd += this.w.rand(-1, 1) * k * (DEPTH[j] + 0.5);
-    if (m.height === 'high') this.flt.head.yd -= 4 * k;
-    else if (m.height === 'mid') this.flt.torso.yd += 2 * k;
+    for (const b of this.ch.bones) this.flt[b.id].yd += this.w.rand(-1, 1) * k * (b.lag + 0.5);
+    if (m.height === 'high') for (const c of this.ch.chains.head) this.jolt(c[c.length - 1], -4 * k); // head snaps back
+    else if (m.height === 'mid') this.jolt(this.ch.chains.spine[0]?.[0], 2 * k); // folds over
     this.sqv -= this.c('squash') * 15 * m.power;
   }
 
   // world-space joints: lowest body point snapped to the ground, then squash/stretch around it
-  points(p) {
-    const L = fk(p, this.face);
-    const fy = Math.max(L.ff[1], L.bf[1], L.fk[1], L.bk[1], L.hip[1], L.sh[1], L.head[1] + B.head);
+  points(p, lens) {
+    const L = fk(this.ch, p, this.face, lens);
+    let fy = 0;
+    for (const b of this.ch.bones) fy = Math.max(fy, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
     const sx = 1 - this.sq * 0.5, sy = 1 + this.sq, ax = this.x, ay = this.groundY + this.y, P = {};
     for (const k in L) P[k] = [ax + L[k][0] * sx, ay + (L[k][1] - fy) * sy];
     return P;
   }
+  body() { return this.points(this.disp, this.lens); }
   recordTrail() {
-    const P = this.points(this.disp);
-    this.trail.push([P.fh, P.ff, P.bh, P.bf]);
+    const P = this.body();
+    this.trail.push(this.ch.tips.map(b => P[b.id]));
     if (this.trail.length > 24) this.trail.shift();
   }
 
@@ -205,17 +218,17 @@ class Fighter {
     ctx.beginPath(); ctx.ellipse(this.x, this.groundY + 1, 22 * s, 4 * s, 0, 0, 7); ctx.fill();
 
     const n = Math.min(this.c('trail'), this.trail.length - 1), tr = this.trail;
-    for (let li = 0; li < 4; li++) for (let i = 1; i <= n; i++) {
+    for (let li = 0; li < this.ch.tips.length; li++) for (let i = 1; i <= n; i++) {
       const a = tr[tr.length - 2 - n + i][li], b = tr[tr.length - 1 - n + i][li];
       ctx.globalAlpha = (i / n) * 0.35; ctx.lineWidth = (i / n) * 5; ctx.strokeStyle = this.col[0];
       ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
     }
     ctx.globalAlpha = 1;
 
-    if (this.c('ghost')) { ctx.globalAlpha = 0.2; drawFigure(ctx, this.points(this.target), '#07f', '#07f', 3); ctx.globalAlpha = 1; }
-    const P = this.points(this.disp);
-    if (this.flashT > 0 && this.c('flash')) { drawFigure(ctx, P, '#111', '#111', 9); drawFigure(ctx, P, '#fff', '#fff', 5); }
-    else drawFigure(ctx, P, this.col[0], this.col[1], 5);
+    if (this.c('ghost')) { ctx.globalAlpha = 0.2; drawFigure(ctx, this.ch, this.points(this.target), '#07f', '#07f', -2); ctx.globalAlpha = 1; }
+    const P = this.body();
+    if (this.flashT > 0 && this.c('flash')) { drawFigure(ctx, this.ch, P, '#111', '#111', 4); drawFigure(ctx, this.ch, P, '#fff', '#fff'); }
+    else drawFigure(ctx, this.ch, P, this.col[0], this.col[1]);
 
     if (this.comboT > 0 && this.comboShown > 1) {
       ctx.globalAlpha = Math.min(1, this.comboT * 3);
