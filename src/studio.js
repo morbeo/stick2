@@ -53,6 +53,7 @@ function recompile() {
   if (!ch.by[studio.sel]) studio.sel = ch.ids[0];
   if (!ch.by[CFG.scope]) CFG.scope = ch.ids[0];
   for (const w of mode().worlds()) w.swapChar(old, ch);
+  mode().changed?.();
   if (ch.ids.join() !== old.ids.join()) panels(); else syncAll();
 }
 

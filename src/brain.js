@@ -104,7 +104,7 @@ const SCENARIOS = {
 
 // gallery: one looping cell per attack, forced with '@' so no input logic gets in the way
 const GALLERY = ['jab', 'cross', 'uppercut', 'kick', 'roundhouse', 'sweep', 'dashPunch', 'airKick', 'airPunch'];
-const galleryScen = m => ({
-  a: m.startsWith('air') ? ['jump', m === 'airPunch' ? 0.4 : 0.15, '@' + m] : [0.1, '@' + m], b: 'dummy',
+const galleryScen = (m, air = m.startsWith('air')) => ({
+  a: air ? ['jump', m === 'airPunch' ? 0.4 : 0.15, '@' + m] : [0.1, '@' + m], b: 'dummy',
   ax: 330, bx: m === 'dashPunch' ? 430 : 375, period: 2.4,
 });

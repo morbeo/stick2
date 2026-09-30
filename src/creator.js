@@ -134,9 +134,6 @@ function creatorMouse(type, x, y, e) {
   } else { creator.drag = null; studio.lastKey = null; }
 }
 function creatorKey(e) {
-  const mod = e.metaKey || e.ctrlKey;
-  if (mod && e.code === 'KeyZ') { e.shiftKey ? redo() : undo(); return true; }
-  if (mod && e.code === 'KeyY') { redo(); return true; }
   if (creator.expOn) { if (e.code === 'Escape') { setExp(false); return true; } return; }
   if (e.code === 'Delete' || e.code === 'Backspace') { deleteBone(); return true; }
 }
