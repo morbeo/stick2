@@ -25,6 +25,10 @@ const SCHEMA = [
   { k: 'hitstopDecay', v: 0.9, min: 0.5, max: 1, step: 0.01 },    // multiplier per combo hit
   { k: 'hitstopBudget', v: 0.35, min: 0, max: 1, step: 0.05 },    // max frozen seconds per second (0 = off)
   { k: 'hitShake', v: 3, min: 0, max: 8, step: 0.5 },             // victim jitter while frozen (px)
+  ['Collision'],
+  { k: 'hitTest', v: 'drawn', opts: ['drawn', 'target', 'swept', 'limb'] },
+  { k: 'hitR', v: 0, min: 0, max: 12, step: 1 },                  // hitbox radius added around the strike (px)
+  { k: 'impact', v: 1, min: 0, max: 3, step: 0.1 },               // how hard a blow spins the struck bones
   ['Juice'],
   { k: 'shake', v: 14, min: 0, max: 40, step: 1 },
   { k: 'zoomPunch', v: 0.04, min: 0, max: 0.15, step: 0.005 },
@@ -68,6 +72,12 @@ function distSeg(p, a, b) {
   const dx = b[0] - a[0], dy = b[1] - a[1];
   const t = clamp(((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1), 0, 1);
   return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
+}
+// distance between segments ab and cd (0 when they cross)
+function distSegSeg(a, b, c, d) {
+  const cr = (o, p, q) => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
+  if (cr(a, b, c) * cr(a, b, d) < 0 && cr(c, d, a) * cr(c, d, b) < 0) return 0;
+  return Math.min(distSeg(a, c, d), distSeg(b, c, d), distSeg(c, a, b), distSeg(d, a, b));
 }
 
 const EASE = {

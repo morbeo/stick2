@@ -132,6 +132,11 @@ function makeCharacter(def) {
     b.flex = b.min !== undefined && Math.abs(b.min) > Math.abs(b.max) ? -1 : 1; // the way the joint bends furthest
     b.kids = order.filter(k => k.parent === b.id);
   }
+  // rough rotational inertia: everything hanging off a bone has to turn with it
+  for (const b of [...order].reverse()) {
+    b.mass = b.len + b.kids.reduce((s, k) => s + k.mass, 0);
+    b.inertia = (b.mass + 30) ** 2 / 3;
+  }
   // limb chains per role: start where the parent has another role, follow the first child of the same role
   const chains = { spine: [], head: [], arm: [], leg: [], tail: [] };
   for (const b of order) if (!b.parent || by[b.parent].role !== b.role) {
@@ -170,6 +175,16 @@ function makeHurt(pose, stun, rand, stance) {
   ] };
 }
 const resolve = (base, p) => p ? { ...base, ...p } : base;
+// startup / active / recovery in 60 fps frames
+function frameData(m, speed = 1) {
+  const f = { startup: 0, active: 0, recovery: 0 };
+  let seen = false;
+  for (const k of m.keys) {
+    const n = k.d * 60 / (m.power ? speed : 1);
+    if (k.active) { f.active += n; seen = true; } else f[seen ? 'recovery' : 'startup'] += n;
+  }
+  return mapVals(f, Math.round);
+}
 
 // forward kinematics, hip (root) at origin, y down. dir in [-1, 1] (fractional while turning). lens: stretched lengths
 function fk(ch, p, dir, lens) {

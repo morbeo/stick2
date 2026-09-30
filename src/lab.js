@@ -143,7 +143,8 @@ function drawPlot(c, r) {
       x += kw;
     });
     if (at !== null) { ctx.fillStyle = '#222'; ctx.fillRect(at - dpr, r.y + r.h * 0.4, 2 * dpr, r.h * 0.6); }
-    note(`${Math.round(total / cfg.attackSpeed * 1000)}ms  red = active frames`);
+    const f = frameData(m, cfg.attackSpeed), adv = w.adv === null ? '' : `  ${w.adv >= 0 ? '+' : ''}${w.adv} on hit`;
+    note(`${f.startup}f startup · ${f.active} active · ${f.recovery} recovery${adv}`);
   } else {
     const all = w.hist.tgt.concat(w.hist.disp), lo = Math.min(...all) - 5, hi = Math.max(...all) + 5;
     series(ctx, w.hist.tgt, r, lo, hi, '#bbb', HIST);

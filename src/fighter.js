@@ -54,10 +54,11 @@ class Fighter {
     return b === 'punch' ? 'jab' : 'kick';
   }
   start(m) {
-    this.action = { m: typeof m === 'string' ? this.ch.moves[m] : m, i: 0, t: 0, from: { ...this.target }, hit: false };
+    this.action = { m: typeof m === 'string' ? this.ch.moves[m] : m, i: 0, t: 0, from: { ...this.target }, hit: false, hits: [] };
   }
 
-  update(dt, inp, opp) {
+  // foes: every fighter on another team (one move can hit several)
+  update(dt, inp, foes) {
     const c = k => this.c(k);
     this.inp = inp;
     this.time += dt; this.hurtT -= dt; this.flashT -= dt; this.comboT -= dt;
@@ -157,21 +158,44 @@ class Fighter {
       this.lens[j] += (want - this.lens[j]) * (1 - Math.exp(-30 * dt));
     }
 
-    // hits are tested against what is drawn, not the target
-    const a = this.action;
-    if (a && opp && !a.hit && a.m.keys[a.i].active) {
-      const pt = this.body()[a.m.hit];
-      if (opp.hurtBy(pt)) { a.hit = true; this.w.onHit(this, opp, pt, a.m); }
+    const a = this.action, s = a?.m.keys[a.i].active && this.strikeShape(a.m);
+    if (s) for (const o of foes) if (!a.hits.includes(o)) {
+      const h = o.hurtAt(s, c('hitTest') === 'target');
+      if (h) { a.hits.push(o); a.hit = true; this.w.onHit(this, o, h, a.m); }
     }
+    this.lastTip = s ? s[1] : null;
   }
 
-  hurtBy(pt) {
-    if (this.kd === 'down' || this.action?.m.inv) return false;
-    const P = this.body();
-    return this.ch.bones.some(b => b.hurt > 0 && (b.shape === 'circle'
-      ? Math.hypot(pt[0] - P[b.id][0], pt[1] - P[b.id][1]) : distSeg(pt, P[b.parent || 'hip'], P[b.id])) < b.hurt);
+  // the strike this substep as a capsule [from, to, radius], per the collision mode:
+  // drawn = striking joint of the drawn (sprung) pose · target = of the keyframe pose, ignoring springs
+  // swept = path of the drawn joint since last substep (fast strikes can't tunnel) · limb = the whole striking bone
+  strikeShape(m) {
+    const b = this.ch.by[m.hit];
+    if (!b) return null;
+    const mode = this.c('hitTest'), P = mode === 'target' ? this.points(this.target) : this.body(), tip = P[b.id], r = this.c('hitR');
+    if (mode === 'limb') return [P[b.parent || 'hip'], tip, r + b.thick / 2];
+    return [mode === 'swept' && this.lastTip || tip, tip, r];
   }
-  takeHit(att, m) {
+  // the hurt bone the strike overlaps most, or null
+  hurtAt([s0, s1, r], useTarget) {
+    if (this.kd === 'down' || this.action?.m.inv) return null;
+    const P = useTarget ? this.points(this.target) : this.body();
+    let best = null;
+    for (const b of this.ch.bones) if (b.hurt > 0) {
+      const e = P[b.id], d = distSegSeg(s0, s1, b.shape === 'circle' ? e : P[b.parent || 'hip'], e) - b.hurt - r;
+      if (d < 0 && (!best || d < best.d)) best = { d, bone: b, pt: s1 };
+    }
+    return best;
+  }
+  // react to where the blow landed: impact height as a fraction of the body's height
+  zone(pt) {
+    const P = this.body(), g = this.groundY + this.y;
+    let top = g;
+    for (const b of this.ch.bones) top = Math.min(top, P[b.id][1] - (b.shape === 'circle' ? b.len : 0));
+    const f = (g - pt[1]) / (g - top || 1);
+    return f > 0.68 ? 'high' : f > 0.28 ? 'mid' : 'low';
+  }
+  takeHit(att, m, hit) {
     const combo = this.combo = (this.free ? 0 : this.combo) + 1;
     this.comboShown = combo; this.comboT = 1; this.comboPop = 1;
     const juggle = this.kd === 'fly' || !this.grounded;
@@ -181,17 +205,22 @@ class Fighter {
       this.kd = 'fly'; this.bounced = false; this.grounded = false; this.action = null; this.hurtT = 0;
       this.vy = -(m.launch || 300);
     } else {
-      const set = this.ch.hurt[m.height].filter(p => p !== this.lastHurt);
+      const set = this.ch.hurt[this.zone(hit.pt)].filter(p => p !== this.lastHurt);
       this.lastHurt = set[Math.floor(this.w.rand() * set.length)];
       const stun = m.stun * Math.max(0.45, 1 - 0.07 * (combo - 1)); // long combos stun less
       this.start(makeHurt(this.lastHurt, stun, this.w.rand, this.ch.poses.stance));
       this.hurtT = stun;
     }
-    // kick the limb springs so every impact lands a little differently
-    const k = 200 * m.power;
-    for (const b of this.ch.bones) this.flt[b.id].yd += this.w.rand(-1, 1) * k * (b.lag + 0.5);
-    if (m.height === 'high') for (const c of this.ch.chains.head) this.jolt(c[c.length - 1], -4 * k); // head snaps back
-    else if (m.height === 'mid') this.jolt(this.ch.chains.spine[0]?.[0], 2 * k); // folds over
+    // impact: the blow spins every bone from the struck one down to the hips, harder on a longer lever
+    // and lighter bones; the push is along the attack, lifting for launchers
+    const P = this.body(), sd = Math.sign(this.face) || 1, k = 30000 * m.power * this.c('impact');
+    const fx = att.dir, fy = m.launch ? -0.6 : m.height === 'low' ? 0 : -0.2, fn = Math.hypot(fx, fy);
+    for (let b = hit.bone; b; b = this.ch.by[b.parent]) {
+      const o = P[b.parent || 'hip'], rx = hit.pt[0] - o[0], ry = hit.pt[1] - o[1];
+      this.flt[b.id].yd += (fx * ry - fy * rx) * sd / fn * k / b.inertia; // force · tangent of the pivot's rotation
+    }
+    // plus a little noise so repeated hits never land identically
+    for (const b of this.ch.bones) this.flt[b.id].yd += this.w.rand(-1, 1) * 80 * m.power * (b.lag + 0.5);
     this.sqv -= this.c('squash') * 15 * m.power;
   }
 

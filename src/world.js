@@ -2,13 +2,15 @@
 // ---------- world: one self-contained fight (the grid runs nine of them side by side) ----------
 const W = 800, H = 450, GROUND = 360;
 const INK = ['#222', '#8a8580'], RED = ['#c0392b', '#e0998f'];
+const COLS = [INK, RED, ['#2c6fb0', '#94b7d8'], ['#2e8b57', '#97c5ab'], ['#8e44ad', '#c6a2d6'], ['#b9770e', '#e0c08a']];
 const NOIN = { left: false, right: false, down: false, jump: false, punch: false, kick: false };
 const HIST = 240;
 
 class World {
-  // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, period? } (see brain.js)
-  constructor(scen, over = {}, seed = 1) {
-    Object.assign(this, { scen, over, seed, groundY: GROUND, loop: true });
+  // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, more?, period? } (see brain.js)
+  // chars: character per fighter slot (the last one fills the rest); default = the stick fighter
+  constructor(scen, over = {}, seed = 1, chars = null) {
+    Object.assign(this, { scen, over, seed, chars, groundY: GROUND, loop: true, camW: 420 });
     this.cfg = Object.assign(Object.create(CFG), over);
     this.reset();
   }
@@ -16,12 +18,22 @@ class World {
     const s = this.scen, scripted = Array.isArray(s.a);
     Object.assign(this, { rand: makeRand(this.seed), parts: [], trauma: 0, zoom: 0, slowT: 0, T: 0, simT: 0,
       frozenT: 0, hits: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
-      hist: { tgt: [], disp: [], vx: [], y: [] } });
-    this.a = new Fighter(this, s.ax ?? (scripted ? 330 : 300), 1, INK, CHARS.stick);
-    this.b = new Fighter(this, s.bx ?? (scripted ? 375 : 500), -1, RED, CHARS.stick);
-    this.fighters = [this.a, this.b];
-    this.ctl = [makeCtl(s.a, this), makeCtl(s.b, this)];
+      pend: null, adv: null, hist: { tgt: [], disp: [], vx: [], y: [] } });
+    // a vs b, plus any extra fighters: { c: controller, x, team }
+    const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0 }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1 }, ...(s.more || [])];
+    const chars = this.chars || [CHARS.stick];
+    this.fighters = specs.map((sp, i) => Object.assign(
+      new Fighter(this, sp.x, i < 2 ? 1 - 2 * i : sp.x < W / 2 ? 1 : -1, COLS[i % COLS.length], chars[Math.min(i, chars.length - 1)]),
+      { team: sp.team ?? i }));
+    [this.a, this.b] = this.fighters;
+    this.ctl = specs.map(sp => makeCtl(sp.c, this));
     this.cam = (this.a.x + this.b.x) / 2;
+  }
+  foes(f) { return this.fighters.filter(o => o.team !== f.team); }
+  nearestFoe(f) {
+    let best = null;
+    for (const o of this.foes(f)) if (!best || Math.abs(o.x - f.x) < Math.abs(best.x - f.x)) best = o;
+    return best;
   }
   get frozen() { return this.fighters.some(f => f.freeze > 0); }
 
@@ -50,30 +62,40 @@ class World {
     if (this.frozen) this.frozenT += h;
     this.updateParticles(h);
 
-    const [a, b] = this.fighters;
-    const ins = this.ctl.map((c, i) => !c ? NOIN : c === 'human' ? inp : c.input(this.fighters[i], this.fighters[1 - i], h));
-    this.fighters.forEach((f, i) => f.bufferInput(ins[i]));
-    this.fighters.forEach((f, i) => {
+    const fs = this.fighters, tg = fs.map(f => this.nearestFoe(f));
+    const ins = this.ctl.map((c, i) => c === 'human' ? inp : !c || !tg[i] ? NOIN : c.input(fs[i], tg[i], h));
+    fs.forEach((f, i) => f.bufferInput(ins[i]));
+    fs.forEach((f, i) => {
       if (f.freeze > 0) f.freeze -= h; // hit stop: this fighter sits out the substep
-      else f.update(h, ins[i], this.fighters[1 - i]);
+      else f.update(h, ins[i], this.foes(f));
     });
-    // push apart (unless someone is knocked down), then face each other
-    const d = b.x - a.x;
-    if (Math.abs(d) < 38 && Math.abs(a.y - b.y) < 60 && !a.kd && !b.kd) {
-      const push = (38 - Math.abs(d)) / 2 * (Math.sign(d) || 1);
-      a.x -= push; b.x += push;
+    // push apart (unless someone is knocked down), then face the nearest foe
+    for (let i = 0; i < fs.length; i++) for (let j = i + 1; j < fs.length; j++) {
+      const a = fs[i], b = fs[j], d = b.x - a.x;
+      if (Math.abs(d) < 38 && Math.abs(a.y - b.y) < 60 && !a.kd && !b.kd) {
+        const push = (38 - Math.abs(d)) / 2 * (Math.sign(d) || 1);
+        a.x -= push; b.x += push;
+      }
     }
-    for (const [f, o] of [[a, b], [b, a]])
-      if (!f.action && f.free && f.grounded) f.dir = Math.sign(o.x - f.x) || f.dir;
+    fs.forEach((f, i) => { if (tg[i] && !f.action && f.free && f.grounded) f.dir = Math.sign(tg[i].x - f.x) || f.dir; });
+
+    // frame advantage of the last hit: who can act first afterwards, in 60 fps frames (+ = attacker)
+    const pd = this.pend;
+    if (pd) {
+      if (pd.at === null && idle(pd.att)) pd.at = this.simT;
+      if (pd.vt === null && idle(pd.vic)) pd.vt = this.simT;
+      if (pd.at !== null && pd.vt !== null) { this.adv = Math.round((pd.vt - pd.at) * 60); this.pend = null; }
+    }
 
     const p = this.scen.period;
     if (p && this.simT >= p) { if (this.loop) this.reset(); else this.done = true; }
   }
 
   // ---------- juice ----------
-  onHit(att, vic, pt, m) {
-    const cfg = this.cfg;
-    vic.takeHit(att, m);
+  onHit(att, vic, hit, m) {
+    const cfg = this.cfg, pt = hit.pt;
+    vic.takeHit(att, m, hit);
+    this.pend = { att, vic, at: null, vt: null };
     const fin = vic.kd === 'fly', power = m.power * (fin ? cfg.hitstopFin : 1);
     // freeze shrinks along a combo, and a budget caps total frozen time so long strings don't turn to stop-motion
     const want = cfg.hitstop * power * cfg.hitstopDecay ** (vic.combo - 1);
@@ -131,8 +153,10 @@ class World {
 
   // draw into rect r (device px). full = whole arena, otherwise a closer camera following the fight
   render(ctx, r, full) {
-    const cfg = this.cfg, vw = full ? W : 420, vh = vw * H / W;
-    const mid = (this.a.x + this.b.x) / 2;
+    // the camera widens to keep every fighter in view
+    const xs = this.fighters.map(f => f.x), lo = Math.min(...xs), hi = Math.max(...xs), mid = (lo + hi) / 2;
+    this.camW += (clamp(hi - lo + 260, 420, W) - this.camW) * 0.15;
+    const cfg = this.cfg, vw = full ? W : this.camW, vh = vw * H / W;
     this.cam += (clamp(mid, vw / 2 - 20, W - vw / 2 + 20) - this.cam) * 0.15;
     const cx = full ? W / 2 : this.cam, cy = full ? H / 2 : this.groundY - vh * 0.3;
     const s = Math.min(r.w / vw, r.h / vh) * (1 + this.zoom), tr = this.trauma ** 2 * cfg.shake;
