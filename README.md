@@ -5,7 +5,7 @@ A minimal 2D stick-figure fighting engine for the browser: procedural skeleton, 
 Open `index.html` directly (no build step), or play it on GitHub Pages: https://morbeo.github.io/stick2/
 
 - **play**: one fight (you / engine AI / dummy / scripted scenarios)
-- **grid**: 3x3 sweep of any tunable (or X x Y), every cell replaying the same seeded fight
+- **grid**: 3x3 sweep of any tunable (or X x Y), every cell replaying the same seeded fight; **breed** gives the cells random values of the settings you pick around a parent (click the best cell to breed around it); **attacks** generates random attacks for the current character (IK-posed on any limb end), breeds them, and saves one as a move or opens it in animate
 - **gallery**: every attack looping with its keyframe timeline and frame data (startup / active / recovery, advantage on hit)
 - **character**: drag joints to set length and stance angle, add role-based limbs (arms, legs, tails, heads, joints), tune bone properties (stretch, follow-through, stiffness…) and watch the live preview fight; **experiment** breeds a 3x3 grid of body variations around the cell you click
 - **animate**: pose keyframes by dragging joints (IK; Alt = rotate one bone), retime keys on a 60 fps timeline, set easing / active frames / lunge and hit properties, onion skins, **aim** (the striking limb follows the cursor) and a live preview with springs and hit stop

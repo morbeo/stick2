@@ -115,14 +115,17 @@ function ikChain(ch, id, single) {
 }
 const limit = (b, v) => b.min === undefined ? v : clamp(v, b.min, b.max);
 const wrap = d => ((d % 360) + 540) % 360 - 180;
-// cyclic coordinate descent: turn each joint so the dragged end points at the target, a few rounds
-function poseTo(id, x, y, single) {
-  const f = anFrame(), ch = f.ch, target = f.toLocal(x, y), pose = { ...f.pose }, chain = ikChain(ch, id, single);
+// cyclic coordinate descent: turn each joint of the chain so the end of bone id points at the target (rig space)
+function ik(ch, pose, id, target, chain, rounds = 12) {
   const ang = (p, q) => Math.atan2(q[0] - p[0], q[1] - p[1]) / R;
-  for (let it = 0; it < (single ? 1 : 12); it++) for (const b of chain) {
+  for (let it = 0; it < rounds; it++) for (const b of chain) {
     const P = fk(ch, pose, 1), pv = P[b.parent || 'hip'];
     pose[b.id] = limit(b, pose[b.id] + wrap(ang(pv, target) - ang(pv, P[id])));
   }
+  return pose;
+}
+function poseTo(id, x, y, single) {
+  const f = anFrame(), ch = f.ch, chain = ikChain(ch, id, single), pose = ik(ch, { ...f.pose }, id, f.toLocal(x, y), chain, single ? 1 : 12);
   edit(def => {
     const k = def.moves[anim.move].keys[anim.key];
     k.p = k.p || {};

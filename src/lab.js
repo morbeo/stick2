@@ -2,7 +2,7 @@
 // ---------- fight modes: play / grid (parameter sweep) / gallery (every move); each cell is an independent World ----------
 const canvas = $('c'), ctx = canvas.getContext('2d');
 let dpr = 1;
-const lab = { mode: 'play', scen: 'you vs dummy', x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false };
+const lab = { mode: 'play', scen: 'you vs dummy', x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep' };
 const newWorld = (...a) => Object.assign(new World(...a), { loop: app.loop });
 
 // what the little plot under a grid cell shows, by the swept variable
@@ -36,6 +36,7 @@ function build() {
   lab.cells = []; lab.cols = 3; lab.zoom = false;
   if (lab.mode === 'play') { lab.cells.push({ w: newWorld(scen) }); lab.cols = 1; }
   else if (lab.mode === 'gallery') for (const m of galleryMoves()) lab.cells.push({ w: newWorld(galleryScen(m)), move: m, label: m });
+  else if (lab.kind !== 'sweep') lab.cells = lab.kind === 'breed' ? breedCells() : attackCells();
   else {
     const xs = axisValues(lab.x, lab.y.k ? 3 : 9), ys = lab.y.k ? axisValues(lab.y, 3) : [null];
     if (lab.y.k) lab.cols = xs.length;
@@ -85,7 +86,7 @@ function labRender() {
   clear();
   const cells = shown(), play = lab.mode === 'play', rects = cellRects(cells.length, lab.zoom ? 1 : lab.cols, fullArea());
   cells.forEach((c, i) => drawCell(c, rects[i], { full: play, plot: !play,
-    selected: !play && !lab.zoom && (c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) : c === lab.focus) }));
+    selected: !play && !lab.zoom && (lab.mode === 'grid' && lab.kind !== 'sweep' ? c.parent : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) : c === lab.focus) }));
   drawScope();
 }
 
@@ -119,7 +120,7 @@ function stepResponse(cfg, depth) {
 }
 
 function drawPlot(c, r) {
-  const w = c.w, cfg = w.cfg, kind = c.move ? 'timeline' : c.over ? plotKind(lab.x.k) : 'scope';
+  const w = c.w, cfg = w.cfg, kind = c.move ? 'timeline' : c.over ? plotKind(c.plot ?? lab.x.k) : 'scope';
   const note = s => text(s, r.x + 4 * dpr, r.y + 11 * dpr, '#aaa', 10);
   if (kind === 'spring') {
     hline(r, -0.5, 1.8, 0); hline(r, -0.5, 1.8, 1);
@@ -236,8 +237,11 @@ function axisButton(ax, name) {
 }
 function labCtx() {
   if (lab.mode === 'gallery') return [h('span', { cls: 'note', textContent: 'click a move to focus it' })];
-  const els = [scenButton(k => { lab.scen = k; build(); })];
-  if (lab.mode === 'grid') {
+  const els = [];
+  if (lab.mode === 'grid') els.push(seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS));
+  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(scenButton(k => { lab.scen = k; build(); }));
+  if (lab.mode === 'grid' && lab.kind !== 'sweep') els.push(...breedCtx());
+  else if (lab.mode === 'grid') {
     const adopt = button('use these values', 'Copy the focused cell\'s values into the settings (side panel)', () => Object.assign(CFG, lab.focus.over));
     const back = button('◱ back to grid', 'Show all cells again (Esc)', () => { lab.zoom = false; });
     reg(adopt, () => { adopt.hidden = !lab.zoom; }); reg(back, () => { back.hidden = !lab.zoom; });
@@ -269,11 +273,14 @@ function configPanel() {
 }
 const labSide = () => [scopeCv, stats, ...configPanel()];
 
-function labClick(x, y) {
+// click focuses a cell; in breed / attacks a click breeds around it and Shift+click focuses
+function labClick(x, y, e) {
   if (lab.mode === 'play') return;
   if (lab.zoom) { lab.zoom = false; return; }
   const i = hitRect(cellRects(lab.cells.length, lab.cols, fullArea()), x, y);
-  if (i >= 0) { lab.focus = lab.cells[i]; lab.zoom = true; }
+  if (i < 0) return;
+  lab.focus = lab.cells[i];
+  if (lab.mode === 'grid' && lab.kind !== 'sweep' && !e.shiftKey) breedFrom(lab.cells[i]); else lab.zoom = true;
 }
 
 const labMode = {
@@ -283,7 +290,8 @@ const labMode = {
   render: labRender,
   ctxBar: labCtx,
   side: labSide,
-  mouse(type, x, y) { if (type === 'down') labClick(x, y); },
+  mouse(type, x, y, e) { if (type === 'down') labClick(x, y, e); },
   key(e) { if (e.code === 'Escape' && lab.zoom) { lab.zoom = false; return true; } },
-  hint: () => lab.mode === 'play' ? 'A/D move · W jump · S crouch · J punch · K kick' : 'click a cell to focus it · Esc back',
+  hint: () => lab.mode === 'play' ? 'A/D move · W jump · S crouch · J punch · K kick'
+    : lab.mode === 'grid' && lab.kind !== 'sweep' ? 'click a cell: breed around it · Shift+click: focus · Esc back' : 'click a cell to focus it · Esc back',
 };
