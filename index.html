@@ -20,7 +20,7 @@
 <body>
 <canvas id="c"></canvas>
 <div id="panel"></div>
-<div id="help">A/D move · W jump · S crouch · J punch · K kick · R reset · H hide panel</div>
+<div id="help">A/D move · W jump · S crouch · J punch · K kick — J,J,J · K,K · J,K · J,J,K · S+K sweep · run+J dash · air J/K — R reset · H panel</div>
 <script>
 'use strict';
 
@@ -52,6 +52,7 @@ const SCHEMA = [
   { k: 'sparks', v: 10, min: 0, max: 40, step: 1 },
   { k: 'trail', v: 8, min: 0, max: 24, step: 1 },
   { k: 'flash', v: true },
+  { k: 'slowmo', v: true },
   { k: 'timeScale', v: 1, min: 0.05, max: 1, step: 0.05 },
   ['Debug'],
   { k: 'ghost', v: false },
@@ -61,7 +62,7 @@ const SCHEMA = [
 const CFG = {}, DEFAULTS = {};
 for (const s of SCHEMA) if (!Array.isArray(s)) DEFAULTS[s.k] = CFG[s.k] = s.v;
 
-const NOJUICE = { hitstop: 0, shake: 0, zoomPunch: 0, squash: 0, sparks: 0, trail: 0, flash: false, jumpSquat: 0 };
+const NOJUICE = { hitstop: 0, shake: 0, zoomPunch: 0, squash: 0, sparks: 0, trail: 0, flash: false, slowmo: false, jumpSquat: 0 };
 const PRESETS = {
   raw: { ...NOJUICE, easing: 'step', filter: 'none', accel: 20000, decel: 20000 },
   tweened: { ...NOJUICE, filter: 'none' },
@@ -74,6 +75,8 @@ const PRESETS = {
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const approach = (v, t, d) => v < t ? Math.min(v + d, t) : Math.max(v - d, t);
 const rand = (a, b) => a + Math.random() * (b - a);
+// smooth pseudo-noise in [-1, 1]
+const wander = x => Math.sin(x) * 0.5 + Math.sin(x * 2.13 + 1.3) * 0.3 + Math.sin(x * 3.71 + 4.1) * 0.2;
 function distSeg(p, a, b) {
   const dx = b[0] - a[0], dy = b[1] - a[1];
   const t = clamp(((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1), 0, 1);
@@ -116,35 +119,100 @@ const DEPTH = { torso: 0, head: 1, afU: 1, afL: 2, abU: 1, abL: 2, lfU: 0, lfL: 
 const STANCE = { torso: 8, head: 0, afU: 35, afL: 115, abU: 15, abL: 125, lfU: 25, lfL: -25, lbU: -18, lbL: 0 };
 const CROUCH = { torso: 22, lfU: 60, lfL: -110, lbU: -10, lbL: -70 };
 const AIR = { torso: 4, lfU: 55, lfL: -95, lbU: -10, lbL: -45, afU: 55, afL: 95, abU: 40, abL: 100 };
+const AIR_FALL = { torso: 6, lfU: 28, lfL: -35, lbU: -18, lbL: -20, afU: 75, afL: 60, abU: 65, abL: 70 };
+const FALL = { torso: -55, head: -20, afU: 140, afL: 30, abU: 110, abL: 50, lfU: 60, lfL: -50, lbU: 30, lbL: -30 };
+const LIE = { torso: -92, head: 0, afU: 150, afL: 15, abU: 30, abL: 20, lfU: 88, lfL: -8, lbU: 78, lbL: -25 };
+// slow idle wander amplitude; legs excluded so planted feet don't slide
+const WANDER = { torso: 1.5, head: 3, afU: 4, afL: 6, abU: 4, abL: 6 };
+// applied after the filter so spring overshoot never hyperextends a joint
+const LIMITS = { afL: [-10, 165], abL: [-10, 165], lfL: [-165, 8], lbL: [-165, 8] };
 
-// keys: d = duration (s), e = authored easing, p = partial pose (null = return to base), active = hitbox live
+// the common attack shape: anticipation -> strike -> hold (both active) -> recover
+const attack = (o, [ad, ap], [sd, sp], hd, rd) => ({ ...o, keys: [
+  { d: ad, e: 'outQuad', p: ap },
+  { d: sd, e: 'outExpo', p: sp, active: true, lunge: o.lunge },
+  { d: hd, p: sp, active: true },
+  { d: rd, e: 'inOutCubic', p: null },
+] });
+// keys: d = duration (s), e = easing, p = partial pose (null = back to base). hit = striking joint.
+// next = chain targets, usable once the active frames are over.
 const MOVES = {
-  punch: { power: 1, hit: 'hand', keys: [
-    { d: 0.07, e: 'outQuad', p: { torso: 0, afU: 10, afL: 135, abU: 30 } },
-    { d: 0.05, e: 'outExpo', p: { torso: 18, afU: 98, afL: 0, abU: -15, abL: 130 }, active: true },
-    { d: 0.07, p: { torso: 18, afU: 96, afL: 4, abU: -15, abL: 130 }, active: true },
-    { d: 0.16, e: 'inOutCubic', p: null },
+  jab: attack({ power: 1, hit: 'fh', height: 'high', knock: 120, stun: 0.32, next: { punch: 'cross', kick: 'kick' } },
+    [0.06, { torso: 0, afU: 10, afL: 135, abU: 30 }],
+    [0.05, { torso: 18, afU: 98, afL: 0, abU: -15, abL: 130 }], 0.06, 0.16),
+  cross: attack({ power: 1.1, hit: 'bh', height: 'high', knock: 140, stun: 0.36, lunge: 120, next: { punch: 'uppercut', kick: 'roundhouse' } },
+    [0.06, { torso: 4, abU: 5, abL: 140, afU: 40, afL: 120 }],
+    [0.05, { torso: 26, abU: 112, abL: 0, afU: 20, afL: 130, lbU: -28, lbL: 0, lfU: 30 }], 0.07, 0.18),
+  // custom shape: the strike drives forward into the body, the follow-through rises
+  uppercut: { power: 1.6, hit: 'fh', height: 'high', knock: 120, launch: 520, kd: true, keys: [
+    { d: 0.08, e: 'outQuad', p: { torso: 28, afU: -10, afL: 90, abU: 40, abL: 120, lfU: 45, lfL: -70, lbU: -25, lbL: -30 } },
+    { d: 0.06, e: 'outExpo', p: { torso: 20, afU: 115, afL: 50, abU: 0, abL: 130, lfU: 30, lfL: -25, lbU: -22, lbL: 0 }, active: true, lunge: 220 },
+    { d: 0.09, e: 'outQuad', p: { torso: 6, afU: 150, afL: 35, abU: 0, abL: 130, lfU: 22, lfL: -10, lbU: -22, lbL: 0 }, active: true },
+    { d: 0.26, e: 'inOutCubic', p: null },
   ] },
-  kick: { power: 1.5, hit: 'foot', keys: [
-    { d: 0.10, e: 'outQuad', p: { torso: -5, lfU: 75, lfL: -120, afU: 20, abU: 40 } },
-    { d: 0.07, e: 'outExpo', p: { torso: -28, lfU: 100, lfL: -5, lbU: -10, lbL: 0, afU: -10, afL: 60, abU: 60 }, active: true },
-    { d: 0.09, p: { torso: -28, lfU: 98, lfL: -8, lbU: -10, lbL: 0, afU: -10, afL: 60, abU: 60 }, active: true },
-    { d: 0.22, e: 'inOutCubic', p: null },
-  ] },
-  hurt: { keys: [
-    { d: 0.05, e: 'outExpo', p: { torso: -22, head: -25, afU: -20, afL: 40, abU: -40, abL: 30 } },
-    { d: 0.14, p: { torso: -18, head: -18, afU: -15, afL: 50, abU: -30, abL: 40 } },
-    { d: 0.25, e: 'outCubic', p: null },
+  kick: attack({ power: 1.3, hit: 'ff', height: 'mid', knock: 200, stun: 0.4, next: { kick: 'roundhouse', punch: 'cross' } },
+    [0.09, { torso: -5, lfU: 75, lfL: -120, afU: 20, abU: 40 }],
+    [0.07, { torso: -28, lfU: 100, lfL: -5, lbU: -10, lbL: 0, afU: -10, afL: 60, abU: 60 }], 0.08, 0.22),
+  roundhouse: attack({ power: 1.7, hit: 'bf', height: 'high', knock: 380, launch: 280, kd: true, lunge: 160 },
+    [0.09, { torso: -8, lbU: 30, lbL: -120, lfU: 5, lfL: -10, afU: 50, afL: 100, abU: -20, abL: 80 }],
+    [0.07, { torso: -32, lbU: 118, lbL: -8, lfU: 2, lfL: 0, afU: -20, afL: 60, abU: 70, abL: 40 }], 0.09, 0.26),
+  sweep: attack({ power: 1.2, hit: 'ff', height: 'low', knock: 150, launch: 250, kd: true },
+    [0.07, { torso: 30, lbU: -5, lbL: -120, lfU: 40, lfL: -110, afU: -20, afL: 60, abU: -30, abL: 40 }],
+    [0.08, { torso: 40, lfU: 84, lfL: -2, lbU: 10, lbL: -125, afU: -40, afL: 30, abU: -50, abL: 30 }], 0.08, 0.24),
+  dashPunch: attack({ power: 1.4, hit: 'fh', height: 'mid', knock: 380, stun: 0.5, lunge: 450, next: { punch: 'uppercut' } },
+    [0.05, { torso: 10, afU: 20, afL: 130 }],
+    [0.06, { torso: 30, afU: 110, afL: 0, abU: -40, abL: 60, lfU: 50, lfL: -40, lbU: -40, lbL: 0 }], 0.12, 0.22),
+  airKick: attack({ power: 1.3, hit: 'ff', height: 'high', knock: 250, stun: 0.4, air: true },
+    [0.06, { torso: -10, lfU: 60, lfL: -110, lbU: 10, lbL: -100 }],
+    [0.06, { torso: -25, lfU: 70, lfL: -3, lbU: -5, lbL: -90, afU: 40, afL: 90, abU: 60, abL: 60 }], 0.25, 0.15),
+  airPunch: attack({ power: 1.1, hit: 'fh', height: 'high', knock: 160, stun: 0.36, air: true },
+    [0.05, { torso: 5, afU: 150, afL: 60 }],
+    [0.06, { torso: 25, afU: 75, afL: 0, abU: -20, abL: 120 }], 0.12, 0.15),
+  getup: { inv: true, keys: [
+    { d: 0.18, e: 'outCubic', p: { torso: -30, head: 10, lfU: 75, lfL: -130, lbU: 60, lbL: -140, afU: -40, afL: 20, abU: -60, abL: 10 } },
+    { d: 0.16, e: 'outCubic', p: { ...CROUCH, afU: 30, afL: 110, abU: 20, abL: 120 } },
+    { d: 0.2, e: 'inOutCubic', p: null },
   ] },
 };
+for (const m of Object.values(MOVES)) m.cancel = m.keys.findLastIndex(k => k.active) + 1;
+
+const HURT = {
+  high: [
+    { torso: -22, head: -28, afU: -20, afL: 40, abU: -40, abL: 30 },
+    { torso: -30, head: -10, afU: 140, afL: 40, abU: 100, abL: 60 },
+  ],
+  mid: [
+    { torso: 35, head: 15, afU: 20, afL: 100, abU: 10, abL: 110, lfU: 30, lfL: -45, lbU: -15, lbL: -20 },
+    { torso: 25, head: -10, afU: -30, afL: 60, abU: 60, abL: 20 },
+  ],
+  low: [
+    { torso: 15, lfU: 50, lfL: -80, lbU: -10, lbL: -40, afU: 60, afL: 40, abU: -40, abL: 50 },
+    { torso: -10, head: 10, lfU: 5, lfL: -60, lbU: -30, lbL: -30, afU: 80, afL: 30, abU: 70, abL: 40 },
+  ],
+};
+// a reaction pose, randomized so repeated hits never look identical
+function makeHurt(pose, stun) {
+  const hit = {}, hold = {};
+  for (const k in pose) {
+    const s = STANCE[k];
+    hit[k] = pose[k] + (pose[k] - s) * rand(-0.25, 0.2) + rand(-5, 5);
+    hold[k] = hit[k] * 0.8 + s * 0.2;
+  }
+  return { hurt: true, keys: [
+    { d: 0.05, e: 'outExpo', p: hit },
+    { d: Math.max(0.04, stun - 0.1), e: 'outQuad', p: hold },
+    { d: 0.22, e: 'outCubic', p: null },
+  ] };
+}
 const resolve = (base, p) => p ? { ...base, ...p } : base;
 
-// forward kinematics, hip at origin, y down
+// forward kinematics, hip at origin, y down. dir in [-1, 1] (fractional while turning)
 function fk(p, dir) {
   const R = Math.PI / 180;
   const add = (o, a, l) => [o[0] + Math.sin(a * R) * l * dir, o[1] + Math.cos(a * R) * l];
-  const hip = [0, 0], tA = 180 - p.torso, dA = -p.torso, hA = tA - p.head;
-  const sh = add(hip, tA, B.torso), neck = add(sh, hA, B.neck), head = add(neck, hA, B.head);
+  const tA = 180 - p.torso, dA = -p.torso;
+  const hA = tA - p.head + clamp(p.torso, -25, 25) * 0.5; // head only half-follows the torso
+  const hip = [0, 0], sh = add(hip, tA, B.torso), neck = add(sh, hA, B.neck), head = add(neck, hA, B.head);
   const fe = add(sh, dA + p.afU, B.uArm), fh = add(fe, dA + p.afU + p.afL, B.lArm);
   const be = add(sh, dA + p.abU, B.uArm), bh = add(be, dA + p.abU + p.abL, B.lArm);
   const fkn = add(hip, p.lfU, B.thigh), ff = add(fkn, p.lfU + p.lfL, B.shin);
@@ -157,61 +225,96 @@ const W = 800, H = 450;
 const INK = ['#222', '#8a8580'], RED = ['#c0392b', '#e0998f'];
 const NOIN = { left: false, right: false, down: false, jump: false, punch: false, kick: false };
 let fighters = [], player, dummy, focus, victim = null;
-let hitstopT = 0, trauma = 0, zoom = 0, T = 0;
+let hitstopT = 0, slowT = 0, trauma = 0, zoom = 0, T = 0;
 const parts = [], scope = { a: [], b: [] };
 
 class Fighter {
   constructor(x, groundY, dir, col, over = {}) {
-    Object.assign(this, { x, groundY, dir, col, over, y: 0, vx: 0, vy: 0, grounded: true, time: 0, walkPh: 0,
-      action: null, buffer: null, squatT: 0, hurtT: 0, flashT: 0, crouching: false, sq: 0, sqv: 0, trail: [] });
+    Object.assign(this, { x, groundY, dir, face: dir, col, over, y: 0, vx: 0, vy: 0, grounded: true,
+      time: 0, seed: rand(0, 100), walkPh: 0, lean: 0, inp: NOIN,
+      action: null, buffer: null, squatT: 0, hurtT: 0, flashT: 0, crouching: false,
+      kd: null, downT: 0, bounced: false, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
+      sq: 0, sqv: 0, trail: [] });
     this.target = this.basePose();
     this.disp = { ...this.target };
     this.flt = {};
     for (const j of JOINTS) this.flt[j] = new SecondOrder(this.target[j]);
   }
   c(k) { return this.over[k] ?? CFG[k]; }
+  get free() { return this.hurtT <= 0 && !this.kd; }
 
   basePose() {
-    const P = { ...STANCE }, br = Math.sin(this.time * 2.2);
+    const P = { ...STANCE }, t = this.time;
+    if (this.kd) return Object.assign(P, this.kd === 'down' ? LIE : FALL);
+    const br = Math.sin(t * 2.2);
     P.torso += br * 1.5; P.afU += br * 2; P.abU += br * 2; // breathing
-    if (!this.grounded) Object.assign(P, AIR);
-    else if (this.crouching || this.squatT > 0) Object.assign(P, CROUCH);
+    for (const j in WANDER) P[j] += wander(t * 0.8 + this.seed + JOINTS.indexOf(j) * 13) * WANDER[j];
+    if (!this.grounded) {
+      const k = clamp(this.vy / 500, 0, 1); // tuck while rising, reach for the ground while falling
+      for (const j in AIR) P[j] = AIR[j] + (AIR_FALL[j] - AIR[j]) * k;
+    } else if (this.crouching || this.squatT > 0) Object.assign(P, CROUCH);
     else {
-      const w = Math.min(1, Math.abs(this.vx) / this.c('maxSpeed')), ph = this.walkPh;
-      P.lfU += Math.sin(ph) * 28 * w; P.lbU -= Math.sin(ph) * 28 * w;
+      const w = Math.min(1, Math.abs(this.vx) / this.c('maxSpeed')), ph = this.walkPh, s = Math.sin(ph);
+      P.lfU += s * 28 * w; P.lbU -= s * 28 * w;
       P.lfL -= Math.max(0, Math.cos(ph)) * 40 * w; P.lbL -= Math.max(0, -Math.cos(ph)) * 40 * w;
+      P.afU -= s * 22 * w; P.abU += s * 22 * w; // arms counter-swing the legs
+      P.afL += Math.max(0, -s) * 15 * w; P.abL += Math.max(0, s) * 15 * w;
       P.torso += 4 * w * Math.sign(this.vx * this.dir);
     }
+    P.torso += this.lean;
     return P;
   }
 
   bufferInput(inp) {
-    if (inp.punch) this.buffer = { m: 'punch', t: 0.15 };
-    if (inp.kick) this.buffer = { m: 'kick', t: 0.15 };
+    if (inp.punch) this.buffer = { b: 'punch', t: 0.2 };
+    if (inp.kick) this.buffer = { b: 'kick', t: 0.2 };
   }
-  start(m) { this.action = { m: MOVES[m], name: m, i: 0, t: 0, from: { ...this.target }, hit: false }; }
+  pick(b) {
+    const i = this.inp, fwd = (i.right - i.left) * this.dir > 0;
+    if (!this.grounded) return b === 'punch' ? 'airPunch' : 'airKick';
+    if (i.down) return b === 'punch' ? 'jab' : 'sweep';
+    if (b === 'punch' && fwd && Math.abs(this.vx) > this.c('maxSpeed') * 0.6) return 'dashPunch';
+    return b === 'punch' ? 'jab' : 'kick';
+  }
+  start(m) {
+    this.action = { m: typeof m === 'string' ? MOVES[m] : m, i: 0, t: 0, from: { ...this.target }, hit: false };
+  }
 
   update(dt, inp, opp) {
     const c = k => this.c(k);
-    this.time += dt; this.hurtT -= dt; this.flashT -= dt;
-    const free = this.hurtT <= 0;
-    if (this.buffer) {
-      if (free && !this.action && this.squatT <= 0) { this.start(this.buffer.m); this.buffer = null; }
-      else if ((this.buffer.t -= dt) < 0) this.buffer = null;
+    this.inp = inp;
+    this.time += dt; this.hurtT -= dt; this.flashT -= dt; this.comboT -= dt;
+    this.comboPop *= Math.exp(-10 * dt);
+    if (this.free) this.combo = 0;
+
+    // start a move, or chain into the next one once the current move's active frames are over
+    const a0 = this.action;
+    if (this.buffer && this.free && this.squatT <= 0) {
+      const b = this.buffer.b;
+      const m = !a0 || a0.m.hurt ? this.pick(b) : a0.i >= a0.m.cancel && a0.m.next?.[b];
+      if (m) { this.start(m); this.buffer = null; }
     }
+    if (this.buffer && (this.buffer.t -= dt) < 0) this.buffer = null;
 
     // horizontal: accelerate toward desired speed, never snap
-    this.crouching = free && inp.down && this.grounded;
-    const locked = !free || (this.action && this.grounded) || this.squatT > 0 || this.crouching;
+    this.crouching = this.free && inp.down && this.grounded;
+    const busy = this.action && !this.action.m.hurt;
+    const locked = !this.free || (busy && this.grounded) || this.squatT > 0 || this.crouching;
     const want = locked ? 0 : (inp.right - inp.left) * c('maxSpeed');
-    const rate = want && Math.sign(want) === Math.sign(this.vx || want) ? c('accel') : c('decel') * (free ? 1 : 0.35);
+    const drag = this.kd === 'fly' ? 0.05 : !this.free ? 0.35 : busy ? 0.4 : 1; // lunges and knockback slide
+    const rate = want && Math.sign(want) === Math.sign(this.vx || want) ? c('accel') : c('decel') * drag;
+    const pvx = this.vx;
     this.vx = approach(this.vx, want, rate * dt);
+    // lean toward the direction of travel while speeding up or braking
+    const leanT = this.grounded ? clamp(Math.abs(this.vx - pvx) / dt * 0.004, 0, 10) * Math.sign(this.vx) * this.dir : 0;
+    this.lean += (leanT - this.lean) * (1 - Math.exp(-12 * dt));
     this.x += this.vx * dt;
     if (this.x < 40 || this.x > W - 40) { this.x = clamp(this.x, 40, W - 40); this.vx = 0; }
     this.walkPh += this.vx * this.dir * dt * 0.075;
+    this.face = approach(this.face, this.dir, dt * 12); // turn through a squashed profile instead of flipping
 
     // vertical: jump squat (anticipation) -> launch -> land
-    if (inp.jump && this.grounded && free && !this.action && this.squatT <= 0) this.squatT = c('jumpSquat') || 1e-6;
+    if (inp.jump && this.grounded && this.free && !busy && this.squatT <= 0) this.squatT = c('jumpSquat') || 1e-6;
     if (this.squatT > 0 && (this.squatT -= dt) <= 0) {
       this.grounded = false; this.vy = -c('jumpVel'); this.sqv += c('squash') * 25;
     }
@@ -221,9 +324,17 @@ class Fighter {
         const imp = Math.min(1, this.vy / 800);
         this.y = 0; this.vy = 0; this.grounded = true;
         this.sqv -= c('squash') * 25 * imp;
+        this.flt.lfL.yd -= 500 * imp; this.flt.lbL.yd -= 400 * imp; this.flt.torso.yd += 250 * imp; // knees absorb
         dust(this.x, this.groundY, imp);
+        if (this.action?.m.air) this.action = null;
+        if (this.kd === 'fly') {
+          if (!this.bounced) { this.bounced = true; this.grounded = false; this.vy = -180; trauma = Math.min(1, trauma + 0.15); }
+          else { this.kd = 'down'; this.downT = 0.6; }
+        }
       }
     }
+    if (this.kd === 'down' && (this.downT -= dt) <= 0) { this.kd = null; this.start('getup'); this.hurtT = 0.5; }
+
     // squash & stretch spring (sq > 0 = stretch)
     const w = 2 * Math.PI * 4.5;
     this.sqv += (-w * w * this.sq - 2 * 0.3 * w * this.sqv) * dt;
@@ -233,8 +344,11 @@ class Fighter {
     const base = this.basePose();
     if (this.action) {
       const a = this.action, keys = a.m.keys;
-      a.t += dt * (a.name === 'hurt' ? 1 : c('attackSpeed'));
-      while (a.i < keys.length && a.t >= keys[a.i].d) { a.t -= keys[a.i].d; a.from = resolve(base, keys[a.i].p); a.i++; }
+      a.t += dt * (a.m.power ? c('attackSpeed') : 1);
+      while (a.i < keys.length && a.t >= keys[a.i].d) {
+        a.t -= keys[a.i].d; a.from = resolve(base, keys[a.i].p); a.i++;
+        if (keys[a.i]?.lunge) this.vx = this.dir * keys[a.i].lunge;
+      }
       if (a.i >= keys.length) this.action = null;
     }
     if (this.action) {
@@ -254,36 +368,57 @@ class Fighter {
       this.disp[j] = mode === 'damp' ? this.disp[j] + (x - this.disp[j]) * (1 - Math.exp(-c('dampRate') * dt)) : x;
       this.flt[j].reset(this.disp[j]);
     }
+    for (const j in LIMITS) this.disp[j] = clamp(this.disp[j], ...LIMITS[j]);
 
     // hits are tested against what is drawn, not the target
     const a = this.action;
     if (a && opp && !a.hit && a.m.keys[a.i].active) {
-      const P = this.points(this.disp), pt = a.m.hit === 'foot' ? P.ff : P.fh;
-      if (opp.hurtBy(pt)) { a.hit = true; onHit(this, opp, pt, a.m.power); }
+      const pt = this.points(this.disp)[a.m.hit];
+      if (opp.hurtBy(pt)) { a.hit = true; onHit(this, opp, pt, a.m); }
     }
   }
 
   hurtBy(pt) {
+    if (this.kd === 'down' || this.action?.m.inv) return false;
     const P = this.points(this.disp);
-    return distSeg(pt, P.hip, P.neck) < 12 || Math.hypot(pt[0] - P.head[0], pt[1] - P.head[1]) < B.head + 4;
+    return distSeg(pt, P.hip, P.neck) < 12 || Math.hypot(pt[0] - P.head[0], pt[1] - P.head[1]) < B.head + 4 ||
+      [[P.hip, P.fk], [P.fk, P.ff], [P.hip, P.bk], [P.bk, P.bf]].some(([a, b]) => distSeg(pt, a, b) < 8);
   }
-  takeHit(dir, power) {
-    this.dir = -dir; this.vx = dir * 300 * power;
-    if (!this.grounded) this.vy = -200;
-    this.start('hurt'); this.hurtT = 0.35; this.flashT = 0.1; this.buffer = null; this.squatT = 0;
-    this.sqv -= CFG.squash * 15 * power;
+  takeHit(att, m) {
+    const combo = this.combo = (this.free ? 0 : this.combo) + 1;
+    this.comboShown = combo; this.comboT = 1; this.comboPop = 1;
+    const juggle = this.kd === 'fly' || !this.grounded;
+    this.dir = -att.dir; this.buffer = null; this.squatT = 0; this.flashT = 0.1;
+    this.vx = att.dir * m.knock * (juggle ? 0.6 : 1);
+    if (m.kd || juggle || combo >= 7) {
+      this.kd = 'fly'; this.bounced = false; this.grounded = false; this.action = null; this.hurtT = 0;
+      this.vy = -(m.launch || 300);
+    } else {
+      const set = HURT[m.height].filter(p => p !== this.lastHurt);
+      this.lastHurt = set[Math.floor(Math.random() * set.length)];
+      const stun = m.stun * Math.max(0.45, 1 - 0.07 * (combo - 1)); // long combos stun less
+      this.start(makeHurt(this.lastHurt, stun));
+      this.hurtT = stun;
+    }
+    // kick the limb springs so every impact lands a little differently
+    const k = 200 * m.power;
+    for (const j of JOINTS) this.flt[j].yd += rand(-1, 1) * k * (DEPTH[j] + 0.5);
+    if (m.height === 'high') this.flt.head.yd -= 4 * k;
+    else if (m.height === 'mid') this.flt.torso.yd += 2 * k;
+    this.sqv -= CFG.squash * 15 * m.power;
   }
 
-  // world-space joints: feet snapped to the ground, then squash/stretch around the feet
+  // world-space joints: lowest body point snapped to the ground, then squash/stretch around it
   points(p) {
-    const L = fk(p, this.dir), fy = Math.max(L.ff[1], L.bf[1]);
+    const L = fk(p, this.face);
+    const fy = Math.max(L.ff[1], L.bf[1], L.fk[1], L.bk[1], L.hip[1], L.sh[1], L.head[1] + B.head);
     const sx = 1 - this.sq * 0.5, sy = 1 + this.sq, ax = this.x, ay = this.groundY + this.y, P = {};
     for (const k in L) P[k] = [ax + L[k][0] * sx, ay + (L[k][1] - fy) * sy];
     return P;
   }
   recordTrail() {
     const P = this.points(this.disp);
-    this.trail.push([P.fh, P.ff]);
+    this.trail.push([P.fh, P.ff, P.bh, P.bf]);
     if (this.trail.length > 24) this.trail.shift();
   }
 
@@ -293,9 +428,9 @@ class Fighter {
     ctx.fillStyle = 'rgba(0,0,0,.08)';
     ctx.beginPath(); ctx.ellipse(this.x, this.groundY + 1, 22 * s, 4 * s, 0, 0, 7); ctx.fill();
 
-    const n = Math.min(CFG.trail, this.trail.length - 1);
-    for (const li of [0, 1]) for (let i = 1; i <= n; i++) {
-      const a = this.trail[this.trail.length - 1 - n + i - 1][li], b = this.trail[this.trail.length - 1 - n + i][li];
+    const n = Math.min(CFG.trail, this.trail.length - 1), tr = this.trail;
+    for (let li = 0; li < 4; li++) for (let i = 1; i <= n; i++) {
+      const a = tr[tr.length - 2 - n + i][li], b = tr[tr.length - 1 - n + i][li];
       ctx.globalAlpha = (i / n) * 0.35; ctx.lineWidth = (i / n) * 5; ctx.strokeStyle = this.col[0];
       ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
     }
@@ -305,6 +440,14 @@ class Fighter {
     const P = this.points(this.disp);
     if (this.flashT > 0 && CFG.flash) { drawFigure(P, '#111', '#111', 9); drawFigure(P, '#fff', '#fff', 5); }
     else drawFigure(P, this.col[0], this.col[1], 5);
+
+    if (this.comboT > 0 && this.comboShown > 1) {
+      ctx.globalAlpha = Math.min(1, this.comboT * 3);
+      ctx.fillStyle = this.col[0]; ctx.textAlign = 'center';
+      ctx.font = `bold ${Math.round(16 * (1 + this.comboPop * 0.8))}px ui-monospace, Menlo, monospace`;
+      ctx.fillText(`${this.comboShown} HITS`, this.x, this.groundY - 130);
+      ctx.globalAlpha = 1; ctx.textAlign = 'left';
+    }
     ctx.restore();
   }
 }
@@ -325,12 +468,14 @@ function drawFigure(P, col, back, lw) {
 }
 
 // ---------- juice ----------
-function onHit(att, vic, pt, power) {
+function onHit(att, vic, pt, m) {
+  vic.takeHit(att, m);
+  const fin = vic.kd === 'fly', power = m.power * (fin ? 1.3 : 1);
   hitstopT = CFG.hitstop * power;
   trauma = Math.min(1, trauma + 0.3 * power);
   zoom += CFG.zoomPunch * power;
+  if (fin && CFG.slowmo) slowT = 0.35;
   victim = vic;
-  vic.takeHit(att.dir, power);
   if (CFG.sparks > 0) {
     parts.push({ t: 'ring', x: pt[0], y: pt[1], life: 0.16, max: 0.16 });
     for (let i = 0; i < CFG.sparks * power; i++) {
@@ -375,7 +520,7 @@ function drawParticles() {
 // ---------- scene / loop ----------
 const LABELS = ['raw: stepped keys, no filter', 'tween: eased keys, no filter', 'tween + filter (live settings)'];
 function setupScene() {
-  parts.length = 0; hitstopT = trauma = zoom = 0; victim = null; scope.a = []; scope.b = [];
+  parts.length = 0; hitstopT = slowT = trauma = zoom = 0; victim = null; scope.a = []; scope.b = [];
   if (CFG.compare) {
     fighters = [
       new Fighter(200, 150, 1, INK, { easing: 'step', filter: 'none' }),
@@ -405,14 +550,14 @@ function step(h) {
 
   player.update(h, inp, dummy);
   if (hitstopT <= 0) dummy.update(h, NOIN, player);
-  // push apart, then face each other
+  // push apart (unless someone is knocked down), then face each other
   const d = dummy.x - player.x;
-  if (Math.abs(d) < 38 && Math.abs(player.y - dummy.y) < 60) {
+  if (Math.abs(d) < 38 && Math.abs(player.y - dummy.y) < 60 && !player.kd && !dummy.kd) {
     const push = (38 - Math.abs(d)) / 2 * (Math.sign(d) || 1);
     player.x -= push; dummy.x += push;
   }
   for (const [a, b] of [[player, dummy], [dummy, player]])
-    if (!a.action && a.hurtT <= 0 && a.grounded) a.dir = Math.sign(b.x - a.x) || a.dir;
+    if (!a.action && a.free && a.grounded) a.dir = Math.sign(b.x - a.x) || a.dir;
 }
 
 const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
@@ -459,8 +604,12 @@ function drawScope() {
 
 let last = performance.now();
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000) * CFG.timeScale;
+  const raw = Math.min(0.05, (now - last) / 1000);
   last = now;
+  // finisher slow-mo starts once the hitstop is over
+  const slow = slowT > 0 && hitstopT <= 0;
+  if (slow) slowT -= raw;
+  const dt = raw * CFG.timeScale * (slow ? 0.3 : 1);
   // fixed-size substeps (<= 1/120 s) keep springs and physics identical at any refresh rate
   const n = Math.max(1, Math.ceil(dt * 120));
   for (let i = 0; i < n; i++) step(dt / n);
