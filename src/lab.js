@@ -76,8 +76,8 @@ function clear() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#ddd7cb'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
-// one cell: arena, then (small cells) a plot strip, label and stats. selected = dark frame
-function drawCell(c, r, { full = false, plot = true, selected = false } = {}) {
+// one cell: arena, then (small cells) a plot strip, label and stats. selected = red frame (a string = its tag)
+function drawCell(c, r, { full = false, plot = true, selected = false, meter = false } = {}) {
   const ph = plot ? Math.round(r.h * 0.24) : 0;
   ctx.fillStyle = '#f3f0e8'; ctx.fillRect(r.x, r.y, r.w, r.h);
   c.w.render(ctx, { ...r, h: r.h - ph }, full);
@@ -86,10 +86,15 @@ function drawCell(c, r, { full = false, plot = true, selected = false } = {}) {
     ctx.fillStyle = '#fbfaf6'; ctx.fillRect(pr.x, pr.y, pr.w, pr.h);
     drawPlot(c, pr);
   }
-  ctx.strokeStyle = selected ? '#222' : '#0000'; ctx.lineWidth = 2 * dpr;
-  ctx.strokeRect(r.x + dpr, r.y + dpr, r.w - 2 * dpr, r.h - 2 * dpr);
+  if (selected) { // red frame + a tag in the corner
+    ctx.strokeStyle = RED[0]; ctx.lineWidth = 4 * dpr;
+    ctx.strokeRect(r.x + 2 * dpr, r.y + 2 * dpr, r.w - 4 * dpr, r.h - 4 * dpr);
+    const tag = typeof selected === 'string' ? selected : 'selected', tw = (tag.length * 7 + 12) * dpr;
+    ctx.fillStyle = RED[0]; ctx.fillRect(r.x + r.w - tw - 2 * dpr, r.y + 2 * dpr, tw, 16 * dpr);
+    text(tag, r.x + r.w - tw / 2 - 2 * dpr, r.y + 14 * dpr, '#fff', 11, 'bold', 'center');
+  }
   if (c.label) text(c.label, r.x + 8 * dpr, r.y + 16 * dpr, '#444', 12, 'bold');
-  if (lab.meter) drawMeter(c.w, { x: r.x + 6 * dpr, y: r.y + r.h - ph - (full ? 40 : 16) * dpr, w: r.w - 12 * dpr, h: (full ? 30 : 10) * dpr }, full);
+  if (meter) drawMeter(c.w, { x: r.x + 6 * dpr, y: r.y + r.h - ph - (full ? 40 : 16) * dpr, w: r.w - 12 * dpr, h: (full ? 30 : 10) * dpr }, full);
   if (!full) text(cellStats(c), r.x + 8 * dpr, r.y + 30 * dpr, '#999', 11);
 }
 // hits / whiffs / frozen % (averaged over the cell's seeds) and the last hit's frame advantage
@@ -124,8 +129,9 @@ function drawInputs(w, x, y) {
 function labRender() {
   clear();
   const cells = shown(), play = lab.mode === 'play', rects = cellRects(cells.length, lab.zoom ? 1 : lab.cols, fullArea());
-  cells.forEach((c, i) => drawCell(c, rects[i], { full: play, plot: !play,
-    selected: !play && !lab.zoom && (lab.mode === 'grid' && lab.kind !== 'sweep' ? c.parent : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) : c === lab.focus) }));
+  cells.forEach((c, i) => drawCell(c, rects[i], { full: play, plot: !play, meter: lab.meter,
+    selected: !play && !lab.zoom && (lab.mode === 'grid' && lab.kind !== 'sweep' ? c.parent && 'parent'
+      : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) && 'current settings' : c === lab.focus && 'focused') }));
   if (play && lab.inputs && cells[0].w.ctl[0] === 'human') drawInputs(cells[0].w, 10 * dpr, 60 * dpr);
   drawScope();
 }
@@ -343,7 +349,14 @@ function applyPreset(name) {
 function configPanel() {
   return [h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(n, PRESET_TIPS[n], () => applyPreset(n))),
       button('reset', 'All settings back to their defaults', () => applyPreset('juicy'))),
-    ...SCHEMA.map(s => Array.isArray(s) ? heading(...s) : cfgControl(s))];
+    ...SCHEMA.map(s => Array.isArray(s) ? heading(...s) : s.k === 'scope' ? cfgControl(s) : gridLink(cfgControl(s), s))];
+}
+// clicking a variable's name sweeps it across the grid
+function gridLink(row, s) {
+  const n = row.firstChild;
+  n.className = 'vname'; n.dataset.tip = `${s.tip} · Click the name: test ${s.k} in a grid`;
+  n.onclick = e => { e.preventDefault(); lab.kind = 'sweep'; Object.assign(lab.x, { k: s.k, lo: s.min, hi: s.max }); lab.y.k = ''; setMode('grid'); };
+  return row;
 }
 const labSide = () => [scopeCv, stats, ...configPanel()];
 

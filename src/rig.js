@@ -213,10 +213,11 @@ function fk(ch, p, dir, lens, wa = {}) {
 }
 
 // back limbs first in the second colour, then the body, then front limbs. extra = added stroke width (outlines)
-function drawFigure(ctx, ch, P, col, back, extra = 0) {
+// tint(bone) overrides the colour per bone (the editors colour-code by role)
+function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null) {
   ctx.lineCap = ctx.lineJoin = 'round';
   for (const side of ['b', '', 'f']) for (const b of ch.bones) if (b.side === side) {
-    const o = P[b.parent || 'hip'], e = P[b.id], c = side === 'b' ? back : col;
+    const o = P[b.parent || 'hip'], e = P[b.id], c = tint ? tint(b) : side === 'b' ? back : col;
     if (b.shape === 'circle') { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(e[0], e[1], b.len + extra / 2, 0, 7); ctx.fill(); continue; }
     ctx.strokeStyle = c; ctx.lineWidth = b.thick + extra;
     ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0], e[1]); ctx.stroke();

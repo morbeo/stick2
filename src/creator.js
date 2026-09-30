@@ -39,20 +39,19 @@ function drawEditor() {
       ctx.lineWidth = b.hurt * 2; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(e[0] + 0.01, e[1]); ctx.stroke();
     }
   }
-  drawFigure(ctx, ch, L, INK[0], INK[1]);
-  if (sel) { // the selected bone in red
+  drawFigure(ctx, ch, L, INK[0], INK[1], 0, roleTint());
+  if (sel) { // the selected bone in red: a line, or a filled disc for circles
     const a = L[sel.parent || 'hip'], e = L[sel.id];
-    ctx.strokeStyle = RED[0]; ctx.lineWidth = sel.thick;
+    ctx.strokeStyle = ctx.fillStyle = RED[0]; ctx.lineWidth = sel.thick;
     ctx.beginPath();
-    if (sel.shape === 'circle') ctx.arc(e[0], e[1], sel.len, 0, 7); else { ctx.moveTo(a[0], a[1]); ctx.lineTo(e[0], e[1]); }
-    ctx.stroke();
+    if (sel.shape === 'circle') { ctx.arc(e[0], e[1], sel.len, 0, 7); ctx.fill(); } else { ctx.moveTo(a[0], a[1]); ctx.lineTo(e[0], e[1]); ctx.stroke(); }
   }
   ctx.restore();
   for (const b of ch.bones) {
     const p = P[b.id], on = b === sel, hov = b.id === creator.hover;
     ctx.beginPath(); ctx.arc(p[0], p[1], (on ? 6 : hov ? 5.5 : 4) * dpr, 0, 7);
     ctx.fillStyle = hov ? '#ffd' : '#fff'; ctx.fill();
-    ctx.strokeStyle = on ? RED[0] : '#555'; ctx.lineWidth = (on ? 3 : 1.5) * dpr; ctx.stroke();
+    ctx.strokeStyle = on ? RED[0] : '#555'; ctx.lineWidth = (on ? 2 : 1.5) * dpr; ctx.stroke();
   }
   const hv = ch.by[creator.hover] || sel;
   if (hv) text(`${hv.id} · ${hv.role}${hv.side ? ' · ' + (hv.side === 'f' ? 'front' : 'back') : ''} · ${hv.len}px`,
@@ -111,7 +110,7 @@ function creatorRender() {
   clear();
   if (creator.expOn) {
     const rects = cellRects(9, 3, fullArea());
-    creator.exp.cells.forEach((c, i) => drawCell(c, rects[i], { plot: false, selected: i === 0 }));
+    creator.exp.cells.forEach((c, i) => drawCell(c, rects[i], { plot: false, selected: i === 0 && 'parent' }));
     return;
   }
   const { pv } = edLayout();
@@ -146,6 +145,7 @@ function creatorCtx() {
     toggle('experiment', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
       () => creator.expOn, setExp),
     toggle('boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }),
+    colorsToggle(),
   ];
 }
 const setProp = (k, v) => edit(def => { def.bones.find(b => b.id === studio.sel)[k] = v; }, studio.sel + '.' + k);

@@ -8,7 +8,7 @@ const DEFS = { ...mapVals(CHAR_DEFS, clone), ...saved.defs };
 for (const k in DEFS) CHARS[k] = makeCharacter(DEFS[k]);
 if (DEFS[saved.current]) CURRENT = saved.current;
 const save = () => { try { localStorage.setItem(STORE, JSON.stringify({ defs: DEFS, current: CURRENT })); } catch {} };
-const studio = { sel: 'uarmF', undo: [], redo: [], lastKey: null, lastT: 0 };
+const studio = { sel: 'uarmF', undo: [], redo: [], lastKey: null, lastT: 0, colors: false };
 const selBone = () => DEFS[CURRENT].bones.find(b => b.id === studio.sel);
 
 // every bone property the creator exposes, with its hover text
@@ -29,6 +29,11 @@ const ROLE_TIPS = {
   leg: 'Walk cycle, knees absorb landings, feet leave trails.',
   tail: 'Free appendage: no walk cycle, just follow-through and wander.',
 };
+// role colours for the editors' colour-coded view: [front / centre, back]
+const ROLE_COLS = { spine: ['#222', '#8a8580'], head: ['#8e44ad', '#c6a2d6'], arm: ['#2c6fb0', '#94b7d8'], leg: ['#2e8b57', '#97c5ab'], tail: ['#b9770e', '#e0c08a'] };
+const roleTint = () => studio.colors ? b => ROLE_COLS[b.role][b.side === 'b' ? 1 : 0] : null;
+const colorsToggle = () => toggle('colors', 'Colour bones by role: spine black · head purple · arms blue · legs green · tails amber (back side paler)',
+  () => studio.colors, v => { studio.colors = v; });
 const SIDE_TIPS = { f: 'Front: drawn over the body in the main colour.', '': 'Centre: drawn with the body.', b: 'Back: drawn behind the body in the second colour.' };
 const SHAPE_TIPS = { line: 'A stroke from the parent joint to this one.', circle: 'A disc centred on the joint, radius = length (heads, fists).' };
 
@@ -89,6 +94,16 @@ const revertChar = () => CHAR_DEFS[CURRENT] && edit(def => {
   for (const k in def) delete def[k];
   Object.assign(def, clone(CHAR_DEFS[CURRENT]));
 });
+// built-ins keep their name (revert needs it), so renaming one makes a renamed copy
+function renameChar() {
+  const name = prompt('Rename the character', CURRENT)?.trim(), old = CURRENT;
+  if (!name || name === old) return;
+  if (DEFS[name]) return alert(`"${name}" already exists`);
+  if (CHAR_DEFS[old]) return addChar(DEFS[old], name);
+  DEFS[name] = { ...DEFS[old], name }; CHARS[name] = makeCharacter(DEFS[name]);
+  delete DEFS[old]; delete CHARS[old];
+  pickChar(name);
+}
 function deleteChar() {
   if (CHAR_DEFS[CURRENT] || !confirm(`Delete the character "${CURRENT}"?`)) return;
   delete DEFS[CURRENT]; delete CHARS[CURRENT];
@@ -117,6 +132,7 @@ function charPanel() {
       Object.fromEntries(Object.keys(DEFS).map(k => [k, CHAR_DEFS[k] ? `Built-in: ${k}` : `Your character: ${k}`])))),
     h('div', { cls: 'bar' },
       button('copy', 'Make a new character from this one', () => addChar(DEFS[CURRENT], CURRENT)),
+      button('rename', 'Rename this character (a built-in one is copied under the new name)', renameChar),
       button('revert', 'Throw away the edits of this built-in character (undoable)', revertChar),
       button('delete', 'Delete this character (only your own ones)', deleteChar),
       button('export', 'Download this character as a JSON file', exportChar),

@@ -57,7 +57,7 @@ function drawAnimEditor() {
     if (ki < m.keys.length - 1) drawFigure(ctx, ch, fk(ch, keyPose(ch, m, ki + 1), 1), '#1a8a4a', '#1a8a4a', -1);
     ctx.globalAlpha = 1;
   }
-  drawFigure(ctx, ch, L, INK[0], INK[1]);
+  drawFigure(ctx, ch, L, INK[0], INK[1], 0, roleTint());
   const hb = ch.by[m.hit];
   if (hb && m.keys[ki].active) { // the strike: red joint, radius = hitR
     const e = L[hb.id];
@@ -319,7 +319,7 @@ function animCtx() {
     toggle('onion', 'Ghosts of the previous (blue) and next (green) keys (O)', () => anim.onion, v => { anim.onion = v; }),
     toggle('aim', 'The striking limb follows the cursor through IK; click to set the pose (I)', () => anim.aim, v => { anim.aim = v; }),
     toggle('ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; }),
-    toggle('boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; })];
+    toggle('boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }), colorsToggle()];
 }
 
 const animMode = {
