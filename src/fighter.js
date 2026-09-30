@@ -5,7 +5,7 @@ class Fighter {
       time: 0, seed: w.rand(0, 100), walkPh: 0, lean: 0, inp: NOIN,
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
       kd: null, downT: 0, bounced: false, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
-      sq: 0, sqv: 0, trail: [] });
+      sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0 });
     this.target = this.basePose();
     this.disp = { ...this.target };
     this.prev = { ...this.target };
@@ -51,17 +51,38 @@ class Fighter {
   // push a bone's spring: + swings its end forward
   jolt(b, v) { if (b) this.flt[b.id].yd += b.fwd * v; }
 
+  // runs every substep, hit stop included: directions are remembered for special motions, buttons are buffered
   bufferInput(inp) {
-    if (inp.punch) this.buffer = { b: 'punch', t: 0.2 };
-    if (inp.kick) this.buffer = { b: 'kick', t: 0.2 };
+    const n = 5 + (inp.right - inp.left) * this.dir - (inp.down ? 3 : 0), t = this.w.simT, d = this.dirs;
+    if (d[d.length - 1]?.n !== n) d.push({ n, t });
+    while (d.length > 1 && t - d[1].t > this.c('motionWindow')) d.shift();
+    if (inp.punch) this.buffer = { b: 'punch', t: 0.2, motion: this.motion() };
+    if (inp.kick) this.buffer = { b: 'kick', t: 0.2, motion: this.motion() };
   }
-  // input slot -> the move the character binds to it (see BINDS)
-  pick(b) {
+  // every special motion in the recent directions (6236 is both →↓↘ and ↓↘→: the first one with a move bound wins)
+  motion() {
+    const s = this.dirs.map(d => d.n).join('');
+    return Object.keys(MOTIONS).filter(k => MOTIONS[k].test(s));
+  }
+  // input slot -> the move the character binds to it (see BINDS); a special motion picks its special on the ground
+  pick(b, motion) {
     const i = this.inp, fwd = (i.right - i.left) * this.dir > 0, P = b === 'punch';
+    const sp = this.grounded && motion?.map(k => this.ch.binds[k + (P ? 'Punch' : 'Kick')]).find(m => this.ch.moves[m]);
+    if (sp) return sp;
     const slot = !this.grounded ? (P ? 'airPunch' : 'airKick') : i.down ? (P ? 'downPunch' : 'downKick')
       : P && fwd && Math.abs(this.vx) > this.c('maxSpeed') * 0.6 ? 'dashPunch' : b;
     const m = this.ch.binds[slot];
     return this.ch.moves[m] ? m : null;
+  }
+  // what the running move can be cancelled into, once its cancel window is open (Combos & cancels)
+  cancelInto(a, b, motion) {
+    if (a.i < a.m.cancel) return null;
+    const m = this.pick(b, motion);
+    if (m && this.ch.moves[m].special && !a.m.special && a.hit && this.c('specialCancel')) return m;
+    const rule = this.c('chains');
+    if (rule === 'authored') return a.m.next?.[b];
+    if (rule === 'free') return a.hit && m && !this.used.includes(m) ? m : null;
+    return null;
   }
   start(m) {
     this.action = { m: typeof m === 'string' ? this.ch.moves[m] : m, i: 0, t: 0, from: { ...this.target }, hit: false, hits: [] };
@@ -78,9 +99,13 @@ class Fighter {
     // start a move, or chain into the next one once the current move's active frames are over
     const a0 = this.action;
     if (this.buffer && this.free && this.squatT <= 0) {
-      const b = this.buffer.b;
-      const m = !a0 || a0.m.hurt ? this.pick(b) : a0.i >= a0.m.cancel && a0.m.next?.[b];
-      if (m) { this.start(m); this.buffer = null; }
+      const { b, motion } = this.buffer, fresh = !a0 || a0.m.hurt;
+      const m = fresh ? this.pick(b, motion) : this.cancelInto(a0, b, motion);
+      if (m) {
+        if (fresh) this.used = [];
+        this.used.push(m); this.start(m); this.buffer = null;
+        if (this.ch.moves[m].special) this.dirs = this.dirs.slice(-1); // the motion is spent
+      }
     }
     if (this.buffer && (this.buffer.t -= dt) < 0) this.buffer = null;
 
@@ -103,7 +128,7 @@ class Fighter {
 
     // vertical: jump squat (anticipation) -> launch -> land
     // jump cancel: a move that connected can be jumped out of once its active frames are over (juggles)
-    const jc = busy && this.action.hit && this.action.i >= this.action.m.cancel;
+    const jc = busy && this.action.hit && this.action.i >= this.action.m.cancel && c('jumpCancel');
     if (inp.jump && this.grounded && this.free && (!busy || jc) && this.squatT <= 0) {
       this.squatT = c('jumpSquat') || 1e-6;
       if (jc) this.action = null;
@@ -169,8 +194,9 @@ class Fighter {
     }
 
     const a = this.action, s = a?.m.keys[a.i].active && this.strikeShape(a.m);
+    const otg = c('otg') === 'all' || c('otg') === 'flagged' && a?.m.otg;
     if (s) for (const o of foes) if (!a.hits.includes(o)) {
-      const h = o.hurtAt(s, c('hitTest') === 'target');
+      const h = o.hurtAt(s, c('hitTest') === 'target', otg);
       if (h) { a.hits.push(o); a.hit = true; this.w.onHit(this, o, h, a.m); }
     }
     this.lastTip = s ? s[1] : null;
@@ -187,8 +213,9 @@ class Fighter {
     return [mode === 'swept' && this.lastTip || tip, tip, r];
   }
   // the hurt bone the strike overlaps most, or null
-  hurtAt([s0, s1, r], useTarget) {
-    if (this.kd === 'down' || this.action?.m.inv) return null;
+  hurtAt([s0, s1, r], useTarget, otg) {
+    const a = this.action;
+    if (this.kd === 'down' && !otg || a?.m.inv || a?.m.keys[a.i]?.inv) return null;
     const P = useTarget ? this.points(this.target) : this.body();
     let best = null;
     for (const b of this.ch.bones) if (b.hurt > 0) {
@@ -208,12 +235,13 @@ class Fighter {
   takeHit(att, m, hit) {
     const combo = this.combo = (this.free ? 0 : this.combo) + 1;
     this.comboShown = combo; this.comboT = 1; this.comboPop = 1;
-    const juggle = this.kd === 'fly' || !this.grounded;
+    const juggle = !!this.kd || !this.grounded, otg = this.kd === 'down';
     this.dir = -att.dir; this.buffer = null; this.squatT = 0; this.flashT = 0.1;
     this.vx = att.dir * m.knock * (juggle ? 0.6 : 1);
     if (m.kd || juggle || combo >= 7) {
-      this.kd = 'fly'; this.bounced = false; this.grounded = false; this.action = null; this.hurtT = 0;
-      this.vy = -(m.launch || 300);
+      this.juggles = this.kd ? this.juggles + 1 : 0;
+      this.kd = 'fly'; this.bounced = otg; this.grounded = false; this.action = null; this.hurtT = 0; // hit off the ground: a small pop, no bounce
+      this.vy = -(m.launch || 300) * this.c('juggleDecay') ** this.juggles;
     } else {
       const set = this.ch.hurt[this.zone(hit.pt)].filter(p => p !== this.lastHurt);
       this.lastHurt = set[Math.floor(this.w.rand() * set.length)];

@@ -95,9 +95,27 @@ const STICK_MOVES = {
   airKick: attack({ power: 1.3, hit: 'ff', height: 'high', knock: 250, stun: 0.4, air: true },
     [0.06, { torso: -10, lfU: 60, lfL: -110, lbU: 10, lbL: -100 }],
     [0.06, { torso: -25, lfU: 70, lfL: -3, lbU: -5, lbL: -90, afU: 40, afL: 90, abU: 60, abL: 60 }], 0.25, 0.15),
-  airPunch: attack({ power: 1.1, hit: 'fh', height: 'high', knock: 160, stun: 0.36, air: true },
+  airPunch: attack({ power: 1.1, hit: 'fh', height: 'high', knock: 160, stun: 0.36, air: true, next: { kick: 'airKick' } },
     [0.05, { torso: 5, afU: 150, afL: 60 }],
     [0.06, { torso: 25, afU: 75, afL: 0, abU: -20, abL: 120 }], 0.12, 0.15),
+  // specials (motion + button), cancellable from normals that hit
+  rush: attack({ power: 1.5, hit: 'fh', height: 'mid', knock: 320, stun: 0.5, lunge: 520, special: true },
+    [0.08, { torso: 4, afU: 10, afL: 140, abU: 40, abL: 120, lfU: 40, lfL: -60 }],
+    [0.05, { torso: 32, afU: 105, afL: 0, abU: -30, abL: 70, lfU: 55, lfL: -30, lbU: -45, lbL: 0 }], 0.1, 0.26),
+  // invincible while it rises
+  rising: { power: 1.8, hit: 'fh', height: 'high', knock: 100, launch: 680, kd: true, special: true, keys: [
+    { d: 0.05, e: 'outQuad', p: { torso: 30, afU: -20, afL: 100, abU: 40, abL: 120, lfU: 55, lfL: -90, lbU: -25, lbL: -40 }, inv: true },
+    { d: 0.06, e: 'outExpo', p: { torso: 10, afU: 150, afL: 20, abU: 0, abL: 130, lfU: 20, lfL: -10, lbU: -20, lbL: 0 }, active: true, lunge: 160, inv: true },
+    { d: 0.1, e: 'outQuad', p: { torso: 0, afU: 170, afL: 10, abU: -10, abL: 130, lfU: 15, lfL: -5, lbU: -20, lbL: 0 }, active: true },
+    { d: 0.34, e: 'inOutCubic', p: null },
+  ] },
+  spin: attack({ power: 1.9, hit: 'bf', height: 'high', knock: 420, launch: 320, kd: true, lunge: 260, special: true },
+    [0.1, { torso: -12, lbU: 40, lbL: -130, lfU: 0, lfL: -15, afU: 60, afL: 90, abU: -30, abL: 70 }],
+    [0.07, { torso: -36, lbU: 120, lbL: -5, lfU: 0, lfL: 0, afU: -30, afL: 50, abU: 80, abL: 30 }], 0.1, 0.3),
+  // hits a fighter lying on the floor
+  stomp: attack({ power: 1.1, hit: 'ff', height: 'low', knock: 60, launch: 240, kd: true, otg: true, special: true },
+    [0.08, { torso: -5, lfU: 80, lfL: -120, afU: 50, abU: 30 }],
+    [0.06, { torso: 12, lfU: 42, lfL: -4, lbU: -15, lbL: 0, afU: 20, abU: 60 }], 0.08, 0.2),
   getup: { inv: true, keys: [
     { d: 0.18, e: 'outCubic', p: { torso: -30, head: 10, lfU: 75, lfL: -130, lbU: 60, lbL: -140, afU: -40, afL: 20, abU: -60, abL: 10 } },
     { d: 0.16, e: 'outCubic', p: { ...CROUCH, afU: 30, afL: 110, abU: 20, abL: 120 } },
@@ -121,7 +139,10 @@ const STICK_HURT = {
 // ---------- characters ----------
 const HITS = { fh: 'handF', bh: 'handB', ff: 'footF', bf: 'footB' };
 // which move each input slot triggers (a character's binds override these)
-const BINDS = { punch: 'jab', kick: 'kick', downPunch: 'jab', downKick: 'sweep', dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick' };
+const BINDS = { punch: 'jab', kick: 'kick', downPunch: 'jab', downKick: 'sweep', dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick',
+  qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: null, dpKick: null };
+// special motions in numpad notation (6 = towards the opponent), matched in order against the recent directions
+const MOTIONS = { dp: /6.*2.*3/, qcf: /2.*3.*6/, qcb: /2.*1.*4/ };
 function makeCharacter(def) {
   def = JSON.parse(JSON.stringify(def)); // the caller's definition stays untouched (it is what gets edited and saved)
   const by = {}, order = [];
@@ -151,7 +172,8 @@ function makeCharacter(def) {
   const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains,
     tips: [...chains.arm, ...chains.leg].map(c => c[c.length - 1]),
     poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, binds: { ...BINDS, ...def.binds } };
-  for (const m of Object.values(ch.moves)) m.cancel = m.keys.findLastIndex(k => k.active) + 1;
+  // the cancel window opens at a key marked cancel, else after the last active key
+  for (const m of Object.values(ch.moves)) { const c = m.keys.findIndex(k => k.cancel); m.cancel = c >= 0 ? c : m.keys.findLastIndex(k => k.active) + 1; }
   return ch;
 }
 const oldMove = m => ({ ...m, hit: HITS[m.hit], keys: m.keys.map(k => ({ ...k, p: fromOld(k.p) })) });

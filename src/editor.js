@@ -93,7 +93,11 @@ function drawTimeline() {
     ctx.fillStyle = '#888'; ctx.fillRect(x + w - 3 * dpr, y + h * 0.3, 2 * dpr, h * 0.4); // resize grip
     text(`${Math.round(k.d * 60)}f`, x + 5 * dpr, y + 14 * dpr, '#444', 11, 'bold');
     if (w > 60 * dpr) text(`${k.e || 'linear'}${k.p ? '' : ' → stance'}`, x + 5 * dpr, y + 28 * dpr, '#888', 9);
+    if (k.inv) text('inv', x + 5 * dpr, y + h - 5 * dpr, '#2c6fb0', 9, 'bold');
   });
+  // the cancel window: a purple bar from the key it opens at to the end
+  const cx = r.x + keyStart(m, m.cancel) * px;
+  ctx.fillStyle = '#8e44ad'; ctx.fillRect(cx, r.y + rh + dpr, r.x + r.w - cx, 3 * dpr);
   const x = r.x + anim.t * px;
   ctx.fillStyle = '#222'; ctx.fillRect(x - dpr, r.y, 2 * dpr, r.h);
   const fd = frameData(m, 1);
@@ -238,7 +242,8 @@ function deleteMove() {
 }
 // input slots (see BINDS): clicking one makes it trigger this move; clicking it again gives it back its default
 const SLOT_TIPS = { punch: 'J standing', kick: 'K standing', downPunch: 'S+J crouching', downKick: 'S+K crouching',
-  dashPunch: 'J while running forward', airPunch: 'J in the air', airKick: 'K in the air' };
+  dashPunch: 'J while running forward', airPunch: 'J in the air', airKick: 'K in the air',
+  qcfPunch: '↓↘→ J', qcfKick: '↓↘→ K', qcbPunch: '↓↙← J', qcbKick: '↓↙← K', dpPunch: '→↓↘ J', dpKick: '→↓↘ K' };
 const boundSlots = () => Object.keys(BINDS).filter(s => currentChar().binds[s] === anim.move);
 const toggleBind = s => edit(def => {
   def.binds ??= {};
@@ -264,6 +269,8 @@ const MOVE_FLAGS = {
   kd: 'Knockdown: the victim is launched, bounces and lies down.',
   air: 'Air move: performed while jumping, cancelled on landing.',
   inv: 'Invincible for the whole move (get-ups).',
+  special: 'Special: normals that hit can be cancelled into it (if specialCancel is on).',
+  otg: 'Off the ground: hits a fighter lying on the floor and pops it up (otg setting: flagged).',
 };
 
 function keyPanel() {
@@ -286,6 +293,10 @@ function keyPanel() {
       seg(Object.keys(EASE), () => k().e || 'linear', v => setKey('e', v), EASE_TIPS)),
     h('div', { cls: 'row', tip: 'Active frames can hit' }, h('span', { textContent: 'active' }),
       toggle('hits', 'Active: the strike can connect during this key', () => !!k().active, v => setKey('active', v || undefined))),
+    h('div', { cls: 'row', tip: 'Cancel window and invincibility' }, h('span', { textContent: 'flags' }), h('span', { cls: 'bar' },
+      toggle('cancel', 'The cancel window opens at this key (chains, specials, jump). Unmarked: after the last active key.', () => !!k().cancel,
+        v => edit(def => { def.moves[anim.move].keys.forEach((x, i) => { if (i === anim.key && v) x.cancel = true; else delete x.cancel; }); })),
+      toggle('inv', 'Invincible during this key (reversals like rising)', () => !!k().inv, v => setKey('inv', v || undefined)))),
     slider('lunge', { min: 0, max: 600, step: 10 }, () => k().lunge || 0, v => setKey('lunge', v || undefined, 'lunge'),
       'Forward speed given when this key starts (px/s): steps into the strike.'),
   ];

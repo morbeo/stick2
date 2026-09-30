@@ -15,7 +15,7 @@ function frameState(f) {
   if (!a) return f.grounded ? 'idle' : 'air';
   if (!a.m.power) return 'move';
   const ks = a.m.keys, first = ks.findIndex(k => k.active), last = ks.findLastIndex(k => k.active);
-  return a.i < first ? 'startup' : a.i <= last ? 'active' : 'recovery';
+  return a.i < first ? 'startup' : a.i <= last ? 'active' : a.i >= a.m.cancel && (a.hit || a.m.next) ? 'cancel' : 'recovery';
 }
 
 class World {

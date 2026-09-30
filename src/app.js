@@ -24,7 +24,7 @@ function restart() { mode().restart(); }
 function togglePanel() { document.body.classList.toggle('noside'); resize(); }
 
 const KEYS = [
-  ['fight', 'A/D or ←/→ move · W/↑/Space jump · S/↓ crouch · J punch · K kick\nchains: J,J,J · K,K · J,K · J,J,K · S+K sweep · run+J dash punch · air J/K'],
+  ['fight', 'A/D or ←/→ move · W/↑/Space jump · S/↓ crouch · J punch · K kick\nchains: J,J,J · K,K · J,K · J,J,K · S+K sweep · run+J dash punch · air J/K, air J,K\nspecials (cancel normals that hit): ↓↘→ J rush · →↓↘ J rising · ↓↙← K spin · ↓↘→ K stomp (hits a fighter on the floor)'],
   ['transport', 'P pause · N step one frame · R restart · M scrub with the mouse · 1-5 modes · ⌘Z undo · ⇧⌘Z redo (character and moves)'],
   ['view', 'H hide the side panel · G ghost (keyframe pose) · B hitboxes · Esc back / close'],
   ['grid', 'click a cell: focus it (breed / attacks: breed around it) · Shift+click: focus'],

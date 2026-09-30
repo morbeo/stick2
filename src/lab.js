@@ -2,7 +2,7 @@
 // ---------- fight modes: play / grid (parameter sweep) / gallery (every move); each cell is an independent World ----------
 const canvas = $('c'), ctx = canvas.getContext('2d');
 let dpr = 1;
-const lab = { mode: 'play', scen: 'you vs dummy', x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
+const lab = { mode: 'play', scen: 'you vs dummy', rows: null, x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
   seeds: 1, meter: true, inputs: true, tape: null, rec: false, replay: false, target: 'dummy' };
 const newWorld = (...a) => Object.assign(new World(...a), { loop: app.loop });
 
@@ -24,10 +24,10 @@ const PRESET_TIPS = {
 
 // n values across [lo, hi] snapped to the slider step; categorical vars just take their options
 // 'scenario' (Y only) runs each row on a different scripted fight
-const AXIS_SCENS = ['J,J,K', 'sweep', 'ai vs ai'];
+const AXIS_SCENS = ['J,J,K', 'sweep', 'ai vs ai'], CANCEL_SCENS = ['J,J,K', 'air combo', 'J,K→spin'];
 function axisValues(ax, n) {
   const s = SPEC[ax.k];
-  if (ax.k === 'scenario') return AXIS_SCENS;
+  if (ax.k === 'scenario') return lab.rows || AXIS_SCENS;
   if (s.opts) return s.opts;
   if (typeof s.v === 'boolean') return [false, true];
   const lo = isNaN(ax.lo) ? s.min : ax.lo, hi = isNaN(ax.hi) ? s.max : ax.hi;
@@ -109,8 +109,8 @@ function cellStats(c) {
     (w.adv === null ? '' : `  ${w.adv >= 0 ? '+' : ''}${w.adv}f`);
 }
 // frame meter: one column per frame, newest on the right; top row = left fighter, bottom = right fighter
-const METER_COLS = { idle: null, air: '#cfd8e0', move: '#b3a79a', startup: '#3a9d5d', active: '#c0392b', recovery: '#2c6fb0', hit: '#e6b422', down: '#e8dcb5', stop: '#fff' };
-const METER_TIPS = 'frame meter: green startup · red active · blue recovery · yellow hitstun · pale knocked down · white hit stop · grey air / other';
+const METER_COLS = { idle: null, air: '#cfd8e0', move: '#b3a79a', startup: '#3a9d5d', active: '#c0392b', recovery: '#2c6fb0', cancel: '#8e44ad', hit: '#e6b422', down: '#e8dcb5', stop: '#fff' };
+const METER_TIPS = 'frame meter: green startup · red active · blue recovery · purple cancel window · yellow hitstun · pale knocked down · white hit stop · grey air / other';
 function drawMeter(w, r, full) {
   const fs = w.hist.fs, n = full ? 120 : 60, cw = r.w / n, rh = r.h / 2 - dpr;
   ctx.fillStyle = '#0000000d'; ctx.fillRect(r.x, r.y, r.w, r.h);
@@ -271,7 +271,7 @@ function axisButton(ax, name) {
     });
     const pick = k => { ax.k = k; ax.lo = SPEC[k]?.min; ax.hi = SPEC[k]?.max; build(); };
     popup(b, name === 'Y' && h('div', { cls: 'bar' }, button('none', 'Only one axis: 9 values of X', () => { pick(''); closePop(); }),
-      button('scenario', `One row per fight: ${AXIS_SCENS.join(' · ')}`, () => { pick('scenario'); closePop(); })),
+      button('scenario', `One row per fight: ${AXIS_SCENS.join(' · ')}`, () => { lab.rows = null; pick('scenario'); closePop(); })),
       ...groups.flatMap(([g, vars]) => [h('h4', { textContent: g }), h('div', { cls: 'bar' }, vars.map(s => {
         const o = button(s.k, s.tip, () => pick(s.k));
         reg(o, () => o.classList.toggle('on', ax.k === s.k));
@@ -320,7 +320,10 @@ function labCtx() {
     reg(adopt, () => { adopt.hidden = !lab.zoom; }); reg(back, () => { back.hidden = !lab.zoom; });
     els.push(axisButton(lab.x, 'X'), axisButton(lab.y, 'Y'),
       button('collision test', 'Every hitTest mode (columns) on three fights (rows): compare hits and whiffs of the collision modes', () => {
-        Object.assign(lab.x, { k: 'hitTest' }); Object.assign(lab.y, { k: 'scenario' }); build();
+        Object.assign(lab.x, { k: 'hitTest' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = null; build();
+      }),
+      button('cancel test', `Every chain rule (columns) on combo fights (rows: ${CANCEL_SCENS.join(' · ')}): what each rule lets through; the meter shows cancel windows in purple`, () => {
+        Object.assign(lab.x, { k: 'chains' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = CANCEL_SCENS; lab.meter = true; build();
       }), adopt, back);
   }
   if (lab.mode === 'grid' && lab.kind !== 'attacks') els.push(

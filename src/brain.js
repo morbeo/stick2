@@ -103,6 +103,12 @@ const SCENARIOS = {
   'sweep': { a: ['down+kick'], b: 'dummy', period: 2.4 },
   'dash punch': { a: [{ hold: 'fwd', t: 0.35 }, 'fwd+punch'], b: 'dummy', ax: 250, bx: 450, period: 2.4 },
   'air kick': { a: ['jump', 0.12, 'kick'], b: 'dummy', period: 1.6 },
+  // cancels and specials (motions: 2 = down, 3 = down-forward, 6 = forward …)
+  'J→rush': { a: ['punch', 0.1, 'down', 'down+fwd', 'fwd+punch'], b: 'dummy', period: 2.6 },
+  'J,K→spin': { a: ['punch', 0.13, 'kick', 0.1, 'down', 'down+back', 'back+kick'], b: 'dummy', period: 2.8 },
+  'rising': { a: ['fwd', 'down', 'down+fwd+punch'], b: 'dummy', period: 2.4 },
+  'air combo': { a: ['punch', 0.13, 'punch', 0.13, 'punch', 0.3, 'fwd+jump', { hold: 'fwd', t: 0.12 }, 'punch', 0.14, 'kick'], b: 'dummy', period: 3.2 },
+  'OTG stomp': { a: ['down+kick', 0.6, { hold: 'fwd', t: 0.25 }, 'down', 'down+fwd', 'fwd+kick'], b: 'dummy', period: 3 },
   // several opponents: extra fighters are { c: controller, x, team }; same team = allies
   'you vs 2 ai': { a: 'human', b: 'ai', bx: 520, more: [{ c: 'ai', x: 640, team: 1 }] },
   'you vs 3 dummies': { a: 'human', b: 'dummy', bx: 420, more: [{ c: 'dummy', x: 520, team: 1 }, { c: 'dummy', x: 160, team: 1 }] },
@@ -115,7 +121,7 @@ const SCENARIOS = {
 };
 
 // gallery: one looping cell per attack, forced with '@' so no input logic gets in the way
-const GALLERY = ['jab', 'cross', 'uppercut', 'kick', 'roundhouse', 'sweep', 'dashPunch', 'airKick', 'airPunch'];
+const GALLERY = ['jab', 'cross', 'uppercut', 'kick', 'roundhouse', 'sweep', 'dashPunch', 'airKick', 'airPunch', 'rush', 'rising', 'spin', 'stomp'];
 const galleryScen = (m, air = m.startsWith('air')) => ({
   a: air ? ['jump', m === 'airPunch' ? 0.4 : 0.15, '@' + m] : [0.1, '@' + m], b: 'dummy',
   ax: 330, bx: m === 'dashPunch' ? 430 : 375, period: 2.4,
