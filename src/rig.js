@@ -120,6 +120,8 @@ const STICK_HURT = {
 };
 // ---------- characters ----------
 const HITS = { fh: 'handF', bh: 'handB', ff: 'footF', bf: 'footB' };
+// which move each input slot triggers (a character's binds override these)
+const BINDS = { punch: 'jab', kick: 'kick', downPunch: 'jab', downKick: 'sweep', dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick' };
 function makeCharacter(def) {
   def = JSON.parse(JSON.stringify(def)); // the caller's definition stays untouched (it is what gets edited and saved)
   const by = {}, order = [];
@@ -148,7 +150,7 @@ function makeCharacter(def) {
   const rest = Object.fromEntries(order.map(b => [b.id, b.a]));
   const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains,
     tips: [...chains.arm, ...chains.leg].map(c => c[c.length - 1]),
-    poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt };
+    poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, binds: { ...BINDS, ...def.binds } };
   for (const m of Object.values(ch.moves)) m.cancel = m.keys.findLastIndex(k => k.active) + 1;
   return ch;
 }
@@ -160,6 +162,13 @@ const CHAR_DEFS = {
     poses: mapVals({ stance: STANCE, crouch: CROUCH, air: AIR, airFall: AIR_FALL, fall: FALL, lie: LIE }, fromOld),
     moves: mapVals(STICK_MOVES, oldMove), hurt: mapVals(STICK_HURT, set => set.map(fromOld)) },
 };
+// brute: the stick's skeleton and moves, bigger, heavier and slower
+const BRUTE_SCALE = { waist: 1.2, chest: 1.35, neck: 1, head: 1.25, thigh: 1.1, shin: 1.05, foot: 1.2, uarm: 1.3, farm: 1.3, hand: 1.5 };
+CHAR_DEFS.brute = { ...CHAR_DEFS.stick, name: 'brute',
+  bones: STICK_BONES.map(b => ({ ...b, len: Math.round(b.len * BRUTE_SCALE[b.id.replace(/[FB]$/, '')]), thick: (b.thick ?? BONE.thick) + 3,
+    hurt: b.hurt ? b.hurt + 3 : 0, stiff: 0.75, damp: 1.2 })),
+  moves: mapVals(CHAR_DEFS.stick.moves, m => m.power ? { ...m, power: +(m.power * 1.25).toFixed(2), knock: m.knock * 1.2,
+    keys: m.keys.map(k => ({ ...k, d: +(k.d * 1.2).toFixed(4) })) } : m) };
 const CHARS = mapVals(CHAR_DEFS, makeCharacter);
 let CURRENT = 'stick';
 const currentChar = () => CHARS[CURRENT];

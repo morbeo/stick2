@@ -29,7 +29,7 @@ function axisValues(ax, n) {
   const lo = isNaN(ax.lo) ? s.min : ax.lo, hi = isNaN(ax.hi) ? s.max : ax.hi;
   return Array.from({ length: n }, (_, i) => +(Math.round((lo + (hi - lo) * i / (n - 1)) / s.step) * s.step).toFixed(4));
 }
-const galleryMoves = () => GALLERY.filter(m => currentChar().moves[m]);
+const galleryMoves = (ms = currentChar().moves) => [...GALLERY.filter(m => ms[m]), ...Object.keys(ms).filter(m => ms[m].power && !GALLERY.includes(m))];
 
 function build() {
   const scen = SCENARIOS[lab.scen];

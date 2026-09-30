@@ -224,12 +224,23 @@ function copyMove() {
   pickMove(name);
 }
 function deleteMove() {
-  if (CHAR_DEFS[CURRENT].moves[anim.move]) return; // built-in moves are used by the controls
+  if (CHAR_DEFS[CURRENT]?.moves[anim.move]) return; // built-in moves are used by the controls and combos
   const gone = anim.move;
   anim.move = Object.keys(DEFS[CURRENT].moves)[0];
-  edit(def => { delete def.moves[gone]; });
+  edit(def => {
+    delete def.moves[gone];
+    for (const s in def.binds) if (def.binds[s] === gone) delete def.binds[s];
+  });
   pickMove(anim.move);
 }
+// input slots (see BINDS): clicking one makes it trigger this move; clicking it again gives it back its default
+const SLOT_TIPS = { punch: 'J standing', kick: 'K standing', downPunch: 'S+J crouching', downKick: 'S+K crouching',
+  dashPunch: 'J while running forward', airPunch: 'J in the air', airKick: 'K in the air' };
+const boundSlots = () => Object.keys(BINDS).filter(s => currentChar().binds[s] === anim.move);
+const toggleBind = s => edit(def => {
+  def.binds ??= {};
+  if (currentChar().binds[s] === anim.move) delete def.binds[s]; else def.binds[s] = anim.move;
+});
 function pickMove(name) {
   anim.move = name; anim.key = 0; anim.t = 0; anim.playing = true;
   buildPreview(); panels();
@@ -278,7 +289,10 @@ function movePanel() {
   const m = () => curMove(), hitB = button('', 'The bone whose end is the strike (and whose limb is tested in limb mode)', (e, b) =>
     popup(b, h('div', { cls: 'bar' }, seg(currentChar().ids, () => m().hit, v => setMove('hit', v)))));
   reg(hitB, () => { hitB.textContent = m().hit || 'none'; });
-  return [
+  const bindB = button('', 'Inputs that trigger this move. Click to bind it to other inputs (copies of moves become playable this way).', (e, b) =>
+    popup(b, h('div', { cls: 'bar' }, Object.keys(BINDS).map(s => toggle(s, `${SLOT_TIPS[s]} · now: ${currentChar().binds[s]}`, () => currentChar().binds[s] === anim.move, () => toggleBind(s))))));
+  reg(bindB, () => { bindB.textContent = boundSlots().join(' ') || 'none (combo only)'; });
+  return [...charPanel(),
     heading('Moves', 'Pick a move to edit. Copies can be tuned freely; the built-in names are the ones the controls trigger.', 'Enter play/pause · O onion · I aim'),
     h('div', { cls: 'bar' }, seg(Object.keys(currentChar().moves), () => anim.move, pickMove)),
     h('div', { cls: 'bar' }, button('copy', 'Duplicate this move under a new name', copyMove),
@@ -286,6 +300,7 @@ function movePanel() {
     ...keyPanel(),
     heading('Move', 'What happens on hit. Frame data (60 fps) is under the timeline.', ''),
     h('div', { cls: 'row', tip: 'Striking bone' }, h('span', { textContent: 'hit' }), hitB),
+    h('div', { cls: 'row', tip: 'Which inputs start this move in a fight' }, h('span', { textContent: 'input' }), bindB),
     h('div', { cls: 'row', tip: 'Where the move is aimed; a hit reaction still follows the actual impact point' }, h('span', { textContent: 'height' }),
       seg(['high', 'mid', 'low'], () => m().height, v => setMove('height', v), { high: 'Aimed at the head', mid: 'Aimed at the body', low: 'Aimed at the legs: no upward push' })),
     ...MOVE_PROPS.map(p => slider(p.k, p, () => m()[p.k] || 0, v => setMove(p.k, v || undefined, 'm.' + p.k), p.tip)),

@@ -55,12 +55,13 @@ class Fighter {
     if (inp.punch) this.buffer = { b: 'punch', t: 0.2 };
     if (inp.kick) this.buffer = { b: 'kick', t: 0.2 };
   }
+  // input slot -> the move the character binds to it (see BINDS)
   pick(b) {
-    const i = this.inp, fwd = (i.right - i.left) * this.dir > 0;
-    if (!this.grounded) return b === 'punch' ? 'airPunch' : 'airKick';
-    if (i.down) return b === 'punch' ? 'jab' : 'sweep';
-    if (b === 'punch' && fwd && Math.abs(this.vx) > this.c('maxSpeed') * 0.6) return 'dashPunch';
-    return b === 'punch' ? 'jab' : 'kick';
+    const i = this.inp, fwd = (i.right - i.left) * this.dir > 0, P = b === 'punch';
+    const slot = !this.grounded ? (P ? 'airPunch' : 'airKick') : i.down ? (P ? 'downPunch' : 'downKick')
+      : P && fwd && Math.abs(this.vx) > this.c('maxSpeed') * 0.6 ? 'dashPunch' : b;
+    const m = this.ch.binds[slot];
+    return this.ch.moves[m] ? m : null;
   }
   start(m) {
     this.action = { m: typeof m === 'string' ? this.ch.moves[m] : m, i: 0, t: 0, from: { ...this.target }, hit: false, hits: [] };

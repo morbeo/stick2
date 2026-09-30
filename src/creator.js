@@ -175,7 +175,7 @@ function bonePanel() {
     ...limRows];
 }
 function bodyPanel() {
-  return [
+  return [...charPanel(),
     heading('Body', 'Build the skeleton. Limbs are role-based: legs walk, arms swing, tails follow through. New parts attach to the selected torso bone.',
       '⌘Z undo · ⇧⌘Z redo · Del delete · drag joints in the editor'),
     h('div', { cls: 'bar' },

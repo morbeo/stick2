@@ -1,7 +1,13 @@
 'use strict';
 // ---------- studio: editable character definitions (plain JSON), undo/redo, body operations ----------
 const clone = o => JSON.parse(JSON.stringify(o));
-const DEFS = mapVals(CHAR_DEFS, clone);
+// definitions persist in localStorage: saved characters override the built-ins, custom ones are added
+const STORE = 'stick2.chars';
+const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } })();
+const DEFS = { ...mapVals(CHAR_DEFS, clone), ...saved.defs };
+for (const k in DEFS) CHARS[k] = makeCharacter(DEFS[k]);
+if (DEFS[saved.current]) CURRENT = saved.current;
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify({ defs: DEFS, current: CURRENT })); } catch {} };
 const studio = { sel: 'uarmF', undo: [], redo: [], lastKey: null, lastT: 0 };
 const selBone = () => DEFS[CURRENT].bones.find(b => b.id === studio.sel);
 
@@ -53,6 +59,7 @@ function recompile() {
   if (!ch.by[studio.sel]) studio.sel = ch.ids[0];
   if (!ch.by[CFG.scope]) CFG.scope = ch.ids[0];
   for (const w of mode().worlds()) w.swapChar(old, ch);
+  save();
   mode().changed?.();
   if (ch.ids.join() !== old.ids.join()) panels(); else syncAll();
 }
@@ -62,6 +69,59 @@ function forEachPose(def, fn) {
   for (const k in def.poses) fn(def.poses[k]);
   for (const m of Object.values(def.moves)) for (const k of m.keys) if (k.p) fn(k.p);
   for (const set of Object.values(def.hurt)) set.forEach(fn);
+}
+
+// ---------- characters: pick, copy, revert, delete, export / import ----------
+function pickChar(name) {
+  CURRENT = name; studio.undo = []; studio.redo = []; studio.lastKey = null;
+  if (!currentChar().by[studio.sel]) studio.sel = currentChar().ids[0];
+  if (!currentChar().by[CFG.scope]) CFG.scope = currentChar().ids[0];
+  save(); setMode(app.mode); // every mode rebuilds its fights with the new character
+}
+function addChar(def, base = def.name || 'char') {
+  let name = base, n = 2;
+  while (DEFS[name]) name = base + n++;
+  DEFS[name] = { ...clone(def), name };
+  CHARS[name] = makeCharacter(DEFS[name]);
+  pickChar(name);
+}
+const revertChar = () => CHAR_DEFS[CURRENT] && edit(def => {
+  for (const k in def) delete def[k];
+  Object.assign(def, clone(CHAR_DEFS[CURRENT]));
+});
+function deleteChar() {
+  if (CHAR_DEFS[CURRENT] || !confirm(`Delete the character "${CURRENT}"?`)) return;
+  delete DEFS[CURRENT]; delete CHARS[CURRENT];
+  pickChar('stick');
+}
+function exportChar() {
+  const a = h('a', { href: URL.createObjectURL(new Blob([JSON.stringify(DEFS[CURRENT], null, 1)], { type: 'application/json' })), download: CURRENT + '.json' });
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function importChar() {
+  const inp = h('input', { type: 'file', accept: '.json,application/json' });
+  inp.onchange = async () => {
+    try {
+      const def = JSON.parse(await inp.files[0].text());
+      makeCharacter(def); // throws on a broken file before it touches anything
+      addChar(def, inp.files[0].name.replace(/\.json$/, ''));
+    } catch (err) { alert('Not a character file: ' + err.message); }
+  };
+  inp.click();
+}
+function charPanel() {
+  return [
+    heading('Character', 'Pick the fighter every mode uses. Edits are saved in this browser automatically; export a file to keep or share one.',
+      '⌘Z undo · ⇧⌘Z redo'),
+    h('div', { cls: 'bar' }, seg(Object.keys(DEFS), () => CURRENT, pickChar,
+      Object.fromEntries(Object.keys(DEFS).map(k => [k, CHAR_DEFS[k] ? `Built-in: ${k}` : `Your character: ${k}`])))),
+    h('div', { cls: 'bar' },
+      button('copy', 'Make a new character from this one', () => addChar(DEFS[CURRENT], CURRENT)),
+      button('revert', 'Throw away the edits of this built-in character (undoable)', revertChar),
+      button('delete', 'Delete this character (only your own ones)', deleteChar),
+      button('export', 'Download this character as a JSON file', exportChar),
+      button('import', 'Load a character JSON file as a new character', importChar)),
+  ];
 }
 
 // ---------- body operations ----------

@@ -9,6 +9,7 @@ Open `index.html` directly (no build step), or play it on GitHub Pages: https://
 - **gallery**: every attack looping with its keyframe timeline and frame data (startup / active / recovery, advantage on hit)
 - **character**: drag joints to set length and stance angle, add role-based limbs (arms, legs, tails, heads, joints), tune bone properties (stretch, follow-through, stiffness…) and watch the live preview fight; **experiment** breeds a 3x3 grid of body variations around the cell you click
 - **animate**: pose keyframes by dragging joints (IK; Alt = rotate one bone), retime keys on a 60 fps timeline, set easing / active frames / lunge and hit properties, onion skins, **aim** (the striking limb follows the cursor) and a live preview with springs and hit stop
+- **characters** (side panel in character / animate): built-in stick and brute, copy to make your own, revert, export / import JSON; edits are saved in the browser automatically. Any move can be bound to an input (J, K, crouching, running, air), so copied moves are playable
 - **scrub** (top bar, M): mouse left/right sets the time in any view; the seeded fights are re-simulated to that moment
 
 Every setting has a hover tooltip; each group's ⓘ explains it and lists its keys. `?` in the top bar shows all keys.
