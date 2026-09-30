@@ -1,7 +1,7 @@
 'use strict';
 // ---------- character mode: drag the skeleton, tune bones, watch it fight live; body experiment grid ----------
 const creator = { preview: 'showcase', w: null, drag: null, hover: null, anchor: null, expOn: false,
-  exp: { vars: new Set(['len', 'thick']), spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
+  exp: { vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
 const PREVIEWS = {
   showcase: ['showcase', 'Scripted demo: walk in, J,J,K chain, sweep, jump kick, back off.'],
   walk: ['walk', 'Walk forward and back: check the walk cycle and arm swing.'],
@@ -96,13 +96,35 @@ function mutate(def, rand) {
   }
   return d;
 }
+// experimental limbs: add a limb at a random torso bone, drop a limb, or grow a joint on a limb's end
+function mutateLimbs(d, rand) {
+  const pick = a => a[Math.floor(rand() * a.length)], spine = d.bones.filter(b => b.role === 'spine');
+  const roots = d.bones.filter(b => b.role !== 'spine' && (!b.parent || spine.some(s => s.id === b.parent)));
+  const legs = roots.filter(b => b.role === 'leg'), r = rand();
+  if (r < 0.45) { const kind = pick(Object.keys(LIMBS)), at = pick(spine)?.id; return '+' + attachLimb(d, kind, at) + (at ? ' @' + at : ''); }
+  if (r < 0.75) {
+    const gone = pick(roots.filter(b => b.role !== 'leg' || legs.length > 2)); // keep a pair of legs
+    if (!gone) return '';
+    const ids = new Set(subtree(d, gone.id));
+    d.bones = d.bones.filter(b => !ids.has(b.id));
+    forEachPose(d, p => { for (const id of ids) delete p[id]; });
+    return '−' + gone.id;
+  }
+  const end = pick(d.bones.filter(b => b.role !== 'spine' && !d.bones.some(k => k.parent === b.id)));
+  if (!end) return '';
+  let n = 1;
+  while (d.bones.some(b => b.id === 'bone' + n)) n++;
+  d.bones.push({ id: 'bone' + n, parent: end.id, len: Math.round(rand(4, 14)), a: Math.round(rand(-60, 60)), role: end.role, side: end.side ?? '',
+    lag: (end.lag ?? 0) + 0.5, thick: Math.max(1, (end.thick ?? BONE.thick) - 1) });
+  return '+joint @' + end.id;
+}
 function buildExp() {
   const ex = creator.exp, rand = makeRand(ex.seed * 7919);
   ex.parent ??= clone(DEFS[CURRENT]);
   ex.cells = Array.from({ length: 9 }, (_, i) => {
-    const def = i ? mutate(ex.parent, rand) : ex.parent;
+    const def = i ? mutate(ex.parent, rand) : ex.parent, note = i && ex.limbs ? mutateLimbs(def, rand) : '';
     // the mutant fights an unchanged copy of the current character, same seed in every cell
-    return { def, w: newWorld(previewScen(), {}, 7, [makeCharacter(def), currentChar()]), label: i ? `#${i}` : 'parent' };
+    return { def, w: newWorld(previewScen(), {}, 7, [makeCharacter(def), currentChar()]), label: i ? `#${i} ${note}` : 'parent' };
   });
 }
 function setExp(on) {
@@ -209,7 +231,8 @@ function expPanel() {
       button('reroll', 'New random variations around the same parent', () => { ex.seed++; buildExp(); }),
       button('restart', 'Start again from your current character', () => { ex.parent = null; buildExp(); })),
     h('h4', { textContent: 'vary', tip: 'Which bone properties the variations change' }),
-    h('div', { cls: 'bar' }, BONE_PROPS.map(p => toggle(p.k, p.tip, () => ex.vars.has(p.k), on => { ex.vars[on ? 'add' : 'delete'](p.k); buildExp(); }))),
+    h('div', { cls: 'bar' }, BONE_PROPS.map(p => toggle(p.k, p.tip, () => ex.vars.has(p.k), on => { ex.vars[on ? 'add' : 'delete'](p.k); buildExp(); })),
+      toggle('limbs', 'Experimental limbs: each variation also adds a random limb, drops one, or grows an extra joint', () => ex.limbs, v => { ex.limbs = v; buildExp(); })),
     slider('spread', { min: 0.02, max: 0.5, step: 0.01 }, () => ex.spread, v => { ex.spread = v; },
       'How far variations stray from the parent, as a fraction of each property\'s range. Applied on the next breed or reroll.'),
     h('div', { cls: 'bar' }, toggle('symmetric', 'Front and back partners (handF/handB…) change together', () => ex.sym, v => { ex.sym = v; buildExp(); })),

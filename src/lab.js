@@ -349,7 +349,27 @@ function applyPreset(name) {
 function configPanel() {
   return [h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(n, PRESET_TIPS[n], () => applyPreset(n))),
       button('reset', 'All settings back to their defaults', () => applyPreset('juicy'))),
-    ...SCHEMA.map(s => Array.isArray(s) ? heading(...s) : s.k === 'scope' ? cfgControl(s) : gridLink(cfgControl(s), s))];
+    ...SCHEMA.map((s, i) => Array.isArray(s) ? groupHeading(s, i) : s.k === 'scope' ? cfgControl(s) : gridLink(cfgControl(s), s))];
+}
+// buttons on a group heading that change all of its variables at once
+const groupKeys = i => { const k = []; for (let j = i + 1; j < SCHEMA.length && !Array.isArray(SCHEMA[j]); j++) k.push(SCHEMA[j].k); return k; };
+const nudge = f => (s, v) => typeof s.v === 'boolean' ? f > 0 : s.opts ? v : snap(s, v + f * (s.max - s.min));
+const GROUP_OPS = {
+  '⚄': ['Randomize: every variable of the group gets a random value', s => typeof s.v === 'boolean' ? Math.random() < 0.5
+    : s.opts ? s.opts[Math.floor(Math.random() * s.opts.length)] : snap(s, s.min + Math.random() * (s.max - s.min))],
+  '↺': ['Normalize: the group back to its defaults', s => s.v],
+  '▲': ['Empower: numbers up by 15% of their range, switches on', nudge(0.15)],
+  '▼': ['Diminish: numbers down by 15% of their range, switches off', nudge(-0.15)],
+};
+function groupHeading(s, i) {
+  const el = heading(...s), ks = groupKeys(i).filter(k => k !== 'scope');
+  if (s[0] === 'Debug') return el;
+  el.append(h('span', { cls: 'gops' }, ...Object.entries(GROUP_OPS).map(([l, [tip, f]]) =>
+    button(l, tip, () => { for (const k of ks) CFG[k] = f(SPEC[k], CFG[k]); }, 'mini')),
+    button('▦', 'Experiment: breed the group\'s variables in the grid, click the best cell to breed around it', () => {
+      lab.kind = 'breed'; breed.vars = new Set(ks); breed.cfg = null; setMode('grid');
+    }, 'mini')));
+  return el;
 }
 // clicking a variable's name sweeps it across the grid
 function gridLink(row, s) {

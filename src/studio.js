@@ -200,8 +200,12 @@ const LIMB_TIPS = {
   head: 'Add a neck and head at the selected torso bone, or at the top of the spine.',
 };
 function addLimb(kind) {
-  edit(def => {
-    const L = LIMBS[kind], by = Object.fromEntries(def.bones.map(b => [b.id, b])), sel = by[studio.sel];
+  edit(def => { studio.sel = attachLimb(def, kind, studio.sel); });
+}
+// adds a limb to a definition at torso bone `at` (or the default place); returns its first bone's id
+function attachLimb(def, kind, at) {
+  {
+    const L = LIMBS[kind], by = Object.fromEntries(def.bones.map(b => [b.id, b])), sel = by[at];
     const spine = def.bones.filter(b => b.role === 'spine'), top = spine.find(b => !spine.some(k => k.parent === b.id));
     // arms and heads hang off the top of the torso, legs and tails off the hips, unless a torso bone is selected
     const parent = sel?.role === 'spine' ? sel.id : kind === 'arm' || kind === 'head' ? top?.id ?? null : null;
@@ -213,8 +217,8 @@ function addLimb(kind) {
     for (const S of sides) L.bones.forEach(([base, len, props], i) => def.bones.push({
       id: name(base, S), parent: i ? name(L.bones[i - 1][0], S) : parent, len, role: kind === 'head' ? 'head' : kind,
       side: S.toLowerCase(), ...props, a: i ? props.a ?? 0 : L.w - restW(parent) }));
-    studio.sel = name(L.bones[0][0], sides[0]);
-  });
+    return name(L.bones[0][0], sides[0]);
+  }
 }
 // one more joint at the end of the selected bone, same role and side
 function addBone() {

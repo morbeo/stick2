@@ -169,6 +169,47 @@ CHAR_DEFS.brute = { ...CHAR_DEFS.stick, name: 'brute',
     hurt: b.hurt ? b.hurt + 3 : 0, stiff: 0.75, damp: 1.2 })),
   moves: mapVals(CHAR_DEFS.stick.moves, m => m.power ? { ...m, power: +(m.power * 1.25).toFixed(2), knock: m.knock * 1.2,
     keys: m.keys.map(k => ({ ...k, d: +(k.d * 1.2).toFixed(4) })) } : m) };
+// more built-ins, all on the stick's moves: scale its bones by segment name, add parts, retime the moves
+const sizedBones = (scale, thick = 0) => STICK_BONES.map(b => ({ ...b, len: Math.round(b.len * (scale[b.id.replace(/[FB]$/, '')] ?? 1)),
+  thick: (b.thick ?? BONE.thick) + thick, hurt: b.hurt ? b.hurt + thick : 0 }));
+const pair = (f, props) => ['F', 'B'].map(S => ({ ...f(S), side: S.toLowerCase(), ...props }));
+const horns = (len, a, curl) => ['F', 'B'].flatMap(S => [
+  { id: 'horn' + S, parent: 'head', len, a: a + (S === 'B' ? 15 : 0), role: 'head', side: S.toLowerCase(), thick: 3, lag: 0.5 },
+  { id: 'hornTip' + S, parent: 'horn' + S, len: Math.round(len * 0.7), a: curl, role: 'head', side: S.toLowerCase(), thick: 2, lag: 1 }]);
+const tail3 = (len, thick) => [
+  { id: 'tail', parent: null, len, a: -120, role: 'tail', thick, lag: 1 },
+  { id: 'tailMid', parent: 'tail', len: Math.round(len * 0.9), a: -20, role: 'tail', thick: thick - 1, lag: 2, min: -70, max: 70 },
+  { id: 'tailEnd', parent: 'tailMid', len: Math.round(len * 0.8), a: -20, role: 'tail', thick: Math.max(1, thick - 2), lag: 3, stretch: 0.25, min: -70, max: 70 }];
+const retimed = (k, power = 1) => mapVals(CHAR_DEFS.stick.moves, m => m.power
+  ? { ...m, power: +(m.power * power).toFixed(2), knock: Math.round(m.knock * power), keys: m.keys.map(x => ({ ...x, d: +(x.d * k).toFixed(4) })) } : m);
+// every pose a definition holds (named poses, move keys, hit reactions)
+function mapPoses(def, fn) {
+  const f = p => p && fn({ ...p });
+  return { ...def, poses: mapVals(def.poses, f), moves: mapVals(def.moves, m => ({ ...m, keys: m.keys.map(k => ({ ...k, p: f(k.p) })) })),
+    hurt: mapVals(def.hurt, set => set.map(f)) };
+}
+const { stick } = CHAR_DEFS;
+CHAR_DEFS.dwarf = { ...stick, name: 'dwarf', moves: retimed(1.1, 1.15),
+  bones: [...sizedBones({ waist: 0.9, chest: 0.95, head: 1.15, thigh: 0.65, shin: 0.6, uarm: 0.95, farm: 0.95, hand: 1.4 }, 3),
+    { id: 'beard', parent: 'head', len: 11, a: -165, role: 'head', thick: 7, lag: 1.5, stretch: 0.1 }] };
+CHAR_DEFS.minotaur = { ...stick, name: 'minotaur', moves: retimed(1.2, 1.35),
+  bones: [...sizedBones({ waist: 1.25, chest: 1.4, neck: 1.6, head: 1.35, thigh: 1.15, shin: 1.1, foot: 1.3, uarm: 1.3, farm: 1.3, hand: 1.6 }, 4)
+    .map(b => ({ ...b, stiff: 0.75, damp: 1.2 })), ...horns(18, -50, 40), ...tail3(16, 4)] };
+CHAR_DEFS.demon = { ...stick, name: 'demon', moves: retimed(0.9),
+  bones: [...sizedBones({ waist: 1.1, chest: 1.1, thigh: 1.15, shin: 1.15, uarm: 1.2, farm: 1.25, hand: 1.5 }).map(b => ({ ...b, stretch: b.role === 'arm' ? 0.15 : 0 })),
+    ...horns(7, -20, 30), ...tail3(16, 3),
+    ...pair(S => ({ id: 'wing' + S, parent: 'chest', len: 20, a: 5 + (S === 'B' ? 12 : 0), role: 'tail', thick: 3, lag: 1.5 })),
+    ...pair(S => ({ id: 'wingTip' + S, parent: 'wing' + S, len: 18, a: 40, role: 'tail', thick: 2, lag: 2.5, stretch: 0.2, min: 0, max: 110 }))] };
+// centaur: a horizontal horse body from the hips forward; the human waist sits on its front end (its angles are
+// relative to the barrel, so every pose's waist turns by -90); hind legs are the stick's legs, forelegs hang off the barrel
+CHAR_DEFS.centaur = { ...mapPoses({ ...stick, moves: retimed(1.1, 1.2) }, p => { if ('waist' in p) p.waist -= 90; return p; }), name: 'centaur',
+  bones: [{ id: 'barrel', len: 34, a: 90, role: 'spine', hurt: 13, thick: 11, lag: 0, min: 60, max: 120 },
+    ...STICK_BONES.map(b => b.id === 'waist' ? { ...b, parent: 'barrel', a: 90, min: 30, max: 210 } : b),
+    ...['B', 'F'].flatMap(S => [
+      { id: 'foreThigh' + S, parent: 'barrel', len: 22, a: -90, role: 'leg', side: S.toLowerCase(), hurt: 8, lag: 0, min: -190, max: 50 },
+      { id: 'foreShin' + S, parent: 'foreThigh' + S, len: 23, role: 'leg', side: S.toLowerCase(), hurt: 8, lag: 1, min: -8, max: 165 },
+      { id: 'hoof' + S, parent: 'foreShin' + S, len: 6, a: 90, role: 'leg', side: S.toLowerCase(), hurt: 6, lag: 1.5, level: 1, thick: 5, min: 40, max: 140 }]),
+    ...tail3(12, 3).map(b => b.id === 'tail' ? { ...b, a: -150 } : b)] };
 const CHARS = mapVals(CHAR_DEFS, makeCharacter);
 let CURRENT = 'stick';
 const currentChar = () => CHARS[CURRENT];
