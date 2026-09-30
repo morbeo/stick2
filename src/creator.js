@@ -71,6 +71,11 @@ function pickBone(x, y) {
 // dragging a joint sets the bone's stance angle and length (Shift or circles: angle only)
 function dragTo(x, y, shift) {
   const f = edFrame(), b = f.ch.by[creator.drag], pb = f.ch.by[b.parent];
+  if (b.lock) { // a locked bone swings its group from the first unlocked bone above
+    const u = unlockedAbove(f.ch, b), pv = u && f.P[u.parent || 'hip'], ang = (p, q) => Math.atan2(q[0] - p[0], q[1] - p[1]) / R;
+    if (u) edit(def => { def.poses.stance[u.id] = Math.round(f.ch.poses.stance[u.id] + wrap(ang(pv, [x, y]) - ang(pv, f.P[b.id]))); }, 'drag:' + b.id);
+    return;
+  }
   const pp = f.P[b.parent || 'hip'], dx = (x - pp[0]) / f.s, dy = (y - pp[1]) / f.s;
   const pw = pb ? f.wa[pb.id] : 0, cur = f.ch.poses.stance[b.id];
   let local = Math.atan2(dx, dy) / R - pw + b.level * (pw - (pb ? pb.restW : 0)); // inverse of fk's world angle
@@ -172,7 +177,9 @@ function bonePanel() {
       'Angle in the stance pose, relative to the parent (0 = straight on, root bones: 0 = down, 180 = up). Moves are layered on top.'),
     ...BONE_PROPS.map(p => slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip)),
     row('limits', 'Clamp how far this joint can bend', toggle('limits', 'Clamp how far this joint can bend', () => prop('min') !== undefined, lim)),
-    ...limRows];
+    ...limRows,
+    row('lock', 'Lock to the parent', toggle('lock', 'Locked: the joint keeps its angle to its parent while posing. Dragging it (or IK through it) turns the first unlocked bone above, so locked bones move as one group.',
+      () => !!prop('lock'), v => setProp('lock', v || undefined)))];
 }
 function bodyPanel() {
   return [...charPanel(),
@@ -185,8 +192,10 @@ function bodyPanel() {
       button('copy', 'Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb),
       button('delete', 'Delete the selected bone and everything below it (Del)', deleteBone),
       button('↶ undo', 'Undo (⌘Z)', undo), button('↷ redo', 'Redo (⇧⌘Z)', redo)),
-    h('h4', { textContent: 'bones' }),
-    h('div', { cls: 'bar' }, seg(currentChar().ids, () => studio.sel, v => { studio.sel = v; })),
+    h('h4', { textContent: 'stance pose', tip: 'Set the whole stance from a preset (per limb, so it works for any body)' }),
+    h('div', { cls: 'bar' }, Object.entries(POSES).map(([k, p]) => button(k, p.tip, () => edit(def => Object.assign(def.poses.stance, presetPose(currentChar(), p)))))),
+    h('h4', { textContent: 'bones', tip: 'Click to select · ▾ ▸ fold a branch' }),
+    boneTree(),
     ...bonePanel(),
   ];
 }

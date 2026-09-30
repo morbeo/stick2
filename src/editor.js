@@ -103,13 +103,13 @@ function drawTimeline() {
 
 // ---------- posing ----------
 // joints the drag bends: the bone and up to two ancestors of the same role (dragging a hand bends the arm, not the spine)
+// the bone and up to 2 ancestors of its role; locked bones are skipped (they turn with their parent)
 function ikChain(ch, id, single) {
-  const c = [ch.by[id]];
-  if (single) return c;
-  while (c.length < 3) {
-    const p = ch.by[c[c.length - 1].parent];
-    if (!p || (p.role !== c[0].role && c[0].role !== 'spine')) break;
-    c.push(p);
+  const b0 = ch.by[id], c = [];
+  if (single) { const u = unlockedAbove(ch, b0); return u ? [u] : []; }
+  for (let b = b0; b && c.length < 3; b = ch.by[b.parent]) {
+    if (b !== b0 && b.role !== b0.role && b0.role !== 'spine') break;
+    if (!b.lock) c.push(b);
   }
   return c;
 }
@@ -277,7 +277,9 @@ function keyPanel() {
       button('◀', 'Previous key (Shift+←)', () => selectKey(anim.key - 1)), button('▶', 'Next key (Shift+→)', () => selectKey(anim.key + 1)),
       button('+ key', 'Insert a key after this one, starting from its pose', addKey), button('delete', 'Delete this key', deleteKey),
       button('→ stance', 'This key returns to the stance (clears its pose)', () => setKey('p', null)),
-      button('hold', 'Copy the previous key\'s pose (hold still)', () => setKey('p', clone(keyPose(currentChar(), curMove(), Math.max(0, anim.key - 1)))))),
+      button('hold', 'Copy the previous key\'s pose (hold still)', () => setKey('p', clone(keyPose(currentChar(), curMove(), Math.max(0, anim.key - 1))))),
+      button('pose', 'Start this key from a preset pose', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.entries(POSES).map(([n, p]) =>
+        button(n, p.tip, () => setKey('p', { ...keyPose(currentChar(), curMove(), anim.key), ...presetPose(currentChar(), p) }))))))),
     h('div', { cls: 'row', tip: 'Duration in 60 fps frames' }, h('span', { textContent: 'frames' }),
       h('span', { cls: 'bar' }, button('−', 'One frame shorter', () => keyFrames(-1)), frames, button('+', 'One frame longer', () => keyFrames(1)))),
     h('div', { cls: 'row', tip: 'Easing curve into this key\'s pose' }, h('span', { textContent: 'easing' }),

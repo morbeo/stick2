@@ -8,7 +8,7 @@ const DEFS = { ...mapVals(CHAR_DEFS, clone), ...saved.defs };
 for (const k in DEFS) CHARS[k] = makeCharacter(DEFS[k]);
 if (DEFS[saved.current]) CURRENT = saved.current;
 const save = () => { try { localStorage.setItem(STORE, JSON.stringify({ defs: DEFS, current: CURRENT })); } catch {} };
-const studio = { sel: 'uarmF', undo: [], redo: [], lastKey: null, lastT: 0, colors: false };
+const studio = { sel: 'uarmF', undo: [], redo: [], lastKey: null, lastT: 0, colors: false, fold: new Set() };
 const selBone = () => DEFS[CURRENT].bones.find(b => b.id === studio.sel);
 
 // every bone property the creator exposes, with its hover text
@@ -140,14 +140,58 @@ function charPanel() {
   ];
 }
 
+// ---------- pose presets: local angles per limb chain (index 0 = the bone at the root of the limb), by role ----------
+// arms and legs have front / back values; limbs beyond the first pair take the same ones; tails are left alone
+const POSES = {
+  boxer: { tip: 'Fists up, weight forward: the default fighting stance.', spine: [172, 0], head: [0, 0], arm: { f: [-145, 115, 0], b: [-165, 125, 0] }, leg: { f: [25, -25, 90], b: [-18, 0, 90] } },
+  guard: { tip: 'High guard: hands by the face, upright.', spine: [176, 0], head: [0, 10], arm: { f: [-160, 140, 0], b: [-170, 145, 0] }, leg: { f: [20, -20, 90], b: [-15, 0, 90] } },
+  low: { tip: 'Low, wide and crouched: a grappler or a beast.', spine: [158, 0], head: [0, -15], arm: { f: [-130, 100, 0], b: [-150, 110, 0] }, leg: { f: [55, -80, 90], b: [-35, -40, 90] } },
+  karate: { tip: 'Lead hand extended, rear fist at the hip, deep front knee.', spine: [168, 0], head: [0, 0], arm: { f: [-110, 40, 0], b: [-185, 150, 0] }, leg: { f: [40, -30, 90], b: [-30, -5, 90] } },
+  relaxed: { tip: 'Standing loose, arms hanging.', spine: [178, 0], head: [0, 5], arm: { f: [-175, 20, 0], b: [-185, 20, 0] }, leg: { f: [8, -5, 90], b: [-8, -3, 90] } },
+  wide: { tip: 'Arms spread forward and back, feet apart: a showy or clumsy stance.', spine: [178, 0], head: [0, 0], arm: { f: [-110, 40, 0], b: [-240, 40, 0] }, leg: { f: [35, -10, 90], b: [-35, -10, 90] } },
+  tpose: { tip: 'Straight limbs: a neutral pose to edit the body from.', spine: [180, 0], head: [0, 0], arm: { f: [-90, 0, 0], b: [-270, 0, 0] }, leg: { f: [0, 0, 90], b: [0, 0, 90] } },
+};
+// the preset's angles for every bone of a character (partial: only chains the preset covers)
+function presetPose(ch, preset) {
+  const p = {};
+  for (const role of ['spine', 'head', 'arm', 'leg']) for (const c of ch.chains[role]) {
+    const v = Array.isArray(preset[role]) ? preset[role] : preset[role][c[0].side === 'b' ? 'b' : 'f'];
+    c.forEach((b, i) => { if (v[i] !== undefined) p[b.id] = v[i]; });
+  }
+  return p;
+}
+// locked bones rotate only with their parent: IK and dragging turn the first unlocked bone above instead
+const unlockedAbove = (ch, b) => { while (b?.lock) b = ch.by[b.parent]; return b; };
+
+// collapsible bone tree: ▾/▸ folds a branch, the stripe is the role colour, 🔒 = locked
+function boneTree() {
+  const ch = currentChar(), rows = [];
+  const walk = (b, depth) => {
+    const fold = studio.fold.has(b.id);
+    const tw = b.kids.length ? button(fold ? '▸' : '▾', fold ? 'Expand' : 'Collapse', () => { studio.fold[fold ? 'delete' : 'add'](b.id); panels(); }, 'twist')
+      : h('span', { cls: 'twist' });
+    const nb = button(b.id + (b.lock ? ' 🔒' : ''), `${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''} · ${b.len}px${fold ? ` · ${subtree(DEFS[CURRENT], b.id).length - 1} hidden` : ''}`,
+      () => { studio.sel = b.id; });
+    nb.style.borderLeft = `4px solid ${ROLE_COLS[b.role][b.side === 'b' ? 1 : 0]}`;
+    reg(nb, () => nb.classList.toggle('on', studio.sel === b.id));
+    const row = h('div', { cls: 'tree' }, tw, nb);
+    row.style.paddingLeft = depth * 14 + 'px';
+    rows.push(row);
+    if (!fold) b.kids.forEach(k => walk(k, depth + 1));
+  };
+  ch.bones.filter(b => !b.parent).forEach(b => walk(b, 0));
+  return h('div', {}, rows);
+}
+
 // ---------- body operations ----------
 // limb templates: [name, len, props]; the first bone gets a world angle (w), the rest are relative to their parent
 const LIMBS = {
-  arm: { w: 0, pair: true, bones: [['uarm', 17, { lag: 1 }], ['farm', 13, { lag: 2, min: -10, max: 165 }], ['hand', 4, { lag: 2.5, thick: 6 }]] },
+  arm: { w: 0, pair: true, bones: [['uarm', 17, { lag: 1 }], ['farm', 13, { lag: 2, min: -10, max: 165 }], ['hand', 4, { lag: 2.5, thick: 6, min: -70, max: 70 }]] },
   leg: { w: 0, pair: true, bones: [['thigh', 22, { hurt: 8, lag: 0 }], ['shin', 23, { hurt: 8, lag: 1, min: -165, max: 8 }],
-    ['foot', 7, { a: 90, hurt: 6, lag: 1.5, level: 1, thick: 4 }]] },
-  tail: { w: -120, bones: [['tail', 14, { lag: 1, thick: 4 }], ['tailMid', 12, { a: -20, lag: 2, thick: 3 }], ['tailEnd', 10, { a: -20, lag: 3, thick: 2, stretch: 0.2 }]] },
-  head: { w: 180, bones: [['neck', 5, { hurt: 12, level: 0.5 }], ['head', 8, { shape: 'circle', hurt: 12 }]] },
+    ['foot', 7, { a: 90, hurt: 6, lag: 1.5, level: 1, thick: 4, min: 40, max: 140 }]] },
+  tail: { w: -120, bones: [['tail', 14, { lag: 1, thick: 4 }], ['tailMid', 12, { a: -20, lag: 2, thick: 3, min: -70, max: 70 }],
+    ['tailEnd', 10, { a: -20, lag: 3, thick: 2, stretch: 0.2, min: -70, max: 70 }]] },
+  head: { w: 180, bones: [['neck', 5, { hurt: 12, level: 0.5, min: -45, max: 45 }], ['head', 8, { shape: 'circle', hurt: 12, min: -50, max: 50 }]] },
 };
 const LIMB_TIPS = {
   arm: 'Add a pair of arms (front + back) at the selected torso bone, or at the top of the spine.',
