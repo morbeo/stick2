@@ -1,0 +1,548 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>stick2 — motion lab</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #f3f0e8; color: #222; overflow: hidden;
+    font: 12px/1.3 ui-monospace, Menlo, monospace; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #panel { position: fixed; top: 8px; right: 8px; width: 260px; max-height: calc(100vh - 16px); overflow: auto;
+    background: #fffd; border: 1px solid #ccc; border-radius: 6px; padding: 8px; box-sizing: border-box; }
+  #panel h3 { margin: 10px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
+  #panel label { display: grid; grid-template-columns: 96px 1fr 40px; align-items: center; gap: 4px; margin: 2px 0; }
+  #panel input[type=range], #panel select { width: 100%; font: inherit; }
+  #panel .v { text-align: right; color: #666; }
+  #panel button { margin: 0 3px 3px 0; font: inherit; cursor: pointer; }
+  #help { position: fixed; left: 10px; bottom: 8px; color: #999; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="panel"></div>
+<div id="help">A/D move · W jump · S crouch · J punch · K kick · R reset · H hide panel</div>
+<script>
+'use strict';
+
+// ---------- config (every tunable is exposed in the panel) ----------
+const JOINTS = ['torso', 'head', 'afU', 'afL', 'abU', 'abL', 'lfU', 'lfL', 'lbU', 'lbL'];
+const SCHEMA = [
+  ['Movement'],
+  { k: 'maxSpeed', v: 260, min: 50, max: 600, step: 10 },
+  { k: 'accel', v: 2400, min: 200, max: 20000, step: 100 },
+  { k: 'decel', v: 2800, min: 200, max: 20000, step: 100 },
+  { k: 'jumpVel', v: 560, min: 200, max: 900, step: 10 },
+  { k: 'gravity', v: 1900, min: 500, max: 4000, step: 50 },
+  { k: 'jumpSquat', v: 0.06, min: 0, max: 0.2, step: 0.01 },
+  ['Tweening (keyframes)'],
+  { k: 'easing', v: 'authored', opts: ['authored', 'step', 'linear', 'outQuad', 'outCubic', 'outExpo', 'inOutCubic', 'outBack', 'outElastic'] },
+  { k: 'attackSpeed', v: 1, min: 0.25, max: 2, step: 0.05 },
+  ['Pose filter (on top of tween)'],
+  { k: 'filter', v: 'spring', opts: ['none', 'damp', 'spring'] },
+  { k: 'dampRate', v: 25, min: 1, max: 60, step: 1 },
+  { k: 'freq', v: 6, min: 0.5, max: 15, step: 0.1 },
+  { k: 'zeta', v: 0.5, min: 0, max: 1.5, step: 0.01 },
+  { k: 'response', v: 2, min: -3, max: 4, step: 0.1 },
+  { k: 'followThru', v: 0.8, min: 0.3, max: 1, step: 0.01 },
+  ['Juice'],
+  { k: 'hitstop', v: 0.08, min: 0, max: 0.3, step: 0.01 },
+  { k: 'shake', v: 14, min: 0, max: 40, step: 1 },
+  { k: 'zoomPunch', v: 0.04, min: 0, max: 0.15, step: 0.005 },
+  { k: 'squash', v: 0.25, min: 0, max: 0.6, step: 0.01 },
+  { k: 'sparks', v: 10, min: 0, max: 40, step: 1 },
+  { k: 'trail', v: 8, min: 0, max: 24, step: 1 },
+  { k: 'flash', v: true },
+  { k: 'timeScale', v: 1, min: 0.05, max: 1, step: 0.05 },
+  ['Debug'],
+  { k: 'ghost', v: false },
+  { k: 'compare', v: false },
+  { k: 'scope', v: 'afU', opts: JOINTS },
+];
+const CFG = {}, DEFAULTS = {};
+for (const s of SCHEMA) if (!Array.isArray(s)) DEFAULTS[s.k] = CFG[s.k] = s.v;
+
+const NOJUICE = { hitstop: 0, shake: 0, zoomPunch: 0, squash: 0, sparks: 0, trail: 0, flash: false, jumpSquat: 0 };
+const PRESETS = {
+  raw: { ...NOJUICE, easing: 'step', filter: 'none', accel: 20000, decel: 20000 },
+  tweened: { ...NOJUICE, filter: 'none' },
+  spring: { ...NOJUICE },
+  floaty: { freq: 2, zeta: 0.35, response: 0.5, followThru: 0.7 },
+  juicy: {},
+};
+
+// ---------- math ----------
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const approach = (v, t, d) => v < t ? Math.min(v + d, t) : Math.max(v - d, t);
+const rand = (a, b) => a + Math.random() * (b - a);
+function distSeg(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const t = clamp(((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1), 0, 1);
+  return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
+}
+
+const EASE = {
+  step: t => t > 0 ? 1 : 0,
+  linear: t => t,
+  outQuad: t => 1 - (1 - t) ** 2,
+  outCubic: t => 1 - (1 - t) ** 3,
+  outExpo: t => t >= 1 ? 1 : 1 - 2 ** (-10 * t),
+  inOutCubic: t => t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2,
+  outBack: t => { const c = 1.70158; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; },
+  outElastic: t => t <= 0 ? 0 : t >= 1 ? 1 : 2 ** (-10 * t) * Math.sin((t * 10 - 0.75) * 2 * Math.PI / 3) + 1,
+};
+
+// Second-order dynamics (t3ssel8r, "Giving Personality to Procedural Animations").
+// f = natural frequency (Hz, speed), z = damping (<1 overshoots), r = initial response (<0 anticipates, >1 overshoots early).
+class SecondOrder {
+  constructor(x) { this.reset(x); }
+  reset(x) { this.xp = this.y = x; this.yd = 0; }
+  update(dt, x, f, z, r) {
+    const w = 2 * Math.PI * f, k1 = z / (Math.PI * f), k2 = 1 / (w * w), k3 = r * z / w;
+    const xd = (x - this.xp) / dt; this.xp = x;
+    const k2s = Math.max(k2, dt * dt / 2 + dt * k1 / 2, dt * k1); // keeps it stable at any dt
+    this.y += dt * this.yd;
+    this.yd += dt * (x + k3 * xd - this.y - k1 * this.yd) / k2s;
+    return this.y;
+  }
+}
+
+// ---------- skeleton & poses (degrees) ----------
+// torso: lean fwd. head: tilt fwd. arms (a{f,b}{U,L}) relative to torso, + swings forward / flexes elbow.
+// legs (l{f,b}U) are world angles from straight down, + forward; l{f,b}L relative, − bends the knee.
+const B = { torso: 34, neck: 5, head: 8, uArm: 17, lArm: 17, thigh: 22, shin: 23 };
+// hierarchy depth: deeper joints get a lower spring frequency => overlapping action / follow-through
+const DEPTH = { torso: 0, head: 1, afU: 1, afL: 2, abU: 1, abL: 2, lfU: 0, lfL: 1, lbU: 0, lbL: 1 };
+
+const STANCE = { torso: 8, head: 0, afU: 35, afL: 115, abU: 15, abL: 125, lfU: 25, lfL: -25, lbU: -18, lbL: 0 };
+const CROUCH = { torso: 22, lfU: 60, lfL: -110, lbU: -10, lbL: -70 };
+const AIR = { torso: 4, lfU: 55, lfL: -95, lbU: -10, lbL: -45, afU: 55, afL: 95, abU: 40, abL: 100 };
+
+// keys: d = duration (s), e = authored easing, p = partial pose (null = return to base), active = hitbox live
+const MOVES = {
+  punch: { power: 1, hit: 'hand', keys: [
+    { d: 0.07, e: 'outQuad', p: { torso: 0, afU: 10, afL: 135, abU: 30 } },
+    { d: 0.05, e: 'outExpo', p: { torso: 18, afU: 98, afL: 0, abU: -15, abL: 130 }, active: true },
+    { d: 0.07, p: { torso: 18, afU: 96, afL: 4, abU: -15, abL: 130 }, active: true },
+    { d: 0.16, e: 'inOutCubic', p: null },
+  ] },
+  kick: { power: 1.5, hit: 'foot', keys: [
+    { d: 0.10, e: 'outQuad', p: { torso: -5, lfU: 75, lfL: -120, afU: 20, abU: 40 } },
+    { d: 0.07, e: 'outExpo', p: { torso: -28, lfU: 100, lfL: -5, lbU: -10, lbL: 0, afU: -10, afL: 60, abU: 60 }, active: true },
+    { d: 0.09, p: { torso: -28, lfU: 98, lfL: -8, lbU: -10, lbL: 0, afU: -10, afL: 60, abU: 60 }, active: true },
+    { d: 0.22, e: 'inOutCubic', p: null },
+  ] },
+  hurt: { keys: [
+    { d: 0.05, e: 'outExpo', p: { torso: -22, head: -25, afU: -20, afL: 40, abU: -40, abL: 30 } },
+    { d: 0.14, p: { torso: -18, head: -18, afU: -15, afL: 50, abU: -30, abL: 40 } },
+    { d: 0.25, e: 'outCubic', p: null },
+  ] },
+};
+const resolve = (base, p) => p ? { ...base, ...p } : base;
+
+// forward kinematics, hip at origin, y down
+function fk(p, dir) {
+  const R = Math.PI / 180;
+  const add = (o, a, l) => [o[0] + Math.sin(a * R) * l * dir, o[1] + Math.cos(a * R) * l];
+  const hip = [0, 0], tA = 180 - p.torso, dA = -p.torso, hA = tA - p.head;
+  const sh = add(hip, tA, B.torso), neck = add(sh, hA, B.neck), head = add(neck, hA, B.head);
+  const fe = add(sh, dA + p.afU, B.uArm), fh = add(fe, dA + p.afU + p.afL, B.lArm);
+  const be = add(sh, dA + p.abU, B.uArm), bh = add(be, dA + p.abU + p.abL, B.lArm);
+  const fkn = add(hip, p.lfU, B.thigh), ff = add(fkn, p.lfU + p.lfL, B.shin);
+  const bkn = add(hip, p.lbU, B.thigh), bf = add(bkn, p.lbU + p.lbL, B.shin);
+  return { hip, sh, neck, head, fe, fh, be, bh, fk: fkn, ff, bk: bkn, bf };
+}
+
+// ---------- world ----------
+const W = 800, H = 450;
+const INK = ['#222', '#8a8580'], RED = ['#c0392b', '#e0998f'];
+const NOIN = { left: false, right: false, down: false, jump: false, punch: false, kick: false };
+let fighters = [], player, dummy, focus, victim = null;
+let hitstopT = 0, trauma = 0, zoom = 0, T = 0;
+const parts = [], scope = { a: [], b: [] };
+
+class Fighter {
+  constructor(x, groundY, dir, col, over = {}) {
+    Object.assign(this, { x, groundY, dir, col, over, y: 0, vx: 0, vy: 0, grounded: true, time: 0, walkPh: 0,
+      action: null, buffer: null, squatT: 0, hurtT: 0, flashT: 0, crouching: false, sq: 0, sqv: 0, trail: [] });
+    this.target = this.basePose();
+    this.disp = { ...this.target };
+    this.flt = {};
+    for (const j of JOINTS) this.flt[j] = new SecondOrder(this.target[j]);
+  }
+  c(k) { return this.over[k] ?? CFG[k]; }
+
+  basePose() {
+    const P = { ...STANCE }, br = Math.sin(this.time * 2.2);
+    P.torso += br * 1.5; P.afU += br * 2; P.abU += br * 2; // breathing
+    if (!this.grounded) Object.assign(P, AIR);
+    else if (this.crouching || this.squatT > 0) Object.assign(P, CROUCH);
+    else {
+      const w = Math.min(1, Math.abs(this.vx) / this.c('maxSpeed')), ph = this.walkPh;
+      P.lfU += Math.sin(ph) * 28 * w; P.lbU -= Math.sin(ph) * 28 * w;
+      P.lfL -= Math.max(0, Math.cos(ph)) * 40 * w; P.lbL -= Math.max(0, -Math.cos(ph)) * 40 * w;
+      P.torso += 4 * w * Math.sign(this.vx * this.dir);
+    }
+    return P;
+  }
+
+  bufferInput(inp) {
+    if (inp.punch) this.buffer = { m: 'punch', t: 0.15 };
+    if (inp.kick) this.buffer = { m: 'kick', t: 0.15 };
+  }
+  start(m) { this.action = { m: MOVES[m], name: m, i: 0, t: 0, from: { ...this.target }, hit: false }; }
+
+  update(dt, inp, opp) {
+    const c = k => this.c(k);
+    this.time += dt; this.hurtT -= dt; this.flashT -= dt;
+    const free = this.hurtT <= 0;
+    if (this.buffer) {
+      if (free && !this.action && this.squatT <= 0) { this.start(this.buffer.m); this.buffer = null; }
+      else if ((this.buffer.t -= dt) < 0) this.buffer = null;
+    }
+
+    // horizontal: accelerate toward desired speed, never snap
+    this.crouching = free && inp.down && this.grounded;
+    const locked = !free || (this.action && this.grounded) || this.squatT > 0 || this.crouching;
+    const want = locked ? 0 : (inp.right - inp.left) * c('maxSpeed');
+    const rate = want && Math.sign(want) === Math.sign(this.vx || want) ? c('accel') : c('decel') * (free ? 1 : 0.35);
+    this.vx = approach(this.vx, want, rate * dt);
+    this.x += this.vx * dt;
+    if (this.x < 40 || this.x > W - 40) { this.x = clamp(this.x, 40, W - 40); this.vx = 0; }
+    this.walkPh += this.vx * this.dir * dt * 0.075;
+
+    // vertical: jump squat (anticipation) -> launch -> land
+    if (inp.jump && this.grounded && free && !this.action && this.squatT <= 0) this.squatT = c('jumpSquat') || 1e-6;
+    if (this.squatT > 0 && (this.squatT -= dt) <= 0) {
+      this.grounded = false; this.vy = -c('jumpVel'); this.sqv += c('squash') * 25;
+    }
+    if (!this.grounded) {
+      this.vy += c('gravity') * dt; this.y += this.vy * dt;
+      if (this.y >= 0) {
+        const imp = Math.min(1, this.vy / 800);
+        this.y = 0; this.vy = 0; this.grounded = true;
+        this.sqv -= c('squash') * 25 * imp;
+        dust(this.x, this.groundY, imp);
+      }
+    }
+    // squash & stretch spring (sq > 0 = stretch)
+    const w = 2 * Math.PI * 4.5;
+    this.sqv += (-w * w * this.sq - 2 * 0.3 * w * this.sqv) * dt;
+    this.sq += this.sqv * dt;
+
+    // tween layer: keyframes eased from a snapshot toward (live base ⊕ key)
+    const base = this.basePose();
+    if (this.action) {
+      const a = this.action, keys = a.m.keys;
+      a.t += dt * (a.name === 'hurt' ? 1 : c('attackSpeed'));
+      while (a.i < keys.length && a.t >= keys[a.i].d) { a.t -= keys[a.i].d; a.from = resolve(base, keys[a.i].p); a.i++; }
+      if (a.i >= keys.length) this.action = null;
+    }
+    if (this.action) {
+      const a = this.action, k = a.m.keys[a.i], to = resolve(base, k.p);
+      const e = EASE[c('easing') === 'authored' ? k.e || 'linear' : c('easing')](a.t / k.d);
+      for (const j of JOINTS) this.target[j] = a.from[j] + (to[j] - a.from[j]) * e;
+    } else Object.assign(this.target, base);
+
+    // filter layer: displayed pose chases the target pose
+    const mode = c('filter');
+    for (const j of JOINTS) {
+      const x = this.target[j];
+      if (mode === 'spring') {
+        this.disp[j] = this.flt[j].update(dt, x, c('freq') * c('followThru') ** DEPTH[j], c('zeta'), c('response'));
+        continue;
+      }
+      this.disp[j] = mode === 'damp' ? this.disp[j] + (x - this.disp[j]) * (1 - Math.exp(-c('dampRate') * dt)) : x;
+      this.flt[j].reset(this.disp[j]);
+    }
+
+    // hits are tested against what is drawn, not the target
+    const a = this.action;
+    if (a && opp && !a.hit && a.m.keys[a.i].active) {
+      const P = this.points(this.disp), pt = a.m.hit === 'foot' ? P.ff : P.fh;
+      if (opp.hurtBy(pt)) { a.hit = true; onHit(this, opp, pt, a.m.power); }
+    }
+  }
+
+  hurtBy(pt) {
+    const P = this.points(this.disp);
+    return distSeg(pt, P.hip, P.neck) < 12 || Math.hypot(pt[0] - P.head[0], pt[1] - P.head[1]) < B.head + 4;
+  }
+  takeHit(dir, power) {
+    this.dir = -dir; this.vx = dir * 300 * power;
+    if (!this.grounded) this.vy = -200;
+    this.start('hurt'); this.hurtT = 0.35; this.flashT = 0.1; this.buffer = null; this.squatT = 0;
+    this.sqv -= CFG.squash * 15 * power;
+  }
+
+  // world-space joints: feet snapped to the ground, then squash/stretch around the feet
+  points(p) {
+    const L = fk(p, this.dir), fy = Math.max(L.ff[1], L.bf[1]);
+    const sx = 1 - this.sq * 0.5, sy = 1 + this.sq, ax = this.x, ay = this.groundY + this.y, P = {};
+    for (const k in L) P[k] = [ax + L[k][0] * sx, ay + (L[k][1] - fy) * sy];
+    return P;
+  }
+  recordTrail() {
+    const P = this.points(this.disp);
+    this.trail.push([P.fh, P.ff]);
+    if (this.trail.length > 24) this.trail.shift();
+  }
+
+  draw(ctx, jitter) {
+    ctx.save(); ctx.translate(jitter, 0);
+    const s = Math.max(0.3, 1 + this.y / 200);
+    ctx.fillStyle = 'rgba(0,0,0,.08)';
+    ctx.beginPath(); ctx.ellipse(this.x, this.groundY + 1, 22 * s, 4 * s, 0, 0, 7); ctx.fill();
+
+    const n = Math.min(CFG.trail, this.trail.length - 1);
+    for (const li of [0, 1]) for (let i = 1; i <= n; i++) {
+      const a = this.trail[this.trail.length - 1 - n + i - 1][li], b = this.trail[this.trail.length - 1 - n + i][li];
+      ctx.globalAlpha = (i / n) * 0.35; ctx.lineWidth = (i / n) * 5; ctx.strokeStyle = this.col[0];
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    if (CFG.ghost) { ctx.globalAlpha = 0.2; drawFigure(this.points(this.target), '#07f', '#07f', 3); ctx.globalAlpha = 1; }
+    const P = this.points(this.disp);
+    if (this.flashT > 0 && CFG.flash) { drawFigure(P, '#111', '#111', 9); drawFigure(P, '#fff', '#fff', 5); }
+    else drawFigure(P, this.col[0], this.col[1], 5);
+    ctx.restore();
+  }
+}
+
+function drawFigure(P, col, back, lw) {
+  const line = (c, ...pts) => {
+    ctx.strokeStyle = c; ctx.beginPath(); ctx.moveTo(...pts[0]);
+    for (const p of pts.slice(1)) ctx.lineTo(...p);
+    ctx.stroke();
+  };
+  ctx.lineWidth = lw; ctx.lineCap = ctx.lineJoin = 'round';
+  line(back, P.hip, P.bk, P.bf);
+  line(back, P.sh, P.be, P.bh);
+  line(col, P.hip, P.sh, P.neck);
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(P.head[0], P.head[1], B.head + (lw - 5) / 2, 0, 7); ctx.fill();
+  line(col, P.hip, P.fk, P.ff);
+  line(col, P.sh, P.fe, P.fh);
+}
+
+// ---------- juice ----------
+function onHit(att, vic, pt, power) {
+  hitstopT = CFG.hitstop * power;
+  trauma = Math.min(1, trauma + 0.3 * power);
+  zoom += CFG.zoomPunch * power;
+  victim = vic;
+  vic.takeHit(att.dir, power);
+  if (CFG.sparks > 0) {
+    parts.push({ t: 'ring', x: pt[0], y: pt[1], life: 0.16, max: 0.16 });
+    for (let i = 0; i < CFG.sparks * power; i++) {
+      const a = rand(-0.8, 0.8) + (att.dir > 0 ? 0 : Math.PI), s = rand(250, 700), life = rand(0.12, 0.3);
+      parts.push({ t: 'spark', x: pt[0], y: pt[1], vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life });
+    }
+  }
+}
+function dust(x, y, imp) {
+  if (CFG.squash <= 0) return;
+  for (let i = 0; i < 3 + imp * 6; i++) {
+    const life = rand(0.25, 0.45);
+    parts.push({ t: 'dust', x: x + rand(-8, 8), y: y - 2, vx: rand(-1, 1) * 140 * imp, vy: -rand(10, 50), r: rand(2, 5), life, max: life });
+  }
+}
+function updateParticles(dt) {
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    if ((p.life -= dt) <= 0) { parts.splice(i, 1); continue; }
+    if (p.vx !== undefined) {
+      const drag = Math.exp(-(p.t === 'spark' ? 6 : 4) * dt);
+      p.vx *= drag; p.vy *= drag; p.x += p.vx * dt; p.y += p.vy * dt;
+    }
+  }
+}
+function drawParticles() {
+  for (const p of parts) {
+    const k = p.life / p.max;
+    if (p.t === 'spark') {
+      ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 2.5 * k;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.03, p.y - p.vy * 0.03); ctx.stroke();
+    } else if (p.t === 'ring') {
+      ctx.strokeStyle = '#222'; ctx.lineWidth = 3 * k;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 6 + (1 - k) * 36, 0, 7); ctx.stroke();
+    } else {
+      ctx.fillStyle = `rgba(120,110,100,${0.35 * k})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (2 - k), 0, 7); ctx.fill();
+    }
+  }
+}
+
+// ---------- scene / loop ----------
+const LABELS = ['raw: stepped keys, no filter', 'tween: eased keys, no filter', 'tween + filter (live settings)'];
+function setupScene() {
+  parts.length = 0; hitstopT = trauma = zoom = 0; victim = null; scope.a = []; scope.b = [];
+  if (CFG.compare) {
+    fighters = [
+      new Fighter(200, 150, 1, INK, { easing: 'step', filter: 'none' }),
+      new Fighter(200, 290, 1, INK, { filter: 'none' }),
+      new Fighter(200, 430, 1, INK),
+    ];
+    fighters.forEach((f, i) => f.label = LABELS[i]);
+    focus = fighters[2];
+  } else {
+    player = new Fighter(300, 360, 1, INK);
+    dummy = new Fighter(500, 360, -1, RED);
+    fighters = [player, dummy];
+    focus = player;
+  }
+}
+
+function step(h) {
+  const inp = readInput();
+  T += h;
+  trauma = Math.max(0, trauma - h * 1.6);
+  zoom *= Math.exp(-h * 10);
+  updateParticles(h);
+  const controlled = CFG.compare ? fighters : [player];
+  for (const f of controlled) f.bufferInput(inp);
+  if (hitstopT > 0) { hitstopT -= h; return; }
+  if (CFG.compare) { for (const f of fighters) f.update(h, inp, null); return; }
+
+  player.update(h, inp, dummy);
+  if (hitstopT <= 0) dummy.update(h, NOIN, player);
+  // push apart, then face each other
+  const d = dummy.x - player.x;
+  if (Math.abs(d) < 38 && Math.abs(player.y - dummy.y) < 60) {
+    const push = (38 - Math.abs(d)) / 2 * (Math.sign(d) || 1);
+    player.x -= push; dummy.x += push;
+  }
+  for (const [a, b] of [[player, dummy], [dummy, player]])
+    if (!a.action && a.hurtT <= 0 && a.grounded) a.dir = Math.sign(b.x - a.x) || a.dir;
+}
+
+const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+let dpr = 1;
+function resize() { dpr = devicePixelRatio || 1; canvas.width = innerWidth * dpr; canvas.height = innerHeight * dpr; }
+
+function render() {
+  const cw = canvas.width, ch = canvas.height;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#f3f0e8'; ctx.fillRect(0, 0, cw, ch);
+
+  const s = Math.min(cw / W, ch / H) * (1 + zoom), tr = trauma * trauma * CFG.shake;
+  const sx = tr * (Math.sin(T * 71) + Math.sin(T * 113 + 1)) * 0.5;
+  const sy = tr * (Math.sin(T * 89 + 2) + Math.sin(T * 127 + 3)) * 0.5;
+  ctx.setTransform(s, 0, 0, s, cw / 2 + (sx - W / 2) * s, ch / 2 + (sy - H / 2) * s);
+
+  ctx.strokeStyle = '#cfc8bb'; ctx.lineWidth = 2;
+  for (const g of new Set(fighters.map(f => f.groundY))) {
+    ctx.beginPath(); ctx.moveTo(-2000, g); ctx.lineTo(W + 2000, g); ctx.stroke();
+  }
+  ctx.fillStyle = '#aaa'; ctx.font = '11px ui-monospace, Menlo, monospace';
+  for (const f of fighters) if (f.label) ctx.fillText(f.label, 20, f.groundY + 16);
+
+  for (const f of fighters) f.draw(ctx, hitstopT > 0 && f === victim ? rand(-3, 3) : 0);
+  drawParticles();
+  drawScope();
+}
+
+// oscilloscope: target (grey) vs displayed (color) for one joint of the focused fighter
+function drawScope() {
+  const w = 260, h = 80, x = 10, y = innerHeight - 30 - h;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#fffc'; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+  const all = scope.a.concat(scope.b), lo = Math.min(...all) - 5, hi = Math.max(...all) + 5;
+  for (const [arr, col] of [[scope.a, '#bbb'], [scope.b, '#c0392b']]) {
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath();
+    arr.forEach((v, i) => ctx.lineTo(x + i / 239 * w, y + h - (v - lo) / (hi - lo) * h));
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#999'; ctx.font = '11px ui-monospace, Menlo, monospace';
+  ctx.fillText(`${CFG.scope}: target (grey) vs drawn (red)`, x + 4, y + 12);
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000) * CFG.timeScale;
+  last = now;
+  // fixed-size substeps (<= 1/120 s) keep springs and physics identical at any refresh rate
+  const n = Math.max(1, Math.ceil(dt * 120));
+  for (let i = 0; i < n; i++) step(dt / n);
+  if (hitstopT <= 0) for (const f of fighters) f.recordTrail();
+  scope.a.push(focus.target[CFG.scope]); scope.b.push(focus.disp[CFG.scope]);
+  if (scope.a.length > 240) { scope.a.shift(); scope.b.shift(); }
+  render();
+  requestAnimationFrame(frame);
+}
+
+// ---------- input ----------
+const keys = new Set(), pressed = new Set();
+const MAP = { KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', KeyW: 'jump', ArrowUp: 'jump',
+  Space: 'jump', KeyS: 'down', ArrowDown: 'down', KeyJ: 'punch', KeyK: 'kick' };
+addEventListener('keydown', e => {
+  if (e.code === 'KeyH') { panel.hidden = !panel.hidden; return; }
+  if (e.code === 'KeyR') { setupScene(); return; }
+  const a = MAP[e.code];
+  if (!a) return;
+  e.preventDefault();
+  if (!e.repeat) pressed.add(a);
+  keys.add(a);
+});
+addEventListener('keyup', e => { const a = MAP[e.code]; if (a) keys.delete(a); });
+addEventListener('blur', () => keys.clear());
+function readInput() {
+  const i = { left: keys.has('left'), right: keys.has('right'), down: keys.has('down'),
+    jump: pressed.has('jump'), punch: pressed.has('punch'), kick: pressed.has('kick') };
+  pressed.clear(); // edges are consumed by the first substep only
+  return i;
+}
+
+// ---------- panel ----------
+const panel = document.getElementById('panel'), inputs = {};
+const fmt = v => typeof v === 'number' ? String(+v.toFixed(3)) : '';
+function syncUI() {
+  for (const k in inputs) {
+    const { el, val } = inputs[k];
+    if (el.type === 'checkbox') el.checked = CFG[k]; else el.value = CFG[k];
+    val.textContent = fmt(CFG[k]);
+  }
+}
+function applyPreset(name) {
+  const keep = { compare: CFG.compare, ghost: CFG.ghost, scope: CFG.scope, timeScale: CFG.timeScale };
+  Object.assign(CFG, DEFAULTS, PRESETS[name], keep);
+  syncUI();
+}
+function buildUI() {
+  const bar = document.createElement('div');
+  for (const name in PRESETS) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.onclick = () => { applyPreset(name); b.blur(); };
+    bar.append(b);
+  }
+  panel.append(bar);
+  for (const s of SCHEMA) {
+    if (Array.isArray(s)) { const h = document.createElement('h3'); h.textContent = s[0]; panel.append(h); continue; }
+    const lab = document.createElement('label'), name = document.createElement('span'), val = document.createElement('span');
+    let el;
+    if (s.opts) { el = document.createElement('select'); for (const o of s.opts) el.add(new Option(o)); }
+    else if (typeof s.v === 'boolean') { el = document.createElement('input'); el.type = 'checkbox'; }
+    else { el = document.createElement('input'); Object.assign(el, { type: 'range', min: s.min, max: s.max, step: s.step }); }
+    name.textContent = s.k; val.className = 'v';
+    el.addEventListener('input', () => {
+      CFG[s.k] = el.type === 'checkbox' ? el.checked : s.opts ? el.value : +el.value;
+      val.textContent = fmt(CFG[s.k]);
+      if (s.k === 'compare') setupScene();
+    });
+    el.addEventListener('change', () => el.blur()); // give keys back to the game
+    inputs[s.k] = { el, val };
+    lab.append(name, el, val);
+    panel.append(lab);
+  }
+  syncUI();
+}
+
+buildUI();
+resize();
+addEventListener('resize', resize);
+setupScene();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
