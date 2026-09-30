@@ -121,6 +121,7 @@ const STICK_HURT = {
 // ---------- characters ----------
 const HITS = { fh: 'handF', bh: 'handB', ff: 'footF', bf: 'footB' };
 function makeCharacter(def) {
+  def = JSON.parse(JSON.stringify(def)); // the caller's definition stays untouched (it is what gets edited and saved)
   const by = {}, order = [];
   for (const b of def.bones) by[b.id] = { ...BONE, parent: null, ...b };
   const visit = b => { if (order.includes(b)) return; if (b.parent) visit(by[b.parent]); order.push(b); };
@@ -153,12 +154,15 @@ function makeCharacter(def) {
 }
 const oldMove = m => ({ ...m, hit: HITS[m.hit], keys: m.keys.map(k => ({ ...k, p: fromOld(k.p) })) });
 const mapVals = (o, f) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, f(v)]));
-const CHARS = {
-  stick: makeCharacter({ name: 'stick', bones: STICK_BONES,
+// built-in definitions (plain JSON: what the creator edits, saves and reverts to); CHARS = compiled
+const CHAR_DEFS = {
+  stick: { name: 'stick', bones: STICK_BONES,
     poses: mapVals({ stance: STANCE, crouch: CROUCH, air: AIR, airFall: AIR_FALL, fall: FALL, lie: LIE }, fromOld),
-    moves: mapVals(STICK_MOVES, oldMove), hurt: mapVals(STICK_HURT, set => set.map(fromOld)) }),
+    moves: mapVals(STICK_MOVES, oldMove), hurt: mapVals(STICK_HURT, set => set.map(fromOld)) },
 };
-SPEC.scope.opts.push(...CHARS.stick.ids);
+const CHARS = mapVals(CHAR_DEFS, makeCharacter);
+let CURRENT = 'stick';
+const currentChar = () => CHARS[CURRENT];
 
 // a reaction pose, randomized so repeated hits never look identical
 function makeHurt(pose, stun, rand, stance) {
@@ -187,8 +191,9 @@ function frameData(m, speed = 1) {
 }
 
 // forward kinematics, hip (root) at origin, y down. dir in [-1, 1] (fractional while turning). lens: stretched lengths
-function fk(ch, p, dir, lens) {
-  const P = { hip: [0, 0] }, wa = {};
+// wa (optional) receives each bone's world angle
+function fk(ch, p, dir, lens, wa = {}) {
+  const P = { hip: [0, 0] };
   for (const b of ch.bones) {
     const pb = b.parent && ch.by[b.parent], pw = pb ? wa[pb.id] : 0;
     const w = wa[b.id] = pw + p[b.id] - b.level * (pw - (pb ? pb.restW : 0));

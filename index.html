@@ -6,51 +6,66 @@
 <style>
   html, body { margin: 0; height: 100%; background: #f3f0e8; color: #222; overflow: hidden;
     font: 12px/1.3 ui-monospace, Menlo, monospace; }
-  body { display: grid; grid-template: "top top" auto "stage side" 1fr "help side" auto / 1fr 290px; }
+  body { display: grid; grid-template: "top top" auto "stage side" 1fr "help side" auto / 1fr 300px; }
   body.noside { grid-template-columns: 1fr 0; }
   body.noside #side { display: none; }
-  select, input, button { font: inherit; }
+  input, button { font: inherit; }
+  button { background: #fbfaf6; border: 1px solid #cfc8bb; border-radius: 3px; padding: 2px 7px; cursor: pointer; color: #333; }
+  button:hover { border-color: #999; }
+  button.on { background: #222; border-color: #222; color: #f3f0e8; }
+  button.tog::before { content: '○ '; color: #aaa; }
+  button.tog.on::before { content: '● '; color: #f3f0e8; }
+  button.info { border-radius: 50%; width: 16px; height: 16px; padding: 0; margin-left: 6px; font-size: 10px; line-height: 14px; color: #999; }
+  button.wide { display: block; width: 100%; margin: 2px 0; text-align: left; }
+  .seg { display: inline-flex; flex-wrap: wrap; }
+  .seg button { border-radius: 0; margin-left: -1px; }
+  .seg button:first-child { border-radius: 3px 0 0 3px; margin-left: 0; }
+  .seg button:last-child { border-radius: 0 3px 3px 0; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 3px 0; }
   #top { grid-area: top; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
     padding: 6px 10px; border-bottom: 1px solid #ddd7cb; }
-  #top input[type=number] { width: 64px; }
-  #top [hidden] { display: none; }
+  #top input[type=number] { width: 56px; }
+  #ctx { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   #stage { grid-area: stage; position: relative; min-width: 0; min-height: 0; }
-  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   #side { grid-area: side; overflow: auto; border-left: 1px solid #ddd7cb; padding: 8px; box-sizing: border-box; }
-  #side h3 { margin: 10px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
-  #side label { display: grid; grid-template-columns: 96px 1fr 40px; align-items: center; gap: 4px; margin: 2px 0; }
-  #side input[type=range], #side select { width: 100%; }
-  #side .v { text-align: right; color: #666; }
-  #side button { margin: 0 3px 3px 0; cursor: pointer; }
+  #side h3 { display: flex; align-items: center; margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
+  .row { display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 4px; margin: 2px 0; }
+  .row input[type=range] { width: 100%; }
+  .row > .seg, .row > button { grid-column: 2 / 4; justify-self: start; }
+  #side h4 { margin: 8px 0 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
+  [hidden] { display: none !important; }
+  .v { text-align: right; color: #666; }
   #scope { width: 100%; height: 80px; display: block; border: 1px solid #ddd; box-sizing: border-box; }
-  #stats { white-space: pre-wrap; color: #888; font-size: 11px; margin: 4px 0 8px; }
+  .note { white-space: pre-wrap; color: #888; font-size: 11px; margin: 4px 0 8px; }
   #help { grid-area: help; padding: 4px 10px; color: #999; border-top: 1px solid #ddd7cb; }
+  .pop { position: fixed; z-index: 10; background: #fbfaf6; border: 1px solid #bbb; border-radius: 4px; padding: 8px;
+    box-shadow: 0 4px 16px #0002; max-width: 420px; max-height: 70vh; overflow: auto; }
+  .pop p { margin: 6px 0 0; white-space: pre-wrap; color: #444; }
+  .pop .keys { color: #888; }
+  .pop h4 { margin: 8px 0 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
+  .tip { position: fixed; z-index: 20; display: none; pointer-events: none; max-width: 320px; padding: 4px 7px;
+    background: #222; color: #f3f0e8; border-radius: 3px; font-size: 11px; white-space: pre-wrap; }
 </style>
 </head>
 <body>
 <div id="top">
-  <select id="mode" title="play: one fight · grid: 3x3 sweep of a variable · gallery: every move looping">
-    <option>play</option><option>grid</option><option>gallery</option>
-  </select>
-  <label id="scenctl">scenario <select id="scen"></select></label>
-  <span id="gridctl">
-    X <select id="xk"></select> <input id="xlo" type="number" step="any"> → <input id="xhi" type="number" step="any">
-    &nbsp; Y <select id="yk"><option value="">—</option></select> <input id="ylo" type="number" step="any"> → <input id="yhi" type="number" step="any">
-  </span>
-  <span>
-    <button id="pause">pause</button> <button id="step">step</button> <button id="restart">restart</button>
-    speed <select id="speed"><option>1</option><option>0.5</option><option>0.25</option><option>0.1</option></select>
-    <label><input id="loop" type="checkbox" checked> loop</label>
-  </span>
+  <span id="modes"></span>
+  <span id="ctx"></span>
+  <span id="transport" class="bar"></span>
 </div>
 <div id="stage"><canvas id="c"></canvas></div>
-<div id="side"><canvas id="scope"></canvas><div id="stats"></div><div id="panel"></div></div>
-<div id="help">A/D move · W jump · S crouch · J punch · K kick — J,J,J · K,K · J,K · J,J,K · S+K sweep · run+J dash · air J/K — R restart · P pause · N step · H sidebar · click a grid cell to adopt its values</div>
+<div id="side"></div>
+<div id="help"></div>
 <script src="src/core.js"></script>
 <script src="src/rig.js"></script>
 <script src="src/fighter.js"></script>
 <script src="src/world.js"></script>
 <script src="src/brain.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/studio.js"></script>
 <script src="src/lab.js"></script>
+<script src="src/creator.js"></script>
+<script src="src/app.js"></script>
 </body>
 </html>

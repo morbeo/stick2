@@ -12,6 +12,15 @@ class Fighter {
     this.flt = {}; this.lens = {};
     for (const b of ch.bones) { this.flt[b.id] = new SecondOrder(this.target[b.id]); this.lens[b.id] = b.len; }
   }
+  // swap the body live (character editor): new bones start at the base pose, the running move is dropped
+  setChar(ch) {
+    this.ch = ch; this.action = null; this.trail = [];
+    const base = this.basePose();
+    for (const b of ch.bones) {
+      if (!this.flt[b.id]) { this.flt[b.id] = new SecondOrder(base[b.id]); this.target[b.id] = this.disp[b.id] = this.prev[b.id] = base[b.id]; }
+      this.lens[b.id] = b.len;
+    }
+  }
   c(k) { return this.over[k] ?? this.w.cfg[k]; }
   get free() { return this.hurtT <= 0 && !this.kd; }
 
@@ -240,6 +249,20 @@ class Fighter {
     if (this.trail.length > 24) this.trail.shift();
   }
 
+  // hurtboxes (blue) and the live strike (red), in the pose the collision mode tests
+  drawBoxes(ctx) {
+    const P = this.c('hitTest') === 'target' ? this.points(this.target) : this.body();
+    ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(44,111,176,.22)';
+    for (const b of this.ch.bones) if (b.hurt > 0) {
+      const e = P[b.id], o = b.shape === 'circle' ? e : P[b.parent || 'hip'];
+      ctx.lineWidth = b.hurt * 2; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0] + 0.01, e[1]); ctx.stroke();
+    }
+    const a = this.action, s = a?.m.keys[a.i]?.active && this.strikeShape(a.m);
+    if (!s) return;
+    ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = Math.max(3, s[2] * 2);
+    ctx.beginPath(); ctx.moveTo(s[0][0], s[0][1]); ctx.lineTo(s[1][0] + 0.01, s[1][1]); ctx.stroke();
+  }
+
   draw(ctx, jitter) {
     ctx.save(); ctx.translate(jitter, 0);
     const s = Math.max(0.3, 1 + this.y / 200);
@@ -258,6 +281,7 @@ class Fighter {
     const P = this.body();
     if (this.flashT > 0 && this.c('flash')) { drawFigure(ctx, this.ch, P, '#111', '#111', 4); drawFigure(ctx, this.ch, P, '#fff', '#fff'); }
     else drawFigure(ctx, this.ch, P, this.col[0], this.col[1]);
+    if (this.c('boxes')) this.drawBoxes(ctx);
 
     if (this.comboT > 0 && this.comboShown > 1) {
       ctx.globalAlpha = Math.min(1, this.comboT * 3);

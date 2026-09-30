@@ -8,7 +8,7 @@ const HIST = 240;
 
 class World {
   // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, more?, period? } (see brain.js)
-  // chars: character per fighter slot (the last one fills the rest); default = the stick fighter
+  // chars: character per fighter slot (the last one fills the rest); default = the current character
   constructor(scen, over = {}, seed = 1, chars = null) {
     Object.assign(this, { scen, over, seed, chars, groundY: GROUND, loop: true, camW: 420 });
     this.cfg = Object.assign(Object.create(CFG), over);
@@ -21,13 +21,18 @@ class World {
       pend: null, adv: null, hist: { tgt: [], disp: [], vx: [], y: [] } });
     // a vs b, plus any extra fighters: { c: controller, x, team }
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0 }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1 }, ...(s.more || [])];
-    const chars = this.chars || [CHARS.stick];
+    const chars = this.chars || [currentChar()];
     this.fighters = specs.map((sp, i) => Object.assign(
       new Fighter(this, sp.x, i < 2 ? 1 - 2 * i : sp.x < W / 2 ? 1 : -1, COLS[i % COLS.length], chars[Math.min(i, chars.length - 1)]),
       { team: sp.team ?? i }));
     [this.a, this.b] = this.fighters;
     this.ctl = specs.map(sp => makeCtl(sp.c, this));
     this.cam = (this.a.x + this.b.x) / 2;
+  }
+  // a character was edited: fighters wearing the old build switch to the new one mid-fight
+  swapChar(from, to) {
+    if (this.chars) this.chars = this.chars.map(c => c === from ? to : c);
+    for (const f of this.fighters) if (f.ch === from) f.setChar(to);
   }
   foes(f) { return this.fighters.filter(o => o.team !== f.team); }
   nearestFoe(f) {
@@ -49,7 +54,7 @@ class World {
     for (let i = 0; i < n && !this.done; i++) this.step(dt / n, i ? { ...inp, jump: false, punch: false, kick: false } : inp);
     for (const f of this.fighters) if (f.freeze <= 0) f.recordTrail();
     const h = this.hist, j = this.cfg.scope;
-    h.tgt.push(this.a.target[j]); h.disp.push(this.a.disp[j]); h.vx.push(this.a.vx); h.y.push(this.a.y);
+    h.tgt.push(this.a.target[j] ?? 0); h.disp.push(this.a.disp[j] ?? 0); h.vx.push(this.a.vx); h.y.push(this.a.y);
     if (h.tgt.length > HIST) for (const k in h) h[k].shift();
   }
 

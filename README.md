@@ -6,4 +6,7 @@ Open `index.html` directly (no build step), or play it on GitHub Pages: https://
 
 - **play**: one fight (you / engine AI / dummy / scripted scenarios)
 - **grid**: 3x3 sweep of any tunable (or X x Y), every cell replaying the same seeded fight
-- **gallery**: every attack looping with its keyframe timeline
+- **gallery**: every attack looping with its keyframe timeline and frame data (startup / active / recovery, advantage on hit)
+- **character**: drag joints to set length and stance angle, add role-based limbs (arms, legs, tails, heads, joints), tune bone properties (stretch, follow-through, stiffness…) and watch the live preview fight; **experiment** breeds a 3x3 grid of body variations around the cell you click
+
+Every setting has a hover tooltip; each group's ⓘ explains it and lists its keys. `?` in the top bar shows all keys.

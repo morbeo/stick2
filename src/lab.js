@@ -1,10 +1,9 @@
 'use strict';
-// ---------- lab: play / 3x3 parameter grid / move gallery, each cell an independent World ----------
-const $ = id => document.getElementById(id);
-const canvas = $('c'), ctx = canvas.getContext('2d'), scopeCv = $('scope'), sctx = scopeCv.getContext('2d');
+// ---------- fight modes: play / grid (parameter sweep) / gallery (every move); each cell is an independent World ----------
+const canvas = $('c'), ctx = canvas.getContext('2d');
 let dpr = 1;
-const lab = { mode: 'play', scen: 'you vs dummy', x: { k: 'hitstop' }, y: { k: '' },
-  paused: false, stepOnce: false, speed: 1, loop: true, cells: [], cols: 1, focus: null };
+const lab = { mode: 'play', scen: 'you vs dummy', x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false };
+const newWorld = (...a) => Object.assign(new World(...a), { loop: app.loop });
 
 // what the little plot under a grid cell shows, by the swept variable
 const GROUP = {
@@ -14,7 +13,13 @@ const GROUP = {
   move: ['maxSpeed', 'accel', 'decel', 'jumpVel', 'gravity', 'jumpSquat'],
 };
 const plotKind = k => Object.keys(GROUP).find(g => GROUP[g].includes(k)) || 'scope';
-const fmt = v => typeof v === 'number' ? String(+v.toFixed(3)) : String(v);
+const PRESET_TIPS = {
+  raw: 'No tween, no spring, no juice: poses snap from key to key.',
+  tweened: 'Keyframes eased, no spring, no juice.',
+  spring: 'Tween + spring filter, no juice.',
+  floaty: 'Slow, loose springs on top of the defaults.',
+  juicy: 'Everything on: the defaults.',
+};
 
 // n values across [lo, hi] snapped to the slider step; categorical vars just take their options
 function axisValues(ax, n) {
@@ -24,12 +29,13 @@ function axisValues(ax, n) {
   const lo = isNaN(ax.lo) ? s.min : ax.lo, hi = isNaN(ax.hi) ? s.max : ax.hi;
   return Array.from({ length: n }, (_, i) => +(Math.round((lo + (hi - lo) * i / (n - 1)) / s.step) * s.step).toFixed(4));
 }
+const galleryMoves = () => GALLERY.filter(m => currentChar().moves[m]);
 
 function build() {
   const scen = SCENARIOS[lab.scen];
-  lab.cells = []; lab.cols = 3;
-  if (lab.mode === 'play') { lab.cells.push({ w: new World(scen) }); lab.cols = 1; }
-  else if (lab.mode === 'gallery') for (const m of GALLERY) lab.cells.push({ w: new World(galleryScen(m)), move: m, label: m });
+  lab.cells = []; lab.cols = 3; lab.zoom = false;
+  if (lab.mode === 'play') { lab.cells.push({ w: newWorld(scen) }); lab.cols = 1; }
+  else if (lab.mode === 'gallery') for (const m of galleryMoves()) lab.cells.push({ w: newWorld(galleryScen(m)), move: m, label: m });
   else {
     const xs = axisValues(lab.x, lab.y.k ? 3 : 9), ys = lab.y.k ? axisValues(lab.y, 3) : [null];
     if (lab.y.k) lab.cols = xs.length;
@@ -37,39 +43,49 @@ function build() {
       const over = { [lab.x.k]: xv };
       if (lab.y.k) over[lab.y.k] = yv;
       // same seed everywhere: every cell replays the identical fight, only the swept values differ
-      lab.cells.push({ w: new World(scen, over, 7), over, label: Object.entries(over).map(([k, v]) => `${k}=${fmt(v)}`).join('  ') });
+      lab.cells.push({ w: newWorld(scen, over, 7), over, label: Object.entries(over).map(([k, v]) => `${k}=${fmt(v)}`).join('  ') });
     }
   }
-  for (const c of lab.cells) c.w.loop = lab.loop;
   lab.focus = lab.cells[0];
 }
 
-function cellRects() {
-  const n = lab.cells.length, cols = lab.cols, rows = Math.ceil(n / cols), g = n > 1 ? 4 * dpr : 0;
-  const cw = (canvas.width - g * (cols + 1)) / cols, ch = (canvas.height - g * (rows + 1)) / rows;
-  return lab.cells.map((c, i) => ({ x: g + (i % cols) * (cw + g), y: g + Math.floor(i / cols) * (ch + g), w: cw, h: ch }));
+// rects of n cells in cols columns inside area (device px)
+function cellRects(n, cols, area) {
+  const rows = Math.ceil(n / cols), g = n > 1 ? 4 * dpr : 0;
+  const cw = (area.w - g * (cols + 1)) / cols, ch = (area.h - g * (rows + 1)) / rows;
+  return Array.from({ length: n }, (_, i) => ({ x: area.x + g + (i % cols) * (cw + g), y: area.y + g + Math.floor(i / cols) * (ch + g), w: cw, h: ch }));
 }
+const fullArea = () => ({ x: 0, y: 0, w: canvas.width, h: canvas.height });
+const shown = () => lab.zoom ? [lab.focus] : lab.cells;
+const hitRect = (rects, x, y) => rects.findIndex(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
 
 // ---------- render ----------
-function render() {
+function clear() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#ddd7cb'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const play = lab.mode === 'play', rects = cellRects();
-  lab.cells.forEach((c, i) => {
-    const r = rects[i], ph = play ? 0 : Math.round(r.h * 0.24), scene = { ...r, h: r.h - ph };
-    ctx.fillStyle = '#f3f0e8'; ctx.fillRect(r.x, r.y, r.w, r.h);
-    c.w.render(ctx, scene, play);
-    if (play) return;
+}
+// one cell: arena, then (small cells) a plot strip, label and stats. selected = dark frame
+function drawCell(c, r, { full = false, plot = true, selected = false } = {}) {
+  const ph = plot ? Math.round(r.h * 0.24) : 0;
+  ctx.fillStyle = '#f3f0e8'; ctx.fillRect(r.x, r.y, r.w, r.h);
+  c.w.render(ctx, { ...r, h: r.h - ph }, full);
+  if (plot) {
     const pr = { x: r.x + 6 * dpr, y: r.y + r.h - ph, w: r.w - 12 * dpr, h: ph - 5 * dpr };
     ctx.fillStyle = '#fbfaf6'; ctx.fillRect(pr.x, pr.y, pr.w, pr.h);
     drawPlot(c, pr);
-    const selected = c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) : c === lab.focus;
-    ctx.strokeStyle = selected ? '#222' : '#0000'; ctx.lineWidth = 2 * dpr;
-    ctx.strokeRect(r.x + dpr, r.y + dpr, r.w - 2 * dpr, r.h - 2 * dpr);
-    text(c.label, r.x + 8 * dpr, r.y + 16 * dpr, '#444', 12, 'bold');
-    const w = c.w;
-    text(`frozen ${Math.round(100 * w.frozenT / (w.simT || 1))}%  ${w.hits} hits`, r.x + 8 * dpr, r.y + 30 * dpr, '#999', 11);
-  });
+  }
+  ctx.strokeStyle = selected ? '#222' : '#0000'; ctx.lineWidth = 2 * dpr;
+  ctx.strokeRect(r.x + dpr, r.y + dpr, r.w - 2 * dpr, r.h - 2 * dpr);
+  if (c.label) text(c.label, r.x + 8 * dpr, r.y + 16 * dpr, '#444', 12, 'bold');
+  const w = c.w;
+  if (!full) text(`frozen ${Math.round(100 * w.frozenT / (w.simT || 1))}%  ${w.hits} hits${w.adv === null ? '' : `  ${w.adv >= 0 ? '+' : ''}${w.adv}f`}`,
+    r.x + 8 * dpr, r.y + 30 * dpr, '#999', 11);
+}
+function labRender() {
+  clear();
+  const cells = shown(), play = lab.mode === 'play', rects = cellRects(cells.length, lab.zoom ? 1 : lab.cols, fullArea());
+  cells.forEach((c, i) => drawCell(c, rects[i], { full: play, plot: !play,
+    selected: !play && !lab.zoom && (c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) : c === lab.focus) }));
   drawScope();
 }
 
@@ -103,7 +119,7 @@ function stepResponse(cfg, depth) {
 }
 
 function drawPlot(c, r) {
-  const w = c.w, cfg = w.cfg, kind = c.move ? 'timeline' : plotKind(lab.x.k);
+  const w = c.w, cfg = w.cfg, kind = c.move ? 'timeline' : c.over ? plotKind(lab.x.k) : 'scope';
   const note = s => text(s, r.x + 4 * dpr, r.y + 11 * dpr, '#aaa', 10);
   if (kind === 'spring') {
     hline(r, -0.5, 1.8, 0); hline(r, -0.5, 1.8, 1);
@@ -153,154 +169,121 @@ function drawPlot(c, r) {
   }
 }
 
-// sidebar oscilloscope: target vs drawn for one joint of the focused cell's left fighter
+// sidebar oscilloscope: target vs drawn for one bone of the focused cell's left fighter
+const scopeCv = h('canvas', { id: 'scope' }), sctx = scopeCv.getContext('2d'), stats = h('div', { cls: 'note' });
 function drawScope() {
-  const w = lab.focus.w, h = w.hist, cw = scopeCv.width, ch = scopeCv.height;
-  sctx.setTransform(1, 0, 0, 1, 0, 0);
-  sctx.fillStyle = '#fff'; sctx.fillRect(0, 0, cw, ch);
-  const all = h.tgt.concat(h.disp), lo = Math.min(...all) - 5, hi = Math.max(...all) + 5, r = { x: 0, y: 4, w: cw, h: ch - 8 };
-  series(sctx, h.tgt, r, lo, hi, '#bbb', HIST);
-  series(sctx, h.disp, r, lo, hi, '#c0392b', HIST);
-  $('stats').textContent = `${lab.focus.label || lab.scen} — ${w.cfg.scope}: target (grey) vs drawn (red)\n` +
-    `frozen ${Math.round(100 * w.frozenT / (w.simT || 1))}% of ${w.simT.toFixed(1)}s · ${w.hits} hits`;
-}
-
-function resize() {
-  dpr = devicePixelRatio || 1;
-  const st = $('stage');
-  canvas.width = st.clientWidth * dpr; canvas.height = st.clientHeight * dpr;
+  if (!scopeCv.isConnected || !lab.focus) return;
+  const w = lab.focus.w, hs = w.hist;
   scopeCv.width = scopeCv.clientWidth * dpr; scopeCv.height = scopeCv.clientHeight * dpr;
+  const cw = scopeCv.width, ch = scopeCv.height;
+  sctx.fillStyle = '#fff'; sctx.fillRect(0, 0, cw, ch);
+  const all = hs.tgt.concat(hs.disp), lo = Math.min(...all) - 5, hi = Math.max(...all) + 5, r = { x: 0, y: 4, w: cw, h: ch - 8 };
+  series(sctx, hs.tgt, r, lo, hi, '#bbb', HIST);
+  series(sctx, hs.disp, r, lo, hi, '#c0392b', HIST);
+  stats.textContent = `${lab.focus.label || lab.scen} — ${w.cfg.scope}: target (grey) vs drawn (red)\n` +
+    `frozen ${Math.round(100 * w.frozenT / (w.simT || 1))}% of ${w.simT.toFixed(1)}s · ${w.hits} hits` +
+    (w.adv === null ? '' : ` · last hit ${w.adv >= 0 ? '+' : ''}${w.adv}f`);
 }
 
-let last = performance.now();
-function frame(now) {
-  const raw = Math.min(0.05, (now - last) / 1000);
-  last = now;
-  const inp = readInput();
-  if (!lab.paused || lab.stepOnce) {
-    const dt = lab.stepOnce ? 1 / 60 : raw * lab.speed;
-    for (const c of lab.cells) c.w.advance(dt, inp);
-    lab.stepOnce = false;
-  }
-  render();
-  requestAnimationFrame(frame);
+// ---------- context bar: scenario, grid axes, focus ----------
+const ctlName = c => c === 'human' ? 'you' : c === 'ai' ? 'AI' : Array.isArray(c) ? 'script' : 'dummy';
+function scenTip(s) {
+  const who = [s.a, s.b, ...(s.more || []).map(m => m.c)].map(ctlName);
+  const script = Array.isArray(s.a) ? `\nscript: ${s.a.map(i => typeof i === 'number' ? i + 's' : i.hold ? `hold ${i.hold} ${i.t}s` : i).join(', ')}` : '';
+  return `${who[0]} vs ${who.slice(1).join(' + ')}${s.period ? ` · restarts every ${s.period}s` : ''}${script}`;
 }
-
-// ---------- input ----------
-const keys = new Set(), pressed = new Set();
-const MAP = { KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', KeyW: 'jump', ArrowUp: 'jump',
-  Space: 'jump', KeyS: 'down', ArrowDown: 'down', KeyJ: 'punch', KeyK: 'kick' };
-addEventListener('keydown', e => {
-  if (e.target.type === 'number') return;
-  if (e.code === 'KeyH') { document.body.classList.toggle('noside'); resize(); return; }
-  if (e.code === 'KeyR') { build(); return; }
-  if (e.code === 'KeyP') { togglePause(); return; }
-  if (e.code === 'KeyN') { lab.paused = lab.stepOnce = true; syncTop(); return; }
-  const a = MAP[e.code];
-  if (!a) return;
-  e.preventDefault();
-  if (!e.repeat) pressed.add(a);
-  keys.add(a);
-});
-addEventListener('keyup', e => { const a = MAP[e.code]; if (a) keys.delete(a); });
-addEventListener('blur', () => keys.clear());
-function readInput() {
-  const i = { left: keys.has('left'), right: keys.has('right'), down: keys.has('down'),
-    jump: pressed.has('jump'), punch: pressed.has('punch'), kick: pressed.has('kick') };
-  pressed.clear(); // edges are consumed by the first substep only
-  return i;
+const SCEN_GROUPS = [
+  ['you', 'You on the keyboard.', s => s.a === 'human'],
+  ['engine AI', 'The built-in AI walks in and throws random chains.', s => !Array.isArray(s.a) && s.a !== 'human'],
+  ['scripted tests', 'Repeatable inputs: the same fight every loop, ideal for the grid.', s => Array.isArray(s.a)],
+];
+function scenButton(onPick) {
+  const b = button('', 'Choose who fights', (e, b) => popup(b, ...SCEN_GROUPS.flatMap(([g, info, f]) => [
+    h('h4', { textContent: g, tip: info }),
+    h('div', { cls: 'bar' }, Object.entries(SCENARIOS).filter(([, s]) => f(s)).map(([k, s]) => {
+      const o = button(k, scenTip(s), () => { closePop(); onPick(k); });
+      reg(o, () => o.classList.toggle('on', lab.scen === k));
+      return o;
+    })),
+  ])));
+  reg(b, () => { b.textContent = `⚔ ${lab.scen}`; });
+  return b;
 }
-// click a grid cell to adopt its values
-canvas.addEventListener('click', e => {
-  const b = canvas.getBoundingClientRect(), x = (e.clientX - b.left) * dpr, y = (e.clientY - b.top) * dpr;
-  const i = cellRects().findIndex(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
-  if (i < 0) return;
-  const c = lab.cells[i];
-  lab.focus = c;
-  if (c.over) { Object.assign(CFG, c.over); syncUI(); }
-});
-
-// ---------- top bar ----------
-function togglePause() { lab.paused = !lab.paused; syncTop(); }
-function syncTop() {
-  $('pause').textContent = lab.paused ? 'play' : 'pause';
-  $('gridctl').hidden = lab.mode !== 'grid';
-  $('scenctl').hidden = lab.mode === 'gallery';
-}
-function setRange(ax, pre) {
-  const s = SPEC[ax.k] || {}, num = s.min !== undefined;
-  $(pre + 'lo').value = num ? s.min : ''; $(pre + 'hi').value = num ? s.max : '';
-  $(pre + 'lo').disabled = $(pre + 'hi').disabled = !num;
-  ax.lo = s.min; ax.hi = s.max;
-}
-function buildTop() {
-  for (const k in SCENARIOS) $('scen').add(new Option(k));
-  for (const k in SPEC) if (k !== 'scope') { $('xk').add(new Option(k)); $('yk').add(new Option(k)); }
-  $('xk').value = lab.x.k; setRange(lab.x, 'x'); setRange(lab.y, 'y');
-  const on = (id, ev, fn) => $(id).addEventListener(ev, () => { fn($(id)); $(id).blur(); });
-  on('mode', 'change', el => { lab.mode = el.value; syncTop(); build(); resize(); });
-  on('scen', 'change', el => { lab.scen = el.value; build(); });
-  on('xk', 'change', el => { lab.x.k = el.value; setRange(lab.x, 'x'); build(); });
-  on('yk', 'change', el => { lab.y.k = el.value; setRange(lab.y, 'y'); build(); });
-  for (const [ax, pre] of [[lab.x, 'x'], [lab.y, 'y']]) for (const end of ['lo', 'hi'])
-    $(pre + end).addEventListener('change', e => { ax[end] = parseFloat(e.target.value); build(); });
-  on('pause', 'click', togglePause);
-  on('step', 'click', () => { lab.paused = lab.stepOnce = true; syncTop(); });
-  on('restart', 'click', build);
-  on('speed', 'change', el => { lab.speed = +el.value; });
-  on('loop', 'change', el => {
-    lab.loop = el.checked;
-    for (const c of lab.cells) { c.w.loop = lab.loop; if (lab.loop && c.w.done) c.w.reset(); }
+// grid axis: pick a variable (grouped like the side panel) and its range
+function axisButton(ax, name) {
+  const b = button('', `${name} axis: the variable swept across the grid`, (e, b) => {
+    const groups = [];
+    for (const s of SCHEMA) {
+      if (Array.isArray(s)) groups.push([s[0], []]);
+      else if (s.k !== 'scope') groups[groups.length - 1][1].push(s);
+    }
+    const range = ['lo', 'hi'].map(end => {
+      const inp = h('input', { type: 'number', onchange: () => { ax[end] = parseFloat(inp.value); build(); } });
+      reg(inp, () => { const s = SPEC[ax.k]; inp.disabled = !s || s.min === undefined; inp.value = inp.disabled ? '' : ax[end] ?? s[end === 'lo' ? 'min' : 'max']; });
+      return inp;
+    });
+    const pick = k => { ax.k = k; ax.lo = SPEC[k]?.min; ax.hi = SPEC[k]?.max; build(); };
+    popup(b, name === 'Y' && h('div', { cls: 'bar' }, button('none', 'Only one axis: 9 values of X', () => { pick(''); closePop(); })),
+      ...groups.flatMap(([g, vars]) => [h('h4', { textContent: g }), h('div', { cls: 'bar' }, vars.map(s => {
+        const o = button(s.k, s.tip, () => pick(s.k));
+        reg(o, () => o.classList.toggle('on', ax.k === s.k));
+        return o;
+      }))]),
+      h('h4', { textContent: 'range' }), h('div', { cls: 'bar' }, 'from', range[0], 'to', range[1]));
   });
-  syncTop();
+  reg(b, () => { b.textContent = `${name}: ${ax.k || 'none'}`; });
+  return b;
+}
+function labCtx() {
+  if (lab.mode === 'gallery') return [h('span', { cls: 'note', textContent: 'click a move to focus it' })];
+  const els = [scenButton(k => { lab.scen = k; build(); })];
+  if (lab.mode === 'grid') {
+    const adopt = button('use these values', 'Copy the focused cell\'s values into the settings (side panel)', () => Object.assign(CFG, lab.focus.over));
+    const back = button('◱ back to grid', 'Show all cells again (Esc)', () => { lab.zoom = false; });
+    reg(adopt, () => { adopt.hidden = !lab.zoom; }); reg(back, () => { back.hidden = !lab.zoom; });
+    els.push(axisButton(lab.x, 'X'), axisButton(lab.y, 'Y'), adopt, back);
+  }
+  return els;
 }
 
-// ---------- side panel ----------
-const panel = $('panel'), inputs = {};
-function syncUI() {
-  for (const k in inputs) {
-    const { el, val } = inputs[k];
-    if (el.type === 'checkbox') el.checked = CFG[k]; else el.value = CFG[k];
-    val.textContent = typeof CFG[k] === 'number' ? fmt(CFG[k]) : '';
+// ---------- side panel: presets, then every setting with its tooltip; groups have an ⓘ with info and keys ----------
+function cfgControl(s) {
+  const name = h('span', { textContent: s.k });
+  if (s.k === 'scope') {
+    const b = button('', 'Pick the bone to plot', (e, b) => popup(b, h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => { CFG.scope = v; }))));
+    reg(b, () => { b.textContent = CFG.scope; });
+    return h('div', { cls: 'row', tip: s.tip }, name, b);
   }
+  if (s.opts) return h('div', { cls: 'row', tip: s.tip }, name, seg(s.opts, () => CFG[s.k], v => { CFG[s.k] = v; }, s.optTips));
+  if (typeof s.v === 'boolean') return h('div', { cls: 'row', tip: s.tip }, name, toggle(CFG[s.k] ? 'on' : 'off', s.tip, () => CFG[s.k], v => { CFG[s.k] = v; }));
+  return slider(s.k, s, () => CFG[s.k], v => { CFG[s.k] = v; }, s.tip);
 }
 function applyPreset(name) {
-  const keep = { ghost: CFG.ghost, scope: CFG.scope, timeScale: CFG.timeScale };
+  const keep = { ghost: CFG.ghost, boxes: CFG.boxes, scope: CFG.scope, timeScale: CFG.timeScale };
   Object.assign(CFG, DEFAULTS, PRESETS[name], keep);
-  syncUI();
 }
-function buildUI() {
-  const bar = document.createElement('div');
-  for (const name in PRESETS) {
-    const b = document.createElement('button');
-    b.textContent = name;
-    b.onclick = () => { applyPreset(name); b.blur(); };
-    bar.append(b);
-  }
-  panel.append(bar);
-  for (const s of SCHEMA) {
-    if (Array.isArray(s)) { const h = document.createElement('h3'); h.textContent = s[0]; panel.append(h); continue; }
-    const row = document.createElement('label'), name = document.createElement('span'), val = document.createElement('span');
-    let el;
-    if (s.opts) { el = document.createElement('select'); for (const o of s.opts) el.add(new Option(o)); }
-    else if (typeof s.v === 'boolean') { el = document.createElement('input'); el.type = 'checkbox'; }
-    else { el = document.createElement('input'); Object.assign(el, { type: 'range', min: s.min, max: s.max, step: s.step }); }
-    name.textContent = s.k; val.className = 'v';
-    el.addEventListener('input', () => {
-      CFG[s.k] = el.type === 'checkbox' ? el.checked : s.opts ? el.value : +el.value;
-      val.textContent = typeof CFG[s.k] === 'number' ? fmt(CFG[s.k]) : '';
-    });
-    el.addEventListener('change', () => el.blur()); // give keys back to the game
-    inputs[s.k] = { el, val };
-    row.append(name, el, val);
-    panel.append(row);
-  }
-  syncUI();
+function configPanel() {
+  return [h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(n, PRESET_TIPS[n], () => applyPreset(n))),
+      button('reset', 'All settings back to their defaults', () => applyPreset('juicy'))),
+    ...SCHEMA.map(s => Array.isArray(s) ? heading(...s) : cfgControl(s))];
+}
+const labSide = () => [scopeCv, stats, ...configPanel()];
+
+function labClick(x, y) {
+  if (lab.mode === 'play') return;
+  if (lab.zoom) { lab.zoom = false; return; }
+  const i = hitRect(cellRects(lab.cells.length, lab.cols, fullArea()), x, y);
+  if (i >= 0) { lab.focus = lab.cells[i]; lab.zoom = true; }
 }
 
-buildUI();
-buildTop();
-build();
-new ResizeObserver(resize).observe($('stage'));
-resize();
-requestAnimationFrame(frame);
+const labMode = {
+  enter(m) { lab.mode = m; build(); },
+  restart: build,
+  worlds: () => lab.cells.map(c => c.w),
+  render: labRender,
+  ctxBar: labCtx,
+  side: labSide,
+  mouse(type, x, y) { if (type === 'down') labClick(x, y); },
+  key(e) { if (e.code === 'Escape' && lab.zoom) { lab.zoom = false; return true; } },
+  hint: () => lab.mode === 'play' ? 'A/D move · W jump · S crouch · J punch · K kick' : 'click a cell to focus it · Esc back',
+};
