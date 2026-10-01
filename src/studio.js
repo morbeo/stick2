@@ -11,7 +11,7 @@ if (DEFS[saved.current]) CURRENT = saved.current;
 // only edited built-ins are stored, so improved built-ins reach characters nobody changed
 const edited = () => Object.fromEntries(Object.entries(DEFS).filter(([k, d]) => !CHAR_DEFS[k] || JSON.stringify(d) !== JSON.stringify(CHAR_DEFS[k])));
 const save = () => { try { localStorage.setItem(STORE, JSON.stringify({ defs: edited(), current: CURRENT })); } catch {} };
-const studio = { sel: 'uarmF', undo: [], redo: [], lastKey: null, lastT: 0, colors: false, fold: new Set(), stance: 0 };
+const studio = { sel: 'uarmF', also: new Set(), undo: [], redo: [], lastKey: null, lastT: 0, colors: false, fold: new Set(), stance: 0 };
 // the stance being edited (0 = main): its pose as drawn, its pose and own binds in the definition (what edits change)
 const curStance = (ch = currentChar()) => ch.stances[studio.stance] || ch.stances[0];
 const editPose = def => studio.stance ? def.stances[studio.stance - 1].pose : def.poses.stance;
@@ -20,6 +20,15 @@ const bkey = () => bindsKey(CFG.plane);
 const curBinds = ch => curStance(ch)[bkey()];
 const editBinds = def => (studio.stance ? def.stances[studio.stance - 1] : def)[bkey()] ??= {};
 const selBone = () => DEFS[CURRENT].bones.find(b => b.id === studio.sel);
+// the selection: the bone the panel shows (sel) and the others ⌘/Ctrl-clicked with it (also); bone edits go to all of them
+const selIds = () => [studio.sel, ...[...studio.also].filter(id => id !== studio.sel && currentChar().by[id])];
+const selDefs = def => def.bones.filter(b => selIds().includes(b.id));
+function pickBoneSel(id, add) {
+  const ids = selIds();
+  if (!add) { studio.sel = id; studio.also.clear(); }
+  else if (!ids.includes(id)) { studio.also = new Set(ids); studio.sel = id; } // the clicked bone joins and is shown
+  else if (ids.length > 1) { studio.also = new Set(ids.filter(x => x !== id)); if (id === studio.sel) studio.sel = ids.find(x => x !== id); }
+}
 
 // every bone property the creator exposes, with its hover text
 const BONE_PROPS = [
@@ -103,6 +112,7 @@ function forEachPose(def, fn) {
 // ---------- characters: pick, copy, revert, delete, export / import ----------
 function pickChar(name) {
   CURRENT = name; studio.stance = 0; studio.undo = []; studio.redo = []; studio.lastKey = null;
+  studio.also.clear();
   if (!currentChar().by[studio.sel]) studio.sel = currentChar().ids[0];
   if (!currentChar().by[CFG.scope]) CFG.scope = currentChar().ids[0];
   save(); setMode(app.mode); // every mode rebuilds its fights with the new character
@@ -285,9 +295,9 @@ function boneTree() {
     const tw = b.kids.length ? button(fold ? '▸' : '▾', fold ? 'Expand' : 'Collapse', () => { studio.fold[fold ? 'delete' : 'add'](b.id); panels(); }, 'twist')
       : h('span', { cls: 'twist' });
     const nb = button(b.id + (b.lock ? ' 🔒' : ''), `${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''} · ${b.len}px${fold ? ` · ${subtree(DEFS[CURRENT], b.id).length - 1} hidden` : ''}`,
-      () => { studio.sel = b.id; });
+      e => pickBoneSel(b.id, e.shiftKey || e.metaKey || e.ctrlKey));
     nb.style.borderLeft = `4px solid ${ROLE_COLS[b.role][b.side === 'b' ? 1 : 0]}`;
-    reg(nb, () => nb.classList.toggle('on', studio.sel === b.id));
+    reg(nb, () => nb.classList.toggle('on', selIds().includes(b.id)));
     const row = h('div', { cls: 'tree' }, tw, nb);
     row.style.paddingLeft = depth * 14 + 'px';
     rows.push(row);
@@ -314,7 +324,7 @@ const LIMB_TIPS = {
   head: 'Add a neck and head at the selected torso bone, or at the top of the spine.',
 };
 function addLimb(kind) {
-  edit(def => { studio.sel = attachLimb(def, kind, studio.sel); });
+  edit(def => { studio.sel = attachLimb(def, kind, studio.sel); }); studio.also.clear();
 }
 // adds a limb to a definition at torso bone `at` (or the default place); returns its first bone's id
 function attachLimb(def, kind, at) {
@@ -341,14 +351,14 @@ function addBone() {
     let id = 'bone', n = 1;
     while (ids.has(id + n)) n++;
     def.bones.push({ id: id + n, parent: p?.id ?? null, len: 10, role: p?.role ?? 'tail', side: p?.side ?? '', lag: (p?.lag ?? 0) + 0.5 });
-    studio.sel = id + n;
+    studio.sel = id + n; studio.also.clear();
   });
 }
 const subtree = (def, id) => [id, ...def.bones.filter(b => b.parent === id).flatMap(b => subtree(def, b.id))];
 function deleteBone() {
   const def = DEFS[CURRENT], gone = new Set(subtree(def, studio.sel));
   if (gone.size >= def.bones.length) return; // keep at least one bone
-  studio.sel = selBone().parent ?? studio.sel;
+  studio.sel = selBone().parent ?? studio.sel; studio.also.clear();
   edit(def => {
     def.bones = def.bones.filter(b => !gone.has(b.id));
     forEachPose(def, p => { for (const id of gone) delete p[id]; });
@@ -369,6 +379,6 @@ function copyLimb() {
       def.bones.push({ ...clone(b), id: map[id], parent: map[b.parent] ?? b.parent, side: flip[b.side ?? ''] });
       if (id in def.poses.stance) def.poses.stance[map[id]] = def.poses.stance[id];
     }
-    studio.sel = map[studio.sel];
+    studio.sel = map[studio.sel]; studio.also.clear();
   });
 }

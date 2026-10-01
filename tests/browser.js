@@ -141,6 +141,17 @@ try {
     const conf = window.confirm; let asked = 0; window.confirm = () => (asked++, true); keepRandom(0); window.confirm = conf;
     if (n1 !== n0 + 1 || Object.keys(DEFS).length !== n1 || !asked || CURRENT !== name) errs.push('keep random ' + [n0, n1, Object.keys(DEFS).length, asked]);
     delete DEFS[name]; delete CHARS[name]; creator.expOn = false; pickChar('stick'); }
+  // character editor: Shift/⌘+click in the bone tree selects several bones, a value change goes to all of them; a plain click selects one
+  { setMode('character'); pickChar('stick'); panels();
+    const tb = id => [...document.querySelectorAll('.tree button')].find(b => b.textContent.trim().startsWith(id + ' ') || b.textContent.trim() === id);
+    tb('uarmF').click(); tb('uarmB').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true })); tb('thighF').dispatchEvent(new MouseEvent('click', { bubbles: true, metaKey: true }));
+    syncAll(); const title = [...document.querySelectorAll('h3, .head')].find(e => e.textContent.startsWith('Bone'))?.textContent || '';
+    setProp('lag', 1.7); const lag = id => DEFS.stick.bones.find(b => b.id === id).lag;
+    if (selIds()[0] !== 'thighF' || selIds().sort().join() !== 'thighF,uarmB,uarmF' || [lag('uarmF'), lag('uarmB'), lag('thighF')].some(v => v !== 1.7) || lag('farmF') === 1.7 || !title.includes('+ 2'))
+      errs.push('multi-select ' + [selIds(), lag('uarmF'), lag('uarmB'), lag('thighF'), title.slice(0, 30)]);
+    tb('uarmB').dispatchEvent(new MouseEvent('click', { bubbles: true, metaKey: true })); if (selIds().sort().join() !== 'thighF,uarmF') errs.push('multi-select remove ' + selIds());
+    tb('farmF').click(); if (selIds().join() !== 'farmF') errs.push('plain click ' + selIds());
+    undo(); }
   // debug: the first section of the lab settings, with the engine version and the fighters of the focused fight
   { setMode('play'); panels(); dbgT = 0; drawDebug();
     if (!dbgInfo.isConnected || !dbgInfo.textContent.includes('engine v' + ENGINE_VERSION) || !/P2 /.test(dbgInfo.textContent)) errs.push('debug info ' + dbgInfo.textContent.slice(0, 80));

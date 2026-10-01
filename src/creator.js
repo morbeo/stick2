@@ -40,7 +40,7 @@ function drawEditor() {
     }
   }
   drawFigure(ctx, ch, L, INK[0], INK[1], 0, roleTint());
-  if (sel) { // the selected bone in red: a line, or a filled disc for circles
+  for (const sel of selIds().map(id => ch.by[id])) { // the selected bones in red: a line, or a filled disc for circles
     const a = L[sel.parent || 'hip'], e = L[sel.id];
     ctx.strokeStyle = ctx.fillStyle = RED[0]; ctx.lineWidth = sel.thick;
     ctx.beginPath();
@@ -48,7 +48,7 @@ function drawEditor() {
   }
   ctx.restore();
   for (const b of ch.bones) {
-    const p = P[b.id], on = b === sel, hov = b.id === creator.hover;
+    const p = P[b.id], on = selIds().includes(b.id), hov = b.id === creator.hover;
     ctx.beginPath(); ctx.arc(p[0], p[1], (on ? 6 : hov ? 5.5 : 4) * dpr, 0, 7);
     ctx.fillStyle = hov ? '#ffd' : '#fff'; ctx.fill();
     ctx.strokeStyle = on ? RED[0] : '#555'; ctx.lineWidth = (on ? 2 : 1.5) * dpr; ctx.stroke();
@@ -173,7 +173,8 @@ function creatorMouse(type, x, y, e) {
   }
   if (type === 'down') {
     const id = pickBone(x, y);
-    if (id) { studio.sel = id; creator.drag = id; syncAll(); }
+    if (id && (e.metaKey || e.ctrlKey)) { pickBoneSel(id, true); syncAll(); } // ⌘/Ctrl+click: add to / take out of the selection
+    else if (id) { pickBoneSel(id, false); creator.drag = id; syncAll(); }
   } else if (type === 'move') {
     if (creator.drag) dragTo(x, y, e.shiftKey);
     else creator.hover = x < edLayout().ed.w ? pickBone(x, y) : null;
@@ -194,36 +195,34 @@ function creatorCtx() {
     grp('show', 'Overlays', toggle(':check_box_outline_blank: boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }), colorsToggle()),
   ];
 }
-const setProp = (k, v) => edit(def => { def.bones.find(b => b.id === studio.sel)[k] = v; }, studio.sel + '.' + k);
+const setProp = (k, v) => edit(def => { for (const b of selDefs(def)) b[k] = v; }, selIds() + '.' + k);
 const prop = k => selBone()?.[k] ?? BONE[k];
 const BONE_BASIC = ['len', 'thick', 'hurt', 'lag', 'stretch']; // the rest wait behind "more"
 function bonePanel() {
-  const title = heading('', 'Properties of the selected bone. Click a joint in the editor or a name above to select.',
+  const title = heading('', 'Properties of the selected bone. Click a joint in the editor or a name above to select; ⌘/Ctrl+click (Shift+click in the tree) adds bones to the selection: the values shown are the last one\'s, a change goes to every selected bone.',
     'drag joint: length + angle · Shift+drag: angle only · Del delete bone');
-  reg(title, () => { title.firstChild.textContent = `Bone · ${studio.sel}`; });
+  reg(title, () => { const n = selIds().length; title.firstChild.textContent = `Bone · ${studio.sel}${n > 1 ? ` + ${n - 1}` : ''}`; });
   title.dataset.fold = 'bone';
   const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', { textContent: label }), ...c);
   const lim = on => edit(def => {
-    const b = def.bones.find(b => b.id === studio.sel);
-    if (on) { b.min = -90; b.max = 90; } else { delete b.min; delete b.max; }
+    for (const b of selDefs(def)) if (on) { b.min = -90; b.max = 90; } else { delete b.min; delete b.max; }
   });
   const limRows = ['min', 'max'].map(k => slider(k, { min: -180, max: 180, step: 1 }, () => prop(k) ?? 0, v => setProp(k, v),
     `Joint limit (${k}), relative to the parent. The drawn pose is clamped after the spring, so overshoot never hyperextends; posing in animate can go past it (the IK prefers to stay inside), and a key posed past it is kept.`));
   for (const r of limRows) reg(r, () => { r.hidden = prop('min') === undefined; });
   // defaults: the bone as the built-in character has it (custom bones: the general defaults)
-  const own = k => CHAR_DEFS[CURRENT]?.bones.find(b => b.id === studio.sel)?.[k], dflt = k => own(k) ?? BONE[k];
+  const own = (k, id = studio.sel) => CHAR_DEFS[CURRENT]?.bones.find(b => b.id === id)?.[k], dflt = k => own(k) ?? BONE[k];
   title.append(groupOps(BONE_PROPS, prop, dflt, vals => edit(def => {
-    const b = def.bones.find(b => b.id === studio.sel);
-    for (const k in vals) if (own(k) === undefined && vals[k] === BONE[k]) delete b[k]; else b[k] = vals[k];
+    for (const b of selDefs(def)) for (const k in vals) if (own(k, b.id) === undefined && vals[k] === BONE[k]) delete b[k]; else b[k] = vals[k];
   }),
     ['Experiment: nine bodies varying these properties; click the best to breed around it', () => { BONE_PROPS.forEach(p => creator.exp.vars.add(p.k)); setExp(true); }]));
   return [title,
-    row('role', 'What the bone does in procedural motion', seg(Object.keys(ROLE_TIPS), () => prop('role'), v => edit(d => { d.bones.find(b => b.id === studio.sel).role = v; }), ROLE_TIPS)),
-    row('side', 'Draw order and colour', seg(['f', '', 'b'], () => prop('side'), v => edit(d => { d.bones.find(b => b.id === studio.sel).side = v; }), SIDE_TIPS,
+    row('role', 'What the bone does in procedural motion', seg(Object.keys(ROLE_TIPS), () => prop('role'), v => edit(d => { for (const b of selDefs(d)) b.role = v; }), ROLE_TIPS)),
+    row('side', 'Draw order and colour', seg(['f', '', 'b'], () => prop('side'), v => edit(d => { for (const b of selDefs(d)) b.side = v; }), SIDE_TIPS,
       o => ({ f: 'front', '': 'centre', b: 'back' })[o])),
-    row('shape', 'How the bone is drawn', seg(['line', 'circle'], () => prop('shape'), v => edit(d => { d.bones.find(b => b.id === studio.sel).shape = v; }), SHAPE_TIPS)),
+    row('shape', 'How the bone is drawn', seg(['line', 'circle'], () => prop('shape'), v => edit(d => { for (const b of selDefs(d)) b.shape = v; }), SHAPE_TIPS)),
     slider('stance', { min: -270, max: 270, step: 1 }, () => curStance().pose[studio.sel] ?? 0,
-      v => edit(def => { editPose(def)[studio.sel] = v; }, 'stance:' + studio.sel),
+      v => edit(def => { for (const id of selIds()) editPose(def)[id] = v; }, 'stance:' + selIds()),
       'Angle in the stance pose, relative to the parent (0 = straight on, root bones: 0 = down, 180 = up). Moves are layered on top.'),
     ...BONE_PROPS.map(p => { const r = bodyExpLink(slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip), p.k); return BONE_BASIC.includes(p.k) ? r : adv(r); }),
     row('limits', 'Clamp how far this joint can bend', toggle(':straighten: limits', 'Clamp how far this joint can bend', () => prop('min') !== undefined, lim)),
@@ -353,5 +352,5 @@ const creatorMode = {
   mouse: creatorMouse,
   key: creatorKey,
   hint: () => creator.expOn ? (creator.exp.kind === 'random' ? 'click a cell to keep it' : 'click a cell to breed around it') + ' · Esc back to the editor'
-    : 'drag a joint: length + angle · Shift+drag: angle only · click: select · Del delete · ⌘Z undo',
+    : 'drag a joint: length + angle · Shift+drag: angle only · click: select · ⌘click: add to the selection · Del delete · ⌘Z undo',
 };
