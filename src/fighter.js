@@ -4,7 +4,7 @@ class Fighter {
     Object.assign(this, { w, x, groundY: w.groundY, dir, face: dir, col, ch, over, y: 0, vx: 0, vy: 0, grounded: true,
       time: 0, seed: w.rand(0, 100), walkPh: 0, lean: 0, inp: NOIN,
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
-      kd: null, downT: 0, bounced: false, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
+      kd: null, downT: 0, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0 });
     this.target = this.basePose();
     this.disp = { ...this.target };
@@ -27,7 +27,15 @@ class Fighter {
   // the procedural layer, driven by bone roles so any skeleton breathes, walks and leans
   basePose() {
     const ch = this.ch, ps = ch.poses, P = { ...ps.stance }, t = this.time;
-    if (this.kd) return Object.assign(P, this.kd === 'down' ? ps.lie : ps.fall);
+    if (this.kd === 'down') return Object.assign(P, ps.lie);
+    if (this.kd) {
+      // tumbling: arch while rising, reach for the floor while dropping, limbs flailing
+      const k = clamp(this.vy / 600, -1, 1), fl = this.c('flail');
+      Object.assign(P, ps.fall);
+      if (k > 0) for (const j in ps.lie) P[j] += (ps.lie[j] - P[j]) * k * 0.4;
+      ch.bones.forEach((b, i) => { P[b.id] += wander(t * 3 + this.seed + i * 7) * fl * (b.role === 'spine' ? 6 : 25); });
+      return P;
+    }
     const turn = (b, d) => { if (b) P[b.id] += b.fwd * d; }; // + swings the bone's end forward
     const flex = (b, d) => { if (b) P[b.id] += b.flex * d; };
     const spine = ch.chains.spine[0]?.[0], br = Math.sin(t * 2.2);
@@ -47,6 +55,11 @@ class Fighter {
     }
     turn(spine, this.lean);
     return P;
+  }
+  // a bounce: every limb gets a kick, heavier at the loose ends
+  flailJolt(imp) {
+    const k = imp * this.c('flail');
+    for (const b of this.ch.bones) this.flt[b.id].yd += this.w.rand(-1, 1) * 900 * k * (b.lag + 0.5);
   }
   // push a bone's spring: + swings its end forward
   jolt(b, v) { if (b) this.flt[b.id].yd += b.fwd * v; }
@@ -122,7 +135,14 @@ class Fighter {
     const leanT = this.grounded ? clamp(Math.abs(this.vx - pvx) / dt * 0.004, 0, 10) * Math.sign(this.vx) * this.dir : 0;
     this.lean += (leanT - this.lean) * (1 - Math.exp(-12 * dt));
     this.x += this.vx * dt;
-    if (this.x < 40 || this.x > W - 40) { this.x = clamp(this.x, 40, W - 40); this.vx = 0; }
+    if (this.x < 40 || this.x > W - 40) {
+      this.x = clamp(this.x, 40, W - 40);
+      const wb = this.kd === 'fly' ? c('wallBounce') : 0, imp = Math.min(1, Math.abs(this.vx) / 600);
+      if (wb && imp > 0.15) { // off the wall: back into the arena, popped up a little
+        this.vx *= -wb; this.vy = Math.min(this.vy, -120 * imp); this.flailJolt(imp);
+        this.w.trauma = Math.min(1, this.w.trauma + 0.2 * imp);
+      } else this.vx = 0;
+    }
     this.walkPh += this.vx * this.dir * dt * 0.075;
     this.face = approach(this.face, this.dir, dt * 12); // turn through a squashed profile instead of flipping
 
@@ -147,8 +167,12 @@ class Fighter {
         this.w.dust(this.x, this.groundY, imp);
         if (this.action?.m.air) this.action = null;
         if (this.kd === 'fly') {
-          if (!this.bounced) { this.bounced = true; this.grounded = false; this.vy = -180; this.w.trauma = Math.min(1, this.w.trauma + 0.15); }
-          else { this.kd = 'down'; this.downT = 0.6; }
+          const up = -imp * 800 * c('floorBounce');
+          this.flailJolt(imp);
+          if (this.bounces < c('bounces') && up < -60) {
+            this.bounces++; this.grounded = false; this.vy = up; this.vx *= 0.7;
+            this.w.trauma = Math.min(1, this.w.trauma + 0.15 * imp);
+          } else { this.kd = 'down'; this.downT = 0.6; }
         }
       }
     }
@@ -240,7 +264,7 @@ class Fighter {
     this.vx = att.dir * m.knock * (juggle ? 0.6 : 1);
     if (m.kd || juggle || combo >= 7) {
       this.juggles = this.kd ? this.juggles + 1 : 0;
-      this.kd = 'fly'; this.bounced = otg; this.grounded = false; this.action = null; this.hurtT = 0; // hit off the ground: a small pop, no bounce
+      this.kd = 'fly'; this.bounces = otg ? 99 : 0; this.grounded = false; this.action = null; this.hurtT = 0; // hit off the ground: a small pop, no bounce
       this.vy = -(m.launch || 300) * this.c('juggleDecay') ** this.juggles;
     } else {
       const set = this.ch.hurt[this.zone(hit.pt)].filter(p => p !== this.lastHurt);
