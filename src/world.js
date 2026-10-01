@@ -30,7 +30,7 @@ class World {
     const s = this.scen, scripted = Array.isArray(s.a);
     Object.assign(this, { rand: makeRand(this.seed), parts: [], trauma: 0, zoom: 0, slowT: 0, T: 0, simT: 0,
       frozenT: 0, hits: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
-      pend: null, adv: null, macro: null, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
+      pend: null, adv: null, macro: null, combo: 1, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
     // a vs b, plus any extra fighters: { c: controller, x, team }
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0 }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1 }, ...(s.more || [])];
     const chars = this.chars || [currentChar()];
@@ -59,7 +59,8 @@ class World {
     if (this.done) return;
     const slow = this.slowT > 0 && !this.frozen; // finisher slow-mo starts once the freeze is over
     if (slow) this.slowT -= raw;
-    const dt = raw * this.cfg.timeScale * (slow ? 0.3 : 1);
+    this.combo = Math.max(1, ...this.fighters.map(f => f.combo)); // the longest running combo drives Combo escalation
+    const dt = raw * this.cfg.timeScale * (slow ? 0.3 : 1) * clamp(1 + this.cfg.comboTime * (this.combo - 1), 0.2, 3);
     if (dt <= 0) return;
     // fixed-size substeps (<= 1/120 s) keep springs and physics identical at any refresh rate
     const n = Math.ceil(dt * 120);
@@ -139,7 +140,7 @@ class World {
     this.pend = { att, vic, at: null, vt: null };
     const fin = vic.kd === 'fly', power = m.power * (fin ? cfg.hitstopFin : 1);
     // freeze shrinks along a combo, and a budget caps total frozen time so long strings don't turn to stop-motion
-    const want = cfg.hitstop * power * cfg.hitstopDecay ** (vic.combo - 1);
+    const n = vic.combo - 1, want = cfg.hitstop * power * cfg.hitstopDecay ** n * Math.max(0, 1 + cfg.comboStop * n);
     let hs = want;
     if (cfg.hitstopBudget > 0) { hs = Math.min(hs, this.bank); this.bank -= hs; }
     vic.freeze = hs; att.freeze = hs * cfg.hitstopAtk;
@@ -147,7 +148,8 @@ class World {
     if (this.freezes.length > 12) this.freezes.shift();
     this.hits++;
     this.trauma = Math.min(1, this.trauma + 0.3 * power);
-    this.zoom += cfg.zoomPunch * power;
+    this.shakeK = 1 + cfg.comboShake * n;
+    this.zoom += cfg.zoomPunch * power * (1 + cfg.comboZoom * n);
     if (fin && cfg.slowmo) this.slowT = 0.35;
     this.victim = vic;
     if (cfg.sparks > 0) {
@@ -200,7 +202,7 @@ class World {
     const cfg = this.cfg, vw = full ? W : this.camW, vh = vw * H / W;
     this.cam += (clamp(mid, vw / 2 - 20, W - vw / 2 + 20) - this.cam) * 0.15;
     const cx = full ? W / 2 : this.cam, cy = full ? H / 2 : this.groundY - vh * 0.3;
-    const s = Math.min(r.w / vw, r.h / vh) * (1 + this.zoom), tr = this.trauma ** 2 * cfg.shake;
+    const s = Math.min(r.w / vw, r.h / vh) * (1 + this.zoom), tr = this.trauma ** 2 * cfg.shake * this.shakeK;
     const T = this.T, sx = tr * (Math.sin(T * 71) + Math.sin(T * 113 + 1)) * 0.5;
     const sy = tr * (Math.sin(T * 89 + 2) + Math.sin(T * 127 + 3)) * 0.5;
     ctx.save();

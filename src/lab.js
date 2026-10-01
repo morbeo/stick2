@@ -24,10 +24,16 @@ const PRESET_TIPS = {
 
 // n values across [lo, hi] snapped to the slider step; categorical vars just take their options
 // 'scenario' (Y only) runs each row on a different scripted fight
+// combo fx test (X only): one cell per escalation, each on top of all escalations off
+const FX_OFF = { comboStop: 0, comboShake: 0, comboZoom: 0, comboSpeed: 0, comboTime: 0 };
+const COMBO_FX = { none: {}, 'longer pauses': { comboStop: 0.3 }, 'shorter pauses': { comboStop: -0.15 }, 'growing shake': { comboShake: 0.5 },
+  'growing zoom': { comboZoom: 0.5 }, 'faster attacks': { comboSpeed: 0.2 }, 'faster game': { comboTime: 0.2 }, 'slower game': { comboTime: -0.12 },
+  everything: { comboStop: 0.2, comboShake: 0.4, comboZoom: 0.4, comboSpeed: 0.12, comboTime: 0.1 } };
 const AXIS_SCENS = ['J,J,K', 'sweep', 'ai vs ai'], CANCEL_SCENS = ['J,J,K', 'air combo', 'J,K→spin'];
 function axisValues(ax, n) {
   const s = SPEC[ax.k];
   if (ax.k === 'scenario') return lab.rows || AXIS_SCENS;
+  if (ax.k === 'comboFx') return Object.keys(COMBO_FX);
   if (s.opts) return s.opts;
   if (typeof s.v === 'boolean') return [false, true];
   const lo = isNaN(ax.lo) ? s.min : ax.lo, hi = isNaN(ax.hi) ? s.max : ax.hi;
@@ -48,11 +54,11 @@ function build() {
     const xs = axisValues(lab.x, lab.y.k ? 3 : 9), ys = lab.y.k ? axisValues(lab.y, 3) : [null];
     if (lab.y.k) lab.cols = xs.length;
     for (const yv of ys) for (const xv of xs) {
-      const over = { [lab.x.k]: xv }, sy = lab.y.k === 'scenario';
+      const fx = lab.x.k === 'comboFx', over = fx ? { ...FX_OFF, ...COMBO_FX[xv] } : { [lab.x.k]: xv }, sy = lab.y.k === 'scenario';
       if (lab.y.k && !sy) over[lab.y.k] = yv;
       // same seed everywhere: every cell replays the identical fight, only the swept values differ
       lab.cells.push({ w: newWorld(sy ? SCENARIOS[yv] : scen, over, 7), over,
-        label: Object.entries(over).map(([k, v]) => `${k}=${fmt(v)}`).join('  ') + (sy ? `  ${yv}` : '') });
+        label: (fx ? xv : Object.entries(over).map(([k, v]) => `${k}=${fmt(v)}`).join('  ')) + (sy ? `  ${yv}` : '') });
     }
   }
   // extra seeds: the same cell fought again with other random rolls (AI, sparks); the stats average them
@@ -324,6 +330,9 @@ function labCtx() {
       }),
       button('cancel test', `Every chain rule (columns) on combo fights (rows: ${CANCEL_SCENS.join(' · ')}): what each rule lets through; the meter shows cancel windows in purple`, () => {
         Object.assign(lab.x, { k: 'chains' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = CANCEL_SCENS; lab.meter = true; build();
+      }),
+      button('combo fx test', 'One cell per combo escalation (longer pauses, growing shake, faster attacks, faster game…) on the air combo: pick the feel, then copy its values', () => {
+        Object.assign(lab.x, { k: 'comboFx' }); lab.y.k = ''; lab.scen = 'air combo'; build();
       }), adopt, back);
   }
   if (lab.mode === 'grid' && lab.kind !== 'attacks') els.push(

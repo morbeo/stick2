@@ -163,7 +163,7 @@ class Fighter {
     const base = this.basePose();
     if (this.action) {
       const a = this.action, keys = a.m.keys;
-      a.t += dt * (a.m.power ? c('attackSpeed') : 1);
+      a.t += dt * (a.m.power ? c('attackSpeed') * (1 + c('comboSpeed') * (this.w.combo - 1)) : 1);
       while (a.i < keys.length && a.t >= keys[a.i].d) {
         a.t -= keys[a.i].d; a.from = resolve(base, keys[a.i].p); a.i++;
         if (keys[a.i]?.lunge) this.vx = this.dir * keys[a.i].lunge;
