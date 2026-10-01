@@ -1,6 +1,7 @@
 'use strict';
 // ---------- fight modes: play / grid (parameter sweep) / gallery (every move); each cell is an independent World ----------
 const canvas = $('c'), ctx = canvas.getContext('2d');
+const cursor = c => { if (canvas.style.cursor !== c) canvas.style.cursor = c; }; // the mouse cursor follows what is under it
 let dpr = 1;
 const lab = { mode: 'play', scen: 'you vs dummy', rows: null, x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
   seeds: 1, meter: true, inputs: true, tape: null, rec: false, replay: false, target: 'dummy' };
@@ -419,7 +420,10 @@ const labMode = {
   render: labRender,
   ctxBar: labCtx,
   side: labSide,
-  mouse(type, x, y, e) { if (type === 'down') labClick(x, y, e); },
+  mouse(type, x, y, e) {
+    if (type === 'down') labClick(x, y, e);
+    cursor(lab.mode !== 'play' && (lab.zoom || hitRect(cellRects(lab.cells.length, lab.cols, fullArea()), x, y) >= 0) ? 'pointer' : 'default');
+  },
   key(e) { if (e.code === 'Escape' && lab.zoom) { lab.zoom = false; return true; } },
   hint: () => lab.mode === 'play' ? fightHint()
     : lab.mode === 'grid' && lab.kind !== 'sweep' ? 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back' : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',

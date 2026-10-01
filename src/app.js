@@ -11,13 +11,14 @@ const MODES = {
 const mode = () => ({ character: creatorMode, animate: animMode })[app.mode] || labMode;
 
 function setMode(m) {
-  app.mode = m; closePop();
+  app.mode = m; closePop(); cursor('default');
   mode().enter(m);
   panels();
 }
 function panels() {
   $('ctx').replaceChildren(...mode().ctxBar());
   $('side').replaceChildren(...mode().side());
+  $('over').replaceChildren(...mode().overlay?.() || []); // controls placed over the canvas
   syncAll();
 }
 function restart() { mode().restart(); }
@@ -31,7 +32,7 @@ const KEYS = [
   ['fixed', '⌘Z undo · ⇧⌘Z redo (character and moves) · Esc back / close'],
   ['grid', 'click a cell: focus it and use its settings, ⌘Z undoes (breed / attacks: breed around it) · Shift+click: only focus'],
   ['character', 'drag a joint: length + angle · Shift+drag: angle only'],
-  ['animate', 'drag a joint: IK · Alt+drag: rotate one bone'],
+  ['animate', 'drag a joint: IK · Alt+drag: rotate one bone · timeline: drag a key to reorder, its edge to retime, double-click to split · Delete removes the key'],
 ];
 function buildTop() {
   $('modes').replaceChildren(seg(Object.keys(MODES), () => app.mode, setMode, MODES,

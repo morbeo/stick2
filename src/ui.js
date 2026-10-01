@@ -22,7 +22,7 @@ const ICONS = {
   waves: 0xe176, stadia_controller: 0xf135, blur_on: 0xe3a5, sync_alt: 0xea18, sports_handball: 0xea33,
   target: 0xe719, trending_up: 0xe8e5, hourglass_empty: 0xe88b, select_all: 0xe162, block: 0xf08c,
   crisis_alert: 0xebe9, star: 0xf09a,
-  check: 0xe668, save: 0xe161, history: 0xe8b3, view_in_ar: 0xefc9
+  check: 0xe668, save: 0xe161, history: 0xe8b3, view_in_ar: 0xefc9, content_cut: 0xe14e
 };
 const ARROWS = { '←': 'arrow_back', '→': 'arrow_forward', '↑': 'arrow_upward', '↓': 'arrow_downward', '↖': 'north_west', '↗': 'north_east', '↙': 'south_west', '↘': 'south_east' };
 const icon = (name, tip) => h('span', { cls: 'ic', textContent: String.fromCodePoint(ICONS[name]), tip });

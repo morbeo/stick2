@@ -32,6 +32,13 @@
   #ctx { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   #stage { grid-area: stage; position: relative; min-width: 0; min-height: 0; }
   #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #over { position: absolute; inset: 0; pointer-events: none; }
+  #over > * { position: absolute; pointer-events: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+  .tlbar { left: 8px; bottom: 94px; width: calc(58% - 16px); flex-wrap: nowrap !important; }
+  .tlbar .sep { width: 1px; height: 14px; background: #cfc8bb; margin: 0 3px; }
+  .tlbar .fd { flex: 1; min-width: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #888; font-size: 11px; }
+  .tgt { right: 8px; bottom: 6px; max-width: calc(42% - 16px); justify-content: flex-end; }
+  .tgt .seg button { padding: 0 5px; font-size: 11px; line-height: 16px; }
   #side { grid-area: side; overflow: auto; border-left: 1px solid #ddd7cb; padding: 8px; box-sizing: border-box; }
   #side h3 { display: flex; align-items: center; margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
   .row { display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 4px; margin: 2px 0; }
@@ -67,7 +74,7 @@
   <span id="ctx"></span>
   <span id="transport" class="bar"></span>
 </div>
-<div id="stage"><canvas id="c"></canvas></div>
+<div id="stage"><canvas id="c"></canvas><div id="over"></div></div>
 <div id="side"></div>
 <div id="help"></div>
 <script src="src/core.js"></script>

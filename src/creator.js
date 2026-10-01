@@ -146,9 +146,9 @@ function creatorRender() {
 }
 function creatorMouse(type, x, y, e) {
   if (creator.expOn) {
-    if (type !== 'down') return;
     const ex = creator.exp, i = hitRect(cellRects(9, 3, fullArea()), x, y);
-    if (i >= 0) { ex.parent = ex.cells[i].def; ex.seed++; buildExp(); }
+    cursor(i >= 0 ? 'pointer' : 'default');
+    if (type === 'down' && i >= 0) { ex.parent = ex.cells[i].def; ex.seed++; buildExp(); }
     return;
   }
   if (type === 'down') {
@@ -157,6 +157,7 @@ function creatorMouse(type, x, y, e) {
   } else if (type === 'move') {
     if (creator.drag) dragTo(x, y, e.shiftKey);
     else creator.hover = x < edLayout().ed.w ? pickBone(x, y) : null;
+    cursor(creator.drag ? 'grabbing' : creator.hover ? 'grab' : 'default');
   } else { creator.drag = null; studio.lastKey = null; }
 }
 function creatorKey(e, a) {

@@ -16,7 +16,7 @@ const ACTIONS = [
   ['prevKey', 'animate', ['Shift+ArrowLeft'], 'Previous key'], ['nextKey', 'animate', ['Shift+ArrowRight'], 'Next key'],
   ['frameBack', 'animate', ['Comma'], 'Step the move back a frame'], ['frameFwd', 'animate', ['Period'], 'Step the move forward a frame'],
   ['playMove', 'animate', ['Enter'], 'Play / pause the move'], ['onion', 'animate', ['KeyO'], 'Onion skin'], ['aim', 'animate', ['KeyI'], 'Aim the striking limb at the cursor'],
-  ['deleteBone', 'character', ['Delete', 'Backspace'], 'Delete the selected bone'],
+  ['deleteBone', 'character', ['Delete', 'Backspace'], 'Delete the selected bone (character mode) or key (animate mode)'],
 ];
 const KEY_STORE = 'stick2.keys';
 const keyStore = (() => { try { return JSON.parse(localStorage.getItem(KEY_STORE)) || {}; } catch { return {}; } })();

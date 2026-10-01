@@ -23,7 +23,7 @@ function frameState(f) {
 }
 
 class World {
-  // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, more?, period? } (see brain.js)
+  // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, more?, period?, init? } (see brain.js)
   // chars: character per fighter slot (the last one fills the rest); default = the current character
   constructor(scen, over = {}, seed = 1, chars = null) {
     Object.assign(this, { scen, over, seed, chars, groundY: GROUND, loop: true, camW: 420 });
@@ -44,6 +44,7 @@ class World {
     [this.a, this.b] = this.fighters;
     this.ctl = specs.map(sp => makeCtl(sp.c, this));
     this.cam = (this.a.x + this.b.x) / 2;
+    s.init?.(this); // a scenario can set up a state (the animate preview's target: lying, dizzy, facing away)
   }
   // a character was edited: fighters wearing the old build switch to the new one mid-fight
   swapChar(from, to) {
@@ -122,7 +123,7 @@ class World {
         a.x -= push; b.x += push;
       }
     }
-    fs.forEach((f, i) => { if (tg[i] && !f.action && f.free && f.grounded) f.dir = Math.sign(tg[i].x - f.x) || f.dir; });
+    fs.forEach((f, i) => { if (tg[i] && !f.action && f.free && f.grounded) f.dir = (Math.sign(tg[i].x - f.x) || f.dir) * (f.away ? -1 : 1); });
     // whiff: an attack that ended (or was interrupted) without touching anyone
     fs.forEach((f, i) => { const a = this.acts[i]; if (a && a !== f.action && a.m.power && !a.hit) this.whiffs++; this.acts[i] = f.action; });
 

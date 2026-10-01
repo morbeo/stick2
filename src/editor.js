@@ -1,6 +1,7 @@
 'use strict';
 // ---------- animate mode: pose keyframes by dragging joints (IK), retime them on a frame timeline, preview with springs ----------
-const anim = { move: 'jab', key: 1, t: 0, playing: true, onion: true, aim: false, drag: null, hover: null, anchor: null, pv: null, hold: false };
+const anim = { move: 'jab', key: 1, t: 0, playing: true, onion: true, aim: false, drag: null, hover: null, anchor: null, pv: null, hold: false,
+  target: { char: null, stance: 'stand', state: 'idle', facing: 'toward' }, group: 'type', sort: 'order', filter: '' };
 const curMove = () => currentChar().moves[anim.move];
 const defMove = () => DEFS[CURRENT].moves[anim.move];
 const F = 1 / 60; // one frame
@@ -28,8 +29,8 @@ const keyPose = (ch, m, i) => resolve(ch.poses.stance, m.keys[i].p);
 
 // ---------- layout and view ----------
 function anLayout() {
-  const ew = Math.round(canvas.width * 0.58), th = 86 * dpr;
-  return { ed: { x: 0, y: 0, w: ew, h: canvas.height - th }, tl: { x: 8 * dpr, y: canvas.height - th + 4 * dpr, w: ew - 16 * dpr, h: th - 12 * dpr },
+  const ew = Math.round(canvas.width * 0.58), th = 124 * dpr; // the top 34 px hold the control bar (timelineBar)
+  return { ed: { x: 0, y: 0, w: ew, h: canvas.height - th }, tl: { x: 8 * dpr, y: canvas.height - th + 34 * dpr, w: ew - 16 * dpr, h: th - 40 * dpr },
     pv: { x: ew, y: 0, w: canvas.width - ew, h: canvas.height } };
 }
 // the pose at the playhead; while dragging, the hips stay where they were so the body doesn't slide under the cursor
@@ -77,7 +78,8 @@ function drawAnimEditor() {
   text(anim.aim ? 'aim: the striking limb follows the cursor · click to set' : 'drag: IK · Alt+drag: rotate one bone', r.x + 10 * dpr, r.y + 34 * dpr, '#999', 11);
 }
 
-// timeline: ruler (scrub) on top, one block per key (width = frames, red = active); drag a block's right edge to retime
+// timeline: ruler (scrub) on top, one block per key (width = frames, red = active); drag a block's right edge to retime,
+// drag a block to reorder, double-click to split
 function drawTimeline() {
   const r = anLayout().tl, m = curMove(), T = total(m), px = r.w / T, rh = 16 * dpr;
   ctx.fillStyle = '#fbfaf6'; ctx.fillRect(r.x, r.y, r.w, r.h);
@@ -101,9 +103,9 @@ function drawTimeline() {
   ctx.fillStyle = '#8e44ad'; ctx.fillRect(cx, r.y + rh + dpr, r.x + r.w - cx, 3 * dpr);
   const x = r.x + anim.t * px;
   ctx.fillStyle = '#222'; ctx.fillRect(x - dpr, r.y, 2 * dpr, r.h);
-  const fd = frameData(m, 1);
-  text(`${fd.startup}f startup · ${fd.active} active · ${fd.recovery} recovery · frame ${Math.round(anim.t * 60)}/${Math.round(T * 60)}`,
-    r.x + r.w, r.y - 6 * dpr, '#888', 10, '', 'right');
+  const lbl = `${Math.round(anim.t * 60)}/${Math.round(T * 60)}`, lw = (lbl.length * 6 + 8) * dpr, lx = Math.min(x + 2 * dpr, r.x + r.w - lw);
+  ctx.fillStyle = '#222'; ctx.fillRect(lx, r.y, lw, 14 * dpr);
+  text(lbl, lx + 4 * dpr, r.y + 11 * dpr, '#f3f0e8', 10, 'bold');
 }
 
 // ---------- posing ----------
@@ -149,9 +151,28 @@ function selectKey(i) {
   anim.t = keyEnd(m, anim.key); anim.playing = false;
 }
 
-// ---------- preview: the real engine (springs, hit stop) playing the move against a dummy ----------
-const pvScen = () => galleryScen(anim.move, !!curMove().air);
-function buildPreview() { anim.pv = newWorld(pvScen()); }
+// ---------- preview: the real engine (springs, hit stop) playing the move against a target ----------
+// the target: any character, standing / crouching / guarding, idle / in the air / lying / dizzy, facing toward or away
+const STANCES = { stand: 'dummy', crouch: [{ hold: 'down', t: 99 }], guard: [{ hold: 'guard', t: 99 }], low: [{ hold: 'down+guard', t: 99 }] };
+const TARGET_TIPS = {
+  stand: 'The target stands still', crouch: 'The target crouches: highs pass over it', guard: 'The target holds guard: blocks highs and mids from the front',
+  low: 'The target holds a low guard: blocks lows and special mids from the front',
+  idle: 'The target is on the ground and free', air: 'The target jumps so it is near the top of its jump when the move becomes active',
+  down: 'The target lies on the floor: only off-the-ground (otg) moves hit it', dizzy: 'The target is dizzy: the next hit wakes it',
+  toward: 'The target faces the attacker', away: 'The target turns its back: guard and parry only work from the front',
+};
+function pvScen() {
+  const m = curMove(), tg = anim.target, s = galleryScen(anim.move, !!m.air);
+  s.b = tg.state === 'air' ? [Math.max(0, 0.1 + frameData(m, CFG.attackSpeed).startup / 60 - 0.25), 'hop'] : STANCES[tg.stance];
+  s.init = w => {
+    const b = w.b;
+    if ((b.away = tg.facing === 'away')) b.dir = -b.dir;
+    if (tg.state === 'down') Object.assign(b, { kd: 'down', downT: 99 });
+    if (tg.state === 'dizzy') Object.assign(b, { dizzyT: 99, hurtT: 99 });
+  };
+  return s;
+}
+function buildPreview() { anim.pv = newWorld(pvScen(), {}, 1, [currentChar(), CHARS[anim.target.char] || currentChar()]); }
 // re-simulate the preview up to move time t (deterministic, so this is what the fight would show)
 function previewAt(t) {
   const w = anim.pv, m = curMove();
@@ -162,15 +183,17 @@ function previewAt(t) {
 
 // ---------- mouse ----------
 function animMouse(type, x, y, e) {
-  const L = anLayout(), m = curMove(), inTl = y >= L.tl.y - 4 * dpr && x < L.ed.w, tl = L.tl, px = tl.w / total(m);
+  const L = anLayout(), m = curMove(), inTl = y >= L.tl.y - 4 * dpr && x < L.ed.w, tl = L.tl, px = tl.w / total(m), ruler = inTl && y < tl.y + 18 * dpr;
+  const tAt = () => clamp((x - tl.x) / px, 0, total(m) - 1e-6), edge = () => inTl && !ruler ? m.keys.findIndex((k, i) => Math.abs(x - tl.x - keyEnd(m, i) * px) < 6 * dpr) : -1;
   if (type === 'down') {
     if (anim.aim) { anim.aim = false; studio.lastKey = null; return; }
     if (inTl) {
-      if (y < tl.y + 18 * dpr) { anim.drag = { scrub: true }; anim.playing = false; }
+      if (ruler) { anim.drag = { scrub: true }; anim.playing = false; }
       else {
-        const e = m.keys.findIndex((k, i) => Math.abs(x - tl.x - keyEnd(m, i) * px) < 6 * dpr); // grabbed a right edge?
-        if (e >= 0) anim.drag = { key: e, x0: x, d0: m.keys[e].d, px };
-        else selectKey(keyAt(m, (x - tl.x) / px));
+        const g = edge(); // grabbed a right edge?
+        if (g >= 0) anim.drag = { key: g, x0: x, d0: m.keys[g].d, px };
+        else if (e.detail === 2) splitKey(tAt());
+        else { selectKey(keyAt(m, tAt())); anim.drag = { order: anim.key, x0: x }; }
       }
     } else {
       const id = pickJoint(x, y);
@@ -179,7 +202,8 @@ function animMouse(type, x, y, e) {
   }
   if (type === 'move') {
     const d = anim.drag;
-    if (d?.scrub) { anim.t = clamp((x - tl.x) / px, 0, total(m) - 1e-6); anim.key = keyAt(m, anim.t); }
+    if (d?.scrub) { anim.t = tAt(); anim.key = keyAt(m, anim.t); }
+    else if (d?.order !== undefined) { const to = keyAt(m, tAt()); if (Math.abs(x - d.x0) > 4 * dpr && to !== d.order) { moveKey(d.order, to); d.order = to; d.moved = true; } }
     else if (d?.key !== undefined) {
       const frames = Math.max(1, Math.round((d.d0 + (x - d.x0) / d.px) * 60));
       edit(def => { def.moves[anim.move].keys[d.key].d = frames / 60; }, 'dur:' + d.key);
@@ -188,9 +212,11 @@ function animMouse(type, x, y, e) {
     else if (anim.aim && x < L.ed.w && !inTl && curMove().hit) { if (!anim.playing) selectKey(anim.key); poseTo(curMove().hit, x, y, false); }
     else anim.hover = x < L.ed.w && !inTl ? pickJoint(x, y) : null;
     if (d?.scrub) previewAt(anim.t);
+    cursor(d?.scrub || ruler ? 'col-resize' : d?.key !== undefined || edge() >= 0 ? 'ew-resize' : d?.order !== undefined || typeof d === 'string' ? 'grabbing'
+      : inTl ? 'pointer' : anim.aim && x < L.ed.w ? 'crosshair' : anim.hover ? 'grab' : 'default');
   }
   if (type === 'up' && anim.drag) {
-    const posed = typeof anim.drag === 'string';
+    const posed = typeof anim.drag === 'string' || anim.drag.moved;
     anim.drag = null; anim.hold = false; studio.lastKey = null;
     if (posed) buildPreview();
   }
@@ -198,12 +224,15 @@ function animMouse(type, x, y, e) {
 function animKey(e, a) {
   if (a === 'prevKey') { selectKey(anim.key - 1); return true; }
   if (a === 'nextKey') { selectKey(anim.key + 1); return true; }
-  if (a === 'frameBack') { anim.playing = false; anim.t = Math.max(0, anim.t - F); anim.key = keyAt(curMove(), anim.t); previewAt(anim.t); return true; }
-  if (a === 'frameFwd') { anim.playing = false; anim.t = Math.min(total(curMove()) - 1e-6, anim.t + F); anim.key = keyAt(curMove(), anim.t); previewAt(anim.t); return true; }
+  if (a === 'frameBack') { stepFrame(-1); return true; }
+  if (a === 'frameFwd') { stepFrame(1); return true; }
+  if (a === 'deleteBone') { deleteKey(); return true; } // Delete: the selected key
   if (a === 'playMove') { anim.playing = !anim.playing; return true; }
   if (a === 'onion') { anim.onion = !anim.onion; return true; }
   if (a === 'aim') { anim.aim = !anim.aim; return true; }
 }
+
+function stepFrame(n) { anim.playing = false; anim.t = clamp(anim.t + n * F, 0, total(curMove()) - 1e-6); anim.key = keyAt(curMove(), anim.t); previewAt(anim.t); }
 
 // ---------- key and move edits ----------
 const setKey = (k, v, key = null) => edit(def => { def.moves[anim.move].keys[anim.key][k] = v; }, key);
@@ -218,6 +247,22 @@ function addKey() {
     keys.splice(anim.key + 1, 0, { d: 4 / 60, e: 'outQuad', p: clone(keyPose(currentChar(), curMove(), anim.key)) });
   });
   selectKey(anim.key + 1);
+}
+// split the key under move time t into two: the first ends on the in-between pose at t
+function splitKey(t) {
+  const m = curMove(), i = keyAt(m, t), f = Math.round((t - keyStart(m, i)) * 60), n = Math.round(m.keys[i].d * 60);
+  if (f < 1 || f >= n) return selectKey(i);
+  const p = mapVals(samplePose(currentChar(), m, keyStart(m, i) + f / 60), v => Math.round(v * 10) / 10);
+  edit(def => {
+    const ks = def.moves[anim.move].keys, k = ks[i];
+    ks.splice(i, 0, { ...k, d: f / 60, p }); // the first part starts where the key did: it keeps the lunge and cancel
+    k.d = (n - f) / 60; delete k.lunge; delete k.cancel;
+  });
+  selectKey(i);
+}
+function moveKey(from, to) {
+  edit(def => { const ks = def.moves[anim.move].keys; ks.splice(to, 0, ks.splice(from, 1)[0]); }, 'order');
+  selectKey(to);
 }
 function deleteKey() {
   if (curMove().keys.length <= 1) return;
@@ -286,21 +331,16 @@ const MOVE_FLAGS = {
 };
 
 function keyPanel() {
-  const title = heading('', 'The selected key: the pose reached at its end, how long it takes and how it eases. Drag joints in the editor to pose it.',
-    'Shift+←/→ prev/next key · , / . step a frame · Enter play/pause');
+  const title = heading('', 'The selected key: the pose reached at its end, how long it takes and how it eases. Drag joints in the editor to pose it. Adding, splitting, deleting and retiming keys: the bar above the timeline.',
+    'Shift+←/→ prev/next key · , / . step a frame · Enter play/pause · Delete deletes the key');
   reg(title, () => { title.firstChild.textContent = `Key ${anim.key + 1} / ${curMove().keys.length}`; });
-  const k = () => curMove().keys[anim.key], frames = h('span', { cls: 'v' });
-  reg(frames, () => { frames.textContent = `${Math.round(k().d * 60)}f`; });
+  const k = () => curMove().keys[anim.key];
   return [title,
     h('div', { cls: 'bar' },
-      button(':chevron_left:', 'Previous key (Shift+←)', () => selectKey(anim.key - 1)), button(':chevron_right:', 'Next key (Shift+→)', () => selectKey(anim.key + 1)),
-      button(':add: key', 'Insert a key after this one, starting from its pose', addKey), button(':delete: delete', 'Delete this key', deleteKey),
       button(':accessibility_new: stance', 'This key returns to the stance (clears its pose)', () => setKey('p', null)),
       button('hold', 'Copy the previous key\'s pose (hold still)', () => setKey('p', clone(keyPose(currentChar(), curMove(), Math.max(0, anim.key - 1))))),
       button(':accessibility_new: pose', 'Start this key from a preset pose', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.entries(POSES).map(([n, p]) =>
         button(n, p.tip, () => setKey('p', { ...keyPose(currentChar(), curMove(), anim.key), ...presetPose(currentChar(), p) }))))))),
-    h('div', { cls: 'row', tip: 'Duration in 60 fps frames' }, h('span', { textContent: 'frames' }),
-      h('span', { cls: 'bar' }, button('−', 'One frame shorter', () => keyFrames(-1)), frames, button(':add:', 'One frame longer', () => keyFrames(1)))),
     h('div', { cls: 'row', tip: 'Easing curve into this key\'s pose' }, h('span', { textContent: 'easing' }),
       seg(Object.keys(EASE), () => k().e || 'linear', v => setKey('e', v), EASE_TIPS)),
     h('div', { cls: 'row', tip: 'Active frames can hit' }, h('span', { textContent: 'active' }),
@@ -315,6 +355,41 @@ function keyPanel() {
       'Forward speed given when this key starts (px/s): steps into the strike.'),
   ];
 }
+// ---------- move list: grouped by type / striking limb / height, sorted, filtered by name or input ----------
+const MOVE_GROUPS = {
+  type: m => m.air ? 'air' : m.special ? 'special' : m.power ? 'normal' : 'other',
+  limb: (m, ch) => m.power ? ch.by[m.hit]?.role || 'none' : 'other',
+  height: m => m.power ? m.height || 'mid' : 'other',
+  none: () => '',
+};
+const GROUP_ORDER = ['normal', 'special', 'air', 'arm', 'leg', 'head', 'spine', 'tail', 'high', 'shigh', 'mid', 'smid', 'low', 'none', 'other'];
+const GROUP_TIPS = { type: 'Group by type: normal, special, air, other (not attacks)', limb: 'Group by the striking limb', height: 'Group by height', none: 'One list' };
+const SORT_TIPS = { order: 'As defined', name: 'By name', startup: 'Fastest first (startup frames)', damage: 'Most damage first' };
+const moveDamage = m => m.power ? m.damage ?? m.power * 8 : 0;
+const moveInputs = (ch, n) => Object.keys(BINDS).filter(s => ch.binds[s] === n);
+function moveList() {
+  const list = h('div'), fill = () => {
+    const ch = currentChar(), q = anim.filter.trim().toLowerCase(), fd = n => frameData(ch.moves[n], 1);
+    const names = Object.keys(ch.moves).filter(n => !q || [n, MOVE_GROUPS[anim.group](ch.moves[n], ch), ...moveInputs(ch, n)].join(' ').toLowerCase().includes(q));
+    const by = { name: (a, b) => a.localeCompare(b), startup: (a, b) => fd(a).startup - fd(b).startup, damage: (a, b) => moveDamage(ch.moves[b]) - moveDamage(ch.moves[a]) }[anim.sort];
+    if (by) names.sort(by);
+    const groups = new Map(), rank = g => (GROUP_ORDER.indexOf(g) + 1 || 99);
+    for (const n of names) { const g = MOVE_GROUPS[anim.group](ch.moves[n], ch); groups.set(g, [...groups.get(g) || [], n]); }
+    const tips = Object.fromEntries(names.map(n => { const m = ch.moves[n], d = fd(n);
+      return [n, `${d.startup}f startup · ${d.active} active · ${d.recovery} recovery${m.power ? ` · ${fmt(moveDamage(m))} damage · ${m.height || 'mid'}` : ''} · input: ${moveInputs(ch, n).join(' ') || 'none'}`]; }));
+    list.replaceChildren(...[...groups].sort((a, b) => rank(a[0]) - rank(b[0])).flatMap(([g, ns]) =>
+      [g && h('h4', { textContent: g }), h('div', { cls: 'bar' }, seg(ns, () => anim.move, pickMove, tips))]));
+    if (!names.length) list.replaceChildren(h('div', { cls: 'note', textContent: 'no move matches the filter' }));
+    syncAll();
+  };
+  fill();
+  return [
+    h('div', { cls: 'row', tip: 'How the moves are grouped' }, h('span', { textContent: 'group' }), seg(Object.keys(MOVE_GROUPS), () => anim.group, v => { anim.group = v; fill(); }, GROUP_TIPS)),
+    h('div', { cls: 'row', tip: 'Order within a group' }, h('span', { textContent: 'sort' }), seg(Object.keys(SORT_TIPS), () => anim.sort, v => { anim.sort = v; fill(); }, SORT_TIPS)),
+    h('div', { cls: 'row', tip: 'Show only moves whose name, group or input contains this text (e.g. kick, air, qcf)' }, h('span', { textContent: 'filter' }),
+      h('input', { cls: 'macro', value: anim.filter, placeholder: 'name, group or input', oninput: e => { anim.filter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() })),
+    list];
+}
 function movePanel() {
   const m = () => curMove(), hitB = button('', 'The bone whose end is the strike (and whose limb is tested in limb mode)', (e, b) =>
     popup(b, h('div', { cls: 'bar' }, seg(currentChar().ids, () => m().hit, v => setMove('hit', v)))));
@@ -324,7 +399,7 @@ function movePanel() {
   reg(bindB, () => { setRich(bindB, boundSlots().join(' ') || 'none (combo only)'); });
   return [...charPanel(),
     heading('Moves', 'Pick a move to edit. Copies can be tuned freely; the built-in names are the ones the controls trigger.', 'Enter play/pause · O onion · I aim'),
-    h('div', { cls: 'bar' }, seg(Object.keys(currentChar().moves), () => anim.move, pickMove)),
+    ...moveList(),
     h('div', { cls: 'bar' }, button(':content_copy: copy', 'Duplicate this move under a new name', copyMove),
       button(':delete: delete', 'Delete this move (only copies)', deleteMove)),
     ...keyPanel(),
@@ -339,14 +414,42 @@ function movePanel() {
 }
 
 function animCtx() {
-  const play = button('', 'Play / pause the move (Enter)', () => { anim.playing = !anim.playing; });
-  reg(play, () => { setRich(play, anim.playing ? ':pause: move' : ':play_arrow: move'); });
-  return [play,
-    button(':skip_previous:', 'First key', () => selectKey(0)), button(':skip_next:', 'Last key', () => selectKey(curMove().keys.length - 1)),
-    toggle(':layers: onion', 'Ghosts of the previous (blue) and next (green) keys (O)', () => anim.onion, v => { anim.onion = v; }),
-    toggle(':my_location: aim', 'The striking limb follows the cursor through IK; click to set the pose (I)', () => anim.aim, v => { anim.aim = v; }),
+  return [
     toggle(':visibility: ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; }),
     toggle(':check_box_outline_blank: boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }), colorsToggle()];
+}
+
+// controls over the canvas: transport and key edits above the timeline, the preview's target under the preview
+function timelineBar() {
+  const play = button('', 'Play / pause the move (Enter)', () => { anim.playing = !anim.playing; }, 'mini');
+  reg(play, () => { setRich(play, anim.playing ? ':pause:' : ':play_arrow:'); });
+  const frames = h('span', { cls: 'v', tip: 'Length of the selected key in 60 fps frames' }), fd = h('span', { cls: 'fd' });
+  reg(frames, () => { frames.textContent = `${Math.round(curMove().keys[anim.key].d * 60)}f`; });
+  reg(fd, () => { const d = frameData(curMove(), 1); fd.textContent = `${d.startup} · ${d.active} · ${d.recovery}f`;
+    fd.dataset.tip = `Frame data (60 fps): ${d.startup} startup · ${d.active} active · ${d.recovery} recovery`; });
+  const b = (l, tip, f) => button(l, tip, f, 'mini');
+  return h('div', { cls: 'over tlbar' },
+    b(':skip_previous:', 'First key', () => selectKey(0)), b(':chevron_left:', 'Previous key (Shift+←)', () => selectKey(anim.key - 1)),
+    b(':fast_rewind:', 'Back one frame (,)', () => stepFrame(-1)), play, b(':fast_forward:', 'Forward one frame (.)', () => stepFrame(1)),
+    b(':chevron_right:', 'Next key (Shift+→)', () => selectKey(anim.key + 1)), b(':skip_next:', 'Last key', () => selectKey(curMove().keys.length - 1)),
+    h('span', { cls: 'sep' }),
+    b(':add: key', 'Insert a key after the selected one, starting from its pose', addKey),
+    b(':content_cut: split', 'Split the selected key in two at its middle (double-click a key: split it there)', () => splitKey(keyStart(curMove(), anim.key) + curMove().keys[anim.key].d / 2)),
+    b(':delete:', 'Delete the selected key (Delete)', deleteKey),
+    h('span', { cls: 'sep' }),
+    b(':remove:', 'One frame shorter', () => keyFrames(-1)), frames, b(':add:', 'One frame longer', () => keyFrames(1)),
+    h('span', { cls: 'sep' }),
+    toggle(':layers:', 'Onion skin: ghosts of the previous (blue) and next (green) keys (O)', () => anim.onion, v => { anim.onion = v; }),
+    toggle(':my_location:', 'Aim: the striking limb follows the cursor through IK; click to set the pose (I)', () => anim.aim, v => { anim.aim = v; }),
+    fd);
+}
+function targetBar() {
+  const tg = anim.target, set = (k, v) => { tg[k] = v; anim.t = 0; anim.playing = true; buildPreview(); };
+  const who = button('', 'The target character in the preview', (e, b) =>
+    popup(b, h('div', { cls: 'bar' }, seg([null, ...Object.keys(DEFS)], () => tg.char, v => { set('char', v); closePop(); }, { null: 'The character being edited' }, v => v ?? 'same'))), 'mini');
+  reg(who, () => { setRich(who, ':person: ' + (tg.char && DEFS[tg.char] ? tg.char : 'same')); });
+  const sg = (k, opts) => seg(opts, () => tg[k], v => set(k, v), TARGET_TIPS);
+  return h('div', { cls: 'over tgt', tip: 'The target of the preview' }, who, sg('stance', Object.keys(STANCES)), sg('state', ['idle', 'air', 'down', 'dizzy']), sg('facing', ['toward', 'away']));
 }
 
 const animMode = {
@@ -365,7 +468,8 @@ const animMode = {
   render() { clear(); drawAnimEditor(); drawTimeline(); drawCell({ w: anim.pv, label: 'preview (springs + hit stop)' }, anLayout().pv, { plot: false }); },
   ctxBar: animCtx,
   side: movePanel,
+  overlay: () => [timelineBar(), targetBar()],
   mouse: animMouse,
   key: animKey,
-  hint: () => 'drag a joint: IK · Alt+drag: one bone · timeline: click key, drag edge to retime, drag ruler to scrub · , . frame step',
+  hint: () => 'drag a joint: IK · Alt+drag: one bone · timeline: click a key to select, drag it to reorder, drag its edge to retime, double-click to split, drag the ruler to scrub · , . frame step · Delete key',
 };
