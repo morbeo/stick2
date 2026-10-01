@@ -71,6 +71,23 @@ test('2D: ↑ jumps and ↑ with an attack is an up attack; 2.5D: ↑ is a direc
   assert.match(seen('up+fwd+punch', '2d'), /a:hammer/), assert.match(seen('up+fwd+punch', 'lanes'), /a:headbutt/);
 });
 
+test('character stats: max jumps, jump height under any gravity, air dash, air dodge, fast fall, grab range', () => {
+  const probe = (script, def = {}) => run(`(() => { const d = { ...CHAR_DEFS.stick, ...${JSON.stringify(def)} };
+    const w = new World({ a: ${JSON.stringify(script)}, b: 'dummy', ax: 300, bx: 700, period: 9 }, {}, 7, [makeCharacter(d), CHARS.stick]);
+    let top = 0, vx = 0, vy = 0, dodge = 0; for (let i = 0; i < 90; i++) { w.advance(1/60, NOIN); top = Math.min(top, w.a.y); vx = Math.max(vx, Math.abs(w.a.vx)); vy = Math.max(vy, w.a.vy); dodge = Math.max(dodge, w.a.dodgeT); }
+    return { top, vx, vy, dodge }; })()`);
+  const one = probe(['hop']);
+  assert.ok(probe(['hop', 0.3, 'hop'], { jumps: 2 }).top < one.top - 30, 'double jump goes higher');
+  assert.equal(probe(['hop', 0.3, 'hop']).top, one.top, 'one jump only');
+  assert.ok(Math.abs(probe(['hop'], { gravity: 2 }).top - one.top) < 4, 'gravity keeps the jump height');
+  assert.ok(probe(['hop', 0.2, 'fwd', 0.05, 'fwd']).vx > 400, 'air dash');
+  assert.ok(probe(['hop', 0.2, 'fwd', 0.05, 'fwd'], { airDash: 0 }).vx < 100, 'no air dash at 0');
+  assert.ok(probe(['hop', 0.2, 'guard']).dodge > 0.2, 'air dodge');
+  assert.ok(probe(['hop', 0.32, { hold: 'down', t: 0.5 }]).vy > one.vy + 150, 'fast fall');
+  const seen = g => run(`fight({ a: [0.1, 'punch+guard'], b: 'dummy', ax: 300, bx: 375, period: 9 }, [makeCharacter({ ...CHAR_DEFS.stick, grabRange: ${g} }), CHARS.stick], 60).seen`).join(' ');
+  assert.ok(seen(3).includes('a:toss') && !seen(0).includes('a:toss'), `grab range: ${seen(3)} / ${seen(0)}`);
+});
+
 test('with several striking bones, any of them can land', () => {
   // palms with only the back hand listed, and with both: both versions must connect, the pair never misses where one hand lands
   const r = run(`(() => { const out = {};

@@ -229,10 +229,14 @@ const bodyExpLink = (row, k, preview) => expLink(row, `nine bodies varying ${k};
 // the character's stats; defaults are the built-in's values (custom characters: 1)
 function statsPanel() {
   const get = k => DEFS[CURRENT][k] ?? 1, dflt = k => CHAR_DEFS[CURRENT]?.[k] ?? 1;
-  const title = h('h4', { textContent: 'stats', tip: 'Multipliers on the fight settings for this character only (1 = as the settings say)' });
-  title.append(groupOps(CHAR_STATS, get, dflt, vals => edit(def => Object.assign(def, vals)),
-    ['Experiment: nine bodies varying the stats; click the best to breed around it', () => { creator.exp.vars = new Set(CHAR_STATS.map(s => s.k)); setExp(true); }]));
-  return [title, ...CHAR_STATS.map(s => bodyExpLink(slider(s.k, s, () => get(s.k), v => edit(def => { def[s.k] = v; }, 'stat:' + s.k), s.tip), s.k))];
+  // one heading per group (ground / air / fight), each with its group buttons
+  return Object.keys(STAT_GROUPS).flatMap(g => {
+    const specs = CHAR_STATS.filter(s => s.g === g);
+    const title = h('h4', { textContent: `${g} stats`, tip: `${STAT_GROUPS[g]}. Multipliers on the fight settings for this character only (1 = as the settings say)` });
+    title.append(groupOps(specs, get, dflt, vals => edit(def => Object.assign(def, vals)),
+      [`Experiment: nine bodies varying the ${g} stats; click the best to breed around it`, () => { creator.exp.vars = new Set(specs.map(s => s.k)); setExp(true); }]));
+    return [title, ...specs.map(s => bodyExpLink(slider(s.k, s, () => get(s.k), v => edit(def => { def[s.k] = v; }, 'stat:' + s.k), s.tip), s.k))];
+  });
 }
 // walk and idle knobs; keyframed loops (moves named idle / walk, made in animate) replace them
 function gaitPanel() {

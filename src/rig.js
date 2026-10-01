@@ -219,16 +219,28 @@ const slotsOf = plane => plane === '2d' ? BINDS : BINDS_25;
 const bindsKey = plane => plane === '2d' ? 'binds' : 'binds25';
 // special motions in numpad notation (6 = towards the opponent), matched in order against the recent directions
 const MOTIONS = { dp: /6.*2.*3/, qcf: /2.*3.*6/, qcb: /2.*1.*4/ };
-// whole-character stats: each multiplies some fight settings for this character only (1 = as the settings say)
+// whole-character stats: each multiplies some fight settings for this character only (1 = as the settings say); g = its group
 const CHAR_STATS = [
-  { k: 'speed', cfg: ['maxSpeed'], min: 0.5, max: 1.6, step: 0.05, tip: 'Walk speed, × maxSpeed (dashes and runs too). Heavy bodies feel right a little slower.' },
-  { k: 'jump', cfg: ['jumpVel'], min: 0.6, max: 1.5, step: 0.05, tip: 'Jump height, × jumpVel.' },
-  { k: 'weight', cfg: [], min: 0.5, max: 2, step: 0.05, tip: 'Heavier bodies are pushed and launched less: knockback, block push and launch ÷ weight.' },
-  { k: 'health', cfg: ['health'], min: 0.5, max: 2, step: 0.05, tip: 'Health, × the health setting.' },
-  { k: 'tough', cfg: ['staggerAt', 'dizzyAt'], min: 0.5, max: 2, step: 0.05, tip: 'Toughness: blows needed to stagger it and damage to make it dizzy, × staggerAt and dizzyAt.' },
-  { k: 'tempo', cfg: ['attackSpeed'], min: 0.6, max: 1.5, step: 0.05, tip: 'How fast its moves play, × attackSpeed.' },
-  { k: 'springs', cfg: ['freq'], min: 0.4, max: 2, step: 0.05, tip: 'Limb spring frequency, × freq: above 1 snappy, below 1 floppy.' },
+  { k: 'speed', g: 'ground', cfg: ['maxSpeed'], min: 0.5, max: 1.6, step: 0.05, tip: 'Walk speed, × maxSpeed (runs too). Heavy bodies feel right a little slower.' },
+  { k: 'dash', g: 'ground', cfg: ['dashSpeed'], min: 0.5, max: 1.8, step: 0.05, tip: 'Dash speed, × dashSpeed.' },
+  { k: 'traction', g: 'ground', cfg: ['decel'], min: 0.3, max: 2, step: 0.05, tip: 'Grip on the floor, × decel: low = slides on when it stops, is hit or lunges; high = stops dead.' },
+  { k: 'turnaround', g: 'ground', cfg: ['turnSpeed'], min: 0.3, max: 3, step: 0.05, tip: 'How fast it turns to face the other way, × turnSpeed. Slow turners are open to cross-ups.' },
+  { k: 'weight', g: 'ground', cfg: [], min: 0.5, max: 2, step: 0.05, tip: 'Heavier bodies are pushed and launched less: knockback, block push and launch ÷ weight.' },
+  { k: 'jump', g: 'air', cfg: ['jumpVel'], f: (v, s) => v * Math.sqrt(s.jump * s.gravity), min: 0.5, max: 2, step: 0.05, tip: 'Jump height, × the height jumpVel and gravity give (whatever its gravity).' },
+  { k: 'jumps', g: 'air', cfg: [], min: 1, max: 5, step: 1, tip: 'Max jumps: 2 = a double jump (jump again in the air), and so on.' },
+  { k: 'gravity', g: 'air', cfg: ['gravity'], min: 0.4, max: 2, step: 0.05, tip: 'Its gravity, × gravity: high = snappy short jumps (jump height stays), low = floaty.' },
+  { k: 'airSpeed', g: 'air', cfg: ['airSpeed'], min: 0.3, max: 2, step: 0.05, tip: 'Top drift speed in the air, × airSpeed.' },
+  { k: 'airAccel', g: 'air', cfg: ['airAccel'], min: 0, max: 3, step: 0.05, tip: 'Air control, × airAccel: how fast the drift turns around.' },
+  { k: 'fallSpeed', g: 'air', cfg: ['fallSpeed'], min: 0.5, max: 2, step: 0.05, tip: 'Top falling speed and fast-fall speed, × fallSpeed.' },
+  { k: 'airDodge', g: 'air', cfg: ['airDodge'], min: 0, max: 2, step: 0.05, tip: 'Air dodge length, × airDodge (0 = cannot air dodge).' },
+  { k: 'airDash', g: 'air', cfg: ['airDash'], min: 0, max: 2, step: 0.05, tip: 'Air dash speed, × airDash (0 = cannot air dash).' },
+  { k: 'health', g: 'fight', cfg: ['health'], min: 0.5, max: 2, step: 0.05, tip: 'Health, × the health setting.' },
+  { k: 'tough', g: 'fight', cfg: ['staggerAt', 'dizzyAt'], min: 0.5, max: 2, step: 0.05, tip: 'Toughness: blows needed to stagger it and damage to make it dizzy, × staggerAt and dizzyAt.' },
+  { k: 'tempo', g: 'fight', cfg: ['attackSpeed'], min: 0.6, max: 1.5, step: 0.05, tip: 'How fast its moves play, × attackSpeed.' },
+  { k: 'springs', g: 'fight', cfg: ['freq'], min: 0.4, max: 2, step: 0.05, tip: 'Limb spring frequency, × freq: above 1 snappy, below 1 floppy.' },
+  { k: 'grabRange', g: 'fight', cfg: ['grabReach'], min: 0, max: 3, step: 0.05, tip: 'Throw reach, × grabReach.' },
 ];
+const STAT_GROUPS = { ground: 'Ground: walking, dashing, turning, weight', air: 'Air: jumps, gravity, drift, falling, air dodge and air dash', fight: 'Fight: health, toughness, tempo, limb springs, grab range' };
 // walk and idle, per character: the procedural cycle's knobs (moves named idle / walk, if any, replace it with keyframed loops)
 const GAIT_VARS = [
   { k: 'stride', v: 1, min: 0, max: 2, step: 0.05, tip: 'How far the legs swing walking.' },
@@ -239,7 +251,7 @@ const GAIT_VARS = [
   { k: 'idleAmt', v: 1, min: 0, max: 3, step: 0.05, tip: 'Strength of the idle motion.' },
   { k: 'breath', v: 1, min: 0, max: 3, step: 0.1, tip: 'Breathing: the chest and arms rise and fall.' },
 ];
-const STAT_OF = Object.fromEntries(CHAR_STATS.flatMap(s => s.cfg.map(k => [k, s.k])));
+const STAT_OF = Object.fromEntries(CHAR_STATS.flatMap(s => s.cfg.map(k => [k, s])));
 function makeCharacter(def) {
   def = JSON.parse(JSON.stringify(def)); // the caller's definition stays untouched (it is what gets edited and saved)
   const by = {}, order = [];
@@ -290,7 +302,7 @@ const CHAR_DEFS = {
 };
 // brute: the stick's skeleton and moves, bigger, much thicker, heavier and slower (speed scales its walk)
 const BRUTE_SCALE = { waist: 1.2, chest: 1.35, neck: 1, head: 1.25, thigh: 1.1, shin: 1.05, foot: 1.2, uarm: 1.3, farm: 1.3, hand: 1.5 };
-CHAR_DEFS.brute = { ...CHAR_DEFS.stick, name: 'brute', speed: 0.7, weight: 1.35, health: 1.2, tough: 1.25, springs: 0.85,
+CHAR_DEFS.brute = { ...CHAR_DEFS.stick, name: 'brute', speed: 0.7, weight: 1.35, traction: 1.3, turnaround: 0.7, fallSpeed: 1.2, airSpeed: 0.8, airDodge: 0.8, health: 1.2, tough: 1.25, springs: 0.85,
   bones: STICK_BONES.map(b => ({ ...b, len: Math.round(b.len * BRUTE_SCALE[b.id.replace(/[FB]$/, '')]), thick: (b.thick ?? BONE.thick) + (b.role === 'spine' ? 10 : 6),
     hurt: b.hurt ? b.hurt + 5 : 0, stiff: 0.65, damp: 1.25 })),
   moves: mapVals(CHAR_DEFS.stick.moves, m => m.power ? { ...m, power: +(m.power * 1.3).toFixed(2), knock: m.knock * 1.25,
@@ -324,14 +336,14 @@ function mapPoses(def, fn) {
 }
 const { stick } = CHAR_DEFS;
 // dwarf: short legs, a barrel chest, everything thick
-CHAR_DEFS.dwarf = { ...stick, name: 'dwarf', speed: 0.85, jump: 0.85, weight: 1.2, tough: 1.2, moves: retimed(1.1, 1.15),
+CHAR_DEFS.dwarf = { ...stick, name: 'dwarf', speed: 0.85, jump: 0.85, gravity: 1.2, dash: 1.15, grabRange: 1.3, weight: 1.2, tough: 1.2, moves: retimed(1.1, 1.15),
   bones: [...sizedBones({ waist: 0.8, chest: 0.85, neck: 0.6, head: 1.15, thigh: 0.6, shin: 0.55, foot: 1.2, uarm: 0.85, farm: 0.85, hand: 1.5 }, 5)
     .map(b => b.role === 'spine' ? { ...b, thick: b.thick + 8, hurt: b.hurt + 3 } : b),
     { id: 'beard', parent: 'head', len: 11, a: -165, role: 'head', thick: 7, lag: 1.5, stretch: 0.1 }] };
-CHAR_DEFS.minotaur = { ...stick, name: 'minotaur', weight: 1.25, health: 1.1, moves: { ...retimed(1.2, 1.35), tailWhip: TAIL_WHIP }, binds: { backKick: 'tailWhip' }, binds25: { backKick: 'tailWhip' },
+CHAR_DEFS.minotaur = { ...stick, name: 'minotaur', weight: 1.25, health: 1.1, dash: 1.3, turnaround: 0.6, traction: 0.8, moves: { ...retimed(1.2, 1.35), tailWhip: TAIL_WHIP }, binds: { backKick: 'tailWhip' }, binds25: { backKick: 'tailWhip' },
   bones: [...sizedBones({ waist: 1.25, chest: 1.4, neck: 1.6, head: 1.35, thigh: 1.15, shin: 1.1, foot: 1.3, uarm: 1.3, farm: 1.3, hand: 1.6 }, 4)
     .map(b => ({ ...b, stiff: 0.75, damp: 1.2 })), ...horns(18, -50, 40), ...tail3(16, 4)] };
-CHAR_DEFS.demon = { ...stick, name: 'demon', jump: 1.15, weight: 0.9, moves: { ...retimed(0.9), tailWhip: TAIL_WHIP }, binds: { backKick: 'tailWhip' }, binds25: { backKick: 'tailWhip' },
+CHAR_DEFS.demon = { ...stick, name: 'demon', jump: 1.15, weight: 0.9, jumps: 2, gravity: 0.8, airSpeed: 1.2, airAccel: 1.3, moves: { ...retimed(0.9), tailWhip: TAIL_WHIP }, binds: { backKick: 'tailWhip' }, binds25: { backKick: 'tailWhip' },
   bones: [...sizedBones({ waist: 1.1, chest: 1.1, thigh: 1.15, shin: 1.15, uarm: 1.2, farm: 1.25, hand: 1.5 }).map(b => ({ ...b, stretch: b.role === 'arm' ? 0.15 : 0 })),
     ...horns(7, -20, 30), ...tail3(16, 3),
     ...pair(S => ({ id: 'wing' + S, parent: 'chest', len: 20, a: 5 + (S === 'B' ? 12 : 0), role: 'tail', thick: 3, lag: 1.5 })),
@@ -355,7 +367,7 @@ function quadLegs(p) {
   return p;
 }
 CHAR_DEFS.centaur = { ...mapPoses({ ...stick, moves: mapVals(retimed(1.1, 1.2), m => ({ ...m, hit: mapHit(m.hit, h => QUAD_HITS[h] || h) })) }, quadLegs),
-  name: 'centaur', speed: 1.1, weight: 1.4, jump: 0.9,
+  name: 'centaur', speed: 1.1, weight: 1.4, jump: 0.9, dash: 1.4, turnaround: 0.45, traction: 0.75, airDodge: 0.6,
   bones: [{ id: 'barrel', len: 34, a: 90, role: 'spine', hurt: 13, thick: 11, lag: 0, min: 60, max: 120 },
     ...STICK_BONES.map(b => b.id === 'waist' ? { ...b, parent: 'barrel', a: 90, min: 30, max: 210 } : b.id.startsWith('shin') ? { ...b, min: -8, max: 165 } : b),
     ...['B', 'F'].flatMap(S => [
@@ -364,7 +376,7 @@ CHAR_DEFS.centaur = { ...mapPoses({ ...stick, moves: mapVals(retimed(1.1, 1.2), 
       { id: 'hoof' + S, parent: 'foreShin' + S, len: 6, a: 90, role: 'leg', side: S.toLowerCase(), hurt: 6, lag: 1.5, level: 1, thick: 5, min: 40, max: 140 }]),
     ...tail3(12, 3).map(b => b.id === 'tail' ? { ...b, a: -150 } : b)] };
 // ninja: slender, long legs, fast and light; a scarf trails from the neck
-CHAR_DEFS.ninja = { ...stick, name: 'ninja', speed: 1.25, jump: 1.15, weight: 0.85, health: 0.9, springs: 1.15, binds: { downFwdKick: 'slide', upKick: 'axeKick' }, binds25: { downFwdKick: 'slide', upFwdKick: 'axeKick', upFwdPunch: 'rising' },
+CHAR_DEFS.ninja = { ...stick, name: 'ninja', speed: 1.25, jump: 1.15, weight: 0.85, jumps: 2, turnaround: 1.5, airDash: 1.2, airAccel: 1.4, dash: 1.15, health: 0.9, springs: 1.15, binds: { downFwdKick: 'slide', upKick: 'axeKick' }, binds25: { downFwdKick: 'slide', upFwdKick: 'axeKick', upFwdPunch: 'rising' },
   // K+G: the crane, on one leg with the arms spread; its kicks come from the raised knee
   stances: [{ name: 'crane', pose: { waist: 178, chest: 0, neck: 0, head: 0, uarmF: -70, farmF: -40, handF: 0, uarmB: -280, farmB: 40, handB: 0, thighF: 85, shinF: -110, footF: 90, thighB: -4, shinB: 0, footB: 90 },
     binds: { kick: 'axeKick', fwdKick: 'turnKick', punch: 'elbow', downKick: 'lowKick' },
@@ -385,7 +397,7 @@ CHAR_DEFS.ninja = { ...stick, name: 'ninja', speed: 1.25, jump: 1.15, weight: 0.
     { id: 'scarfMid', parent: 'scarf', len: 13, a: -15, role: 'tail', thick: 3, lag: 3, stretch: 0.25, min: -60, max: 60 },
     { id: 'scarfEnd', parent: 'scarfMid', len: 11, a: -15, role: 'tail', thick: 2, lag: 4, stretch: 0.3, min: -60, max: 60 }] };
 // ape: long heavy arms, short legs, hunched forward
-CHAR_DEFS.ape = { ...stick, name: 'ape', speed: 0.95, jump: 1.1, moves: retimed(1.05, 1.15),
+CHAR_DEFS.ape = { ...stick, name: 'ape', speed: 0.95, jump: 1.1, grabRange: 1.6, airAccel: 1.2, moves: retimed(1.05, 1.15),
   bones: sizedBones({ waist: 0.95, chest: 1.15, neck: 0.6, head: 1.05, thigh: 0.8, shin: 0.75, uarm: 1.5, farm: 1.5, hand: 1.6 }, 3)
     .map(b => b.role === 'spine' ? { ...b, thick: b.thick + 4 } : b) };
 CHAR_DEFS.ape.poses = { ...CHAR_DEFS.ape.poses, stance: { ...CHAR_DEFS.ape.poses.stance, waist: 155, neck: 15, uarmF: -140, uarmB: -150, farmF: 15, farmB: 20 } };
