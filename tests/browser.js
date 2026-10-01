@@ -61,6 +61,12 @@ try {
     if (!Object.keys(sk).length || Object.keys(sk).some(id => Math.abs(sk[id] - pt.karate.pose[id]) > 0.1) || !m.keys[1].active) errs.push('pose attack');
     Object.assign(breed, { pose: null }); }
   setMode('play'); for (let i = 0; i < 60; i++) for (const w of mode().worlds()) w.advance(1/60, NOIN);
+  // replay files: the play fight saved and played back matches its recording, shown with its engine version
+  { const r = JSON.parse(JSON.stringify(makeReplay(lab.cells[0].w, lab.scen)));
+    if (r.version !== ENGINE_VERSION || r.frames.length !== 60) errs.push('replay file ' + [r.version, r.frames.length]);
+    lab.playback = r; build(); const w = lab.cells[0].w; for (let i = 0; i < 70; i++) w.advance(1/60, NOIN); labRender();
+    if (!w.playback || w.desync !== null || !w.playback.over) errs.push('replay playback ' + [w.desync, w.playback?.over]);
+    lab.playback = null; build(); if (lab.cells[0].w.playback) errs.push('replay stop'); }
 } catch (e) { errs.push(e.message + ' ' + e.stack.split('\\n')[1]); }
 document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK';
 </script></body>`;

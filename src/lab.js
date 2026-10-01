@@ -4,7 +4,7 @@ const canvas = $('c'), ctx = canvas.getContext('2d');
 const cursor = c => { if (canvas.style.cursor !== c) canvas.style.cursor = c; }; // the mouse cursor follows what is under it
 let dpr = 1;
 const lab = { mode: 'play', scen: 'you vs dummy', rows: null, x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
-  seeds: 1, meter: true, inputs: true, tape: null, rec: false, replay: false, target: 'dummy' };
+  seeds: 1, meter: true, inputs: true, tape: null, rec: false, replay: false, target: 'dummy', playback: null };
 const newWorld = (...a) => Object.assign(new World(...a), { loop: app.loop });
 
 // what the little plot under a grid cell shows, by the swept variable
@@ -61,7 +61,7 @@ function build() {
   lab.cells = []; lab.cols = 3; lab.zoom = false; lab.scroll = 0;
   if (lab.mode === 'play') {
     const replay = lab.replay && lab.tape?.length && scen.a === 'human';
-    lab.cells.push({ w: newWorld(replay ? { ...scen, b: { tape: lab.tape } } : scen) }); lab.cols = 1;
+    lab.cells.push({ w: lab.playback ? Object.assign(replayWorld(lab.playback), { loop: app.loop }) : newWorld(replay ? { ...scen, b: { tape: lab.tape } } : scen) }); lab.cols = 1;
   }
   else if (lab.mode === 'impact') for (const [k, [tip, s]] of Object.entries(IMPACTS))
     lab.cells.push({ w: newWorld({ b: 'dummy', period: 3, ...s }, {}, 7, [CHARS.stick, currentChar()]), label: k, tip });
@@ -176,6 +176,7 @@ function labRender() {
       : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) && 'current settings' : c === lab.focus && 'focused') }));
   if (lab.mode === 'grid' && lab.kind === 'attacks' && !lab.zoom) cells.forEach((c, i) => { c.btns = null; if (i === lab.hover) drawCellButtons(c, rects[i]); });
   if (play && lab.inputs && cells[0].w.ctl[0] === 'human') drawInputs(cells[0].w, 10 * dpr, 60 * dpr);
+  if (play && cells[0].w.playback) drawPlayback(cells[0].w);
   const d = lab.drag;
   if (d) { // the blow being dragged: from the struck point, its direction and strength
     ctx.strokeStyle = RED[0]; ctx.lineWidth = 3 * dpr; ctx.lineCap = 'round';
@@ -356,8 +357,37 @@ function trainingCtl() {
   const rep = toggle(':replay: replay', 'The dummy plays your recording in a loop: practise against your own combo or pressure', () => lab.replay, v => { lab.replay = v; build(); });
   reg(rec, () => { rec.disabled = !human(); });
   reg(rep, () => { rep.disabled = !human() || lab.rec || !lab.tape?.length; });
+  const file = toggle(':upload: replay file', 'Play a saved replay file (inputs, settings and characters of a recorded fight); click again to stop. A file from another engine version plays out differently: it asks first, and the top line shows where it goes out of sync',
+    () => !!lab.playback, v => v ? loadReplay() : (lab.playback = null, build()));
+  const save = button(':download: save replay', `Download this fight so far as a replay file: its inputs, settings and characters, pinned to engine v${ENGINE_VERSION} (other versions play it out differently)`, saveReplay);
   return [meterToggle(), toggle(':stadia_controller: inputs', 'Input display: your inputs in numpad notation (6 forward, 2 down, 8 up) and frames held', () => lab.inputs, v => { lab.inputs = v; }),
-    rec, rep, boxesToggle()];
+    rec, rep, save, file, boxesToggle()];
+}
+// replay files (see makeReplay): download the play fight, or load one and play it in place of the scenario
+function saveReplay() {
+  const w = lab.cells[0].w, name = lab.playback?.scenario || lab.scen;
+  if (!w.log.length) return;
+  const a = h('a', { href: URL.createObjectURL(new Blob([JSON.stringify(makeReplay(w, name))], { type: 'application/json' })),
+    download: `${name.replace(/\W+/g, '-')}-${new Date().toISOString().slice(0, 19).replace(/\D/g, '')}.replay.json` });
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function loadReplay() {
+  const inp = h('input', { type: 'file', accept: '.json,application/json' });
+  inp.onchange = async () => {
+    let r;
+    try { r = JSON.parse(await inp.files[0].text()); } catch (err) { return alert('Not a replay file: ' + err.message); }
+    if (r.format !== REPLAY_FORMAT) return alert('Not a replay file');
+    if (r.version !== ENGINE_VERSION && !confirm(`This replay was recorded with engine v${r.version}; this is v${ENGINE_VERSION}. The simulation changed since, so it will play out differently. Play it anyway?`)) return;
+    lab.playback = r; app.paused = false; build(); syncAll();
+  };
+  inp.click();
+}
+// the playing replay: engine version, time, and where it went out of sync
+function drawPlayback(w) {
+  const pb = w.playback, at = pb.at ??= pb.frames.reduce((a, f) => (a.push(a[a.length - 1] + f[0]), a), [0]), t = n => at[Math.min(n, at.length - 1)].toFixed(1);
+  const old = pb.version !== ENGINE_VERSION, out = w.desync !== null;
+  text(`replay · engine v${pb.version}${old ? ` (this is v${ENGINE_VERSION})` : ''} · ${t(w.log.length)} / ${t(pb.frames.length)} s${out ? ` · out of sync from ${t(w.desync)} s` : pb.over ? ' · matches the recording' : ''}`,
+    canvas.width / 2, 20 * dpr, out || old ? RED[0] : '#2e8b57', 12, 'bold', 'center');
 }
 function sortButton() {
   return button(':sort: sort', 'Reorder the cells once by a metric (they keep running)', (e, b) => popup(b, h('div', { cls: 'bar' },
@@ -376,7 +406,7 @@ function labCtx() {
     meterToggle(), boxesToggle(), zoomBack()];
   const els = [];
   if (lab.mode === 'grid') els.push(seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS));
-  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(scenButton(k => { lab.scen = k; build(); }));
+  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(scenButton(k => { lab.scen = k; lab.playback = null; build(); }));
   if (lab.mode === 'grid' && lab.kind !== 'sweep') els.push(...breedCtx());
   else if (lab.mode === 'grid') {
     const adopt = button(':check: use these values', 'Copy the focused cell\'s values into the settings (side panel)', () => setCfg(lab.focus.over));

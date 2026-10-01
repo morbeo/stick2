@@ -147,14 +147,39 @@ const PRESETS = {
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const wrap180 = a => ((a + 180) % 360 + 360) % 360 - 180; // an angle difference in (-180, 180]
 const approach = (v, t, d) => v < t ? Math.min(v + d, t) : Math.max(v - d, t);
-// seeded rng (mulberry32) so every grid cell replays the exact same fight
+// seeded rng (mulberry32) so every grid cell replays the exact same fight; its state is r.seed (checkpoints copy it)
 function makeRand(seed) {
-  return (a = 0, b = 1) => {
-    seed = seed + 0x6D2B79F5 | 0;
-    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  const r = (a = 0, b = 1) => {
+    const s = r.seed = r.seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(s ^ s >>> 15, 1 | s);
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
     return a + ((t ^ t >>> 14) >>> 0) / 4294967296 * (b - a);
   };
+  r.seed = seed;
+  return r;
+}
+// ---------- simulation state: checkpoints and replays ----------
+// Replays store inputs, not results: a replay recorded with another ENGINE_VERSION plays out differently.
+// Bump it whenever the simulation changes (the replay test fails until you do).
+const ENGINE_VERSION = 1;
+// objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
+const SHARED = new WeakSet();
+// deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied
+// with its state; skip: own keys of the top object left out
+function cloneState(v, memo = new Map(), skip = []) {
+  if (typeof v === 'function') return v.seed === undefined ? v : memo.get(v) ?? memo.set(v, makeRand(v.seed)).get(v);
+  if (!v || typeof v !== 'object' || SHARED.has(v)) return v;
+  if (memo.has(v)) return memo.get(v);
+  const o = Array.isArray(v) ? [] : Object.create(Object.getPrototypeOf(v));
+  memo.set(v, o);
+  for (const k of Object.keys(v)) if (!skip.includes(k)) o[k] = cloneState(v[k], memo);
+  return o;
+}
+// FNV-1a over numbers (rounded to 1/100), for state checksums
+function hashNums(ns) {
+  let h = 0x811c9dc5;
+  for (const n of ns) { h ^= Math.round(n * 100) | 0; h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(36);
 }
 // smooth pseudo-noise in [-1, 1]
 const wander = x => Math.sin(x) * 0.5 + Math.sin(x * 2.13 + 1.3) * 0.3 + Math.sin(x * 3.71 + 4.1) * 0.2;

@@ -298,7 +298,8 @@ function makeCharacter(def) {
     for (const s of ch.stances) { s.binds = { ...s.binds, ...wb }; s.binds25 = { ...s.binds25, ...wb }; }
   }
   // the cancel window opens at a key marked cancel, else after the last active key
-  for (const m of Object.values(ch.moves)) { const c = m.keys.findIndex(k => k.cancel); m.cancel = c >= 0 ? c : m.keys.findLastIndex(k => k.active) + 1; }
+  for (const m of Object.values(ch.moves)) { const c = m.keys.findIndex(k => k.cancel); m.cancel = c >= 0 ? c : m.keys.findLastIndex(k => k.active) + 1; SHARED.add(m); }
+  SHARED.add(ch);
   return ch;
 }
 // hit: one striking bone or a list of them (both fists, a kick and the tail…); each is its own hitbox

@@ -54,7 +54,7 @@ function parseMacro(seq) {
 }
 // a macro plays in every world the keyboard controls (merged with the keys held), see World.step
 function runMacro(m) {
-  for (const w of mode().worlds()) if (w.ctl[0] === 'human') { w.macro = new Script(parseMacro(m.seq)); w.macroSeq = m.seq; }
+  for (const w of mode().worlds()) if (w.ctl[0] === 'human' && !w.playback) { w.macro = new Script(parseMacro(m.seq)); w.macroSeq = m.seq; }
 }
 
 // ---------- keys panel: click a key to rebind it (Esc cancels, Backspace removes), + adds one ----------

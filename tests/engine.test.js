@@ -217,9 +217,19 @@ test('rewind replays the fight to the same state, AI and human input included', 
     for (let i = 0; i < 400; i++) w.advance(i % 3 ? 1 / 60 : 1 / 50, inp(i));
     const at = st();
     for (let i = 400; i < 520; i++) w.advance(1 / 60, inp(i));
-    const later = st(); w.rewind(120);
-    return { at, later, back: st(), n: w.log.length }; })()`);
-  assert.deepEqual(r.back, r.at), assert.notDeepEqual(r.later, r.at), assert.equal(r.n, 400);
+    const later = st(), hl = w.stateHash(); w.rewind(120);
+    const back = st(), n = w.log.length, cp = w.checkpoints.at(-1).i;
+    for (let i = 400; i < 520; i++) w.advance(1 / 60, inp(i)); // the same inputs again from the restored checkpoint
+    return { at, later, back, n, cp, again: st(), same: w.stateHash() === hl }; })()`);
+  assert.deepEqual(r.back, r.at), assert.notDeepEqual(r.later, r.at), assert.equal(r.n, 400), assert.equal(r.cp, 360);
+  assert.deepEqual(r.again, r.later), assert.ok(r.same, 'the state hash after replaying forward matches');
+});
+
+test('rewind after a long fight starts from a checkpoint, not from the start', () => {
+  const r = json(`(() => { const w = new World(SCENARIOS['ai vs ai'], { health: 1e6 }, 3, [CHARS.stick, CHARS.ninja]); w.loop = false;
+    for (let i = 0; i < 7200; i++) w.advance(1 / 60, NOIN);
+    const t = Date.now(); w.rewind(30); return { ms: Date.now() - t, n: w.log.length, cps: w.checkpoints.length }; })()`);
+  assert.equal(r.n, 7170), assert.equal(r.cps, 66), assert.ok(r.ms < 100, r.ms + ' ms'); // the last 60 + one per 10 s before them
 });
 
 test('two weapon strikes that meet clash: no hit, both recoil; with clash off the first one lands', () => {

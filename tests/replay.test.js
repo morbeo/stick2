@@ -1,0 +1,42 @@
+// replay files: recorded fights must play back exactly; they are pinned to ENGINE_VERSION (src/core.js)
+const test = require('node:test'), assert = require('node:assert/strict'), fs = require('fs'), path = require('path'), load = require('./load');
+const { run } = load();
+const FILE = path.join(__dirname, 'fixtures', 'replays.json'), VER = run('ENGINE_VERSION');
+// fights that cover the engine: you (scripted keys) vs ai with weapons, ai vs ai on the belt, ai 2v2; uneven frame times
+const record = () => JSON.parse(run(`JSON.stringify([
+  ['you vs ai', { weapon: 'random', weaponStart: 'held' }, [CHARS.stick, CHARS.ninja], true],
+  ['belt ai', {}, [CHARS.brute, CHARS.demon]],
+  ['ai 2v2', {}, [CHARS.dwarf, CHARS.centaur]],
+].map(([name, cfg, chars, human]) => {
+  const w = new World(SCENARIOS[name], cfg, 5, chars), inp = i => ({ ...NOIN, right: i % 90 < 50, down: i % 70 > 60, punch: i % 23 === 0, kick: i % 37 === 0, guard: i % 140 > 125, special: i % 97 === 0 });
+  w.loop = false;
+  for (let i = 0; i < 600 && !w.done; i++) w.advance(i % 3 ? 1 / 60 : 1 / 50, human ? inp(i) : NOIN);
+  return makeReplay(w, name);
+}))`));
+// play a replay file (as JSON, the way it is loaded): the first frame that comes out differently, or null
+const play = r => run(`(() => { const r = ${JSON.stringify(r)}, w = replayWorld(r); w.loop = false;
+  for (let i = 0; i <= r.frames.length; i++) w.advance(0, NOIN); return w.desync; })()`);
+const BUMP = `the simulation changed, so replays recorded with engine v${VER} play out differently: bump ENGINE_VERSION in src/core.js, then run UPDATE=1 npm test`;
+
+test('recorded replays play back the same fight (pinned to ENGINE_VERSION)', () => {
+  const old = fs.existsSync(FILE) && JSON.parse(fs.readFileSync(FILE, 'utf8'));
+  if (process.env.UPDATE || !old) {
+    if (old && old[0].version === VER) for (const r of old) assert.equal(play(r), null, `"${r.scenario}": ${BUMP}`);
+    fs.mkdirSync(path.dirname(FILE), { recursive: true });
+    fs.writeFileSync(FILE, JSON.stringify(record()));
+  }
+  const rs = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+  for (const r of rs) {
+    assert.equal(r.version, VER, `the replay fixtures are from engine v${r.version}: run UPDATE=1 npm test`);
+    assert.equal(play(r), null, `"${r.scenario}": ${BUMP}`);
+  }
+});
+
+test('a replay file holds what the fight needs, and a changed one is caught as a desync', () => {
+  const r = JSON.parse(fs.readFileSync(FILE, 'utf8'))[0];
+  assert.equal(r.format, 'stick2-replay'), assert.ok(r.frames.length > 500 && r.chars.length === 2 && 'hitstop' in r.cfg && Object.keys(r.sums).length >= 9);
+  const bad = { ...r, cfg: { ...r.cfg, maxSpeed: r.cfg.maxSpeed * 1.2 } };
+  assert.ok(play(bad) > 0, 'other settings: out of sync');
+  const tail = { ...r, frames: r.frames.map((f, i) => i === r.frames.length - 5 ? [f[0] * 1.5, f[1]] : f) };
+  assert.equal(play(tail), r.frames.length, 'a change after the last checkpoint: caught by the end checksum');
+});

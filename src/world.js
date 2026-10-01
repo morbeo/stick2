@@ -22,6 +22,9 @@ function frameState(f) {
   return a.i < first ? 'startup' : a.i <= last ? 'active' : a.i >= a.m.cancel && (a.hit || a.m.next) ? 'cancel' : 'recovery';
 }
 
+// checkpoint interval (frames); what a checkpoint leaves out: the logs, settings and UI state, kept as they are on restore
+const CHECK = 60, KEEP = ['log', 'checkpoints', 'sums', 'playback', 'desync', 'replaying', 'tape', 'loop', 'scrubN', 'scen', 'over', 'chars', 'cfg'];
+
 class World {
   // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, more?, period?, init? } (see brain.js)
   // chars: character per fighter slot (the last one fills the rest); default = the current character
@@ -35,7 +38,7 @@ class World {
     Object.assign(this, { rand: makeRand(this.seed), parts: [], trauma: 0, zoom: 0, slowT: 0, T: 0, simT: 0,
       frozenT: 0, hits: 0, blocks: 0, parries: 0, clashes: 0, koT: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
       pend: null, adv: null, macro: null, combo: 1, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
-    if (!this.replaying) this.log = []; // every frame since the start: [dt, input], for rewind
+    if (!this.replaying) { this.log = []; this.checkpoints = []; this.sums = {}; this.desync = null; } // every frame since the start: [dt, input, macro], for rewind and replays
     // a vs b, plus any extra fighters: { c: controller, x, team }
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0 }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1 }, ...(s.more || [])];
     const chars = this.chars || [currentChar()];
@@ -63,6 +66,7 @@ class World {
   swapChar(from, to) {
     if (this.chars) this.chars = this.chars.map(c => c === from ? to : c);
     for (const f of this.fighters) if (f.ch0 === from) f.setChar(armed(to, f.ch.weapon));
+    this.checkpoints = []; // they hold the old build
   }
   // ---------- weapons lying around or flying (see Fighter.letGo) ----------
   drop(type, x) { this.items.push({ type, x, y: this.groundY - 2, z: 0, rot: 0, vx: 0, vy: 0, spin: 0, live: false, rest: true }); }
@@ -129,7 +133,16 @@ class World {
   // one frame of wall time; inp = the human's input for this frame (edges included)
   advance(raw, inp) {
     if (this.done) return;
-    if (!this.replaying) { this.log.push([raw, inp, this.macroSeq]); this.macroSeq = null; } // a macro started this frame replays too
+    if (this.playback && !this.replaying) { // a replay file: its frames instead of the live input; at the end it stays on the last frame
+      const e = this.playback.frames[this.log.length], pb = this.playback;
+      if (!e) { if (!pb.over && this.desync === null && pb.end && this.stateHash() !== pb.end) this.desync = this.log.length; pb.over = true; return; }
+      [raw, inp] = e;
+      if (e[2]) { this.macro = new Script(parseMacro(e[2])); this.macroSeq = e[2]; }
+    }
+    if (!this.replaying) {
+      if (this.log.length % CHECK === 0) this.checkpoint();
+      this.log.push([raw, inp, this.macroSeq]); this.macroSeq = null; // a macro started this frame replays too
+    }
     const slow = this.slowT > 0 && !this.frozen; // finisher slow-mo starts once the freeze is over
     if (slow) this.slowT -= raw;
     this.combo = Math.max(1, ...this.fighters.map(f => f.combo)); // the longest running combo drives Combo escalation
@@ -147,11 +160,31 @@ class World {
   }
 
   // rewind: back n frames. The fight is deterministic, so it restarts and replays the logged frames (with the current settings)
+  // back n frames: from the last checkpoint at or before that frame (else the start), replaying the logged frames after it
   rewind(n) {
-    const log = this.log.slice(0, Math.max(0, this.log.length - n));
-    this.done = false; this.replaying = true; this.reset();
-    for (const [dt, inp, mq] of log) { if (mq) this.macro = new Script(parseMacro(mq)); this.advance(dt, inp); }
-    this.replaying = false; this.log = log;
+    const to = Math.max(0, this.log.length - n), log = this.log.slice(0, to), cps = this.checkpoints.filter(c => c.i <= to), cp = cps[cps.length - 1];
+    this.done = false; this.replaying = true;
+    if (cp) this.restore(cp.s); else this.reset();
+    for (const [dt, inp, mq] of log.slice(cp ? cp.i : 0)) { if (mq) this.macro = new Script(parseMacro(mq)); this.advance(dt, inp); }
+    this.replaying = false; this.log = log; this.checkpoints = cps;
+    for (const i in this.sums) if (i > to) delete this.sums[i];
+  }
+  // every CHECK frames: a checksum (a replay compares them: desync = first frame that differs) and a copy of the whole fight state;
+  // the last 60 copies stay, older ones thin out to one per 10 (memory stays bounded, rewinding far back replays at most 10 of them)
+  checkpoint() {
+    const i = this.log.length, h = this.sums[i] = this.stateHash(), want = this.playback?.sums[i];
+    if (want && want !== h && this.desync === null) this.desync = i;
+    const cps = this.checkpoints, old = cps.length - 60;
+    cps.push({ i, s: cloneState(this, new Map(), KEEP) });
+    if (old > 0 && cps[old].i % (CHECK * 10)) cps.splice(old, 1);
+  }
+  restore(s) {
+    const memo = new Map([[s, this]]);
+    for (const k of Object.keys(s)) this[k] = cloneState(s[k], memo);
+  }
+  stateHash() {
+    return hashNums([this.rand.seed, this.hits, this.blocks, this.clashes, this.simT, ...this.items.flatMap(it => [it.x, it.y]),
+      ...this.fighters.flatMap(f => [f.x, f.y, f.z, f.vx, f.vy, f.hp, f.dir, f.action?.i ?? -1, f.action?.t ?? 0])]);
   }
   // a running key macro (keys.js) presses its steps on top of the keys held
   withMacro(inp, f, o, h) {
@@ -349,4 +382,22 @@ class World {
     this.drawParticles(ctx);
     ctx.restore();
   }
+}
+
+// ---------- replay files: the fight's inputs (not its results), pinned to ENGINE_VERSION ----------
+// everything the simulation reads goes in: scenario, seed, every setting, the characters' definitions; sums = checkpoint checksums
+const REPLAY_FORMAT = 'stick2-replay', REPLAY_SKIP = ['boxes']; // display settings stay live
+function makeReplay(w, name) {
+  const keys = Object.keys(NOIN);
+  return { format: REPLAY_FORMAT, version: ENGINE_VERSION, scenario: name, scen: JSON.parse(JSON.stringify(w.scen)), seed: w.seed,
+    cfg: Object.fromEntries(Object.keys(SPEC).filter(k => !REPLAY_SKIP.includes(k)).map(k => [k, w.cfg[k]])),
+    chars: (w.chars || [currentChar()]).map(c => c.def), keys,
+    frames: w.log.map(([dt, inp, mq]) => [dt, keys.reduce((m, k, i) => m | (inp[k] ? 1 << i : 0), 0), ...mq ? [mq] : []]),
+    sums: w.sums, end: w.stateHash() };
+}
+// a world that plays the replay (check r.version against ENGINE_VERSION first); w.desync = first frame that came out differently
+function replayWorld(r) {
+  const w = new World({ ...SCENARIOS[r.scenario], ...r.scen }, r.cfg, r.seed, r.chars.map(makeCharacter));
+  w.playback = { version: r.version, sums: r.sums, end: r.end, frames: r.frames.map(([dt, m, mq]) => [dt, Object.fromEntries(r.keys.map((k, i) => [k, !!(m >> i & 1)])), mq || null]) };
+  return w;
 }
