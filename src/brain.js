@@ -192,6 +192,9 @@ const SCENARIOS = {
   'specials (S)': { a: ['!special', 1, '!fwd+special', 1, '!up+special'], b: 'dummy', period: 4.4 },
   // throws (P+G), breaking one, the catch counters (↖ S high, ← S mid, ↙ S low), techs and air recovery (G while falling)
   'throw': { a: [0.2, 'punch+guard'], b: [{ hold: 'guard', t: 2 }], ax: 330, bx: 372, period: 2.4 },
+  'back throw': { a: [0.1, { hold: 'back', t: 0.1 }, 'back+punch+guard'], b: [{ hold: 'guard', t: 2 }], ax: 330, bx: 372, period: 2.4 },
+  // ↗ S turns the back: G held does not guard it (the foe's jab lands from behind), then K faces the foe again for the kick
+  'turnaround': { a: [0.2, 'up+fwd+special', 0.6, { hold: 'guard', t: 0.6 }, 'kick'], b: [0.7, '!punch'], ax: 330, bx: 400, period: 3 },
   'throw break': { a: [0.2, 'punch+guard'], b: [0.38, 'punch+guard'], ax: 330, bx: 372, period: 2.4 },
   'catch': { a: [0.3, 'kick'], b: [0.15, 'back+special'], period: 2.4 },
   'high counter': { a: [0.3, 'punch'], b: [0.15, 'up+back+special'], period: 2.4 },

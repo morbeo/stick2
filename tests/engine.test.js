@@ -686,3 +686,44 @@ test('combo routes: every chain from a starter (a bound move with links, or one 
   assert.ok(r.allLinked && r.ends);
   assert.deepEqual(r.loop, ['jab', 'cross', 'uppercut']);
 });
+
+test('turning moves: a turn key turns the fighter around over that key; one turn leaves its back to the foe until a direction or a move, two make a full spin', () => {
+  const go = (a, n = 70, cfg = {}) => JSON.parse(run(`(() => { const w = new World({ a: ${a}, b: 'dummy', ax: 330, bx: 385, cfg: ${JSON.stringify(cfg)} }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    let minFace = 1; const seen = new Set();
+    for (let i = 0; i < ${n}; i++) { w.advance(1/60, NOIN); minFace = Math.min(minFace, w.a.face); const k = w.a.action && Object.keys(w.a.ch.moves).find(k => w.a.ch.moves[k] === w.a.action.m); if (k) seen.add(k); }
+    return JSON.stringify({ away: w.a.away, dir: w.a.dir, face: w.a.face, minFace, seen: [...seen].join(' '), hp: w.b.hp, bhp: w.b.c('health') }); })()`));
+  // the turnaround: back turned (facing away from the foe) once it ends, and it stays so while idle
+  const t = go("[0.1, '@turnBack']");
+  assert.equal(t.away, true); assert.equal(t.dir, -1); assert.ok(t.face < -0.99, 'turned: ' + t.face);
+  // a direction held turns it back; so does starting a move without turn keys (it faces the foe for it)
+  assert.deepEqual([go("[0.1, '@turnBack', 0.8, { hold: 'back', t: 0.1 }]").away, go("[0.1, '@turnBack', 0.8, { hold: 'back', t: 0.1 }]").dir], [false, 1]);
+  const j = go("[0.1, '@turnBack', 0.8, 'punch']", 100);
+  assert.match(j.seen, /jab/); assert.equal(j.away, false); assert.equal(j.dir, 1);
+  // a spinning kick (two turn keys): the body passes through its back and ends facing the foe, and it lands
+  for (const m of ['spin', 'turnKick', 'spinKick']) {
+    const s = go(`[0.1, '@${m}']`, 80);
+    assert.ok(s.minFace < -0.5, `${m} turns: ${s.minFace}`); assert.equal(s.dir, 1, m); assert.equal(s.away, false, m); assert.ok(s.hp < s.bhp, `${m} hits`);
+  }
+  // the turnaround is 9S (both schemes) while its switch is on, else 9S is the up special
+  const pick = cfg => run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', ax: 330, bx: 420, cfg: ${JSON.stringify(cfg)} }, {}, 7, [CHARS.stick, CHARS.stick]);
+    w.a.inp = { ...NOIN, up: true, right: true }; return w.a.pick('special'); })()`);
+  assert.equal(pick({}), 'turnBack'); assert.equal(pick({ specialScheme: 'motion' }), 'turnBack'); assert.equal(pick({ turnBack: false }), 'rising');
+});
+
+test('a back throw (← P+G) swings the victim to the other side: it lands behind the thrower, and slides there instead of jumping', () => {
+  const pick = run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', ax: 330, bx: 420 }, {}, 7, [CHARS.stick, CHARS.stick]);
+    w.a.inp = { ...NOIN, left: true, guard: true }; const back = w.a.pick('throw'); w.a.inp = { ...NOIN, guard: true }; return [back, w.a.pick('throw')]; })()`);
+  assert.deepEqual(JSON.parse(JSON.stringify(pick)), ['backGrab', 'grab']);
+  const go = m => JSON.parse(run(`(() => { const w = new World({ a: [0.1, '@${m}'], b: 'dummy', ax: 330, bx: 372 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    let jump = 0, x = w.b.x, held = false;
+    for (let i = 0; i < 150; i++) { w.advance(1/60, NOIN); if (w.b.heldBy) { held = true; jump = Math.max(jump, Math.abs(w.b.x - x)); } x = w.b.x; }
+    return JSON.stringify({ held, jump, side: Math.sign(w.b.x - w.a.x), hurt: w.b.c('health') - w.b.hp, away: w.a.away, dir: w.a.dir }); })()`));
+  const f = go('grab'), b = go('backGrab');
+  assert.ok(f.held && b.held);
+  assert.equal(f.side, 1, 'the toss throws forward'); assert.equal(b.side, -1, 'the back throw lands the victim behind');
+  assert.ok(b.hurt > 0); assert.equal(b.away, false, 'the thrower faces its victim, not away');
+  assert.ok(b.jump < 30, 'the victim slides round, it does not jump: ' + b.jump);  // the demos: ← then P+G throws behind; back turned, G does not guard the foe's jab, K turns back for the kick
+  const d = JSON.parse(run(`(() => { const t = fight(SCENARIOS['back throw'], [CHARS.stick, CHARS.stick], 150), u = fight(SCENARIOS.turnaround, [CHARS.stick, CHARS.stick], 150);
+    return JSON.stringify({ side: Math.sign(t.w.b.x - t.w.a.x), seen: [...t.seen, ...u.seen], hurt: u.w.a.c('health') - u.w.a.hp }); })()`));
+  assert.equal(d.side, -1); assert.ok(['a:backGrab', 'a:backToss', 'a:turnBack', 'b:jab', 'a:kick'].every(k => d.seen.includes(k)), d.seen.join(' ')); assert.ok(d.hurt > 0);
+});

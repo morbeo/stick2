@@ -23,6 +23,8 @@ vs low guard   hits 1 blocks 1 hp 100.0 90.0 x 339 398
 parry          hits 1 blocks 0 hp 100.0 95.0 x 330 382
 specials (S)   hits 2 blocks 0 hp 100.0 71.0 x 715 728
 throw          hits 1 blocks 0 hp 100.0 86.0 x 336 515
+back throw     hits 1 blocks 0 hp 100.0 86.0 x 306 110
+turnaround     hits 2 blocks 0 hp 95.0 91.0 x 323 393
 throw break    hits 0 blocks 0 hp 100.0 100.0 x 306 379
 catch          hits 1 blocks 0 hp 83.8 100.0 x 86 375
 high counter   hits 1 blocks 0 hp 85.0 100.0 x 208 375
@@ -44,7 +46,7 @@ wall bounce    hits 2 blocks 0 hp 100.0 76.9 x 589 728
 OTG stomp      hits 2 blocks 0 hp 100.0 82.8 x 413 470
 ai 2v2         hits 14 blocks 0 hp 50.7 100.0 x 79 297
 ai free-for-all hits 8 blocks 0 hp 55.0 64.9 x 439 576
-ai vs waves    hits 4 blocks 0 hp 67.5 78.3 x 300 472
+ai vs waves    hits 2 blocks 0 hp 71.3 100.0 x 279 317
 sandwich       hits 5 blocks 0 hp 100.0 77.4 x 330 633
 showcase       hits 4 blocks 0 hp 100.0 68.4 x 544 717
 pick up & slash hits 3 blocks 0 hp 100.0 65.3 x 413 466

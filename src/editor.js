@@ -166,7 +166,7 @@ function drawTimeline() {
     }
     // flag icons along the bottom
     const icons = [k.active && ['my_location', RED[0]], k.inv && ['block', '#2c6fb0'], k.unblock && ['crisis_alert', RED[0]], k.armor && ['shield', '#b07a2c'],
-      k.catch && ['back_hand', '#2c6fb0'], k.warp && ['blur_on', '#8e44ad'], (k.sound || k.shake || k.after || k.spark) && ['auto_awesome', '#c0392b'], k.grip && ['pan_tool', '#b07a2c'], k.release && ['sports_handball', '#b07a2c'], i === m.cancel && ['sync_alt', '#8e44ad'], !k.p && ['accessibility_new', '#888'], hold && ['pause', '#888']].filter(Boolean);
+      k.catch && ['back_hand', '#2c6fb0'], k.warp && ['blur_on', '#8e44ad'], k.turn && [k.turn === 2 ? 'rotate_right' : 'swap_horiz', '#8e44ad'], (k.sound || k.shake || k.after || k.spark) && ['auto_awesome', '#c0392b'], k.grip && ['pan_tool', '#b07a2c'], k.release && ['sports_handball', '#b07a2c'], i === m.cancel && ['sync_alt', '#8e44ad'], !k.p && ['accessibility_new', '#888'], hold && ['pause', '#888']].filter(Boolean);
     icons.forEach(([n, c], j) => glyph(n, x + (4 + j * 14) * dpr, y + h - 4 * dpr, c, 13));
     ctx.restore();
   });
@@ -404,7 +404,7 @@ const SLOT_TIPS = { punch: 'J standing (5P)', kick: 'K standing (5K)', downPunch
   fwdPunch: '→ J (6P), else J', fwdKick: '→ K (6K), else K', backPunch: '← J (4P), else J', backKick: '← K (4K), else K',
   upPunch: '↑ J (8P), else J; in 2D press ↑ and J together (the jump squat turns into the attack)', upKick: '↑ K (8K), else K; in 2D press ↑ and K together', upFwdPunch: '↗ J (9P), else ↑ J', upFwdKick: '↗ K (9K), else ↑ K',
   upBackPunch: '↖ J (7P), else ↑ J', upBackKick: '↖ K (7K), else ↑ K', downFwdPunch: '↘ J (3P), else ↓ J', downFwdKick: '↘ K (3K), else ↓ K',
-  downBackPunch: '↙ J (1P), else ↓ J', downBackKick: '↙ K (1K), else ↓ K', throw: 'J while holding guard (P+G): a throw', throw2: 'K while holding guard (K+G): the second throw',
+  downBackPunch: '↙ J (1P), else ↓ J', downBackKick: '↙ K (1K), else ↓ K', throw: 'J while holding guard (P+G): a throw', throw2: 'K while holding guard (K+G): the second throw', backThrow: '← held, then J with guard (4P+G): the back throw, else the P+G throw',
   dashPunch: 'J while running forward', airPunch: 'J in the air', airKick: 'K in the air',
   airUpPunch: '↑ J in the air, else J in the air', airUpKick: '↑ K in the air, else K in the air', airDownPunch: '↓ J in the air, else J in the air', airDownKick: '↓ K in the air, else K in the air',
   qcfPunch: '↓↘→ J', qcfKick: '↓↘→ K', qcbPunch: '↓↙← J', qcbKick: '↓↙← K', dpPunch: '→↓↘ J', dpKick: '→↓↘ K',
@@ -510,7 +510,11 @@ function keyPanel() {
       toggle(':back_hand: catch', 'Catch: a strike from the front landing during this key is caught, and the move named in the move\'s counter answers it (← S catch → reversal).',
         () => !!k().catch, v => setKey('catch', v || undefined)),
       toggle(':blur_on: warp', 'Warp: as this key is reached the fighter reappears teleportDist behind the foe, turned to face it, leaving after-images (teleport).',
-        () => !!k().warp, v => setKey('warp', v || undefined)))),
+        () => !!k().warp, v => setKey('warp', v || undefined)),
+      toggle(':swap_horiz: turn', 'Turn: the fighter turns around during this key. Once leaves its back to the foe (turnaround: no guard until a direction or a move faces it again); holding a throw victim it swings the victim round behind (back throw).',
+        () => k().turn === true, v => setKey('turn', v || undefined)),
+      toggle(':rotate_right: spin', 'Spin: a whole turn during this key (turn: 2), its back showing halfway; spinning kicks wind up with it and strike facing the foe.',
+        () => k().turn === 2, v => setKey('turn', v ? 2 : undefined)))),
     adv(h('div', { cls: 'row', tip: 'Catch keys only: the heights of strike this key catches (catchH; all lit = every height)' }, h('span', { textContent: 'catches' }), h('span', { cls: 'bar' },
       ...Object.keys(HEIGHT_TIPS).map(ht => toggle(ht, 'Catch ' + HEIGHT_TIPS[ht].replace(/:.*/, '').toLowerCase() + ' strikes (catchHigh: high + shigh, catch: mid + smid, catchLow: low)',
         () => (k().catchH || Object.keys(HEIGHT_TIPS)).includes(ht),

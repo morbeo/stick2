@@ -19,7 +19,7 @@ class Fighter {
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0, jugUsed: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
-      airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null, layerAt: {} });
+      airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null, layerAt: {}, away: false, turnRate: 0, turnMid: null });
     this.hp = this.c('health'); this.ch0 = ch.base || ch; // ch0: the character without its weapon
     this.target = this.basePose();
     this.disp = { ...this.target };
@@ -156,6 +156,7 @@ class Fighter {
 
   // runs every substep, hit stop included: directions are remembered for special motions, buttons are buffered
   bufferInput(inp) {
+    if (this.away && this.free && !this.action && (inp.left || inp.right || inp.up || inp.down)) { this.away = false; this.dir = -this.dir; } // back turned: a direction turns it back
     const n = 5 + (inp.right - inp.left) * this.dir - (inp.down ? 3 : inp.up ? -3 : 0), t = this.w.simT, d = this.dirs;
     if (d[d.length - 1]?.n !== n) d.push({ n, t });
     while (d.length > 1 && t - d[1].t > this.c('motionWindow')) d.shift();
@@ -187,7 +188,7 @@ class Fighter {
       return [this.binds[slot], this.grounded && this.binds.special].find(m => this.ch.moves[m]) || null;
     }
     const B = P ? 'Punch' : 'Kick', has = s => this.ch.moves[this.binds[s]] ? this.binds[s] : null;
-    if (b === 'throw' || b === 'throw2') return this.grounded ? has(b) : null;
+    if (b === 'throw' || b === 'throw2') return this.grounded ? (b === 'throw' && i.right !== i.left && !fwd && has('backThrow')) || has(b) : null; // ← P+G: the back throw
     if (b === 'taunt') return this.grounded && this.ch.moves.taunt ? 'taunt' : null;
     const sp = this.grounded && motion?.map(k => has(k + B)).find(Boolean);
     if (sp) return sp;
@@ -216,6 +217,9 @@ class Fighter {
   start(m) {
     this.action = { m: typeof m === 'string' ? this.ch.moves[m] : m, i: 0, t: 0, from: { ...this.target }, hit: false, hits: [] };
     if (this.action.m.roll) this.passT = this.invT = this.c('rollInv'); // a roll: through fighters and untouchable a moment
+    const keys = this.action.m.keys;
+    if (this.away && !this.action.m.hurt && !keys.some(k => k.turn)) { this.away = false; this.dir = -this.dir; } // back turned: a move without turns faces the foe first
+    if (keys[0]?.turn) this.turnKey(keys[0]);
   }
   // a move by name, taking up its class's weapon first if it is a weapon move (scripts, the gallery)
   force(n) {
@@ -276,6 +280,19 @@ class Fighter {
     const w = WEAPONS[it.type], half = (w.len - (w.back || 0)) / 2, rot = this.dir > 0 ? 0 : Math.PI, k = Math.min(1, dt / Math.max(dt, left)); // the rest of the way in the time left
     it.rot += wrap180((rot - it.rot) / R) * R * k;
     it.x += (hand[0] + Math.cos(it.rot) * half - it.x) * k;
+  }
+  // key flag turn: the fighter turns around over this key (its face sweeps through the profile in the key's time); turn: 2 is a
+  // whole turn, the second half from the middle of the key (spinning kicks). Holding a throw victim it swings the victim round
+  // to its other side (a back throw); else a half turn leaves its back to the foe (away)
+  turnKey(k) {
+    const n = k.turn === 2 ? 2 : 1;
+    this.turnRate = 2 * n / Math.max(0.02, k.d); this.turnMid = n === 2 ? { a: this.action, k } : null;
+    this.halfTurn();
+  }
+  halfTurn() {
+    this.dir = -this.dir;
+    const v = this.w.fighters.find(o => o.heldBy === this);
+    if (v) v.dir = -this.dir; else this.away = !this.away;
   }
   // teleport (key flag warp): reappear teleportDist behind the nearest foe, turned to face it, leaving after-images on the way
   warp() {
@@ -390,7 +407,8 @@ class Fighter {
     this.depth(dt, inp, busy);
     const leg = this.ch.chains.leg[0], ll = leg ? leg[0].len + (leg[1]?.len || 0) : 45, back = this.vx * this.dir < 0;
     this.walkPh += Math.hypot(this.vx, this.vz) * (back ? -1 : 1) * dt * 3.3 / ll / (back ? 0.7 : 1); // one step per stride, feet stay planted
-    this.face = approach(this.face, this.dir, dt * c('turnSpeed')); // turn through a squashed profile instead of flipping
+    this.face = approach(this.face, this.dir, dt * Math.max(c('turnSpeed'), this.turnRate)); // turn through a squashed profile instead of flipping
+    if (this.face === this.dir && !this.turnMid) this.turnRate = 0;
 
     // vertical: jump squat (anticipation) -> launch -> land
     // jump cancel: a move that connected can be jumped out of once its active frames are over (juggles)
@@ -489,9 +507,11 @@ class Fighter {
         && a.t >= keys[a.i].d && (a.charge || 0) < c('throwChargeT')) { a.charge = (a.charge || 0) + dt; a.t = keys[a.i].d * 0.999; }
       while (a.i < keys.length && a.t >= keys[a.i].d) {
         a.t -= keys[a.i].d; a.from = resolve(base, keys[a.i].p); this.keyReached(keys[a.i++]);
+        if (keys[a.i]?.turn) this.turnKey(keys[a.i]);
         if (keys[a.i]?.lunge) this.vx = this.dir * keys[a.i].lunge;
         if (keys[a.i]?.drop && !this.grounded) this.vy = keys[a.i].drop;
       }
+      if (this.turnMid?.a === a && keys[a.i] === this.turnMid.k && a.t >= this.turnMid.k.d / 2) { this.turnMid = null; this.halfTurn(); } // a whole turn's second half
       if (a.i >= keys.length) {
         this.action = null;
         const turns = Math.round((this.disp.weapon - base.weapon) / 360) * 360; // a weapon spun whole turns rests where it is, not unwound
@@ -844,7 +864,7 @@ class Fighter {
   }
   // a throw connected: the victim is held for the tech window, then thrown by the move named in the grab's throw
   seize(o) {
-    o.heldBy = this; o.heldT = this.c('techWindow'); o.buffer = null; o.guarding = false; o.blockT = 0; o.dir = -this.dir;
+    o.heldBy = this; o.heldT = this.c('techWindow'); o.buffer = null; o.guarding = false; o.blockT = 0; o.dir = -this.dir; o.away = false;
     o.start(makeHurt(o.ch.hurt.mid[0], 9, this.w.rand, o.st.pose)); o.hurtT = 9;
     const toss = this.ch.moves[this.action.m.throw];
     o.heldM = toss || this.action.m;
@@ -853,7 +873,8 @@ class Fighter {
   // held in a throw: pinned in front of the thrower; P+G inside the window breaks free, else the throw lands
   held(dt, inp) {
     const t = this.heldBy;
-    this.x = t.x + t.dir * 30; this.z = t.z; this.vx = 0;
+    const to = t.x + t.dir * 30; // a back throw swings the victim round: it slides to the thrower's other side
+    this.x = Math.abs(to - this.x) > 20 ? approach(this.x, to, 1200 * dt) : to; this.z = t.z; this.vx = 0;
     if (inp.punch && inp.guard && this.heldT > 0) {
       this.heldBy = null; this.hurtT = 0; this.action = null; this.buffer = null; this.vx = t.dir * 250; this.say('BREAK');
       t.action = null; t.vx = -t.dir * 250; t.hurtT = 0.15;

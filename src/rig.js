@@ -158,6 +158,17 @@ const STICK_MOVES = {
     { d: 0.08, e: 'outExpo', p: { torso: 35, afU: 150, afL: 10, abU: 140, abL: 20, lfU: 45, lfL: -30, lbU: -35, lbL: 0 } },
     { d: 0.3, e: 'inOutCubic', p: null },
   ] },
+  // ← P+G: the back throw; its throw turns round with the victim held (key flag turn), so the victim lands on the other side
+  backGrab: { power: 1, damage: 0, hit: 'fh', height: 'high', knock: 0, throw: 'backToss', keys: [
+    { d: 0.06, e: 'outQuad', p: { torso: 15, afU: 70, afL: 40, abU: 60, abL: 50 } },
+    { d: 0.06, e: 'outExpo', p: { torso: 22, afU: 92, afL: 5, abU: 88, abL: 10, lfU: 40, lfL: -35 }, active: true, lunge: 120 },
+    { d: 0.32, e: 'inOutCubic', p: null },
+  ] },
+  backToss: { power: 1.5, damage: 14, hit: 'fh', height: 'mid', knock: 300, launch: 380, kd: true, keys: [
+    { d: 0.18, e: 'inOutCubic', p: { torso: 5, afU: 90, afL: 60, abU: 80, abL: 70, lfU: 30, lfL: -40, lbU: -25, lbL: -20 }, turn: true },
+    { d: 0.08, e: 'outExpo', p: { torso: 30, afU: 140, afL: 10, abU: 130, abL: 20, lfU: 45, lfL: -30, lbU: -35, lbL: 0 } },
+    { d: 0.3, e: 'inOutCubic', p: null },
+  ] },
   // ← S: a counter stance; a mid strike from the front landing during its catch key (catchH: the heights it catches) is caught
   // and answered by the counter move
   catch: { power: 1, special: true, counter: 'reversal', keys: [
@@ -255,6 +266,10 @@ const STICK_MOVES = {
     { d: 0.08, p: { torso: 5, afU: 100, afL: 80, abU: 95, abL: 80, lfU: 105, lfL: -140, lbU: -10, lbL: 0 } },
     { d: 0.26, e: 'inOutCubic', p: null },
   ] },
+  // a spinning heel kick: a whole turn (two turn keys), the heel coming round head high
+  spinKick: attack({ power: 1.8, damage: 15, hit: 'ff', height: 'high', knock: 380, launch: 260, kd: true, lunge: 160, wide: true },
+    [0.12, { torso: -10, head: 10, lfU: 30, lfL: -90, lbU: -10, lbL: -20, afU: 60, afL: 80, abU: -30, abL: 70 }],
+    [0.08, { torso: -35, head: 15, lfU: 115, lfL: -5, lbU: -10, lbL: 0, afU: -20, afL: 50, abU: 70, abL: 40 }], 0.08, 0.3),
   spinElbow: attack({ power: 1.6, damage: 13, hit: 'uarmB', height: 'high', knock: 280, stun: 0.55, lunge: 240, wide: true },
     [0.1, { torso: -25, head: 15, abU: 30, abL: 150, afU: 60, afL: 120 }],
     [0.05, { torso: 15, head: -10, abU: 95, abL: 160, afU: 10, afL: 120, lbU: -30, lbL: 0, lfU: 35, lfL: -20 }], 0.06, 0.28),
@@ -357,6 +372,11 @@ const STICK_MOVES = {
     { d: 0.05, e: 'outExpo', p: { torso: 5, head: -10, afU: 150, afL: 10, abU: 140, abL: 15 }, warp: true, inv: true },
     { d: 0.22, e: 'inOutCubic', p: null },
   ] },
+  // 9S (turnBack setting): turn your back to the foe (key flag turn); a direction or a move without turns faces it again
+  turnBack: { special: true, keys: [
+    { d: 0.16, e: 'inOutCubic', p: { torso: -8, afU: 70, afL: 110, abU: 60, abL: 110, lfU: 25, lfL: -30, lbU: -20, lbL: -20 }, turn: true },
+    { d: 0.12, e: 'inOutCubic', p: null },
+  ] },
   // ↓ S in the air (pounce setting): a dive onto a fighter lying on the floor (otg), driven down by its key's drop
   pounce: { power: 1.3, damage: 9, hit: ['fh', 'bh'], height: 'low', knock: 60, launch: 160, kd: true, otg: true, air: true, special: true, keys: [
     { d: 0.08, e: 'outQuad', p: { torso: -20, afU: 160, afL: 30, abU: 150, abL: 40, lfU: 60, lfL: -100, lbU: 40, lbL: -110 } },
@@ -381,6 +401,8 @@ const STICK_MOVES = {
 STICK_MOVES.hammer.keys[0].armor = true;
 STICK_MOVES.guardCancel.keys.slice(0, 2).forEach(k => { k.inv = true; });
 STICK_MOVES.charge.keys.forEach(k => { if (k.active) k.unblock = true; });
+// spinning moves turn the body round once in their wind-up (key flag turn: 2): the back shows, the blow lands facing
+for (const n of ['spin', 'turnKick', 'spinElbow', 'armada', 'spinKick']) STICK_MOVES[n].keys[0].turn = 2;
 // the fighting style of each move (the style move group); the rest are plain basics
 const MOVE_STYLES = {
   boxing: ['jab', 'cross', 'uppercut', 'hook', 'bodyHook', 'overhand', 'bodyBlow', 'crouchJab', 'dashPunch'],
@@ -388,8 +410,8 @@ const MOVE_STYLES = {
   'muay thai': ['elbow', 'plum', 'knee', 'spinElbow', 'thaiKick', 'pushKick', 'flyingKnee', 'lowKick'],
   capoeira: ['armada', 'martelo', 'rasteira', 'sweep', 'backSweep', 'fadeKick'],
   'kung fu': ['chainPunch', 'tigerClaw', 'palms', 'charge', 'spin', 'risingKick', 'catch', 'reversal', 'catchHigh', 'highCounter', 'catchLow', 'lowCounter'],
-  taekwondo: ['turnKick', 'axeKick', 'airFlipKick', 'diveKick', 'airSpin', 'launcher'],
-  wrestling: ['grab', 'toss', 'clinch', 'suplex', 'lariat', 'headbutt', 'hammer', 'stomp'],
+  taekwondo: ['turnKick', 'spinKick', 'axeKick', 'airFlipKick', 'diveKick', 'airSpin', 'launcher'],
+  wrestling: ['grab', 'toss', 'backGrab', 'backToss', 'clinch', 'suplex', 'lariat', 'headbutt', 'hammer', 'stomp'],
 };
 for (const [style, names] of Object.entries(MOVE_STYLES)) for (const n of names) STICK_MOVES[n].style = style;
 const STICK_HURT = {
@@ -440,13 +462,13 @@ const LAYERS = {
 const BINDS = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: 'palms', backKick: 'fadeKick',
   upPunch: 'hammer', upKick: 'turnKick',
   downPunch: 'launcher', downKick: 'sweep', downFwdPunch: 'bodyBlow', downFwdKick: 'lowKick', downBackPunch: 'crouchJab', downBackKick: 'backSweep',
-  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab', throw2: 'clinch',
+  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab', throw2: 'clinch', backThrow: 'backGrab',
   qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: 'charge', dpKick: 'risingKick',
   special: 'spin', fwdSpecial: 'rush', backSpecial: 'catch', upSpecial: 'rising', downSpecial: 'stomp', airSpecial: 'airSpin' };
 const BINDS_25 = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: 'palms', backKick: 'fadeKick',
   upPunch: 'hammer', upKick: 'turnKick', upFwdPunch: 'headbutt', upFwdKick: 'flyingKnee', upBackPunch: 'backfist', upBackKick: 'crescent',
   downPunch: 'launcher', downKick: 'sweep', downFwdPunch: 'bodyBlow', downFwdKick: 'lowKick', downBackPunch: 'crouchJab', downBackKick: 'backSweep',
-  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab', throw2: 'clinch',
+  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab', throw2: 'clinch', backThrow: 'backGrab',
   qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: 'charge', dpKick: 'risingKick',
   special: 'spin', fwdSpecial: 'rush', backSpecial: 'catch', upSpecial: 'rising', downSpecial: 'stomp', airSpecial: 'airSpin' };
 // the table of a plane and where a character keeps its own binds for it
@@ -455,10 +477,10 @@ const bindsKey = plane => plane === '2d' ? 'binds' : 'binds25';
 // specials by name, each with its on/off setting, and the input that plays it in each specialScheme:
 // a motion name (MOTIONS) + S, 7S / 1S = S with a diagonal held (numpad), G4 / G6 = ← / → pressed while guarding,
 // b… = pressed in blockstun (bP, bK, b6S = → S, b4S = ← S); taunt is on ↑ S+G and pounce on ↓ S in the air in both
-const SPECIALS = { rollFwd: 'rolls', rollBack: 'rolls', teleport: 'teleport', guardCancel: 'guardCancel', pushBlock: 'pushBlock', catchHigh: 'counters', catchLow: 'counters', taunt: 'taunt', pounce: 'pounce' };
+const SPECIALS = { rollFwd: 'rolls', rollBack: 'rolls', teleport: 'teleport', guardCancel: 'guardCancel', pushBlock: 'pushBlock', catchHigh: 'counters', catchLow: 'counters', taunt: 'taunt', pounce: 'pounce', turnBack: 'turnBack' };
 const SPECIAL_SCHEMES = {
-  guard: { rollFwd: 'G6', rollBack: 'G4', teleport: 'dd', guardCancel: 'bP', pushBlock: 'bK', catchHigh: '7S', catchLow: '1S' },
-  motion: { rollFwd: 'qcf', rollBack: 'qcb', teleport: 'dp', guardCancel: 'b6S', pushBlock: 'b4S', catchHigh: 'dd', catchLow: '1S' },
+  guard: { rollFwd: 'G6', rollBack: 'G4', teleport: 'dd', guardCancel: 'bP', pushBlock: 'bK', catchHigh: '7S', catchLow: '1S', turnBack: '9S' },
+  motion: { rollFwd: 'qcf', rollBack: 'qcb', teleport: 'dp', guardCancel: 'b6S', pushBlock: 'b4S', catchHigh: 'dd', catchLow: '1S', turnBack: '9S' },
 };
 // special motions in numpad notation (6 = towards the opponent), matched in order against the recent directions
 const MOTIONS = { dp: /6.*2.*3/, qcf: /2.*3.*6/, qcb: /2.*1.*4/, dd: /252/ };

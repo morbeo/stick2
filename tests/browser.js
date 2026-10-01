@@ -31,6 +31,11 @@ try {
     if (Math.abs(m.ref[currentChar().chains.leg[0][1].id] - currentChar().poses.stance[currentChar().chains.leg[0][1].id]) < 5) errs.push('layer ref is not the crouch');
     lb().click(); if ([...document.querySelectorAll('.pop button')].some(x => x.textContent === 'crouch')) errs.push('layer list keeps crouch'); closePop();
     deleteMove(); if (currentChar().moves.crouchLayer) errs.push('delete layer'); }
+  // turning keys: the spin toggle marks a whole turn (turn: 2), the turn toggle a half; the built-in spin has one
+  { anim.move = 'jab'; selectKey(0); panels(); const tg = l => [...document.querySelectorAll('#side button')].find(b => b.textContent.endsWith(l));
+    if (currentChar().moves.spin.keys[0].turn !== 2) errs.push('spin has no whole turn');
+    tg('spin').click(); const t2 = curMove().keys[0].turn; tg('turn').click(); const t1 = curMove().keys[0].turn; tg('turn').click();
+    if (t2 !== 2 || t1 !== true || curMove().keys[0].turn) errs.push('turn toggles ' + [t2, t1, curMove().keys[0].turn]); }
   // posing: body reach bends the spine as well, limb reach only the arm; mirror swaps the front and back limbs
   anim.move = 'jab'; selectKey(1);
   for (const r of ['limb', 'body']) {

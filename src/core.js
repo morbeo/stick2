@@ -108,6 +108,7 @@ const SCHEMA = [
   { k: 'rolls', v: true, tip: 'Rolls: a tumble forward through the foe or back away from it, invincible for rollInv.' },
   { k: 'rollInv', v: 0.3, min: 0, max: 0.6, step: 0.01, tip: 'Seconds from the start of a roll (move flag roll) that it is invincible and passes through fighters.' },
   { k: 'teleport', v: true, tip: 'Teleport: vanish and reappear behind the foe (the key marked warp), leaving after-images.' },
+  { k: 'turnBack', v: true, tip: 'Turnaround: ↗ S (9S) turns your back to the foe (the key marked turn). Back turned you cannot guard; a direction, or any move without turns, faces it again.' },
   { k: 'teleportDist', v: 60, min: 20, max: 200, step: 5, tip: 'How far (px) behind the foe a teleport lands.' },
   { k: 'guardCancel', v: true, tip: 'Guard cancel: in blockstun, P (guard scheme) or → S (motion) strikes back at once (guardCancel, invincible as it starts) for guardCancelCost health.' },
   { k: 'guardCancelCost', v: 5, min: 0, max: 30, step: 1, tip: 'Health a guard cancel costs (it never knocks out).' },
@@ -218,7 +219,7 @@ function makeRand(seed) {
 // ---------- simulation state: checkpoints and replays ----------
 // Replays store inputs, not results: a replay recorded with another ENGINE_VERSION plays out differently.
 // Bump it whenever the simulation changes (the replay test fails until you do).
-const ENGINE_VERSION = 26;
+const ENGINE_VERSION = 27;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied
