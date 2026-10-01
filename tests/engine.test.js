@@ -35,16 +35,27 @@ test('centaur forelegs bend forward, hind legs back', () => {
   assert.ok(p.shinF > 0, 'hind shin bends back'), assert.ok(p.foreShinF < 0, 'fore shin bends forward');
 });
 
-test('K+G switches the ninja into crane and changes the moveset', () => {
-  const r = run(`(() => { const r = fight({ a: [0.1, 'kick+guard', 1, 'kick'], b: 'dummy', ax: 330, bx: 380, period: 9 }, [CHARS.ninja, CHARS.stick], 120);
+test('S+G switches the ninja into crane and changes the moveset', () => {
+  const r = run(`(() => { const r = fight({ a: [0.1, 'special+guard', 1, 'kick'], b: 'dummy', ax: 330, bx: 380, period: 9 }, [CHARS.ninja, CHARS.stick], 120);
     return { st: r.w.a.stanceI, seen: r.seen }; })()`);
   assert.equal(r.st, 1);
   assert.ok(r.seen.includes('a:axeKick'), r.seen.join(' '));
 });
 
-test('K+G on a one-stance character is not a stance switch', () => {
-  const r = run(`fight({ a: [0.1, 'kick+guard'], b: 'dummy', ax: 330, bx: 380, period: 9 }, [CHARS.stick, CHARS.stick], 60).w.a.stanceI`);
-  assert.equal(r, 0);
+test('K+G is the second throw (clinch into suplex), not a stance switch', () => {
+  const r = run(`(() => { const r = fight({ a: [0.1, 'kick+guard'], b: 'dummy', ax: 330, bx: 372, period: 9 }, [CHARS.stick, CHARS.stick], 150);
+    return { st: r.w.a.stanceI, seen: r.seen, behind: Math.sign(r.w.b.x - r.w.a.x) }; })()`);
+  assert.equal(r.st, 0);
+  assert.ok(r.seen.includes('a:clinch') && r.seen.includes('a:suplex'), r.seen.join(' '));
+  assert.equal(r.behind, -1, 'the suplex lands the victim behind');
+});
+
+test('every built-in has a second stance (S+G), and an old K+G stance key still works', () => {
+  const r = run(`Object.keys(CHARS).filter(k => CHARS[k].stances.length < 2 || CHARS[k].stances.slice(1).some(s => !(s.key in STANCE_KEYS)))`);
+  assert.deepEqual(r, []);
+  const st = run(`(() => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.ninja)); d.stances[0].key = 'K+G'; d.stances.length = 1;
+    return fight({ a: [0.1, 'special+guard'], b: 'dummy', ax: 330, bx: 380, period: 9 }, [makeCharacter(d), CHARS.stick], 60).w.a.stanceI; })()`);
+  assert.equal(st, 1);
 });
 
 test('a keyframed idle loop replaces the procedural idle', () => {
@@ -56,11 +67,11 @@ test('a keyframed idle loop replaces the procedural idle', () => {
 });
 
 test('a stance key with a direction switches to it, and back to main when pressed again', () => {
-  const ninja = d => `(() => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.ninja)); d.stances[0].key = '↓K+G'; return makeCharacter(d); })()`;
+  const ninja = d => `(() => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.ninja)); d.stances[0].key = '↓S+G'; d.stances.length = 1; return makeCharacter(d); })()`;
   const st = inp => run(`fight({ a: ${JSON.stringify(inp)}, b: 'dummy', ax: 330, bx: 380, period: 9 }, [${ninja()}, CHARS.stick], 150).w.a.stanceI`);
-  assert.equal(st([0.1, 'kick+guard']), 0, 'plain K+G no longer switches');
-  assert.equal(st([0.1, 'down+kick+guard']), 1);
-  assert.equal(st([0.1, 'down+kick+guard', 1, 'down+kick+guard']), 0);
+  assert.equal(st([0.1, 'special+guard']), 0, 'plain S+G no longer switches');
+  assert.equal(st([0.1, 'down+special+guard']), 1);
+  assert.equal(st([0.1, 'down+special+guard', 1, 'down+special+guard']), 0);
 });
 
 test('each stance plays its own idle loop (craneIdle), not the main one', () => {

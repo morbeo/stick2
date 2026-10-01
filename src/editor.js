@@ -403,7 +403,7 @@ const SLOT_TIPS = { punch: 'J standing (5P)', kick: 'K standing (5K)', downPunch
   fwdPunch: '→ J (6P), else J', fwdKick: '→ K (6K), else K', backPunch: '← J (4P), else J', backKick: '← K (4K), else K',
   upPunch: '↑ J (8P), else J; in 2D press ↑ and J together (the jump squat turns into the attack)', upKick: '↑ K (8K), else K; in 2D press ↑ and K together', upFwdPunch: '↗ J (9P), else ↑ J', upFwdKick: '↗ K (9K), else ↑ K',
   upBackPunch: '↖ J (7P), else ↑ J', upBackKick: '↖ K (7K), else ↑ K', downFwdPunch: '↘ J (3P), else ↓ J', downFwdKick: '↘ K (3K), else ↓ K',
-  downBackPunch: '↙ J (1P), else ↓ J', downBackKick: '↙ K (1K), else ↓ K', throw: 'J while holding guard (P+G): a throw',
+  downBackPunch: '↙ J (1P), else ↓ J', downBackKick: '↙ K (1K), else ↓ K', throw: 'J while holding guard (P+G): a throw', throw2: 'K while holding guard (K+G): the second throw',
   dashPunch: 'J while running forward', airPunch: 'J in the air', airKick: 'K in the air',
   airUpPunch: '↑ J in the air, else J in the air', airUpKick: '↑ K in the air, else K in the air', airDownPunch: '↓ J in the air, else J in the air', airDownKick: '↓ K in the air, else K in the air',
   qcfPunch: '↓↘→ J', qcfKick: '↓↘→ K', qcbPunch: '↓↙← J', qcbKick: '↓↙← K', dpPunch: '→↓↘ J', dpKick: '→↓↘ K',

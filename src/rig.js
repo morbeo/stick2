@@ -334,19 +334,21 @@ const HITS = { fh: 'handF', bh: 'handB', ff: 'footF', bf: 'footB' };
 // in 2.5D (VF-style) Space jumps and every direction × button is a ground move.
 // Directions in numpad terms (6 = towards the opponent): a diagonal without a move falls back to its vertical, then to neutral
 // the inputs that switch stance (→ = toward the opponent); stances sharing a key are cycled, pressing it again goes back to main
-const STANCE_KEYS = { 'K+G': 'K+G', '↓K+G': '↓ K+G', '→K+G': '→ K+G', '←K+G': '← K+G' };
+const STANCE_KEYS = { 'S+G': 'S+G', '↓S+G': '↓ S+G', '→S+G': '→ S+G', '←S+G': '← S+G' };
+// stance keys were K+G before K+G became the second throw
+const stanceKey = k => (k || 'S+G').replace('K+G', 'S+G');
 // a stance's keyframed idle / walk loop: the moves idle / walk for the main stance, craneIdle / craneWalk for a stance named crane
 const loopName = (ch, i, kind) => i ? ch.stances[i].name + kind[0].toUpperCase() + kind.slice(1) : kind;
 const BINDS = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: 'palms', backKick: 'fadeKick',
   upPunch: 'hammer', upKick: 'turnKick',
   downPunch: 'launcher', downKick: 'sweep', downFwdPunch: 'bodyBlow', downFwdKick: 'lowKick', downBackPunch: 'crouchJab', downBackKick: 'backSweep',
-  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab',
+  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab', throw2: 'clinch',
   qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: 'charge', dpKick: 'risingKick',
   special: 'spin', fwdSpecial: 'rush', backSpecial: 'catch', upSpecial: 'rising', downSpecial: 'stomp', airSpecial: 'airSpin' };
 const BINDS_25 = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: 'palms', backKick: 'fadeKick',
   upPunch: 'hammer', upKick: 'turnKick', upFwdPunch: 'headbutt', upFwdKick: 'flyingKnee', upBackPunch: 'backfist', upBackKick: 'crescent',
   downPunch: 'launcher', downKick: 'sweep', downFwdPunch: 'bodyBlow', downFwdKick: 'lowKick', downBackPunch: 'crouchJab', downBackKick: 'backSweep',
-  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab',
+  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab', throw2: 'clinch',
   qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: 'charge', dpKick: 'risingKick',
   special: 'spin', fwdSpecial: 'rush', backSpecial: 'catch', upSpecial: 'rising', downSpecial: 'stomp', airSpecial: 'airSpin' };
 // the table of a plane and where a character keeps its own binds for it
@@ -422,7 +424,7 @@ function makeCharacter(def) {
     stats: Object.fromEntries(CHAR_STATS.map(s => [s.k, def[s.k] ?? 1])), gait: { ...Object.fromEntries(GAIT_VARS.map(s => [s.k, s.v])), ...def.gait } };
   // stances: the main one plus any extra; each has its pose, its own binds over the main ones and the key that switches to it
   ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: ch.binds, binds25: ch.binds25 },
-    ...(def.stances || []).map(s => ({ name: s.name, key: s.key || 'K+G', pose: { ...ch.poses.stance, ...s.pose }, binds: { ...ch.binds, ...s.binds }, binds25: { ...ch.binds25, ...s.binds25 } }))];
+    ...(def.stances || []).map(s => ({ name: s.name, key: stanceKey(s.key), pose: { ...ch.poses.stance, ...s.pose }, binds: { ...ch.binds, ...s.binds }, binds25: { ...ch.binds25, ...s.binds25 } }))];
   // armed (see armed): the weapon class's binds go over every stance's, where the move exists
   ch.def = def;
   if (def.weapon) {
@@ -587,7 +589,7 @@ CHAR_DEFS.centaur = { ...mapPoses({ ...stick, moves: mapVals(retimed(1.1, 1.2), 
     ...tail3(12, 3).map(b => b.id === 'tail' ? { ...b, a: -150 } : b)] };
 // ninja: slender, long legs, fast and light; a scarf trails from the neck
 CHAR_DEFS.ninja = { ...stick, name: 'ninja', speed: 1.25, jump: 1.15, weight: 0.85, jumps: 2, turnaround: 1.5, airDash: 1.2, airAccel: 1.4, dash: 1.15, health: 0.9, springs: 1.15, binds: { downFwdKick: 'slide', upKick: 'axeKick' }, binds25: { downFwdKick: 'slide', upFwdKick: 'axeKick', upFwdPunch: 'rising' },
-  // K+G: the crane, on one leg with the arms spread; its kicks come from the raised knee
+  // S+G: the crane, on one leg with the arms spread; its kicks come from the raised knee
   stances: [{ name: 'crane', pose: { waist: 178, chest: 0, neck: 0, head: 0, uarmF: -70, farmF: -40, handF: 0, uarmB: -280, farmB: 40, handB: 0, thighF: 85, shinF: -110, footF: 90, thighB: -4, shinB: 0, footB: 90 },
     binds: { kick: 'axeKick', fwdKick: 'turnKick', punch: 'elbow', downKick: 'lowKick' },
     binds25: { kick: 'axeKick', fwdKick: 'turnKick', punch: 'elbow', downKick: 'lowKick' } }],
@@ -619,6 +621,21 @@ CHAR_DEFS.asura = { ...stick, name: 'asura', moves: retimed(0.95, 1.1),
       { id: 'farm2' + S, parent: 'uarm2' + S, len: 12, role: 'arm', side: S.toLowerCase(), lag: 2, thick: 5, min: -10, max: 165 },
       { id: 'hand2' + S, parent: 'farm2' + S, len: 4, role: 'arm', side: S.toLowerCase(), lag: 2.5, thick: 6, min: -70, max: 70 }])] };
 CHAR_DEFS.asura.poses = { ...stick.poses, stance: { ...stick.poses.stance, uarm2F: -100, farm2F: 50, uarm2B: -230, farm2B: 40 } };
+// every built-in's second stance (S+G; the ninja has the crane): a fighting style with its pose and some of its moves.
+// The pose as the presets give it: spine, head, front / back arm, front / back leg (local angles from the root of each limb)
+const stylePose = (sp, hd, af, ab, lf, lb) => ({ waist: sp[0], chest: sp[1], neck: hd[0], head: hd[1], uarmF: af[0], farmF: af[1], handF: 0, uarmB: ab[0], farmB: ab[1], handB: 0,
+  ...lf && { thighF: lf[0], shinF: lf[1], footF: lf[2], thighB: lb[0], shinB: lb[1], footB: lb[2] } });
+const STYLE_STANCES = {
+  stick: { name: 'boxing', pose: stylePose([176, 0], [0, 10], [-160, 140], [-170, 145], [20, -20, 90], [-15, 0, 90]), binds: { fwdPunch: 'hook', downFwdPunch: 'bodyHook', upPunch: 'overhand' } },
+  brute: { name: 'wrestling', pose: stylePose([158, 0], [0, -15], [-130, 100], [-150, 110], [55, -80, 90], [-35, -40, 90]), binds: { fwdPunch: 'lariat', punch: 'hammer', throw: 'clinch', throw2: 'grab' } },
+  dwarf: { name: 'karate', pose: stylePose([168, 0], [0, 0], [-110, 40], [-185, 150], [40, -30, 90], [-30, -5, 90]), binds: { punch: 'reversePunch', fwdPunch: 'knifeHand', fwdKick: 'sideKick' } },
+  minotaur: { name: 'muay thai', pose: stylePose([178, 0], [0, 5], [-165, 140], [-172, 150], [15, -30, 115], [-20, -5, 90]), binds: { fwdPunch: 'spinElbow', downFwdKick: 'thaiKick', throw2: 'plum' } },
+  demon: { name: 'capoeira', pose: stylePose([165, 0], [0, -5], [-120, 60], [-230, 40], [45, -40, 90], [-40, -20, 90]), binds: { kick: 'martelo', fwdKick: 'armada', downKick: 'rasteira' } },
+  centaur: { name: 'kung fu', pose: { waist: 72, uarmF: -100, farmF: 70, uarmB: -120, farmB: 85 }, binds: { punch: 'chainPunch', fwdPunch: 'tigerClaw' } },
+  ape: { name: 'brawler', pose: stylePose([150, 0], [0, 20], [-120, 30], [-135, 35], [45, -55, 90], [-30, -30, 90]), binds: { punch: 'hook', fwdPunch: 'overhand', downFwdPunch: 'bodyHook' } },
+  asura: { name: 'kung fu', pose: { ...stylePose([160, 0], [0, -10], [-100, 70], [-120, 85], [45, -55, 90], [-30, -30, 90]), uarm2F: -60, farm2F: 30, uarm2B: -250, farm2B: 30 }, binds: { punch: 'chainPunch', fwdPunch: 'tigerClaw', fwdKick: 'sideKick' } },
+};
+for (const [k, s] of Object.entries(STYLE_STANCES)) CHAR_DEFS[k].stances = [...CHAR_DEFS[k].stances || [], { ...s, binds25: s.binds }];
 const CHARS = mapVals(CHAR_DEFS, makeCharacter);
 let CURRENT = 'stick';
 const currentChar = () => CHARS[CURRENT];

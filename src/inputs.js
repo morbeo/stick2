@@ -19,8 +19,8 @@ const INPUT_PADS = [
   { name: 'air K', tip: 'Kick in the air, as air P', cells: PAD.map(d => ({ d, label: 'j.' + d + 'K', ...airCell(d, 'Kick') })) },
   { name: 'motions', tip: 'Special motions (numpad notation): if the motion has no move, the button plays its normal', cols: 2,
     cells: [['236', 'qcf'], ['214', 'qcb'], ['623', 'dp']].flatMap(([n, k]) => ['Punch', 'Kick'].map(B => ({ label: n + B[0], chain: [k + B], own: true }))) },
-  { name: 'other', tip: 'Run + P, P + G and S in the air', cols: 1,
-    cells: [['66P', 'dashPunch'], ['P+G', 'throw'], ['j.S', 'airSpecial']].map(([label, s]) => ({ label, chain: [s], own: true })) },
+  { name: 'other', tip: 'Run + P, the throws P + G and K + G, and S in the air', cols: 1,
+    cells: [['66P', 'dashPunch'], ['P+G', 'throw'], ['K+G', 'throw2'], ['j.S', 'airSpecial']].map(([label, s]) => ({ label, chain: [s], own: true })) },
 ];
 const inputs = { hand: '', unset: false, table: false };
 // the character's own motions (def.motions, see customMotions): two cells each, P and K, after the built-in motions

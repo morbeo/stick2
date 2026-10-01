@@ -134,9 +134,9 @@ class Fighter {
     const n = 5 + (inp.right - inp.left) * this.dir - (inp.down ? 3 : inp.up ? -3 : 0), t = this.w.simT, d = this.dirs;
     if (d[d.length - 1]?.n !== n) d.push({ n, t });
     while (d.length > 1 && t - d[1].t > this.c('motionWindow')) d.shift();
-    // P+G throws; K+G (with a direction or not) switches to the stance with that key
-    const to = inp.guard && inp.kick ? this.stanceTo((['', '↓', '↓', '↓', '←', '', '→'][n] || '') + 'K+G') : -1;
-    const as = b => !inp.guard ? b : b === 'punch' ? 'throw' : b === 'kick' && to >= 0 ? 'stance' : b;
+    // P+G throws, K+G is the second throw; S+G (with a direction or not) switches to the stance with that key
+    const to = inp.guard && inp.special ? this.stanceTo((['', '↓', '↓', '↓', '←', '', '→'][n] || '') + 'S+G') : -1;
+    const as = b => !inp.guard ? b : b === 'punch' ? 'throw' : b === 'kick' ? 'throw2' : b === 'special' && to >= 0 ? 'stance' : b;
     for (const b of ['punch', 'kick', 'special']) if (inp[b]) this.buffer = { b: as(b), t: 0.2, motion: this.motion(), to };
   }
   // the stance a key switches to: the next one after the current among the stances with that key and main (-1: none)
@@ -157,7 +157,7 @@ class Fighter {
       return [this.binds[slot], this.grounded && this.binds.special].find(m => this.ch.moves[m]) || null;
     }
     const B = P ? 'Punch' : 'Kick', has = s => this.ch.moves[this.binds[s]] ? this.binds[s] : null;
-    if (b === 'throw') return this.grounded ? has('throw') : null;
+    if (b === 'throw' || b === 'throw2') return this.grounded ? has(b) : null;
     const sp = this.grounded && motion?.map(k => has(k + B)).find(Boolean);
     if (sp) return sp;
     if (!this.grounded) return has('air' + (i.down ? 'Down' : i.up ? 'Up' : '') + B) || has('air' + B);

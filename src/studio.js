@@ -216,7 +216,7 @@ function stanceRow() {
       seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); }, Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance'])), i => names[i]),
       crud({ new: ['New stance: a copy of the current one with no binds of its own', add], delete: ['Delete this stance (not the main one)', del] }))),
     i ? h('div', { cls: 'row', tip: `The input that switches to ${names[i]} in a fight (→ = toward the opponent)` }, h('span', { textContent: 'key' }),
-      seg(Object.keys(STANCE_KEYS), () => DEFS[CURRENT].stances?.[i - 1]?.key || 'K+G', v => edit(def => { def.stances[i - 1].key = v; }), keyTips, k => STANCE_KEYS[k])) : null];
+      seg(Object.keys(STANCE_KEYS), () => stanceKey(DEFS[CURRENT].stances?.[i - 1]?.key), v => edit(def => { def.stances[i - 1].key = v; }), keyTips, k => STANCE_KEYS[k])) : null];
 }
 // the generator's variables; the random characters experiment shows nine of them
 function randomPanel(changed = () => {}) {
