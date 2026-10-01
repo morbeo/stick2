@@ -27,9 +27,12 @@ throw break    hits 0 blocks 0 hp 100.0 100.0 x 306 379
 catch          hits 1 blocks 0 hp 83.8 100.0 x 86 375
 tech           hits 1 blocks 0 hp 100.0 90.0 x 330 433
 air recover    hits 1 blocks 0 hp 100.0 86.0 x 341 509
+roll through   hits 0 blocks 0 hp 100.0 100.0 x 444 372
+roll back      hits 0 blocks 0 hp 100.0 100.0 x 229 400
+teleport       hits 0 blocks 0 hp 100.0 100.0 x 435 375
 OTG stomp      hits 1 blocks 0 hp 100.0 90.0 x 404 458
-ai 2v2         hits 13 blocks 0 hp 50.7 100.0 x 107 189
-ai free-for-all hits 8 blocks 0 hp 45.7 73.0 x 653 548
+ai 2v2         hits 11 blocks 0 hp 50.7 100.0 x 78 295
+ai free-for-all hits 12 blocks 0 hp 49.5 42.3 x 658 605
 ai vs waves    hits 5 blocks 0 hp 53.7 100.0 x 293 362
 sandwich       hits 5 blocks 0 hp 100.0 77.4 x 330 633
 showcase       hits 4 blocks 0 hp 100.0 68.4 x 544 717
@@ -39,6 +42,6 @@ disarm         hits 1 blocks 0 hp 100.0 90.0 x 330 413
 weapon clash   hits 0 blocks 0 hp 100.0 100.0 x 267 433
 deflect        hits 0 blocks 0 hp 100.0 100.0 x 250 450
 sword vs staff ai hits 5 blocks 0 hp 53.4 100.0 x 142 197
-weapons ai     hits 6 blocks 0 hp 73.4 68.2 x 313 359
+weapons ai     hits 5 blocks 0 hp 69.4 73.3 x 612 665
 walk           hits 0 blocks 0 hp 100.0 100.0 x 250 550
 jump           hits 0 blocks 0 hp 100.0 100.0 x 450 550

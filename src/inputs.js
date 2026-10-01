@@ -22,6 +22,11 @@ const INPUT_PADS = [
   { name: 'other', tip: 'Run + P, the throws P + G and K + G, and S in the air', cols: 1,
     cells: [['66P', 'dashPunch'], ['P+G', 'throw'], ['K+G', 'throw2'], ['j.S', 'airSpecial']].map(([label, s]) => ({ label, chain: [s], own: true })) },
 ];
+// the specials of the scheme in use (SPECIAL_SCHEMES): fixed moves by name, set while switched on; click opens the move
+const SCHEME_LABELS = { G6: 'G+6', G4: 'G+4', dd: '22S', qcf: '236S', qcb: '214S', dp: '623S' };
+const specialsPad = () => { const s = SPECIAL_SCHEMES[CFG.specialScheme] || {};
+  return { name: 'specials', tip: `Rolls, teleport… in the ${CFG.specialScheme} scheme (Specials settings: specialScheme and a switch each). They are moves by name: click to edit one`, cols: 1,
+    cells: Object.keys(s).map(n => ({ label: SCHEME_LABELS[s[n]] || s[n], chain: [], fixed: n })) }; };
 const inputs = { hand: '', unset: false, table: false };
 // the character's own motions (def.motions, see customMotions): two cells each, P and K, after the built-in motions
 const customCells = () => Object.entries(DEFS[CURRENT].motions || {}).flatMap(([k, d]) => ['Punch', 'Kick'].map(B => ({ label: d + B[0], chain: [k + B], own: true, custom: k })));
@@ -31,6 +36,7 @@ const HAND_TIPS = { '': 'Unarmed binds', ...Object.fromEntries(Object.entries(WE
 const handChar = () => inputs.hand ? withWeapon(currentChar(), { weapon: inputs.hand }) : currentChar();
 // what a cell does now: its own slot (if the plane has it), the move it starts and the slot that move comes from
 function cellState(c, binds, ch) {
+  if (c.fixed) return { own: null, move: c.fixed, from: null, st: ch.moves[c.fixed] && CFG[SPECIALS[c.fixed]] ? 'set' : 'none' };
   const own = c.own && (c.custom || c.chain[0] in slotsOf(CFG.plane)) ? c.chain[0] : null;
   const from = c.chain.find(s => ch.moves[binds[s]]), move = from ? binds[from] : null;
   return { own, move, from, st: !own ? 'alias' : from === own ? 'set' : move ? 'fall' : 'none' };
@@ -93,13 +99,14 @@ function inputTable() {
   const fill = () => {
     const ch = handChar(), binds = curBinds(ch), table = slotsOf(CFG.plane), seen = new Set(), rows = [];
     const label = (c, x) => x.st === 'set' ? x.move : x.st === 'fall' ? '↪ ' + x.move : x.st === 'alias' ? (x.move ? '= ' + x.move : '') : '—';
-    const padList = INPUT_PADS.map(p => p.name === 'motions' ? { ...p, cells: [...p.cells, ...customCells()] } : p);
+    const padList = [...INPUT_PADS.map(p => p.name === 'motions' ? { ...p, cells: [...p.cells, ...customCells()] } : p), specialsPad()];
     pads.replaceChildren(...padList.map(p => h('div', { cls: 'pad' }, h('h4', { tip: p.tip, textContent: p.name }),
       h('div', { cls: 'grid', style: `grid-template-columns: repeat(${p.cols || 3}, 1fr)` }, p.cells.map(c => {
-        const x = cellState(c, binds, ch), tip = `${c.label}: ${x.own ? slotTip(x.own) + ' · ' : ''}${STATE_TIPS[x.st]}${x.move ? ` (${x.move}${x.from !== x.own ? ' from ' + x.from : ''})` : ''}${x.own ? ' · click: pick a move' : ''}`;
+        const x = cellState(c, binds, ch), tip = c.fixed ? `${c.label}: ${c.fixed}${x.st === 'none' ? ` (off: ${SPECIALS[c.fixed]} setting, or no such move)` : ''} · click: edit it`
+          : `${c.label}: ${x.own ? slotTip(x.own) + ' · ' : ''}${STATE_TIPS[x.st]}${x.move ? ` (${x.move}${x.from !== x.own ? ' from ' + x.from : ''})` : ''}${x.own ? ' · click: pick a move' : ''}`;
         if (x.own && !seen.has(x.own)) { seen.add(x.own); rows.push({ c, x }); }
         const b = h('button', { cls: `${x.st}${x.move && x.move === anim.move ? ' cur' : ''}`, tip,
-          onclick: () => x.own && pickBind(x.own, b, fill), onmousemove: e => x.move && peekMove(x.move, e), onmouseleave: unpeek },
+          onclick: () => x.own ? pickBind(x.own, b, fill) : c.fixed && ch.moves[c.fixed] && (anim.view = 'cards', unpeek(), pickMove(c.fixed)), onmousemove: e => x.move && peekMove(x.move, e), onmouseleave: unpeek },
           h('span', { cls: 'd' }, ...rich(`${DIR_ARROW[c.d] || ''} ${c.label}`)), h('span', { textContent: label(c, x) }));
         return b;
       })))));

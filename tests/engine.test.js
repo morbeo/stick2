@@ -432,3 +432,21 @@ test('holding P+G charges a weapon throw: it flies farther and hits harder', () 
   assert.ok(held.vx > tap.vx * 1.5, `${held.vx} vs ${tap.vx}`);
   assert.ok(held.dmg > tap.dmg && tap.dmg > 0, `${held.dmg} vs ${tap.dmg}`);
 });
+
+test('rolls (G held + → / ←) pass through the foe untouched; teleport (↓↓ S) lands behind it; each has a switch; the motion scheme', () => {
+  const go = (a, cfg = {}, b = "'dummy'") => run(`(() => { const w = new World({ a: ${a}, b: ${b}, ax: 300, bx: 380, cfg: ${JSON.stringify(cfg)} }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    const seen = new Set(), hp = w.a.hp;
+    for (let i = 0; i < 90; i++) { w.advance(1/60, NOIN); const k = w.a.action && Object.keys(w.a.ch.moves).find(k => w.a.ch.moves[k] === w.a.action.m); if (k) seen.add(k); }
+    return { seen: [...seen].join(' '), x: w.a.x, bx: w.b.x, hurt: hp - w.a.hp }; })()`);
+  const fwd = "[{ hold: 'guard+fwd', t: 0.1 }]", back = "[{ hold: 'guard+back', t: 0.1 }]", tele = "['down', 0.05, 'down+special']";
+  const r = go(fwd, {}, "[0.12, 'kick']");
+  assert.match(r.seen, /rollFwd/); assert.ok(r.x > r.bx, `rolled to ${r.x}, foe at ${r.bx}`); assert.equal(r.hurt, 0);
+  const rb = go(back); assert.match(rb.seen, /rollBack/); assert.ok(rb.x < 240, 'back roll to ' + rb.x);
+  const t = go(tele); assert.match(t.seen, /teleport/); assert.ok(t.x > t.bx, `teleported to ${t.x}, foe at ${t.bx}`);
+  assert.doesNotMatch(go(fwd, { rolls: false }).seen, /roll/);
+  assert.doesNotMatch(go(tele, { teleport: false }).seen, /teleport/);
+  const m = { specialScheme: 'motion' };
+  assert.match(go("['down', 'down+fwd', 'fwd+special']", m).seen, /rollFwd/);
+  assert.match(go("['fwd', 'down', 'down+fwd+special']", m).seen, /teleport/);
+  assert.doesNotMatch(go(fwd, m).seen, /roll/);
+});

@@ -54,6 +54,7 @@ function fromOld(o) {
 }
 const STANCE = { torso: 8, head: 0, afU: 35, afL: 115, abU: 15, abL: 125, lfU: 25, lfL: -25, lbU: -18, lbL: 0 };
 const CROUCH = { torso: 22, lfU: 60, lfL: -110, lbU: -10, lbL: -70 };
+const TUCK = { torso: 70, head: 30, lfU: 120, lfL: -150, lbU: 110, lbL: -150, afU: 40, afL: 130, abU: 30, abL: 140 }; // curled up in a ball (rolls)
 const AIR = { torso: 4, lfU: 55, lfL: -95, lbU: -10, lbL: -45, afU: 55, afL: 95, abU: 40, abL: 100 };
 const AIR_FALL = { torso: 6, lfU: 28, lfL: -35, lbU: -18, lbL: -20, afU: 75, afL: 60, abU: 65, abL: 70 };
 const FALL = { torso: -55, head: -20, afU: 140, afL: 30, abU: 110, abL: 50, lfU: 60, lfL: -50, lbU: 30, lbL: -30 };
@@ -300,6 +301,22 @@ const STICK_MOVES = {
     { d: 0.16, e: 'outCubic', p: { ...CROUCH, afU: 30, afL: 110, abU: 20, abL: 120 } },
     { d: 0.2, e: 'inOutCubic', p: null },
   ] },
+  // specials (SPECIAL_SCHEMES): rolls tumble through or away (flag roll: invincible for rollInv), teleport reappears behind at its warp key
+  rollFwd: { roll: true, keys: [
+    { d: 0.05, e: 'outQuad', p: TUCK },
+    { d: 0.3, p: TUCK, lunge: 560 },
+    { d: 0.12, e: 'inOutCubic', p: null },
+  ] },
+  rollBack: { roll: true, keys: [
+    { d: 0.05, e: 'outQuad', p: TUCK },
+    { d: 0.3, p: TUCK, lunge: -480 },
+    { d: 0.12, e: 'inOutCubic', p: null },
+  ] },
+  teleport: { special: true, keys: [
+    { d: 0.12, e: 'outQuad', p: { ...CROUCH, afU: 20, afL: 120, abU: 10, abL: 130 } },
+    { d: 0.05, e: 'outExpo', p: { torso: 5, head: -10, afU: 150, afL: 10, abU: 140, abL: 15 }, warp: true, inv: true },
+    { d: 0.22, e: 'inOutCubic', p: null },
+  ] },
 };
 STICK_MOVES.hammer.keys[0].armor = true;
 STICK_MOVES.charge.keys.forEach(k => { if (k.active) k.unblock = true; });
@@ -355,8 +372,15 @@ const BINDS_25 = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'push
 // the table of a plane and where a character keeps its own binds for it
 const slotsOf = plane => plane === '2d' ? BINDS : BINDS_25;
 const bindsKey = plane => plane === '2d' ? 'binds' : 'binds25';
+// specials by name, each with its on/off setting, and the input that plays it in each specialScheme:
+// a motion name (MOTIONS) + S, or G4 / G6 = ← / → pressed while guarding
+const SPECIALS = { rollFwd: 'rolls', rollBack: 'rolls', teleport: 'teleport' };
+const SPECIAL_SCHEMES = {
+  guard: { rollFwd: 'G6', rollBack: 'G4', teleport: 'dd' },
+  motion: { rollFwd: 'qcf', rollBack: 'qcb', teleport: 'dp' },
+};
 // special motions in numpad notation (6 = towards the opponent), matched in order against the recent directions
-const MOTIONS = { dp: /6.*2.*3/, qcf: /2.*3.*6/, qcb: /2.*1.*4/ };
+const MOTIONS = { dp: /6.*2.*3/, qcf: /2.*3.*6/, qcb: /2.*1.*4/, dd: /252/ };
 // a character's own motions (def.motions: name → numpad digits, e.g. m41236: '41236'), tried before the built-in ones, longest first;
 // each makes two input slots, name + Punch / Kick
 const customMotions = def => Object.fromEntries(Object.entries(def.motions || {}).sort((a, b) => b[1].length - a[1].length).map(([k, d]) => [k, new RegExp(d.split('').join('.*'))]));

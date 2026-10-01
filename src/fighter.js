@@ -6,7 +6,7 @@ class Fighter {
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
       kd: null, downT: 0, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
-      z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
+      z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, flyT: 0, guardT: -9, stanceI: 0,
       airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null });
     this.hp = this.c('health'); this.ch0 = ch.base || ch; // ch0: the character without its weapon
@@ -156,6 +156,8 @@ class Fighter {
   pick(b, motion) {
     const i = this.inp, fwd = (i.right - i.left) * this.dir > 0, P = b === 'punch';
     if (b === 'special') { // S: a special per direction, the neutral one when that direction has none
+      const sp = this.grounded && motion?.map(t => this.special(t)).find(Boolean); // a scheme's special on a motion (SPECIAL_SCHEMES)
+      if (sp) return sp;
       const slot = !this.grounded ? 'airSpecial' : i.down ? 'downSpecial' : i.up ? 'upSpecial' : fwd ? 'fwdSpecial' : i.right !== i.left ? 'backSpecial' : 'special';
       return [this.binds[slot], this.grounded && this.binds.special].find(m => this.ch.moves[m]) || null;
     }
@@ -170,6 +172,11 @@ class Fighter {
     const slots = [v && hz && v + hz + B, v ? v + B : hz && hz.toLowerCase() + B, b];
     return slots.map(s => s && has(s)).find(Boolean) || null;
   }
+  // the special the scheme plays on an input (a motion name, G4 / G6), if it is switched on and the character has the move
+  special(t) {
+    const s = SPECIAL_SCHEMES[this.c('specialScheme')] || {};
+    return Object.keys(s).find(n => s[n] === t && this.c(SPECIALS[n]) && this.ch.moves[n]) || null;
+  }
   // what the running move can be cancelled into, once its cancel window is open (Combos & cancels)
   cancelInto(a, b, motion) {
     if (a.i < a.m.cancel) return null;
@@ -182,6 +189,7 @@ class Fighter {
   }
   start(m) {
     this.action = { m: typeof m === 'string' ? this.ch.moves[m] : m, i: 0, t: 0, from: { ...this.target }, hit: false, hits: [] };
+    if (this.action.m.roll) this.passT = this.invT = this.c('rollInv'); // a roll: through fighters and untouchable a moment
   }
   // a move by name, taking up its class's weapon first if it is a weapon move (scripts, the gallery)
   force(n) {
@@ -227,6 +235,7 @@ class Fighter {
       this.w.items.splice(this.w.items.indexOf(it), 1); this.wield(it.type); this.action = a; this.say(it.type.toUpperCase());
       for (const j of this.ch.ids) a.from[j] ??= this.target[j]; // the weapon's bones join the tween where they are
     }
+    if (k.warp) this.warp();
     if (this.ch.weapon && a.toss && (k.release || first && !a.m.keys.some(x => x.release))) { this.letGo(true, a.charge); this.action = a; }
   }
   // reaching for a weapon: it slides and turns on the floor so its handle meets the hand at the grip key; let go if the reach is cut short
@@ -239,6 +248,13 @@ class Fighter {
     const w = WEAPONS[it.type], half = (w.len - (w.back || 0)) / 2, rot = this.dir > 0 ? 0 : Math.PI, k = Math.min(1, dt / Math.max(dt, left)); // the rest of the way in the time left
     it.rot += wrap180((rot - it.rot) / R) * R * k;
     it.x += (hand[0] + Math.cos(it.rot) * half - it.x) * k;
+  }
+  // teleport (key flag warp): reappear teleportDist behind the nearest foe, turned to face it, leaving after-images on the way
+  warp() {
+    const o = this.w.nearestFoe(this), side = o ? Math.sign(o.x - this.x) || this.dir : this.dir, P = this.body(), x0 = this.x;
+    this.x = clamp((o ? o.x : this.x) + side * this.c('teleportDist'), 40, W - 40); this.vx = 0; this.dir = -side;
+    this.trail = []; // no streak across the jump
+    this.after = [0, 1, 2].map(i => { const dx = (this.x - x0) * i / 3, Q = {}; for (const k in P) Q[k] = [P[k][0] + dx, P[k][1]]; return { P: Q, t: 0.3 - i * 0.08 }; });
   }
   // a weapon move's blow, by the weight of the weapon held
   weaponHit(m) {
@@ -280,6 +296,9 @@ class Fighter {
     // double taps: → / ← dash, ↑ / ↓ sidestep a lane. Any other direction in between breaks it (→↓↘ is not a dash)
     const flat = c('plane') === '2d', fwdK = this.dir > 0 ? 'right' : 'left';
     for (const k of ['left', 'right', 'up', 'down']) if (inp[k] && !this.prevIn[k]) {
+      // guard scheme: → / ← pressed with G held (or together with it), free on the ground, rolls that way
+      const roll = (k === 'left' || k === 'right') && inp.guard && this.blockT <= 0 && this.free && !this.action && this.grounded && this.squatT <= 0 && this.special(k === fwdK ? 'G6' : 'G4');
+      if (roll) { this.used = []; this.start(roll); this.tap = null; continue; }
       if (this.tap?.k === k && this.w.simT - this.tap.t < 0.25) { this.tap = null; this.doubleTap(k); }
       else this.tap = { k, t: this.w.simT };
     }
@@ -300,7 +319,7 @@ class Fighter {
     const upTap = inp.up && !this.prevIn.up;
     this.prevIn = inp;
     if (!inp[fwdK] || !this.free || this.action) this.running = false;
-    this.dashT -= dt; this.passT -= dt; this.blockT -= dt; this.parryT -= dt; this.labelT -= dt; this.dodgeT -= dt; this.airDashT -= dt; this.dizzyT -= dt; this.reelT -= dt; this.splatT -= dt;
+    this.dashT -= dt; this.passT -= dt; this.invT -= dt; this.blockT -= dt; this.parryT -= dt; this.labelT -= dt; this.dodgeT -= dt; this.airDashT -= dt; this.dizzyT -= dt; this.reelT -= dt; this.splatT -= dt;
     if (this.free) this.stunM = Math.max(0, this.stunM - c('dizzyDrain') * dt);
     // guard: held while free on the ground, and kept through blockstun; with ↓ it is a low guard (in the belt too)
     const busy = this.action && !this.action.m.hurt;
@@ -361,8 +380,14 @@ class Fighter {
     // a flip turns the body once over the jump; an attack or a hit ends it and the body rights itself
     if (this.flip && (this.action || this.kd)) this.flip = 0;
     if (!this.grounded) this.airT += dt;
+    for (const g of this.after) g.t -= dt;
+    this.after = this.after.filter(g => g.t > 0);
     if (this.flip) this.spin = this.flip * 360 * Math.min(1, this.airT / (2 * c('jumpVel') / c('gravity')));
     else if (this.spin) { const to = Math.round(this.spin / 360) * 360; this.spin = approach(this.spin, to, 1440 * dt); if (this.spin === to) this.spin = 0; }
+    if (this.action?.m.roll) { // a roll turns the body once over, the way its lunge goes
+      const ks = this.action.m.keys, all = ks.reduce((s, k) => s + k.d, 0), done = ks.slice(0, this.action.i).reduce((s, k) => s + k.d, 0) + this.action.t;
+      this.spin = Math.sign(ks.find(k => k.lunge)?.lunge || 1) * 360 * Math.min(1, done / all) % 360;
+    }
     if (!this.grounded && this.splatT <= 0 && !this.rag) {
       if (this.airDashT > 0) this.vy = 0;
       else this.vy += c('gravity') * dt;
@@ -685,7 +710,7 @@ class Fighter {
   // the hurt bone the strike overlaps most, or null
   hurtAt([s0, s1, r], useTarget, otg) {
     const a = this.action;
-    if (this.kd === 'down' && !otg || a?.m.inv || a?.m.keys[a.i]?.inv || this.dodgeT > 0) return null;
+    if (this.kd === 'down' && !otg || a?.m.inv || a?.m.keys[a.i]?.inv || this.dodgeT > 0 || this.invT > 0) return null;
     const P = useTarget ? this.points(this.target) : this.body();
     let best = null;
     for (const b of this.ch.bones) if (b.hurt > 0) {
@@ -822,6 +847,7 @@ class Fighter {
       let top = 0; for (const k in L) top = Math.min(top, L[k][1]);
       const r = this.spin * this.dir * R, c = Math.cos(r), s = Math.sin(r), cy = (top + fy) / 2;
       for (const k in L) { const x = L[k][0], y = L[k][1] - cy; L[k] = [x * c - y * s, cy + x * s + y * c]; }
+      if (this.grounded) { fy = -Infinity; for (const k in L) fy = Math.max(fy, L[k][1]); } // rolling on the floor: kept on it
     }
     const sx = 1 - this.sq * 0.5, sy = 1 + this.sq, ax = this.x, ay = this.groundY + this.y, P = {};
     for (const k in L) P[k] = [ax + L[k][0] * sx, ay + (L[k][1] - fy) * sy];
@@ -869,6 +895,8 @@ class Fighter {
     }
     ctx.globalAlpha = 1;
 
+    for (const g of this.after) { ctx.globalAlpha = g.t; drawFigure(ctx, this.ch, g.P, this.col[0], this.col[1]); } // teleport after-images
+    ctx.globalAlpha = 1;
     if (this.c('ghost')) { ctx.globalAlpha = 0.2; drawFigure(ctx, this.ch, this.points(this.target), '#07f', '#07f', -2); ctx.globalAlpha = 1; }
     const P = this.body();
     if (this.flashT > 0 && this.c('flash')) { drawFigure(ctx, this.ch, P, '#111', '#111', 4); drawFigure(ctx, this.ch, P, '#fff', '#fff'); }

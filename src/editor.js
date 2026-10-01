@@ -159,13 +159,14 @@ function drawTimeline() {
     if (w > 70 * dpr) text(k.p ? hold ? 'hold' : k.e || 'linear' : 'to stance', x + 5 * dpr, y + 27 * dpr, '#777', 9);
     // the lunge: an arrow, longer for a stronger push
     if (k.lunge) {
-      const ax = x + 5 * dpr, ay = y + 36 * dpr, al = Math.max(8 * dpr, Math.min(bw - 12 * dpr, k.lunge / 600 * bw));
+      const sg = Math.sign(k.lunge), l = Math.max(8 * dpr, Math.min(bw - 12 * dpr, Math.abs(k.lunge) / 600 * bw)), ay = y + 36 * dpr;
+      const ax = x + 5 * dpr + (sg < 0 ? l : 0), al = sg * l; // backward (below 0): it points left
       ctx.strokeStyle = ctx.fillStyle = '#2d7a3e'; ctx.lineWidth = 2 * dpr; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax + al, ay); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(ax + al + 4 * dpr, ay); ctx.lineTo(ax + al - 2 * dpr, ay - 4 * dpr); ctx.lineTo(ax + al - 2 * dpr, ay + 4 * dpr); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(ax + al + sg * 4 * dpr, ay); ctx.lineTo(ax + al - sg * 2 * dpr, ay - 4 * dpr); ctx.lineTo(ax + al - sg * 2 * dpr, ay + 4 * dpr); ctx.fill();
     }
     // flag icons along the bottom
     const icons = [k.active && ['my_location', RED[0]], k.inv && ['block', '#2c6fb0'], k.unblock && ['crisis_alert', RED[0]], k.armor && ['shield', '#b07a2c'],
-      k.catch && ['back_hand', '#2c6fb0'], k.grip && ['pan_tool', '#b07a2c'], k.release && ['sports_handball', '#b07a2c'], i === m.cancel && ['sync_alt', '#8e44ad'], !k.p && ['accessibility_new', '#888'], hold && ['pause', '#888']].filter(Boolean);
+      k.catch && ['back_hand', '#2c6fb0'], k.warp && ['blur_on', '#8e44ad'], k.grip && ['pan_tool', '#b07a2c'], k.release && ['sports_handball', '#b07a2c'], i === m.cancel && ['sync_alt', '#8e44ad'], !k.p && ['accessibility_new', '#888'], hold && ['pause', '#888']].filter(Boolean);
     icons.forEach(([n, c], j) => glyph(n, x + (4 + j * 14) * dpr, y + h - 4 * dpr, c, 13));
     ctx.restore();
   });
@@ -464,6 +465,7 @@ const MOVE_FLAGS = {
   crumple: 'Crumple: the victim folds to the floor where it stands, open to a follow-up before it lands.',
   wall: 'Wall splat: a victim knocked into the arena wall sticks to it a moment instead of bouncing off.',
   bounce: 'Ground bounce: a knocked-down victim bounces high off the floor once, open to a juggle.',
+  roll: 'Roll: invincible and passing through fighters for rollInv from its start; the body turns over once, the way its lunge goes (rollFwd, rollBack).',
 };
 
 // what normalize returns to: the built-in move of the same name (copies like jab2: the move they were copied from)
@@ -497,13 +499,15 @@ function keyPanel() {
       toggle(':shield: armor', 'Armor: a hit during this key does its damage, but the move goes on (no flinch, no knockdown) unless it would knock out.',
         () => !!k().armor, v => setKey('armor', v || undefined)),
       toggle(':back_hand: catch', 'Catch: a strike from the front landing during this key is caught, and the move named in the move\'s counter answers it (← S catch → reversal).',
-        () => !!k().catch, v => setKey('catch', v || undefined)))),
+        () => !!k().catch, v => setKey('catch', v || undefined)),
+      toggle(':blur_on: warp', 'Warp: as this key is reached the fighter reappears teleportDist behind the foe, turned to face it, leaving after-images (teleport).',
+        () => !!k().warp, v => setKey('warp', v || undefined)))),
     ...curMove().weapon ? [h('div', { cls: 'row', tip: 'Weapon hand: where pick-up and throw moves take or let go of the weapon' }, h('span', { textContent: 'hand' }), h('span', { cls: 'bar' },
       ...[['grip', ':pan_tool: grip', 'Grip: picking up (P+G over a weapon), the hand closes on the handle as this key is reached; the weapon slides to the hand until then. Unmarked: the first key.'],
         ['release', ':sports_handball: release', 'Release: throwing (P+G armed), the weapon leaves the hand as this key is reached. Unmarked: the first key.']].map(([n, l, t]) =>
         toggle(l, t, () => !!k()[n], v => edit(def => { def.moves[anim.move].keys.forEach((x, i) => { if (i === anim.key && v) x[n] = true; else delete x[n]; }); })))))] : [],
-    slider('lunge', { min: 0, max: 600, step: 10 }, () => k().lunge || 0, v => setKey('lunge', v || undefined, 'lunge'),
-      'Forward speed given when this key starts (px/s): steps into the strike.'),
+    slider('lunge', { min: -600, max: 600, step: 10 }, () => k().lunge || 0, v => setKey('lunge', v || undefined, 'lunge'),
+      'Forward speed given when this key starts (px/s): steps into the strike; below 0 it moves back (rollBack).'),
   ];
 }
 // ---------- move list: grouped by type / striking limb / height, sorted, filtered by name or input ----------

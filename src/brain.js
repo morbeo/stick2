@@ -61,6 +61,9 @@ const AI_LEVELS = {
   hard: { think: [0.08, 0.2], react: 0.08, guard: 0.6, brk: 0.6, tech: 0.6, antiAir: 0.7, juggle: 0.75 },
   expert: { think: [0.05, 0.12], react: 0.05, guard: 0.8, brk: 0.85, tech: 0.85, antiAir: 0.85, juggle: 0.9 },
 };
+// the presses that make each scheme input (SPECIAL_SCHEMES), queued one after another
+const SCHEME_INPUTS = { G6: ['guard+fwd'], G4: ['guard+back'], dd: ['down', 'down+special'], qcf: ['down', 'down+fwd', 'fwd+special'],
+  qcb: ['down', 'down+back', 'back+special'], dp: ['fwd', 'down', 'down+fwd+special'] };
 class Brain {
   constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0, held: null, brk: false, flying: false, tech: false }); }
   input(f, o, h) {
@@ -87,6 +90,12 @@ class Brain {
     else if (this.plan === 'dash') { press(inp, 'fwd', f, o); if (dist < 120) { inp.punch = true; this.plan = null; } }
     return inp;
   }
+  // queue a special of the scheme in use, if it is switched on and the fighter has its move
+  special(f, n) {
+    const t = SPECIAL_SCHEMES[f.c('specialScheme')]?.[n];
+    if (!t || f.special(t) !== n) return false;
+    this.q = SCHEME_INPUTS[t].slice(); this.qt = 0; return true;
+  }
   think(f, o, dist) {
     const r = this.rand(), L = AI_LEVELS[f.c('aiLevel')] || AI_LEVELS.normal;
     this.t = this.rand(...L.think); // reaction time
@@ -101,7 +110,9 @@ class Brain {
     }
     if (plane === 'lanes' && idle(f) && dist < 110 && r < (o.action?.m.power ? 0.5 : 0.12)) { this.q = r < 0.2 || f.z > 0 ? ['up', 'up'] : ['down', 'down']; this.qt = 0; return; }
     // an attack starting up in front: guard it (low against lows); a fresh guard press that lands just in time parries
-    if (frameState(o) === 'startup' && dist < 130 && (o.x - f.x) * f.dir > 0 && r < L.guard) { this.plan = o.action.m.height === 'low' ? 'guardLow' : 'guard'; this.t = 0.3; return; }
+    if (frameState(o) === 'startup' && dist < 130 && (o.x - f.x) * f.dir > 0 && r < L.guard) {
+      if (this.rand() < 0.25 && this.special(f, 'rollFwd')) return; // or roll through it
+      this.plan = o.action.m.height === 'low' ? 'guardLow' : 'guard'; this.t = 0.3; return; }
     if (plane === 'belt' && dist > 150 && r < 0.2) { this.plan = f.z > 0 ? 'zin' : 'zout'; return; } // circle around on the belt
     if (o.kd === 'down' && dist < 110 && r < 0.4) { this.q = ['down', 'down+fwd', 'fwd+kick']; this.qt = 0; return; } // stomp
     if (o.kd === 'down' || o.action?.m.inv) { if (dist < 90) this.plan = 'out'; return; }
@@ -111,9 +122,11 @@ class Brain {
     if (f.ch.weapon && dist > 200 && dist < 450 && r < 0.06) { this.q = ['punch+guard']; this.qt = 0; this.plan = 'charge'; this.t = this.rand(0, 0.8); return; } // held a while: a harder throw
     if (!o.grounded && !o.kd && dist < 110 && r < L.antiAir) { this.q = ['fwd', 'down', 'down+fwd+punch']; this.qt = 0; return; } // anti-air rising
     if (o.kd === 'fly' && dist < 130 && r < L.juggle) { this.q = ['hop', 'kick']; this.qt = 0; return; }
+    if (dist > 200 && r < 0.05 && this.special(f, 'teleport')) return; // appear behind
     if (dist > 220 && f.c('dash') && r < 0.3) { this.q = ['fwd', 'fwd']; this.qt = 0; this.plan = 'in'; return; } // dash, then run in
     if (dist > 150) { this.plan = r < 0.25 ? 'dash' : 'in'; return; }
     if (dist > 70) { this.plan = r < 0.85 ? 'in' : 'out'; return; }
+    if (r < 0.03 && this.special(f, 'rollBack')) return;
     if (r < 0.12) { this.plan = 'out'; return; }
     if (r < 0.2) return; // hesitate
     if (o.guarding && r < 0.5) { this.q = [o.crouching ? 'up+punch' : dist < 60 && r < 0.3 ? 'punch+guard' : 'down+fwd+kick']; this.qt = 0; return; } // overhead vs a low guard; throw or low vs a standing one
@@ -166,6 +179,10 @@ const SCENARIOS = {
   'catch': { a: [0.3, 'kick'], b: [0.15, 'back+special'], period: 2.4 },
   'tech': { a: ['down+kick'], b: [0.3, 'guard'], period: 2.4 },
   'air recover': { a: [0.1, '@roundhouse'], b: [0.58, 'guard'], period: 2.4 },
+  // specials (Specials settings): rolls through a kick or away, teleport behind
+  'roll through': { a: [0.1, { hold: 'guard+fwd', t: 0.1 }], b: [0.12, 'kick'], ax: 300, bx: 380, period: 2 },
+  'roll back': { a: [0.2, { hold: 'guard+back', t: 0.1 }], b: 'dummy', ax: 330, bx: 400, period: 2 },
+  'teleport': { a: [0.2, 'down', 0.05, 'down+special'], b: 'dummy', period: 2 },
   'OTG stomp': { a: ['down+kick', 0.6, { hold: 'fwd', t: 0.25 }, 'down', 'down+fwd', 'fwd+kick'], b: 'dummy', period: 3 },
   // several opponents: extra fighters are { c: controller, x, team }; same team = allies
   'you vs 2 ai': { a: 'human', b: 'ai', bx: 520, more: [{ c: 'ai', x: 640, team: 1 }] },
