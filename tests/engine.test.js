@@ -174,6 +174,17 @@ test('power scale makes hits knock further', () => {
   assert.ok(dist(2) > dist(1) + 20 && dist(1) > dist(0.5), `${dist(0.5)} ${dist(1)} ${dist(2)}`);
 });
 
+test('the ceiling bounces a body knocked up to the top of the screen; a ragdoll bounces off the floor (bounces setting)', () => {
+  const top = (falls, ceiling) => run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 500, period: 9 }, { falls: '${falls}', ceiling: ${ceiling} }, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    w.advance(1/60, NOIN); const f = w.a; f.kd = 'fly'; f.grounded = false; f.vy = -1600; if ('${falls}' === 'ragdoll') { f.startRag(); f.ragHit({ pt: [f.x, f.groundY - 60] }); }
+    let top = 1e9; for (let i = 0; i < 120; i++) { w.advance(1/60, NOIN); top = Math.min(top, ...Object.values(f.body()).map(q => q[1])); } return top; })()`);
+  for (const falls of ['ragdoll', 'pose']) { const off = top(falls, 0), on = top(falls, 0.9); assert.ok(off < -100 && on > -20, `${falls}: ${off} ${on}`); }
+  const rise = bounces => run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 500, period: 9 }, { floorBounce: 0.8, bounces: ${bounces} }, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    w.advance(1/60, NOIN); const f = w.a; f.kd = 'fly'; f.grounded = false; f.vx = 300; f.vy = -900; f.startRag(); f.ragHit({ pt: [f.x, f.groundY - 60] });
+    let low = 0, up = 0; for (let i = 0; i < 150; i++) { w.advance(1/60, NOIN); const y = f.rag ? f.groundY - f.rag.p.hip.y : 0; if (i > 40) { low = Math.min(low || y, y); up = Math.max(up, y - low); } } return up; })()`);
+  assert.ok(rise(3) > 30 && rise(0) < 15, `${rise(0)} ${rise(3)}`);
+});
+
 test('the impact tool strikes the body under the point, a long drag knocks it down', () => {
   const r = run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', period: 9 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false; w.advance(1/60, NOIN);
     const h = w.b.body().head, miss = w.poke(h[0], h[1] - 200, 50, 0), small = w.poke(h[0], h[1], 20, 0), kd1 = w.b.kd;

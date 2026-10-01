@@ -335,6 +335,10 @@ class Fighter {
       if (this.free && this.dodgeT <= 0) this.vy = Math.min(this.vy, c('fallSpeed')); // top falling speed (not when knocked flying)
       if (this.free && inp.down && this.vy > 0 && !busy) this.vy = Math.max(this.vy, c('fallSpeed')); // fast fall
       this.y += this.vy * dt;
+      // the ceiling (setting): a body knocked flying to the top of the screen comes back down
+      const cb = this.kd === 'fly' && this.vy < 0 && c('ceiling');
+      if (cb) { const top = Math.min(...Object.values(this.body()).map(q => q[1])), imp = Math.min(1, -this.vy / 800);
+        if (top < CEIL) { this.y += CEIL - top; this.vy *= -cb; this.flailJolt(imp); this.w.trauma = Math.min(1, this.w.trauma + 0.2 * imp); } }
       if (this.y >= 0) {
         const imp = Math.min(1, this.vy / 800);
         this.y = 0; this.vy = 0; this.grounded = true; this.flip = 0; this.spin = 0;
@@ -517,7 +521,8 @@ class Fighter {
           Om[b.id] += dw * wc; Om[pid] -= dw * (1 - wc);
         }
       }
-      for (const q of ps) { q.ox = q.x; q.oy = q.y; q.vy += c('gravity') * dt; q.pvx = q.vx; q.x += q.vx * dt; q.y += q.vy * dt; q.hit = 0; }
+      const cb = c('ceiling');
+      for (const q of ps) { q.ox = q.x; q.oy = q.y; q.vy += c('gravity') * dt; q.pvx = q.vx; q.x += q.vx * dt; q.y += q.vy * dt; q.hit = 0; q.top = 0; }
       for (let it = 0; it < 4; it++) {
         // bones keep their length
         for (const b of ch.bones) {
@@ -527,10 +532,12 @@ class Fighter {
         // floor and arena edges
         for (const q of ps) {
           if (q.y > G - q.r) { q.hit = q.hit || Math.max(1, q.vy); q.y = G - q.r; }
+          if (cb && q.y < CEIL + q.r) { q.top = Math.min(q.top, q.vy); q.y = CEIL + q.r; }
           q.x = clamp(q.x, 20, W - 20);
         }
       }
       const damp = Math.exp(-0.8 * dt);
+      let ceil = 0;
       for (const [id, q] of Object.entries(r.p)) {
         q.vx = (q.x - q.ox) / dt * damp; q.vy = (q.y - q.oy) / dt * damp;
         const sp = Math.hypot(q.vx, q.vy); if (sp > 2500) { q.vx *= 2500 / sp; q.vy *= 2500 / sp; }
@@ -539,7 +546,9 @@ class Fighter {
           if (q.hit > 150) q.vy = -q.hit * c('floorBounce') * 0.6;
           if (ch.by[id]?.role !== 'leg') land = Math.max(land, q.hit);
         }
+        if (q.top < 0) { q.vy = -q.top * cb; ceil = Math.max(ceil, -q.top); } // off the ceiling
       }
+      if (ceil > 150) this.w.trauma = Math.min(1, this.w.trauma + 0.2 * Math.min(1, ceil / 800));
       // the hips hit a wall: splat (move flag wall) or bounce back
       if ((hip.x <= 40 || hip.x >= W - 40) && Math.sign(hip.pvx) === Math.sign(hip.x - W / 2)) {
         const imp = Math.min(1, Math.abs(hip.pvx) / 600), wb = c('wallBounce');
@@ -555,6 +564,9 @@ class Fighter {
       else if (!this.ko && c('techWindow') && this.w.simT - this.guardT < c('techWindow')) {
         this.endRag(); this.kd = null; this.grounded = true; this.y = 0; this.start('getup'); this.hurtT = 0.3; this.vx = -this.dir * 150; this.say('TECH');
         return;
+      } else if (this.bounces < c('bounces') && land * c('floorBounce') > 150) { // a floor bounce (bounces setting): the whole body pops up
+        this.bounces++; r.landed = false; for (const q of ps) q.vy = Math.min(q.vy, -land * c('floorBounce'));
+        this.w.dust(hip.x, G, imp, this.z); this.w.trauma = Math.min(1, this.w.trauma + 0.15 * imp);
       } else if (land > 150) { this.w.dust(hip.x, G, imp, this.z); this.w.trauma = Math.min(1, this.w.trauma + 0.15 * imp); }
     }
     // the bone angles from the joints, unwrapped next to the last ones so the springs never spin a full turn afterwards

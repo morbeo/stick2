@@ -4,6 +4,6 @@ dwarf      hits 13 hp 5.5 71.5
 minotaur   hits 14 hp 2.0 81.3
 demon      hits 15 hp 0.4 77.4
 centaur    hits 13 hp 23.7 58.3
-ninja      hits 11 hp 64.8 2.7
+ninja      hits 11 hp 55.0 25.6
 ape        hits 14 hp 8.1 54.5
 asura      hits 13 hp 20.2 84.2

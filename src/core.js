@@ -97,6 +97,7 @@ const SCHEMA = [
   { k: 'floorBounce', v: 0.35, min: 0, max: 0.8, step: 0.05, tip: 'A falling fighter bounces off the floor with this fraction of its landing speed. 0 = lands dead.' },
   { k: 'bounces', v: 1, min: 0, max: 4, step: 1, tip: 'Floor bounces before the fighter stays down.' },
   { k: 'wallBounce', v: 0.5, min: 0, max: 1, step: 0.05, tip: 'A flying fighter bounces off the arena walls with this fraction of its speed. 0 = stops dead.' },
+  { k: 'ceiling', v: 0, min: 0, max: 1, step: 0.05, tip: 'A body knocked flying bounces off the top of the screen with this fraction of its speed. 0 = no ceiling: it flies out of view and falls back.' },
   { k: 'flail', v: 1, min: 0, max: 3, step: 0.1, tip: 'How much limbs flail while flying and on every bounce.' },
   { k: 'falls', v: 'ragdoll', opts: ['ragdoll', 'pose'], tip: 'How a knocked-down body moves.',
     optTips: { ragdoll: 'Physics: the joints are masses joined by the bones, thrown by the blow (turning about where it landed), pulled by gravity, sliding and bouncing on the floor, held in shape by muscle tone and the joint limits.',
@@ -147,6 +148,13 @@ const PRESETS = {
   floaty: { freq: 2, zeta: 0.35, response: 0.5, followThru: 0.7 },
   juicy: {},
 };
+// power presets: only how hard blows land and how bodies fly and bounce (floor, walls, ceiling); the other settings stay
+const POWER = {
+  normal: { powerScale: 1, hitstop: 0.08, floorBounce: 0.35, bounces: 1, wallBounce: 0.5, ceiling: 0, floorGrip: 6 },
+  heavy: { powerScale: 1.6, hitstop: 0.11, floorBounce: 0.45, bounces: 2, wallBounce: 0.6, ceiling: 0, floorGrip: 5 },
+  smash: { powerScale: 2.3, hitstop: 0.13, floorBounce: 0.6, bounces: 3, wallBounce: 0.8, ceiling: 0.6, floorGrip: 3 },
+  pinball: { powerScale: 3, hitstop: 0.12, floorBounce: 0.8, bounces: 4, wallBounce: 1, ceiling: 0.9, floorGrip: 1 },
+};
 
 // ---------- math ----------
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -166,7 +174,7 @@ function makeRand(seed) {
 // ---------- simulation state: checkpoints and replays ----------
 // Replays store inputs, not results: a replay recorded with another ENGINE_VERSION plays out differently.
 // Bump it whenever the simulation changes (the replay test fails until you do).
-const ENGINE_VERSION = 4;
+const ENGINE_VERSION = 5;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied

@@ -22,6 +22,13 @@ const PRESET_TIPS = {
   floaty: 'Slow, loose springs on top of the defaults.',
   juicy: 'Everything on: the defaults.',
 };
+const POWER_TIPS = {
+  normal: 'Default hit power and bounces.',
+  heavy: 'Harder blows (power × 1.6), longer hit stop, a second floor bounce.',
+  smash: 'Blows send bodies across the screen (power × 2.3): bouncy floor and walls, and a ceiling.',
+  pinball: 'Power × 3, everything bounces: floor, walls and ceiling nearly lossless, the floor slippery.',
+};
+const POWER_ICONS = { normal: 'sports_mma', heavy: 'gavel', smash: 'crisis_alert', pinball: 'cyclone' };
 
 // n values across [lo, hi] snapped to the slider step; categorical vars just take their options
 // 'scenario' (Y only) runs each row on a different scripted fight
@@ -454,7 +461,7 @@ function applyPreset(name) {
 // the settings shown in each group without "more" (the ones most worth turning first)
 const BASIC_CFG = new Set(['plant', 'plantStep', 'maxSpeed', 'jumpVel', 'gravity', 'dashSpeed', 'airSpeed', 'fallSpeed', 'easing', 'attackSpeed', 'filter', 'response',
   'hitstop', 'hitShake', 'hitTest', 'powerScale', 'chains', 'juggleDecay', 'health', 'damage', 'chip', 'parry', 'staggerAt', 'dizzyAt',
-  'grabReach', 'techWindow', 'weapon', 'weaponStart', 'disarm', 'falls', 'floorBounce', 'wallBounce', 'plane', 'flips', 'dash',
+  'grabReach', 'techWindow', 'weapon', 'weaponStart', 'disarm', 'falls', 'floorBounce', 'wallBounce', 'ceiling', 'plane', 'flips', 'dash',
   'comboStop', 'comboShake', 'comboSpeed', 'shake', 'zoomPunch', 'squash', 'sparks', 'ghost', 'boxes', 'scope']);
 // fuzzy match: every query letter appears in order (ignoring case and spaces)
 const fuzzy = (q, text) => { let i = 0; text = text.toLowerCase(); for (const c of q.toLowerCase().replace(/\s/g, '')) if ((i = text.indexOf(c, i) + 1) === 0) return false; return true; };
@@ -480,6 +487,9 @@ function configPanel() {
   return [search, heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes) stay.', ''),
     h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(optLabel(n), PRESET_TIPS[n], () => applyPreset(n))),
       button(':restart_alt: reset', 'All settings back to their defaults', () => applyPreset('juicy'))),
+    heading('Power', 'How hard blows land and how far bodies fly and bounce (off the floor, the walls and the ceiling). Only those settings change.', ''),
+    h('div', { cls: 'bar' }, seg(Object.keys(POWER), () => Object.keys(POWER).find(n => Object.entries(POWER[n]).every(([k, v]) => CFG[k] === v)),
+      n => setCfg({ ...POWER[n] }), POWER_TIPS, n => `:${POWER_ICONS[n]}: ${n}`)),
     ...rows.map(r => r.el)];
 }
 // buttons on a group heading that change all of its variables at once

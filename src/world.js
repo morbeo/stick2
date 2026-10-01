@@ -1,6 +1,6 @@
 'use strict';
 // ---------- world: one self-contained fight (the grid runs nine of them side by side) ----------
-const W = 800, H = 450, GROUND = 360;
+const W = 800, H = 450, GROUND = 360, CEIL = 8; // CEIL: the top of the screen (ceiling setting)
 const INK = ['#222', '#8a8580'], RED = ['#c0392b', '#e0998f'];
 const COLS = [INK, RED, ['#2c6fb0', '#94b7d8'], ['#2e8b57', '#97c5ab'], ['#8e44ad', '#c6a2d6'], ['#b9770e', '#e0c08a']];
 const NOIN = { left: false, right: false, up: false, down: false, hop: false, punch: false, kick: false, special: false, guard: false };
