@@ -85,7 +85,7 @@ function attackCells() {
     // the attack is added as move 'gen' to a copy of the character; it hits an unchanged dummy
     const gch = makeCharacter({ ...DEFS[CURRENT], moves: { ...DEFS[CURRENT].moves, gen: m } });
     return { w: newWorld(galleryScen('gen'), {}, 7, [gch, ch]), move: 'gen', gen: m, parent: !!parent && !i,
-      label: parent && !i ? 'parent' : `${m.hit} ${m.height}` };
+      label: parent && !i ? 'parent' : `${hitIds(m).join('+')} ${m.height}` };
   });
 }
 function saveAttack(open) {

@@ -324,27 +324,29 @@ class Fighter {
       this.lens[j] += (want - this.lens[j]) * (1 - Math.exp(-30 * dt));
     }
 
-    const a = this.action, s = a?.m.keys[a.i].active && this.strikeShape(a.m);
+    const a = this.action, ss = a?.m.keys[a.i].active ? this.strikeShapes(a.m) : [];
     const otg = c('otg') === 'all' || c('otg') === 'flagged' && a?.m.otg;
-    if (s) for (const o of foes) if (!a.hits.includes(o) && Math.abs(o.z - this.z) <= c('zReach') * (a.m.wide ? 3 : 1)) {
+    if (ss.length) for (const o of foes) if (!a.hits.includes(o) && Math.abs(o.z - this.z) <= c('zReach') * (a.m.wide ? 3 : 1)) {
       if (a.m.height === 'high' && o.crouching) continue; // highs pass over a crouching fighter
       if (a.m.throw && (!o.grounded || !o.free || o.heldBy || o.squatT > 0)) continue; // throws only catch a standing, free fighter
-      const h = o.hurtAt(s, c('hitTest') === 'target', otg);
+      // several striking bones: the deepest overlap counts, one hit per foe per move
+      const h = ss.map(s => o.hurtAt(s, c('hitTest') === 'target', otg)).reduce((best, h) => h && (!best || h.d < best.d) ? h : best, null);
       if (h && a.m.throw) { a.hits.push(o); a.hit = true; this.seize(o); }
       else if (h) { a.hits.push(o); a.hit = true; this.w.onHit(this, o, h, a.m, o.defend(this, a.m, a.m.keys[a.i])); }
     }
-    this.lastTip = s ? s[1] : null;
+    this.lastTips = Object.fromEntries(ss.map(s => [s.id, s[1]]));
   }
 
   // the strike this substep as a capsule [from, to, radius], per the collision mode:
   // drawn = striking joint of the drawn (sprung) pose · target = of the keyframe pose, ignoring springs
   // swept = path of the drawn joint since last substep (fast strikes can't tunnel) · limb = the whole striking bone
-  strikeShape(m) {
-    const b = this.ch.by[m.hit];
-    if (!b) return null;
-    const mode = this.c('hitTest'), P = mode === 'target' ? this.points(this.target) : this.body(), tip = P[b.id], r = this.c('hitR');
-    if (mode === 'limb') return [P[b.parent || 'hip'], tip, r + b.thick / 2];
-    return [mode === 'swept' && this.lastTip || tip, tip, r];
+  // (one per striking bone, each tagged with its bone id)
+  strikeShapes(m) {
+    const mode = this.c('hitTest'), P = mode === 'target' ? this.points(this.target) : this.body(), r = this.c('hitR');
+    return hitIds(m).map(id => this.ch.by[id]).filter(Boolean).map(b => {
+      const tip = P[b.id], s = mode === 'limb' ? [P[b.parent || 'hip'], tip, r + b.thick / 2] : [mode === 'swept' && this.lastTips?.[b.id] || tip, tip, r];
+      s.id = b.id; return s;
+    });
   }
   // the hurt bone the strike overlaps most, or null
   hurtAt([s0, s1, r], useTarget, otg) {
@@ -398,7 +400,7 @@ class Fighter {
     this.say('CATCH');
     if (!m) return;
     this.start(m);
-    this.w.onHit(this, att, { bone: att.ch.by[att.action?.m.hit] || hit.bone, pt: hit.pt }, m, null);
+    this.w.onHit(this, att, { bone: att.ch.by[hitIds(att.action?.m)[0]] || hit.bone, pt: hit.pt }, m, null);
   }
   // a throw connected: the victim is held for the tech window, then thrown by the move named in the grab's throw
   seize(o) {
@@ -499,10 +501,11 @@ class Fighter {
       const e = P[b.id], o = b.shape === 'circle' ? e : P[b.parent || 'hip'];
       ctx.lineWidth = b.hurt * 2; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0] + 0.01, e[1]); ctx.stroke();
     }
-    const a = this.action, s = a?.m.keys[a.i]?.active && this.strikeShape(a.m);
-    if (!s) return;
-    ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = Math.max(3, s[2] * 2);
-    ctx.beginPath(); ctx.moveTo(s[0][0], s[0][1]); ctx.lineTo(s[1][0] + 0.01, s[1][1]); ctx.stroke();
+    const a = this.action;
+    if (a?.m.keys[a.i]?.active) for (const s of this.strikeShapes(a.m)) {
+      ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = Math.max(3, s[2] * 2);
+      ctx.beginPath(); ctx.moveTo(s[0][0], s[0][1]); ctx.lineTo(s[1][0] + 0.01, s[1][1]); ctx.stroke();
+    }
   }
 
   draw(ctx, jitter) {
@@ -526,10 +529,10 @@ class Fighter {
     if (this.flashT > 0 && this.c('flash')) { drawFigure(ctx, this.ch, P, '#111', '#111', 4); drawFigure(ctx, this.ch, P, '#fff', '#fff'); }
     else drawFigure(ctx, this.ch, P, this.col[0], this.col[1]);
     if (this.c('boxes')) this.drawBoxes(ctx);
-    const a = this.action, hb = a && P[a.m.hit];
-    if (hb && a.m.keys.some((k, i) => k.unblock && i >= a.i)) { // unblockable frames coming: the striking limb glows
+    const a = this.action;
+    if (a?.m.keys.some((k, i) => k.unblock && i >= a.i)) for (const id of hitIds(a.m)) if (P[id]) { // unblockable frames coming: the striking limbs glow
       ctx.fillStyle = `rgba(192,57,43,${0.25 + 0.2 * Math.sin(this.time * 40)})`;
-      ctx.beginPath(); ctx.arc(hb[0], hb[1], 9, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(P[id][0], P[id][1], 9, 0, 7); ctx.fill();
     }
     // health bar and callouts (PARRY, K.O.) over the head
     let top = this.groundY; for (const k in P) top = Math.min(top, P[k][1]);

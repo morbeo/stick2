@@ -54,3 +54,22 @@ test('a keyframed idle loop replaces the procedural idle', () => {
     w.a.time = 1.5; return w.a.basePose().uarmF; })()`);
   assert.ok(Math.abs(r - 40) < 6, String(r));
 });
+
+test('head, tail and two-handed strikes land', () => {
+  for (const [ch, inp, move] of [['stick', 'back+punch', 'palms'], ['stick', 'up+fwd+punch', 'headbutt'], ['demon', 'back+kick', 'tailWhip']]) {
+    const r = run(`(() => { const r = fight({ a: [0.1, '${inp}'], b: 'dummy', ax: 330, bx: 372, period: 9 }, [CHARS.${ch}, CHARS.stick], 60); return { hits: r.w.hits, seen: r.seen }; })()`);
+    assert.ok(r.seen.includes('a:' + move), `${ch} ${inp}: ${r.seen.join(' ')}`);
+    assert.ok(r.hits > 0, `${ch} ${move} hits`);
+  }
+});
+
+test('with several striking bones, any of them can land', () => {
+  // palms with only the back hand listed, and with both: both versions must connect, the pair never misses where one hand lands
+  const r = run(`(() => { const out = {};
+    for (const hit of [['handB'], ['handF', 'handB'], ['footB']]) {
+      const d = JSON.parse(JSON.stringify(CHAR_DEFS.stick)); d.moves.palms.hit = hit.length > 1 ? hit : hit[0];
+      out[hit.join('+')] = fight({ a: [0.1, 'back+punch'], b: 'dummy', ax: 330, bx: 372, period: 9 }, [makeCharacter(d), CHARS.stick], 60).w.hits;
+    } return out; })()`);
+  assert.ok(r.handB > 0 && r['handF+handB'] > 0, JSON.stringify(r));
+  assert.equal(r.footB, 0, 'a bone that does not reach misses');
+});

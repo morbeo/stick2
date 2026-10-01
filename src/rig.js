@@ -166,6 +166,14 @@ const STICK_MOVES = {
     { d: 0.1, p: { torso: 30, abU: 110, abL: 0, afU: 20, afL: 130, lbU: -30, lbL: 0, lfU: 35 } },
     { d: 0.3, e: 'inOutCubic', p: null },
   ] },
+  // the head as the weapon: a lunge with the forehead, head high
+  headbutt: attack({ power: 1.4, damage: 11, hit: 'head', height: 'high', knock: 220, stun: 0.5, lunge: 160 },
+    [0.1, { torso: -15, head: -20, afU: 30, afL: 120, abU: 20, abL: 120 }],
+    [0.05, { torso: 42, head: 28, afU: 0, afL: 110, abU: -10, abL: 110, lfU: 45, lfL: -35, lbU: -30, lbL: 0 }], 0.05, 0.26),
+  // both hands at once (two striking bones): a push that sends the victim away
+  palms: attack({ power: 1.3, damage: 9, hit: ['fh', 'bh'], height: 'mid', knock: 420, stun: 0.36, lunge: 140 },
+    [0.08, { torso: -5, afU: 20, afL: 140, abU: 25, abL: 140 }],
+    [0.05, { torso: 20, afU: 100, afL: 5, abU: 72, abL: 15, lfU: 40, lfL: -30, lbU: -25, lbL: 0 }], 0.06, 0.24),
   getup: { inv: true, keys: [
     { d: 0.18, e: 'outCubic', p: { torso: -30, head: 10, lfU: 75, lfL: -130, lbU: 60, lbL: -140, afU: -40, afL: 20, abU: -60, abL: 10 } },
     { d: 0.16, e: 'outCubic', p: { ...CROUCH, afU: 30, afL: 110, abU: 20, abL: 120 } },
@@ -192,8 +200,8 @@ const STICK_HURT = {
 const HITS = { fh: 'handF', bh: 'handB', ff: 'footF', bf: 'footB' };
 // which move each input slot triggers (a character's binds override these)
 // Directions in numpad terms (6 = towards the opponent): a diagonal without a move falls back to its vertical, then to neutral
-const BINDS = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: null, backKick: null,
-  upPunch: 'hammer', upKick: 'turnKick', upFwdPunch: null, upFwdKick: null, upBackPunch: null, upBackKick: null,
+const BINDS = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: 'palms', backKick: null,
+  upPunch: 'hammer', upKick: 'turnKick', upFwdPunch: 'headbutt', upFwdKick: null, upBackPunch: null, upBackKick: null,
   downPunch: 'launcher', downKick: 'sweep', downFwdPunch: null, downFwdKick: 'lowKick', downBackPunch: null, downBackKick: null,
   dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', throw: 'grab',
   qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: 'charge', dpKick: null,
@@ -248,7 +256,7 @@ function makeCharacter(def) {
   }
   const rest = Object.fromEntries(order.map(b => [b.id, b.a]));
   const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains,
-    tips: [...chains.arm, ...chains.leg].map(c => c[c.length - 1]),
+    tips: [...chains.arm, ...chains.leg, ...chains.head, ...chains.tail].map(c => c[c.length - 1]),
     poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, binds: { ...BINDS, ...def.binds },
     stats: Object.fromEntries(CHAR_STATS.map(s => [s.k, def[s.k] ?? 1])), gait: { ...Object.fromEntries(GAIT_VARS.map(s => [s.k, s.v])), ...def.gait } };
   // stances: the main one plus any extra (K+G cycles them); each has its pose and its own binds over the main ones
@@ -258,7 +266,10 @@ function makeCharacter(def) {
   for (const m of Object.values(ch.moves)) { const c = m.keys.findIndex(k => k.cancel); m.cancel = c >= 0 ? c : m.keys.findLastIndex(k => k.active) + 1; }
   return ch;
 }
-const oldMove = m => ({ ...m, hit: HITS[m.hit] || m.hit, keys: m.keys.map(k => ({ ...k, p: fromOld(k.p) })) });
+// hit: one striking bone or a list of them (both fists, a kick and the tail…); each is its own hitbox
+const hitIds = m => m?.hit ? [].concat(m.hit) : [];
+const mapHit = (h, f) => Array.isArray(h) ? h.map(f) : f(h);
+const oldMove = m => ({ ...m, hit: mapHit(m.hit, h => HITS[h] || h), keys: m.keys.map(k => ({ ...k, p: fromOld(k.p) })) });
 const mapVals = (o, f) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, f(v)]));
 // built-in definitions (plain JSON: what the creator edits, saves and reverts to); CHARS = compiled
 const CHAR_DEFS = {
@@ -284,6 +295,14 @@ const tail3 = (len, thick) => [
   { id: 'tail', parent: null, len, a: -120, role: 'tail', thick, lag: 1 },
   { id: 'tailMid', parent: 'tail', len: Math.round(len * 0.9), a: -20, role: 'tail', thick: thick - 1, lag: 2, min: -70, max: 70 },
   { id: 'tailEnd', parent: 'tailMid', len: Math.round(len * 0.8), a: -20, role: 'tail', thick: Math.max(1, thick - 2), lag: 3, stretch: 0.25, min: -70, max: 70 }];
+// characters with a tail (tail3) swing it up over the back and thrust it forward like a scorpion on ← K
+const TAIL_WHIP = (() => {
+  const m = oldMove(attack({ power: 1.4, damage: 11, hit: 'tailEnd', height: 'mid', knock: 200, stun: 0.45, lunge: 60 },
+    [0.12, { torso: -12 }], [0.07, { torso: 25, lfU: 40, lfL: -30, lbU: -25, lbL: 0 }], 0.06, 0.3));
+  Object.assign(m.keys[0].p, { tail: -70, tailMid: -30, tailEnd: -30 });
+  for (const k of m.keys.slice(1, 3)) Object.assign(k.p, { tail: -270, tailMid: 8, tailEnd: 8 });
+  return m;
+})();
 const retimed = (k, power = 1) => mapVals(CHAR_DEFS.stick.moves, m => m.power
   ? { ...m, power: +(m.power * power).toFixed(2), knock: Math.round(m.knock * power), keys: m.keys.map(x => ({ ...x, d: +(x.d * k).toFixed(4) })) } : m);
 // every pose a definition holds (named poses, move keys, hit reactions)
@@ -298,10 +317,10 @@ CHAR_DEFS.dwarf = { ...stick, name: 'dwarf', speed: 0.85, jump: 0.85, weight: 1.
   bones: [...sizedBones({ waist: 0.8, chest: 0.85, neck: 0.6, head: 1.15, thigh: 0.6, shin: 0.55, foot: 1.2, uarm: 0.85, farm: 0.85, hand: 1.5 }, 5)
     .map(b => b.role === 'spine' ? { ...b, thick: b.thick + 8, hurt: b.hurt + 3 } : b),
     { id: 'beard', parent: 'head', len: 11, a: -165, role: 'head', thick: 7, lag: 1.5, stretch: 0.1 }] };
-CHAR_DEFS.minotaur = { ...stick, name: 'minotaur', weight: 1.25, health: 1.1, moves: retimed(1.2, 1.35),
+CHAR_DEFS.minotaur = { ...stick, name: 'minotaur', weight: 1.25, health: 1.1, moves: { ...retimed(1.2, 1.35), tailWhip: TAIL_WHIP }, binds: { backKick: 'tailWhip' },
   bones: [...sizedBones({ waist: 1.25, chest: 1.4, neck: 1.6, head: 1.35, thigh: 1.15, shin: 1.1, foot: 1.3, uarm: 1.3, farm: 1.3, hand: 1.6 }, 4)
     .map(b => ({ ...b, stiff: 0.75, damp: 1.2 })), ...horns(18, -50, 40), ...tail3(16, 4)] };
-CHAR_DEFS.demon = { ...stick, name: 'demon', jump: 1.15, weight: 0.9, moves: retimed(0.9),
+CHAR_DEFS.demon = { ...stick, name: 'demon', jump: 1.15, weight: 0.9, moves: { ...retimed(0.9), tailWhip: TAIL_WHIP }, binds: { backKick: 'tailWhip' },
   bones: [...sizedBones({ waist: 1.1, chest: 1.1, thigh: 1.15, shin: 1.15, uarm: 1.2, farm: 1.25, hand: 1.5 }).map(b => ({ ...b, stretch: b.role === 'arm' ? 0.15 : 0 })),
     ...horns(7, -20, 30), ...tail3(16, 3),
     ...pair(S => ({ id: 'wing' + S, parent: 'chest', len: 20, a: 5 + (S === 'B' ? 12 : 0), role: 'tail', thick: 3, lag: 1.5 })),
@@ -324,7 +343,8 @@ function quadLegs(p) {
   }
   return p;
 }
-CHAR_DEFS.centaur = { ...mapPoses({ ...stick, moves: mapVals(retimed(1.1, 1.2), m => ({ ...m, hit: QUAD_HITS[m.hit] || m.hit })) }, quadLegs), name: 'centaur', speed: 1.1, weight: 1.4, jump: 0.9,
+CHAR_DEFS.centaur = { ...mapPoses({ ...stick, moves: mapVals(retimed(1.1, 1.2), m => ({ ...m, hit: mapHit(m.hit, h => QUAD_HITS[h] || h) })) }, quadLegs),
+  name: 'centaur', speed: 1.1, weight: 1.4, jump: 0.9,
   bones: [{ id: 'barrel', len: 34, a: 90, role: 'spine', hurt: 13, thick: 11, lag: 0, min: 60, max: 120 },
     ...STICK_BONES.map(b => b.id === 'waist' ? { ...b, parent: 'barrel', a: 90, min: 30, max: 210 } : b.id.startsWith('shin') ? { ...b, min: -8, max: 165 } : b),
     ...['B', 'F'].flatMap(S => [

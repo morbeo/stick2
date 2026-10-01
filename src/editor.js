@@ -43,15 +43,14 @@ function drawAnimEditor() {
     ctx.globalAlpha = 1;
   }
   drawFigure(ctx, ch, L, INK[0], INK[1], 0, roleTint());
-  const hb = ch.by[m.hit];
-  if (hb && m.keys[ki].active) { // the strike: red joint, radius = hitR
-    const e = L[hb.id];
+  if (m.keys[ki].active) for (const id of hitIds(m)) if (L[id]) { // the strikes: red joints, radius = hitR
+    const e = L[id];
     ctx.fillStyle = 'rgba(192,57,43,.35)'; ctx.beginPath(); ctx.arc(e[0], e[1], Math.max(2.5, CFG.hitR), 0, 7); ctx.fill();
   }
   ctx.restore();
-  const editing = Math.abs(anim.t - keyEnd(m, anim.key)) < 1e-6;
+  const editing = Math.abs(anim.t - keyEnd(m, anim.key)) < 1e-6, hits = hitIds(m);
   for (const b of ch.bones) {
-    const p = P[b.id], hov = b.id === anim.hover || b.id === anim.drag, hit = b.id === m.hit;
+    const p = P[b.id], hov = b.id === anim.hover || b.id === anim.drag, hit = hits.includes(b.id);
     ctx.beginPath(); ctx.arc(p[0], p[1], (hov ? 5.5 : 4) * dpr, 0, 7);
     ctx.fillStyle = hov ? '#ffd' : '#fff'; ctx.fill();
     ctx.strokeStyle = hit ? RED[0] : '#555'; ctx.lineWidth = (hit ? 2.5 : 1.5) * dpr; ctx.stroke();
@@ -184,7 +183,7 @@ function animMouse(type, x, y, e) {
       }
     } else {
       const id = pickJoint(x, y);
-      if (id && e.shiftKey) { if (curMove().hit !== id) setMove('hit', id); buildPreview(); return; } // Shift+click: the striking bone
+      if (id && e.shiftKey) { pickHit(id, e.metaKey || e.ctrlKey); return; } // Shift+click: the striking bone (⌘/Ctrl too: add or remove it)
       if (id) { selectKey(anim.key); anFrame(); anim.drag = id; anim.hold = true; } // anFrame: re-anchor at the key pose before freezing
     }
   }
@@ -197,7 +196,7 @@ function animMouse(type, x, y, e) {
       edit(def => { def.moves[anim.move].keys[d.key].d = frames / 60; }, 'dur:' + d.key);
       anim.key = d.key; anim.t = keyEnd(curMove(), d.key);
     } else if (typeof d === 'string') poseTo(d, x, y, e.altKey);
-    else if (anim.aim && x < L.ed.w && !inTl && curMove().hit) { if (!anim.playing) selectKey(anim.key); poseTo(curMove().hit, x, y, false); }
+    else if (anim.aim && x < L.ed.w && !inTl && hitIds(curMove())[0]) { if (!anim.playing) selectKey(anim.key); poseTo(hitIds(curMove())[0], x, y, false); }
     else anim.hover = x < L.ed.w && !inTl ? pickJoint(x, y) : null;
     if (d?.scrub) previewAt(anim.t);
     cursor(d?.scrub || ruler ? 'col-resize' : d?.key !== undefined || edge() >= 0 ? 'ew-resize' : d?.order !== undefined || typeof d === 'string' ? 'grabbing'
@@ -225,6 +224,12 @@ function stepFrame(n) { anim.playing = false; anim.t = clamp(anim.t + n * F, 0, 
 // ---------- key and move edits ----------
 const setKey = (k, v, key = null) => edit(def => { def.moves[anim.move].keys[anim.key][k] = v; }, key);
 const setMove = (k, v, key = null) => edit(def => { def.moves[anim.move][k] = v; }, key);
+// the striking bones: only this one, or (add) add / remove it so several limbs strike at once
+function pickHit(id, add) {
+  const cur = hitIds(curMove()), next = !add ? [id] : cur.includes(id) ? cur.filter(k => k !== id) : [...cur, id];
+  if (next.join() !== cur.join()) setMove('hit', next.length > 1 ? next : next[0] || '');
+  buildPreview();
+}
 function keyFrames(delta) {
   edit(def => { const k = def.moves[anim.move].keys[anim.key]; k.d = Math.max(1, Math.round(k.d * 60) + delta) / 60; });
   selectKey(anim.key);
@@ -366,7 +371,7 @@ function keyPanel() {
 // ---------- move list: grouped by type / striking limb / height, sorted, filtered by name or input ----------
 const MOVE_GROUPS = {
   type: m => m.air ? 'air' : m.throw ? 'throw' : m.special ? 'special' : m.power ? 'normal' : 'other',
-  limb: (m, ch) => m.power ? ch.by[m.hit]?.role || 'none' : 'other',
+  limb: (m, ch) => m.power ? [...new Set(hitIds(m).map(id => ch.by[id]?.role || 'none'))].join(' + ') || 'none' : 'other',
   height: m => m.power ? m.height || 'mid' : 'other',
   // the stance whose own binds start the move (main: only the main binds; unbound: no input in any stance)
   stance: (m, ch, n) => ch.stances.slice(1).filter((s, i) => Object.values(DEFS[CURRENT].stances[i].binds || {}).includes(n)).map(s => s.name).join(' + ')
@@ -445,11 +450,12 @@ function moveHeading() {
 }
 function movePanel() {
   // the striking bone: the limb ends as buttons, any other bone from the popup or by Shift+clicking its joint
-  const m = () => curMove(), hitB = button('', 'Any other bone as the strike (or Shift+click its joint in the editor)', (e, b) =>
-    popup(b, h('div', { cls: 'bar' }, seg(currentChar().ids, () => m().hit, v => { setMove('hit', v); buildPreview(); }))));
-  reg(hitB, () => { setRich(hitB, currentChar().tips.some(b => b.id === m().hit) ? ':more_horiz:' : m().hit || 'none'); });
-  const tipSeg = seg(currentChar().tips.map(b => b.id), () => m().hit, v => { setMove('hit', v); buildPreview(); },
-    Object.fromEntries(currentChar().tips.map(b => [b.id, `Strike with the end of ${b.id} (${b.role})`])));
+  // click = strike with this bone only, Shift+click = add or remove it (several limbs strike at once)
+  const m = () => curMove(), boneB = (id, tip) => { const b = button(id, tip, e => pickHit(id, e.shiftKey)); reg(b, () => b.classList.toggle('on', hitIds(m()).includes(id))); return b; };
+  const hitB = button('', 'Any other bone as the strike (or Shift+click its joint in the editor)', (e, b) =>
+    popup(b, h('div', { cls: 'bar' }, h('span', { cls: 'seg' }, currentChar().ids.map(id => boneB(id, `Strike with ${id} · Shift+click: add or remove it`))))));
+  reg(hitB, () => { const off = hitIds(m()).filter(id => !currentChar().tips.some(b => b.id === id)); setRich(hitB, off.join(' ') || (hitIds(m()).length ? ':more_horiz:' : 'none')); });
+  const tipSeg = h('span', { cls: 'seg' }, currentChar().tips.map(b => boneB(b.id, `Strike with the end of ${b.id} (${b.role}) · Shift+click: add or remove it, so several limbs strike`)));
   const bindB = button('', 'Inputs that trigger this move. Click to bind it to other inputs (copies of moves become playable this way).', (e, b) =>
     popup(b, h('div', { cls: 'bar' }, Object.keys(BINDS).map(s => toggle(s, `${SLOT_TIPS[s]} · now: ${curStance().binds[s] || 'none'}`, () => curStance().binds[s] === anim.move, () => toggleBind(s))))));
   reg(bindB, () => { setRich(bindB, boundSlots().join(' ') || 'none (combo only)'); });
@@ -463,7 +469,7 @@ function movePanel() {
         `A keyframed ${k} loop made from the procedural ${k}, to edit like a move; it replaces the procedural ${k} (delete it to go back)`, () => makeLoop(k)))),
     ...keyPanel(),
     moveHeading(),
-    h('div', { cls: 'row', tip: 'Striking bone: its end is the strike (in limb mode the whole bone). Shift+click a joint in the editor to pick it.' },
+    h('div', { cls: 'row', tip: 'Striking bones: each end is a strike (in limb mode the whole bone); with several, the one that lands counts, one hit per target. Shift+click a joint in the editor to pick it, ⌘/Ctrl+Shift+click to add or remove it.' },
       h('span', { textContent: 'hit' }), h('span', { cls: 'bar' }, tipSeg, hitB)),
     h('div', { cls: 'row', tip: 'Which inputs start this move in a fight' }, h('span', { textContent: 'input' }), bindB),
     h('div', { cls: 'row', tip: 'Where the move is aimed; a hit reaction still follows the actual impact point' }, h('span', { textContent: 'height' }),
