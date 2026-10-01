@@ -24,6 +24,7 @@
   .seg button:first-child { border-radius: 3px 0 0 3px; margin-left: 0; }
   .seg button:last-child { border-radius: 0 3px 3px 0; }
   .gops { margin-left: auto; display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 1px; }
+  #side .fold > h3 .gops { flex-wrap: nowrap; flex-shrink: 0; } .fold.shut > h3:not(:hover) .gops { display: none; }
   button.mini { padding: 0 2px; font-size: 11px; line-height: 16px; }
   .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 3px 0; }
   #top { grid-area: top; padding: 4px 10px; border-bottom: 1px solid #ddd7cb; }
@@ -47,6 +48,14 @@
   #side h3 { display: flex; align-items: center; margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
   .row { display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 4px; margin: 2px 0; }
   .row input[type=range] { width: 100%; }
+  .fold > h3 { cursor: pointer; }
+  .fold > h3::before { content: '\e5cf'; font-family: Icons; font-size: 16px; margin: 0 2px 0 -4px; transition: transform .1s; }
+  .fold.shut > h3::before { transform: rotate(-90deg); }
+  #side:not(.searching) .fold.shut > .fbody, #side:not(.searching) .fold:not(.more) .adv, #side.searching .morebtn { display: none; }
+  .morebtn { margin: 2px 0 4px; color: #888; }
+  .charpick { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 2px 6px; }
+  .charpick canvas { width: 36px; height: 40px; } .charpick .note { margin: 0; } .charpick > span:not(.ic) { flex: 1; display: flex; flex-direction: column; }
+  .pop .cards { width: 290px; }
   .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 4px 0; }
   .card { display: flex; flex-direction: column; align-items: center; padding: 2px; font-size: 10px; overflow: hidden; }
   .card canvas { width: 60px; height: 64px; }

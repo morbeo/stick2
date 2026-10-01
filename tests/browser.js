@@ -80,6 +80,23 @@ try {
     lab.playback = r; build(); const w = lab.cells[0].w; for (let i = 0; i < 70; i++) w.advance(1/60, NOIN); labRender();
     if (!w.playback || w.desync !== null || !w.playback.over) errs.push('replay playback ' + [w.desync, w.playback?.over]);
     lab.playback = null; build(); if (lab.cells[0].w.playback) errs.push('replay stop'); }
+  // side panel: headings fold their section (remembered), advanced rows wait behind "more", a search shows everything
+  { setMode('play'); const sec = name => [...document.querySelectorAll('#side .fold')].find(f => f.querySelector('h3').textContent.toLowerCase().startsWith(name));
+    const vis = el => !!el.offsetParent, row = k => [...document.querySelectorAll('#side .row')].find(r => r.firstChild.textContent === k);
+    if (!sec('movement').classList.contains('shut') || vis(row('maxSpeed'))) errs.push('fold default');
+    sec('movement').querySelector('h3').click(); if (!vis(row('maxSpeed')) || vis(row('accel'))) errs.push('fold open / adv');
+    sec('movement').querySelector('.morebtn').click(); if (!vis(row('accel'))) errs.push('more');
+    sec('movement').querySelector('.morebtn').click(); sec('movement').querySelector('h3').click(); panels();
+    if (!sec('movement').classList.contains('shut')) errs.push('fold remembered');
+    const q = document.querySelector('#side input'); q.value = 'decel'; q.dispatchEvent(new Event('input'));
+    if (!vis(row('decel')) || vis(row('maxSpeed'))) errs.push('search shows folded');
+    q.value = ''; q.dispatchEvent(new Event('input')); lab.q = '';
+    // the character menu: the current one on a button, the rest in a popup
+    setMode('animate'); document.querySelector('.charpick').click(); [...document.querySelectorAll('.pop .card')].find(c => c.textContent === 'brute').click();
+    if (CURRENT !== 'brute' || document.querySelector('.pop')) errs.push('char menu ' + CURRENT); pickChar('stick'); }
+  // impact without an attacker: it is not drawn or framed, its blows land as before
+  { lab.solo = true; setMode('impact'); const w = lab.cells[0].w; for (let i = 0; i < 60; i++) w.advance(1/60, NOIN);
+    if (!w.a.hidden || !w.hits) errs.push('impact solo ' + [w.a.hidden, w.hits]); lab.solo = false; }
 } catch (e) { errs.push(e.message + ' ' + e.stack.split('\\n')[1]); }
 document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK';
 </script></body>`;

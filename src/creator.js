@@ -188,10 +188,12 @@ function creatorCtx() {
 }
 const setProp = (k, v) => edit(def => { def.bones.find(b => b.id === studio.sel)[k] = v; }, studio.sel + '.' + k);
 const prop = k => selBone()?.[k] ?? BONE[k];
+const BONE_BASIC = ['len', 'thick', 'hurt', 'lag', 'stretch']; // the rest wait behind "more"
 function bonePanel() {
   const title = heading('', 'Properties of the selected bone. Click a joint in the editor or a name above to select.',
     'drag joint: length + angle · Shift+drag: angle only · Del delete bone');
   reg(title, () => { title.firstChild.textContent = `Bone · ${studio.sel}`; });
+  title.dataset.fold = 'bone';
   const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', { textContent: label }), ...c);
   const lim = on => edit(def => {
     const b = def.bones.find(b => b.id === studio.sel);
@@ -215,7 +217,7 @@ function bonePanel() {
     slider('stance', { min: -270, max: 270, step: 1 }, () => curStance().pose[studio.sel] ?? 0,
       v => edit(def => { editPose(def)[studio.sel] = v; }, 'stance:' + studio.sel),
       'Angle in the stance pose, relative to the parent (0 = straight on, root bones: 0 = down, 180 = up). Moves are layered on top.'),
-    ...BONE_PROPS.map(p => bodyExpLink(slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip), p.k)),
+    ...BONE_PROPS.map(p => { const r = bodyExpLink(slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip), p.k); return BONE_BASIC.includes(p.k) ? r : adv(r); }),
     row('limits', 'Clamp how far this joint can bend', toggle(':straighten: limits', 'Clamp how far this joint can bend', () => prop('min') !== undefined, lim)),
     ...limRows,
     row('lock', 'Lock to the parent', toggle(':lock: lock', 'Locked: the joint keeps its angle to its parent while posing. Dragging it (or IK through it) turns the first unlocked bone above, so locked bones move as one group.',
@@ -295,7 +297,7 @@ function bodyPanel() {
       delete: ['Delete the selected bone and everything below it (Del)', deleteBone] })),
     boneTree(),
     ...bonePanel(),
-    h('h4', { textContent: 'stance pose', tip: 'Set the whole stance from a preset (per limb, so it works for any body)' }),
+    heading('Stance pose', 'Set the whole stance from a preset (per limb, so it works for any body), or turn a pose into attacks', ''),
     ...stanceRow(),
     h('div', { cls: 'bar' }, Object.entries(POSES).map(([k, p]) => button(k, p.tip, () => edit(def => Object.assign(editPose(def), presetPose(currentChar(), p)))))),
     h('div', { cls: 'bar' }, button(':animation: pose → animation', 'Turn a pose into moves: nine attacks that strike into it from the main stance (each with its own anticipation and timing) in the attack grid; click one to breed variations, then save it or edit it in animate', (e, b) =>
@@ -339,6 +341,7 @@ const creatorMode = {
   render: creatorRender,
   ctxBar: creatorCtx,
   side: () => creator.expOn ? expPanel() : bodyPanel(),
+  open: ['character', 'body', 'bone', 'stance pose', 'random characters', 'body experiment'],
   mouse: creatorMouse,
   key: creatorKey,
   hint: () => creator.expOn ? (creator.exp.kind === 'random' ? 'click a cell to keep it' : 'click a cell to breed around it') + ' · Esc back to the editor'

@@ -408,6 +408,7 @@ function keyPanel() {
   const title = heading('', 'The selected key: the pose reached at its end, how long it takes and how it eases. Drag joints in the editor to pose it. Adding, splitting, deleting and retiming keys: the bar above the timeline.',
     'Shift+←/→ prev/next key · , / . step a frame · Enter play/pause · Delete deletes the key');
   reg(title, () => { title.firstChild.textContent = `Key ${anim.key + 1} / ${curMove().keys.length}`; });
+  title.dataset.fold = 'key';
   const k = () => curMove().keys[anim.key];
   title.append(groupOps(KEY_VARS, n => k()[n] ?? (n === 'e' ? 'linear' : 0), n => builtInMove()?.keys[anim.key]?.[n] ?? k()[n],
     vals => edit(def => { const key = def.moves[anim.move].keys[anim.key]; for (const n in vals) if (vals[n]) key[n] = vals[n]; else delete key[n]; })));
@@ -580,12 +581,13 @@ function moveList() {
   fill();
   return [
     h('div', { cls: 'row', tip: 'How the moves are shown' }, h('span', { textContent: 'view' }), seg(Object.keys(VIEW_TIPS), () => anim.view, v => { anim.view = v; unpeek(); panels(); }, VIEW_TIPS)),
-    h('div', { cls: 'row', tip: 'How the moves are grouped' }, h('span', { textContent: 'group' }), seg(Object.keys(MOVE_GROUPS), () => anim.group, v => { anim.group = v; fill(); }, GROUP_TIPS)),
-    h('div', { cls: 'row', tip: 'Order within a group' }, h('span', { textContent: 'sort' }), seg(Object.keys(SORT_TIPS), () => anim.sort, v => { anim.sort = v; fill(); }, SORT_TIPS)),
+    adv(h('div', { cls: 'row', tip: 'How the moves are grouped' }, h('span', { textContent: 'group' }), seg(Object.keys(MOVE_GROUPS), () => anim.group, v => { anim.group = v; fill(); }, GROUP_TIPS))),
+    adv(h('div', { cls: 'row', tip: 'Order within a group' }, h('span', { textContent: 'sort' }), seg(Object.keys(SORT_TIPS), () => anim.sort, v => { anim.sort = v; fill(); }, SORT_TIPS))),
     h('div', { cls: 'row', tip: 'Show only moves whose name, group or input contains this text (e.g. kick, air, qcf)' }, h('span', { textContent: 'filter' }),
       h('input', { cls: 'macro', value: anim.filter, placeholder: 'name, group or input', oninput: e => { anim.filter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() })),
     list];
 }
+const MOVE_BASIC = ['power', 'knock', 'launch', 'stun', 'damage']; // the rest wait behind "more"
 const MOVE_VARS = [...MOVE_PROPS, { k: 'height', opts: ['high', 'shigh', 'mid', 'smid', 'low'] }];
 function moveHeading() {
   const el = heading('Move', 'What happens on hit. Frame data (60 fps) is in the bar above the timeline.', '');
@@ -623,7 +625,7 @@ function movePanel() {
         v => v === '2d' ? '2D' : '2.5D')),
     h('div', { cls: 'row', tip: 'Where the move is aimed; a hit reaction still follows the actual impact point' }, h('span', { textContent: 'height' }),
       seg(['high', 'shigh', 'mid', 'smid', 'low'], () => m().height, v => setMove('height', v), HEIGHT_TIPS)),
-    ...MOVE_PROPS.map(p => slider(p.k, p, () => m()[p.k] || 0, v => setMove(p.k, v || undefined, 'm.' + p.k), p.tip)),
+    ...MOVE_PROPS.map(p => { const r = slider(p.k, p, () => m()[p.k] || 0, v => setMove(p.k, v || undefined, 'm.' + p.k), p.tip); return MOVE_BASIC.includes(p.k) ? r : adv(r); }),
     h('div', { cls: 'bar' }, Object.entries(MOVE_FLAGS).map(([f, tip]) => toggle(f, tip, () => !!m()[f], v => setMove(f, v || undefined)))),
     ...keyPanel(),
   ];
@@ -685,6 +687,7 @@ const animMode = {
   render() { clear(); drawAnimEditor(); drawTimeline(); drawCell({ w: anim.pv, label: 'preview (springs + hit stop)' }, anLayout().pv, { plot: false }); },
   ctxBar: animCtx,
   side: movePanel,
+  open: ['character', 'moves', 'move', 'key'],
   overlay: () => anim.view === 'table' ? [moveTable()] : anim.view === 'inputs' ? [inputTable()] : [timelineBar(), targetBar()],
   mouse: animMouse,
   key: animKey,

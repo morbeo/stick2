@@ -64,7 +64,7 @@ function build() {
     lab.cells.push({ w: lab.playback ? Object.assign(replayWorld(lab.playback), { loop: app.loop }) : newWorld(replay ? { ...scen, b: { tape: lab.tape } } : scen) }); lab.cols = 1;
   }
   else if (lab.mode === 'impact') for (const [k, [tip, s]] of Object.entries(IMPACTS))
-    lab.cells.push({ w: newWorld({ b: 'dummy', period: 3, ...s }, {}, 7, [CHARS.stick, currentChar()]), label: k, tip });
+    lab.cells.push({ w: newWorld({ b: 'dummy', period: 3, ...s, init: w => { s.init?.(w); w.a.hidden = lab.solo; } }, {}, 7, [CHARS.stick, currentChar()]), label: k, tip });
   else if (lab.mode === 'gallery') for (const m of galleryMoves()) lab.cells.push({ w: newWorld({ ...galleryScen(m), ...GALLERY_TARGETS[lab.target][1] }), move: m, label: m });
   else if (lab.kind !== 'sweep') lab.cells = lab.kind === 'breed' ? breedCells() : attackCells();
   else {
@@ -160,7 +160,7 @@ function drawMeter(w, r, full) {
     ctx.fillStyle = METER_COLS[s];
     ctx.fillRect(r.x + (n - Math.min(n, fs.length) + i) * cw, r.y + j * (rh + 2 * dpr), Math.max(dpr, cw - (full ? dpr : 0)), rh);
   }));
-  if (full) text(METER_TIPS, r.x, r.y - 4 * dpr, '#aaa', 10);
+  if (full && ui.hints) text(METER_TIPS, r.x, r.y - 4 * dpr, '#aaa', 10);
 }
 // input display: the human's last inputs in numpad notation, newest on top, with how many frames each was held
 function drawInputs(w, x, y) {
@@ -403,7 +403,8 @@ function labCtx() {
     grp('show', 'Overlays', meterToggle(), boxesToggle(), toggle(':visibility: ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; }))];
   if (lab.mode === 'impact') return [
     grp('falls', SPEC.falls.tip, seg(SPEC.falls.opts, () => CFG.falls, v => setCfg({ falls: v }), SPEC.falls.optTips)),
-    grp('show', 'Overlays', meterToggle(), boxesToggle()), zoomBack()];
+    grp('show', 'Overlays', toggle(':person_off: no attacker', 'Hide the attacker: only the struck body, its blows still land the same way (and drags strike it unobstructed)', () => lab.solo, v => { lab.solo = v; build(); }),
+      meterToggle(), boxesToggle()), zoomBack()];
   const els = [];
   if (lab.mode === 'grid') els.push(grp('grid', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
   if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('fight', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = null; build(); })));
@@ -450,18 +451,25 @@ function applyPreset(name) {
   const keep = { ghost: CFG.ghost, boxes: CFG.boxes, scope: CFG.scope, timeScale: CFG.timeScale };
   setCfg({ ...DEFAULTS, ...PRESETS[name], ...keep });
 }
+// the settings shown in each group without "more" (the ones most worth turning first)
+const BASIC_CFG = new Set(['maxSpeed', 'jumpVel', 'gravity', 'dashSpeed', 'airSpeed', 'fallSpeed', 'easing', 'attackSpeed', 'filter', 'response',
+  'hitstop', 'hitShake', 'hitTest', 'powerScale', 'chains', 'juggleDecay', 'health', 'damage', 'chip', 'parry', 'staggerAt', 'dizzyAt',
+  'grabReach', 'techWindow', 'weapon', 'weaponStart', 'disarm', 'falls', 'floorBounce', 'wallBounce', 'plane', 'flips', 'dash',
+  'comboStop', 'comboShake', 'comboSpeed', 'shake', 'zoomPunch', 'squash', 'sparks', 'ghost', 'boxes', 'scope']);
 // fuzzy match: every query letter appears in order (ignoring case and spaces)
 const fuzzy = (q, text) => { let i = 0; text = text.toLowerCase(); for (const c of q.toLowerCase().replace(/\s/g, '')) if ((i = text.indexOf(c, i) + 1) === 0) return false; return true; };
 function configPanel() {
   let title = '';
   const rows = SCHEMA.map((s, i) => {
     if (Array.isArray(s)) { title = s[0]; return { el: groupHeading(s, i), head: true }; }
-    return { el: s.k === 'scope' ? cfgControl(s) : gridLink(cfgControl(s), s), name: `${s.k} ${title}`, tip: (s.tip || '').toLowerCase() };
+    const el = s.k === 'scope' ? cfgControl(s) : gridLink(cfgControl(s), s);
+    return { el: BASIC_CFG.has(s.k) ? el : adv(el), name: `${s.k} ${title}`, tip: (s.tip || '').toLowerCase() };
   });
   const filter = () => {
     const q = lab.q || '';
     // fuzzy on the name and group title; tooltips only by plain substring (a loose fuzzy match there hits everything)
     for (const r of rows) if (!r.head) r.el.hidden = !!q && !fuzzy(q, r.name) && !r.tip.includes(q.toLowerCase());
+    $('side').classList.toggle('searching', !!q); // folded sections and advanced rows open while searching
     rows.forEach((r, i) => { if (r.head) { let any = false; for (let j = i + 1; j < rows.length && !rows[j].head; j++) any ||= !rows[j].el.hidden; r.el.hidden = !any; } });
   };
   const search = h('div', { cls: 'bar' }, ...rich(':search:'),
@@ -506,7 +514,8 @@ function gridLink(row, s) {
   return expLink(row, `test ${s.k} in a grid, one value per cell`,
     () => { lab.kind = 'sweep'; Object.assign(lab.x, { k: s.k, lo: s.min, hi: s.max }); lab.y.k = ''; setMode('grid'); });
 }
-const labSide = () => [heading('Monitor', 'The bone picked in Debug → scope: its target angle (grey) against the drawn one (red), with the stats of the first or focused fight', ''), scopeCv, stats, ...configPanel()];
+const labSide = () => { const [search, ...rest] = configPanel();
+  return [search, heading('Monitor', 'The bone picked in Debug → scope: its target angle (grey) against the drawn one (red), with the stats of the first or focused fight', ''), scopeCv, stats, ...rest]; };
 
 // click focuses a cell; in breed / attacks a click breeds around it and Shift+click focuses
 function labClick(x, y, e) {
@@ -551,6 +560,7 @@ const labMode = {
   render: labRender,
   ctxBar: labCtx,
   side: labSide,
+  open: ['presets'],
   mouse(type, x, y, e) {
     if (lab.mode === 'impact' && !e.shiftKey && impactMouse(type, x, y)) return;
     if (type === 'down') labClick(x, y, e);

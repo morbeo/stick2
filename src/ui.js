@@ -27,7 +27,8 @@ const ICONS = {
   smart_toy: 0xf06c, air: 0xefd8, directions_walk: 0xe536, theaters: 0xe8da, cloud: 0xf15c, grain: 0xe3ea, horizontal_rule: 0xf108,
   circle: 0xef4a, man: 0xe4eb, airline_seat_flat: 0xe630, cyclone: 0xebd5, pets: 0xe91d, face: 0xf008, footprint: 0xf87d,
   keyboard_double_arrow_down: 0xead0, view_stream: 0xe8f2, crop_landscape: 0xe3c3, accessibility: 0xe84e,
-  check: 0xe668, save: 0xe161, history: 0xe8b3, view_in_ar: 0xefc9, content_cut: 0xe14e, more_horiz: 0xe5d3, search: 0xe8b6
+  check: 0xe668, save: 0xe161, history: 0xe8b3, view_in_ar: 0xefc9, content_cut: 0xe14e, more_horiz: 0xe5d3, search: 0xe8b6,
+  person_off: 0xe510
 };
 const ARROWS = { '←': 'arrow_back', '→': 'arrow_forward', '↑': 'arrow_upward', '↓': 'arrow_downward', '↖': 'north_west', '↗': 'north_east', '↙': 'south_west', '↘': 'south_east' };
 // icons of option values, shown by seg() unless it is given its own labels
@@ -116,6 +117,38 @@ function heading(title, info, keys) {
   return h('h3', {}, title, info && button(':info:', 'about this group', (e, b) => popup(b, h('b', { textContent: title }),
     h('p', {}, ...rich(info)), keys && h('p', { cls: 'keys' }, ...rich(keys))), 'info'));
 }
+
+// ---------- side panel sections: a heading folds what follows it, up to the next heading; rows marked adv wait behind "more" ----------
+// both remembered per mode and heading (saved in this browser); a search shows everything that matches
+const UI_STORE = 'stick2.ui';
+const ui = (() => { try { return JSON.parse(localStorage.getItem(UI_STORE)) || {}; } catch { return {}; } })();
+ui.fold ??= {}; ui.more ??= {}; ui.seen ??= {};
+const saveUi = () => { try { localStorage.setItem(UI_STORE, JSON.stringify(ui)); } catch {} };
+// open: headings shown unfolded until the user folds them
+function folds(els, scope, open) {
+  const out = [];
+  let body = null;
+  for (const el of els) {
+    if (el.tagName !== 'H3') { if (body) body.append(el); else out.push(el); continue; }
+    const name = (el.dataset.fold || el.firstChild?.textContent || '').toLowerCase(), k = scope + ':' + name;
+    const sec = h('div', { cls: 'fold' }, el, body = h('div', { cls: 'fbody' }));
+    sec.classList.toggle('shut', ui.fold[k] ?? !open.includes(name));
+    sec.classList.toggle('more', !!ui.more[k]);
+    el.dataset.tip = el.dataset.tip || 'Click the heading to fold or unfold the section';
+    el.onclick = e => { if (e.target.closest('button')) return; ui.fold[k] = sec.classList.toggle('shut'); saveUi(); };
+    sec.k = k;
+    out.push(sec);
+  }
+  for (const sec of out.filter(s => s.k)) {
+    const advs = sec.querySelectorAll('.adv'), n = advs.length;
+    if (!n) continue;
+    const b = button('', 'Show the less used variables of this group too (a search always shows them)', () => { ui.more[sec.k] = sec.classList.toggle('more'); saveUi(); }, 'mini morebtn');
+    reg(b, () => setRich(b, sec.classList.contains('more') ? ':unfold_less: fewer' : `:unfold_more: ${n} more`));
+    advs[n - 1].after(b); // where the hidden rows show up
+  }
+  return out;
+}
+const adv = el => { el.classList.add('adv'); return el; };
 
 // ---------- popup: a floating panel under a button; click elsewhere (or the button again) to close ----------
 let pop = null;

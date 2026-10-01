@@ -196,7 +196,7 @@ function drawThumb(cv, ch, pose = ch.poses.stance, cw = 60, chh = 64) {
 }
 function charCard(k) {
   const cv = h('canvas'), b = h('button', { cls: 'card', tip: `${CHAR_DEFS[k] ? 'Built-in' : 'Your character'}: ${k} · ${CHARS[k].bones.length} bones · speed ${CHARS[k].stats.speed}`,
-    onclick: () => { pickChar(k); syncAll(); } }, cv, h('span', { textContent: k }));
+    onclick: () => { closePop(); pickChar(k); syncAll(); } }, cv, h('span', { textContent: k }));
   reg(b, () => { b.classList.toggle('on', CURRENT === k); drawThumb(cv, CHARS[k]); });
   return b;
 }
@@ -238,7 +238,13 @@ function charPanel() {
     import: ['Load a character JSON file as a new character', importChar],
     export: ['Download this character as a JSON file', exportChar],
   }, button(':tune:', 'What the random characters are drawn from, and an experiment grid of them', (e, b) => popup(b, ...randomPanel()), 'mini')));
-  return [head, h('div', { cls: 'cards' }, Object.keys(DEFS).map(charCard))];
+  // the current character only; the others in a popup grid (picking one is rare next to editing it)
+  const cv = h('canvas'), name = h('b'), info = h('span', { cls: 'note' });
+  const pick = h('button', { cls: 'charpick', tip: 'The character every mode uses · click: pick another',
+    onclick: () => popup(pick, h('div', { cls: 'cards' }, Object.keys(DEFS).map(charCard))) }, cv, h('span', {}, name, info), ...rich(':expand_more:'));
+  reg(pick, () => { const c = currentChar(); drawThumb(cv, c, undefined, 36, 40); name.textContent = CURRENT;
+    info.textContent = `${CHAR_DEFS[CURRENT] ? 'built-in' : 'yours'} · ${c.bones.length} bones`; });
+  return [head, pick];
 }
 
 // ---------- pose presets: local angles per limb chain (index 0 = the bone at the root of the limb), by role ----------

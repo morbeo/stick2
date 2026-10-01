@@ -12,6 +12,7 @@ const ACTIONS = [
   ['rewind', 'transport', ['KeyV'], 'Rewind one second (the fight replays its inputs up to there)'], ['stepBack', 'transport', ['Shift+KeyN'], 'Back one frame'],
   ['restart', 'transport', ['KeyR'], 'Restart the fight(s)'], ['scrub', 'transport', ['KeyM'], 'Scrub: the mouse sets the time'],
   ['panel', 'view', ['KeyH'], 'Hide / show the side panel'], ['ghost', 'view', ['KeyG'], 'Ghost of the keyframe pose'], ['boxes', 'view', ['KeyB'], 'Hitboxes'],
+  ['hints', 'view', ['Shift+Slash'], 'Show / hide the help line and the frame meter legend'],
   ['play', 'modes', ['Digit1'], 'Play mode'], ['grid', 'modes', ['Digit2'], 'Grid mode'], ['gallery', 'modes', ['Digit3'], 'Gallery mode'],
   ['character', 'modes', ['Digit4'], 'Character mode'], ['animate', 'modes', ['Digit5'], 'Animate mode'],
   ['impact', 'modes', ['Digit6'], 'Impact mode'],

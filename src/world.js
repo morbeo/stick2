@@ -303,7 +303,7 @@ class World {
   // on the fighter whose bone passes nearest; false if no body is near
   poke(x, y, dx, dy) {
     let best = null, bd = 25;
-    for (const f of this.fighters) {
+    for (const f of this.fighters.filter(f => !f.hidden)) {
       const P = f.body();
       for (const b of f.ch.bones) {
         const d = distSeg([x, y], b.shape === 'circle' ? P[b.id] : P[b.parent || 'hip'], P[b.id]) - (b.shape === 'circle' ? b.len : 0);
@@ -356,8 +356,8 @@ class World {
 
   // draw into rect r (device px). full = whole arena, otherwise a closer camera following the fight
   render(ctx, r, full) {
-    // the camera widens to keep every fighter in view
-    const xs = this.fighters.map(f => f.x), lo = Math.min(...xs), hi = Math.max(...xs), mid = (lo + hi) / 2;
+    // the camera widens to keep every fighter in view (hidden ones aside: the impact tool's unseen attacker)
+    const xs = this.fighters.filter(f => !f.hidden).map(f => f.x), lo = Math.min(...xs), hi = Math.max(...xs), mid = (lo + hi) / 2;
     this.camW += (clamp(hi - lo + 260, 420, W) - this.camW) * 0.15;
     const cfg = this.cfg, vw = full ? W : this.camW, vh = vw * H / W;
     this.cam += (clamp(mid, vw / 2 - 20, W - vw / 2 + 20) - this.cam) * 0.15;
@@ -376,7 +376,7 @@ class World {
       if (plane === 'lanes') for (const l of [-1, 0, 1]) { ctx.beginPath(); ctx.moveTo(-2000, g + l * LANE * ZS); ctx.lineTo(W + 2000, g + l * LANE * ZS); ctx.stroke(); }
     } else { ctx.beginPath(); ctx.moveTo(-2000, g); ctx.lineTo(W + 2000, g); ctx.stroke(); }
     ctx.fillStyle = '#e4ded2'; ctx.fillRect(-2000, -2000, 2020, 4000); ctx.fillRect(W - 20, -2000, 2000, 4000); // walls
-    for (const f of [...this.fighters].sort((a, b) => a.z - b.z)) // far ones first
+    for (const f of this.fighters.filter(f => !f.hidden).sort((a, b) => a.z - b.z)) // far ones first
       f.draw(ctx, f.freeze > 0 && f === this.victim ? Math.sin(T * 170) * cfg.hitShake : 0);
     this.drawItems(ctx);
     this.drawParticles(ctx);
