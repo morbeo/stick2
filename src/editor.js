@@ -271,6 +271,7 @@ const MOVE_FLAGS = {
   inv: 'Invincible for the whole move (get-ups).',
   special: 'Special: normals that hit can be cancelled into it (if specialCancel is on).',
   otg: 'Off the ground: hits a fighter lying on the floor and pops it up (otg setting: flagged).',
+  wide: 'Wide: in 2.5D it reaches 3× zReach in depth, so a sidestep does not dodge it.',
 };
 
 function keyPanel() {

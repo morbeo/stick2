@@ -5,7 +5,8 @@ class Fighter {
       time: 0, seed: w.rand(0, 100), walkPh: 0, lean: 0, inp: NOIN,
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
       kd: null, downT: 0, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
-      sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0 });
+      sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
+      z: 0, vz: 0, lane: 0, dashT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0 });
     this.target = this.basePose();
     this.disp = { ...this.target };
     this.prev = { ...this.target };
@@ -43,12 +44,12 @@ class Fighter {
     // slow idle wander, stronger on loose bones; legs excluded so planted feet don't slide
     ch.bones.forEach((b, i) => { if (b.role !== 'leg') P[b.id] += wander(t * 0.8 + this.seed + i * 13) * (1.5 + 2.2 * b.lag); });
     if (!this.grounded) {
-      const k = clamp(this.vy / 500, 0, 1); // tuck while rising, reach for the ground while falling
+      const k = this.flip ? 0 : clamp(this.vy / 500, 0, 1); // tuck while rising (and through a flip), reach for the ground while falling
       for (const j in ps.air) P[j] = ps.air[j] + ((ps.airFall[j] ?? ps.air[j]) - ps.air[j]) * k;
     } else if (this.crouching || this.squatT > 0) Object.assign(P, ps.crouch);
     else {
-      const w = Math.min(1, Math.abs(this.vx) / this.c('maxSpeed')), ph = this.walkPh, back = this.vx * this.dir < 0;
-      const st = back ? 0.7 : 1, id = 1 - w, s = this.seed;
+      const w = Math.min(1.6, Math.hypot(this.vx, this.vz) / this.c('maxSpeed')), ph = this.walkPh, back = this.vx * this.dir < 0;
+      const st = back ? 0.7 : 1, id = Math.max(0, 1 - w), s = this.seed;
       // idle: each fighter has its own stance width and one of three idles (weight shift, boxer bounce, sway)
       const style = Math.floor(s) % 3, shift = Math.sin(t * 0.9 + s), bounce = 1 + Math.sin(t * 5.5 + s);
       ch.chains.leg.forEach((c, i) => {
@@ -66,6 +67,30 @@ class Fighter {
     }
     turn(spine, this.lean);
     return P;
+  }
+  doubleTap(k) {
+    if (!this.free || !this.grounded || this.action || this.squatT > 0) return;
+    if (k === 'up' || k === 'down') { if (this.c('plane') === 'lanes') this.lane = clamp(this.lane + (k === 'down' ? 1 : -1), -1, 1); return; }
+    if (!this.c('dash')) return;
+    const d = k === 'right' ? 1 : -1, fwd = d === this.dir;
+    this.vx = d * this.c('maxSpeed') * (fwd ? 2.2 : 1.8); this.dashT = fwd ? 0.18 : 0.22; this.running = fwd;
+    this.sqv -= this.c('squash') * 10; this.lean = (fwd ? 8 : -6);
+  }
+  // 2.5D depth: walk on the belt or slide to the lane; attacks home in on the target's depth during startup
+  depth(dt, inp, busy) {
+    const plane = this.c('plane');
+    if (plane === '2d') { this.z = this.vz = 0; return; }
+    const a = this.action, o = this.w.nearestFoe(this);
+    const homing = busy && o && a.m.power && a.i < a.m.keys.findIndex(k => k.active) ? this.c('zAssist') : 0;
+    if (plane === 'lanes') {
+      const tz = this.lane * LANE + (homing && o.z - this.lane * LANE) * homing;
+      this.vz = (tz - this.z) * 12;
+    } else {
+      const want = this.free && !busy && this.grounded && this.squatT <= 0 ? (inp.down - inp.up) * this.c('zSpeed') : 0;
+      this.vz = approach(this.vz, want, this.c('accel') * dt);
+      if (homing) this.vz += (o.z - this.z) * homing * 10;
+    }
+    this.z = clamp(this.z + this.vz * dt, -ZMAX, ZMAX);
   }
   // a bounce: every limb gets a kick, heavier at the loose ends
   flailJolt(imp) {
@@ -133,12 +158,22 @@ class Fighter {
     }
     if (this.buffer && (this.buffer.t -= dt) < 0) this.buffer = null;
 
+    // double taps: → / ← dash, ↑ / ↓ sidestep a lane. Any other direction in between breaks it (→↓↘ is not a dash)
+    const flat = c('plane') === '2d', fwdK = this.dir > 0 ? 'right' : 'left';
+    for (const k of ['left', 'right', 'up', 'down']) if (inp[k] && !this.prevIn[k]) {
+      if (this.tap?.k === k && this.w.simT - this.tap.t < 0.25) { this.tap = null; this.doubleTap(k); }
+      else this.tap = { k, t: this.w.simT };
+    }
+    this.prevIn = inp;
+    if (!inp[fwdK] || !this.free || this.action) this.running = false;
+    this.dashT -= dt;
+
     // horizontal: accelerate toward desired speed, never snap
-    this.crouching = this.free && inp.down && this.grounded;
+    this.crouching = this.free && inp.down && this.grounded && c('plane') !== 'belt';
     const busy = this.action && !this.action.m.hurt;
-    const locked = !this.free || (busy && this.grounded) || this.squatT > 0 || this.crouching;
-    const want = locked ? 0 : (inp.right - inp.left) * c('maxSpeed');
-    const drag = this.kd === 'fly' ? 0.05 : !this.free ? 0.35 : busy ? 0.4 : 1; // lunges and knockback slide
+    const locked = !this.free || (busy && this.grounded) || this.squatT > 0 || this.crouching || this.dashT > 0;
+    const want = locked ? 0 : (inp.right - inp.left) * c('maxSpeed') * (this.running ? c('runSpeed') : 1);
+    const drag = this.dashT > 0 ? 0.1 : this.kd === 'fly' ? 0.05 : !this.free ? 0.35 : busy ? 0.4 : 1; // dashes, lunges and knockback slide
     const rate = want && Math.sign(want) === Math.sign(this.vx || want) ? c('accel') : c('decel') * drag;
     const pvx = this.vx;
     this.vx = approach(this.vx, want, rate * dt);
@@ -154,29 +189,37 @@ class Fighter {
         this.w.trauma = Math.min(1, this.w.trauma + 0.2 * imp);
       } else this.vx = 0;
     }
-    const leg = this.ch.chains.leg[0], ll = leg ? leg[0].len + (leg[1]?.len || 0) : 45;
-    this.walkPh += this.vx * this.dir * dt * 3.3 / ll / (this.vx * this.dir < 0 ? 0.7 : 1); // one step per stride, feet stay planted
+    this.depth(dt, inp, busy);
+    const leg = this.ch.chains.leg[0], ll = leg ? leg[0].len + (leg[1]?.len || 0) : 45, back = this.vx * this.dir < 0;
+    this.walkPh += Math.hypot(this.vx, this.vz) * (back ? -1 : 1) * dt * 3.3 / ll / (back ? 0.7 : 1); // one step per stride, feet stay planted
     this.face = approach(this.face, this.dir, dt * 12); // turn through a squashed profile instead of flipping
 
     // vertical: jump squat (anticipation) -> launch -> land
     // jump cancel: a move that connected can be jumped out of once its active frames are over (juggles)
     const jc = busy && this.action.hit && this.action.i >= this.action.m.cancel && c('jumpCancel');
-    if (inp.jump && this.grounded && this.free && (!busy || jc) && this.squatT <= 0) {
+    if ((flat ? inp.jump || inp.hop : inp.hop) && this.grounded && this.free && (!busy || jc) && this.squatT <= 0) {
       this.squatT = c('jumpSquat') || 1e-6;
       if (jc) this.action = null;
     }
     if (this.squatT > 0 && (this.squatT -= dt) <= 0) {
-      this.grounded = false; this.vy = -c('jumpVel'); this.sqv += c('squash') * 25;
+      this.grounded = false; this.vy = -c('jumpVel'); this.sqv += c('squash') * 25; this.airT = 0;
+      const x = inp.right - inp.left, fl = c('flips');
+      if (x && (fl === 'always' || fl === '2.5D' && !flat)) this.flip = x * this.dir; // +1 forward flip, -1 back flip
     }
+    // a flip turns the body once over the jump; an attack or a hit ends it and the body rights itself
+    if (this.flip && (this.action || this.kd)) this.flip = 0;
+    if (!this.grounded) this.airT += dt;
+    if (this.flip) this.spin = this.flip * 360 * Math.min(1, this.airT / (2 * c('jumpVel') / c('gravity')));
+    else if (this.spin) { const to = Math.round(this.spin / 360) * 360; this.spin = approach(this.spin, to, 1440 * dt); if (this.spin === to) this.spin = 0; }
     if (!this.grounded) {
       this.vy += c('gravity') * dt; this.y += this.vy * dt;
       if (this.y >= 0) {
         const imp = Math.min(1, this.vy / 800);
-        this.y = 0; this.vy = 0; this.grounded = true;
+        this.y = 0; this.vy = 0; this.grounded = true; this.flip = 0; this.spin = 0;
         this.sqv -= c('squash') * 25 * imp;
         this.ch.chains.leg.forEach((c, i) => { if (c[1]) this.flt[c[1].id].yd += c[1].flex * (i ? 400 : 500) * imp; }); // knees absorb
         this.jolt(this.ch.chains.spine[0]?.[0], 250 * imp);
-        this.w.dust(this.x, this.groundY, imp);
+        this.w.dust(this.x, this.groundY, imp, this.z);
         if (this.action?.m.air) this.action = null;
         if (this.kd === 'fly') {
           const up = -imp * 800 * c('floorBounce');
@@ -231,7 +274,7 @@ class Fighter {
 
     const a = this.action, s = a?.m.keys[a.i].active && this.strikeShape(a.m);
     const otg = c('otg') === 'all' || c('otg') === 'flagged' && a?.m.otg;
-    if (s) for (const o of foes) if (!a.hits.includes(o)) {
+    if (s) for (const o of foes) if (!a.hits.includes(o) && Math.abs(o.z - this.z) <= c('zReach') * (a.m.wide ? 3 : 1)) {
       const h = o.hurtAt(s, c('hitTest') === 'target', otg);
       if (h) { a.hits.push(o); a.hit = true; this.w.onHit(this, o, h, a.m); }
     }
@@ -303,6 +346,11 @@ class Fighter {
     const L = fk(this.ch, p, this.face, lens);
     let fy = 0;
     for (const b of this.ch.bones) fy = Math.max(fy, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
+    if (this.spin) {
+      let top = 0; for (const k in L) top = Math.min(top, L[k][1]);
+      const r = this.spin * this.dir * R, c = Math.cos(r), s = Math.sin(r), cy = (top + fy) / 2;
+      for (const k in L) { const x = L[k][0], y = L[k][1] - cy; L[k] = [x * c - y * s, cy + x * s + y * c]; }
+    }
     const sx = 1 - this.sq * 0.5, sy = 1 + this.sq, ax = this.x, ay = this.groundY + this.y, P = {};
     for (const k in L) P[k] = [ax + L[k][0] * sx, ay + (L[k][1] - fy) * sy];
     return P;
@@ -330,6 +378,8 @@ class Fighter {
 
   draw(ctx, jitter) {
     ctx.save(); ctx.translate(jitter, 0);
+    const zk = 1 + this.z * ZK; // depth: lower on screen and bigger toward the camera
+    ctx.translate(this.x, this.groundY + this.z * ZS); ctx.scale(zk, zk); ctx.translate(-this.x, -this.groundY);
     const s = Math.max(0.3, 1 + this.y / 200);
     ctx.fillStyle = 'rgba(0,0,0,.08)';
     ctx.beginPath(); ctx.ellipse(this.x, this.groundY + 1, 22 * s, 4 * s, 0, 0, 7); ctx.fill();

@@ -3,7 +3,9 @@
 // [action, group, default keys, tip]. Keys are KeyboardEvent codes, with 'Shift+' / 'Alt+' for combinations
 const ACTIONS = [
   ['left', 'fight', ['KeyA', 'ArrowLeft'], 'Move left'], ['right', 'fight', ['KeyD', 'ArrowRight'], 'Move right'],
-  ['jump', 'fight', ['KeyW', 'ArrowUp', 'Space'], 'Jump'], ['down', 'fight', ['KeyS', 'ArrowDown'], 'Crouch (and the down of special motions)'],
+  ['jump', 'fight', ['KeyW', 'ArrowUp'], 'Jump · 2.5D: into the screen (lanes: double tap sidesteps)'],
+  ['down', 'fight', ['KeyS', 'ArrowDown'], 'Crouch (and the down of special motions) · 2.5D: out of the screen (lanes: double tap sidesteps)'],
+  ['hop', 'fight', ['Space'], 'Jump, in 2D and 2.5D; with ← / → held a ninja flip (flips setting)'],
   ['punch', 'fight', ['KeyJ'], 'Punch'], ['kick', 'fight', ['KeyK'], 'Kick'],
   ['pause', 'transport', ['KeyP'], 'Pause / play'], ['step', 'transport', ['KeyN'], 'Advance one 60 fps frame'],
   ['restart', 'transport', ['KeyR'], 'Restart the fight(s)'], ['scrub', 'transport', ['KeyM'], 'Scrub: the mouse sets the time'],
@@ -29,7 +31,7 @@ function act(e) {
   return ACTIONS.find(([a]) => keymap[a].includes(c))?.[0] ?? ACTIONS.find(([a, g]) => g === 'fight' && keymap[a].includes(e.code))?.[0];
 }
 const fightHint = () => { const k = a => keyLabel(keymap[a][0] || '—');
-  return `${k('left')}/${k('right')} move · ${k('jump')} jump · ${k('down')} crouch · ${k('punch')} punch · ${k('kick')} kick · keys: rebind, macros`; };
+  return `${k('left')}/${k('right')} move · ${(mode().worlds()[0]?.cfg ?? CFG).plane === '2d' ? `${k('jump')} jump · ${k('down')} crouch` : `${k('jump')}/${k('down')} depth · ${k('hop')} jump`} · ${k('punch')} punch · ${k('kick')} kick · keys: rebind, macros`; };
 const macroFor = e => macros.find(m => m.key === combo(e) || m.key === e.code);
 const keyLabel = k => k.replace('Shift+', '⇧').replace('Alt+', '⌥').replace(/^Key|^Digit/, '')
   .replace(/Arrow(Left|Right|Up|Down)/, (_, d) => ({ Left: '←', Right: '→', Up: '↑', Down: '↓' })[d]).replace('Comma', ',').replace('Period', '.');

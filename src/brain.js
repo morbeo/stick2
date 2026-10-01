@@ -44,7 +44,7 @@ class Replay {
     if (f.freeze > 0 || !this.tape.length) return { ...NOIN };
     const e = this.tape[this.i], d = f.dir > 0;
     this.i = (this.i + 1) % this.tape.length;
-    return { left: d ? e.back : e.fwd, right: d ? e.fwd : e.back, down: e.down, jump: e.jump, punch: e.punch, kick: e.kick };
+    return { left: d ? e.back : e.fwd, right: d ? e.fwd : e.back, up: !!e.up, down: e.down, jump: e.jump, hop: !!e.hop, punch: e.punch, kick: e.kick };
   }
 }
 
@@ -64,6 +64,7 @@ class Brain {
     if ((this.t -= h) <= 0) this.think(f, o, dist);
     if (this.plan === 'in') press(inp, 'fwd', f, o);
     else if (this.plan === 'out') press(inp, 'back', f, o);
+    else if (this.plan === 'zin' || this.plan === 'zout') press(inp, (this.plan === 'zin' ? 'up' : 'down') + (dist > 70 ? '+fwd' : ''), f, o);
     else if (this.plan === 'dash') { press(inp, 'fwd', f, o); if (dist < 120) { inp.punch = true; this.plan = null; } }
     return inp;
   }
@@ -72,10 +73,20 @@ class Brain {
     this.t = this.rand(0.12, 0.3); // reaction time
     this.plan = null;
     if (!f.free) return;
+    // 2.5D: line up in depth first (belt: walk, lanes: sidestep), and sometimes sidestep an attack coming in
+    const plane = f.c('plane'), dz = o.z - f.z;
+    if (plane !== '2d' && !o.kd && idle(f) && Math.abs(dz) > f.c('zReach') * 0.7) {
+      if (plane === 'belt') this.plan = dz < 0 ? 'zin' : 'zout';
+      else { this.q = dz < 0 ? ['up', 'up'] : ['down', 'down']; this.qt = 0; }
+      return;
+    }
+    if (plane === 'lanes' && idle(f) && dist < 110 && r < (o.action?.m.power ? 0.5 : 0.12)) { this.q = r < 0.2 || f.z > 0 ? ['up', 'up'] : ['down', 'down']; this.qt = 0; return; }
+    if (plane === 'belt' && dist > 150 && r < 0.2) { this.plan = f.z > 0 ? 'zin' : 'zout'; return; } // circle around on the belt
     if (o.kd === 'down' && dist < 110 && r < 0.4) { this.q = ['down', 'down+fwd', 'fwd+kick']; this.qt = 0; return; } // stomp
     if (o.kd === 'down' || o.action?.m.inv) { if (dist < 90) this.plan = 'out'; return; }
     if (!o.grounded && !o.kd && dist < 110 && r < 0.5) { this.q = ['fwd', 'down', 'down+fwd+punch']; this.qt = 0; return; } // anti-air rising
     if (o.kd === 'fly' && dist < 130 && r < 0.6) { this.q = ['jump', 'kick']; this.qt = 0; return; }
+    if (dist > 220 && f.c('dash') && r < 0.3) { this.q = ['fwd', 'fwd']; this.qt = 0; this.plan = 'in'; return; } // dash, then run in
     if (dist > 150) { this.plan = r < 0.25 ? 'dash' : 'in'; return; }
     if (dist > 70) { this.plan = r < 0.85 ? 'in' : 'out'; return; }
     if (r < 0.12) { this.plan = 'out'; return; }
@@ -112,6 +123,12 @@ const SCENARIOS = {
   'J,K→spin': { a: ['punch', 0.13, 'kick', 0.1, 'down', 'down+back', 'back+kick'], b: 'dummy', period: 2.8 },
   'rising': { a: ['fwd', 'down', 'down+fwd+punch'], b: 'dummy', period: 2.4 },
   'air combo': { a: ['punch', 0.13, 'punch', 0.13, 'punch', 0.3, 'fwd+jump', { hold: 'fwd', t: 0.1 }, 'punch', 0.14, 'kick'], b: 'dummy', period: 3.2 },
+  // 2.5D (the plane comes with the scenario; a grid's plane axis overrides it)
+  'sidestep': { a: [0.3, 'punch', 0.5, 'punch'], b: ['up', 0.05, 'up'], cfg: { plane: 'lanes' }, period: 2 },
+  'ninja flip': { a: ['fwd+hop', { hold: 'fwd', t: 0.6 }, 0.3, 'back+hop', { hold: 'back', t: 0.6 }], ax: 220, b: 'dummy', cfg: { plane: 'belt' }, period: 2.6 },
+  'dash & run': { a: ['fwd', 0.05, 'fwd', { hold: 'fwd', t: 0.45 }, 'fwd+punch'], ax: 120, b: 'dummy', bx: 440, period: 2.4 },
+  'belt ai': { a: 'ai', b: 'ai', cfg: { plane: 'belt' } },
+  'lanes ai': { a: 'ai', b: 'ai', cfg: { plane: 'lanes' } },
   'OTG stomp': { a: ['down+kick', 0.6, { hold: 'fwd', t: 0.25 }, 'down', 'down+fwd', 'fwd+kick'], b: 'dummy', period: 3 },
   // several opponents: extra fighters are { c: controller, x, team }; same team = allies
   'you vs 2 ai': { a: 'human', b: 'ai', bx: 520, more: [{ c: 'ai', x: 640, team: 1 }] },

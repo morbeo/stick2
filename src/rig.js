@@ -109,7 +109,7 @@ const STICK_MOVES = {
     { d: 0.1, e: 'outQuad', p: { torso: 0, afU: 170, afL: 10, abU: -10, abL: 130, lfU: 15, lfL: -5, lbU: -20, lbL: 0 }, active: true },
     { d: 0.34, e: 'inOutCubic', p: null },
   ] },
-  spin: attack({ power: 1.9, hit: 'bf', height: 'high', knock: 420, launch: 320, kd: true, lunge: 260, special: true },
+  spin: attack({ power: 1.9, hit: 'bf', height: 'high', knock: 420, launch: 320, kd: true, lunge: 260, special: true, wide: true },
     [0.1, { torso: -12, lbU: 40, lbL: -130, lfU: 0, lfL: -15, afU: 60, afL: 90, abU: -30, abL: 70 }],
     [0.07, { torso: -36, lbU: 120, lbL: -5, lfU: 0, lfL: 0, afU: -30, afL: 50, abU: 80, abL: 30 }], 0.1, 0.3),
   // hits a fighter lying on the floor

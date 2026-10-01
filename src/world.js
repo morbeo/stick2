@@ -3,7 +3,9 @@
 const W = 800, H = 450, GROUND = 360;
 const INK = ['#222', '#8a8580'], RED = ['#c0392b', '#e0998f'];
 const COLS = [INK, RED, ['#2c6fb0', '#94b7d8'], ['#2e8b57', '#97c5ab'], ['#8e44ad', '#c6a2d6'], ['#b9770e', '#e0c08a']];
-const NOIN = { left: false, right: false, down: false, jump: false, punch: false, kick: false };
+const NOIN = { left: false, right: false, up: false, down: false, jump: false, hop: false, punch: false, kick: false };
+// depth (2.5D): z > 0 is toward the camera. Drawn lower and bigger; hits are tested in the fight plane plus a depth check
+const ZMAX = 60, LANE = 40, ZS = 0.45, ZK = 0.0025;
 const HIST = 240;
 
 // what a training-mode frame meter shows for a fighter this frame
@@ -23,7 +25,7 @@ class World {
   // chars: character per fighter slot (the last one fills the rest); default = the current character
   constructor(scen, over = {}, seed = 1, chars = null) {
     Object.assign(this, { scen, over, seed, chars, groundY: GROUND, loop: true, camW: 420 });
-    this.cfg = Object.assign(Object.create(CFG), over);
+    this.cfg = Object.assign(Object.create(CFG), scen.cfg, over); // a scenario can bring its own settings (plane …)
     this.reset();
   }
   reset() {
@@ -64,7 +66,7 @@ class World {
     if (dt <= 0) return;
     // fixed-size substeps (<= 1/120 s) keep springs and physics identical at any refresh rate
     const n = Math.ceil(dt * 120);
-    for (let i = 0; i < n && !this.done; i++) this.step(dt / n, i ? { ...inp, jump: false, punch: false, kick: false } : inp);
+    for (let i = 0; i < n && !this.done; i++) this.step(dt / n, i ? { ...inp, jump: false, hop: false, punch: false, kick: false } : inp);
     for (const f of this.fighters) if (f.freeze <= 0) f.recordTrail();
     const h = this.hist, j = this.cfg.scope;
     h.tgt.push(this.a.target[j] ?? 0); h.disp.push(this.a.disp[j] ?? 0); h.vx.push(this.a.vx); h.y.push(this.a.y);
@@ -103,7 +105,7 @@ class World {
     // recording for the replay dummy: one entry per substep the human is not frozen, directions relative to facing
     if (this.tape && this.ctl[0] === 'human' && this.a.freeze <= 0) {
       const i = ins[0], d = this.a.dir > 0;
-      this.tape.push({ fwd: d ? i.right : i.left, back: d ? i.left : i.right, down: i.down, jump: i.jump, punch: i.punch, kick: i.kick });
+      this.tape.push({ fwd: d ? i.right : i.left, back: d ? i.left : i.right, up: i.up, down: i.down, jump: i.jump, hop: i.hop, punch: i.punch, kick: i.kick });
     }
     fs.forEach((f, i) => {
       if (f.freeze > 0) f.freeze -= h; // hit stop: this fighter sits out the substep
@@ -112,7 +114,7 @@ class World {
     // push apart (unless someone is knocked down), then face the nearest foe
     for (let i = 0; i < fs.length; i++) for (let j = i + 1; j < fs.length; j++) {
       const a = fs[i], b = fs[j], d = b.x - a.x;
-      if (Math.abs(d) < 38 && Math.abs(a.y - b.y) < 60 && !a.kd && !b.kd) {
+      if (Math.abs(d) < 38 && Math.abs(a.y - b.y) < 60 && Math.abs(a.z - b.z) < cfg.zReach && !a.kd && !b.kd) {
         const push = (38 - Math.abs(d)) / 2 * (Math.sign(d) || 1);
         a.x -= push; b.x += push;
       }
@@ -153,18 +155,18 @@ class World {
     if (fin && cfg.slowmo) this.slowT = 0.35;
     this.victim = vic;
     if (cfg.sparks > 0) {
-      this.parts.push({ t: 'ring', x: pt[0], y: pt[1], life: 0.16, max: 0.16 });
+      this.parts.push({ t: 'ring', x: pt[0], y: pt[1], z: vic.z, life: 0.16, max: 0.16 });
       for (let i = 0; i < cfg.sparks * power; i++) {
         const a = this.rand(-0.8, 0.8) + (att.dir > 0 ? 0 : Math.PI), s = this.rand(250, 700), life = this.rand(0.12, 0.3);
-        this.parts.push({ t: 'spark', x: pt[0], y: pt[1], vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life });
+        this.parts.push({ t: 'spark', x: pt[0], y: pt[1], z: vic.z, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life });
       }
     }
   }
-  dust(x, y, imp) {
+  dust(x, y, imp, z = 0) {
     if (this.cfg.squash <= 0) return;
     for (let i = 0; i < 3 + imp * 6; i++) {
       const life = this.rand(0.25, 0.45);
-      this.parts.push({ t: 'dust', x: x + this.rand(-8, 8), y: y - 2, vx: this.rand(-1, 1) * 140 * imp, vy: -this.rand(10, 50), r: this.rand(2, 5), life, max: life });
+      this.parts.push({ t: 'dust', x: x + this.rand(-8, 8), y: y - 2, z, vx: this.rand(-1, 1) * 140 * imp, vy: -this.rand(10, 50), r: this.rand(2, 5), life, max: life });
     }
   }
   updateParticles(dt) {
@@ -181,6 +183,7 @@ class World {
   drawParticles(ctx) {
     for (const p of this.parts) {
       const k = p.life / p.max;
+      ctx.save(); ctx.translate(0, (p.z || 0) * ZS);
       if (p.t === 'spark') {
         ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 2.5 * k;
         ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.03, p.y - p.vy * 0.03); ctx.stroke();
@@ -191,6 +194,7 @@ class World {
         ctx.fillStyle = `rgba(120,110,100,${0.35 * k})`;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (2 - k), 0, 7); ctx.fill();
       }
+      ctx.restore();
     }
   }
 
@@ -209,9 +213,13 @@ class World {
     ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
     ctx.transform(s, 0, 0, s, r.x + r.w / 2 + (sx - cx) * s, r.y + r.h / 2 + (sy - cy) * s);
     ctx.strokeStyle = '#cfc8bb'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(-2000, this.groundY); ctx.lineTo(W + 2000, this.groundY); ctx.stroke();
+    const plane = cfg.plane, g = this.groundY;
+    if (plane !== '2d') { // the floor in depth; lanes get a line each
+      ctx.fillStyle = '#ebe5d9'; ctx.fillRect(-2000, g - ZMAX * ZS, W + 4000, ZMAX * ZS * 2);
+      if (plane === 'lanes') for (const l of [-1, 0, 1]) { ctx.beginPath(); ctx.moveTo(-2000, g + l * LANE * ZS); ctx.lineTo(W + 2000, g + l * LANE * ZS); ctx.stroke(); }
+    } else { ctx.beginPath(); ctx.moveTo(-2000, g); ctx.lineTo(W + 2000, g); ctx.stroke(); }
     ctx.fillStyle = '#e4ded2'; ctx.fillRect(-2000, -2000, 2020, 4000); ctx.fillRect(W - 20, -2000, 2000, 4000); // walls
-    for (const f of this.fighters)
+    for (const f of [...this.fighters].sort((a, b) => a.z - b.z)) // far ones first
       f.draw(ctx, f.freeze > 0 && f === this.victim ? Math.sin(T * 170) * cfg.hitShake : 0);
     this.drawParticles(ctx);
     ctx.restore();

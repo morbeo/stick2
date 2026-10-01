@@ -25,7 +25,8 @@ function togglePanel() { document.body.classList.toggle('noside'); resize(); }
 
 // help under the rebindable keys (P = punch, K = kick, directions as on the numpad: 2 down, 3 down-forward, 6 forward…)
 const KEYS = [
-  ['combos', 'chains: P,P,P · K,K · P,K · P,P,K · down+K sweep · run+P dash punch · air P/K, air P,K\nspecials (cancel normals that hit): 236P rush · 623P rising · 214K spin · 236K stomp (hits a fighter on the floor)'],
+  ['combos', 'chains: P,P,P · K,K · P,K · P,P,K · down+K sweep · run+P dash punch · air P/K, air P,K\nspecials (cancel normals that hit): 236P rush · 623P rising · 214K spin · 236K stomp (hits a fighter on the floor)\n66 dash · 44 back dash · 66 and hold: run'],
+  ['2.5D', 'plane setting: lanes / belt · ↑ ↓ move in depth (lanes: double tap = sidestep) · hop key jumps, with ← / → a ninja flip'],
   ['fixed', '⌘Z undo · ⇧⌘Z redo (character and moves) · Esc back / close'],
   ['grid', 'click a cell: focus it (breed / attacks: breed around it) · Shift+click: focus'],
   ['character', 'drag a joint: length + angle · Shift+drag: angle only'],
@@ -86,7 +87,7 @@ function scrub(f) {
 
 // ---------- input ----------
 const keys = new Set(), pressed = new Set();
-const FIGHT = ['left', 'right', 'jump', 'down', 'punch', 'kick'];
+const FIGHT = ['left', 'right', 'jump', 'down', 'hop', 'punch', 'kick'];
 const fightKey = code => FIGHT.find(a => keymap[a].some(k => k === code || k.endsWith('+' + code)));
 const SHORTCUTS = {
   pause: () => { app.paused = !app.paused; },
@@ -116,8 +117,8 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { const f = fightKey(e.code); if (f) keys.delete(f); });
 addEventListener('blur', () => keys.clear());
 function readInput() {
-  const i = { left: keys.has('left'), right: keys.has('right'), down: keys.has('down'),
-    jump: pressed.has('jump'), punch: pressed.has('punch'), kick: pressed.has('kick') };
+  const i = { left: keys.has('left'), right: keys.has('right'), up: keys.has('jump'), down: keys.has('down'),
+    jump: pressed.has('jump'), hop: pressed.has('hop'), punch: pressed.has('punch'), kick: pressed.has('kick') };
   pressed.clear(); // edges are consumed by the first substep only
   return i;
 }

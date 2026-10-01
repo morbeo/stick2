@@ -29,7 +29,8 @@ const FX_OFF = { comboStop: 0, comboShake: 0, comboZoom: 0, comboSpeed: 0, combo
 const COMBO_FX = { none: {}, 'longer pauses': { comboStop: 0.3 }, 'shorter pauses': { comboStop: -0.15 }, 'growing shake': { comboShake: 0.5 },
   'growing zoom': { comboZoom: 0.5 }, 'faster attacks': { comboSpeed: 0.2 }, 'faster game': { comboTime: 0.2 }, 'slower game': { comboTime: -0.12 },
   everything: { comboStop: 0.2, comboShake: 0.4, comboZoom: 0.4, comboSpeed: 0.12, comboTime: 0.1 } };
-const AXIS_SCENS = ['J,J,K', 'sweep', 'ai vs ai'], CANCEL_SCENS = ['J,J,K', 'air combo', 'J,K→spin'];
+const AXIS_SCENS = ['J,J,K', 'sweep', 'ai vs ai'], CANCEL_SCENS = ['J,J,K', 'air combo', 'J,K→spin'],
+  PLANE_SCENS = ['sidestep', 'ninja flip', 'dash & run', 'ai vs ai'];
 function axisValues(ax, n) {
   const s = SPEC[ax.k];
   if (ax.k === 'scenario') return lab.rows || AXIS_SCENS;
@@ -333,6 +334,9 @@ function labCtx() {
       }),
       button('combo fx test', 'One cell per combo escalation (longer pauses, growing shake, faster attacks, faster game…) on the air combo: pick the feel, then copy its values', () => {
         Object.assign(lab.x, { k: 'comboFx' }); lab.y.k = ''; lab.scen = 'air combo'; build();
+      }),
+      button('2.5D test', `Every plane (columns: 2D, lanes, belt) on depth fights (rows: ${PLANE_SCENS.join(' · ')}): sidesteps dodge, flips, dashes, AI lining up`, () => {
+        Object.assign(lab.x, { k: 'plane' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = PLANE_SCENS; build();
       }), adopt, back);
   }
   if (lab.mode === 'grid' && lab.kind !== 'attacks') els.push(
