@@ -47,10 +47,21 @@ class Fighter {
       for (const j in ps.air) P[j] = ps.air[j] + ((ps.airFall[j] ?? ps.air[j]) - ps.air[j]) * k;
     } else if (this.crouching || this.squatT > 0) Object.assign(P, ps.crouch);
     else {
-      const w = Math.min(1, Math.abs(this.vx) / this.c('maxSpeed')), ph = this.walkPh;
-      // legs alternate; each arm counter-swings the leg on its side
-      ch.chains.leg.forEach((c, i) => { const q = ph + i * Math.PI; turn(c[0], Math.sin(q) * 28 * w); flex(c[1], Math.max(0, Math.cos(q)) * 40 * w); });
-      ch.chains.arm.forEach((c, i) => { const q = ph + (i + 1) * Math.PI; turn(c[0], Math.sin(q) * 22 * w); flex(c[1], Math.max(0, Math.sin(q)) * 15 * w); });
+      const w = Math.min(1, Math.abs(this.vx) / this.c('maxSpeed')), ph = this.walkPh, back = this.vx * this.dir < 0;
+      const st = back ? 0.7 : 1, id = 1 - w, s = this.seed;
+      // idle: each fighter has its own stance width and one of three idles (weight shift, boxer bounce, sway)
+      const style = Math.floor(s) % 3, shift = Math.sin(t * 0.9 + s), bounce = 1 + Math.sin(t * 5.5 + s);
+      ch.chains.leg.forEach((c, i) => {
+        const side = i % 2 ? -1 : 1;
+        turn(c[0], side * ((s % 1) - 0.5) * 10 * id);
+        if (style === 0) flex(c[1], Math.max(0, shift * side) * 10 * id);
+        if (style === 1) { turn(c[0], bounce * 4 * id); flex(c[1], bounce * 7 * id); }
+      });
+      if (style === 2) turn(spine, wander(t * 1.3 + s) * 5 * id);
+      // walk: legs alternate (a centaur trots: diagonal pairs), each arm counter-swings the leg on its side,
+      // shorter steps and a raised guard walking backwards
+      ch.chains.leg.forEach((c, i) => { const q = ph + i * Math.PI; turn(c[0], Math.sin(q) * 28 * w * st); flex(c[1], Math.max(0, Math.cos(q)) * 40 * w * st); });
+      ch.chains.arm.forEach((c, i) => { const q = ph + (i + 1) * Math.PI; turn(c[0], Math.sin(q) * 22 * w * st * st); flex(c[1], Math.max(0, Math.sin(q)) * 15 * w + (back ? 20 * w : 0)); });
       turn(spine, 4 * w * Math.sign(this.vx * this.dir));
     }
     turn(spine, this.lean);
@@ -143,7 +154,8 @@ class Fighter {
         this.w.trauma = Math.min(1, this.w.trauma + 0.2 * imp);
       } else this.vx = 0;
     }
-    this.walkPh += this.vx * this.dir * dt * 0.075;
+    const leg = this.ch.chains.leg[0], ll = leg ? leg[0].len + (leg[1]?.len || 0) : 45;
+    this.walkPh += this.vx * this.dir * dt * 3.3 / ll / (this.vx * this.dir < 0 ? 0.7 : 1); // one step per stride, feet stay planted
     this.face = approach(this.face, this.dir, dt * 12); // turn through a squashed profile instead of flipping
 
     // vertical: jump squat (anticipation) -> launch -> land

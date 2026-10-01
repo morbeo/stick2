@@ -108,7 +108,7 @@ const SCENARIOS = {
   'J→rush': { a: ['punch', 0.1, 'down', 'down+fwd', 'fwd+punch'], b: 'dummy', period: 2.6 },
   'J,K→spin': { a: ['punch', 0.13, 'kick', 0.1, 'down', 'down+back', 'back+kick'], b: 'dummy', period: 2.8 },
   'rising': { a: ['fwd', 'down', 'down+fwd+punch'], b: 'dummy', period: 2.4 },
-  'air combo': { a: ['punch', 0.13, 'punch', 0.13, 'punch', 0.3, 'fwd+jump', { hold: 'fwd', t: 0.12 }, 'punch', 0.14, 'kick'], b: 'dummy', period: 3.2 },
+  'air combo': { a: ['punch', 0.13, 'punch', 0.13, 'punch', 0.3, 'fwd+jump', { hold: 'fwd', t: 0.1 }, 'punch', 0.14, 'kick'], b: 'dummy', period: 3.2 },
   'OTG stomp': { a: ['down+kick', 0.6, { hold: 'fwd', t: 0.25 }, 'down', 'down+fwd', 'fwd+kick'], b: 'dummy', period: 3 },
   // several opponents: extra fighters are { c: controller, x, team }; same team = allies
   'you vs 2 ai': { a: 'human', b: 'ai', bx: 520, more: [{ c: 'ai', x: 640, team: 1 }] },
