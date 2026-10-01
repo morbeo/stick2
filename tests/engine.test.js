@@ -727,3 +727,62 @@ test('a back throw (← P+G) swings the victim to the other side: it lands behin
     return JSON.stringify({ side: Math.sign(t.w.b.x - t.w.a.x), seen: [...t.seen, ...u.seen], hurt: u.w.a.c('health') - u.w.a.hp }); })()`));
   assert.equal(d.side, -1); assert.ok(['a:backGrab', 'a:backToss', 'a:turnBack', 'b:jab', 'a:kick'].every(k => d.seen.includes(k)), d.seen.join(' ')); assert.ok(d.hurt > 0);
 });
+
+test('armor: a hit during an armored key (the hammer wind-up) does its damage but the move goes on and lands', () => {
+  const go = d => JSON.parse(run(`(() => { const w = new World({ a: ['punch'], b: [${d}, '@hammer'], ax: 330, bx: 385 }, {}, 7); w.loop = false; const L = new Set();
+    for (let i = 0; i < 70; i++) { w.advance(1/60, NOIN); if (w.b.labelT > 0) L.add(w.b.label); }
+    return JSON.stringify({ labels: [...L], b: w.b.hp, a: w.a.hp }); })()`));
+  const r = go(0.05);
+  assert.ok(r.labels.includes('ARMOR'), 'armored: ' + r.labels);
+  assert.ok(r.b < 100, 'the jab still does its damage'), assert.ok(r.a < 100, 'the hammer lands anyway');
+  assert.ok(!go(0.02).labels.includes('ARMOR'), 'hit after the wind-up: no armor');
+});
+
+test('posed falls (falls: pose): a wallbounce hit bounces off the wall, G just before landing techs, and air recovery', () => {
+  const labels = sc => run(`(() => { const w = new World({ ...SCENARIOS[${JSON.stringify(sc)}], cfg: { falls: 'pose' } }, {}, 7); w.loop = false; const L = new Set();
+    for (let i = 0; i < 150; i++) { w.advance(1/60, NOIN); if (w.b.labelT > 0) L.add(w.b.label); } return [...L].join(' '); })()`);
+  assert.match(labels('wall bounce'), /WALL BOUNCE/);
+  assert.match(labels('tech'), /TECH/);
+  assert.match(labels('air recover'), /RECOVER/);
+});
+
+test('the damp filter: the drawn pose catches the keyframed one at dampRate, slower with a lower rate', () => {
+  const lag = rate => +run(`(() => { const w = new World(SCENARIOS['J,J,J'], { filter: 'damp', dampRate: ${rate} }, 7); w.loop = false; let lag = 0;
+    for (let i = 0; i < 90; i++) { w.advance(1/60, NOIN); const f = w.a; for (const j of f.ch.ids) { if (!isFinite(f.disp[j])) return NaN; lag += Math.abs(f.disp[j] - f.target[j]); } }
+    return lag; })()`);
+  const fast = lag(50), slow = lag(5);
+  assert.ok(isFinite(fast) && isFinite(slow), 'the pose stays finite');
+  assert.ok(slow > fast * 2, `a low rate lags more: ${slow.toFixed(0)} vs ${fast.toFixed(0)}`);
+});
+
+test('the replay dummy plays back a recorded tape, mirrored to its own facing; a key macro presses its steps over the held keys', () => {
+  const r = JSON.parse(run(`(() => {
+    const rec = new World(SCENARIOS['you vs dummy'], {}, 7); rec.loop = false; rec.tape = [];
+    for (let i = 0; i < 60; i++) rec.advance(1/60, { ...NOIN, right: i < 20, punch: i === 30 });
+    const fwd = rec.tape.filter(e => e.fwd).length, punches = rec.tape.filter(e => e.punch).length;
+    const play = new World({ a: 'dummy', b: { tape: rec.tape }, ax: 300, bx: 500 }, {}, 7); play.loop = false; const x0 = play.b.x; let jab = false;
+    for (let i = 0; i < 60; i++) { play.advance(1/60, NOIN); jab ||= play.b.action?.m === play.b.ch.moves.jab; }
+    const mac = new World(SCENARIOS['you vs dummy'], {}, 7); mac.loop = false; mac.macro = new Script(['punch']); let mjab = false;
+    for (let i = 0; i < 30; i++) { mac.advance(1/60, NOIN); mjab ||= mac.a.action?.m === mac.a.ch.moves.jab; }
+    return JSON.stringify({ fwd, punches, moved: x0 - play.b.x, jab, mjab, macro: mac.macro }); })()`));
+  assert.ok(r.fwd >= 19 && r.punches === 1, `recorded: ${r.fwd} forward, ${r.punches} punch`);
+  assert.ok(r.moved > 20, 'the dummy walks toward its foe (to the left): ' + r.moved), assert.ok(r.jab, 'and jabs');
+  assert.ok(r.mjab, 'the macro jabs'), assert.equal(r.macro, null, 'and ends');
+});
+
+test('swapChar: fighters wearing an edited character switch to the new build mid-fight, others keep theirs', () => {
+  const r = JSON.parse(run(`(() => { const w = new World(SCENARIOS['you vs dummy'], {}, 7, [CHARS.stick, CHARS.ninja]); w.loop = false;
+    for (let i = 0; i < 70; i++) w.advance(1/60, NOIN);
+    const to = makeCharacter(JSON.parse(JSON.stringify(CHAR_DEFS.stick))); w.swapChar(CHARS.stick, to); const cps = w.checkpoints.length;
+    for (let i = 0; i < 30; i++) w.advance(1/60, NOIN);
+    return JSON.stringify({ a: w.a.ch0 === to, b: w.b.ch0 === CHARS.ninja, chars: w.chars[0] === to, cps, ok: Object.values(w.a.body()).every(p => isFinite(p[0] + p[1])) }); })()`));
+  assert.deepEqual(r, { a: true, b: true, chars: true, cps: 0, ok: true });
+});
+
+test('frameData counts startup / active / recovery in 60 fps frames, attacks scaled by attack speed', () => {
+  const r = JSON.parse(run(`JSON.stringify({ m: frameData({ power: 1, keys: [{ d: 0.1 }, { d: 0.05, active: true }, { d: 0.2 }] }),
+    fast: frameData({ power: 1, keys: [{ d: 0.1 }, { d: 0.05, active: true }, { d: 0.2 }] }, 2), still: frameData({ keys: [{ d: 0.5 }] }, 2) })`));
+  assert.deepEqual(r.m, { startup: 6, active: 3, recovery: 12 });
+  assert.deepEqual(r.fast, { startup: 3, active: 2, recovery: 6 });
+  assert.deepEqual(r.still, { startup: 30, active: 0, recovery: 0 }, 'a non-attack ignores the speed');
+});
