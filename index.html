@@ -56,6 +56,14 @@
   .charpick { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 2px 6px; }
   .charpick canvas { width: 36px; height: 40px; } .charpick .note { margin: 0; } .charpick > span:not(.ic) { flex: 1; display: flex; flex-direction: column; }
   .pop .cards { width: 290px; }
+  #palette { position: fixed; inset: 0; z-index: 20; background: #0002; display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; }
+  .pbox { width: min(640px, 90vw); background: #fbfaf6; border: 1px solid #bbb; border-radius: 6px; box-shadow: 0 8px 30px #0003; padding: 8px; }
+  .pbox input { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; }
+  .plist { margin-top: 6px; max-height: 60vh; overflow: auto; }
+  .pitem { display: flex; align-items: baseline; gap: 8px; padding: 4px 6px; border-radius: 3px; cursor: pointer; white-space: nowrap; }
+  .pitem.on { background: #222; color: #fff; } .pitem .pk { width: 64px; flex-shrink: 0; color: #999; font-size: 11px; }
+  .pitem .pt { flex: 1; overflow: hidden; text-overflow: ellipsis; color: #999; font-size: 11px; }
+  .pitem kbd { font: inherit; font-size: 11px; border: 1px solid #ccc; border-radius: 3px; padding: 0 4px; color: #888; }
   .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 4px 0; }
   .card { display: flex; flex-direction: column; align-items: center; padding: 2px; font-size: 10px; overflow: hidden; }
   .card canvas { width: 60px; height: 64px; }
@@ -130,6 +138,7 @@
 <script src="src/inputs.js"></script>
 <script src="src/breed.js"></script>
 <script src="src/keys.js"></script>
+<script src="src/palette.js"></script>
 <script src="src/app.js"></script>
 </body>
 </html>

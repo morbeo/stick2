@@ -35,7 +35,7 @@ const KEYS = [
   ['combos', 'chains: P,P,P · K,K · P,K · P,P,K · run+P dash punch · air P/K, air P,K\ndirections × P / K: 6P elbow · 6K push kick · 8P hammer (overhead) · 8K turn kick (2D: ↑ with P / K together) · 4K fade kick (steps back) · 2P launcher · 2K sweep · 1P crouch jab · 3P body blow · 1K back sweep · 3K low kick\nair: j.8P upper · j.8K flip kick (launch) · j.2P hammer (spikes, bounces) · j.2K dive kick · j.S air spin\nspecials (cancel normals that hit): 236P rush · 623P rising · 214K spin · 236K stomp (hits a fighter on the floor) · 214P charge (unblockable) · 623K rising kick (invincible start)\n66 dash · 44 back dash · 66 and hold: run'],
   ['guard', 'hold L: guard, front only (not from behind) · ↓+L low guard · tap L just before a hit: parry · highs pass over a crouching fighter\nU special: S spin · → S rush · ↑ S rising · ↓ S stomp · ← S catch (counters a strike)\nJ+L throw (P+G breaks it) · L while knocked flying: recover in the air · L just before landing: tech'],
   ['2.5D', 'plane setting: 2D (↑ jumps) / lanes / belt · 2D and 2.5D have separate movesets (input in animate) · 2.5D: ↑ ↓ move in depth (lanes: double tap = sidestep), 9P headbutt · 7P backfist · 7K crescent (overhead) · 9K flying knee · Space jumps in every plane, with ← / → a ninja flip'],
-  ['fixed', '⌘Z undo · ⇧⌘Z redo (character and moves) · Esc back / close · click a panel heading: fold it · ? hints'],
+  ['fixed', '⌘K find anything · ⌘Z undo · ⇧⌘Z redo (character and moves) · Esc back / close · click a panel heading: fold it · ? hints'],
   ['grid', 'click a cell: focus it and use its settings, ⌘Z undoes (breed / attacks: breed around it) · Shift+click: only focus'],
   ['character', 'drag a joint: length + angle · Shift+drag: angle only'],
   ['animate', 'drag a joint: IK · Alt+drag: rotate one bone · timeline: drag a key to reorder, its edge to retime, double-click to split · Delete removes the key'],
@@ -47,7 +47,8 @@ function buildTop() {
   reg(pause, () => { setRich(pause, app.paused ? ':play_arrow: play' : ':pause: pause'); pause.classList.toggle('on', app.paused); });
   $('global').replaceChildren(
     grp('', 'Edit history', button(':undo:', 'Undo the last edit: character, moves or settings (⌘Z)', undo), button(':redo:', 'Redo (⇧⌘Z)', redo)),
-    grp('', 'Layout and keys', button(':view_sidebar:', 'Panel: show / hide the side panel (H)', togglePanel),
+    grp('', 'Layout and keys', button(':search:', 'Find anything (⌘K): a mode, a toolbar tool, an action, a character, a move or a setting', openPalette),
+      button(':view_sidebar:', 'Panel: show / hide the side panel (H)', togglePanel),
       button(':keyboard:', 'Keys: rebind any action, set up macros, and help', keysPanel),
       toggle(':help:', 'Hints: the line of mouse and key help under the view and the frame meter\'s colour legend; off, they show for a few seconds on the first visit to each mode (?)', () => ui.hints, toggleHints)));
   $('transport').replaceChildren(grp('', 'Playback', pause,
@@ -128,6 +129,7 @@ const SHORTCUTS = {
 addEventListener('keydown', e => { if (captureKey(e)) e.stopImmediatePropagation(); }, true); // rebinding a key
 addEventListener('keydown', e => {
   if (e.target.type === 'number') return;
+  if ((e.metaKey || e.ctrlKey) && e.code === 'KeyK') { e.preventDefault(); openPalette(); return; }
   if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyZ' || e.code === 'KeyY')) { e.preventDefault(); e.shiftKey || e.code === 'KeyY' ? redo() : undo(); return; }
   const a = act(e), mod = e.metaKey || e.ctrlKey;
   if (mode().key?.(e, a)) { e.preventDefault(); syncAll(); return; }
