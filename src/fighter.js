@@ -233,7 +233,7 @@ class Fighter {
     const hand = this.body()[(this.ch.chains.arm.find(c => c[0].side === 'f') || this.ch.chains.arm[0])?.at(-1).id];
     if (!hand) return;
     const a = this.action, keys = a.m.keys, g = Math.max(0, keys.findIndex(k => k.grip)), left = keys.slice(a.i, g + 1).reduce((s, k) => s + k.d, -a.t);
-    const half = WEAPONS[it.type].len / 2, rot = this.dir > 0 ? 0 : Math.PI, k = Math.min(1, dt / Math.max(dt, left)); // the rest of the way in the time left
+    const w = WEAPONS[it.type], half = (w.len - (w.back || 0)) / 2, rot = this.dir > 0 ? 0 : Math.PI, k = Math.min(1, dt / Math.max(dt, left)); // the rest of the way in the time left
     it.rot += wrap180((rot - it.rot) / R) * R * k;
     it.x += (hand[0] + Math.cos(it.rot) * half - it.x) * k;
   }
@@ -410,7 +410,11 @@ class Fighter {
         a.t -= keys[a.i].d; a.from = resolve(base, keys[a.i].p); this.keyReached(keys[a.i++]);
         if (keys[a.i]?.lunge) this.vx = this.dir * keys[a.i].lunge;
       }
-      if (a.i >= keys.length) this.action = null;
+      if (a.i >= keys.length) {
+        this.action = null;
+        const turns = Math.round((this.disp.weapon - base.weapon) / 360) * 360; // a weapon spun whole turns rests where it is, not unwound
+        if (turns) { this.disp.weapon -= turns; this.prev.weapon -= turns; this.flt.weapon.y -= turns; this.flt.weapon.xp -= turns; }
+      }
       if (this.ch !== ch) base = this.basePose(); // a grip / release key swapped the body
     }
     if (this.action) {
@@ -442,6 +446,7 @@ class Fighter {
 
     if (this.rag) this.ragStep(dt);
     this.plantFeet(dt);
+    this.gripWeapon();
   }
   // foot planting (plant setting): a foot the animation puts on the floor stays at its spot in the world and its leg bends to reach it
   // (two-bone IK on the bones above the ankle, the knee bending the way the animation bends it); a foot left more than plantStep
@@ -473,6 +478,27 @@ class Fighter {
       const set = (b, w, pw, prw) => { p[b.id] = this.disp[b.id] + wrap180(w - pw + b.level * (pw - prw) - this.disp[b.id]); };
       set(th, w1, pw, pb ? pb.restW : 0); set(a, w2, w1, th.restW);
     });
+    this.planted = p;
+  }
+  // two-handed weapons (grip2): the back hand holds the weapon grip2 px along it from the front hand (two-bone IK, the elbow bending
+  // the way the animation bends it, the hand parallel to the front one); it lets go, fading, where the point is out of its reach (spins)
+  gripWeapon() {
+    const ch = this.ch, g = ch.weapon && WEAPONS[ch.weapon].grip2, cn = g && !this.rag && ch.chains.arm.find(c => c[0].side === 'b');
+    if (!cn || cn.length < 2 || !ch.by.weapon) return;
+    const src = this.planted || this.disp, wa = {}, L = fk(ch, src, 1, this.lens, wa), p = this.planted || { ...src };
+    const wb = ch.by.weapon, h0 = L[wb.parent], u = [L.weapon[0] - h0[0], L.weapon[1] - h0[1]], ul = Math.hypot(...u) || 1;
+    const th = cn[0], a = cn[1], hand = cn[2], fh = ch.by[wb.parent], hl = hand ? this.lens[hand.id] : 0;
+    const o = L[th.parent || 'hip'], l1 = this.lens[th.id], l2 = this.lens[a.id];
+    const tx = h0[0] + u[0] / ul * g - Math.sin(wa[fh.id] * R) * hl - o[0], ty = h0[1] + u[1] / ul * g - Math.cos(wa[fh.id] * R) * hl - o[1];
+    const dd = Math.hypot(tx, ty), k = clamp((l1 + l2) * 1.25 - dd, 0, (l1 + l2) * 0.25) / ((l1 + l2) * 0.25); // 1 in reach, 0 well out of it
+    if (!k) return;
+    const d = clamp(dd, Math.abs(l1 - l2) + 0.01, l1 + l2 - 0.01), base = Math.atan2(tx, ty) / R, al = Math.acos(clamp((l1 * l1 + d * d - l2 * l2) / (2 * l1 * d), -1, 1)) / R;
+    const w1 = [base + al, base - al].reduce((m, w) => Math.abs(wrap180(w - wa[th.id])) < Math.abs(wrap180(m - wa[th.id])) ? w : m);
+    const el = [o[0] + Math.sin(w1 * R) * l1, o[1] + Math.cos(w1 * R) * l1], w2 = Math.atan2(o[0] + tx - el[0], o[1] + ty - el[1]) / R;
+    const pb = ch.by[th.parent], pw = pb ? wa[pb.id] : 0;
+    const set = (b, w, pw, prw) => { p[b.id] = src[b.id] + k * wrap180(w - pw + b.level * (pw - prw) - src[b.id]); };
+    set(th, w1, pw, pb ? pb.restW : 0); set(a, w2, w1, th.restW);
+    if (hand) set(hand, wa[fh.id], w2, a.restW);
     this.planted = p;
   }
   // this substep's strikes against the foes (after every fighter has moved, so two strikes in the same frame can clash)

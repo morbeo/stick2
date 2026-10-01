@@ -454,6 +454,7 @@ const CHAR_DEFS = {
 };
 // ---------- weapons: an extra bone in the front hand; while held, its class's moves go over P, → P and ↓ P ----------
 // look: how it is drawn · a: grip angle relative to the hand · back: length behind the hand (a staff is held along it)
+// grip2: two-handed, the back hand holds it this far along it from the front hand (− behind)
 // weight: heavier hits harder (power, damage and knockback × weaponPower) but its moves play slower (× weaponSpeed)
 const WEAPONS = {
   dagger: { cls: 'pierce', look: 'blade', len: 20, weight: 0.3, a: 0, tip: 'Dagger: short and quick; stabs, and flies straight when thrown' },
@@ -461,8 +462,8 @@ const WEAPONS = {
   axe: { cls: 'slash', look: 'axe', len: 36, weight: 1.3, a: 40, tip: 'Axe: a heavy head on a handle; slower, harder chops' },
   bat: { cls: 'blunt', look: 'club', len: 40, weight: 0.9, a: 40, tip: 'Bat: blunt swings that knock back' },
   nunchucks: { cls: 'blunt', look: 'stick', chain: true, len: 34, weight: 0.6, a: -100, tip: 'Nunchucks: two sticks on a chain, the outer one flails behind the swing' },
-  hammer: { cls: '2h', look: 'hammer', len: 52, weight: 2, a: 40, tip: 'War hammer: two-handed, very slow, crushing' },
-  staff: { cls: 'pole', look: 'pole', len: 62, back: 34, weight: 1, a: -50, tip: 'Staff: held along its length; the longest reach' },
+  hammer: { cls: '2h', look: 'hammer', len: 52, weight: 2, a: 40, grip2: 9, tip: 'War hammer: two-handed, very slow, crushing' },
+  staff: { cls: 'pole', look: 'pole', len: 62, back: 34, weight: 1, a: -50, grip2: -24, tip: 'Staff: held along its length; the longest reach' },
 };
 const weaponPower = w => 0.8 + 0.4 * w.weight, weaponSpeed = w => 1.15 - 0.2 * w.weight;
 // a weapon move built on a stick move's key pose (move, key index), with the weapon's grip angle (undefined: the rest grip)
@@ -481,9 +482,10 @@ const WEAPON_MOVES = {
   heavySwing: wAtk('2h', { power: 1.8, damage: 15, height: 'high', knock: 280, stun: 0.5 }, [0.16, wPose('jab', 0, 110)], [0.08, wPose('jab', 1, 0)], 0.08, 0.32),
   slam: wAtk('2h', { power: 2, damage: 18, height: 'mid', knock: 100, launch: 200, kd: true, bounce: true }, [0.18, wPose('hammer', 0, 30)], [0.08, wPose('hammer', 1, 0)], 0.1, 0.36),
   groundSwing: wAtk('2h', { power: 1.6, damage: 12, height: 'low', knock: 250, kd: true, launch: 150 }, [0.15, wPose('launcher', 0, 120)], [0.08, wPose('launcher', 0, 20)], 0.08, 0.3),
-  poke: wAtk('pole', { power: 1, damage: 7, height: 'mid', knock: 180, stun: 0.35 }, [0.07, wPose('jab', 0)], [0.05, wPose('jab', 1)], 0.06, 0.18),
-  whirl: wAtk('pole', { power: 1.3, damage: 10, height: 'high', knock: 200, stun: 0.4, wide: true }, [0.1, wPose('hammer', 0, 40)], [0.07, wPose('hammer', 1, -40)], 0.07, 0.26),
-  trip: wAtk('pole', { power: 1, damage: 7, height: 'low', knock: 60, launch: 150, kd: true }, [0.09, wPose('launcher', 0, 80)], [0.06, wPose('launcher', 0, 10)], 0.06, 0.24),
+  // the staff in both hands (grip2): poke thrusts it level, whirl turns it a full circle (down behind, up and over into the strike), trip sweeps it low
+  poke: wAtk('pole', { power: 1, damage: 7, height: 'mid', knock: 180, stun: 0.35, lunge: 120 }, [0.07, wPose('jab', 0, -52)], [0.05, wPose('jab', 1, 9)], 0.06, 0.18),
+  whirl: wAtk('pole', { power: 1.3, damage: 10, height: 'high', knock: 200, stun: 0.4, wide: true }, [0.12, wPose('hammer', 0, -404)], [0.07, wPose('uppercut', 1, -394)], 0.07, 0.26),
+  trip: wAtk('pole', { power: 1, damage: 7, height: 'low', knock: 60, launch: 150, kd: true }, [0.09, wPose('launcher', 0, 80)], [0.06, wPose('launcher', 0, -2)], 0.06, 0.24),
   // not attacks (P+G): crouch and reach, the hand closes on the handle at the grip key; wind up over the shoulder, the weapon leaves at the release key
   pickUp: { weapon: 'slash', keys: [
     { d: 0.16, e: 'outQuad', grip: true, p: { waist: 110, chest: 0, neck: 20, uarmF: -75, farmF: -5, handF: 0, weapon: 80, thighF: 85, shinF: -135, thighB: -25, shinB: -95 } },
@@ -493,6 +495,7 @@ const WEAPON_MOVES = {
     { d: 0.07, e: 'linear', release: true, p: wPose('overhand', 1, 20) },
     { d: 0.2, e: 'inOutCubic', p: null }] },
 };
+WEAPON_MOVES.whirl.keys[3].p = { weapon: -410 }; // recovers on round: a turn past the rest grip, not back the way it came
 // classes: their moves on P, → P and ↓ P while a weapon of the class is held (a character's wbinds override them), and the weapon the editor shows
 const WEAPON_CLASSES = {
   pierce: { weapon: 'dagger', binds: { punch: 'stab', fwdPunch: 'lungeStab', downPunch: 'riseStab' }, tip: 'One-handed pierce: quick stabs' },

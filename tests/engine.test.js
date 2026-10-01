@@ -306,6 +306,25 @@ test('pick up by the handle at the grip key, throw at the release key; unmarked:
   assert.equal(at(r.pick0, true), 1), assert.equal(at(r.toss0, false), 1, 'no release key: the first');
 });
 
+test('a staff or hammer is held in both hands (grip2), a sword in one; the whirl turns the staff a full circle and does not unwind', () => {
+  const r = json(`(() => { const gap = type => { const w = new World(SCENARIOS['you vs dummy'], {}, 7, [CHARS.stick, CHARS.stick]); w.a.wield(type);
+      for (let i = 0; i < 30; i++) w.advance(1 / 60, NOIN);
+      if (!WEAPONS[type].grip2) return w.a.ch.bones.filter(b => b.side === 'b' && /arm|hand/.test(b.id)).every(b => (w.a.planted || w.a.disp)[b.id] === w.a.disp[b.id]) ? 'free' : 'held';
+      const P = w.a.body(), h = P.handF, u = [P.weapon[0] - h[0], P.weapon[1] - h[1]], l = Math.hypot(...u), g = WEAPONS[type].grip2 || 0;
+      return Math.round(Math.hypot(P.handB[0] - h[0] - u[0] / l * g, P.handB[1] - h[1] - u[1] / l * g)); };
+    const w = new World(SCENARIOS['you vs dummy'], {}, 7, [CHARS.stick, CHARS.stick]), a = w.a; a.wield('staff');
+    for (let i = 0; i < 20; i++) w.advance(1 / 60, NOIN);
+    const ang = () => { const wa = {}; fk(a.ch, a.disp, 1, a.lens, wa); return wa.weapon; }, a0 = ang(); let lo = a0, back = 0;
+    a.force('whirl'); for (let i = 0; i < 90 && a.action; i++) { w.advance(1 / 60, NOIN); if (!a.action) break; const v = ang(); lo = Math.min(lo, v); back = Math.max(back, v - lo); }
+    for (let i = 0; i < 30; i++) w.advance(1 / 60, NOIN);
+    return { staff: gap('staff'), hammer: gap('hammer'), sword: gap('sword'), turn: a0 - lo, back, after: Math.abs(ang() - a0) }; })()`);
+  assert.ok(r.staff < 3 && r.hammer < 3, 'the back hand on the weapon: ' + [r.staff, r.hammer]);
+  assert.equal(r.sword, 'free', 'a sword is held in one hand');
+  assert.ok(r.turn > 300, 'whirl: a full circle (' + Math.round(r.turn) + '°)');
+  assert.ok(r.back < 60, 'it does not turn back the way it came: ' + Math.round(r.back) + '°');
+  assert.ok(r.after < 5, 'back at the rest grip, a whole turn on: ' + r.after);
+});
+
 test('P+G with a weapon throws it: it hits from range and the thrower is unarmed', () => {
   const r = json(`(() => { const r = fight(SCENARIOS['weapon throw'], [CHARS.stick, CHARS.stick], 120); return { w: r.w.a.ch.weapon, hits: r.w.hits, hp: r.w.b.hp, it: r.w.items.map(i => [i.type, i.rest]) }; })()`);
   assert.equal(r.w, undefined), assert.equal(r.hits, 1), assert.ok(r.hp < 100);
