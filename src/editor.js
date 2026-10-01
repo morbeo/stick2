@@ -282,22 +282,22 @@ function keyPanel() {
   reg(frames, () => { frames.textContent = `${Math.round(k().d * 60)}f`; });
   return [title,
     h('div', { cls: 'bar' },
-      button('◀', 'Previous key (Shift+←)', () => selectKey(anim.key - 1)), button('▶', 'Next key (Shift+→)', () => selectKey(anim.key + 1)),
-      button('+ key', 'Insert a key after this one, starting from its pose', addKey), button('delete', 'Delete this key', deleteKey),
-      button('→ stance', 'This key returns to the stance (clears its pose)', () => setKey('p', null)),
+      button(':chevron_left:', 'Previous key (Shift+←)', () => selectKey(anim.key - 1)), button(':chevron_right:', 'Next key (Shift+→)', () => selectKey(anim.key + 1)),
+      button(':add: key', 'Insert a key after this one, starting from its pose', addKey), button(':delete: delete', 'Delete this key', deleteKey),
+      button(':accessibility_new: stance', 'This key returns to the stance (clears its pose)', () => setKey('p', null)),
       button('hold', 'Copy the previous key\'s pose (hold still)', () => setKey('p', clone(keyPose(currentChar(), curMove(), Math.max(0, anim.key - 1))))),
-      button('pose', 'Start this key from a preset pose', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.entries(POSES).map(([n, p]) =>
+      button(':accessibility_new: pose', 'Start this key from a preset pose', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.entries(POSES).map(([n, p]) =>
         button(n, p.tip, () => setKey('p', { ...keyPose(currentChar(), curMove(), anim.key), ...presetPose(currentChar(), p) }))))))),
     h('div', { cls: 'row', tip: 'Duration in 60 fps frames' }, h('span', { textContent: 'frames' }),
-      h('span', { cls: 'bar' }, button('−', 'One frame shorter', () => keyFrames(-1)), frames, button('+', 'One frame longer', () => keyFrames(1)))),
+      h('span', { cls: 'bar' }, button('−', 'One frame shorter', () => keyFrames(-1)), frames, button(':add:', 'One frame longer', () => keyFrames(1)))),
     h('div', { cls: 'row', tip: 'Easing curve into this key\'s pose' }, h('span', { textContent: 'easing' }),
       seg(Object.keys(EASE), () => k().e || 'linear', v => setKey('e', v), EASE_TIPS)),
     h('div', { cls: 'row', tip: 'Active frames can hit' }, h('span', { textContent: 'active' }),
-      toggle('hits', 'Active: the strike can connect during this key', () => !!k().active, v => setKey('active', v || undefined))),
+      toggle(':my_location: hits', 'Active: the strike can connect during this key', () => !!k().active, v => setKey('active', v || undefined))),
     h('div', { cls: 'row', tip: 'Cancel window and invincibility' }, h('span', { textContent: 'flags' }), h('span', { cls: 'bar' },
-      toggle('cancel', 'The cancel window opens at this key (chains, specials, jump). Unmarked: after the last active key.', () => !!k().cancel,
+      toggle(':sync_alt: cancel', 'The cancel window opens at this key (chains, specials, jump). Unmarked: after the last active key.', () => !!k().cancel,
         v => edit(def => { def.moves[anim.move].keys.forEach((x, i) => { if (i === anim.key && v) x.cancel = true; else delete x.cancel; }); })),
-      toggle('inv', 'Invincible during this key (reversals like rising)', () => !!k().inv, v => setKey('inv', v || undefined)))),
+      toggle(':block: inv', 'Invincible during this key (reversals like rising)', () => !!k().inv, v => setKey('inv', v || undefined)))),
     slider('lunge', { min: 0, max: 600, step: 10 }, () => k().lunge || 0, v => setKey('lunge', v || undefined, 'lunge'),
       'Forward speed given when this key starts (px/s): steps into the strike.'),
   ];
@@ -305,15 +305,15 @@ function keyPanel() {
 function movePanel() {
   const m = () => curMove(), hitB = button('', 'The bone whose end is the strike (and whose limb is tested in limb mode)', (e, b) =>
     popup(b, h('div', { cls: 'bar' }, seg(currentChar().ids, () => m().hit, v => setMove('hit', v)))));
-  reg(hitB, () => { hitB.textContent = m().hit || 'none'; });
+  reg(hitB, () => { setRich(hitB, m().hit || 'none'); });
   const bindB = button('', 'Inputs that trigger this move. Click to bind it to other inputs (copies of moves become playable this way).', (e, b) =>
     popup(b, h('div', { cls: 'bar' }, Object.keys(BINDS).map(s => toggle(s, `${SLOT_TIPS[s]} · now: ${currentChar().binds[s]}`, () => currentChar().binds[s] === anim.move, () => toggleBind(s))))));
-  reg(bindB, () => { bindB.textContent = boundSlots().join(' ') || 'none (combo only)'; });
+  reg(bindB, () => { setRich(bindB, boundSlots().join(' ') || 'none (combo only)'); });
   return [...charPanel(),
     heading('Moves', 'Pick a move to edit. Copies can be tuned freely; the built-in names are the ones the controls trigger.', 'Enter play/pause · O onion · I aim'),
     h('div', { cls: 'bar' }, seg(Object.keys(currentChar().moves), () => anim.move, pickMove)),
-    h('div', { cls: 'bar' }, button('copy', 'Duplicate this move under a new name', copyMove),
-      button('delete', 'Delete this move (only copies)', deleteMove)),
+    h('div', { cls: 'bar' }, button(':content_copy: copy', 'Duplicate this move under a new name', copyMove),
+      button(':delete: delete', 'Delete this move (only copies)', deleteMove)),
     ...keyPanel(),
     heading('Move', 'What happens on hit. Frame data (60 fps) is under the timeline.', ''),
     h('div', { cls: 'row', tip: 'Striking bone' }, h('span', { textContent: 'hit' }), hitB),
@@ -327,13 +327,13 @@ function movePanel() {
 
 function animCtx() {
   const play = button('', 'Play / pause the move (Enter)', () => { anim.playing = !anim.playing; });
-  reg(play, () => { play.textContent = anim.playing ? '❚❚ move' : '▶ move'; });
+  reg(play, () => { setRich(play, anim.playing ? ':pause: move' : ':play_arrow: move'); });
   return [play,
-    button('|◀', 'First key', () => selectKey(0)), button('▶|', 'Last key', () => selectKey(curMove().keys.length - 1)),
-    toggle('onion', 'Ghosts of the previous (blue) and next (green) keys (O)', () => anim.onion, v => { anim.onion = v; }),
-    toggle('aim', 'The striking limb follows the cursor through IK; click to set the pose (I)', () => anim.aim, v => { anim.aim = v; }),
-    toggle('ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; }),
-    toggle('boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }), colorsToggle()];
+    button(':skip_previous:', 'First key', () => selectKey(0)), button(':skip_next:', 'Last key', () => selectKey(curMove().keys.length - 1)),
+    toggle(':layers: onion', 'Ghosts of the previous (blue) and next (green) keys (O)', () => anim.onion, v => { anim.onion = v; }),
+    toggle(':my_location: aim', 'The striking limb follows the cursor through IK; click to set the pose (I)', () => anim.aim, v => { anim.aim = v; }),
+    toggle(':visibility: ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; }),
+    toggle(':check_box_outline_blank: boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }), colorsToggle()];
 }
 
 const animMode = {

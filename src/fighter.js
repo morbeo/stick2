@@ -6,7 +6,7 @@ class Fighter {
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
       kd: null, downT: 0, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
-      z: 0, vz: 0, lane: 0, dashT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0 });
+      z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0 });
     this.target = this.basePose();
     this.disp = { ...this.target };
     this.prev = { ...this.target };
@@ -73,7 +73,7 @@ class Fighter {
     if (k === 'up' || k === 'down') { if (this.c('plane') === 'lanes') this.lane = clamp(this.lane + (k === 'down' ? 1 : -1), -1, 1); return; }
     if (!this.c('dash')) return;
     const d = k === 'right' ? 1 : -1, fwd = d === this.dir;
-    this.vx = d * this.c('maxSpeed') * (fwd ? 2.2 : 1.8); this.dashT = fwd ? 0.18 : 0.22; this.running = fwd;
+    this.vx = d * this.c('maxSpeed') * (fwd ? 2.2 : 1.8); this.dashT = fwd ? 0.18 : 0.22; this.passT = this.c('dashPass'); this.running = fwd;
     this.sqv -= this.c('squash') * 10; this.lean = (fwd ? 8 : -6);
   }
   // 2.5D depth: walk on the belt or slide to the lane; attacks home in on the target's depth during startup
@@ -166,7 +166,7 @@ class Fighter {
     }
     this.prevIn = inp;
     if (!inp[fwdK] || !this.free || this.action) this.running = false;
-    this.dashT -= dt;
+    this.dashT -= dt; this.passT -= dt;
 
     // horizontal: accelerate toward desired speed, never snap
     this.crouching = this.free && inp.down && this.grounded && c('plane') !== 'belt';

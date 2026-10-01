@@ -114,7 +114,7 @@ class World {
     // push apart (unless someone is knocked down), then face the nearest foe
     for (let i = 0; i < fs.length; i++) for (let j = i + 1; j < fs.length; j++) {
       const a = fs[i], b = fs[j], d = b.x - a.x;
-      if (Math.abs(d) < 38 && Math.abs(a.y - b.y) < 60 && Math.abs(a.z - b.z) < cfg.zReach && !a.kd && !b.kd) {
+      if (Math.abs(d) < 38 && Math.abs(a.y - b.y) < 60 && Math.abs(a.z - b.z) < cfg.zReach && !a.kd && !b.kd && a.passT <= 0 && b.passT <= 0) {
         const push = (38 - Math.abs(d)) / 2 * (Math.sign(d) || 1);
         a.x -= push; b.x += push;
       }

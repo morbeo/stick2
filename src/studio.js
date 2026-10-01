@@ -32,29 +32,40 @@ const ROLE_TIPS = {
 // role colours for the editors' colour-coded view: [front / centre, back]
 const ROLE_COLS = { spine: ['#222', '#8a8580'], head: ['#8e44ad', '#c6a2d6'], arm: ['#2c6fb0', '#94b7d8'], leg: ['#2e8b57', '#97c5ab'], tail: ['#b9770e', '#e0c08a'] };
 const roleTint = () => studio.colors ? b => ROLE_COLS[b.role][b.side === 'b' ? 1 : 0] : null;
-const colorsToggle = () => toggle('colors', 'Colour bones by role: spine black · head purple · arms blue · legs green · tails amber (back side paler)',
+const colorsToggle = () => toggle(':palette: colors', 'Colour bones by role: spine black · head purple · arms blue · legs green · tails amber (back side paler)',
   () => studio.colors, v => { studio.colors = v; });
 const SIDE_TIPS = { f: 'Front: drawn over the body in the main colour.', '': 'Centre: drawn with the body.', b: 'Back: drawn behind the body in the second colour.' };
 const SHAPE_TIPS = { line: 'A stroke from the parent joint to this one.', circle: 'A disc centred on the joint, radius = length (heads, fists).' };
 
 // ---------- edits: snapshot for undo, change the definition, recompile, swap it into running fights ----------
-// key: repeated edits with the same key (a slider or joint drag) merge into one undo step
-function edit(fn, key = null) {
+// key: repeated edits with the same key (a slider or joint drag) merge into one undo step.
+// One stack for both: character snapshots (JSON strings) and settings snapshots ({ cfg })
+function snapshot(entry, key) {
   const now = performance.now();
   if (!key || key !== studio.lastKey || now - studio.lastT > 1000) {
-    studio.undo.push(JSON.stringify(DEFS[CURRENT]));
+    studio.undo.push(entry());
     if (studio.undo.length > 200) studio.undo.shift();
     studio.redo = [];
   }
   studio.lastKey = key; studio.lastT = now;
+}
+function edit(fn, key = null) {
+  snapshot(() => JSON.stringify(DEFS[CURRENT]), key);
   fn(DEFS[CURRENT]);
   recompile();
 }
+// settings changes (sliders, presets, group buttons, grid picks) are undoable too
+function setCfg(vals, key = null) {
+  snapshot(() => ({ cfg: { ...CFG } }), key);
+  Object.assign(CFG, vals);
+}
 function undoRedo(from, to) {
   if (!from.length) return;
-  to.push(JSON.stringify(DEFS[CURRENT]));
-  DEFS[CURRENT] = JSON.parse(from.pop());
+  const e = from.pop();
   studio.lastKey = null;
+  if (e.cfg) { to.push({ cfg: { ...CFG } }); Object.assign(CFG, e.cfg); syncAll(); return; }
+  to.push(JSON.stringify(DEFS[CURRENT]));
+  DEFS[CURRENT] = JSON.parse(e);
   recompile();
 }
 const undo = () => undoRedo(studio.undo, studio.redo), redo = () => undoRedo(studio.redo, studio.undo);
@@ -131,12 +142,12 @@ function charPanel() {
     h('div', { cls: 'bar' }, seg(Object.keys(DEFS), () => CURRENT, pickChar,
       Object.fromEntries(Object.keys(DEFS).map(k => [k, CHAR_DEFS[k] ? `Built-in: ${k}` : `Your character: ${k}`])))),
     h('div', { cls: 'bar' },
-      button('copy', 'Make a new character from this one', () => addChar(DEFS[CURRENT], CURRENT)),
-      button('rename', 'Rename this character (a built-in one is copied under the new name)', renameChar),
-      button('revert', 'Throw away the edits of this built-in character (undoable)', revertChar),
-      button('delete', 'Delete this character (only your own ones)', deleteChar),
-      button('export', 'Download this character as a JSON file', exportChar),
-      button('import', 'Load a character JSON file as a new character', importChar)),
+      button(':content_copy: copy', 'Make a new character from this one', () => addChar(DEFS[CURRENT], CURRENT)),
+      button(':edit: rename', 'Rename this character (a built-in one is copied under the new name)', renameChar),
+      button(':history: revert', 'Throw away the edits of this built-in character (undoable)', revertChar),
+      button(':delete: delete', 'Delete this character (only your own ones)', deleteChar),
+      button(':download: export', 'Download this character as a JSON file', exportChar),
+      button(':upload: import', 'Load a character JSON file as a new character', importChar)),
   ];
 }
 

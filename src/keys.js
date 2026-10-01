@@ -66,9 +66,9 @@ const unbind = k => { for (const a in keymap) keymap[a] = keymap[a].filter(x => 
 function keyChip(get, set, tip, empty = '—') {
   const b = button('', tip + ' · click, then press the new key (Esc cancels, Backspace removes)', () => {
     capture = k => { if (k) unbind(k); set(k); };
-    b.textContent = 'press a key…';
+    setRich(b, 'press a key…');
   }, 'mini');
-  reg(b, () => { if (capture === null) b.textContent = get() ? keyLabel(get()) : empty; });
+  reg(b, () => { if (capture === null) setRich(b, get() ? keyLabel(get()) : empty); });
   return b;
 }
 let keysPop = null;
@@ -85,10 +85,10 @@ function keysContent() {
       keyChip(() => m.key, v => { m.key = v || ''; }, 'Macro key'),
       h('input', { cls: 'macro', value: m.seq, tip: "Steps: '2, 3, 6P' (↓↘→ punch) · 'P, 0.13, P, 0.13, K' · numbers with a dot are waits in seconds",
         onchange: e => { m.seq = e.target.value; saveKeys(); }, onkeydown: e => e.stopPropagation() }),
-      button('×', 'Delete this macro', () => { macros.splice(i, 1); saveKeys(); refreshKeys(); }, 'mini'))),
+      button(':close:', 'Delete this macro', () => { macros.splice(i, 1); saveKeys(); refreshKeys(); }, 'mini'))),
     h('div', { cls: 'bar' },
-      button('+ macro', 'Add a macro', () => { macros.push({ key: '', seq: 'P, 0.13, P, 0.13, K' }); saveKeys(); refreshKeys(); }),
-      button('reset keys', 'Every key and macro back to the defaults', () => {
+      button(':add: macro', 'Add a macro', () => { macros.push({ key: '', seq: 'P, 0.13, P, 0.13, K' }); saveKeys(); refreshKeys(); }),
+      button(':restart_alt: reset keys', 'Every key and macro back to the defaults', () => {
         Object.assign(keymap, Object.fromEntries(ACTIONS.map(([a, , k]) => [a, [...k]])));
         macros.splice(0, macros.length, ...clone(DEFAULT_MACROS)); saveKeys(); refreshKeys();
       })),

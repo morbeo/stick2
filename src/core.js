@@ -62,6 +62,7 @@ const SCHEMA = [
   { k: 'flips', v: '2.5D', opts: ['off', '2.5D', 'always'], tip: 'Jumps with ← / → held are ninja flips.',
     optTips: { off: 'No flips.', '2.5D': 'Flips in lanes and belt only.', always: 'Flips in 2D too.' } },
   { k: 'dash', v: true, tip: 'Double tap → / ← to dash forward / back; keep holding forward after a dash to run.' },
+  { k: 'dashPass', v: 0.1, min: 0, max: 0.25, step: 0.01, tip: 'Seconds at the start of a dash that pass through opponents (no pushing apart), so a dash can cross up.' },
   { k: 'runSpeed', v: 1.6, min: 1, max: 3, step: 0.1, tip: 'Running speed × maxSpeed.' },
   ['Combo escalation', 'Effects that grow with every hit of a combo, to find how a long combo should feel. 0 = off. The grid\'s combo fx test compares them side by side.', ''],
   { k: 'comboStop', v: 0, min: -0.2, max: 0.4, step: 0.01, tip: 'Hit stop grows by this fraction per combo hit (negative: shrinks), on top of hitstopDecay.' },

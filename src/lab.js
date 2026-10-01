@@ -224,7 +224,9 @@ function drawPlot(c, r) {
 }
 
 // sidebar oscilloscope: target vs drawn for one bone of the focused cell's left fighter
-const scopeCv = h('canvas', { id: 'scope' }), sctx = scopeCv.getContext('2d'), stats = h('div', { cls: 'note' });
+const scopeCv = h('canvas', { id: 'scope', tip: 'Oscilloscope: the angle of one bone (the scope setting) over the last seconds of the focused fight.\n' +
+  'grey = the target the keyframes ask for · red = what is drawn after the pose filter (springs, damping, follow-through).\n' +
+  'Use it to tune the filter: overshoot and wobble show as red ringing around grey, lag as red trailing behind it, flat parts are hit stop.' }), sctx = scopeCv.getContext('2d'), stats = h('div', { cls: 'note' });
 function drawScope() {
   if (!scopeCv.isConnected || !lab.focus) return;
   const w = lab.focus.w, hs = w.hist;
@@ -260,7 +262,7 @@ function scenButton(onPick) {
       return o;
     })),
   ])));
-  reg(b, () => { b.textContent = `⚔ ${lab.scen}`; });
+  reg(b, () => { setRich(b, `:sports_kabaddi: ${lab.scen}`); });
   return b;
 }
 // grid axis: pick a variable (grouped like the side panel) and its range
@@ -278,7 +280,7 @@ function axisButton(ax, name) {
     });
     const pick = k => { ax.k = k; ax.lo = SPEC[k]?.min; ax.hi = SPEC[k]?.max; build(); };
     popup(b, name === 'Y' && h('div', { cls: 'bar' }, button('none', 'Only one axis: 9 values of X', () => { pick(''); closePop(); }),
-      button('scenario', `One row per fight: ${AXIS_SCENS.join(' · ')}`, () => { lab.rows = null; pick('scenario'); closePop(); })),
+      button(':sports_kabaddi: scenario', `One row per fight: ${AXIS_SCENS.join(' · ')}`, () => { lab.rows = null; pick('scenario'); closePop(); })),
       ...groups.flatMap(([g, vars]) => [h('h4', { textContent: g }), h('div', { cls: 'bar' }, vars.map(s => {
         const o = button(s.k, s.tip, () => pick(s.k));
         reg(o, () => o.classList.toggle('on', ax.k === s.k));
@@ -286,7 +288,7 @@ function axisButton(ax, name) {
       }))]),
       h('h4', { textContent: 'range' }), h('div', { cls: 'bar' }, 'from', range[0], 'to', range[1]));
   });
-  reg(b, () => { b.textContent = `${name}: ${ax.k || 'none'}`; });
+  reg(b, () => { setRich(b, `${name}: ${ax.k || 'none'}`); });
   return b;
 }
 const GALLERY_TARGETS = {
@@ -294,48 +296,48 @@ const GALLERY_TARGETS = {
   whiff: ['Nobody in range: the move whiffs, pure animation', { bx: 720 }],
   ai: ['The engine AI: moves, attacks back', { b: 'ai' }],
 };
-const meterToggle = () => toggle('meter', METER_TIPS, () => lab.meter, v => { lab.meter = v; });
-const boxesToggle = () => toggle('boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; });
+const meterToggle = () => toggle(':timeline: meter', METER_TIPS, () => lab.meter, v => { lab.meter = v; });
+const boxesToggle = () => toggle(':check_box_outline_blank: boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; });
 // training tools (play): record your inputs, then the dummy replays them (mirrored to its facing)
 function trainingCtl() {
   const human = () => SCENARIOS[lab.scen].a === 'human';
-  const rec = toggle('rec', 'Record your inputs (from now until you switch it off); the replay dummy then plays them back', () => lab.rec, v => {
+  const rec = toggle(':fiber_manual_record: rec', 'Record your inputs (from now until you switch it off); the replay dummy then plays them back', () => lab.rec, v => {
     const w = lab.cells[0].w;
     lab.rec = v;
     if (v) { lab.replay = false; w.tape = []; } else { lab.tape = w.tape; w.tape = null; }
   });
-  const rep = toggle('replay', 'The dummy plays your recording in a loop: practise against your own combo or pressure', () => lab.replay, v => { lab.replay = v; build(); });
+  const rep = toggle(':replay: replay', 'The dummy plays your recording in a loop: practise against your own combo or pressure', () => lab.replay, v => { lab.replay = v; build(); });
   reg(rec, () => { rec.disabled = !human(); });
   reg(rep, () => { rep.disabled = !human() || lab.rec || !lab.tape?.length; });
-  return [meterToggle(), toggle('inputs', 'Input display: your inputs in numpad notation (6 forward, 2 down, 8 jump) and frames held', () => lab.inputs, v => { lab.inputs = v; }),
+  return [meterToggle(), toggle(':stadia_controller: inputs', 'Input display: your inputs in numpad notation (6 forward, 2 down, 8 jump) and frames held', () => lab.inputs, v => { lab.inputs = v; }),
     rec, rep, boxesToggle()];
 }
 function sortButton() {
-  return button('sort', 'Reorder the cells once by a metric (they keep running)', (e, b) => popup(b, h('div', { cls: 'bar' },
+  return button(':sort: sort', 'Reorder the cells once by a metric (they keep running)', (e, b) => popup(b, h('div', { cls: 'bar' },
     Object.entries(METRICS).map(([k, [tip, f]]) => button(k, tip, () => { lab.cells.sort((p, q) => avg(q, f) - avg(p, f)); closePop(); })))));
 }
 function labCtx() {
   if (lab.mode === 'gallery') return [seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0])),
-    meterToggle(), boxesToggle(), toggle('ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; })];
+    meterToggle(), boxesToggle(), toggle(':visibility: ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; })];
   const els = [];
   if (lab.mode === 'grid') els.push(seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS));
   if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(scenButton(k => { lab.scen = k; build(); }));
   if (lab.mode === 'grid' && lab.kind !== 'sweep') els.push(...breedCtx());
   else if (lab.mode === 'grid') {
-    const adopt = button('use these values', 'Copy the focused cell\'s values into the settings (side panel)', () => Object.assign(CFG, lab.focus.over));
-    const back = button('◱ back to grid', 'Show all cells again (Esc)', () => { lab.zoom = false; });
+    const adopt = button(':check: use these values', 'Copy the focused cell\'s values into the settings (side panel)', () => setCfg(lab.focus.over));
+    const back = button(':grid_view: back to grid', 'Show all cells again (Esc)', () => { lab.zoom = false; });
     reg(adopt, () => { adopt.hidden = !lab.zoom; }); reg(back, () => { back.hidden = !lab.zoom; });
     els.push(axisButton(lab.x, 'X'), axisButton(lab.y, 'Y'),
-      button('collision test', 'Every hitTest mode (columns) on three fights (rows): compare hits and whiffs of the collision modes', () => {
+      button(':target: collision test', 'Every hitTest mode (columns) on three fights (rows): compare hits and whiffs of the collision modes', () => {
         Object.assign(lab.x, { k: 'hitTest' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = null; build();
       }),
-      button('cancel test', `Every chain rule (columns) on combo fights (rows: ${CANCEL_SCENS.join(' · ')}): what each rule lets through; the meter shows cancel windows in purple`, () => {
+      button(':sync_alt: cancel test', `Every chain rule (columns) on combo fights (rows: ${CANCEL_SCENS.join(' · ')}): what each rule lets through; the meter shows cancel windows in purple`, () => {
         Object.assign(lab.x, { k: 'chains' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = CANCEL_SCENS; lab.meter = true; build();
       }),
-      button('combo fx test', 'One cell per combo escalation (longer pauses, growing shake, faster attacks, faster game…) on the air combo: pick the feel, then copy its values', () => {
+      button(':auto_awesome: combo fx test', 'One cell per combo escalation (longer pauses, growing shake, faster attacks, faster game…) on the air combo: pick the feel, then copy its values', () => {
         Object.assign(lab.x, { k: 'comboFx' }); lab.y.k = ''; lab.scen = 'air combo'; build();
       }),
-      button('2.5D test', `Every plane (columns: 2D, lanes, belt) on depth fights (rows: ${PLANE_SCENS.join(' · ')}): sidesteps dodge, flips, dashes, AI lining up`, () => {
+      button(':view_in_ar: 2.5D test', `Every plane (columns: 2D, lanes, belt) on depth fights (rows: ${PLANE_SCENS.join(' · ')}): sidesteps dodge, flips, dashes, AI lining up`, () => {
         Object.assign(lab.x, { k: 'plane' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = PLANE_SCENS; build();
       }), adopt, back);
   }
@@ -351,38 +353,39 @@ function cfgControl(s) {
   const name = h('span', { textContent: s.k });
   if (s.k === 'scope') {
     const b = button('', 'Pick the bone to plot', (e, b) => popup(b, h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => { CFG.scope = v; }))));
-    reg(b, () => { b.textContent = CFG.scope; });
+    reg(b, () => { setRich(b, CFG.scope); });
     return h('div', { cls: 'row', tip: s.tip }, name, b);
   }
-  if (s.opts) return h('div', { cls: 'row', tip: s.tip }, name, seg(s.opts, () => CFG[s.k], v => { CFG[s.k] = v; }, s.optTips));
-  if (typeof s.v === 'boolean') return h('div', { cls: 'row', tip: s.tip }, name, toggle(CFG[s.k] ? 'on' : 'off', s.tip, () => CFG[s.k], v => { CFG[s.k] = v; }));
-  return slider(s.k, s, () => CFG[s.k], v => { CFG[s.k] = v; }, s.tip);
+  const set = v => setCfg({ [s.k]: v }, 'cfg.' + s.k);
+  if (s.opts) return h('div', { cls: 'row', tip: s.tip }, name, seg(s.opts, () => CFG[s.k], set, s.optTips));
+  if (typeof s.v === 'boolean') return h('div', { cls: 'row', tip: s.tip }, name, toggle(CFG[s.k] ? 'on' : 'off', s.tip, () => CFG[s.k], set));
+  return slider(s.k, s, () => CFG[s.k], set, s.tip);
 }
 function applyPreset(name) {
   const keep = { ghost: CFG.ghost, boxes: CFG.boxes, scope: CFG.scope, timeScale: CFG.timeScale };
-  Object.assign(CFG, DEFAULTS, PRESETS[name], keep);
+  setCfg({ ...DEFAULTS, ...PRESETS[name], ...keep });
 }
 function configPanel() {
   return [h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(n, PRESET_TIPS[n], () => applyPreset(n))),
-      button('reset', 'All settings back to their defaults', () => applyPreset('juicy'))),
+      button(':restart_alt: reset', 'All settings back to their defaults', () => applyPreset('juicy'))),
     ...SCHEMA.map((s, i) => Array.isArray(s) ? groupHeading(s, i) : s.k === 'scope' ? cfgControl(s) : gridLink(cfgControl(s), s))];
 }
 // buttons on a group heading that change all of its variables at once
 const groupKeys = i => { const k = []; for (let j = i + 1; j < SCHEMA.length && !Array.isArray(SCHEMA[j]); j++) k.push(SCHEMA[j].k); return k; };
 const nudge = f => (s, v) => typeof s.v === 'boolean' ? f > 0 : s.opts ? v : snap(s, v + f * (s.max - s.min));
 const GROUP_OPS = {
-  '⚄': ['Randomize: every variable of the group gets a random value', s => typeof s.v === 'boolean' ? Math.random() < 0.5
+  ':casino:': ['Randomize: every variable of the group gets a random value', s => typeof s.v === 'boolean' ? Math.random() < 0.5
     : s.opts ? s.opts[Math.floor(Math.random() * s.opts.length)] : snap(s, s.min + Math.random() * (s.max - s.min))],
-  '↺': ['Normalize: the group back to its defaults', s => s.v],
-  '▲': ['Empower: numbers up by 15% of their range, switches on', nudge(0.15)],
-  '▼': ['Diminish: numbers down by 15% of their range, switches off', nudge(-0.15)],
+  ':restart_alt:': ['Normalize: the group back to its defaults', s => s.v],
+  ':arrow_drop_up:': ['Empower: numbers up by 15% of their range, switches on', nudge(0.15)],
+  ':arrow_drop_down:': ['Diminish: numbers down by 15% of their range, switches off', nudge(-0.15)],
 };
 function groupHeading(s, i) {
   const el = heading(...s), ks = groupKeys(i).filter(k => k !== 'scope');
   if (s[0] === 'Debug') return el;
   el.append(h('span', { cls: 'gops' }, ...Object.entries(GROUP_OPS).map(([l, [tip, f]]) =>
-    button(l, tip, () => { for (const k of ks) CFG[k] = f(SPEC[k], CFG[k]); }, 'mini')),
-    button('▦', 'Experiment: breed the group\'s variables in the grid, click the best cell to breed around it', () => {
+    button(l, tip, () => setCfg(Object.fromEntries(ks.map(k => [k, f(SPEC[k], CFG[k])]))), 'mini')),
+    button(':science:', 'Experiment: breed the group\'s variables in the grid, click the best cell to breed around it', () => {
       lab.kind = 'breed'; breed.vars = new Set(ks); breed.cfg = null; setMode('grid');
     }, 'mini')));
   return el;
@@ -403,6 +406,8 @@ function labClick(x, y, e) {
   const i = hitRect(cellRects(lab.cells.length, lab.cols, fullArea()), x, y);
   if (i < 0) return;
   lab.focus = lab.cells[i];
+  // a pick in a settings experiment also sets those settings (⌘Z undoes it); Shift+click only looks
+  if (lab.mode === 'grid' && !e.shiftKey && lab.focus.over) setCfg(lab.focus.over);
   if (lab.mode === 'grid' && lab.kind !== 'sweep' && !e.shiftKey) breedFrom(lab.cells[i]); else lab.zoom = true;
 }
 
@@ -416,5 +421,5 @@ const labMode = {
   mouse(type, x, y, e) { if (type === 'down') labClick(x, y, e); },
   key(e) { if (e.code === 'Escape' && lab.zoom) { lab.zoom = false; return true; } },
   hint: () => lab.mode === 'play' ? fightHint()
-    : lab.mode === 'grid' && lab.kind !== 'sweep' ? 'click a cell: breed around it · Shift+click: focus · Esc back' : 'click a cell to focus it · Esc back',
+    : lab.mode === 'grid' && lab.kind !== 'sweep' ? 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back' : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',
 };

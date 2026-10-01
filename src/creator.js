@@ -169,9 +169,9 @@ function creatorCtx() {
   return [
     h('span', { cls: 'note', textContent: 'preview' }),
     seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); }, mapVals(PREVIEWS, p => p[1])),
-    toggle('experiment', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
+    toggle(':science: experiment', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
       () => creator.expOn, setExp),
-    toggle('boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }),
+    toggle(':check_box_outline_blank: boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }),
     colorsToggle(),
   ];
 }
@@ -198,9 +198,9 @@ function bonePanel() {
       v => edit(def => { def.poses.stance[studio.sel] = v; }, 'stance:' + studio.sel),
       'Angle in the stance pose, relative to the parent (0 = straight on, root bones: 0 = down, 180 = up). Moves are layered on top.'),
     ...BONE_PROPS.map(p => slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip)),
-    row('limits', 'Clamp how far this joint can bend', toggle('limits', 'Clamp how far this joint can bend', () => prop('min') !== undefined, lim)),
+    row('limits', 'Clamp how far this joint can bend', toggle(':straighten: limits', 'Clamp how far this joint can bend', () => prop('min') !== undefined, lim)),
     ...limRows,
-    row('lock', 'Lock to the parent', toggle('lock', 'Locked: the joint keeps its angle to its parent while posing. Dragging it (or IK through it) turns the first unlocked bone above, so locked bones move as one group.',
+    row('lock', 'Lock to the parent', toggle(':lock: lock', 'Locked: the joint keeps its angle to its parent while posing. Dragging it (or IK through it) turns the first unlocked bone above, so locked bones move as one group.',
       () => !!prop('lock'), v => setProp('lock', v || undefined)))];
 }
 function bodyPanel() {
@@ -209,11 +209,11 @@ function bodyPanel() {
       '⌘Z undo · ⇧⌘Z redo · Del delete · drag joints in the editor'),
     h('div', { cls: 'bar' },
       ...Object.keys(LIMBS).map(k => button(`+ ${k}`, LIMB_TIPS[k], () => addLimb(k))),
-      button('+ joint', 'Add one bone at the end of the selected bone (same role and side)', addBone)),
+      button(':add: joint', 'Add one bone at the end of the selected bone (same role and side)', addBone)),
     h('div', { cls: 'bar' },
-      button('copy', 'Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb),
-      button('delete', 'Delete the selected bone and everything below it (Del)', deleteBone),
-      button('↶ undo', 'Undo (⌘Z)', undo), button('↷ redo', 'Redo (⇧⌘Z)', redo)),
+      button(':content_copy: copy', 'Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb),
+      button(':delete: delete', 'Delete the selected bone and everything below it (Del)', deleteBone),
+      button(':undo: undo', 'Undo (⌘Z)', undo), button(':redo: redo', 'Redo (⇧⌘Z)', redo)),
     h('h4', { textContent: 'stance pose', tip: 'Set the whole stance from a preset (per limb, so it works for any body)' }),
     h('div', { cls: 'bar' }, Object.entries(POSES).map(([k, p]) => button(k, p.tip, () => edit(def => Object.assign(def.poses.stance, presetPose(currentChar(), p)))))),
     h('h4', { textContent: 'bones', tip: 'Click to select · ▾ ▸ fold a branch' }),
@@ -227,15 +227,15 @@ function expPanel() {
     heading('Body experiment', 'Nine bodies: the parent (framed) and 8 random variations of the chosen properties. Click a cell to make it the parent and breed new variations; repeat to home in, then keep it.',
       'click a cell: breed · Esc: back to the editor'),
     h('div', { cls: 'bar' },
-      button('keep parent', 'Make the parent body your character (undoable)', () => edit(def => Object.assign(def, clone(ex.parent)))),
-      button('reroll', 'New random variations around the same parent', () => { ex.seed++; buildExp(); }),
-      button('restart', 'Start again from your current character', () => { ex.parent = null; buildExp(); })),
+      button(':lock: keep parent', 'Make the parent body your character (undoable)', () => edit(def => Object.assign(def, clone(ex.parent)))),
+      button(':casino: reroll', 'New random variations around the same parent', () => { ex.seed++; buildExp(); }),
+      button(':restart_alt: restart', 'Start again from your current character', () => { ex.parent = null; buildExp(); })),
     h('h4', { textContent: 'vary', tip: 'Which bone properties the variations change' }),
     h('div', { cls: 'bar' }, BONE_PROPS.map(p => toggle(p.k, p.tip, () => ex.vars.has(p.k), on => { ex.vars[on ? 'add' : 'delete'](p.k); buildExp(); })),
-      toggle('limbs', 'Experimental limbs: each variation also adds a random limb, drops one, or grows an extra joint', () => ex.limbs, v => { ex.limbs = v; buildExp(); })),
+      toggle(':add: limbs', 'Experimental limbs: each variation also adds a random limb, drops one, or grows an extra joint', () => ex.limbs, v => { ex.limbs = v; buildExp(); })),
     slider('spread', { min: 0.02, max: 0.5, step: 0.01 }, () => ex.spread, v => { ex.spread = v; },
       'How far variations stray from the parent, as a fraction of each property\'s range. Applied on the next breed or reroll.'),
-    h('div', { cls: 'bar' }, toggle('symmetric', 'Front and back partners (handF/handB…) change together', () => ex.sym, v => { ex.sym = v; buildExp(); })),
+    h('div', { cls: 'bar' }, toggle(':flip: symmetric', 'Front and back partners (handF/handB…) change together', () => ex.sym, v => { ex.sym = v; buildExp(); })),
   ];
 }
 

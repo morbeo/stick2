@@ -3,6 +3,36 @@
 const $ = id => document.getElementById(id);
 const fmt = v => typeof v === 'number' ? String(+v.toFixed(3)) : String(v);
 
+// ---------- icons: a subset of Material Symbols (fonts/icons.woff2, rebuilt from this list by tools/icons.py) ----------
+const ICONS = {
+  arrow_back: 0xe5c4, arrow_forward: 0xe5c8, arrow_upward: 0xe5d8, arrow_downward: 0xe5db, north_west: 0xf1e2,
+  north_east: 0xf1e1, south_west: 0xf1e5, south_east: 0xf1e4, play_arrow: 0xe037, pause: 0xe034, skip_next: 0xe044,
+  skip_previous: 0xe045, restart_alt: 0xf053, replay: 0xe042, fast_rewind: 0xe020, fast_forward: 0xe01f,
+  fiber_manual_record: 0xe061, stop: 0xe047, repeat: 0xe040, mouse: 0xe323, view_sidebar: 0xf114, keyboard: 0xe312,
+  help: 0xe8fd, info: 0xe88e, close: 0xe5cd, add: 0xe145, remove: 0xe15b, delete: 0xe92e, content_copy: 0xe14d,
+  edit: 0xf097, download: 0xf090, upload: 0xf09b, undo: 0xe166, redo: 0xe15a, casino: 0xeb40, science: 0xea4b,
+  arrow_drop_up: 0xe5c7, arrow_drop_down: 0xe5c5, grid_view: 0xe9b0, person: 0xf0d3, sports_martial_arts: 0xeae9,
+  shield: 0xe9e0, swords: 0xf889, visibility: 0xe8f4, check_box_outline_blank: 0xe835, lock: 0xe899,
+  lock_open: 0xe898, palette: 0xe40a, sort: 0xe164, timeline: 0xe922, tune: 0xe429, layers: 0xe53b,
+  sports_kabaddi: 0xea34, directions_run: 0xe566, bolt: 0xea0b, back_hand: 0xe764, front_hand: 0xe769,
+  sports_mma: 0xea2c, gavel: 0xe90e, animation: 0xe71c, accessibility_new: 0xe92c, unfold_more: 0xe5d7,
+  unfold_less: 0xe5d6, chevron_right: 0xe5cc, chevron_left: 0xe5cb, expand_more: 0xe5cf, settings: 0xe8b8, ssid_chart: 0xeb66,
+  speed: 0xe9e4, vibration: 0xf2cb, zoom_in: 0xe8ff, timer: 0xe425, my_location: 0xe55c, straighten: 0xe41c,
+  rotate_right: 0xe41a, open_with: 0xe89f, pan_tool: 0xe925, swap_horiz: 0xe8d4, flip: 0xe3e8, auto_awesome: 0xe65f,
+  waves: 0xe176, stadia_controller: 0xf135, blur_on: 0xe3a5, sync_alt: 0xea18, sports_handball: 0xea33,
+  target: 0xe719, trending_up: 0xe8e5, hourglass_empty: 0xe88b, select_all: 0xe162, block: 0xf08c,
+  crisis_alert: 0xebe9, star: 0xf09a,
+  check: 0xe668, save: 0xe161, history: 0xe8b3, view_in_ar: 0xefc9
+};
+const ARROWS = { '←': 'arrow_back', '→': 'arrow_forward', '↑': 'arrow_upward', '↓': 'arrow_downward', '↖': 'north_west', '↗': 'north_east', '↙': 'south_west', '↘': 'south_east' };
+const icon = (name, tip) => h('span', { cls: 'ic', textContent: String.fromCodePoint(ICONS[name]), tip });
+// text with icons: ':name:' and the arrows ← → ↑ ↓ ↖ ↗ ↙ ↘ become icon glyphs, the rest stays text
+function rich(text) {
+  return String(text).split(/(:[a-z_]+:|[←→↑↓↖↗↙↘])/).filter(Boolean)
+    .map(p => ARROWS[p] ? icon(ARROWS[p]) : p[0] === ':' && ICONS[p.slice(1, -1)] ? icon(p.slice(1, -1)) : p);
+}
+const setRich = (el, text) => { if (el.dataset.rich !== text) { el.dataset.rich = text; el.replaceChildren(...rich(text)); } };
+
 function h(tag, props = {}, ...kids) {
   const e = document.createElement(tag);
   for (const k in props) {
@@ -25,7 +55,9 @@ function reg(el, f) {
 function syncAll() { for (const s of [...syncs]) s(); }
 
 function button(label, tip, fn, cls = '') {
-  return h('button', { textContent: label, tip, cls, onclick: e => { const b = e.currentTarget; fn(e, b); b.blur(); syncAll(); } });
+  const b = h('button', { tip, cls, onclick: e => { const b = e.currentTarget; fn(e, b); b.blur(); syncAll(); } });
+  setRich(b, label);
+  return b;
 }
 function toggle(label, tip, get, set) {
   const b = button(label, tip, () => set(!get()), 'tog');
@@ -50,8 +82,8 @@ function slider(label, { min, max, step }, get, set, tip) {
 }
 // a group heading with an ⓘ button that pops up what the group does and its keys
 function heading(title, info, keys) {
-  return h('h3', {}, title, info && button('i', 'about this group', (e, b) => popup(b, h('b', { textContent: title }),
-    h('p', { textContent: info }), keys && h('p', { cls: 'keys', textContent: keys })), 'info'));
+  return h('h3', {}, title, info && button(':info:', 'about this group', (e, b) => popup(b, h('b', { textContent: title }),
+    h('p', {}, ...rich(info)), keys && h('p', { cls: 'keys' }, ...rich(keys))), 'info'));
 }
 
 // ---------- popup: a floating panel under a button; click elsewhere (or the button again) to close ----------
@@ -78,7 +110,7 @@ function showTip(e) {
   const t = e.target.closest?.('[data-tip]')?.dataset.tip;
   tipEl.style.display = t ? 'block' : 'none';
   if (!t) return;
-  tipEl.textContent = t;
+  setRich(tipEl, t);
   const w = tipEl.offsetWidth, ht = tipEl.offsetHeight;
   tipEl.style.left = Math.min(e.clientX + 14, innerWidth - w - 6) + 'px';
   tipEl.style.top = (e.clientY + 18 + ht > innerHeight ? e.clientY - ht - 10 : e.clientY + 18) + 'px';

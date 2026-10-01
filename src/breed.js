@@ -95,24 +95,24 @@ function varsButton() {
   const b = button('', 'Which settings the cells vary', (e, b) => popup(b, ...SCHEMA.flatMap(s => Array.isArray(s)
     ? [h('h4', { textContent: s[0] })]
     : s.k === 'scope' ? [] : [toggle(s.k, s.tip, () => breed.vars.has(s.k), on => { breed.vars[on ? 'add' : 'delete'](s.k); build(); })])));
-  reg(b, () => { b.textContent = `vary: ${[...breed.vars].join(' ') || 'nothing'}`; });
+  reg(b, () => { setRich(b, `vary: ${[...breed.vars].join(' ') || 'nothing'}`); });
   return b;
 }
 function spreadButton() {
   const b = button('', 'How far the variations stray from the parent', (e, b) => popup(b,
     slider('spread', { min: 0.02, max: 0.5, step: 0.01 }, () => breed.spread, v => { breed.spread = v; },
       'Fraction of each variable\'s range (angles: × 90°, frames: × 20). Applied on the next breed or reroll.')));
-  reg(b, () => { b.textContent = `spread ${fmt(breed.spread)}`; });
+  reg(b, () => { setRich(b, `spread ${fmt(breed.spread)}`); });
   return b;
 }
 function breedCtx() {
-  const reroll = button('reroll', 'New random cells around the same parent (attacks without a parent: nine new attacks)', () => { breed.seed++; build(); });
+  const reroll = button(':casino: reroll', 'New random cells around the same parent (attacks without a parent: nine new attacks)', () => { breed.seed++; build(); });
   if (lab.kind === 'breed') return [varsButton(), spreadButton(), reroll,
-    button('use parent', 'Copy the parent\'s values into the settings (side panel)', () => Object.assign(CFG, breed.cfg)),
-    button('restart', 'Start again from the current settings', () => { breed.cfg = null; build(); })];
+    button(':check: use parent', 'Copy the parent\'s values into the settings (side panel)', () => setCfg(breed.cfg)),
+    button(':restart_alt: restart', 'Start again from the current settings', () => { breed.cfg = null; build(); })];
   const noFocus = el => { reg(el, () => { el.disabled = !lab.focus?.gen; }); return el; };
   return [spreadButton(), reroll,
-    button('new', 'Throw the parent away: nine new random attacks', () => { breed.atk = null; breed.seed++; build(); }),
-    noFocus(button('save move', 'Add the parent (or the focused cell) to the character\'s moves as genN', () => saveAttack(false))),
-    noFocus(button('edit in animate', 'Save it and open it in the animation editor', () => saveAttack(true)))];
+    button(':casino: new', 'Throw the parent away: nine new random attacks', () => { breed.atk = null; breed.seed++; build(); }),
+    noFocus(button(':save: save move', 'Add the parent (or the focused cell) to the character\'s moves as genN', () => saveAttack(false))),
+    noFocus(button(':animation: edit in animate', 'Save it and open it in the animation editor', () => saveAttack(true)))];
 }
