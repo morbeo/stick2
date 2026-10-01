@@ -185,6 +185,16 @@ test('the ceiling bounces a body knocked up to the top of the screen; a ragdoll 
   assert.ok(rise(3) > 30 && rise(0) < 15, `${rise(0)} ${rise(3)}`);
 });
 
+test('endless waves: the next wave comes once every enemy is down, knocked-out ones leave, rewinding across a wave plays the same', () => {
+  const r = run(`(() => { const w = new World(SCENARIOS['ai vs waves'], { health: 60, waves: 'one' }, 3, [CHARS.stick]); w.loop = false;
+    let at = 0, most = 0; for (let i = 0; i < 60 * 60 && w.wave < 3 && !w.done; i++) { w.advance(1/60, NOIN); most = Math.max(most, w.fighters.length); if (w.wave === 2 && !at) at = i; }
+    return { wave: w.wave, most, at }; })()`);
+  assert.ok(r.at > 0 && r.most === 2, JSON.stringify(r));
+  const same = run(`(() => { const w = new World(SCENARIOS['ai vs waves'], { health: 60, waves: 'one' }, 3, [CHARS.stick]); w.loop = false;
+    for (let i = 0; i < ${r.at} + 60; i++) w.advance(1/60, NOIN); const h = w.stateHash(); w.rewind(80); for (let i = 0; i < 80; i++) w.advance(1/60, NOIN); return [h, w.stateHash(), w.wave]; })()`);
+  assert.equal(same[0], same[1]); assert.ok(same[2] >= 2);
+});
+
 test('the impact tool strikes the body under the point, a long drag knocks it down', () => {
   const r = run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', period: 9 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false; w.advance(1/60, NOIN);
     const h = w.b.body().head, miss = w.poke(h[0], h[1] - 200, 50, 0), small = w.poke(h[0], h[1], 20, 0), kd1 = w.b.kd;

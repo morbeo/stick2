@@ -7,6 +7,8 @@ const NOIN = { left: false, right: false, up: false, down: false, hop: false, pu
 // depth (2.5D): z > 0 is toward the camera. Drawn lower and bigger; hits are tested in the fight plane plus a depth check
 const ZMAX = 60, LANE = 40, ZS = 0.45, ZK = 0.0025;
 const HIST = 240;
+// enemies per wave (waves setting), wave n = 1, 2, …
+const WAVES = { one: () => 1, pairs: () => 2, growing: n => Math.min(5, n), horde: () => 4 };
 
 // what a training-mode frame meter shows for a fighter this frame
 function frameState(f) {
@@ -41,6 +43,7 @@ class World {
     if (!this.replaying) { this.log = []; this.checkpoints = []; this.sums = {}; this.desync = null; } // every frame since the start: [dt, input, macro], for rewind and replays
     // a vs b, plus any extra fighters: { c: controller, x, team }
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0 }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1 }, ...(s.more || [])];
+    if (s.waves) specs.length = 1; // the enemies come in waves (nextWave)
     const chars = this.chars || [currentChar()];
     this.fighters = specs.map((sp, i) => Object.assign(
       new Fighter(this, sp.x, i < 2 ? 1 - 2 * i : sp.x < W / 2 ? 1 : -1, COLS[i % COLS.length], chars[Math.min(i, chars.length - 1)]),
@@ -59,8 +62,24 @@ class World {
     });
     for (const it of s.items || []) this.drop(it.type, it.x);
     this.ctl = specs.map(sp => makeCtl(sp.c, this));
+    if (s.waves) { Object.assign(this, { wave: 0, waveT: 0, spawned: 0, downs: 0 }); this.nextWave(); }
     this.cam = (this.a.x + this.b.x) / 2;
     s.init?.(this); // a scenario can set up a state (the animate preview's target: lying, dizzy, facing away)
+  }
+  // the next wave: the knocked-out enemies leave, new ones run in from both edges (a random built-in or the opponent's character)
+  nextWave() {
+    const keep = this.fighters.map((f, i) => !i || !f.ko);
+    this.downs += keep.filter(k => !k).length;
+    for (const k of ['fighters', 'ctl', 'acts']) this[k] = this[k].filter((_, i) => keep[i]);
+    const n = WAVES[this.cfg.waves](++this.wave), names = Object.keys(CHARS), opp = (this.chars || [currentChar()])[Math.min(1, (this.chars || [0]).length - 1)];
+    for (let i = 0; i < n; i++) {
+      const left = i % 2 === 1, x = left ? 50 + i * 12 : W - 50 - i * 12, ch = this.cfg.waveMix ? CHARS[names[Math.floor(this.rand() * names.length)]] : opp;
+      this.fighters.push(Object.assign(new Fighter(this, x, left ? 1 : -1, COLS[1 + this.spawned++ % (COLS.length - 1)], ch), { team: 1 }));
+      this.ctl.push(makeCtl('ai', this));
+    }
+    this.b = this.fighters[1];
+    if (this.wave > 1) this.a.hp = Math.min(this.cfg.health, this.a.hp + this.cfg.health * this.cfg.waveHeal);
+    this.a.say(`WAVE ${this.wave}`);
   }
   // a character was edited: fighters wearing the old build switch to the new one mid-fight
   swapChar(from, to) {
@@ -246,8 +265,10 @@ class World {
       if (pd.at !== null && pd.vt !== null) { this.adv = Math.round((pd.vt - pd.at) * 60); this.pend = null; }
     }
 
+    // endless waves: a moment after the last enemy falls the next wave comes; only your K.O. ends the round
+    if (this.scen.waves && !this.a.ko) { if (this.foes(this.a).length) this.waveT = 0; else if ((this.waveT += h) > 1.2) this.nextWave(); }
     // a round ends once only one team is still standing
-    if (!this.koT && fs.some(f => f.ko) && new Set(fs.filter(f => !f.ko).map(f => f.team)).size <= 1) this.koT = 2.5;
+    else if (!this.koT && fs.some(f => f.ko) && new Set(fs.filter(f => !f.ko).map(f => f.team)).size <= 1) this.koT = 2.5;
     const p = this.scen.period;
     if (p && this.simT >= p || this.koT && (this.koT -= h) <= 0) { if (this.loop) this.reset(); else this.done = true; }
   }
@@ -385,6 +406,10 @@ class World {
     this.drawItems(ctx);
     this.drawParticles(ctx);
     ctx.restore();
+    if (this.scen.waves) { // wave counter
+      ctx.save(); ctx.fillStyle = '#8a8580'; ctx.textAlign = 'center'; ctx.font = `bold ${Math.round(r.h / 28)}px ui-monospace, Menlo, monospace`;
+      ctx.fillText(`WAVE ${this.wave} · ${this.downs + this.fighters.filter(f => f.ko && f !== this.a).length} down`, r.x + r.w / 2, r.y + r.h / 14); ctx.restore();
+    }
   }
 }
 
