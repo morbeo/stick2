@@ -221,3 +221,19 @@ test('rewind replays the fight to the same state, AI and human input included', 
     return { at, later, back: st(), n: w.log.length }; })()`);
   assert.deepEqual(r.back, r.at), assert.notDeepEqual(r.later, r.at), assert.equal(r.n, 400);
 });
+
+test('two weapon strikes that meet clash: no hit, both recoil; with clash off the first one lands', () => {
+  const r = clash => json(`(() => { const w = new World(SCENARIOS['weapon clash'], { clash: '${clash}' }, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    for (let i = 0; i < 60; i++) w.advance(1 / 60, NOIN); return { c: w.clashes, h: w.hits, gap: Math.round(w.b.x - w.a.x) }; })()`);
+  const on = r('weapons'), off = r('off');
+  assert.equal(on.h, 0), assert.equal(on.c, 1), assert.ok(on.gap > 120, 'pushed apart ' + on.gap);
+  assert.equal(off.c, 0), assert.ok(off.h >= 1);
+});
+
+test('an active strike bats a thrown weapon away', () => {
+  const r = clash => json(`(() => { const w = new World(SCENARIOS.deflect, { clash: '${clash}' }, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    for (let i = 0; i < 90; i++) w.advance(1 / 60, NOIN); return { c: w.clashes, h: w.hits, x: w.items[0].x }; })()`);
+  const on = r('weapons'), off = r('off');
+  assert.equal(on.h, 0), assert.equal(on.c, 1), assert.ok(on.x < 300, 'batted back ' + on.x);
+  assert.equal(off.h, 1);
+});

@@ -33,7 +33,7 @@ class World {
   reset() {
     const s = this.scen, scripted = Array.isArray(s.a);
     Object.assign(this, { rand: makeRand(this.seed), parts: [], trauma: 0, zoom: 0, slowT: 0, T: 0, simT: 0,
-      frozenT: 0, hits: 0, blocks: 0, parries: 0, koT: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
+      frozenT: 0, hits: 0, blocks: 0, parries: 0, clashes: 0, koT: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
       pend: null, adv: null, macro: null, combo: 1, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
     if (!this.replaying) this.log = []; // every frame since the start: [dt, input], for rewind
     // a vs b, plus any extra fighters: { c: controller, x, team }
@@ -86,6 +86,14 @@ class World {
       if (!it.live) continue;
       // a thrown weapon hits its thrower's foes along its length, once
       const ux = Math.cos(it.rot) * w.len / 2, uy = Math.sin(it.rot) * w.len / 2, seg = [[it.x - ux, it.y - uy], [it.x + ux, it.y + uy], cfg.hitR];
+      // an active strike in its path bats it away (clash setting on)
+      const bat = cfg.clash !== 'off' && this.foes(it.owner).find(o => Math.abs(o.z - it.z) <= cfg.zReach && o.action?.m.keys[o.action.i]?.active && !o.action.m.throw
+        && o.strikeShapes(o.action.m).some(t => distSegSeg(seg[0], seg[1], t[0], t[1]) < seg[2] + t[2] + 2 + (o.ch.by[t.id]?.thick ?? BONE.thick) / 2));
+      if (bat) {
+        it.live = false; it.vx = bat.dir * Math.abs(it.vx) * 0.4; it.vy = -300; it.spin = -it.spin; this.clashes++; bat.say('DEFLECT');
+        this.parts.push({ t: 'ring', x: it.x, y: it.y, z: it.z, life: 0.16, max: 0.16, col: '#d68c14' });
+        continue;
+      }
       for (const o of this.foes(it.owner)) if (Math.abs(o.z - it.z) <= cfg.zReach) {
         const hit = o.hurtAt(seg, false, false);
         if (!hit) continue;
@@ -102,6 +110,11 @@ class World {
       const lie = it.rest ? -2 : 0; // lying: its thickness above the floor line
       ctx.save(); ctx.translate(0, it.z * ZS + lie);
       drawWeapon(ctx, { ...w, back: w.back || 0 }, [it.x - c * half, it.y - s * half], [it.x + c * (w.len - half), it.y + s * (w.len - half)], null);
+      if (this.cfg.boxes && it.live) { // a flying weapon's hitbox
+        const ux = c * w.len / 2, uy = s * w.len / 2;
+        ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = this.cfg.hitR * 2 + 7; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(it.x - ux, it.y - uy); ctx.lineTo(it.x + ux, it.y + uy); ctx.stroke();
+      }
       ctx.restore();
     }
   }
@@ -173,10 +186,9 @@ class World {
       const i = ins[0], d = this.a.dir > 0;
       this.tape.push({ fwd: d ? i.right : i.left, back: d ? i.left : i.right, up: i.up, down: i.down, hop: i.hop, punch: i.punch, kick: i.kick, special: i.special, guard: i.guard });
     }
-    fs.forEach((f, i) => {
-      if (f.freeze > 0) f.freeze -= h; // hit stop: this fighter sits out the substep
-      else f.update(h, ins[i], this.foes(f));
-    });
+    const moving = fs.filter(f => f.freeze > 0 ? (f.freeze -= h, false) : true); // hit stop: a frozen fighter sits out the substep
+    moving.forEach(f => f.update(h, ins[fs.indexOf(f)]));
+    moving.forEach(f => f.strike(this.foes(f)));
     // push apart (unless someone is knocked down), then face the nearest foe
     for (let i = 0; i < fs.length; i++) for (let j = i + 1; j < fs.length; j++) {
       const a = fs[i], b = fs[j], d = b.x - a.x;
@@ -237,6 +249,21 @@ class World {
         const a = this.rand(-0.8, 0.8) + (att.dir > 0 ? 0 : Math.PI), s = this.rand(250, 700), life = this.rand(0.12, 0.3);
         this.parts.push({ t: 'spark', x: pt[0], y: pt[1], z: vic.z, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life });
       }
+    }
+  }
+  // two active strikes met (see Fighter.clashWith): both moves stop, both recoil apart in a short stun, sparks
+  clash(a, b, pt) {
+    const cfg = this.cfg, stun = cfg.clashStun;
+    for (const [f, o] of [[a, b], [b, a]]) {
+      f.buffer = null; f.start(makeHurt(f.ch.hurt.high[0], stun, this.rand, f.st.pose)); f.hurtT = stun;
+      f.vx = Math.sign(f.x - o.x || -f.dir) * cfg.clashPush; f.freeze = cfg.hitstop * 1.5; f.say('CLASH');
+    }
+    this.clashes++;
+    this.trauma = Math.min(1, this.trauma + 0.2);
+    this.parts.push({ t: 'ring', x: pt[0], y: pt[1], z: a.z, life: 0.2, max: 0.2, col: '#d68c14' });
+    for (let i = 0; i < 8; i++) {
+      const ang = this.rand(0, Math.PI * 2), sp = this.rand(200, 600), life = this.rand(0.1, 0.25);
+      this.parts.push({ t: 'spark', x: pt[0], y: pt[1], z: a.z, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life, max: life });
     }
   }
   // the impact tool: a blow at world point (x, y) pushed by (dx, dy) (longer = harder; a long one knocks down),

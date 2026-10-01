@@ -84,6 +84,10 @@ const SCHEMA = [
   { k: 'weaponStart', v: 'floor', opts: ['floor', 'held'], tip: 'Where the weapons start.', optTips: { floor: 'Lying on the floor in front of each fighter: walk over and press P+G.', held: 'Already in hand.' } },
   { k: 'disarm', v: 1.5, min: 0.5, max: 4, step: 0.1, tip: 'A blow of at least this power (× power scale) knocks the weapon out of the hand; knockdowns always do.' },
   { k: 'throwSpeed', v: 700, min: 200, max: 1400, step: 20, tip: 'Speed of a thrown weapon (px/s).' },
+  { k: 'clash', v: 'weapons', opts: ['off', 'weapons', 'all'], tip: 'Two active strikes that meet cancel each other: both recoil apart. A held weapon clashes but is never hurt (hits pass to the body); an active strike also bats a thrown weapon away.',
+    optTips: { off: 'Strikes pass through each other and through weapons.', weapons: 'Only when a weapon is one of the two strikes (or a thrown one).', all: 'Any two strikes, bare limbs too (Smash-style clank).' } },
+  { k: 'clashStun', v: 0.3, min: 0, max: 1, step: 0.02, tip: 'Seconds both fighters reel after a clash.' },
+  { k: 'clashPush', v: 260, min: 0, max: 800, step: 10, tip: 'Speed (px/s) a clash pushes both fighters apart.' },
   ['Falls', 'How a knocked-down fighter tumbles, bounces and lands.', ''],
   { k: 'floorBounce', v: 0.35, min: 0, max: 0.8, step: 0.05, tip: 'A falling fighter bounces off the floor with this fraction of its landing speed. 0 = lands dead.' },
   { k: 'bounces', v: 1, min: 0, max: 4, step: 1, tip: 'Floor bounces before the fighter stays down.' },
@@ -124,7 +128,7 @@ const SCHEMA = [
   { k: 'timeScale', v: 1, min: 0.05, max: 1, step: 0.05, tip: 'Simulation speed inside the world (hit stop and physics slow down too).' },
   ['Debug', 'Inspection aids.', 'G ghost · B boxes'],
   { k: 'ghost', v: false, tip: 'Draw the keyframe (target) pose in blue behind the sprung pose.' },
-  { k: 'boxes', v: false, tip: 'Draw hurtboxes (blue) and the active strike (red).' },
+  { k: 'boxes', v: false, tip: 'Draw hurtboxes (blue), held weapons (amber: they clash but are never hurt) and active strikes and flying weapons (red).' },
   { k: 'scope', v: 'uarmF', tip: 'Bone plotted in the sidebar scope: target (grey) vs drawn (red).' }, // a bone of the current character
 ];
 const CFG = {}, DEFAULTS = {}, SPEC = {};

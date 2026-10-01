@@ -1,41 +1,43 @@
-ai vs ai       hits 6 blocks 0 hp 85.0 56.8 x 360 427
-ai vs dummy    hits 4 blocks 0 hp 100.0 55.9 x 750 703
+ai vs ai       hits 7 blocks 0 hp 85.0 46.4 x 355 429
+ai vs dummy    hits 4 blocks 0 hp 100.0 55.9 x 750 701
 jab spam       hits 10 blocks 0 hp 100.0 50.0 x 387 444
 J,J,J          hits 3 blocks 0 hp 100.0 79.0 x 357 479
-K,K            hits 2 blocks 0 hp 100.0 78.4 x 341 574
-J,J,K          hits 3 blocks 0 hp 100.0 77.4 x 347 627
-J,K,K          hits 3 blocks 0 hp 100.0 75.6 x 341 574
+K,K            hits 2 blocks 0 hp 100.0 78.4 x 341 575
+J,J,K          hits 3 blocks 0 hp 100.0 77.4 x 347 628
+J,K,K          hits 3 blocks 0 hp 100.0 75.6 x 341 575
 juggle         hits 3 blocks 0 hp 100.0 79.0 x 362 479
 sweep          hits 1 blocks 0 hp 100.0 90.0 x 330 446
 dash punch     hits 1 blocks 0 hp 100.0 89.0 x 430 572
 air kick       hits 1 blocks 0 hp 100.0 91.0 x 330 406
 J→rush         hits 2 blocks 0 hp 100.0 84.2 x 439 477
 J,K→spin       hits 3 blocks 0 hp 100.0 74.8 x 359 612
-rising         hits 1 blocks 0 hp 100.0 86.0 x 341 433
+rising         hits 1 blocks 0 hp 100.0 86.0 x 341 434
 air combo      hits 3 blocks 0 hp 100.0 79.0 x 362 479
 sidestep       hits 0 blocks 0 hp 100.0 100.0 x 330 375
 ninja flip     hits 0 blocks 0 hp 100.0 100.0 x 210 385
 dash & run     hits 0 blocks 0 hp 100.0 100.0 x 404 442
-belt ai        hits 6 blocks 0 hp 85.0 56.8 x 360 427
+belt ai        hits 7 blocks 0 hp 85.0 46.4 x 355 429
 lanes ai       hits 5 blocks 0 hp 46.4 100.0 x 159 197
-vs guard       hits 1 blocks 2 hp 100.0 88.6 x 330 456
+vs guard       hits 1 blocks 2 hp 100.0 88.6 x 330 455
 vs low guard   hits 1 blocks 1 hp 100.0 90.0 x 339 398
 parry          hits 1 blocks 0 hp 100.0 95.0 x 330 382
-specials (S)   hits 2 blocks 0 hp 100.0 71.0 x 676 743
-throw          hits 1 blocks 0 hp 100.0 86.0 x 216 372
-throw break    hits 0 blocks 0 hp 100.0 100.0 x 250 323
+specials (S)   hits 2 blocks 0 hp 100.0 71.0 x 678 751
+throw          hits 1 blocks 0 hp 100.0 86.0 x 216 376
+throw break    hits 0 blocks 0 hp 100.0 100.0 x 254 327
 catch          hits 1 blocks 0 hp 83.8 100.0 x 117 375
-tech           hits 1 blocks 0 hp 100.0 90.0 x 330 433
+tech           hits 1 blocks 0 hp 100.0 90.0 x 330 434
 air recover    hits 1 blocks 0 hp 100.0 86.0 x 341 510
-OTG stomp      hits 2 blocks 0 hp 100.0 82.8 x 408 460
-ai 2v2         hits 12 blocks 0 hp 47.5 76.2 x 231 316
-ai free-for-all hits 14 blocks 0 hp 18.7 50.1 x 402 570
-sandwich       hits 5 blocks 0 hp 100.0 77.4 x 330 632
-showcase       hits 4 blocks 0 hp 100.0 68.4 x 491 687
+OTG stomp      hits 2 blocks 0 hp 100.0 82.8 x 407 455
+ai 2v2         hits 12 blocks 1 hp 50.4 100.0 x 55 93
+ai free-for-all hits 16 blocks 0 hp 41.3 42.6 x 420 572
+sandwich       hits 5 blocks 0 hp 100.0 77.4 x 330 631
+showcase       hits 4 blocks 0 hp 100.0 68.4 x 490 687
 pick up & slash hits 3 blocks 0 hp 100.0 65.3 x 413 466
 weapon throw   hits 1 blocks 0 hp 100.0 93.0 x 250 492
-disarm         hits 1 blocks 0 hp 100.0 90.0 x 330 400
-sword vs staff ai hits 6 blocks 0 hp 59.8 76.0 x 335 475
+disarm         hits 1 blocks 0 hp 100.0 90.0 x 330 399
+weapon clash   hits 0 blocks 0 hp 100.0 100.0 x 267 433
+deflect        hits 0 blocks 0 hp 100.0 100.0 x 250 450
+sword vs staff ai hits 6 blocks 0 hp 59.8 76.0 x 335 473
 weapons ai     hits 4 blocks 0 hp 56.9 100.0 x 131 331
 walk           hits 0 blocks 0 hp 100.0 100.0 x 250 550
 jump           hits 0 blocks 0 hp 100.0 100.0 x 450 550

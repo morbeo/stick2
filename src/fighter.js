@@ -220,8 +220,7 @@ class Fighter {
     return k === 1 ? m : { ...m, power: m.power * k, damage: m.damage * k, knock: m.knock * k };
   }
 
-  // foes: every fighter on another team (one move can hit several)
-  update(dt, inp, foes) {
+  update(dt, inp) {
     const c = k => this.c(k);
     this.inp = inp;
     this.time += dt; this.hurtT -= dt; this.flashT -= dt; this.comboT -= dt;
@@ -402,11 +401,17 @@ class Fighter {
     }
 
     if (this.rag) this.ragStep(dt);
-    const a = this.action, ss = a?.m.keys[a.i].active ? this.strikeShapes(a.m) : [];
+  }
+  // this substep's strikes against the foes (after every fighter has moved, so two strikes in the same frame can clash)
+  // foes: every fighter on another team (one move can hit several)
+  strike(foes) {
+    const c = k => this.c(k), a = this.action, ss = a?.m.keys[a.i].active ? this.strikeShapes(a.m) : [];
     const otg = c('otg') === 'all' || c('otg') === 'flagged' && a?.m.otg;
     if (ss.length) for (const o of foes) if (!a.hits.includes(o) && Math.abs(o.z - this.z) <= c('zReach') * (a.m.wide ? 3 : 1)) {
       if (a.m.height === 'high' && o.crouching) continue; // highs pass over a crouching fighter
       if (a.m.throw && (!o.grounded || !o.free || o.heldBy || o.squatT > 0)) continue; // throws only catch a standing, free fighter
+      const cl = this.clashWith(o, ss);
+      if (cl) { this.w.clash(this, o, cl); break; }
       // several striking bones: the deepest overlap counts, one hit per foe per move
       const h = ss.map(s => o.hurtAt(s, c('hitTest') === 'target', otg)).reduce((best, h) => h && (!best || h.d < best.d) ? h : best, null);
       if (h && a.m.throw) { a.hits.push(o); a.hit = true; this.seize(o); }
@@ -550,6 +555,17 @@ class Fighter {
         : mode === 'limb' ? [o, tip, r + b.thick / 2] : [mode === 'swept' && this.lastTips?.[b.id] || tip, tip, r];
       s.id = b.id; return s;
     });
+  }
+  // the held weapon's shapes (as if it struck), for clashes and the boxes view
+  weaponShapes() { return this.ch.weapon ? this.strikeShapes({ hit: 'weapon' }) : []; }
+  // active strikes that meet: the meeting point, or null (clash setting: only when a weapon is in it, or any strikes)
+  clashWith(o, ss) {
+    const mode = this.c('clash'), oa = o.action;
+    if (mode === 'off' || this.action.m.throw || !oa?.m.keys[oa.i]?.active || oa.m.throw || oa.hits.includes(this)) return null;
+    const wpn = (f, s) => f.ch.by[s.id]?.role === 'weapon', half = (f, s) => (f.ch.by[s.id]?.thick ?? BONE.thick) / 2;
+    for (const s of ss) for (const t of o.strikeShapes(oa.m))
+      if ((mode === 'all' || wpn(this, s) || wpn(o, t)) && distSegSeg(s[0], s[1], t[0], t[1]) < s[2] + t[2] + half(this, s) + half(o, t)) return [(s[1][0] + t[1][0]) / 2, (s[1][1] + t[1][1]) / 2];
+    return null;
   }
   // the hurt bone the strike overlaps most, or null
   hurtAt([s0, s1, r], useTarget, otg) {
@@ -700,13 +716,17 @@ class Fighter {
     if (this.trail.length > 24) this.trail.shift();
   }
 
-  // hurtboxes (blue) and the live strike (red), in the pose the collision mode tests
+  // hurtboxes (blue), the held weapon (amber) and the live strike (red), in the pose the collision mode tests
   drawBoxes(ctx) {
     const P = this.c('hitTest') === 'target' ? this.points(this.target) : this.body();
     ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(44,111,176,.22)';
     for (const b of this.ch.bones) if (b.hurt > 0) {
       const e = P[b.id], o = b.shape === 'circle' ? e : P[b.parent || 'hip'];
       ctx.lineWidth = b.hurt * 2; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0] + 0.01, e[1]); ctx.stroke();
+    }
+    if (this.c('clash') !== 'off') { // the held weapon (amber): it clashes, but isn't hurt
+      ctx.strokeStyle = 'rgba(214,140,20,.45)';
+      for (const s of this.weaponShapes()) { ctx.lineWidth = s[2] * 2 + this.ch.by[s.id].thick + 2; ctx.beginPath(); ctx.moveTo(s[0][0], s[0][1]); ctx.lineTo(s[1][0] + 0.01, s[1][1]); ctx.stroke(); }
     }
     const a = this.action;
     if (a?.m.keys[a.i]?.active) for (const s of this.strikeShapes(a.m)) {

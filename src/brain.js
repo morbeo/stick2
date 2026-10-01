@@ -163,6 +163,8 @@ const SCENARIOS = {
   'pick up & slash': { a: [{ hold: 'fwd', t: 0.25 }, 0.1, 'punch+guard', 0.4, '!punch', 0.6, '!fwd+punch', 0.9, '!down+punch'], b: 'dummy', ax: 290, bx: 420, items: [{ type: 'sword', x: 335 }], period: 5 },
   'weapon throw': { a: [0.3, 'punch+guard'], aw: 'dagger', b: 'dummy', ax: 250, bx: 480, period: 2.4 },
   'disarm': { a: [0.2, '@launcher'], b: 'dummy', bw: 'sword', period: 2.6 },
+  'weapon clash': { a: [0.3, 'punch'], b: [0.3, 'punch'], aw: 'sword', bw: 'sword', ax: 300, bx: 400, period: 2 },
+  'deflect': { a: [0.3, 'punch+guard'], aw: 'dagger', b: [0.35, 'punch'], bw: 'sword', ax: 250, bx: 450, period: 2.4 },
   'sword vs staff ai': { a: 'ai', b: 'ai', aw: 'sword', bw: 'staff' },
   'weapons ai': { a: 'ai', b: 'ai', items: [{ type: 'axe', x: 330 }, { type: 'nunchucks', x: 470 }] },
   'walk': { a: [{ hold: 'fwd', t: 0.8 }, 0.3, { hold: 'back', t: 0.8 }], b: 'dummy', ax: 250, bx: 550, period: 2.4 },
