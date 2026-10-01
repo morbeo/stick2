@@ -404,7 +404,8 @@ class Fighter {
   }
   // this substep's strikes against the foes (after every fighter has moved, so two strikes in the same frame can clash)
   // foes: every fighter on another team (one move can hit several)
-  strike(foes) {
+  // the strikes that land this substep go to out: World.step applies them once every fighter's are found
+  strike(foes, out) {
     const c = k => this.c(k), a = this.action, ss = a?.m.keys[a.i].active ? this.strikeShapes(a.m) : [];
     const otg = c('otg') === 'all' || c('otg') === 'flagged' && a?.m.otg;
     if (ss.length) for (const o of foes) if (!a.hits.includes(o) && Math.abs(o.z - this.z) <= c('zReach') * (a.m.wide ? 3 : 1)) {
@@ -414,8 +415,7 @@ class Fighter {
       if (cl) { this.w.clash(this, o, cl); break; }
       // several striking bones: the deepest overlap counts, one hit per foe per move
       const h = ss.map(s => o.hurtAt(s, c('hitTest') === 'target', otg)).reduce((best, h) => h && (!best || h.d < best.d) ? h : best, null);
-      if (h && a.m.throw) { a.hits.push(o); a.hit = true; this.seize(o); }
-      else if (h) { a.hits.push(o); a.hit = true; this.w.onHit(this, o, h, this.weaponHit(a.m), o.defend(this, a.m, a.m.keys[a.i])); }
+      if (h) { a.hits.push(o); a.hit = true; out.push({ f: this, o, h, a, m: this.weaponHit(a.m), key: a.m.keys[a.i] }); }
     }
     this.lastTips = Object.fromEntries(ss.map(s => [s.id, s[1]]));
   }

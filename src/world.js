@@ -221,7 +221,11 @@ class World {
     }
     const moving = fs.filter(f => f.freeze > 0 ? (f.freeze -= h, false) : true); // hit stop: a frozen fighter sits out the substep
     moving.forEach(f => f.update(h, ins[fs.indexOf(f)]));
-    moving.forEach(f => f.strike(this.foes(f)));
+    // same-frame trades: every fighter's strikes are found before any lands, so two blows on one frame both hit; a strike beats a throw
+    const landed = [];
+    moving.forEach(f => f.strike(this.foes(f), landed));
+    for (const l of landed) if (!l.a.m.throw) this.onHit(l.f, l.o, l.h, l.m, l.o.defend(l.f, l.a.m, l.key));
+    for (const l of landed) if (l.a.m.throw && l.f.action === l.a && l.o.free && !l.o.heldBy) l.f.seize(l.o);
     // push apart (unless someone is knocked down), then face the nearest foe
     for (let i = 0; i < fs.length; i++) for (let j = i + 1; j < fs.length; j++) {
       const a = fs[i], b = fs[j], d = b.x - a.x;
@@ -256,7 +260,7 @@ class World {
       if (def === 'catch') { vic.catchHit(att, hit); return; }
       if (def === 'parry') { vic.parryHit(att); this.parries++; } else { vic.blockHit(att, m); this.blocks++; }
       const hs = (m.stop || cfg.hitstop * m.power) * cfg.powerScale * (def === 'parry' ? 1.2 : 0.5);
-      vic.freeze = att.freeze = hs;
+      vic.freeze = hs; att.freeze = Math.max(att.freeze, hs); // (max: in a trade the attacker was just struck too)
       this.trauma = Math.min(1, this.trauma + 0.1 * m.power * cfg.powerScale);
       this.parts.push({ t: 'ring', x: pt[0], y: pt[1], z: vic.z, life: 0.16, max: 0.16, col: def === 'parry' ? '#2c6fb0' : '#888' });
       return;
@@ -267,7 +271,7 @@ class World {
     const n = vic.combo - 1, want = (m.stop || cfg.hitstop * m.power) * cfg.powerScale * (fin ? cfg.hitstopFin : 1) * cfg.hitstopDecay ** n * Math.max(0, 1 + cfg.comboStop * n);
     let hs = want;
     if (cfg.hitstopBudget > 0) { hs = Math.min(hs, this.bank); this.bank -= hs; }
-    vic.freeze = hs; att.freeze = hs * cfg.hitstopAtk;
+    vic.freeze = hs; att.freeze = Math.max(att.freeze, hs * cfg.hitstopAtk);
     this.freezes.push({ hs, want, fin });
     if (this.freezes.length > 12) this.freezes.shift();
     this.hits++;

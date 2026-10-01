@@ -240,6 +240,12 @@ test('two weapon strikes that meet clash: no hit, both recoil; with clash off th
   assert.equal(off.c, 0), assert.ok(off.h >= 1);
 });
 
+test('two jabs landing on the same frame trade: both hit, whoever is first in the list', () => {
+  const r = json(`(() => { const w = new World({ a: [0.3, 'punch'], b: [0.3, 'punch'], ax: 300, bx: 360, period: 2 }, { clash: 'off', health: 100 }, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    for (let i = 0; i < 60; i++) w.advance(1 / 60, NOIN); return { h: w.hits, a: w.a.hp, b: w.b.hp }; })()`);
+  assert.equal(r.h, 2), assert.equal(r.a, r.b), assert.ok(r.a < 100, 'both hurt ' + r.a);
+});
+
 test('an active strike bats a thrown weapon away', () => {
   const r = clash => json(`(() => { const w = new World(SCENARIOS.deflect, { clash: '${clash}' }, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
     for (let i = 0; i < 90; i++) w.advance(1 / 60, NOIN); return { c: w.clashes, h: w.hits, x: w.items[0].x }; })()`);
