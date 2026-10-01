@@ -148,14 +148,14 @@ class World {
     if (def) { // blocked or parried: a shorter freeze and a ring, no combo
       if (def === 'catch') { vic.catchHit(att, hit); return; }
       if (def === 'parry') { vic.parryHit(att); this.parries++; } else { vic.blockHit(att, m); this.blocks++; }
-      const hs = cfg.hitstop * m.power * (def === 'parry' ? 1.2 : 0.5);
+      const hs = cfg.hitstop * m.power * cfg.powerScale * (def === 'parry' ? 1.2 : 0.5);
       vic.freeze = att.freeze = hs;
-      this.trauma = Math.min(1, this.trauma + 0.1 * m.power);
+      this.trauma = Math.min(1, this.trauma + 0.1 * m.power * cfg.powerScale);
       this.parts.push({ t: 'ring', x: pt[0], y: pt[1], z: vic.z, life: 0.16, max: 0.16, col: def === 'parry' ? '#2c6fb0' : '#888' });
       return;
     }
     vic.takeHit(att, m, hit);
-    const fin = vic.kd === 'fly', power = m.power * (fin ? cfg.hitstopFin : 1);
+    const fin = vic.kd === 'fly', power = m.power * cfg.powerScale * (fin ? cfg.hitstopFin : 1);
     // freeze shrinks along a combo, and a budget caps total frozen time so long strings don't turn to stop-motion
     const n = vic.combo - 1, want = cfg.hitstop * power * cfg.hitstopDecay ** n * Math.max(0, 1 + cfg.comboStop * n);
     let hs = want;

@@ -201,7 +201,7 @@ class Fighter {
       this.parryT = c('parryWindow'); this.guardT = this.w.simT;
       // air recovery: G a while into a knockdown flight flips the fighter back onto its feet
       if (this.kd === 'fly' && !this.ko && c('airRecover') && this.flyT >= c('airRecover') && this.splatT <= 0) {
-        this.kd = null; this.hurtT = 0; this.flip = -1; this.airT = 0; this.vy = Math.min(this.vy, -250); this.vx *= 0.3; this.say('RECOVER');
+        this.endRag(); this.kd = null; this.hurtT = 0; this.flip = -1; this.airT = 0; this.vy = Math.min(this.vy, -250); this.vx *= 0.3; this.say('RECOVER');
       }
     }
     if (this.kd === 'fly') this.flyT += dt;
@@ -224,8 +224,8 @@ class Fighter {
     // lean toward the direction of travel while speeding up or braking
     const leanT = this.grounded ? clamp(Math.abs(this.vx - pvx) / dt * 0.004, 0, 10) * Math.sign(this.vx) * this.dir : 0;
     this.lean += (leanT - this.lean) * (1 - Math.exp(-12 * dt));
-    this.x += this.vx * dt;
-    if (this.x < 40 || this.x > W - 40) {
+    if (!this.rag) this.x += this.vx * dt; // a ragdoll moves itself (ragStep)
+    if (!this.rag && (this.x < 40 || this.x > W - 40)) {
       this.x = clamp(this.x, 40, W - 40);
       const wb = this.kd === 'fly' ? c('wallBounce') : 0, imp = Math.min(1, Math.abs(this.vx) / 600);
       if (this.splat && imp > 0.15) { // a wall splat (move flag wall): stuck flat on the wall a moment, then it slides off
@@ -258,7 +258,7 @@ class Fighter {
     if (!this.grounded) this.airT += dt;
     if (this.flip) this.spin = this.flip * 360 * Math.min(1, this.airT / (2 * c('jumpVel') / c('gravity')));
     else if (this.spin) { const to = Math.round(this.spin / 360) * 360; this.spin = approach(this.spin, to, 1440 * dt); if (this.spin === to) this.spin = 0; }
-    if (!this.grounded && this.splatT <= 0) {
+    if (!this.grounded && this.splatT <= 0 && !this.rag) {
       this.vy += c('gravity') * dt; this.y += this.vy * dt;
       if (this.y >= 0) {
         const imp = Math.min(1, this.vy / 800);
@@ -283,7 +283,7 @@ class Fighter {
         }
       }
     }
-    if (this.kd === 'down' && !this.ko && (this.downT -= dt) <= 0) { this.kd = null; this.start('getup'); this.hurtT = 0.5; }
+    if (this.kd === 'down' && !this.ko && (this.downT -= dt) <= 0) { this.endRag(); this.kd = null; this.start('getup'); this.hurtT = 0.5; }
 
     // squash & stretch spring (sq > 0 = stretch)
     const w = 2 * Math.PI * 4.5;
@@ -324,6 +324,7 @@ class Fighter {
       this.lens[j] += (want - this.lens[j]) * (1 - Math.exp(-30 * dt));
     }
 
+    if (this.rag) this.ragStep(dt);
     const a = this.action, ss = a?.m.keys[a.i].active ? this.strikeShapes(a.m) : [];
     const otg = c('otg') === 'all' || c('otg') === 'flagged' && a?.m.otg;
     if (ss.length) for (const o of foes) if (!a.hits.includes(o) && Math.abs(o.z - this.z) <= c('zReach') * (a.m.wide ? 3 : 1)) {
@@ -335,6 +336,123 @@ class Fighter {
       else if (h) { a.hits.push(o); a.hit = true; this.w.onHit(this, o, h, a.m, o.defend(this, a.m, a.m.keys[a.i])); }
     }
     this.lastTips = Object.fromEntries(ss.map(s => [s.id, s[1]]));
+  }
+
+  // ---------- ragdoll (falls setting): a knocked-down body as point masses joined by its bones ----------
+  // it starts from the drawn joints; ragStep simulates it and writes the bone angles back, so drawing and hit tests stay as they are
+  startRag() {
+    const P = this.body(), p = {};
+    for (const id in P) {
+      const b = this.ch.by[id];
+      p[id] = { x: P[id][0], y: P[id][1], vx: 0, vy: 0, r: b?.shape === 'circle' ? b.len : 0,
+        im: 1 / (b ? Math.max(40, b.len * (b.thick ?? BONE.thick) * (b.shape === 'circle' ? 3 : 1)) : 150) }; // (tiny bones aren't featherweight: they'd jitter)
+    }
+    this.rag = { p, tone: 1, landed: false };
+  }
+  endRag() { if (this.rag) { this.rag = null; this.y = Math.min(0, this.y); } }
+  // a blow: the body's speed changes to the knockback (this.vx, this.vy), the topple share concentrated at the joints near the impact
+  ragHit(hit) {
+    const ps = Object.values(this.rag.p), n = ps.length, tp = this.c('topple');
+    const dx = this.vx - ps.reduce((s, q) => s + q.vx, 0) / n, dy = this.vy - ps.reduce((s, q) => s + q.vy, 0) / n;
+    const w = ps.map(q => Math.exp(-Math.hypot(q.x - hit.pt[0], q.y - hit.pt[1]) / 18)), ws = w.reduce((s, v) => s + v, 0) || 1;
+    ps.forEach((q, i) => { const k = (1 - tp) + tp * Math.min(4, w[i] / ws * n); q.vx += dx * k; q.vy += dy * k; });
+    this.rag.landed = false;
+  }
+  ragStep(dt) {
+    const r = this.rag, ch = this.ch, c = k => this.c(k), G = this.groundY, d = this.dir, ps = Object.values(r.p), hip = r.p.hip;
+    const ref = ch.chains.spine[0]?.[0], tw = {};
+    fk(ch, this.target, 1, null, tw); // the fall pose's world angles: the muscles pull toward its joint angles
+    let land = -1; // > -1: the body (not just the feet) touched the floor this substep, at that speed
+    if (this.splatT > 0) for (const q of ps) q.vx = q.vy = 0; // stuck on the wall
+    else {
+      // muscle tone toward the fall pose, and the joint limits, as damped springs on each joint's angular speed
+      // (an equal and opposite push on the bone and its parent, so the body gains no spin or drift from its own muscles;
+      // roots like the thighs are measured against the spine's root, which itself turns freely: the body tumbles;
+      // every joint is relative to its parent, even ones the poses keep level like the feet, or they fight the floor)
+      if (ref) {
+        const A = {}, Om = {};
+        for (const b of ch.bones) {
+          const a = r.p[b.parent || 'hip'], e = r.p[b.id], ex = e.x - a.x, ey = e.y - a.y, l2 = ex * ex + ey * ey || 1e-6;
+          A[b.id] = Math.atan2(ex * d, ey) / R; Om[b.id] = (ey * (e.vx - a.vx) - ex * (e.vy - a.vy)) * d / l2;
+        }
+        const K = 400 * c('tone') * r.tone, KL = 3000;
+        for (const b of ch.bones) {
+          if (b === ref) continue;
+          const pb = ch.by[b.parent], pid = pb ? pb.id : ref.id, a = r.p[b.parent || 'hip'], e = r.p[b.id], far = r.p[pb ? pb.parent || 'hip' : ref.id];
+          const rel = A[b.id] - (pb ? A[pid] : A[pid] - ref.restW), tgt = pb ? tw[b.id] - tw[pb.id] : tw[b.id] - (tw[ref.id] - ref.restW);
+          const om = Om[b.id] - Om[pid];
+          let k = K, f = K * wrap180(tgt - rel) * R;
+          if (b.min !== undefined) {
+            const mid = (b.min + b.max) / 2, x = mid + wrap180(rel - mid), over = x < b.min ? b.min - x : x > b.max ? b.max - x : 0;
+            if (over) { k += KL; f += KL * over * R; }
+          }
+          // implicit (backward Euler) spring and critical damper: stable however stiff
+          const dw = (om + dt * f) / (1 + 2 * Math.sqrt(k) * dt + k * dt * dt) - om;
+          const ex = e.x - a.x, ey = e.y - a.y, fx = far.x - a.x, fy = far.y - a.y;
+          const Ic = (ex * ex + ey * ey) / e.im, Ip = (fx * fx + fy * fy) / far.im, wc = Ip / (Ic + Ip + 1e-9);
+          const dex = (dw * wc) * ey * d, dey = -(dw * wc) * ex * d, dfx = -(dw * (1 - wc)) * fy * d, dfy = (dw * (1 - wc)) * fx * d;
+          e.vx += dex; e.vy += dey; far.vx += dfx; far.vy += dfy;
+          a.vx -= (dex / e.im + dfx / far.im) * a.im; a.vy -= (dey / e.im + dfy / far.im) * a.im;
+          Om[b.id] += dw * wc; Om[pid] -= dw * (1 - wc);
+        }
+      }
+      for (const q of ps) { q.ox = q.x; q.oy = q.y; q.vy += c('gravity') * dt; q.pvx = q.vx; q.x += q.vx * dt; q.y += q.vy * dt; q.hit = 0; }
+      for (let it = 0; it < 4; it++) {
+        // bones keep their length
+        for (const b of ch.bones) {
+          const a = r.p[b.parent || 'hip'], e = r.p[b.id], ex = e.x - a.x, ey = e.y - a.y, l = Math.hypot(ex, ey) || 1e-6, s = (l - b.len) / l / (a.im + e.im);
+          a.x += ex * s * a.im; a.y += ey * s * a.im; e.x -= ex * s * e.im; e.y -= ey * s * e.im;
+        }
+        // floor and arena edges
+        for (const q of ps) {
+          if (q.y > G - q.r) { q.hit = q.hit || Math.max(1, q.vy); q.y = G - q.r; }
+          q.x = clamp(q.x, 20, W - 20);
+        }
+      }
+      const damp = Math.exp(-0.8 * dt);
+      for (const [id, q] of Object.entries(r.p)) {
+        q.vx = (q.x - q.ox) / dt * damp; q.vy = (q.y - q.oy) / dt * damp;
+        const sp = Math.hypot(q.vx, q.vy); if (sp > 2500) { q.vx *= 2500 / sp; q.vy *= 2500 / sp; }
+        if (q.hit) { // on the floor: friction, and a bounce off a hard landing
+          q.vx *= Math.max(0, 1 - c('floorGrip') * dt);
+          if (q.hit > 150) q.vy = -q.hit * c('floorBounce') * 0.6;
+          if (ch.by[id]?.role !== 'leg') land = Math.max(land, q.hit);
+        }
+      }
+      // the hips hit a wall: splat (move flag wall) or bounce back
+      if ((hip.x <= 40 || hip.x >= W - 40) && Math.sign(hip.pvx) === Math.sign(hip.x - W / 2)) {
+        const imp = Math.min(1, Math.abs(hip.pvx) / 600), wb = c('wallBounce');
+        if (this.splat && imp > 0.15) { this.splat = false; this.splatT = 0.35; this.say('WALL'); this.w.trauma = Math.min(1, this.w.trauma + 0.3 * imp); }
+        else if (wb && imp > 0.15) { for (const q of ps) q.vx = -q.pvx * wb; this.w.trauma = Math.min(1, this.w.trauma + 0.2 * imp); }
+      }
+    }
+    // the first landing of a flight: a ground bounce, a tech (G just before), or dust
+    if (land > -1 && this.kd === 'fly' && !r.landed) {
+      r.landed = true;
+      const imp = Math.min(1, land / 800);
+      if (this.gb) { this.gb = false; for (const q of ps) q.vy = Math.min(q.vy, -420); r.landed = false; this.say('BOUNCE'); this.w.trauma = Math.min(1, this.w.trauma + 0.25 * imp); }
+      else if (!this.ko && c('techWindow') && this.w.simT - this.guardT < c('techWindow')) {
+        this.endRag(); this.kd = null; this.grounded = true; this.y = 0; this.start('getup'); this.hurtT = 0.3; this.vx = -this.dir * 150; this.say('TECH');
+        return;
+      } else if (land > 150) { this.w.dust(hip.x, G, imp, this.z); this.w.trauma = Math.min(1, this.w.trauma + 0.15 * imp); }
+    }
+    // the bone angles from the joints, unwrapped next to the last ones so the springs never spin a full turn afterwards
+    const Wa = {};
+    for (const b of ch.bones) {
+      const a = r.p[b.parent || 'hip'], e = r.p[b.id], pb = ch.by[b.parent];
+      const Wb = Wa[b.id] = Math.atan2((e.x - a.x) * d, e.y - a.y) / R;
+      const p = pb ? Wb - Wa[pb.id] + b.level * (Wa[pb.id] - pb.restW) : Wb;
+      this.disp[b.id] = this.prev[b.id] + wrap180(p - this.prev[b.id]);
+      this.lens[b.id] = Math.hypot(e.x - a.x, e.y - a.y);
+      this.flt[b.id].reset(this.disp[b.id]);
+    }
+    let low = -1e9; for (const q of ps) low = Math.max(low, q.y + q.r);
+    this.x = hip.x; this.y = Math.min(0, low - G); this.face = d; this.sq = this.sqv = 0; this.spin = 0;
+    this.vx = ps.reduce((s, q) => s + q.vx, 0) / ps.length; this.vy = ps.reduce((s, q) => s + q.vy, 0) / ps.length;
+    // it lies still once it has landed and slowed down (or after a long tumble)
+    if (this.kd === 'fly' && this.splatT <= 0 && (r.landed && Math.hypot(this.vx, this.vy) < 60 || this.flyT > 3)) {
+      this.kd = 'down'; this.downT = 0.6; this.splat = false; this.grounded = true;
+    }
   }
 
   // the strike this substep as a capsule [from, to, radius], per the collision mode:
@@ -383,7 +501,7 @@ class Fighter {
   blockHit(att, m) {
     const bs = (m.stun || 0.4) * this.c('blockStun');
     this.hurtT = this.blockT = bs; this.guarding = true; this.combo = 0; this.buffer = null; this.parryT = 0;
-    this.vx = att.dir * m.knock * this.c('blockPush') / this.ch.stats.weight;
+    this.vx = att.dir * m.knock * this.c('blockPush') * this.c('powerScale') / this.ch.stats.weight;
     if (this.c('health') > 0) this.hp = Math.max(1, this.hp - this.damageOf(m, 1) * (m.chip || this.c('chip'))); // chip never knocks out
     for (const c of this.ch.chains.arm) this.jolt(c[0], -300 * m.power); // the guard gives
     this.sqv -= this.c('squash') * 8 * m.power;
@@ -442,13 +560,15 @@ class Fighter {
     this.comboShown = combo; this.comboT = 1; this.comboPop = 1;
     const juggle = !!this.kd || !this.grounded, otg = this.kd === 'down';
     this.dir = -att.dir; this.buffer = null; this.squatT = 0; this.flashT = 0.1;
-    this.vx = att.dir * m.knock * (juggle ? 0.6 : 1) / this.ch.stats.weight;
+    const ps = this.c('powerScale');
+    this.vx = att.dir * m.knock * ps * (juggle ? 0.6 : 1) / this.ch.stats.weight;
     if (m.kd || m.crumple || juggle || combo >= 7 || this.ko) {
       this.juggles = this.kd ? this.juggles + 1 : 0;
       this.kd = 'fly'; this.bounces = otg ? 99 : 0; this.grounded = false; this.action = null; this.hurtT = 0; // hit off the ground: a small pop, no bounce
-      this.vy = -Math.max(m.launch || 300, this.ko ? 380 : 0) * this.c('juggleDecay') ** this.juggles / this.ch.stats.weight;
+      this.vy = -Math.max((m.launch || 300) * ps, this.ko ? 380 : 0) * this.c('juggleDecay') ** this.juggles / this.ch.stats.weight;
       this.splat = !!m.wall; this.gb = !!m.bounce && !otg; this.splatT = 0; this.flyT = 0;
       if (m.crumple && !juggle) { this.vx = att.dir * 30; this.vy = -120; this.bounces = 99; this.say('CRUMPLE'); } // folds where it stands
+      if (this.c('falls') === 'ragdoll') { if (!this.rag) this.startRag(); this.rag.tone = m.crumple && !juggle ? 0.15 : 1; this.ragHit(hit); }
     } else {
       const set = this.ch.hurt[this.zone(hit.pt)].filter(p => p !== this.lastHurt);
       this.lastHurt = set[Math.floor(this.w.rand() * set.length)];
@@ -461,7 +581,7 @@ class Fighter {
     }
     // impact: the blow spins every bone from the struck one down to the hips, harder on a longer lever
     // and lighter bones; the push is along the attack, lifting for launchers
-    const P = this.body(), sd = Math.sign(this.face) || 1, k = 30000 * m.power * this.c('impact');
+    const P = this.body(), sd = Math.sign(this.face) || 1, k = 30000 * m.power * ps * this.c('impact');
     const fx = att.dir, fy = m.launch ? -0.6 : m.height === 'low' ? 0 : -0.2, fn = Math.hypot(fx, fy);
     for (let b = hit.bone; b; b = this.ch.by[b.parent]) {
       const o = P[b.parent || 'hip'], rx = hit.pt[0] - o[0], ry = hit.pt[1] - o[1];

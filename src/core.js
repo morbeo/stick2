@@ -36,6 +36,7 @@ const SCHEMA = [
       limb: 'The whole striking bone as a capsule: generous, forearms and shins hit too.' } },
   { k: 'hitR', v: 0, min: 0, max: 12, step: 1, tip: 'Extra radius around the strike (px). Bigger = more forgiving.' },
   { k: 'impact', v: 1, min: 0, max: 3, step: 0.1, tip: 'How hard a blow spins the struck bones: torque about every joint from the contact point to the hips.' },
+  { k: 'powerScale', v: 1, min: 0.3, max: 3, step: 0.1, tip: 'Hit power for every attack: × knockback, launch, block push, hit stop, shake, sparks and impact spin. Above 1 every blow lands harder.' },
   ['Combos & cancels', 'Which moves can interrupt which. A move\'s cancel window opens when its active frames end (or at a key marked cancel); the frame meter shows it in purple.',
     'chains: J,J,J · J,K · … · specials: ↓↘→ J rush · →↓↘ J rising · ↓↙← K spin · ↓↘→ K stomp (hits a fighter on the floor)'],
   { k: 'chains', v: 'authored', opts: ['none', 'authored', 'free'], tip: 'Which normal moves a move chains into, in its cancel window.',
@@ -73,6 +74,12 @@ const SCHEMA = [
   { k: 'bounces', v: 1, min: 0, max: 4, step: 1, tip: 'Floor bounces before the fighter stays down.' },
   { k: 'wallBounce', v: 0.5, min: 0, max: 1, step: 0.05, tip: 'A flying fighter bounces off the arena walls with this fraction of its speed. 0 = stops dead.' },
   { k: 'flail', v: 1, min: 0, max: 3, step: 0.1, tip: 'How much limbs flail while flying and on every bounce.' },
+  { k: 'falls', v: 'ragdoll', opts: ['ragdoll', 'pose'], tip: 'How a knocked-down body moves.',
+    optTips: { ragdoll: 'Physics: the joints are masses joined by the bones, thrown by the blow (turning about where it landed), pulled by gravity, sliding and bouncing on the floor, held in shape by muscle tone and the joint limits.',
+      pose: 'The fall pose on springs: the body stays upright in the air and lies down on landing.' } },
+  { k: 'tone', v: 0.4, min: 0, max: 1, step: 0.05, tip: 'Ragdoll muscle tone: how much a falling body keeps the fall pose. 0 = limp as a rope, 1 = stiff.' },
+  { k: 'topple', v: 0.6, min: 0, max: 1, step: 0.05, tip: 'Ragdoll: the share of a blow that lands at the impact point instead of moving the whole body; more = a hit to the head turns the body over its feet.' },
+  { k: 'floorGrip', v: 6, min: 0, max: 20, step: 0.5, tip: 'Ragdoll: floor friction. Low = a body slides far along the floor, high = it stops where it lands.' },
   ['Plane (2D / 2.5D)', 'Fight on a line, on three sidestep lanes, or on a free depth belt. Stick figures are flat, so a strike connects only when both fighters stand at about the same depth.', ''],
   { k: 'plane', v: '2d', opts: ['2d', 'lanes', 'belt'], tip: 'Where the fight happens. Space jumps in every plane; in 2.5D ↑ / ↓ move in depth.',
     optTips: { '2d': 'One line: ↑ is a direction for moves, ↓ crouches.', lanes: 'Three lanes: double tap ↑ / ↓ to sidestep a lane (dodges straight attacks), hold ↓ to crouch.',
@@ -119,6 +126,7 @@ const PRESETS = {
 
 // ---------- math ----------
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const wrap180 = a => ((a + 180) % 360 + 360) % 360 - 180; // an angle difference in (-180, 180]
 const approach = (v, t, d) => v < t ? Math.min(v + d, t) : Math.max(v - d, t);
 // seeded rng (mulberry32) so every grid cell replays the exact same fight
 function makeRand(seed) {

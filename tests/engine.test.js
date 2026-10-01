@@ -73,3 +73,34 @@ test('with several striking bones, any of them can land', () => {
   assert.ok(r.handB > 0 && r['handF+handB'] > 0, JSON.stringify(r));
   assert.equal(r.footB, 0, 'a bone that does not reach misses');
 });
+
+test('ragdoll falls stay in the arena, come to rest and get up', () => {
+  for (const ch of run('Object.keys(CHAR_DEFS)')) for (const [mv, ax, bx] of [['@sweep', 330, 380], ['@roundhouse', 330, 385], ['@turnKick', 640, 700]]) {
+    const r = run(`(() => { const w = new World({ a: [0.1, '${mv}'], b: 'dummy', ax: ${ax}, bx: ${bx}, period: 9 }, {}, 7, [CHARS.stick, CHARS.${ch}]); w.loop = false;
+      let rag = false, maxV = 0, out = false, labels = new Set();
+      for (let i = 0; i < 240; i++) { w.advance(1/60, NOIN); const b = w.b; if (b.label && b.labelT > 0) labels.add(b.label);
+        if (b.rag) { rag = true; for (const q of Object.values(b.rag.p)) { maxV = Math.max(maxV, Math.hypot(q.vx, q.vy)); out ||= q.x < 0 || q.x > W || q.y > b.groundY + 1; } } }
+      return { rag, maxV, out, end: w.b.rag ? 'rag' : w.b.kd || 'up', labels: [...labels] }; })()`);
+    if (!r.rag) continue; // that character's move didn't knock it down
+    assert.ok(!r.out, `${ch} ${mv} leaves the arena or sinks into the floor`);
+    assert.ok(r.maxV < 2600, `${ch} ${mv} max speed ${r.maxV}`);
+    assert.equal(r.end, 'up', `${ch} ${mv} gets up (${JSON.stringify(r)})`);
+    if (mv === '@turnKick') assert.ok(r.labels.includes('WALL'), `${ch} splats on the wall`);
+  }
+});
+
+test('a limp body collapses and comes to rest, with joint limits and muscle tone', () => {
+  for (const tone of [0, 0.4, 1]) {
+    const v = run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 500, period: 9 }, { tone: ${tone} }, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+      w.advance(1/60, NOIN); const f = w.a; f.kd = 'fly'; f.grounded = false; f.vx = f.vy = 0; f.startRag();
+      for (let i = 0; i < 600; i++) { f.target = f.basePose(); f.ragStep(1/120); }
+      return Math.max(...Object.values(f.rag.p).map(q => Math.hypot(q.vx, q.vy))); })()`);
+    assert.ok(v < 5, `tone ${tone}: still moving at ${v}`);
+  }
+});
+
+test('power scale makes hits knock further', () => {
+  const dist = ps => run(`(() => { const w = new World({ a: [0.1, '@roundhouse'], b: 'dummy', ax: 330, bx: 385, period: 9 }, { powerScale: ${ps} }, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    let mx = 0; for (let i = 0; i < 90; i++) { w.advance(1/60, NOIN); mx = Math.max(mx, w.b.x); } return mx - 385; })()`);
+  assert.ok(dist(2) > dist(1) + 20 && dist(1) > dist(0.5), `${dist(0.5)} ${dist(1)} ${dist(2)}`);
+});
