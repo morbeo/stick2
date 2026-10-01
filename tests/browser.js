@@ -117,6 +117,15 @@ try {
   // power presets: one button sets the hit and bounce settings, and shows as on while they match
   { setMode('play'); const b = [...document.querySelectorAll('#side button')].find(b => b.textContent.includes('pinball')); b.click(); syncAll();
     if (CFG.powerScale !== 3 || CFG.ceiling !== 0.9 || !b.classList.contains('on')) errs.push('power preset ' + [CFG.powerScale, CFG.ceiling]); applyPreset('juicy'); }
+  // input table: a new motion input gets a row and a move; the damage of the move an input plays is edited in place
+  { setMode('animate'); pickChar('stick'); anim.view = 'inputs'; inputs.table = true; panels();
+    edit(def => { (def.motions ??= {}).m41236 = '41236'; editBinds(def).m41236Punch = 'launcher'; }); syncAll();
+    const row = [...document.querySelectorAll('.itable tbody tr')].find(r => r.textContent.includes('m41236Punch'));
+    if (!row || !row.textContent.includes('launcher')) errs.push('custom input row ' + !!row);
+    const dmg = row?.querySelectorAll('input[type=number]')[1]; if (dmg) { dmg.value = 17; dmg.dispatchEvent(new Event('change')); }
+    if (DEFS.stick.moves.launcher.damage !== 17) errs.push('input table damage ' + DEFS.stick.moves.launcher.damage);
+    removeInput('m41236'); if (DEFS.stick.motions.m41236 || editBinds(DEFS.stick).m41236Punch) errs.push('remove input');
+    undo(); undo(); undo(); anim.view = 'cards'; inputs.table = false; panels(); }
 } catch (e) { errs.push(e.message + ' ' + e.stack.split('\\n')[1]); }
 document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK';
 </script></body>`;

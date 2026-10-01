@@ -195,6 +195,14 @@ test('endless waves: the next wave comes once every enemy is down, knocked-out o
   assert.equal(same[0], same[1]); assert.ok(same[2] >= 2);
 });
 
+test('a character\'s own motion (def.motions) is a new input, tried before the built-in motions', () => {
+  const r = run(`(() => { const d = { ...CHAR_DEFS.stick, motions: { m41236: '41236' }, binds: { ...CHAR_DEFS.stick.binds, m41236Punch: 'launcher' } };
+    const go = seq => { const w = new World({ a: seq, b: 'dummy', ax: 330, bx: 385, period: 9 }, {}, 7, [makeCharacter(d), CHARS.stick]); w.loop = false; const seen = new Set();
+      for (let i = 0; i < 60; i++) { w.advance(1/60, NOIN); const a = w.a.action; if (a) seen.add(Object.keys(w.a.ch.moves).find(k => w.a.ch.moves[k] === a.m)); } return [...seen].join(); };
+    return [go(['back', 'down+back', 'down', 'down+fwd', 'fwd+punch']), go(['down', 'down+fwd', 'fwd+punch']), go(['fwd+punch'])]; })()`);
+  assert.deepEqual([...r], ['launcher', 'rush', 'elbow']);
+});
+
 test('the impact tool strikes the body under the point, a long drag knocks it down', () => {
   const r = run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', period: 9 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false; w.advance(1/60, NOIN);
     const h = w.b.body().head, miss = w.poke(h[0], h[1] - 200, 50, 0), small = w.poke(h[0], h[1], 20, 0), kd1 = w.b.kd;

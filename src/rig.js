@@ -270,6 +270,9 @@ const slotsOf = plane => plane === '2d' ? BINDS : BINDS_25;
 const bindsKey = plane => plane === '2d' ? 'binds' : 'binds25';
 // special motions in numpad notation (6 = towards the opponent), matched in order against the recent directions
 const MOTIONS = { dp: /6.*2.*3/, qcf: /2.*3.*6/, qcb: /2.*1.*4/ };
+// a character's own motions (def.motions: name → numpad digits, e.g. m41236: '41236'), tried before the built-in ones, longest first;
+// each makes two input slots, name + Punch / Kick
+const customMotions = def => Object.fromEntries(Object.entries(def.motions || {}).sort((a, b) => b[1].length - a[1].length).map(([k, d]) => [k, new RegExp(d.split('').join('.*'))]));
 // whole-character stats: each multiplies some fight settings for this character only (1 = as the settings say); g = its group
 const CHAR_STATS = [
   { k: 'speed', g: 'ground', cfg: ['maxSpeed'], min: 0.5, max: 1.6, step: 0.05, tip: 'Walk speed, × maxSpeed (runs too). Heavy bodies feel right a little slower.' },
@@ -331,7 +334,7 @@ function makeCharacter(def) {
   const rest = Object.fromEntries(order.map(b => [b.id, b.a]));
   const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains,
     tips: [...chains.arm, ...chains.leg, ...chains.head, ...chains.tail, ...chains.weapon].map(c => c[c.length - 1]),
-    poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, binds: { ...BINDS, ...def.binds }, binds25: { ...BINDS_25, ...def.binds25 },
+    poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, motions: customMotions(def), binds: { ...BINDS, ...def.binds }, binds25: { ...BINDS_25, ...def.binds25 },
     stats: Object.fromEntries(CHAR_STATS.map(s => [s.k, def[s.k] ?? 1])), gait: { ...Object.fromEntries(GAIT_VARS.map(s => [s.k, s.v])), ...def.gait } };
   // stances: the main one plus any extra; each has its pose, its own binds over the main ones and the key that switches to it
   ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: ch.binds, binds25: ch.binds25 },

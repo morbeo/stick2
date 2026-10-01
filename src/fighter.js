@@ -131,7 +131,7 @@ class Fighter {
 
   // runs every substep, hit stop included: directions are remembered for special motions, buttons are buffered
   bufferInput(inp) {
-    const n = 5 + (inp.right - inp.left) * this.dir - (inp.down ? 3 : 0), t = this.w.simT, d = this.dirs;
+    const n = 5 + (inp.right - inp.left) * this.dir - (inp.down ? 3 : inp.up ? -3 : 0), t = this.w.simT, d = this.dirs;
     if (d[d.length - 1]?.n !== n) d.push({ n, t });
     while (d.length > 1 && t - d[1].t > this.c('motionWindow')) d.shift();
     // P+G throws; K+G (with a direction or not) switches to the stance with that key
@@ -144,10 +144,10 @@ class Fighter {
     const c = this.ch.stances.map((s, i) => i).filter(i => !i || this.ch.stances[i].key === key);
     return c.length < 2 ? -1 : c.find(i => i > this.stanceI) ?? c[0];
   }
-  // every special motion in the recent directions (6236 is both →↓↘ and ↓↘→: the first one with a move bound wins)
+  // every special motion in the recent directions, the character's own first (6236 is both →↓↘ and ↓↘→: the first one with a move bound wins)
   motion() {
-    const s = this.dirs.map(d => d.n).join('');
-    return Object.keys(MOTIONS).filter(k => MOTIONS[k].test(s));
+    const s = this.dirs.map(d => d.n).join(''), all = { ...this.ch.motions, ...MOTIONS };
+    return Object.keys(all).filter(k => all[k].test(s));
   }
   // input slot -> the move the character binds to it (see BINDS); a special motion picks its special on the ground
   pick(b, motion) {

@@ -472,7 +472,7 @@ const GROUP_ORDER = ['main', 'normal', 'special', 'throw', 'weapon', 'air', 'arm
 const GROUP_TIPS = { type: 'Group by type: normal, special, throw, weapon (played while holding a weapon of its class), air, other (not attacks)', limb: 'Group by the striking limb', height: 'Group by height', stance: 'Group by the stance whose binds start the move', none: 'One list' };
 const SORT_TIPS = { order: 'As defined', name: 'By name', startup: 'Fastest first (startup frames)', damage: 'Most damage first' };
 const moveDamage = m => m.power ? m.damage ?? m.power * 8 : 0;
-const moveInputs = (ch, n) => Object.keys(slotsOf(CFG.plane)).filter(s => curBinds(withWeapon(ch, ch.moves[n]))[s] === n);
+const moveInputs = (ch, n) => [...Object.keys(slotsOf(CFG.plane)), ...Object.keys(ch.motions).flatMap(k => [k + 'Punch', k + 'Kick'])].filter(s => curBinds(withWeapon(ch, ch.moves[n]))[s] === n);
 // a keyframed idle or walk loop sampled from the procedural cycle (8 keys over one cycle), to edit from there
 function makeLoop(kind) {
   const ch = currentChar(), n = 8, name = loopName(ch, studio.stance, kind), T = kind === 'walk' ? 0.8 : 2.4;
