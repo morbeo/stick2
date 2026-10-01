@@ -785,7 +785,7 @@ class Fighter {
       // a hurt pose other than the last one, kept by zone and index (a restored checkpoint holds copies, not the same objects)
       const zone = this.zone(hit.pt), all = this.ch.hurt[zone], set = all.map((p, i) => zone + i).filter(k => k !== this.lastHurt);
       this.lastHurt = set[Math.floor(this.w.rand() * set.length)];
-      const stun = m.stun * ck * Math.max(0.45, 1 - 0.07 * (combo - 1)); // long combos stun less
+      const stun = (m.stun ?? 0.4) * ck * Math.max(0.45, 1 - 0.07 * (combo - 1)); // long combos stun less
       this.start(makeHurt(all[+this.lastHurt.slice(zone.length)], stun, this.w.rand, this.st.pose));
       this.hurtT = stun;
       const da = this.c('dizzyAt'), sa = this.c('staggerAt');

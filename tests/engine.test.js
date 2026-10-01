@@ -391,3 +391,16 @@ test('an active strike bats a thrown weapon away', () => {
   assert.equal(on.h, 0), assert.equal(on.c, 1), assert.ok(on.x < 300, 'batted back ' + on.x);
   assert.equal(off.h, 1);
 });
+
+test('every attack, hitting a standing dummy, leaves it drawable and free again (no NaN stun)', () => {
+  const bad = run(`(() => { const bad = [];
+    for (const [n, m] of Object.entries(CHARS.stick.moves)) { if (!m.power || m.throw || m.counter) continue;
+      const w = new World({ a: 'dummy', b: 'dummy', ax: 330, bx: 372 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+      const b = w.b, bone = b.ch.bones[1]; b.takeHit(w.a, m, { bone, pt: b.body()[bone.id] });
+      let free = false;
+      for (let i = 0; i < 400 && !free; i++) { w.advance(1/60, NOIN); free = b.free && i > 2; }
+      const nums = [b.x, b.y, b.hurtT, ...Object.values(b.disp), ...Object.values(b.lens)];
+      if (!free || !nums.every(Number.isFinite)) bad.push(n);
+    } return bad.join(' '); })()`);
+  assert.equal(bad, '');
+});
