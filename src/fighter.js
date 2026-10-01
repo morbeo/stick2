@@ -156,7 +156,8 @@ class Fighter {
   pick(b, motion) {
     const i = this.inp, fwd = (i.right - i.left) * this.dir > 0, P = b === 'punch';
     if (b === 'special') { // S: a special per direction, the neutral one when that direction has none
-      const sp = this.grounded && motion?.map(t => this.special(t)).find(Boolean); // a scheme's special on a motion (SPECIAL_SCHEMES)
+      const n = (i.down ? 1 : i.up ? 7 : 4) + (fwd ? 2 : i.right !== i.left ? 0 : 1); // the direction held, numpad
+      const sp = this.grounded && [...(motion || []), n + 'S'].map(t => this.special(t)).find(Boolean); // a scheme's special on a motion or a direction (SPECIAL_SCHEMES)
       if (sp) return sp;
       const slot = !this.grounded ? 'airSpecial' : i.down ? 'downSpecial' : i.up ? 'upSpecial' : fwd ? 'fwdSpecial' : i.right !== i.left ? 'backSpecial' : 'special';
       return [this.binds[slot], this.grounded && this.binds.special].find(m => this.ch.moves[m]) || null;
@@ -748,11 +749,10 @@ class Fighter {
   // Front only. Standing guard: high, special high, mid, special mid · crouching guard: low, special mid
   // key: the attacker's current key (unblockable is a property of frames, not of the whole move)
   defend(att, m, key) {
-    const k = this.action?.m.keys[this.action.i];
-    if (k?.catch && (att.x - this.x) * this.dir > 0) return 'catch';
+    const k = this.action?.m.keys[this.action.i], h = m.height || 'mid';
+    if (k?.catch && (att.x - this.x) * this.dir > 0 && (!k.catchH || k.catchH.includes(h))) return 'catch';
     const able = this.guarding || this.parryT > 0 && this.free && this.grounded && !this.action && this.squatT <= 0;
     if (key?.unblock || !able || (att.x - this.x) * this.dir <= 0) return null;
-    const h = m.height || 'mid';
     if (!(h === 'smid' || (this.crouching ? h === 'low' : h !== 'low'))) return null;
     return this.parryT > 0 && this.c('parry') ? 'parry' : 'block';
   }

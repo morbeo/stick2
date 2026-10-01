@@ -63,7 +63,8 @@ const AI_LEVELS = {
 };
 // the presses that make each scheme input (SPECIAL_SCHEMES), queued one after another
 const SCHEME_INPUTS = { G6: ['guard+fwd'], G4: ['guard+back'], dd: ['down', 'down+special'], qcf: ['down', 'down+fwd', 'fwd+special'],
-  qcb: ['down', 'down+back', 'back+special'], dp: ['fwd', 'down', 'down+fwd+special'], bP: ['punch'], bK: ['kick'], b6S: ['fwd+special'], b4S: ['back+special'] };
+  qcb: ['down', 'down+back', 'back+special'], dp: ['fwd', 'down', 'down+fwd+special'], bP: ['punch'], bK: ['kick'], b6S: ['fwd+special'], b4S: ['back+special'],
+  '7S': ['up+back+special'], '1S': ['down+back+special'] };
 class Brain {
   constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0, held: null, brk: false, flying: false, tech: false, lying: false, wake: null, blocking: false, out: null, outT: 0 }); }
   input(f, o, h) {
@@ -124,6 +125,8 @@ class Brain {
     // an attack starting up in front: guard it (low against lows); a fresh guard press that lands just in time parries
     if (frameState(o) === 'startup' && dist < 130 && (o.x - f.x) * f.dir > 0 && r < L.guard) {
       if (this.rand() < 0.25 && this.special(f, 'rollFwd')) return; // or roll through it
+      const ht = o.action.m.height || 'mid'; // or catch it with the counter for its height
+      if (this.rand() < L.brk * 0.2 && this.special(f, ht === 'low' ? 'catchLow' : ht.endsWith('high') ? 'catchHigh' : '')) return;
       this.plan = o.action.m.height === 'low' ? 'guardLow' : 'guard'; this.t = 0.3; return; }
     if (plane === 'belt' && dist > 150 && r < 0.2) { this.plan = f.z > 0 ? 'zin' : 'zout'; return; } // circle around on the belt
     if (o.kd === 'down' && dist < 110 && r < 0.4) { this.q = ['down', 'down+fwd', 'fwd+kick']; this.qt = 0; return; } // stomp
@@ -185,10 +188,12 @@ const SCENARIOS = {
   'vs low guard': { a: ['!punch', 0.5, '!kick', 0.6, '!down+kick'], b: [{ hold: 'down+guard', t: 3 }], period: 2.6 },
   'parry': { a: [0.2, 'kick', 0.4, 'punch'], b: [0.25, 'guard'], period: 2 },
   'specials (S)': { a: ['!special', 1, '!fwd+special', 1, '!up+special'], b: 'dummy', period: 4.4 },
-  // throws (P+G), breaking one, the catch counter (← S), techs and air recovery (G while falling)
+  // throws (P+G), breaking one, the catch counters (↖ S high, ← S mid, ↙ S low), techs and air recovery (G while falling)
   'throw': { a: [0.2, 'punch+guard'], b: [{ hold: 'guard', t: 2 }], ax: 330, bx: 372, period: 2.4 },
   'throw break': { a: [0.2, 'punch+guard'], b: [0.38, 'punch+guard'], ax: 330, bx: 372, period: 2.4 },
   'catch': { a: [0.3, 'kick'], b: [0.15, 'back+special'], period: 2.4 },
+  'high counter': { a: [0.3, 'punch'], b: [0.15, 'up+back+special'], period: 2.4 },
+  'low counter': { a: [0.3, 'down+kick'], b: [0.15, 'down+back+special'], period: 2.4 },
   'tech': { a: ['down+kick'], b: [0.3, 'guard'], period: 2.4 },
   'air recover': { a: [0.1, '@roundhouse'], b: [0.58, 'guard'], period: 2.4 },
   // specials (Specials settings): rolls through a kick or away, teleport behind

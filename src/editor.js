@@ -502,6 +502,11 @@ function keyPanel() {
         () => !!k().catch, v => setKey('catch', v || undefined)),
       toggle(':blur_on: warp', 'Warp: as this key is reached the fighter reappears teleportDist behind the foe, turned to face it, leaving after-images (teleport).',
         () => !!k().warp, v => setKey('warp', v || undefined)))),
+    adv(h('div', { cls: 'row', tip: 'Catch keys only: the heights of strike this key catches (catchH; all lit = every height)' }, h('span', { textContent: 'catches' }), h('span', { cls: 'bar' },
+      ...Object.keys(HEIGHT_TIPS).map(ht => toggle(ht, 'Catch ' + HEIGHT_TIPS[ht].replace(/:.*/, '').toLowerCase() + ' strikes (catchHigh: high + shigh, catch: mid + smid, catchLow: low)',
+        () => (k().catchH || Object.keys(HEIGHT_TIPS)).includes(ht),
+        v => { const cur = (k().catchH || Object.keys(HEIGHT_TIPS)).filter(x => x !== ht), next = v ? Object.keys(HEIGHT_TIPS).filter(x => x === ht || cur.includes(x)) : cur;
+          setKey('catchH', next.length === 5 ? undefined : next); }))))),
     ...curMove().weapon ? [h('div', { cls: 'row', tip: 'Weapon hand: where pick-up and throw moves take or let go of the weapon' }, h('span', { textContent: 'hand' }), h('span', { cls: 'bar' },
       ...[['grip', ':pan_tool: grip', 'Grip: picking up (P+G over a weapon), the hand closes on the handle as this key is reached; the weapon slides to the hand until then. Unmarked: the first key.'],
         ['release', ':sports_handball: release', 'Release: throwing (P+G armed), the weapon leaves the hand as this key is reached. Unmarked: the first key.']].map(([n, l, t]) =>

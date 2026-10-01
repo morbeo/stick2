@@ -227,11 +227,11 @@ test('the ceiling bounces a body knocked up to the top of the screen; a ragdoll 
 });
 
 test('endless waves: the next wave comes once every enemy is down, knocked-out ones leave, rewinding across a wave plays the same', () => {
-  const r = run(`(() => { const w = new World(SCENARIOS['ai vs waves'], { health: 60, waves: 'one' }, 3, [CHARS.stick]); w.loop = false;
+  const r = run(`(() => { const w = new World(SCENARIOS['ai vs waves'], { health: 60, waves: 'one' }, 2, [CHARS.stick]); w.loop = false;
     let at = 0, most = 0; for (let i = 0; i < 60 * 60 && w.wave < 3 && !w.done; i++) { w.advance(1/60, NOIN); most = Math.max(most, w.fighters.length); if (w.wave === 2 && !at) at = i; }
     return { wave: w.wave, most, at }; })()`);
   assert.ok(r.at > 0 && r.most === 2, JSON.stringify(r));
-  const same = run(`(() => { const w = new World(SCENARIOS['ai vs waves'], { health: 60, waves: 'one' }, 3, [CHARS.stick]); w.loop = false;
+  const same = run(`(() => { const w = new World(SCENARIOS['ai vs waves'], { health: 60, waves: 'one' }, 2, [CHARS.stick]); w.loop = false;
     for (let i = 0; i < ${r.at} + 60; i++) w.advance(1/60, NOIN); const h = w.stateHash(); w.rewind(80); for (let i = 0; i < 80; i++) w.advance(1/60, NOIN); return [h, w.stateHash(), w.wave]; })()`);
   assert.equal(same[0], same[1]); assert.ok(same[2] >= 2);
 });
@@ -484,4 +484,24 @@ test('in blockstun P guard cancels (costs health), K push blocks (the attacker s
   assert.match(just.labels, /JUST/); assert.equal(just.hp, 100); assert.ok(hold.hp < 100, 'a plain block chips');
   assert.ok(just.bs < hold.bs * 0.7, `blockstun ${just.bs} vs ${hold.bs}`);
   assert.doesNotMatch(go("[0.19, { hold: 'guard', t: 2 }]", { justGuard: false }).labels, /JUST/);
+});
+
+test('counters by height: 7S catches highs, ← S mids, 1S lows (key catchH), each answered by its own counter; counters off; the motion scheme', () => {
+  const go = (a, b, cfg = {}) => run(`(() => { const w = new World({ a: [0.3, '${a}'], b: [0.15, '${b}'], cfg: ${JSON.stringify(cfg)} }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    const seen = new Set(), labels = new Set();
+    for (let i = 0; i < 70; i++) { w.advance(1/60, NOIN); const k = w.b.action && Object.keys(w.b.ch.moves).find(k => w.b.ch.moves[k] === w.b.action.m); if (k) seen.add(k);
+      if (w.b.labelT > 0) labels.add(w.b.label); }
+    return { seen: [...seen].join(' '), caught: labels.has('CATCH'), hp: w.b.hp }; })()`);
+  const hi = go('punch', 'up+back+special');
+  assert.match(hi.seen, /catchHigh/); assert.ok(hi.caught); assert.match(hi.seen, /highCounter/); assert.equal(hi.hp, 100);
+  assert.ok(!go('down+kick', 'up+back+special').caught, 'the high counter lets a low through');
+  const lo = go('down+kick', 'down+back+special');
+  assert.match(lo.seen, /catchLow/); assert.ok(lo.caught); assert.match(lo.seen, /lowCounter/);
+  assert.ok(!go('punch', 'down+back+special').caught, 'the low counter lets a high through');
+  assert.ok(go('kick', 'back+special').caught, '← S still catches a mid');
+  assert.ok(!go('down+kick', 'back+special').caught, '← S lets a low through');
+  assert.doesNotMatch(go('punch', 'up+back+special', { counters: false }).seen, /catchHigh/);
+  assert.doesNotMatch(go('down+kick', 'down+back+special', { counters: false }).seen, /catchLow/);
+  assert.ok(go('down+kick', 'down+back+special', { specialScheme: 'motion' }).caught, 'motion: 1S is still the low counter');
+  assert.match(go('punch', "down', 0.03, 'down+special", { specialScheme: 'motion' }).seen, /catchHigh/, 'motion: ↓↓ S is the high counter');
 });
