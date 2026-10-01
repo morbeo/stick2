@@ -1,7 +1,8 @@
 'use strict';
 // ---------- animate mode: pose keyframes by dragging joints (IK), retime them on a frame timeline, preview with springs ----------
 const anim = { move: 'jab', key: 1, t: 0, playing: true, onion: true, aim: false, aimId: null, reach: 'limb', drag: null, hover: null, anchor: null, pv: null, hold: false,
-  target: { char: null, stance: 'stand', state: 'idle', facing: 'toward' }, group: 'type', sort: 'order', filter: '', view: 'cards' };
+  target: { char: null, stance: 'stand', state: 'idle', facing: 'toward' }, group: 'type', sort: 'order', filter: '', view: 'cards',
+  tfilter: '', tsort: { k: null, dir: 1 }, tscroll: 0 }; // the move table's filter, sort column and scroll
 const curMove = () => currentChar().moves[anim.move];
 const defMove = () => DEFS[CURRENT].moves[anim.move];
 const F = 1 / 60; // one frame
@@ -429,7 +430,81 @@ function moveCard(n, tip) {
   reg(b, () => { b.classList.toggle('on', anim.move === n); if (!raf) still(); });
   return b;
 }
-const VIEW_TIPS = { cards: 'A drawing of each move (hover to play it)', list: 'Compact: names only' };
+const VIEW_TIPS = { cards: 'A drawing of each move (hover to play it)', list: 'Compact: names only',
+  table: 'Every move in a table over the stage: sort by any column, fuzzy filter, edit the values in place, hover a row to see it play' };
+// ---------- move table: every move of the character, sortable, fuzzy-filtered, values edited in place ----------
+// startup / active / recovery edits retime that phase's keys; height opens its options; hovering a row plays the move by the cursor
+const PHASE_TIPS = { startup: 'Startup frames (60 fps) before the first active key. Edit to retime the startup keys.',
+  active: 'Active frames: the strike can hit. Edit to retime the active keys.', recovery: 'Recovery frames after the last active key. Edit to retime them.' };
+const TABLE_COLS = [
+  { k: 'name', tip: 'Click a row to select the move, hover it to see it play', get: (m, n) => n },
+  { k: 'type', tip: GROUP_TIPS.type, get: (m, n, ch) => MOVE_GROUPS.type(m, ch, n) },
+  { k: 'input', tip: 'Inputs that start it (in the moveset of the plane setting: 2D or 2.5D)', get: (m, n, ch) => moveInputs(ch, n).join(' ') },
+  { k: 'limb', tip: 'Striking bones', get: m => m.power ? hitIds(m).join('+') : '' },
+  { k: 'height', tip: 'Height: what blocks it (click a value to change it)', get: m => m.power ? m.height || 'mid' : '', height: true },
+  ...Object.keys(PHASE_TIPS).map(k => ({ k, tip: PHASE_TIPS[k], get: m => frameData(m)[k], phase: true })),
+  ...MOVE_PROPS.map(p => ({ k: p.k, tip: p.tip, get: m => m[p.k] ?? '', prop: p })),
+  { k: 'flags', tip: 'Move flags (set them in the move panel)', get: m => Object.keys(MOVE_FLAGS).filter(f => m[f]).join(' ') },
+];
+function setPhase(n, phase, frames) {
+  edit(def => {
+    let seen = false;
+    const ks = def.moves[n].keys.filter(k => (k.active ? (seen = true, 'active') : seen ? 'recovery' : 'startup') === phase), cur = ks.reduce((s, k) => s + k.d, 0);
+    if (cur > 0 && frames > 0) for (const k of ks) k.d = +(k.d * frames / 60 / cur).toFixed(4);
+  });
+}
+let peek = null; // the hover preview: the move playing next to the cursor
+function peekMove(n, e) {
+  if (!peek || peek.n !== n) {
+    peek?.el.remove();
+    const cv = h('canvas'), el = h('div', { cls: 'peek' }, cv, h('span', { textContent: n })), ch = currentChar(), m = ch.moves[n], t0 = performance.now();
+    peek = { n, el };
+    document.body.append(el);
+    const loop = now => { if (peek?.el !== el) return; if (!document.querySelector('.mtable')) return unpeek(); drawThumb(cv, ch, samplePose(ch, m, (now - t0) / 1000 % (total(m) + 0.3)), 120, 128); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  }
+  peek.el.style.left = Math.min(e.clientX + 16, innerWidth - 140) + 'px'; peek.el.style.top = Math.max(4, Math.min(e.clientY - 70, innerHeight - 160)) + 'px';
+}
+const unpeek = () => { peek?.el.remove(); peek = null; };
+function moveTable() {
+  const body = h('tbody'), head = h('tr'), wrap = h('div', { cls: 'mtable' });
+  const fill = () => {
+    const ch = currentChar(), q = anim.tfilter.trim(), { k: sk, dir } = anim.tsort, col = TABLE_COLS.find(c => c.k === sk);
+    const rows = Object.keys(ch.moves).map(n => ({ n, v: TABLE_COLS.map(c => c.get(ch.moves[n], n, ch)) }))
+      .filter(r => !q || fuzzy(q, r.v.filter(v => typeof v === 'string').join(' ')));
+    if (col) { const i = TABLE_COLS.indexOf(col), blank = v => v === '' || v === undefined;
+      rows.sort((a, b) => blank(a.v[i]) - blank(b.v[i]) || dir * (typeof a.v[i] === 'number' && typeof b.v[i] === 'number' ? a.v[i] - b.v[i] : String(a.v[i]).localeCompare(String(b.v[i])))); }
+    head.replaceChildren(...TABLE_COLS.map(c => h('th', { tip: `${c.tip} · click: sort`, textContent: c.k + (c.k === sk ? (dir > 0 ? ' ▲' : ' ▼') : ''),
+      onclick: () => { anim.tsort = { k: c.k, dir: c.k === sk ? -dir : 1 }; fill(); } })));
+    body.replaceChildren(...rows.map(({ n, v }) => {
+      const m = ch.moves[n], tr = h('tr', { cls: anim.move === n ? 'on' : '', onclick: () => { anim.tscroll = wrap.scrollTop; pickMove(n); },
+        onmousemove: e => peekMove(n, e), onmouseleave: unpeek });
+      tr.append(...TABLE_COLS.map((c, i) => {
+        const td = h('td');
+        if (c.prop || c.phase) {
+          const p = c.prop || { min: 1, max: 120, step: 1 };
+          td.append(h('input', { type: 'number', min: p.min, max: p.max, step: p.step, value: v[i], placeholder: c.k === 'damage' && m.power ? fmt(moveDamage(m)) : '',
+            tip: `${n} · ${c.tip}`, onclick: e => e.stopPropagation(), onkeydown: e => e.stopPropagation(),
+            onchange: e => { const x = parseFloat(e.target.value);
+              if (c.phase) setPhase(n, c.k, x); else edit(def => { if (x) def.moves[n][c.k] = clamp(x, p.min, p.max); else delete def.moves[n][c.k]; });
+              fill(); } }));
+        } else if (c.height && v[i]) td.append(button(v[i], `${n}: ${HEIGHT_TIPS[v[i]]} · click to change`, (e, b) => { e.stopPropagation();
+          popup(b, seg(Object.keys(HEIGHT_TIPS), () => m.height || 'mid', x => { edit(def => { def.moves[n].height = x; }); closePop(); fill(); }, HEIGHT_TIPS)); }, 'mini'));
+        else td.textContent = v[i];
+        return td;
+      }));
+      return tr;
+    }));
+    if (!rows.length) body.replaceChildren(h('tr', {}, h('td', { colSpan: TABLE_COLS.length, cls: 'note', textContent: 'no move matches the filter' })));
+  };
+  fill();
+  const filter = h('input', { cls: 'macro', value: anim.tfilter, placeholder: 'fuzzy filter: name, type, input, limb, height, flags', tip: 'Letters in order match (e.g. "dk" finds downKick); any column with text counts',
+    oninput: e => { anim.tfilter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() });
+  wrap.append(h('div', { cls: 'bar' }, filter, button(':close: editor', 'Back to the keyframe editor (cards view)', () => { anim.view = 'cards'; unpeek(); panels(); })),
+    h('table', {}, h('thead', {}, head), body));
+  requestAnimationFrame(() => { wrap.scrollTop = anim.tscroll || 0; });
+  return wrap;
+}
 function moveList() {
   const list = h('div'), fill = () => {
     const ch = currentChar(), q = anim.filter.trim().toLowerCase(), fd = n => frameData(ch.moves[n], 1);
@@ -444,11 +519,12 @@ function moveList() {
       [g && h('h4', { textContent: g }), anim.view === 'cards' ? h('div', { cls: 'cards' }, ns.map(n => moveCard(n, tips[n])))
         : h('div', { cls: 'bar' }, seg(ns, () => anim.move, pickMove, tips))]));
     if (!names.length) list.replaceChildren(h('div', { cls: 'note', textContent: 'no move matches the filter' }));
+    if (anim.view === 'table') list.replaceChildren(h('div', { cls: 'note', textContent: 'the move table is over the stage' }));
     syncAll();
   };
   fill();
   return [
-    h('div', { cls: 'row', tip: 'How the moves are shown' }, h('span', { textContent: 'view' }), seg(Object.keys(VIEW_TIPS), () => anim.view, v => { anim.view = v; fill(); }, VIEW_TIPS)),
+    h('div', { cls: 'row', tip: 'How the moves are shown' }, h('span', { textContent: 'view' }), seg(Object.keys(VIEW_TIPS), () => anim.view, v => { anim.view = v; unpeek(); panels(); }, VIEW_TIPS)),
     h('div', { cls: 'row', tip: 'How the moves are grouped' }, h('span', { textContent: 'group' }), seg(Object.keys(MOVE_GROUPS), () => anim.group, v => { anim.group = v; fill(); }, GROUP_TIPS)),
     h('div', { cls: 'row', tip: 'Order within a group' }, h('span', { textContent: 'sort' }), seg(Object.keys(SORT_TIPS), () => anim.sort, v => { anim.sort = v; fill(); }, SORT_TIPS)),
     h('div', { cls: 'row', tip: 'Show only moves whose name, group or input contains this text (e.g. kick, air, qcf)' }, h('span', { textContent: 'filter' }),
@@ -554,7 +630,7 @@ const animMode = {
   render() { clear(); drawAnimEditor(); drawTimeline(); drawCell({ w: anim.pv, label: 'preview (springs + hit stop)' }, anLayout().pv, { plot: false }); },
   ctxBar: animCtx,
   side: movePanel,
-  overlay: () => [timelineBar(), targetBar()],
+  overlay: () => anim.view === 'table' ? [moveTable()] : [timelineBar(), targetBar()],
   mouse: animMouse,
   key: animKey,
   hint: () => 'drag a joint: IK · Alt+drag: one bone · timeline: click a key to select, drag it to reorder, drag its edge to retime, double-click to split, drag the ruler to scrub · , . frame step · Delete key',

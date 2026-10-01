@@ -32,6 +32,19 @@ try {
   }
   const pre = keyPose(currentChar(), curMove(), 1); mirrorKey();
   const post = keyPose(currentChar(), curMove(), 1); if (post.uarmF !== pre.uarmB || post.farmB !== pre.farmF) errs.push('mirror');
+  // the move table: one row per move, fuzzy filter, sorting, editing a value and retiming a phase in place
+  anim.view = 'table'; panels();
+  const rows = () => [...document.querySelectorAll('.mtable tbody tr')];
+  if (rows().length !== Object.keys(currentChar().moves).length) errs.push('table rows');
+  const fi = document.querySelector('.mtable .bar input'); fi.value = 'dk'; fi.dispatchEvent(new Event('input'));
+  const names = rows().map(r => r.firstChild.textContent); if (!names.includes('sweep') || names.includes('jab')) errs.push('table filter ' + names);
+  fi.value = ''; fi.dispatchEvent(new Event('input'));
+  [...document.querySelectorAll('.mtable th')].find(t => t.textContent.startsWith('startup')).click();
+  const su = rows().map(r => +r.children[5].querySelector('input').value); if (su.some((v, i) => i && v < su[i - 1])) errs.push('table sort');
+  const edit1 = (n, col, v) => { const inp = rows().find(r => r.firstChild.textContent === n).children[col].querySelector('input'); inp.value = v; inp.dispatchEvent(new Event('change')); };
+  edit1('kick', TABLE_COLS.findIndex(c => c.k === 'knock'), 333); if (currentChar().moves.kick.knock !== 333) errs.push('table edit');
+  edit1('kick', 5, 12); if (frameData(currentChar().moves.kick).startup !== 12) errs.push('table retime ' + frameData(currentChar().moves.kick).startup);
+  anim.view = 'cards';
   setMode('play'); for (let i = 0; i < 60; i++) for (const w of mode().worlds()) w.advance(1/60, NOIN);
 } catch (e) { errs.push(e.message); }
 document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK';

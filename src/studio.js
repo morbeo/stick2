@@ -184,8 +184,8 @@ function randomDef(rand, o = studio.rnd) {
   return def;
 }
 // a small drawing of a character (its stance, or any pose); one scale for all, so sizes compare
-function drawThumb(cv, ch, pose = ch.poses.stance) {
-  const w = cv.width = 60 * dpr, hh = cv.height = 64 * dpr, c = cv.getContext('2d'), L = fk(ch, pose, 1), s = hh * 0.92 / 125;
+function drawThumb(cv, ch, pose = ch.poses.stance, cw = 60, chh = 64) {
+  const w = cv.width = cw * dpr, hh = cv.height = chh * dpr, c = cv.getContext('2d'), L = fk(ch, pose, 1), s = hh * 0.92 / 125;
   let low = 0, x0 = 0, x1 = 0;
   for (const b of ch.bones) { const p = L[b.id], r = b.shape === 'circle' ? b.len : 0; low = Math.max(low, p[1] + r); x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); }
   c.translate(w / 2 - (x0 + x1) / 2 * s, hh - 3 * dpr - low * s); c.scale(s, s);
