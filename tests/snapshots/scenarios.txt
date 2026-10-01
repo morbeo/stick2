@@ -2,7 +2,7 @@ ai vs ai       hits 8 blocks 0 hp 62.0 74.8 x 222 172
 ai vs dummy    hits 5 blocks 0 hp 100.0 56.8 x 723 761
 jab spam       hits 10 blocks 0 hp 100.0 50.0 x 387 444
 J,J,J          hits 3 blocks 0 hp 100.0 79.0 x 357 477
-K,K            hits 2 blocks 0 hp 100.0 78.4 x 341 572
+K,K            hits 2 blocks 0 hp 100.0 78.4 x 341 574
 J,J,K          hits 3 blocks 0 hp 100.0 77.4 x 347 629
 J,K,K          hits 3 blocks 0 hp 100.0 75.6 x 341 609
 juggle         hits 3 blocks 0 hp 100.0 79.0 x 362 477
@@ -10,18 +10,18 @@ sweep          hits 1 blocks 0 hp 100.0 90.0 x 330 458
 dash punch     hits 1 blocks 0 hp 100.0 89.0 x 430 572
 air kick       hits 1 blocks 0 hp 100.0 91.0 x 330 406
 J→rush         hits 2 blocks 0 hp 100.0 84.2 x 439 477
-J,K→spin       hits 3 blocks 0 hp 100.0 74.8 x 359 639
-rising         hits 1 blocks 0 hp 100.0 86.0 x 341 440
+J,K→spin       hits 3 blocks 0 hp 100.0 74.8 x 359 641
+rising         hits 1 blocks 0 hp 100.0 86.0 x 341 442
 air combo      hits 3 blocks 0 hp 100.0 79.0 x 362 477
 sidestep       hits 0 blocks 0 hp 100.0 100.0 x 330 375
 ninja flip     hits 0 blocks 0 hp 100.0 100.0 x 210 385
 dash & run     hits 0 blocks 0 hp 100.0 100.0 x 404 442
-belt ai        hits 7 blocks 0 hp 62.0 84.7 x 250 195
+belt ai        hits 7 blocks 0 hp 62.0 84.7 x 250 196
 lanes ai       hits 8 blocks 0 hp 62.0 74.8 x 222 172
 vs guard       hits 1 blocks 2 hp 100.0 88.6 x 330 463
 vs low guard   hits 1 blocks 1 hp 100.0 90.0 x 339 398
 parry          hits 1 blocks 0 hp 100.0 95.0 x 330 382
-specials (S)   hits 2 blocks 0 hp 100.0 71.0 x 713 727
+specials (S)   hits 2 blocks 0 hp 100.0 71.0 x 715 728
 throw          hits 1 blocks 0 hp 100.0 86.0 x 336 515
 throw break    hits 0 blocks 0 hp 100.0 100.0 x 306 379
 catch          hits 1 blocks 0 hp 83.8 100.0 x 86 375
@@ -41,9 +41,9 @@ taunt          hits 0 blocks 0 hp 100.0 100.0 x 330 375
 win pose       hits 1 blocks 0 hp 5.0 0.0 x 330 523
 pounce         hits 2 blocks 0 hp 100.0 81.9 x 437 475
 wall bounce    hits 2 blocks 0 hp 100.0 76.9 x 589 728
-OTG stomp      hits 1 blocks 0 hp 100.0 90.0 x 404 458
-ai 2v2         hits 12 blocks 0 hp 50.7 100.0 x 40 255
-ai free-for-all hits 10 blocks 0 hp 43.1 61.1 x 542 384
+OTG stomp      hits 2 blocks 0 hp 100.0 82.8 x 413 470
+ai 2v2         hits 14 blocks 0 hp 50.7 100.0 x 79 297
+ai free-for-all hits 8 blocks 0 hp 55.0 64.9 x 439 576
 ai vs waves    hits 4 blocks 0 hp 67.5 78.3 x 300 472
 sandwich       hits 5 blocks 0 hp 100.0 77.4 x 330 633
 showcase       hits 4 blocks 0 hp 100.0 68.4 x 544 717

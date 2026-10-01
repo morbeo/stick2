@@ -211,7 +211,7 @@ const SCENARIOS = {
   'win pose': { a: [0.2, 'kick'], b: 'dummy', cfg: { health: 5 } },
   'pounce': { a: ['down+kick', 0.6, { hold: 'fwd', t: 0.35 }, 'hop', 0.1, 'down+special'], b: 'dummy', period: 3 },
   'wall bounce': { a: [0.2, 'special', 0.5, 'hop', 0.05, 'kick'], b: 'dummy', ax: 560, bx: 640, period: 2.4 },
-  'OTG stomp': { a: ['down+kick', 0.6, { hold: 'fwd', t: 0.25 }, 'down', 'down+fwd', 'fwd+kick'], b: 'dummy', period: 3 },
+  'OTG stomp': { a: ['down+kick', 0.6, { hold: 'fwd', t: 0.25 }, 'down+special'], b: 'dummy', period: 3 },
   // several opponents: extra fighters are { c: controller, x, team }; same team = allies
   'you vs 2 ai': { a: 'human', b: 'ai', bx: 520, more: [{ c: 'ai', x: 640, team: 1 }] },
   'you vs 3 dummies': { a: 'human', b: 'dummy', bx: 420, more: [{ c: 'dummy', x: 520, team: 1 }, { c: 'dummy', x: 160, team: 1 }] },

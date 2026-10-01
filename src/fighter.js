@@ -1,4 +1,15 @@
 'use strict';
+// a lying body (pose falls): turned about the hips to the angle where its joints sit lowest over its lowest point,
+// so no pose leaves the torso or head hanging in the air above the floor
+function settle(ch, L) {
+  const rot = (a, f) => { const c = Math.cos(a), s = Math.sin(a); for (const k in L) f(k, L[k][0] * c - L[k][1] * s, L[k][0] * s + L[k][1] * c); };
+  const gap = a => { let lo = -Infinity, sum = 0; const ys = [];
+    rot(a, (k, x, y) => { const b = ch.by[k], r = b?.shape === 'circle' ? b.len : 0; ys.push(y + r); lo = Math.max(lo, y + r); });
+    for (const y of ys) sum += lo - y; return sum; };
+  let best = 0, bg = gap(0);
+  for (let a = -0.6; a <= 0.6; a += 0.04) { const g = gap(a); if (g < bg) { bg = g; best = a; } }
+  if (best) rot(best, (k, x, y) => { L[k] = [x, y]; });
+}
 class Fighter {
   constructor(w, x, dir, col, ch, over = {}) {
     Object.assign(this, { w, x, groundY: w.groundY, dir, face: dir, col, ch, over, y: 0, vx: 0, vy: 0, grounded: true,
@@ -894,6 +905,7 @@ class Fighter {
   // world-space joints: lowest body point snapped to the ground, then squash/stretch around it
   points(p, lens) {
     const L = fk(this.ch, p, this.xs, lens);
+    if (this.kd === 'down' && !this.rag) settle(this.ch, L); // the lie pose rolls to the angle it lies flattest at
     let fy = 0;
     for (const b of this.ch.bones) fy = Math.max(fy, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
     if (this.spin) {

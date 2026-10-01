@@ -1,9 +1,9 @@
 stick      hits 7 hp 69.8 69.6
 brute      hits 11 hp 41.0 84.7
-dwarf      hits 9 hp 52.8 75.5
-minotaur   hits 11 hp 23.5 100.0
+dwarf      hits 13 hp 14.9 86.9
+minotaur   hits 13 hp 17.5 100.0
 demon      hits 11 hp 65.3 52.1
-centaur    hits 10 hp 69.8 50.2
+centaur    hits 9 hp 69.8 58.9
 ninja      hits 10 hp 90.0 19.3
 ape        hits 11 hp 16.0 93.8
 asura      hits 13 hp 25.8 76.1

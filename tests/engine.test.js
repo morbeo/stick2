@@ -562,3 +562,19 @@ test('hit flags: a move\'s hits (stand / crouch / air) skips other states; airGu
   assert.equal(r.airOn.blocks, 1, 'airGuard: blocked in the air'); assert.equal(r.airNo.blocks, 0, 'noAirGuard goes through');
   assert.ok(r.comboFree >= 2 && r.comboPool === 1, `juggle pool: ${r.comboPool} hits vs ${r.comboFree}`); assert.equal(r.comboRoom, r.comboFree, 'a pool that can pay lets it land');
 });
+
+test('a fighter lying on the floor rests on it: no joint of the lie pose hangs far above the floor (both fall modes); the OTG stomp scenario stomps', () => {
+  for (const falls of ['ragdoll', 'pose']) for (const c of ['stick', 'brute', 'dwarf']) {
+    const r = run(`(() => { const w = new World(SCENARIOS.sweep, { falls: '${falls}' }, 7, [CHARS.stick, CHARS.${c}]); w.loop = false;
+      let worst = null;
+      for (let i = 0; i < 200; i++) { w.advance(1/60, NOIN); const f = w.b; if (f.kd !== 'down' || f.downT > f.c('downTime') - 0.5) continue;
+        const P = f.body(), low = id => f.groundY - P[id][1] - (f.ch.by[id].thick ?? BONE.thick) / 2; // the underside of the stroke
+        const hip = low('waist') + P.waist[1] - P.hip[1], chest = low('chest');
+        worst = Math.max(worst ?? 0, hip, chest); }
+      return worst; })()`);
+    assert.ok(r !== null, `${falls} ${c}: lies down`);
+    assert.ok(r < 6, `${falls} ${c}: hips / chest ${r.toFixed(1)} px over the floor`);
+  }
+  const s = run(`(() => { const { w, seen } = fight(SCENARIOS['OTG stomp'], [CHARS.stick], 180); return { seen, hp: w.b.hp }; })()`);
+  assert.ok(s.seen.includes('a:stomp'), s.seen.join(' ')), assert.ok(s.hp < 100 - 5 - 8 + 1, 'sweep + stomp landed: ' + s.hp);
+});
