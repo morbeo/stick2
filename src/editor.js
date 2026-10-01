@@ -4,6 +4,7 @@ const anim = { move: 'jab', key: 1, t: 0, playing: true, onion: true, aim: false
   target: { char: null, stance: 'stand', state: 'idle', facing: 'toward' }, group: 'type', sort: 'order', filter: '', view: 'cards',
   tfilter: '', tsort: { k: null, dir: 1 }, tscroll: 0 }; // the move table's filter, sort column and scroll
 const curMove = () => currentChar().moves[anim.move];
+const edChar = () => withWeapon(currentChar(), curMove()); // a weapon move is edited in the hand of its class's weapon
 const defMove = () => DEFS[CURRENT].moves[anim.move];
 const F = 1 / 60; // one frame
 const keyStart = (m, i) => m.keys.slice(0, i).reduce((s, k) => s + k.d, 0);
@@ -20,7 +21,7 @@ function anLayout() {
 }
 // the pose at the playhead; while dragging, the hips stay where they were so the body doesn't slide under the cursor
 function anFrame() {
-  const ch = currentChar(), r = anLayout().ed, s = Math.min(r.h / 170, r.w / 150), ground = r.y + r.h * 0.86;
+  const ch = edChar(), r = anLayout().ed, s = Math.min(r.h / 170, r.w / 150), ground = r.y + r.h * 0.86;
   const pose = samplePose(ch, curMove(), anim.t), wa = {}, L = fk(ch, pose, 1, null, wa);
   if (!anim.drag) {
     let low = 0;
@@ -265,7 +266,7 @@ function stepFrame(n) { anim.playing = false; anim.t = clamp(anim.t + n * F, 0, 
 // ---------- key and move edits ----------
 // the key's pose with every front bone (id ending in F) swapped with its back twin (B)
 function mirrorKey() {
-  const ch = currentChar(), p = keyPose(ch, curMove(), anim.key), out = { ...p };
+  const ch = edChar(), p = keyPose(ch, curMove(), anim.key), out = { ...p };
   for (const id of ch.ids) { const tw = id.slice(0, -1) + ({ F: 'B', B: 'F' })[id.slice(-1)]; if (tw !== id && ch.by[tw] && p[tw] !== undefined) out[id] = p[tw]; }
   setKey('p', out);
 }
@@ -284,7 +285,7 @@ function keyFrames(delta) {
 function addKey() {
   edit(def => {
     const keys = def.moves[anim.move].keys, k = keys[anim.key];
-    keys.splice(anim.key + 1, 0, { d: 4 / 60, e: 'outQuad', p: clone(keyPose(currentChar(), curMove(), anim.key)) });
+    keys.splice(anim.key + 1, 0, { d: 4 / 60, e: 'outQuad', p: clone(keyPose(edChar(), curMove(), anim.key)) });
   });
   selectKey(anim.key + 1);
 }
@@ -292,7 +293,7 @@ function addKey() {
 function splitKey(t) {
   const m = curMove(), i = keyAt(m, t), f = Math.round((t - keyStart(m, i)) * 60), n = Math.round(m.keys[i].d * 60);
   if (f < 1 || f >= n) return selectKey(i);
-  const p = mapVals(samplePose(currentChar(), m, keyStart(m, i) + f / 60), v => Math.round(v * 10) / 10);
+  const p = mapVals(samplePose(edChar(), m, keyStart(m, i) + f / 60), v => Math.round(v * 10) / 10);
   edit(def => {
     const ks = def.moves[anim.move].keys, k = ks[i];
     ks.splice(i, 0, { ...k, d: f / 60, p }); // the first part starts where the key did: it keeps the lunge and cancel
@@ -336,9 +337,18 @@ const SLOT_TIPS = { punch: 'J standing (5P)', kick: 'K standing (5K)', downPunch
   airUpPunch: '↑ J in the air, else J in the air', airUpKick: '↑ K in the air, else K in the air', airDownPunch: '↓ J in the air, else J in the air', airDownKick: '↓ K in the air, else K in the air',
   qcfPunch: '↓↘→ J', qcfKick: '↓↘→ K', qcbPunch: '↓↙← J', qcbKick: '↓↙← K', dpPunch: '→↓↘ J', dpKick: '→↓↘ K',
   special: 'S (U), and any direction without its own special', fwdSpecial: '→ S', backSpecial: '← S', upSpecial: '↑ S', downSpecial: '↓ S', airSpecial: 'S in the air' };
-// binds of the stance picked in the character panel; in an extra stance, unbinding a slot it inherits blanks it there
-const boundSlots = () => Object.keys(slotsOf(CFG.plane)).filter(s => curBinds()[s] === anim.move);
+// binds of the stance picked in the character panel; in an extra stance, unbinding a slot it inherits blanks it there.
+// A weapon move binds for its class in every stance (def.wbinds), over the binds while such a weapon is held
+const boundSlots = () => Object.keys(slotsOf(CFG.plane)).filter(s => curBinds(edChar())[s] === anim.move);
 const toggleBind = s => edit(def => {
+  const cls = curMove().weapon;
+  if (cls) {
+    const b = (def.wbinds ??= {})[cls] ??= {};
+    if (curBinds(edChar())[s] !== anim.move) b[s] = anim.move;
+    else if (WEAPON_CLASSES[cls].binds[s] === anim.move) b[s] = '';
+    else delete b[s];
+    return;
+  }
   const b = editBinds(def);
   if (curBinds()[s] !== anim.move) b[s] = anim.move;
   else if (studio.stance && !(s in b)) b[s] = '';
@@ -399,9 +409,9 @@ function keyPanel() {
     h('div', { cls: 'bar' },
       button(':accessibility_new: stance', 'This key returns to the stance (clears its pose)', () => setKey('p', null)),
       button(':flip: mirror', 'Swap the front and back limbs in this key (left arm takes the right arm\'s angles and back)', mirrorKey),
-      button('hold', 'Copy the previous key\'s pose (hold still)', () => setKey('p', clone(keyPose(currentChar(), curMove(), Math.max(0, anim.key - 1))))),
+      button('hold', 'Copy the previous key\'s pose (hold still)', () => setKey('p', clone(keyPose(edChar(), curMove(), Math.max(0, anim.key - 1))))),
       button(':accessibility_new: pose', 'Start this key from a preset pose', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.entries(POSES).map(([n, p]) =>
-        button(n, p.tip, () => setKey('p', { ...keyPose(currentChar(), curMove(), anim.key), ...presetPose(currentChar(), p) }))))))),
+        button(n, p.tip, () => setKey('p', { ...keyPose(edChar(), curMove(), anim.key), ...presetPose(edChar(), p) }))))))),
     h('div', { cls: 'row', tip: 'Easing curve into this key\'s pose' }, h('span', { textContent: 'easing' }),
       seg(Object.keys(EASE), () => k().e || 'linear', v => setKey('e', v), EASE_TIPS)),
     h('div', { cls: 'row', tip: 'Active frames can hit' }, h('span', { textContent: 'active' }),
@@ -422,19 +432,19 @@ function keyPanel() {
 }
 // ---------- move list: grouped by type / striking limb / height, sorted, filtered by name or input ----------
 const MOVE_GROUPS = {
-  type: m => m.air ? 'air' : m.throw ? 'throw' : m.special ? 'special' : m.power ? 'normal' : 'other',
+  type: m => m.weapon ? 'weapon' : m.air ? 'air' : m.throw ? 'throw' : m.special ? 'special' : m.power ? 'normal' : 'other',
   limb: (m, ch) => m.power ? [...new Set(hitIds(m).map(id => ch.by[id]?.role || 'none'))].join(' + ') || 'none' : 'other',
   height: m => m.power ? m.height || 'mid' : 'other',
   // the stance whose own binds start the move (main: only the main binds; unbound: no input in any stance)
-  stance: (m, ch, n) => ch.stances.slice(1).filter((s, i) => Object.values(DEFS[CURRENT].stances[i][bkey()] || {}).includes(n)).map(s => s.name).join(' + ')
-    || (Object.values(ch[bkey()]).includes(n) ? 'main' : 'unbound'),
+  stance: (m, ch, n) => (ch = withWeapon(ch, m)).stances.slice(1).filter((s, i) => Object.values(DEFS[CURRENT].stances[i][bkey()] || {}).includes(n)).map(s => s.name).join(' + ')
+    || (Object.values(ch.stances[0][bkey()]).includes(n) ? 'main' : 'unbound'),
   none: () => '',
 };
-const GROUP_ORDER = ['main', 'normal', 'special', 'throw', 'air', 'arm', 'leg', 'head', 'spine', 'tail', 'high', 'shigh', 'mid', 'smid', 'low', 'none', 'other', 'unbound'];
-const GROUP_TIPS = { type: 'Group by type: normal, special, throw, air, other (not attacks)', limb: 'Group by the striking limb', height: 'Group by height', stance: 'Group by the stance whose binds start the move', none: 'One list' };
+const GROUP_ORDER = ['main', 'normal', 'special', 'throw', 'weapon', 'air', 'arm', 'leg', 'head', 'spine', 'tail', 'high', 'shigh', 'mid', 'smid', 'low', 'none', 'other', 'unbound'];
+const GROUP_TIPS = { type: 'Group by type: normal, special, throw, weapon (played while holding a weapon of its class), air, other (not attacks)', limb: 'Group by the striking limb', height: 'Group by height', stance: 'Group by the stance whose binds start the move', none: 'One list' };
 const SORT_TIPS = { order: 'As defined', name: 'By name', startup: 'Fastest first (startup frames)', damage: 'Most damage first' };
 const moveDamage = m => m.power ? m.damage ?? m.power * 8 : 0;
-const moveInputs = (ch, n) => Object.keys(slotsOf(CFG.plane)).filter(s => curBinds(ch)[s] === n);
+const moveInputs = (ch, n) => Object.keys(slotsOf(CFG.plane)).filter(s => curBinds(withWeapon(ch, ch.moves[n]))[s] === n);
 // a keyframed idle or walk loop sampled from the procedural cycle (8 keys over one cycle), to edit from there
 function makeLoop(kind) {
   const ch = currentChar(), n = 8, name = loopName(ch, studio.stance, kind), T = kind === 'walk' ? 0.8 : 2.4;
@@ -452,7 +462,7 @@ function makeLoop(kind) {
 // a move as a card: a drawing of its strike (the first active key); hovering plays it
 function moveCard(n, tip) {
   const cv = h('canvas'), b = h('button', { cls: 'card', tip, onclick: () => pickMove(n) }, cv, h('span', { textContent: n }));
-  const ch = currentChar(), m = ch.moves[n];
+  const m = currentChar().moves[n], ch = withWeapon(currentChar(), m);
   const still = () => drawThumb(cv, ch, keyPose(ch, m, Math.max(0, m.keys.findIndex(k => k.active))));
   let raf = 0;
   b.onmouseenter = () => {
@@ -495,7 +505,7 @@ let peek = null; // the hover preview: the move playing next to the cursor
 function peekMove(n, e) {
   if (!peek || peek.n !== n) {
     peek?.el.remove();
-    const cv = h('canvas'), el = h('div', { cls: 'peek' }, cv, h('span', { textContent: n })), ch = currentChar(), m = ch.moves[n], t0 = performance.now();
+    const cv = h('canvas'), el = h('div', { cls: 'peek' }, cv, h('span', { textContent: n })), m = currentChar().moves[n], ch = withWeapon(currentChar(), m), t0 = performance.now();
     peek = { n, el };
     document.body.append(el);
     const loop = now => { if (peek?.el !== el) return; if (!document.querySelector('.mtable')) return unpeek(); drawThumb(cv, ch, samplePose(ch, m, (now - t0) / 1000 % (total(m) + 0.3)), 120, 128); requestAnimationFrame(loop); };
@@ -581,11 +591,11 @@ function movePanel() {
   // click = strike with this bone only, Shift+click = add or remove it (several limbs strike at once)
   const m = () => curMove(), boneB = (id, tip) => { const b = button(id, tip, e => pickHit(id, e.shiftKey)); reg(b, () => b.classList.toggle('on', hitIds(m()).includes(id))); return b; };
   const hitB = button('', 'Any other bone as the strike (or Shift+click its joint in the editor)', (e, b) =>
-    popup(b, h('div', { cls: 'bar' }, h('span', { cls: 'seg' }, currentChar().ids.map(id => boneB(id, `Strike with ${id} · Shift+click: add or remove it`))))));
-  reg(hitB, () => { const off = hitIds(m()).filter(id => !currentChar().tips.some(b => b.id === id)); setRich(hitB, off.join(' ') || (hitIds(m()).length ? ':more_horiz:' : 'none')); });
-  const tipSeg = h('span', { cls: 'seg' }, currentChar().tips.map(b => boneB(b.id, `Strike with the end of ${b.id} (${b.role}) · Shift+click: add or remove it, so several limbs strike`)));
+    popup(b, h('div', { cls: 'bar' }, h('span', { cls: 'seg' }, edChar().ids.map(id => boneB(id, `Strike with ${id} · Shift+click: add or remove it`))))));
+  reg(hitB, () => { const off = hitIds(m()).filter(id => !edChar().tips.some(b => b.id === id)); setRich(hitB, off.join(' ') || (hitIds(m()).length ? ':more_horiz:' : 'none')); });
+  const tipSeg = h('span', { cls: 'seg' }, edChar().tips.map(b => boneB(b.id, `Strike with the end of ${b.id} (${b.role}) · Shift+click: add or remove it, so several limbs strike`)));
   const bindB = button('', 'Inputs that trigger this move. Click to bind it to other inputs (copies of moves become playable this way).', (e, b) =>
-    popup(b, h('div', { cls: 'bar' }, Object.keys(slotsOf(CFG.plane)).map(s => toggle(s, `${SLOT_TIPS[s]} · now: ${curBinds()[s] || 'none'}`, () => curBinds()[s] === anim.move, () => toggleBind(s))))));
+    popup(b, h('div', { cls: 'bar' }, Object.keys(slotsOf(CFG.plane)).map(s => toggle(s, `${SLOT_TIPS[s]} · now: ${curBinds(edChar())[s] || 'none'}`, () => curBinds(edChar())[s] === anim.move, () => toggleBind(s))))));
   reg(bindB, () => { setRich(bindB, boundSlots().join(' ') || 'none (combo only)'); });
   const head = heading('Moves', 'Pick a move to edit. Copies can be tuned freely; the built-in names are the ones the controls trigger.', 'Enter play/pause · O onion · I aim');
   head.append(crud({ copy: ['New move copied from this one, under a new name', copyMove], delete: ['Delete this move (only copies)', deleteMove] }));

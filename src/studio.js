@@ -42,7 +42,7 @@ const ROLE_TIPS = {
 };
 // role colours for the editors' colour-coded view: [front / centre, back]
 const ROLE_COLS = { spine: ['#222', '#8a8580'], head: ['#8e44ad', '#c6a2d6'], arm: ['#2c6fb0', '#94b7d8'], leg: ['#2e8b57', '#97c5ab'], tail: ['#b9770e', '#e0c08a'] };
-const roleTint = () => studio.colors ? b => ROLE_COLS[b.role][b.side === 'b' ? 1 : 0] : null;
+const roleTint = () => studio.colors ? b => ROLE_COLS[b.role]?.[b.side === 'b' ? 1 : 0] : null; // a weapon keeps its own colours
 const colorsToggle = () => toggle(':palette: colors', 'Colour bones by role: spine black · head purple · arms blue · legs green · tails amber (back side paler)',
   () => studio.colors, v => { studio.colors = v; });
 const SIDE_TIPS = { f: 'Front: drawn over the body in the main colour.', '': 'Centre: drawn with the body.', b: 'Back: drawn behind the body in the second colour.' };

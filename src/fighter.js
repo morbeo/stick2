@@ -9,7 +9,7 @@ class Fighter {
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, flyT: 0, guardT: -9, stanceI: 0,
       airJumps: 0, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0 });
-    this.hp = this.c('health');
+    this.hp = this.c('health'); this.ch0 = ch.base || ch; // ch0: the character without its weapon
     this.target = this.basePose();
     this.disp = { ...this.target };
     this.prev = { ...this.target };
@@ -18,7 +18,7 @@ class Fighter {
   }
   // swap the body live (character editor): new bones start at the base pose, the running move is dropped
   setChar(ch) {
-    this.ch = ch; this.action = null; this.trail = [];
+    this.ch = ch; this.ch0 = ch.base || ch; this.action = null; this.trail = [];
     const base = this.basePose();
     for (const b of ch.bones) {
       if (!this.flt[b.id]) { this.flt[b.id] = new SecondOrder(base[b.id]); this.target[b.id] = this.disp[b.id] = this.prev[b.id] = base[b.id]; }
@@ -161,7 +161,7 @@ class Fighter {
     const sp = this.grounded && motion?.map(k => has(k + B)).find(Boolean);
     if (sp) return sp;
     if (!this.grounded) return has('air' + (i.down ? 'Down' : i.up ? 'Up' : '') + B) || has('air' + B);
-    if (P && fwd && !i.down && Math.abs(this.vx) > this.c('maxSpeed') * 0.6 && has('dashPunch')) return has('dashPunch');
+    if (P && fwd && !i.down && !this.ch.weapon && Math.abs(this.vx) > this.c('maxSpeed') * 0.6 && has('dashPunch')) return has('dashPunch');
     // a direction × button table: ↘K = downFwdKick; a slot without a move falls back to its vertical (downKick), then to neutral
     const v = i.down ? 'down' : i.up ? 'up' : '', hz = fwd ? 'Fwd' : i.right !== i.left ? 'Back' : '';
     const slots = [v && hz && v + hz + B, v ? v + B : hz && hz.toLowerCase() + B, b];
@@ -179,6 +179,45 @@ class Fighter {
   }
   start(m) {
     this.action = { m: typeof m === 'string' ? this.ch.moves[m] : m, i: 0, t: 0, from: { ...this.target }, hit: false, hits: [] };
+  }
+  // a move by name, taking up its class's weapon first if it is a weapon move (scripts, the gallery)
+  force(n) {
+    const m = this.ch.moves[n] || WEAPON_MOVES[n];
+    if (m?.weapon && WEAPONS[this.ch.weapon]?.cls !== m.weapon) this.wield(WEAPON_CLASSES[m.weapon].weapon);
+    if (this.ch.moves[n]) this.start(n);
+  }
+
+  // ---------- weapons (see WEAPONS): held = the character compiled with the weapon bone (armed) ----------
+  wield(type) { this.setChar(armed(this.ch0, type)); }
+  get weapon() { return WEAPONS[this.ch.weapon]; }
+  // where the held weapon's bones are, as a lying item would be: its centre and angle
+  weaponAt() {
+    const P = this.body(), b = this.ch.by.weapon, o = P[b.parent], e = P[this.ch.by.weaponTip ? 'weaponTip' : 'weapon'];
+    return { x: (o[0] + e[0]) / 2, y: (o[1] + e[1]) / 2, rot: Math.atan2(e[1] - o[1], e[0] - o[0]) };
+  }
+  // the weapon leaves the hand: thrown (live: it hits foes) or knocked loose
+  letGo(live) {
+    const w = this.w, at = this.weaponAt(), it = { type: this.ch.weapon, ...at, z: this.z, owner: this, live, spin: 0, t: 0 };
+    if (live) Object.assign(it, { x: at.x + this.dir * 10, vx: this.dir * this.c('throwSpeed'), vy: -60, spin: this.dir * (this.weapon.cls === 'pierce' ? 0 : 18), rot: this.dir > 0 ? 0 : Math.PI });
+    else Object.assign(it, { vx: -this.dir * 120 + w.rand(-60, 60), vy: -320, spin: w.rand(-12, 12) });
+    w.items.push(it);
+    this.setChar(this.ch0);
+  }
+  // P+G free on the ground: throw the held weapon, or pick up the one at the feet (null = nothing to do, a grab instead)
+  weaponGrab() {
+    if (this.ch.weapon) { this.letGo(true); this.start({ keys: [{ d: 0.06, e: 'outQuad', p: this.ch.moves.jab?.keys[1].p || {} }, { d: 0.18, e: 'inOutCubic', p: null }] }); return true; }
+    const it = this.w.itemNear(this);
+    if (!it) return false;
+    this.w.items.splice(this.w.items.indexOf(it), 1);
+    this.wield(it.type);
+    this.start({ keys: [{ d: 0.12, e: 'outQuad', p: this.ch.poses.crouch }, { d: 0.14, e: 'inOutCubic', p: null }] });
+    this.say(it.type.toUpperCase());
+    return true;
+  }
+  // a weapon move's blow, by the weight of the weapon held
+  weaponHit(m) {
+    const w = m.weapon && this.weapon, k = w ? weaponPower(w) : 1;
+    return k === 1 ? m : { ...m, power: m.power * k, damage: m.damage * k, knock: m.knock * k };
   }
 
   // foes: every fighter on another team (one move can hit several)
@@ -199,6 +238,10 @@ class Fighter {
     if (this.buffer && this.squatT > 0 && inp.up && this.buffer.b !== 'stance' && this.c('plane') === '2d') this.squatT = 0;
     if (this.buffer && this.free && this.squatT <= 0 && this.face * this.dir > 0 && this.dodgeT <= 0) { // not mid turn or air dodge
       const { b, motion } = this.buffer, fresh = !a0 || a0.m.hurt;
+      if (b === 'throw' && !a0 && this.grounded && this.w.items && this.weaponGrab()) this.buffer = null;
+    }
+    if (this.buffer && this.free && this.squatT <= 0 && this.face * this.dir > 0 && this.dodgeT <= 0) {
+      const { b, motion } = this.buffer, fresh = !this.action || this.action.m.hurt;
       const m = fresh ? this.pick(b, motion) : this.cancelInto(a0, b, motion);
       if (m) {
         if (fresh) this.used = [];
@@ -328,7 +371,7 @@ class Fighter {
     const base = this.basePose();
     if (this.action) {
       const a = this.action, keys = a.m.keys;
-      a.t += dt * (a.m.power ? c('attackSpeed') * (1 + c('comboSpeed') * (this.w.combo - 1)) : 1);
+      a.t += dt * (a.m.power ? c('attackSpeed') * (1 + c('comboSpeed') * (this.w.combo - 1)) * (a.m.weapon && this.weapon ? weaponSpeed(this.weapon) : 1) : 1);
       while (a.i < keys.length && a.t >= keys[a.i].d) {
         a.t -= keys[a.i].d; a.from = resolve(base, keys[a.i].p); a.i++;
         if (keys[a.i]?.lunge) this.vx = this.dir * keys[a.i].lunge;
@@ -367,7 +410,7 @@ class Fighter {
       // several striking bones: the deepest overlap counts, one hit per foe per move
       const h = ss.map(s => o.hurtAt(s, c('hitTest') === 'target', otg)).reduce((best, h) => h && (!best || h.d < best.d) ? h : best, null);
       if (h && a.m.throw) { a.hits.push(o); a.hit = true; this.seize(o); }
-      else if (h) { a.hits.push(o); a.hit = true; this.w.onHit(this, o, h, a.m, o.defend(this, a.m, a.m.keys[a.i])); }
+      else if (h) { a.hits.push(o); a.hit = true; this.w.onHit(this, o, h, this.weaponHit(a.m), o.defend(this, a.m, a.m.keys[a.i])); }
     }
     this.lastTips = Object.fromEntries(ss.map(s => [s.id, s[1]]));
   }
@@ -499,8 +542,12 @@ class Fighter {
   // (one per striking bone, each tagged with its bone id)
   strikeShapes(m) {
     const mode = this.c('hitTest'), P = mode === 'target' ? this.points(this.target) : this.body(), r = this.c('hitR') + (m.throw ? this.c('grabReach') : 0);
-    return hitIds(m).map(id => this.ch.by[id]).filter(Boolean).map(b => {
-      const tip = P[b.id], s = mode === 'limb' ? [P[b.parent || 'hip'], tip, r + b.thick / 2] : [mode === 'swept' && this.lastTips?.[b.id] || tip, tip, r];
+    // a weapon strikes along its whole length (a staff behind the hand too), nunchucks with both sticks
+    const ids = hitIds(m).flatMap(id => id === 'weapon' && this.ch.by.weaponTip ? [id, 'weaponTip'] : [id]);
+    return ids.map(id => this.ch.by[id]).filter(Boolean).map(b => {
+      const tip = P[b.id], o = P[b.parent || 'hip'], k = -(b.back || 0) / b.len;
+      const s = b.role === 'weapon' ? [[o[0] + (tip[0] - o[0]) * k, o[1] + (tip[1] - o[1]) * k], tip, r]
+        : mode === 'limb' ? [o, tip, r + b.thick / 2] : [mode === 'swept' && this.lastTips?.[b.id] || tip, tip, r];
       s.id = b.id; return s;
     });
   }
@@ -588,6 +635,8 @@ class Fighter {
       this.flashT = 0.1; this.say('ARMOR'); this.sqv -= this.c('squash') * 8 * m.power;
       return;
     }
+    // disarm: a knockdown or a blow hard enough knocks the weapon loose
+    if (this.ch.weapon && !this.rag && this.w.items && (m.kd || m.power * this.c('powerScale') >= this.c('disarm'))) { this.letGo(false); this.say('DISARM'); }
     // counter hit: caught in the startup or active frames of its own attack
     const ck = own && a.m.power && a.i < a.m.cancel ? this.c('counterHit') : 1;
     const combo = this.combo = (this.free ? 0 : this.combo) + 1, dmg = this.damageOf(m, combo) * ck, wasDizzy = this.dizzyT > 0;

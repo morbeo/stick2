@@ -42,6 +42,18 @@ class World {
       new Fighter(this, sp.x, i < 2 ? 1 - 2 * i : sp.x < W / 2 ? 1 : -1, COLS[i % COLS.length], chars[Math.min(i, chars.length - 1)]),
       { team: sp.team ?? i }));
     [this.a, this.b] = this.fighters;
+    // weapons: one per fighter from the settings (on the floor in front, or in hand), plus the scenario's (items, aw / bw / more[].w = held)
+    this.items = [];
+    const wt = this.cfg.weapon, pickW = () => wt === 'random' ? Object.keys(WEAPONS)[Math.floor(this.rand() * 7)] : wt;
+    this.fighters.forEach((f, i) => {
+      const held = [s.aw, s.bw][i] ?? specs[i].w;
+      if (held) f.wield(held);
+      else if (WEAPONS[wt] || wt === 'random') {
+        const type = pickW();
+        if (this.cfg.weaponStart === 'held') f.wield(type); else this.drop(type, f.x + f.dir * 40);
+      }
+    });
+    for (const it of s.items || []) this.drop(it.type, it.x);
     this.ctl = specs.map(sp => makeCtl(sp.c, this));
     this.cam = (this.a.x + this.b.x) / 2;
     s.init?.(this); // a scenario can set up a state (the animate preview's target: lying, dizzy, facing away)
@@ -49,7 +61,48 @@ class World {
   // a character was edited: fighters wearing the old build switch to the new one mid-fight
   swapChar(from, to) {
     if (this.chars) this.chars = this.chars.map(c => c === from ? to : c);
-    for (const f of this.fighters) if (f.ch === from) f.setChar(to);
+    for (const f of this.fighters) if (f.ch0 === from) f.setChar(armed(to, f.ch.weapon));
+  }
+  // ---------- weapons lying around or flying (see Fighter.letGo) ----------
+  drop(type, x) { this.items.push({ type, x, y: this.groundY - 2, z: 0, rot: 0, vx: 0, vy: 0, spin: 0, live: false, rest: true }); }
+  // the lying weapon a fighter stands over, or null
+  itemNear(f) {
+    let best = null;
+    for (const it of this.items) if (it.rest && Math.abs(it.x - f.x) < 40 && Math.abs(it.z - f.z) < 20 && (!best || Math.abs(it.x - f.x) < Math.abs(best.x - f.x))) best = it;
+    return best;
+  }
+  updateItems(h) {
+    const cfg = this.cfg;
+    for (const it of this.items) if (!it.rest) {
+      const w = WEAPONS[it.type];
+      it.vy += (it.live ? 600 : cfg.gravity) * h; it.x += it.vx * h; it.y += it.vy * h; it.rot += it.spin * h;
+      if (it.x < 20 || it.x > W - 20) { it.x = clamp(it.x, 20, W - 20); it.vx *= -0.4; it.live = false; }
+      if (it.y >= this.groundY - 2) { // bounce, then lie flat
+        it.y = this.groundY - 2; it.live = false;
+        if (it.vy < 150) { it.rest = true; it.vx = it.vy = it.spin = 0; it.rot = Math.cos(it.rot) >= 0 ? 0 : Math.PI; }
+        else { it.vy *= -0.3; it.vx *= 0.5; it.spin *= 0.5; this.dust(it.x, this.groundY, 0.3, it.z); }
+      }
+      if (!it.live) continue;
+      // a thrown weapon hits its thrower's foes along its length, once
+      const ux = Math.cos(it.rot) * w.len / 2, uy = Math.sin(it.rot) * w.len / 2, seg = [[it.x - ux, it.y - uy], [it.x + ux, it.y + uy], cfg.hitR];
+      for (const o of this.foes(it.owner)) if (Math.abs(o.z - it.z) <= cfg.zReach) {
+        const hit = o.hurtAt(seg, false, false);
+        if (!hit) continue;
+        const m = thrownMove(it.type);
+        this.onHit(it.owner, o, hit, m, o.defend(it, m, null));
+        it.live = false; it.vx *= -0.2; it.vy = -250; it.spin = 10;
+        break;
+      }
+    }
+  }
+  drawItems(ctx) {
+    for (const it of this.items) {
+      const w = WEAPONS[it.type], half = (w.len - (w.back || 0)) / 2, c = Math.cos(it.rot), s = Math.sin(it.rot);
+      const lie = it.rest ? -2 : 0; // lying: its thickness above the floor line
+      ctx.save(); ctx.translate(0, it.z * ZS + lie);
+      drawWeapon(ctx, { ...w, back: w.back || 0 }, [it.x - c * half, it.y - s * half], [it.x + c * (w.len - half), it.y + s * (w.len - half)], null);
+      ctx.restore();
+    }
   }
   foes(f) { return this.fighters.filter(o => o.team !== f.team && !o.ko); }
   nearestFoe(f) {
@@ -101,7 +154,7 @@ class World {
     this.zoom *= Math.exp(-h * 10);
     this.bank = Math.min(cfg.hitstopBudget, this.bank + h * cfg.hitstopBudget);
     if (this.frozen) this.frozenT += h;
-    this.updateParticles(h);
+    this.updateParticles(h); this.updateItems(h);
 
     const fs = this.fighters, tg = fs.map(f => this.nearestFoe(f));
     const ins = this.ctl.map((c, i) => c === 'human' ? this.withMacro(inp, fs[i], tg[i], h) : !c || !tg[i] ? NOIN : c.input(fs[i], tg[i], h));
@@ -256,6 +309,7 @@ class World {
     ctx.fillStyle = '#e4ded2'; ctx.fillRect(-2000, -2000, 2020, 4000); ctx.fillRect(W - 20, -2000, 2000, 4000); // walls
     for (const f of [...this.fighters].sort((a, b) => a.z - b.z)) // far ones first
       f.draw(ctx, f.freeze > 0 && f === this.victim ? Math.sin(T * 170) * cfg.hitShake : 0);
+    this.drawItems(ctx);
     this.drawParticles(ctx);
     ctx.restore();
   }

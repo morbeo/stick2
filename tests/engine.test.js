@@ -182,3 +182,31 @@ test('the impact tool strikes the body under the point, a long drag knocks it do
     return { miss, small, kd1, big, kd2: w.b.kd, rag: !!w.b.rag, hits: w.hits }; })()`);
   assert.deepEqual({ ...r }, { miss: false, small: true, kd1: null, big: true, kd2: 'fly', rag: true, hits: 2 });
 });
+
+// results from the engine's context as plain values (deepEqual wants this realm's arrays and objects)
+const json = code => JSON.parse(run(`JSON.stringify(${code})`));
+
+test('a weapon compiles into the hand with its class\'s binds; wbinds override them', () => {
+  const r = json(`(() => { const ch = armed(CHARS.stick, 'sword'), d = { ...CHAR_DEFS.stick, wbinds: { slash: { punch: 'chop', downPunch: '' } } }, c2 = armed(makeCharacter(d), 'axe');
+    return { w: ch.weapon, p: ch.stances[0].binds.punch, f: ch.stances[0].binds25.fwdPunch, bone: ch.by.weapon.parent, same: armed(CHARS.stick, 'sword') === ch, base: ch.base === CHARS.stick,
+      p2: c2.stances[0].binds.punch, d2: c2.stances[0].binds.downPunch, un: CHARS.stick.stances[0].binds.punch, nun: !!armed(CHARS.stick, 'nunchucks').by.weaponTip }; })()`);
+  assert.deepEqual(r, { w: 'sword', p: 'slash', f: 'chop', bone: 'handF', same: true, base: true, p2: 'chop', d2: run('CHARS.stick.binds.downPunch'), un: 'jab', nun: true });
+});
+
+test('P+G over a weapon picks it up and P swings it', () => {
+  const r = json(`(() => { const r = fight(SCENARIOS['pick up & slash'], [CHARS.stick, CHARS.stick], 300); return { w: r.w.a.ch.weapon, seen: r.seen, hits: r.w.hits, items: r.w.items.length }; })()`);
+  assert.equal(r.w, 'sword'), assert.equal(r.items, 0);
+  assert.deepEqual(r.seen.slice(0, 3), ['a:slash', 'a:chop', 'a:lowSlash']);
+  assert.ok(r.hits >= 2);
+});
+
+test('P+G with a weapon throws it: it hits from range and the thrower is unarmed', () => {
+  const r = json(`(() => { const r = fight(SCENARIOS['weapon throw'], [CHARS.stick, CHARS.stick], 120); return { w: r.w.a.ch.weapon, hits: r.w.hits, hp: r.w.b.hp, it: r.w.items.map(i => [i.type, i.rest]) }; })()`);
+  assert.equal(r.w, undefined), assert.equal(r.hits, 1), assert.ok(r.hp < 100);
+  assert.deepEqual(r.it, [['dagger', true]]);
+});
+
+test('a knockdown disarms: the weapon falls to the floor', () => {
+  const r = json(`(() => { const r = fight(SCENARIOS.disarm, [CHARS.stick, CHARS.stick], 120); return { w: r.w.b.ch.weapon, it: r.w.items.map(i => i.type) }; })()`);
+  assert.equal(r.w, undefined), assert.deepEqual(r.it, ['sword']);
+});

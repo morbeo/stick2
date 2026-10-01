@@ -276,7 +276,7 @@ function makeCharacter(def) {
     b.inertia = (b.mass + 30) ** 2 / 3;
   }
   // limb chains per role: start where the parent has another role, follow the first child of the same role
-  const chains = { spine: [], head: [], arm: [], leg: [], tail: [] };
+  const chains = { spine: [], head: [], arm: [], leg: [], tail: [], weapon: [] };
   for (const b of order) if (!b.parent || by[b.parent].role !== b.role) {
     const c = [b];
     for (let k; (k = c[c.length - 1].kids.find(k => k.role === b.role));) c.push(k);
@@ -284,12 +284,19 @@ function makeCharacter(def) {
   }
   const rest = Object.fromEntries(order.map(b => [b.id, b.a]));
   const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains,
-    tips: [...chains.arm, ...chains.leg, ...chains.head, ...chains.tail].map(c => c[c.length - 1]),
+    tips: [...chains.arm, ...chains.leg, ...chains.head, ...chains.tail, ...chains.weapon].map(c => c[c.length - 1]),
     poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, binds: { ...BINDS, ...def.binds }, binds25: { ...BINDS_25, ...def.binds25 },
     stats: Object.fromEntries(CHAR_STATS.map(s => [s.k, def[s.k] ?? 1])), gait: { ...Object.fromEntries(GAIT_VARS.map(s => [s.k, s.v])), ...def.gait } };
   // stances: the main one plus any extra; each has its pose, its own binds over the main ones and the key that switches to it
   ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: ch.binds, binds25: ch.binds25 },
     ...(def.stances || []).map(s => ({ name: s.name, key: s.key || 'K+G', pose: { ...ch.poses.stance, ...s.pose }, binds: { ...ch.binds, ...s.binds }, binds25: { ...ch.binds25, ...s.binds25 } }))];
+  // armed (see armed): the weapon class's binds go over every stance's, where the move exists
+  ch.def = def;
+  if (def.weapon) {
+    const cls = WEAPONS[def.weapon].cls, wb = Object.fromEntries(Object.entries({ ...WEAPON_CLASSES[cls].binds, ...def.wbinds?.[cls] }).filter(([, n]) => def.moves[n]));
+    ch.weapon = def.weapon;
+    for (const s of ch.stances) { s.binds = { ...s.binds, ...wb }; s.binds25 = { ...s.binds25, ...wb }; }
+  }
   // the cancel window opens at a key marked cancel, else after the last active key
   for (const m of Object.values(ch.moves)) { const c = m.keys.findIndex(k => k.cancel); m.cancel = c >= 0 ? c : m.keys.findLastIndex(k => k.active) + 1; }
   return ch;
@@ -305,6 +312,67 @@ const CHAR_DEFS = {
     poses: mapVals({ stance: STANCE, crouch: CROUCH, air: AIR, airFall: AIR_FALL, fall: FALL, lie: LIE }, fromOld),
     moves: mapVals(STICK_MOVES, oldMove), hurt: mapVals(STICK_HURT, set => set.map(fromOld)) },
 };
+// ---------- weapons: an extra bone in the front hand; while held, its class's moves go over P, → P and ↓ P ----------
+// look: how it is drawn · a: grip angle relative to the hand · back: length behind the hand (a staff is held along it)
+// weight: heavier hits harder (power, damage and knockback × weaponPower) but its moves play slower (× weaponSpeed)
+const WEAPONS = {
+  dagger: { cls: 'pierce', look: 'blade', len: 20, weight: 0.3, a: 0, tip: 'Dagger: short and quick; stabs, and flies straight when thrown' },
+  sword: { cls: 'slash', look: 'blade', len: 46, weight: 0.8, a: 10, tip: 'Sword: long blade, slashes and chops' },
+  axe: { cls: 'slash', look: 'axe', len: 36, weight: 1.3, a: 40, tip: 'Axe: a heavy head on a handle; slower, harder chops' },
+  bat: { cls: 'blunt', look: 'club', len: 40, weight: 0.9, a: 40, tip: 'Bat: blunt swings that knock back' },
+  nunchucks: { cls: 'blunt', look: 'stick', chain: true, len: 34, weight: 0.6, a: -100, tip: 'Nunchucks: two sticks on a chain, the outer one flails behind the swing' },
+  hammer: { cls: '2h', look: 'hammer', len: 52, weight: 2, a: 40, tip: 'War hammer: two-handed, very slow, crushing' },
+  staff: { cls: 'pole', look: 'pole', len: 62, back: 34, weight: 1, a: -50, tip: 'Staff: held along its length; the longest reach' },
+};
+const weaponPower = w => 0.8 + 0.4 * w.weight, weaponSpeed = w => 1.15 - 0.2 * w.weight;
+// a weapon move built on a stick move's key pose (move, key index), with the weapon's grip angle (undefined: the rest grip)
+const wPose = (n, i, w, more) => ({ ...CHAR_DEFS.stick.moves[n].keys[i].p, ...more, ...(w === undefined ? {} : { weapon: w }) });
+const wAtk = (cls, o, wind, strike, hd, rd) => attack({ ...o, hit: 'weapon', weapon: cls }, wind, strike, hd, rd);
+const WEAPON_MOVES = {
+  stab: wAtk('pierce', { power: 0.9, damage: 7, height: 'high', knock: 100, stun: 0.3 }, [0.05, wPose('jab', 0)], [0.04, wPose('jab', 1)], 0.05, 0.14),
+  lungeStab: wAtk('pierce', { power: 1.2, damage: 10, height: 'mid', knock: 160, stun: 0.4, lunge: 300 }, [0.08, wPose('dashPunch', 0)], [0.05, wPose('dashPunch', 1)], 0.07, 0.2),
+  riseStab: wAtk('pierce', { power: 1.3, damage: 9, height: 'high', knock: 80, launch: 480, kd: true }, [0.08, wPose('launcher', 0)], [0.05, wPose('launcher', 1)], 0.06, 0.24),
+  slash: wAtk('slash', { power: 1.1, damage: 10, height: 'high', knock: 150, stun: 0.38 }, [0.08, wPose('jab', 0, 110)], [0.05, wPose('jab', 1, 0)], 0.06, 0.2),
+  chop: wAtk('slash', { power: 1.4, damage: 13, height: 'mid', knock: 120, stun: 0.45 }, [0.1, wPose('hammer', 0, 30)], [0.06, wPose('hammer', 1, 10)], 0.07, 0.26),
+  lowSlash: wAtk('slash', { power: 1, damage: 8, height: 'low', knock: 110, stun: 0.35, lunge: 80 }, [0.08, wPose('launcher', 0, 120)], [0.06, wPose('launcher', 0, 20)], 0.06, 0.22),
+  swing: wAtk('blunt', { power: 1.2, damage: 9, height: 'high', knock: 200, stun: 0.4 }, [0.09, wPose('jab', 0, 100)], [0.06, wPose('jab', 1, -10)], 0.06, 0.22),
+  smash: wAtk('blunt', { power: 1.5, damage: 12, height: 'mid', knock: 150, stun: 0.5, crumple: true }, [0.11, wPose('hammer', 0, 30)], [0.06, wPose('hammer', 1, 0)], 0.07, 0.28),
+  lowSwing: wAtk('blunt', { power: 1.1, damage: 8, height: 'low', knock: 150, kd: true, launch: 150 }, [0.09, wPose('launcher', 0, 120)], [0.06, wPose('launcher', 0, 20)], 0.06, 0.24),
+  heavySwing: wAtk('2h', { power: 1.8, damage: 15, height: 'high', knock: 280, stun: 0.5 }, [0.16, wPose('jab', 0, 110)], [0.08, wPose('jab', 1, 0)], 0.08, 0.32),
+  slam: wAtk('2h', { power: 2, damage: 18, height: 'mid', knock: 100, launch: 200, kd: true, bounce: true }, [0.18, wPose('hammer', 0, 30)], [0.08, wPose('hammer', 1, 0)], 0.1, 0.36),
+  groundSwing: wAtk('2h', { power: 1.6, damage: 12, height: 'low', knock: 250, kd: true, launch: 150 }, [0.15, wPose('launcher', 0, 120)], [0.08, wPose('launcher', 0, 20)], 0.08, 0.3),
+  poke: wAtk('pole', { power: 1, damage: 7, height: 'mid', knock: 180, stun: 0.35 }, [0.07, wPose('jab', 0)], [0.05, wPose('jab', 1)], 0.06, 0.18),
+  whirl: wAtk('pole', { power: 1.3, damage: 10, height: 'high', knock: 200, stun: 0.4, wide: true }, [0.1, wPose('hammer', 0, 40)], [0.07, wPose('hammer', 1, -40)], 0.07, 0.26),
+  trip: wAtk('pole', { power: 1, damage: 7, height: 'low', knock: 60, launch: 150, kd: true }, [0.09, wPose('launcher', 0, 80)], [0.06, wPose('launcher', 0, 10)], 0.06, 0.24),
+};
+// classes: their moves on P, → P and ↓ P while a weapon of the class is held (a character's wbinds override them), and the weapon the editor shows
+const WEAPON_CLASSES = {
+  pierce: { weapon: 'dagger', binds: { punch: 'stab', fwdPunch: 'lungeStab', downPunch: 'riseStab' }, tip: 'One-handed pierce: quick stabs' },
+  slash: { weapon: 'sword', binds: { punch: 'slash', fwdPunch: 'chop', downPunch: 'lowSlash' }, tip: 'One-handed slash: swings and chops' },
+  blunt: { weapon: 'bat', binds: { punch: 'swing', fwdPunch: 'smash', downPunch: 'lowSwing' }, tip: 'One-handed blunt: knockback swings' },
+  '2h': { weapon: 'hammer', binds: { punch: 'heavySwing', fwdPunch: 'slam', downPunch: 'groundSwing' }, tip: 'Two-handed: slow, crushing blows' },
+  pole: { weapon: 'staff', binds: { punch: 'poke', fwdPunch: 'whirl', downPunch: 'trip' }, tip: 'Pole: long pokes, sweeps and trips' },
+};
+CHAR_DEFS.stick.moves = { ...CHAR_DEFS.stick.moves, ...WEAPON_MOVES };
+// the weapon's bones on the front hand; nunchucks: the handle and the flailing stick (weaponTip) on a loose joint
+function weaponBones(ch, type) {
+  const w = WEAPONS[type], arm = ch.chains.arm.find(c => c[0].side === 'f') || ch.chains.arm[0], parent = arm ? arm[arm.length - 1].id : ch.bones[0].id;
+  const b = { role: 'weapon', side: 'f', look: w.look, thick: 3, hurt: 0, lag: 0.3, react: 0.3, sway: 0 };
+  if (w.chain) return [{ ...b, id: 'weapon', parent, len: Math.round(w.len / 2), a: w.a }, { ...b, id: 'weaponTip', parent: 'weapon', len: Math.round(w.len / 2), a: 0, lag: 3, stiff: 0.6, damp: 0.5, react: 2 }];
+  return [{ ...b, id: 'weapon', parent, len: w.len, a: w.a, back: w.back || 0 }];
+}
+// the character holding a weapon (compiled once per character and weapon; the weapon moves are there even when the def lacks them)
+function armed(ch, type) {
+  const base = ch.base || ch;
+  if (!WEAPONS[type]) return base;
+  base.armed ??= {};
+  return base.armed[type] ??= Object.assign(makeCharacter({ ...base.def, weapon: type, moves: { ...WEAPON_MOVES, ...base.def.moves }, bones: [...base.def.bones, ...weaponBones(base, type)] }), { base });
+}
+// a weapon move is shown (editor, gallery) by the character holding its class's weapon
+const withWeapon = (ch, m) => m?.weapon ? armed(ch, WEAPON_CLASSES[m.weapon].weapon) : ch.base || ch;
+// a thrown weapon: one blow, by its weight
+const thrownMove = type => { const w = WEAPONS[type]; return { power: weaponPower(w), damage: Math.round(5 + 6 * w.weight), knock: 160, stun: 0.4, height: 'mid' }; };
+
 // brute: the stick's skeleton and moves, bigger, much thicker, heavier and slower (speed scales its walk)
 const BRUTE_SCALE = { waist: 1.2, chest: 1.35, neck: 1, head: 1.25, thigh: 1.1, shin: 1.05, foot: 1.2, uarm: 1.3, farm: 1.3, hand: 1.5 };
 CHAR_DEFS.brute = { ...CHAR_DEFS.stick, name: 'brute', speed: 0.7, weight: 1.35, traction: 1.3, turnaround: 0.7, fallSpeed: 1.2, airSpeed: 0.8, airDodge: 0.8, health: 1.2, tough: 1.25, springs: 0.85,
@@ -474,11 +542,24 @@ function fk(ch, p, dir, lens, wa = {}) {
 
 // back limbs first in the second colour, then the body, then front limbs. extra = added stroke width (outlines)
 // tint(bone) overrides the colour per bone (the editors colour-code by role)
+// a weapon bone from o (the hand) to e (the tip), in wood and metal unless col gives it one colour
+const METAL = '#7f8a93', WOOD = '#9b7653';
+function drawWeapon(ctx, b, o, e, col, extra = 0) {
+  const l = Math.hypot(e[0] - o[0], e[1] - o[1]) || 1, ux = (e[0] - o[0]) / l, uy = (e[1] - o[1]) / l, at = (d, s = 0) => [o[0] + ux * d - uy * s, o[1] + uy * d + ux * s];
+  const line = (d0, d1, w, c, s = 0) => { const p = at(d0, s), q = at(d1, s); ctx.strokeStyle = col || c; ctx.lineWidth = w + extra; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); };
+  const poly = (pts, c) => { ctx.fillStyle = col || c; ctx.strokeStyle = col || c; ctx.lineWidth = 1 + extra; ctx.beginPath(); pts.forEach(([d, s], i) => ctx[i ? 'lineTo' : 'moveTo'](...at(d, s))); ctx.closePath(); ctx.fill(); ctx.stroke(); };
+  if (b.look === 'blade') { line(-3, 4, 3, WOOD); poly([[3, -5], [3, 5], [4.5, 5], [4.5, -5]], METAL); poly([[5, -2], [5, 2], [l - 4, 1.5], [l, 0], [l - 4, -1.5]], METAL); } // grip, guard, blade
+  else if (b.look === 'club') poly([[-3, -1.5], [-3, 1.5], [l, 3.5], [l, -3.5]], WOOD);
+  else if (b.look === 'axe') { line(-3, l, 3, WOOD); poly([[l - 12, 0], [l - 15, 10], [l + 1, 12], [l - 2, 0]], METAL); }
+  else if (b.look === 'hammer') { line(-3, l, 3.5, WOOD); poly([[l - 6, -7], [l - 6, 9], [l + 4, 9], [l + 4, -7]], METAL); }
+  else line(-(b.back || 0) - 2, l, b.look === 'pole' ? 3 : 4, WOOD); // pole, nunchuck stick
+}
 function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null) {
   ctx.lineCap = ctx.lineJoin = 'round';
   for (const side of ['b', '', 'f']) for (const b of ch.bones) if (b.side === side) {
     const o = P[b.parent || 'hip'], e = P[b.id], c = tint ? tint(b) : side === 'b' ? back : col;
     if (b.shape === 'circle') { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(e[0], e[1], b.len + extra / 2, 0, 7); ctx.fill(); continue; }
+    if (b.role === 'weapon') { drawWeapon(ctx, b, o, e, extra || tint?.(b) ? c : null, extra); continue; }
     ctx.strokeStyle = c; ctx.lineWidth = b.thick + extra;
     ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0], e[1]); ctx.stroke();
   }

@@ -32,5 +32,10 @@ ai 2v2         hits 12 blocks 0 hp 47.5 76.2 x 231 316
 ai free-for-all hits 14 blocks 0 hp 18.7 50.1 x 402 570
 sandwich       hits 5 blocks 0 hp 100.0 77.4 x 330 632
 showcase       hits 4 blocks 0 hp 100.0 68.4 x 491 687
+pick up & slash hits 3 blocks 0 hp 100.0 65.3 x 413 466
+weapon throw   hits 1 blocks 0 hp 100.0 93.0 x 250 492
+disarm         hits 1 blocks 0 hp 100.0 90.0 x 330 400
+sword vs staff ai hits 6 blocks 0 hp 59.8 76.0 x 335 475
+weapons ai     hits 4 blocks 0 hp 56.9 100.0 x 131 331
 walk           hits 0 blocks 0 hp 100.0 100.0 x 250 550
 jump           hits 0 blocks 0 hp 100.0 100.0 x 450 550
