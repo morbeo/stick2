@@ -466,10 +466,11 @@ const MOVE_GROUPS = {
   // the stance whose own binds start the move (main: only the main binds; unbound: no input in any stance)
   stance: (m, ch, n) => (ch = withWeapon(ch, m)).stances.slice(1).filter((s, i) => Object.values(DEFS[CURRENT].stances[i][bkey()] || {}).includes(n)).map(s => s.name).join(' + ')
     || (Object.values(ch.stances[0][bkey()]).includes(n) ? 'main' : 'unbound'),
+  style: m => m.style || (m.power ? 'basic' : 'other'),
   none: () => '',
 };
-const GROUP_ORDER = ['main', 'normal', 'special', 'throw', 'weapon', 'air', 'arm', 'leg', 'head', 'spine', 'tail', 'high', 'shigh', 'mid', 'smid', 'low', 'none', 'other', 'unbound'];
-const GROUP_TIPS = { type: 'Group by type: normal, special, throw, weapon (played while holding a weapon of its class), air, other (not attacks)', limb: 'Group by the striking limb', height: 'Group by height', stance: 'Group by the stance whose binds start the move', none: 'One list' };
+const GROUP_ORDER = ['main', 'normal', 'special', 'throw', 'weapon', 'air', 'arm', 'leg', 'head', 'spine', 'tail', 'high', 'shigh', 'mid', 'smid', 'low', 'boxing', 'karate', 'muay thai', 'capoeira', 'kung fu', 'taekwondo', 'wrestling', 'basic', 'none', 'other', 'unbound'];
+const GROUP_TIPS = { type: 'Group by type: normal, special, throw, weapon (played while holding a weapon of its class), air, other (not attacks)', limb: 'Group by the striking limb', height: 'Group by height', stance: 'Group by the stance whose binds start the move', style: 'Group by fighting style: boxing, karate, muay thai, capoeira, kung fu, taekwondo, wrestling (the style property), basic', none: 'One list' };
 const SORT_TIPS = { order: 'As defined', name: 'By name', startup: 'Fastest first (startup frames)', damage: 'Most damage first' };
 const moveDamage = m => m.power ? m.damage ?? m.power * 8 : 0;
 const moveInputs = (ch, n) => [...Object.keys(slotsOf(CFG.plane)), ...Object.keys(ch.motions).flatMap(k => [k + 'Punch', k + 'Kick'])].filter(s => curBinds(withWeapon(ch, ch.moves[n]))[s] === n);

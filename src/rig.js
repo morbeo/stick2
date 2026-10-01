@@ -221,6 +221,79 @@ const STICK_MOVES = {
   airSpin: attack({ power: 1.6, damage: 12, hit: 'bf', height: 'high', knock: 380, launch: 200, kd: true, air: true, special: true, wide: true },
     [0.08, { torso: -12, lbU: 40, lbL: -130, lfU: 30, lfL: -100, afU: 60, afL: 90, abU: -30, abL: 70 }],
     [0.07, { torso: -36, lbU: 115, lbL: -5, lfU: 20, lfL: -100, afU: -30, afL: 50, abU: 80, abL: 30 }], 0.12, 0.2),
+  // fighting-style moves (unbound: pick them from a slot); MOVE_STYLES below tags every move with its style
+  hook: attack({ power: 1.3, damage: 9, hit: 'fh', height: 'high', knock: 220, stun: 0.42, lunge: 80, next: { punch: 'cross' } },
+    [0.07, { torso: -4, afU: 40, afL: 120, abU: 30, abL: 130 }],
+    [0.05, { torso: 24, head: 5, afU: 88, afL: 80, abU: 15, abL: 135, lfU: 30, lfL: -25, lbU: -25, lbL: 0 }], 0.06, 0.2),
+  bodyHook: attack({ power: 1.3, damage: 10, hit: 'bh', height: 'mid', knock: 180, stun: 0.5, lunge: 100 },
+    [0.08, { ...CROUCH, torso: 10, abU: -10, abL: 110, afU: 40, afL: 130 }],
+    [0.05, { ...CROUCH, torso: 30, abU: 60, abL: 75, afU: 30, afL: 135 }], 0.06, 0.22),
+  overhand: attack({ power: 1.6, damage: 13, hit: 'bh', height: 'high', knock: 260, launch: 150, kd: true, lunge: 160 },
+    [0.12, { torso: -12, abU: 150, abL: 100, afU: 40, afL: 120 }],
+    [0.06, { torso: 38, head: 10, abU: 95, abL: 15, afU: 10, afL: 120, lfU: 45, lfL: -40, lbU: -35, lbL: 0 }], 0.07, 0.3),
+  reversePunch: attack({ power: 1.3, damage: 10, hit: 'bh', height: 'mid', knock: 260, stun: 0.42, lunge: 220 },
+    [0.07, { torso: 0, abU: -20, abL: 120, afU: 70, afL: 10 }],
+    [0.05, { torso: 18, abU: 95, abL: 0, afU: -20, afL: 120, lfU: 50, lfL: -45, lbU: -40, lbL: 0 }], 0.07, 0.22),
+  sideKick: attack({ power: 1.5, damage: 12, hit: 'ff', height: 'mid', knock: 460, stun: 0.4, lunge: 120 },
+    [0.1, { torso: -15, lfU: 100, lfL: -140, lbU: -5, lbL: -10, afU: 30, afL: 100, abU: 50, abL: 90 }],
+    [0.06, { torso: -45, head: 15, lfU: 105, lfL: 0, lbU: -15, lbL: 0, afU: -20, afL: 60, abU: 40, abL: 80 }], 0.08, 0.26),
+  knifeHand: attack({ power: 1.3, damage: 10, hit: 'fh', height: 'high', knock: 200, stun: 0.45, lunge: 120 },
+    [0.09, { torso: -8, afU: 150, afL: 130, abU: 60, abL: 90 }],
+    [0.05, { torso: 22, afU: 72, afL: 8, abU: -10, abL: 120, lfU: 35, lfL: -30, lbU: -25, lbL: 0 }], 0.06, 0.22),
+  // the Thai clinch: hands behind the head on connect, then knees (the release of the hold does the damage)
+  plum: { power: 1, damage: 0, hit: 'fh', height: 'high', knock: 0, throw: 'knee', keys: [
+    { d: 0.06, e: 'outQuad', p: { torso: 10, afU: 120, afL: 60, abU: 115, abL: 60 } },
+    { d: 0.06, e: 'outExpo', p: { torso: 18, afU: 110, afL: 50, abU: 105, abL: 55, lfU: 35, lfL: -30 }, active: true, lunge: 110 },
+    { d: 0.3, e: 'inOutCubic', p: null },
+  ] },
+  knee: { power: 1.4, damage: 13, hit: 'thighF', height: 'mid', knock: 260, stun: 0.6, keys: [
+    { d: 0.12, e: 'outQuad', p: { torso: 15, afU: 115, afL: 70, abU: 110, abL: 70, lfU: 10, lfL: -60, lbU: -15, lbL: 0 } },
+    { d: 0.07, e: 'outExpo', p: { torso: 5, afU: 100, afL: 80, abU: 95, abL: 80, lfU: 105, lfL: -140, lbU: -10, lbL: 0 } },
+    { d: 0.08, p: { torso: 5, afU: 100, afL: 80, abU: 95, abL: 80, lfU: 105, lfL: -140, lbU: -10, lbL: 0 } },
+    { d: 0.26, e: 'inOutCubic', p: null },
+  ] },
+  spinElbow: attack({ power: 1.6, damage: 13, hit: 'uarmB', height: 'high', knock: 280, stun: 0.55, lunge: 240, wide: true },
+    [0.1, { torso: -25, head: 15, abU: 30, abL: 150, afU: 60, afL: 120 }],
+    [0.05, { torso: 15, head: -10, abU: 95, abL: 160, afU: 10, afL: 120, lbU: -30, lbL: 0, lfU: 35, lfL: -20 }], 0.06, 0.28),
+  thaiKick: attack({ power: 1.5, damage: 12, hit: 'bf', height: 'low', knock: 160, stun: 0.5 },
+    [0.09, { torso: -5, lbU: 20, lbL: -60, afU: 120, afL: 60, abU: -20, abL: 40 }],
+    [0.06, { torso: -25, lbU: 70, lbL: -5, lfU: 0, lfL: -10, afU: 130, afL: 50, abU: -40, abL: 20 }], 0.08, 0.26),
+  armada: attack({ power: 1.7, damage: 14, hit: 'bf', height: 'high', knock: 360, launch: 220, kd: true, lunge: 120, wide: true },
+    [0.12, { torso: 20, head: 20, lbU: -10, lbL: -40, lfU: 20, lfL: -40, afU: -40, afL: 40, abU: -50, abL: 40 }],
+    [0.07, { torso: -30, head: 10, lbU: 140, lbL: -10, lfU: 5, lfL: -15, afU: 60, afL: 40, abU: 40, abL: 40 }], 0.09, 0.3),
+  martelo: attack({ power: 1.4, damage: 11, hit: 'ff', height: 'high', knock: 300, stun: 0.45 },
+    [0.08, { torso: -10, lfU: 90, lfL: -130, afU: 60, afL: 80, abU: -30, abL: 60 }],
+    [0.06, { torso: -40, lfU: 125, lfL: -5, lbU: -10, lbL: 0, afU: 70, afL: 60, abU: -40, abL: 40 }], 0.07, 0.24),
+  rasteira: attack({ power: 1.3, damage: 9, hit: 'ff', height: 'low', knock: 120, launch: 260, kd: true, lunge: 60 },
+    [0.1, { torso: 55, head: -15, afU: 40, afL: 10, abU: 20, abL: 20, lfU: 60, lfL: -130, lbU: -20, lbL: -120 }],
+    [0.07, { torso: 60, head: -15, afU: 45, afL: 5, abU: 25, abL: 15, lfU: 75, lfL: -5, lbU: -20, lbL: -125 }], 0.08, 0.28),
+  chainPunch: { power: 1, damage: 9, hit: ['fh', 'bh'], height: 'high', knock: 140, stun: 0.45, next: { punch: 'palms' }, keys: [
+    { d: 0.05, e: 'outQuad', p: { torso: 8, afU: 70, afL: 90, abU: 60, abL: 100 } },
+    { d: 0.04, e: 'outExpo', p: { torso: 14, afU: 92, afL: 0, abU: 60, abL: 100 }, active: true, lunge: 80 },
+    { d: 0.04, e: 'outExpo', p: { torso: 14, afU: 60, afL: 100, abU: 92, abL: 0 }, active: true, lunge: 80 },
+    { d: 0.04, e: 'outExpo', p: { torso: 16, afU: 92, afL: 0, abU: 60, abL: 100 }, active: true, lunge: 80 },
+    { d: 0.18, e: 'inOutCubic', p: null },
+  ] },
+  tigerClaw: attack({ power: 1.4, damage: 11, hit: ['fh', 'bh'], height: 'high', knock: 300, stun: 0.45, lunge: 160 },
+    [0.09, { ...CROUCH, torso: 10, afU: 20, afL: 140, abU: 10, abL: 140 }],
+    [0.05, { torso: 25, afU: 120, afL: 30, abU: 100, abL: 40, lfU: 45, lfL: -35, lbU: -30, lbL: 0 }], 0.07, 0.24),
+  axeKick: attack({ power: 1.6, damage: 13, hit: 'ff', height: 'shigh', knock: 120, launch: 80, kd: true, bounce: true },
+    [0.12, { torso: -20, lfU: 170, lfL: -5, lbU: -10, lbL: 0, afU: 40, afL: 100, abU: -30, abL: 80 }],
+    [0.06, { torso: 15, lfU: 45, lfL: -5, lbU: -15, lbL: 0, afU: 50, afL: 90, abU: -20, abL: 70 }], 0.07, 0.3),
+  lariat: attack({ power: 1.7, damage: 14, hit: 'fh', height: 'high', knock: 320, launch: 320, kd: true, lunge: 380 },
+    [0.1, { torso: 10, afU: -40, afL: 20, abU: 30, abL: 100, lfU: 40, lfL: -60 }],
+    [0.06, { torso: 25, afU: 92, afL: 0, abU: -20, abL: 90, lfU: 50, lfL: -40, lbU: -35, lbL: 0 }], 0.12, 0.3),
+  // a second throw: clinch on connect, then the victim goes over the top
+  clinch: { power: 1, damage: 0, hit: 'fh', height: 'high', knock: 0, throw: 'suplex', keys: [
+    { d: 0.07, e: 'outQuad', p: { torso: 20, afU: 80, afL: 60, abU: 70, abL: 70 } },
+    { d: 0.06, e: 'outExpo', p: { torso: 28, afU: 95, afL: 30, abU: 90, abL: 35, lfU: 40, lfL: -35 }, active: true, lunge: 100 },
+    { d: 0.34, e: 'inOutCubic', p: null },
+  ] },
+  suplex: { power: 1.7, damage: 16, hit: 'fh', height: 'mid', knock: -120, launch: 560, kd: true, keys: [
+    { d: 0.18, e: 'outQuad', p: { ...CROUCH, torso: 10, afU: 80, afL: 70, abU: 75, abL: 75 } },
+    { d: 0.1, e: 'outExpo', p: { torso: -55, head: -30, afU: 170, afL: 20, abU: 165, abL: 25, lfU: 20, lfL: -30, lbU: -10, lbL: -20 } },
+    { d: 0.34, e: 'inOutCubic', p: null },
+  ] },
   getup: { inv: true, keys: [
     { d: 0.18, e: 'outCubic', p: { torso: -30, head: 10, lfU: 75, lfL: -130, lbU: 60, lbL: -140, afU: -40, afL: 20, abU: -60, abL: 10 } },
     { d: 0.16, e: 'outCubic', p: { ...CROUCH, afU: 30, afL: 110, abU: 20, abL: 120 } },
@@ -229,6 +302,17 @@ const STICK_MOVES = {
 };
 STICK_MOVES.hammer.keys[0].armor = true;
 STICK_MOVES.charge.keys.forEach(k => { if (k.active) k.unblock = true; });
+// the fighting style of each move (the style move group); the rest are plain basics
+const MOVE_STYLES = {
+  boxing: ['jab', 'cross', 'uppercut', 'hook', 'bodyHook', 'overhand', 'bodyBlow', 'crouchJab', 'dashPunch'],
+  karate: ['kick', 'reversePunch', 'sideKick', 'knifeHand', 'backfist', 'crescent', 'roundhouse'],
+  'muay thai': ['elbow', 'plum', 'knee', 'spinElbow', 'thaiKick', 'pushKick', 'flyingKnee', 'lowKick'],
+  capoeira: ['armada', 'martelo', 'rasteira', 'sweep', 'backSweep', 'fadeKick'],
+  'kung fu': ['chainPunch', 'tigerClaw', 'palms', 'charge', 'spin', 'risingKick', 'catch', 'reversal'],
+  taekwondo: ['turnKick', 'axeKick', 'airFlipKick', 'diveKick', 'airSpin', 'launcher'],
+  wrestling: ['grab', 'toss', 'clinch', 'suplex', 'lariat', 'headbutt', 'hammer', 'stomp'],
+};
+for (const [style, names] of Object.entries(MOVE_STYLES)) for (const n of names) STICK_MOVES[n].style = style;
 const STICK_HURT = {
   high: [
     { torso: -22, head: -28, afU: -20, afL: 40, abU: -40, abL: 30 },

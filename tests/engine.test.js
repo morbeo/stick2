@@ -203,6 +203,20 @@ test('a character\'s own motion (def.motions) is a new input, tried before the b
   assert.deepEqual([...r], ['launcher', 'rush', 'elbow']);
 });
 
+test('fighting-style moves land when bound, the clinch and plum throws release into the suplex and the knee', () => {
+  const r = json(`(() => { const out = {}, ch = binds => makeCharacter({ ...CHAR_DEFS.stick, binds: { ...CHAR_DEFS.stick.binds, ...binds } });
+    for (const n of ['hook', 'bodyHook', 'overhand', 'reversePunch', 'sideKick', 'knifeHand', 'spinElbow', 'thaiKick', 'armada', 'martelo', 'rasteira', 'chainPunch', 'tigerClaw', 'axeKick', 'lariat']) {
+      const w = new World({ a: [0.1, 'punch'], b: 'dummy', ax: 330, bx: 385, period: 9 }, {}, 7, [ch({ punch: n }), CHARS.stick]); w.loop = false;
+      for (let i = 0; i < 60; i++) w.advance(1/60, NOIN); out[n] = w.hits; }
+    for (const n of ['clinch', 'plum']) { const w = new World(SCENARIOS.throw, {}, 7, [ch({ throw: n }), CHARS.stick]); w.loop = false;
+      for (let i = 0; i < 150; i++) w.advance(1/60, NOIN); out[n] = [Math.sign(w.b.x - w.a.x), w.b.hp < 100]; }
+    out.styles = Object.keys(CHARS.stick.moves).filter(n => CHARS.stick.moves[n].style).length;
+    return out; })()`);
+  for (const [n, v] of Object.entries(r)) if (typeof v === 'number' && n !== 'styles') assert.equal(v, 1, n + ' whiffs');
+  assert.deepEqual(r.clinch, [-1, true]); assert.deepEqual(r.plum, [1, true]); // the suplex throws behind, the knee forward
+  assert.ok(r.styles >= 50, 'styled moves ' + r.styles);
+});
+
 test('the impact tool strikes the body under the point, a long drag knocks it down', () => {
   const r = run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', period: 9 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false; w.advance(1/60, NOIN);
     const h = w.b.body().head, miss = w.poke(h[0], h[1] - 200, 50, 0), small = w.poke(h[0], h[1], 20, 0), kd1 = w.b.kd;
