@@ -48,7 +48,6 @@ function axisValues(ax, n) {
   const lo = isNaN(ax.lo) ? s.min : ax.lo, hi = isNaN(ax.hi) ? s.max : ax.hi;
   return Array.from({ length: n }, (_, i) => +(Math.round((lo + (hi - lo) * i / (n - 1)) / s.step) * s.step).toFixed(4));
 }
-const galleryMoves = (ms = currentChar().moves) => [...GALLERY.filter(m => ms[m]), ...Object.keys(ms).filter(m => ms[m].power && !GALLERY.includes(m))];
 
 // impact: standard hits on the current character, struck by the stick fighter
 const IMPACTS = {
@@ -73,7 +72,10 @@ function build() {
   }
   else if (lab.mode === 'impact') for (const [k, [tip, s]] of Object.entries(IMPACTS))
     lab.cells.push({ w: newWorld({ b: 'dummy', period: 3, ...s, init: w => { s.init?.(w); w.a.hidden = lab.solo; } }, {}, 7, [CHARS.stick, currentChar()]), label: k, tip });
-  else if (lab.mode === 'gallery') for (const m of galleryMoves()) lab.cells.push({ w: newWorld({ ...galleryScen(m), ...GALLERY_TARGETS[lab.target][1] }), move: m, label: m });
+  else if (lab.mode === 'gallery') {
+    for (const m of galleryMoves()) lab.cells.push({ w: newWorld({ ...galleryScen(m), ...GALLERY_TARGETS[lab.target][1] }), move: m, label: m });
+    for (const [k, [tip, s]] of Object.entries(MOVEMENTS)) lab.cells.push({ w: newWorld({ period: 2.4, ...s }), motion: true, label: k, tip: `${k}: ${tip}` });
+  }
   else if (lab.kind !== 'sweep') lab.cells = lab.kind === 'breed' ? breedCells() : attackCells();
   else {
     const xs = axisValues(lab.x, lab.y.k ? 3 : 9), ys = lab.y.k ? axisValues(lab.y, 3) : [null];
@@ -229,7 +231,7 @@ function stepResponse(cfg, depth) {
 }
 
 function drawPlot(c, r) {
-  const w = c.w, cfg = w.cfg, kind = c.move ? 'timeline' : c.over ? plotKind(c.plot ?? lab.x.k) : 'scope';
+  const w = c.w, cfg = w.cfg, kind = c.move ? 'timeline' : c.motion ? 'move' : c.over ? plotKind(c.plot ?? lab.x.k) : 'scope';
   const note = s => text(s, r.x + 4 * dpr, r.y + 11 * dpr, '#aaa', 10);
   if (kind === 'spring') {
     hline(r, -0.5, 1.8, 0); hline(r, -0.5, 1.8, 1);
@@ -599,6 +601,8 @@ const labMode = {
     if (lab.mode === 'impact' && !e.shiftKey && impactMouse(type, x, y)) return;
     if (type === 'down') labClick(x, y, e);
     lab.hover = hitRect(labRects(), x, y);
+    const tip = shown()[lab.hover]?.tip; // a cell's tip (gallery movements, impacts) shows on hover
+    if (tip) canvas.dataset.tip = tip; else delete canvas.dataset.tip;
     cursor(lab.mode !== 'play' && (lab.zoom || hitRect(labRects(), x, y) >= 0) ? 'pointer' : 'default');
   },
   wheel(dy) { const ms = maxScroll(); if (!ms) return false; lab.scroll = clamp(lab.scroll + dy * dpr, 0, ms); return true; },

@@ -109,6 +109,11 @@ try {
     if (tabs.length !== 4 || !on?.textContent.includes('play')) errs.push('tabs ' + tabs.length + ' ' + on?.textContent);
     [...document.querySelectorAll('#ctx button')].find(b => b.textContent.includes('fight')).click(); if (app.mode !== 'play') errs.push('view fight ' + app.mode);
     setMode('gallery'); tabs.find(b => b.textContent.includes('animate')).click(); if (app.mode !== 'gallery') errs.push('tab keeps its view ' + app.mode); }
+  // the gallery: every move, then every movement (with a hover tip); all run without errors
+  { setMode('gallery'); const n = Object.keys(currentChar().moves).length, mv = lab.cells.filter(c => c.motion);
+    if (lab.cells.length !== n + Object.keys(MOVEMENTS).length || mv.length !== Object.keys(MOVEMENTS).length || !mv.every(c => c.tip)) errs.push('gallery cells ' + lab.cells.length);
+    for (const c of lab.cells) for (let i = 0; i < 30; i++) c.w.advance(1/60, NOIN);
+    labRender(); }
   // the command palette: typing ranks a mode first, Enter runs it; a setting searches the settings panel for it
   { setMode('play'); const pal = q => { openPalette(); const i = document.querySelector('#palette input'); i.value = q; i.dispatchEvent(new Event('input'));
       i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); };

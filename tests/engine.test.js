@@ -609,3 +609,31 @@ test('staff collision: a flying weapon hits along its whole drawn length (a staf
   assert.ok(Math.abs(r.len - r.want) < 1e-6, JSON.stringify(r));
   assert.ok(r.swept > 1 && r.worst <= 6.5, JSON.stringify(r));
 });
+
+test('the gallery shows every move and every movement: each move cell plays its move, each motion cell reaches its state', () => {
+  const r = JSON.parse(run(`(() => {
+    const ms = currentChar().moves, moves = galleryMoves(), out = { missing: Object.keys(ms).filter(m => !moves.includes(m)), unplayed: [], motions: {} };
+    for (const m of moves) if (!fight(galleryScen(m), null, 150).seen.includes('a:' + m)) out.unplayed.push(m);
+    const ok = {
+      idle: f => f.free && f.grounded && !f.action && Math.abs(f.vx) < 1,
+      walk: f => f.vx * f.dir > 50, 'back walk': f => f.vx * f.dir < -50 && f.dashT <= 0,
+      run: f => f.running && Math.abs(f.vx) > f.c('maxSpeed') * 1.2, dash: f => f.dashT > 0 && f.vx * f.dir > 0, 'back dash': f => f.dashT > 0 && f.vx * f.dir < 0,
+      crouch: f => f.crouching, jump: f => !f.grounded && !f.vx, 'jump forward': f => !f.grounded && f.vx * f.dir > 0, flip: f => f.flip !== 0,
+      'air dash': f => f.airDashT > 0, 'air dodge': f => f.dodgeT > 0, guard: f => f.guarding && !f.crouching, 'low guard': f => f.guarding && f.crouching,
+      turn: f => Math.abs(f.face) < 0.5, 'hit reaction': f => f.hurtT > 0 && !f.kd && f.blockT <= 0, blockstun: f => f.blockT > 0,
+      'knockdown & getup': f => f.kd === 'down', launched: f => f.kd === 'fly', dizzy: f => f.dizzyT > 0,
+    };
+    for (const k in MOVEMENTS) {
+      const w = new World(MOVEMENTS[k][1], {}, 7); w.loop = false;
+      let n = 0, all = true;
+      for (let i = 0; i < 150; i++) { w.advance(1 / 60, NOIN); if (ok[k]?.(w.a)) n++; else all = false; }
+      out.motions[k] = k === 'idle' ? all : n > 0;
+    }
+    out.unchecked = Object.keys(ok).filter(k => !MOVEMENTS[k]);
+    return JSON.stringify(out);
+  })()`));
+  assert.deepEqual(r.missing, []);
+  assert.deepEqual(r.unplayed, []);
+  assert.deepEqual(r.unchecked, []);
+  for (const [k, v] of Object.entries(r.motions)) assert.ok(v, k);
+});

@@ -240,3 +240,28 @@ const galleryScen = (m, air = m.startsWith('air')) => ({
   a: air ? ['hop', m === 'airPunch' ? 0.4 : 0.15, '@' + m] : [0.1, '@' + m], b: 'dummy',
   ax: 330, bx: m === 'dashPunch' ? 430 : 375, period: 2.4,
 });
+// every move: the attacks above in order, then the rest (specials, rolls, weapon moves, taunts…)
+const galleryMoves = (ms = currentChar().moves) => [...GALLERY.filter(m => ms[m]), ...Object.keys(ms).filter(m => !GALLERY.includes(m))];
+// the gallery's movement cells: the states the body moves through between moves, each played by a short script (a = the character)
+const MOVEMENTS = {
+  idle: ['Standing free: the idle loop (or the procedural stance)', { a: [], b: 'dummy', bx: 560 }],
+  walk: ['Walking forward, then stopping', { a: [{ hold: 'fwd', t: 0.9 }], b: 'dummy', ax: 220, bx: 640 }],
+  'back walk': ['Walking backward, away from the foe', { a: [{ hold: 'back', t: 0.9 }], b: 'dummy', ax: 400, bx: 640 }],
+  run: ['Dash and keep holding forward: the run', { a: ['fwd', 0.05, { hold: 'fwd', t: 0.8 }], b: 'dummy', ax: 120, bx: 700 }],
+  dash: ['Double tap forward: a dash', { a: [0.2, 'fwd', 0.05, 'fwd'], b: 'dummy', ax: 220, bx: 640 }],
+  'back dash': ['Double tap back: a back dash', { a: [0.2, 'back', 0.05, 'back'], b: 'dummy', ax: 400, bx: 640 }],
+  crouch: ['Holding ↓: the crouch', { a: [0.2, { hold: 'down', t: 1 }], b: 'dummy', bx: 560 }],
+  jump: ['A jump straight up: rise and fall', { a: [0.2, 'hop'], b: 'dummy', bx: 560 }],
+  'jump forward': ['A jump with → held', { a: [0.2, 'fwd+hop', { hold: 'fwd', t: 0.6 }], b: 'dummy', ax: 220, bx: 640 }],
+  flip: ['A ninja flip (flips always)', { a: [0.2, 'fwd+hop', { hold: 'fwd', t: 0.6 }], b: 'dummy', ax: 220, bx: 640, cfg: { flips: 'always' } }],
+  'air dash': ['A double tap → in the air: the air dash', { a: [0.2, 'hop', 0.15, 'fwd', 0.05, 'fwd'], b: 'dummy', ax: 220, bx: 640 }],
+  'air dodge': ['G in the air: the air dodge', { a: [0.2, 'hop', 0.2, 'guard'], b: 'dummy', bx: 560 }],
+  guard: ['Holding G: the guard', { a: [0.2, { hold: 'guard', t: 1 }], b: 'dummy', bx: 560 }],
+  'low guard': ['Holding ↓ G: the low guard', { a: [0.2, { hold: 'down+guard', t: 1 }], b: 'dummy', bx: 560 }],
+  turn: ['Jumps over the foe and turns to face it', { a: [0.2, 'fwd+hop', { hold: 'fwd', t: 0.7 }], b: 'dummy', ax: 300, bx: 370, cfg: { flips: 'off' } }],
+  'hit reaction': ['Struck by a kick: the hit reaction', { a: [], b: [0.3, '@kick'], ax: 375, bx: 330 }],
+  blockstun: ['Blocks a kick: the blockstun', { a: [{ hold: 'guard', t: 1.2 }], b: [0.3, '@kick'], ax: 375, bx: 330 }],
+  'knockdown & getup': ['Swept: the fall, lying on the floor, getting up', { a: [], b: [0.2, '@sweep'], ax: 375, bx: 330, period: 3 }],
+  launched: ['Launched: the tumble through the air and the landing', { a: [], b: [0.2, '@launcher'], ax: 375, bx: 330, period: 3 }],
+  dizzy: ['Dizzy: helpless, swaying, until it wears off', { a: [], b: 'dummy', bx: 560, init: w => Object.assign(w.a, { dizzyT: 2, hurtT: 2 }) }],
+};

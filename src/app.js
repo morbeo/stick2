@@ -4,7 +4,7 @@ const app = { mode: 'play', paused: false, stepOnce: false, speed: 1, loop: true
 const MODES = {
   play: 'Fight in one arena. Pick who fights: you, the AI, scripted combos, crowds.',
   grid: 'Nine copies of one fight side by side, each with different settings. Click a cell to focus it.',
-  gallery: 'Every move of the character looping, with its keyframe timeline and frame data.',
+  gallery: 'Every move of the character looping, with its keyframe timeline and frame data, then every movement (walk, run, dash, jump, flip, guard, hit, knockdown, dizzy…) with its speed and height.',
   impact: 'Hit reactions and falls: standard hits on the character side by side; drag on a body to strike it anywhere.',
   character: 'Build the fighter: drag joints, add limbs, tune bones. The preview fights with it live.',
   animate: 'Pose keyframes by dragging joints, retime them on the timeline, and watch the move with springs and hit stop.',
