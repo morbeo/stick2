@@ -172,7 +172,8 @@ function makeCharacter(def) {
   const rest = Object.fromEntries(order.map(b => [b.id, b.a]));
   const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains,
     tips: [...chains.arm, ...chains.leg].map(c => c[c.length - 1]),
-    poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, binds: { ...BINDS, ...def.binds } };
+    poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, binds: { ...BINDS, ...def.binds },
+    speed: def.speed ?? 1 };
   // the cancel window opens at a key marked cancel, else after the last active key
   for (const m of Object.values(ch.moves)) { const c = m.keys.findIndex(k => k.cancel); m.cancel = c >= 0 ? c : m.keys.findLastIndex(k => k.active) + 1; }
   return ch;
@@ -185,13 +186,13 @@ const CHAR_DEFS = {
     poses: mapVals({ stance: STANCE, crouch: CROUCH, air: AIR, airFall: AIR_FALL, fall: FALL, lie: LIE }, fromOld),
     moves: mapVals(STICK_MOVES, oldMove), hurt: mapVals(STICK_HURT, set => set.map(fromOld)) },
 };
-// brute: the stick's skeleton and moves, bigger, heavier and slower
+// brute: the stick's skeleton and moves, bigger, much thicker, heavier and slower (speed scales its walk)
 const BRUTE_SCALE = { waist: 1.2, chest: 1.35, neck: 1, head: 1.25, thigh: 1.1, shin: 1.05, foot: 1.2, uarm: 1.3, farm: 1.3, hand: 1.5 };
-CHAR_DEFS.brute = { ...CHAR_DEFS.stick, name: 'brute',
-  bones: STICK_BONES.map(b => ({ ...b, len: Math.round(b.len * BRUTE_SCALE[b.id.replace(/[FB]$/, '')]), thick: (b.thick ?? BONE.thick) + 3,
-    hurt: b.hurt ? b.hurt + 3 : 0, stiff: 0.75, damp: 1.2 })),
-  moves: mapVals(CHAR_DEFS.stick.moves, m => m.power ? { ...m, power: +(m.power * 1.25).toFixed(2), knock: m.knock * 1.2,
-    keys: m.keys.map(k => ({ ...k, d: +(k.d * 1.2).toFixed(4) })) } : m) };
+CHAR_DEFS.brute = { ...CHAR_DEFS.stick, name: 'brute', speed: 0.7,
+  bones: STICK_BONES.map(b => ({ ...b, len: Math.round(b.len * BRUTE_SCALE[b.id.replace(/[FB]$/, '')]), thick: (b.thick ?? BONE.thick) + (b.role === 'spine' ? 10 : 6),
+    hurt: b.hurt ? b.hurt + 5 : 0, stiff: 0.65, damp: 1.25 })),
+  moves: mapVals(CHAR_DEFS.stick.moves, m => m.power ? { ...m, power: +(m.power * 1.3).toFixed(2), knock: m.knock * 1.25,
+    keys: m.keys.map(k => ({ ...k, d: +(k.d * 1.4).toFixed(4) })) } : m) };
 // more built-ins, all on the stick's moves: scale its bones by segment name, add parts, retime the moves
 const sizedBones = (scale, thick = 0) => STICK_BONES.map(b => ({ ...b, len: Math.round(b.len * (scale[b.id.replace(/[FB]$/, '')] ?? 1)),
   thick: (b.thick ?? BONE.thick) + thick, hurt: b.hurt ? b.hurt + thick : 0 }));
@@ -212,8 +213,10 @@ function mapPoses(def, fn) {
     hurt: mapVals(def.hurt, set => set.map(f)) };
 }
 const { stick } = CHAR_DEFS;
-CHAR_DEFS.dwarf = { ...stick, name: 'dwarf', moves: retimed(1.1, 1.15),
-  bones: [...sizedBones({ waist: 0.9, chest: 0.95, head: 1.15, thigh: 0.65, shin: 0.6, uarm: 0.95, farm: 0.95, hand: 1.4 }, 3),
+// dwarf: short legs, a barrel chest, everything thick
+CHAR_DEFS.dwarf = { ...stick, name: 'dwarf', speed: 0.85, moves: retimed(1.1, 1.15),
+  bones: [...sizedBones({ waist: 0.8, chest: 0.85, neck: 0.6, head: 1.15, thigh: 0.6, shin: 0.55, foot: 1.2, uarm: 0.85, farm: 0.85, hand: 1.5 }, 5)
+    .map(b => b.role === 'spine' ? { ...b, thick: b.thick + 8, hurt: b.hurt + 3 } : b),
     { id: 'beard', parent: 'head', len: 11, a: -165, role: 'head', thick: 7, lag: 1.5, stretch: 0.1 }] };
 CHAR_DEFS.minotaur = { ...stick, name: 'minotaur', moves: retimed(1.2, 1.35),
   bones: [...sizedBones({ waist: 1.25, chest: 1.4, neck: 1.6, head: 1.35, thigh: 1.15, shin: 1.1, foot: 1.3, uarm: 1.3, farm: 1.3, hand: 1.6 }, 4)
@@ -233,6 +236,24 @@ CHAR_DEFS.centaur = { ...mapPoses({ ...stick, moves: retimed(1.1, 1.2) }, p => {
       { id: 'foreShin' + S, parent: 'foreThigh' + S, len: 23, role: 'leg', side: S.toLowerCase(), hurt: 8, lag: 1, min: -8, max: 165 },
       { id: 'hoof' + S, parent: 'foreShin' + S, len: 6, a: 90, role: 'leg', side: S.toLowerCase(), hurt: 6, lag: 1.5, level: 1, thick: 5, min: 40, max: 140 }]),
     ...tail3(12, 3).map(b => b.id === 'tail' ? { ...b, a: -150 } : b)] };
+// ninja: slender, long legs, fast and light; a scarf trails from the neck
+CHAR_DEFS.ninja = { ...stick, name: 'ninja', speed: 1.25, moves: retimed(0.8, 0.85),
+  bones: [...sizedBones({ waist: 1.05, chest: 0.95, head: 0.9, thigh: 1.15, shin: 1.15, uarm: 1.05, farm: 1.05 }, -1),
+    { id: 'scarf', parent: 'neck', len: 12, a: -100, role: 'tail', thick: 3, lag: 2, stretch: 0.2 },
+    { id: 'scarfEnd', parent: 'scarf', len: 12, a: -10, role: 'tail', thick: 2, lag: 3.5, stretch: 0.3, min: -60, max: 60 }] };
+// ape: long heavy arms, short legs, hunched forward
+CHAR_DEFS.ape = { ...stick, name: 'ape', speed: 0.95, moves: retimed(1.05, 1.15),
+  bones: sizedBones({ waist: 0.95, chest: 1.15, neck: 0.6, head: 1.05, thigh: 0.8, shin: 0.75, uarm: 1.5, farm: 1.5, hand: 1.6 }, 3)
+    .map(b => b.role === 'spine' ? { ...b, thick: b.thick + 4 } : b) };
+CHAR_DEFS.ape.poses = { ...CHAR_DEFS.ape.poses, stance: { ...CHAR_DEFS.ape.poses.stance, waist: 155, neck: 15, uarmF: -140, uarmB: -150, farmF: 15, farmB: 20 } };
+// asura: a second pair of arms on the chest, swinging and breathing with the first
+CHAR_DEFS.asura = { ...stick, name: 'asura', moves: retimed(0.95, 1.1),
+  bones: [...sizedBones({ chest: 1.15, uarm: 1.05, farm: 1.05 }, 1),
+    ...['F', 'B'].flatMap(S => [
+      { id: 'uarm2' + S, parent: 'chest', len: 15, a: -175, role: 'arm', side: S.toLowerCase(), lag: 1.2, thick: 5, min: -250, max: -10 },
+      { id: 'farm2' + S, parent: 'uarm2' + S, len: 12, role: 'arm', side: S.toLowerCase(), lag: 2, thick: 5, min: -10, max: 165 },
+      { id: 'hand2' + S, parent: 'farm2' + S, len: 4, role: 'arm', side: S.toLowerCase(), lag: 2.5, thick: 6, min: -70, max: 70 }])] };
+CHAR_DEFS.asura.poses = { ...stick.poses, stance: { ...stick.poses.stance, uarm2F: -100, farm2F: 50, uarm2B: -230, farm2B: 40 } };
 const CHARS = mapVals(CHAR_DEFS, makeCharacter);
 let CURRENT = 'stick';
 const currentChar = () => CHARS[CURRENT];

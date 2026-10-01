@@ -7,7 +7,7 @@ class Fighter {
       kd: null, downT: 0, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
-      guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0 });
+      guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0 });
     this.hp = this.c('health');
     this.target = this.basePose();
     this.disp = { ...this.target };
@@ -24,7 +24,7 @@ class Fighter {
       this.lens[b.id] = b.len;
     }
   }
-  c(k) { return this.over[k] ?? this.w.cfg[k]; }
+  c(k) { const v = this.over[k] ?? this.w.cfg[k]; return k === 'maxSpeed' ? v * this.ch.speed : v; } // a character's speed scales its walk
   get free() { return this.hurtT <= 0 && !this.kd; }
 
   // the procedural layer, driven by bone roles so any skeleton breathes, walks and leans
@@ -66,6 +66,14 @@ class Fighter {
       ch.chains.leg.forEach((c, i) => { const q = ph + i * Math.PI; turn(c[0], Math.sin(q) * 28 * w * st); flex(c[1], Math.max(0, Math.cos(q)) * 40 * w * st); });
       ch.chains.arm.forEach((c, i) => { const q = ph + (i + 1) * Math.PI; turn(c[0], Math.sin(q) * 22 * w * st * st); flex(c[1], Math.max(0, Math.sin(q)) * 15 * w + (back ? 20 * w : 0)); });
       turn(spine, 4 * w * Math.sign(this.vx * this.dir));
+    }
+    // reeling (stagger) or dizzy: the body sways on wobbly knees, the head lolls
+    const reel = this.dizzyT > 0 ? 1 : clamp(this.reelT * 3, 0, 1);
+    if (reel) {
+      turn(spine, Math.sin(t * 4.5 + this.seed) * 14 * reel - 8 * reel);
+      for (const c of ch.chains.head) turn(c[0], Math.sin(t * 3.1 + this.seed) * 20 * reel);
+      ch.chains.leg.forEach((c, i) => flex(c[1], (1 + Math.sin(t * 4.5 + i * 2)) * 14 * reel));
+      ch.chains.arm.forEach((c, i) => turn(c[0], -20 * reel + Math.sin(t * 3 + i) * 15 * reel));
     }
     if (this.guarding) ch.chains.arm.forEach((c, i) => { turn(c[0], i ? 50 : 40); flex(c[1], 25); }); // guard: forearms up in front of the face
     turn(spine, this.lean);
@@ -173,7 +181,8 @@ class Fighter {
     if (inp.guard && !this.prevIn.guard) this.parryT = c('parryWindow');
     this.prevIn = inp;
     if (!inp[fwdK] || !this.free || this.action) this.running = false;
-    this.dashT -= dt; this.passT -= dt; this.blockT -= dt; this.parryT -= dt; this.labelT -= dt;
+    this.dashT -= dt; this.passT -= dt; this.blockT -= dt; this.parryT -= dt; this.labelT -= dt; this.dizzyT -= dt; this.reelT -= dt;
+    if (this.free) this.stunM = Math.max(0, this.stunM - c('dizzyDrain') * dt);
     // guard: held while free on the ground, and kept through blockstun; with ↓ it is a low guard (in the belt too)
     const busy = this.action && !this.action.m.hurt;
     this.guarding = this.blockT > 0 || inp.guard && this.free && this.grounded && !busy && this.squatT <= 0;
@@ -286,7 +295,7 @@ class Fighter {
     if (s) for (const o of foes) if (!a.hits.includes(o) && Math.abs(o.z - this.z) <= c('zReach') * (a.m.wide ? 3 : 1)) {
       if (a.m.height === 'high' && o.crouching) continue; // highs pass over a crouching fighter
       const h = o.hurtAt(s, c('hitTest') === 'target', otg);
-      if (h) { a.hits.push(o); a.hit = true; this.w.onHit(this, o, h, a.m, o.defend(this, a.m)); }
+      if (h) { a.hits.push(o); a.hit = true; this.w.onHit(this, o, h, a.m, o.defend(this, a.m, a.m.keys[a.i])); }
     }
     this.lastTip = s ? s[1] : null;
   }
@@ -323,9 +332,10 @@ class Fighter {
   }
   // a strike connected: 'parry' (guard tapped just before), 'block' (guarding), or null = it hits.
   // Front only. Standing guard: high, special high, mid, special mid · crouching guard: low, special mid
-  defend(att, m) {
+  // key: the attacker's current key (unblockable is a property of frames, not of the whole move)
+  defend(att, m, key) {
     const able = this.guarding || this.parryT > 0 && this.free && this.grounded && !this.action && this.squatT <= 0;
-    if (m.unblock || !able || (att.x - this.x) * this.dir <= 0) return null;
+    if (key?.unblock || !able || (att.x - this.x) * this.dir <= 0) return null;
     const h = m.height || 'mid';
     if (!(h === 'smid' || (this.crouching ? h === 'low' : h !== 'low'))) return null;
     return this.parryT > 0 && this.c('parry') ? 'parry' : 'block';
@@ -347,8 +357,10 @@ class Fighter {
   damageOf(m, combo) { return (m.damage ?? m.power * 8) * this.c('damage') * this.c('comboDamage') ** (combo - 1); }
   say(text) { this.label = text; this.labelT = 0.9; }
   takeHit(att, m, hit) {
-    const combo = this.combo = (this.free ? 0 : this.combo) + 1;
-    if (this.c('health') > 0 && (this.hp -= this.damageOf(m, combo)) <= 0) { this.hp = 0; this.ko = true; this.say('K.O.'); }
+    const combo = this.combo = (this.free ? 0 : this.combo) + 1, dmg = this.damageOf(m, combo), wasDizzy = this.dizzyT > 0;
+    if (this.c('health') > 0 && (this.hp -= dmg) <= 0) { this.hp = 0; this.ko = true; this.say('K.O.'); }
+    this.dizzyT = 0; this.reelT = 0;
+    this.stunM = wasDizzy ? 0 : this.stunM + dmg; // a hit wakes a dizzy fighter (and empties the meter)
     this.comboShown = combo; this.comboT = 1; this.comboPop = 1;
     const juggle = !!this.kd || !this.grounded, otg = this.kd === 'down';
     this.dir = -att.dir; this.buffer = null; this.squatT = 0; this.flashT = 0.1;
@@ -363,6 +375,9 @@ class Fighter {
       const stun = m.stun * Math.max(0.45, 1 - 0.07 * (combo - 1)); // long combos stun less
       this.start(makeHurt(this.lastHurt, stun, this.w.rand, this.ch.poses.stance));
       this.hurtT = stun;
+      const da = this.c('dizzyAt'), sa = this.c('staggerAt');
+      if (da && this.stunM >= da) { this.dizzyT = this.c('dizzyTime'); this.hurtT = Math.max(stun, this.dizzyT); this.stunM = da; this.say('DIZZY'); }
+      else if (sa && this.damageOf(m, 1) >= sa) { this.reelT = this.c('staggerStun'); this.hurtT = stun + this.reelT; this.vx *= 1.3; this.say('STAGGER'); }
     }
     // impact: the blow spins every bone from the struck one down to the hips, harder on a longer lever
     // and lighter bones; the push is along the attack, lifting for launchers
@@ -433,12 +448,25 @@ class Fighter {
     if (this.flashT > 0 && this.c('flash')) { drawFigure(ctx, this.ch, P, '#111', '#111', 4); drawFigure(ctx, this.ch, P, '#fff', '#fff'); }
     else drawFigure(ctx, this.ch, P, this.col[0], this.col[1]);
     if (this.c('boxes')) this.drawBoxes(ctx);
+    const a = this.action, hb = a && P[a.m.hit];
+    if (hb && a.m.keys.some((k, i) => k.unblock && i >= a.i)) { // unblockable frames coming: the striking limb glows
+      ctx.fillStyle = `rgba(192,57,43,${0.25 + 0.2 * Math.sin(this.time * 40)})`;
+      ctx.beginPath(); ctx.arc(hb[0], hb[1], 9, 0, 7); ctx.fill();
+    }
     // health bar and callouts (PARRY, K.O.) over the head
     let top = this.groundY; for (const k in P) top = Math.min(top, P[k][1]);
     const hp = this.c('health');
     if (hp > 0) {
       ctx.fillStyle = 'rgba(0,0,0,.1)'; ctx.fillRect(this.x - 18, top - 16, 36, 4);
       ctx.fillStyle = this.col[0]; ctx.fillRect(this.x - 18, top - 16, 36 * this.hp / hp, 4);
+    }
+    const da = this.c('dizzyAt');
+    if (da && this.stunM > 0) { ctx.fillStyle = '#e6b422'; ctx.fillRect(this.x - 18, top - 11, 36 * Math.min(1, this.stunM / da), 2); }
+    if (this.dizzyT > 0) for (let i = 0; i < 3; i++) { // stars circling over the head
+      const a = this.time * 5 + i * 2.1, sx = this.x + Math.cos(a) * 16, sy = top - 4 + Math.sin(a) * 4;
+      ctx.fillStyle = '#e6b422'; ctx.beginPath();
+      for (let k = 0; k < 10; k++) { const r = k % 2 ? 1.8 : 4.5, q = k * Math.PI / 5 + a; ctx.lineTo(sx + Math.cos(q) * r, sy + Math.sin(q) * r); }
+      ctx.fill();
     }
     if (this.labelT > 0) {
       ctx.globalAlpha = Math.min(1, this.labelT * 3); ctx.fillStyle = this.col[0]; ctx.textAlign = 'center';

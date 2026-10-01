@@ -13,6 +13,7 @@ function frameState(f) {
   if (f.freeze > 0) return 'stop';
   if (f.kd) return 'down';
   if (f.blockT > 0) return 'block';
+  if (f.dizzyT > 0) return 'dizzy';
   if (!f.free) return 'hit';
   const a = f.action;
   if (!a) return f.grounded ? 'idle' : 'air';

@@ -216,6 +216,8 @@ function bodyPanel() {
       button(':undo: undo', 'Undo (⌘Z)', undo), button(':redo: redo', 'Redo (⇧⌘Z)', redo)),
     h('h4', { textContent: 'stance pose', tip: 'Set the whole stance from a preset (per limb, so it works for any body)' }),
     h('div', { cls: 'bar' }, Object.entries(POSES).map(([k, p]) => button(k, p.tip, () => edit(def => Object.assign(def.poses.stance, presetPose(currentChar(), p)))))),
+    slider('speed', { min: 0.5, max: 1.6, step: 0.05 }, () => DEFS[CURRENT].speed ?? 1, v => edit(def => { def.speed = v; }, 'speed'),
+      'Walk speed of this character, × maxSpeed (dashes and runs too). Heavy bodies feel right a little slower.'),
     h('h4', { textContent: 'bones', tip: 'Click to select · ▾ ▸ fold a branch' }),
     boneTree(),
     ...bonePanel(),

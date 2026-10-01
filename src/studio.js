@@ -7,7 +7,9 @@ const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE)) || {
 const DEFS = { ...mapVals(CHAR_DEFS, clone), ...saved.defs };
 for (const k in DEFS) CHARS[k] = makeCharacter(DEFS[k]);
 if (DEFS[saved.current]) CURRENT = saved.current;
-const save = () => { try { localStorage.setItem(STORE, JSON.stringify({ defs: DEFS, current: CURRENT })); } catch {} };
+// only edited built-ins are stored, so improved built-ins reach characters nobody changed
+const edited = () => Object.fromEntries(Object.entries(DEFS).filter(([k, d]) => !CHAR_DEFS[k] || JSON.stringify(d) !== JSON.stringify(CHAR_DEFS[k])));
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify({ defs: edited(), current: CURRENT })); } catch {} };
 const studio = { sel: 'uarmF', undo: [], redo: [], lastKey: null, lastT: 0, colors: false, fold: new Set() };
 const selBone = () => DEFS[CURRENT].bones.find(b => b.id === studio.sel);
 
@@ -135,19 +137,57 @@ function importChar() {
   };
   inp.click();
 }
+// a random character: the stick's skeleton with random proportions and thickness, maybe extra limbs, a stance preset;
+// its moves are retimed to its size (bigger = slower and harder)
+const SYLLABLES = ['ka', 'ro', 'zu', 'mi', 'gor', 'ta', 'ven', 'shi', 'bo', 'rak', 'lu', 'dra', 'ni', 'vex', 'ul', 'ash'];
+function randomDef(rand) {
+  const pick = a => a[Math.floor(rand() * a.length)], size = rand(0.8, 1.3), seg = {}, thick = Math.round(rand(-1, 5)), core = Math.round(rand(0, 8));
+  const def = clone(CHAR_DEFS.stick);
+  def.name = pick(SYLLABLES) + pick(SYLLABLES);
+  for (const b of def.bones) {
+    const k = seg[b.id.replace(/[FB]$/, '')] ??= size * rand(0.75, 1.35); // front and back partners match
+    b.len = Math.max(3, Math.round(b.len * k));
+    b.thick = Math.max(2, (b.thick ?? BONE.thick) + thick + (b.role === 'spine' ? core : 0));
+    if (b.hurt) b.hurt = Math.max(4, Math.round(b.hurt * Math.sqrt(k)) + Math.round(thick / 2));
+  }
+  const spine = def.bones.filter(b => b.role === 'spine');
+  for (let n = pick([0, 1, 1, 2]); n > 0; n--) attachLimb(def, pick(['arm', 'arm', 'tail', 'head']), pick(spine).id);
+  const preset = pick(Object.keys(POSES).filter(k => k !== 'tpose'));
+  Object.assign(def.poses.stance, presetPose(makeCharacter(def), POSES[preset]));
+  const t = size * rand(0.9, 1.1);
+  def.speed = +clamp(rand(0.9, 1.2) / size, 0.6, 1.4).toFixed(2);
+  def.moves = mapVals(def.moves, m => m.power ? { ...m, power: +(m.power * size).toFixed(2), knock: Math.round(m.knock * size),
+    keys: m.keys.map(k => ({ ...k, d: +(k.d * t).toFixed(4) })) } : m);
+  return def;
+}
+// a small drawing of a character's stance; one scale for all, so sizes compare
+function drawThumb(cv, ch) {
+  const w = cv.width = 60 * dpr, hh = cv.height = 64 * dpr, c = cv.getContext('2d'), L = fk(ch, ch.poses.stance, 1), s = hh * 0.92 / 125;
+  let low = 0, x0 = 0, x1 = 0;
+  for (const b of ch.bones) { const p = L[b.id], r = b.shape === 'circle' ? b.len : 0; low = Math.max(low, p[1] + r); x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); }
+  c.translate(w / 2 - (x0 + x1) / 2 * s, hh - 3 * dpr - low * s); c.scale(s, s);
+  drawFigure(c, ch, L, INK[0], INK[1]);
+}
+function charCard(k) {
+  const cv = h('canvas'), b = h('button', { cls: 'card', tip: `${CHAR_DEFS[k] ? 'Built-in' : 'Your character'}: ${k} · ${CHARS[k].bones.length} bones · speed ${CHARS[k].speed}`,
+    onclick: () => { pickChar(k); syncAll(); } }, cv, h('span', { textContent: k }));
+  reg(b, () => { b.classList.toggle('on', CURRENT === k); drawThumb(cv, CHARS[k]); });
+  return b;
+}
 function charPanel() {
   return [
     heading('Character', 'Pick the fighter every mode uses. Edits are saved in this browser automatically; export a file to keep or share one.',
       '⌘Z undo · ⇧⌘Z redo'),
-    h('div', { cls: 'bar' }, seg(Object.keys(DEFS), () => CURRENT, pickChar,
-      Object.fromEntries(Object.keys(DEFS).map(k => [k, CHAR_DEFS[k] ? `Built-in: ${k}` : `Your character: ${k}`])))),
     h('div', { cls: 'bar' },
+      button(':casino: random', 'Generate a random character: proportions, thickness, extra limbs, stance and speed', () => addChar(randomDef(makeRand(Math.random() * 1e9 | 0)))),
       button(':content_copy: copy', 'Make a new character from this one', () => addChar(DEFS[CURRENT], CURRENT)),
+      button(':upload: import', 'Load a character JSON file as a new character', importChar)),
+    h('div', { cls: 'cards' }, Object.keys(DEFS).map(charCard)),
+    h('div', { cls: 'bar' },
       button(':edit: rename', 'Rename this character (a built-in one is copied under the new name)', renameChar),
       button(':history: revert', 'Throw away the edits of this built-in character (undoable)', revertChar),
       button(':delete: delete', 'Delete this character (only your own ones)', deleteChar),
-      button(':download: export', 'Download this character as a JSON file', exportChar),
-      button(':upload: import', 'Load a character JSON file as a new character', importChar)),
+      button(':download: export', 'Download this character as a JSON file', exportChar)),
   ];
 }
 

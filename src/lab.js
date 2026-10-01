@@ -117,8 +117,8 @@ function cellStats(c) {
     (w.adv === null ? '' : `  ${w.adv >= 0 ? '+' : ''}${w.adv}f`);
 }
 // frame meter: one column per frame, newest on the right; top row = left fighter, bottom = right fighter
-const METER_COLS = { idle: null, air: '#cfd8e0', move: '#b3a79a', startup: '#3a9d5d', active: '#c0392b', recovery: '#2c6fb0', cancel: '#8e44ad', hit: '#e6b422', block: '#7fb3d5', down: '#e8dcb5', stop: '#fff' };
-const METER_TIPS = 'frame meter: green startup · red active · blue recovery · purple cancel window · yellow hitstun · light blue blockstun · pale knocked down · white hit stop · grey air / other';
+const METER_COLS = { idle: null, air: '#cfd8e0', move: '#b3a79a', startup: '#3a9d5d', active: '#c0392b', recovery: '#2c6fb0', cancel: '#8e44ad', hit: '#e6b422', block: '#7fb3d5', dizzy: '#e67e22', down: '#e8dcb5', stop: '#fff' };
+const METER_TIPS = 'frame meter: green startup · red active · blue recovery · purple cancel window · yellow hitstun · light blue blockstun · orange dizzy · pale knocked down · white hit stop · grey air / other';
 function drawMeter(w, r, full) {
   const fs = w.hist.fs, n = full ? 120 : 60, cw = r.w / n, rh = r.h / 2 - dpr;
   ctx.fillStyle = '#0000000d'; ctx.fillRect(r.x, r.y, r.w, r.h);

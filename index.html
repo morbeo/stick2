@@ -36,6 +36,10 @@
   #side h3 { display: flex; align-items: center; margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
   .row { display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 4px; margin: 2px 0; }
   .row input[type=range] { width: 100%; }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 4px 0; }
+  .card { display: flex; flex-direction: column; align-items: center; padding: 2px; font-size: 10px; overflow: hidden; }
+  .card canvas { width: 60px; height: 64px; }
+  .card.on canvas { filter: invert(1) brightness(1.6); }
   .tree { display: flex; align-items: center; gap: 2px; margin: 1px 0; }
   .tree button { padding: 0 6px; } button.twist, span.twist { width: 18px; padding: 0; border: 0; background: none; }
   .vname { cursor: pointer; } .vname:hover { text-decoration: underline; }

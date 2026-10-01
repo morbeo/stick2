@@ -94,6 +94,7 @@ function drawTimeline() {
     text(`${Math.round(k.d * 60)}f`, x + 5 * dpr, y + 14 * dpr, '#444', 11, 'bold');
     if (w > 60 * dpr) text(`${k.e || 'linear'}${k.p ? '' : ' → stance'}`, x + 5 * dpr, y + 28 * dpr, '#888', 9);
     if (k.inv) text('inv', x + 5 * dpr, y + h - 5 * dpr, '#2c6fb0', 9, 'bold');
+    if (k.unblock) text('unbl', x + w - 30 * dpr, y + h - 5 * dpr, RED[0], 9, 'bold');
   });
   // the cancel window: a purple bar from the key it opens at to the end
   const cx = r.x + keyStart(m, m.cancel) * px;
@@ -282,7 +283,6 @@ const MOVE_FLAGS = {
   special: 'Special: normals that hit can be cancelled into it (if specialCancel is on).',
   otg: 'Off the ground: hits a fighter lying on the floor and pops it up (otg setting: flagged).',
   wide: 'Wide: in 2.5D it reaches 3× zReach in depth, so a sidestep does not dodge it.',
-  unblock: 'Unblockable: guard and parry do not stop it.',
 };
 
 function keyPanel() {
@@ -308,7 +308,9 @@ function keyPanel() {
     h('div', { cls: 'row', tip: 'Cancel window and invincibility' }, h('span', { textContent: 'flags' }), h('span', { cls: 'bar' },
       toggle(':sync_alt: cancel', 'The cancel window opens at this key (chains, specials, jump). Unmarked: after the last active key.', () => !!k().cancel,
         v => edit(def => { def.moves[anim.move].keys.forEach((x, i) => { if (i === anim.key && v) x.cancel = true; else delete x.cancel; }); })),
-      toggle(':block: inv', 'Invincible during this key (reversals like rising)', () => !!k().inv, v => setKey('inv', v || undefined)))),
+      toggle(':block: inv', 'Invincible during this key (reversals like rising)', () => !!k().inv, v => setKey('inv', v || undefined)),
+      toggle(':crisis_alert: unblock', 'Unblockable: a hit during this key goes through guard and parry. The striking limb glows red while unblockable frames are coming.',
+        () => !!k().unblock, v => setKey('unblock', v || undefined)))),
     slider('lunge', { min: 0, max: 600, step: 10 }, () => k().lunge || 0, v => setKey('lunge', v || undefined, 'lunge'),
       'Forward speed given when this key starts (px/s): steps into the strike.'),
   ];
