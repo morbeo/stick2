@@ -2,8 +2,10 @@
 // ---------- animate mode: pose keyframes by dragging joints (IK), retime them on a frame timeline, preview with springs ----------
 const anim = { move: 'jab', key: 1, t: 0, playing: true, onion: true, aim: false, aimId: null, reach: 'limb', drag: null, hover: null, anchor: null, pv: null, hold: false,
   target: { char: null, stance: 'stand', state: 'idle', facing: 'toward' }, group: 'type', sort: 'order', filter: '', view: 'cards',
-  tfilter: '', tsort: { k: null, dir: 1 }, tscroll: 0 }; // the move table's filter, sort column and scroll
+  tfilter: '', tsort: { k: null, dir: 1 }, tscroll: 0, // the move table's filter, sort column and scroll
+  cmp: null, cmpView: 'off' }; // the move compared with (compare group): drawn over this one or as filmstrips
 const curMove = () => currentChar().moves[anim.move];
+const cmpMove = () => anim.cmp && currentChar().moves[anim.cmp];
 const edChar = () => withWeapon(currentChar(), curMove()); // a weapon move is edited in the hand of its class's weapon
 const defMove = () => DEFS[CURRENT].moves[anim.move];
 const F = 1 / 60; // one frame
@@ -32,7 +34,10 @@ function anFrame() {
   return { ch, r, s, o, pose, L, P: mapVals(L, toScreen), wa, ground, toLocal: (x, y) => [(x - o[0]) / s, (y - o[1]) / s] };
 }
 
+const AMBER = '#d68c14';
+const lowest = (ch, L) => Math.max(...ch.bones.map(b => L[b.id][1] + (b.shape === 'circle' ? b.len : 0)));
 function drawAnimEditor() {
+  if (anim.cmpView === 'strip') return drawStrip();
   const f = anFrame(), { ch, r, s, o, L, P, ground } = f, m = curMove(), ki = keyAt(m, anim.t);
   ctx.fillStyle = '#f3f0e8'; ctx.fillRect(r.x, r.y, r.w, r.h);
   ctx.strokeStyle = '#cfc8bb'; ctx.lineWidth = 2 * dpr;
@@ -43,6 +48,12 @@ function drawAnimEditor() {
     if (ki > 0) drawFigure(ctx, ch, fk(ch, keyPose(ch, m, ki - 1), 1), '#07f', '#07f', -1);
     if (ki < m.keys.length - 1) drawFigure(ctx, ch, fk(ch, keyPose(ch, m, ki + 1), 1), '#1a8a4a', '#1a8a4a', -1);
     ctx.globalAlpha = 1;
+  }
+  const cm = cmpMove();
+  if (cm && anim.cmpView === 'overlay') { // the compared move at the same moment (held at its end), feet on the same ground, in amber
+    const c2 = withWeapon(currentChar(), cm), L2 = fk(c2, samplePose(c2, cm, Math.min(anim.t, total(cm) - 1e-6)), 1);
+    ctx.save(); ctx.translate(0, lowest(ch, L) - lowest(c2, L2)); ctx.globalAlpha = 0.45;
+    drawFigure(ctx, c2, L2, AMBER, AMBER, -1); ctx.restore();
   }
   drawFigure(ctx, ch, L, INK[0], INK[1], 0, roleTint());
   if (m.keys[ki].active) for (const id of hitIds(m)) if (L[id]) { // the strikes: red joints, radius = hitR
@@ -71,6 +82,35 @@ function drawAnimEditor() {
   text(`${anim.move} · key ${anim.key + 1}/${m.keys.length}${editing ? '' : ' (drag a joint to jump to the selected key)'}`, r.x + 10 * dpr, r.y + 18 * dpr, '#444', 12, 'bold');
   text(anim.aim ? `aim: ${anim.aimId || 'the striking limb'} follows the cursor (reach: ${anim.reach}) · click to set`
     : `drag: IK (reach: ${anim.reach}) · Alt+drag: rotate one bone · double-click a joint: it follows the cursor`, r.x + 10 * dpr, r.y + 34 * dpr, '#999', 11);
+  if (cm && anim.cmpView === 'overlay') text(`amber: ${anim.cmp} at the same moment`, r.x + 10 * dpr, r.y + 50 * dpr, AMBER, 11);
+}
+// filmstrip (compare: strip): the move and the compared one under it, a cell every few frames on one time scale,
+// tinted by phase; the playhead's cell is outlined, a click goes to that frame
+function stripCells(r) {
+  const ms = [curMove(), cmpMove()].filter(Boolean), T = Math.max(...ms.map(total)), fit = Math.max(2, Math.floor(r.w / (60 * dpr)));
+  const step = Math.ceil(T / F / (fit - 1)) * F; // whole frames
+  return { ms, step, n: Math.floor(T / step + 1e-6) + 1, cw: r.w / fit, top: r.y + 24 * dpr, rh: (r.h - 24 * dpr) / ms.length };
+}
+function drawStrip() {
+  const r = anLayout().ed, { ms, step, n, cw, top, rh } = stripCells(r), s = Math.min((rh - 40 * dpr) / 135, cw / 80);
+  ctx.fillStyle = '#f3f0e8'; ctx.fillRect(r.x, r.y, r.w, r.h);
+  text(`filmstrip · a frame every ${Math.round(step * 60)}f · click one to go there`, r.x + 10 * dpr, r.y + 16 * dpr, '#999', 11);
+  ms.forEach((m, row) => {
+    const ch = withWeapon(currentChar(), m), y0 = top + row * rh, ground = y0 + rh - 10 * dpr, d = frameData(m, 1);
+    const first = m.keys.findIndex(k => k.active), last = m.keys.findLastIndex(k => k.active);
+    text(`${row ? anim.cmp : anim.move} · ${d.startup} · ${d.active} · ${d.recovery}f`, r.x + 10 * dpr, y0 + 14 * dpr, row ? AMBER : '#444', 12, 'bold');
+    for (let i = 0; i < n; i++) {
+      const t = i * step, x0 = r.x + i * cw;
+      if (t > total(m) - 1e-6) continue; // the move is over
+      const ki = keyAt(m, t), phase = first < 0 ? 'none' : ki < first ? 'startup' : ki > last ? 'recovery' : 'active';
+      ctx.fillStyle = PHASE_COL[phase]; ctx.globalAlpha = 0.5; ctx.fillRect(x0 + dpr, y0 + 20 * dpr, cw - 2 * dpr, rh - 24 * dpr); ctx.globalAlpha = 1;
+      if (!row && Math.round(anim.t / step) === i) { ctx.strokeStyle = '#444'; ctx.lineWidth = 2 * dpr; ctx.strokeRect(x0 + dpr, y0 + 20 * dpr, cw - 2 * dpr, rh - 24 * dpr); }
+      text(`${Math.round(t * 60)}`, x0 + 4 * dpr, y0 + 32 * dpr, '#999', 9);
+      const L = fk(ch, samplePose(ch, m, t), 1);
+      ctx.save(); ctx.translate(x0 + cw / 2, ground - lowest(ch, L) * s); ctx.scale(s, s);
+      drawFigure(ctx, ch, L, row ? AMBER : INK[0], row ? AMBER : INK[1]); ctx.restore();
+    }
+  });
 }
 
 // timeline: ruler (scrub) on top, one block per key (width = frames); drag a block's right edge to retime,
@@ -238,6 +278,10 @@ function previewAt(t) {
 function animMouse(type, x, y, e) {
   const L = anLayout(), m = curMove(), inTl = y >= L.tl.y - 4 * dpr && x < L.ed.w, tl = L.tl, px = tl.w / total(m), ruler = inTl && y < tl.y + 18 * dpr;
   const tAt = () => clamp((x - tl.x) / px, 0, total(m) - 1e-6), edge = () => inTl && !ruler ? m.keys.findIndex((k, i) => Math.abs(x - tl.x - keyEnd(m, i) * px) < 6 * dpr) : -1;
+  if (anim.cmpView === 'strip' && !inTl && x < L.ed.w) { // filmstrip: a click goes to that frame
+    if (type === 'down') { const { step, cw } = stripCells(L.ed); anim.playing = false; anim.t = Math.min(Math.floor(x / cw) * step, total(m) - 1e-6); anim.key = keyAt(m, anim.t); previewAt(anim.t); }
+    return;
+  }
   if (type === 'down') {
     if (anim.aim) { anim.aim = false; anim.aimId = null; studio.lastKey = null; return; }
     if (inTl) {
@@ -655,7 +699,22 @@ function movePanel() {
 
 function animCtx() {
   return [grp('show', 'Overlays', toggle(':visibility:', 'Ghost: ' + SPEC.ghost.tip + ' (G)', () => CFG.ghost, v => { CFG.ghost = v; }),
-    toggle(':check_box_outline_blank:', 'Boxes: ' + SPEC.boxes.tip + ' (B)', () => CFG.boxes, v => { CFG.boxes = v; }), colorsToggle())];
+    toggle(':check_box_outline_blank:', 'Boxes: ' + SPEC.boxes.tip + ' (B)', () => CFG.boxes, v => { CFG.boxes = v; }), colorsToggle()), compareGrp()];
+}
+const CMP_TIPS = { off: 'No comparison', overlay: 'The compared move drawn over this one in amber, at the same moment',
+  strip: 'Filmstrip: this move and the compared one frame by frame on one time scale, tinted by phase (click a frame to go there)' };
+function compareGrp() {
+  const pick = button('', 'The move to compare with', () => pickCompare(pick));
+  reg(pick, () => setRich(pick, `:theaters: ${cmpMove() ? anim.cmp : 'pick'}`));
+  return grp('compare', 'Compare the move with another: drawn on top of each other or as two filmstrips', pick,
+    seg(Object.keys(CMP_TIPS), () => anim.cmpView, v => { anim.cmpView = v; if (v === 'overlay' && !cmpMove()) pickCompare(pick); }, CMP_TIPS));
+}
+function pickCompare(anchor) {
+  const ch = currentChar(), groups = new Map(), rank = g => (GROUP_ORDER.indexOf(g) + 1 || 99);
+  for (const n of Object.keys(ch.moves)) { const g = MOVE_GROUPS[anim.group](ch.moves[n], ch, n); groups.set(g, [...groups.get(g) || [], n]); }
+  const set = v => { anim.cmp = v; if (anim.cmpView === 'off') anim.cmpView = 'overlay'; closePop(); };
+  popup(anchor, h('b', { textContent: 'compare with' }), ...[...groups].sort((a, b) => rank(a[0]) - rank(b[0]))
+    .flatMap(([g, ns]) => [g && h('h4', { textContent: g }), h('div', { cls: 'bar' }, seg(ns, () => anim.cmp, set))]));
 }
 
 // controls over the canvas: transport and key edits above the timeline, the preview's target under the preview

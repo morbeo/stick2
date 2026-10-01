@@ -40,7 +40,7 @@ const OPT_ICONS = { cards: 'view_module', list: 'list', table: 'table_rows', inp
   dummy: 'person', whiff: 'air', ai: 'smart_toy', showcase: 'theaters', walk: 'directions_walk', 'vs ai': 'smart_toy', '2d': 'crop_landscape',
   lanes: 'view_stream', belt: 'view_in_ar', spine: 'accessibility', head: 'face', arm: 'front_hand', leg: 'footprint', tail: 'pets',
   line: 'horizontal_rule', circle: 'circle', ragdoll: 'sports_kabaddi', pose: 'accessibility_new',
-  raw: 'grain', tweened: 'animation', spring: 'waves', floaty: 'cloud', juicy: 'auto_awesome' };
+  raw: 'grain', tweened: 'animation', spring: 'waves', floaty: 'cloud', juicy: 'auto_awesome', overlay: 'layers', strip: 'theaters' };
 const optLabel = o => OPT_ICONS[o] ? `:${OPT_ICONS[o]}: ${o}` : String(o);
 const icon = (name, tip) => h('span', { cls: 'ic', textContent: String.fromCodePoint(ICONS[name]), tip });
 // text with icons: ':name:' and the arrows ← → ↑ ↓ ↖ ↗ ↙ ↘ become icon glyphs, the rest stays text
