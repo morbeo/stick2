@@ -432,6 +432,9 @@ function makeCharacter(def) {
   }
   // the cancel window opens at a key marked cancel, else after the last active key
   for (const m of Object.values(ch.moves)) { const c = m.keys.findIndex(k => k.cancel); m.cancel = c >= 0 ? c : m.keys.findLastIndex(k => k.active) + 1; SHARED.add(m); }
+  // the body's extent behind and in front of x (torso and legs in the stance): fighters are pushed apart where these meet
+  const L = fk(ch, ch.poses.stance, 1), xs = ch.bones.filter(b => b.role === 'spine' || b.role === 'leg').map(b => L[b.id][0]);
+  ch.extent = [Math.max(19, 2 - Math.min(0, ...xs)), Math.max(19, 2 + Math.max(0, ...xs))];
   SHARED.add(ch);
   return ch;
 }

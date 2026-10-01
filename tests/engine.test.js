@@ -217,6 +217,12 @@ test('fighting-style moves land when bound, the clinch and plum throws release i
   assert.ok(r.styles >= 50, 'styled moves ' + r.styles);
 });
 
+test('bodies collide by their extents: two centaurs keep their horse bodies apart, two sticks the usual gap', () => {
+  const r = json(`[CHARS.centaur, CHARS.stick].map(ch => { const w = new World({ a: 'dummy', b: 'dummy', ax: 380, bx: 400, period: 9 }, {}, 7, [ch, ch]); w.loop = false;
+    for (let i = 0; i < 10; i++) w.advance(1/60, NOIN); return Math.round(w.b.x - w.a.x); })`);
+  assert.ok(r[0] > 85, 'centaurs ' + r[0]); assert.equal(r[1], 38);
+});
+
 test('the impact tool strikes the body under the point, a long drag knocks it down', () => {
   const r = run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', period: 9 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false; w.advance(1/60, NOIN);
     const h = w.b.body().head, miss = w.poke(h[0], h[1] - 200, 50, 0), small = w.poke(h[0], h[1], 20, 0), kd1 = w.b.kd;

@@ -245,11 +245,13 @@ class World {
     moving.forEach(f => f.strike(this.foes(f), landed));
     for (const l of landed) if (!l.a.m.throw) this.onHit(l.f, l.o, l.h, l.m, l.o.defend(l.f, l.a.m, l.key));
     for (const l of landed) if (l.a.m.throw && l.f.action === l.a && l.o.free && !l.o.heldBy) l.f.seize(l.o);
-    // push apart (unless someone is knocked down, or held in a throw: pinned at its spot), then face the nearest foe
+    // push apart by the bodies' extents (unless someone is knocked down, or held in a throw: pinned at its spot), then face the nearest foe
     for (let i = 0; i < fs.length; i++) for (let j = i + 1; j < fs.length; j++) {
-      const a = fs[i], b = fs[j], d = b.x - a.x;
-      if (Math.abs(d) < 38 && Math.abs(a.y - b.y) < 60 && Math.abs(a.z - b.z) < cfg.zReach && !a.kd && !b.kd && a.passT <= 0 && b.passT <= 0 && a.heldBy !== b && b.heldBy !== a) {
-        const push = (38 - Math.abs(d)) / 2 * (Math.sign(d) || 1);
+      const a = fs[i], b = fs[j], d = b.x - a.x, sd = Math.sign(d) || 1;
+      // the gap the two bodies need: the facing sides of their extents (a centaur's horse body reaches far in front)
+      const side = (f, toward) => f.ch.extent[toward === f.dir ? 1 : 0], need = side(a, sd) + side(b, -sd);
+      if (Math.abs(d) < need && Math.abs(a.y - b.y) < 60 && Math.abs(a.z - b.z) < cfg.zReach && !a.kd && !b.kd && a.passT <= 0 && b.passT <= 0 && a.heldBy !== b && b.heldBy !== a) {
+        const push = (need - Math.abs(d)) / 2 * sd;
         a.x -= push; b.x += push;
       }
     }

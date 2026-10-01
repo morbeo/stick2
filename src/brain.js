@@ -56,7 +56,7 @@ const CHAINS = [['punch'], ['punch', 'punch'], ['punch', 'punch', 'punch'], ['ki
 class Brain {
   constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0 }); }
   input(f, o, h) {
-    const inp = { ...NOIN }, dist = Math.abs(o.x - f.x);
+    const inp = { ...NOIN }, dist = Math.abs(o.x - f.x) - (f.ch.extent[1] + o.ch.extent[1] - 38); // the gap as between two sticks (a centaur's body is long)
     if (!f.free) this.q = [];
     if (f.heldBy) { if (this.rand() < 0.05) inp.punch = inp.guard = true; return inp; } // try to break the throw
     if (f.kd === 'fly') { inp.guard = f.vy > 0 && f.y > -30 && this.rand() < 0.1; return inp; } // sometimes tech the landing
