@@ -56,7 +56,7 @@ const CROUCH = { torso: 22, lfU: 60, lfL: -110, lbU: -10, lbL: -70 };
 const AIR = { torso: 4, lfU: 55, lfL: -95, lbU: -10, lbL: -45, afU: 55, afL: 95, abU: 40, abL: 100 };
 const AIR_FALL = { torso: 6, lfU: 28, lfL: -35, lbU: -18, lbL: -20, afU: 75, afL: 60, abU: 65, abL: 70 };
 const FALL = { torso: -55, head: -20, afU: 140, afL: 30, abU: 110, abL: 50, lfU: 60, lfL: -50, lbU: 30, lbL: -30 };
-const LIE = { torso: -92, head: 0, afU: 150, afL: 15, abU: 30, abL: 20, lfU: 88, lfL: -8, lbU: 78, lbL: -25 };
+const LIE = { torso: -92, head: 0, afU: 20, afL: 25, abU: 5, abL: 15, lfU: 80, lfL: -18, lbU: 86, lbL: -8 }; // on the back, arms by the sides
 
 // the common attack shape: anticipation -> strike -> hold (both active) -> recover
 const attack = (o, [ad, ap], [sd, sp], hd, rd) => ({ ...o, keys: [

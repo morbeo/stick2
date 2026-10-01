@@ -478,6 +478,8 @@ class Fighter {
     const ref = ch.chains.spine[0]?.[0], tw = {};
     fk(ch, this.target, 1, null, tw); // the fall pose's world angles: the muscles pull toward its joint angles
     let land = -1; // > -1: the body (not just the feet) touched the floor this substep, at that speed
+    // limp: on the floor the muscles let go within a few tenths of a second, a knocked-out body already in the air
+    if (r.landed || this.kd === 'down' || this.ko) r.tone = Math.max(0.05, r.tone * Math.exp(-(this.ko ? 4 : 6) * dt));
     if (this.splatT > 0) for (const q of ps) q.vx = q.vy = 0; // stuck on the wall
     else {
       // muscle tone toward the fall pose, and the joint limits, as damped springs on each joint's angular speed
