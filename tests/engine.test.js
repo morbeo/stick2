@@ -531,3 +531,16 @@ test('air ↓ S pounces onto a fighter lying on the floor; a wallbounce hit (spi
   assert.match(wb.labels, /WALL BOUNCE/); assert.equal(wb.jug, 0); assert.ok(wb.xmax - wb.xmin > 80, `bounced back ${wb.xmax - wb.xmin}px`);
   assert.ok(wb.hp < 80, 'the follow-up air kick lands: ' + wb.hp);
 });
+
+test('key events: sound, shake, after-images and the hit spark style play as keys are reached, and change nothing in the simulation', () => {
+  const r = run(`(() => { const ev = { sound: 'whoosh', shake: 0.6, after: true, spark: 'slash' };
+    const kick = CHAR_DEFS.stick.moves.kick, d = { ...CHAR_DEFS.stick, moves: { ...CHAR_DEFS.stick.moves, kick: { ...kick, keys: kick.keys.map(k => ({ ...k, ...ev })) } } };
+    const go = ch => { const w = new World({ a: [0.1, 'kick'], b: 'dummy', ax: 330, bx: 380 }, {}, 7, [ch, CHARS.stick]); w.loop = false; const snd = [];
+      w.sfx = n => snd.push(n); let tr = 0, after = 0, slash = 0;
+      for (let i = 0; i < 40; i++) { w.advance(1/60, NOIN); tr = Math.max(tr, w.trauma); after = Math.max(after, w.a.after.length); slash += w.parts.filter(p => p.t === 'slash').length; }
+      return { snd: snd.join(' '), tr, after, slash, hash: w.stateHash(), hp: w.b.hp }; };
+    const a = go(makeCharacter(d)), b = go(CHARS.stick); return { a, b }; })()`);
+  assert.match(r.a.snd, /whoosh/); assert.doesNotMatch(r.b.snd, /whoosh/); assert.match(r.b.snd, /hit|thud/, 'a hit sounds by default');
+  assert.ok(r.a.tr > r.b.tr, `shake ${r.a.tr} vs ${r.b.tr}`); assert.ok(r.a.after > 0 && r.b.after === 0); assert.ok(r.a.slash > 0 && r.b.slash === 0);
+  assert.equal(r.a.hash, r.b.hash); assert.ok(r.a.hp < 100);
+});

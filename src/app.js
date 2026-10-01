@@ -56,7 +56,8 @@ function buildTop() {
     grp('', 'Layout and keys', button(':search:', 'Find anything (⌘K): a mode, a toolbar tool, an action, a character, a move or a setting', openPalette),
       button(':view_sidebar:', 'Panel: show / hide the side panel (H)', togglePanel),
       button(':keyboard:', 'Keys: rebind any action, set up macros, and help', keysPanel),
-      toggle(':help:', 'Hints: the line of mouse and key help under the view and the frame meter\'s colour legend; off, they show for a few seconds on the first visit to each mode (?)', () => ui.hints, toggleHints)));
+      toggle(':help:', 'Hints: the line of mouse and key help under the view and the frame meter\'s colour legend; off, they show for a few seconds on the first visit to each mode (?)', () => ui.hints, toggleHints),
+      toggle(':waves:', 'Sound: whooshes, hits and blocks in play and in the animate preview, synthesized live (no sound files); off by default in automated browsers', () => !muted(), toggleMute)));
   $('transport').replaceChildren(grp('', 'Playback', pause,
     button(':fast_rewind:', 'Rewind one second: every fight is restored from its last checkpoint and replayed with the same inputs, so your own and the AI\'s fights rewind too; play on from there to try something else (V)', () => rewind(60)),
     button(':skip_previous:', 'Back one frame (⇧N)', () => rewind(1)),

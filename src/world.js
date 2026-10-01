@@ -38,7 +38,7 @@ class World {
   }
   reset() {
     const s = this.scen, scripted = Array.isArray(s.a);
-    Object.assign(this, { rand: makeRand(this.seed), parts: [], trauma: 0, zoom: 0, slowT: 0, T: 0, simT: 0,
+    Object.assign(this, { rand: makeRand(this.seed), fx: makeRand(this.seed + 99), parts: [], trauma: 0, zoom: 0, slowT: 0, T: 0, simT: 0,
       frozenT: 0, hits: 0, blocks: 0, parries: 0, clashes: 0, koT: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
       pend: null, adv: null, macro: null, combo: 1, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
     if (!this.replaying) { this.log = []; this.checkpoints = []; this.sums = {}; this.desync = null; } // every frame since the start: [dt, input, macro], for rewind and replays
@@ -285,6 +285,7 @@ class World {
     if (def) { // blocked or parried: a shorter freeze and a ring, no combo
       if (def === 'catch') { vic.catchHit(att, hit); return; }
       if (def === 'parry') { vic.parryHit(att); this.parries++; } else { vic.blockHit(att, m); this.blocks++; }
+      this.sound('block', pt[0]);
       const hs = (m.stop || cfg.hitstop * m.power) * cfg.powerScale * (def === 'parry' ? 1.2 : 0.5);
       vic.freeze = hs; att.freeze = Math.max(att.freeze, hs); // (max: in a trade the attacker was just struck too)
       this.trauma = Math.min(1, this.trauma + 0.1 * m.power * cfg.powerScale);
@@ -306,14 +307,32 @@ class World {
     this.zoom += cfg.zoomPunch * power * (1 + cfg.comboZoom * n);
     if (fin && cfg.slowmo) this.slowT = 0.35;
     this.victim = vic;
+    // the striking key's spark style (key event spark); the plain sparks still draw their random numbers so a style changes no fight
+    const st = att.action?.m.keys?.[att.action.i]?.spark;
+    this.sound(power > 1.5 ? 'thud' : 'hit', pt[0]);
     if (cfg.sparks > 0) {
-      this.parts.push({ t: 'ring', x: pt[0], y: pt[1], z: vic.z, life: 0.16, max: 0.16 });
+      if (st !== 'none') this.parts.push({ t: 'ring', x: pt[0], y: pt[1], z: vic.z, life: 0.16, max: 0.16 });
       for (let i = 0; i < cfg.sparks * power; i++) {
         const a = this.rand(-0.8, 0.8) + (att.dir > 0 ? 0 : Math.PI), s = this.rand(250, 700), life = this.rand(0.12, 0.3);
-        this.parts.push({ t: 'spark', x: pt[0], y: pt[1], z: vic.z, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life });
+        if (st !== 'none' && st !== 'slash') this.parts.push({ t: 'spark', x: pt[0], y: pt[1], z: vic.z, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life, w: st === 'heavy' ? 2 : 1 });
       }
+      if (st && st !== 'none' && st !== 'hit') this.spark(st, pt, vic.z, att.dir);
     }
   }
+  // a styled hit spark (key event spark), from the effects' own random numbers: heavy = a big flash and ring, slash = a cut across the
+  // point, blunt = a flash with chunky bits
+  spark(st, pt, z, dir) {
+    const r = this.fx, P = this.parts;
+    if (st === 'slash') { const a = r(-1.1, -0.5) * dir; P.push({ t: 'slash', x: pt[0], y: pt[1], z, a, life: 0.18, max: 0.18 }); return; }
+    P.push({ t: 'flash', x: pt[0], y: pt[1], z, r: st === 'heavy' ? 34 : 22, life: 0.12, max: 0.12 });
+    if (st === 'heavy') P.push({ t: 'ring', x: pt[0], y: pt[1], z, life: 0.28, max: 0.28, big: true });
+    if (st === 'blunt') for (let i = 0; i < 5; i++) {
+      const a = r(0, 7), s = r(150, 400), life = r(0.15, 0.3);
+      P.push({ t: 'spark', x: pt[0], y: pt[1], z, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life, w: 2.5 });
+    }
+  }
+  // a sound (sound.js) for the live fight only: rewinds, replays and the other cells stay silent
+  sound(n, x) { if (this.sfx && !this.replaying) this.sfx(n, x / W); }
   // two active strikes met (see Fighter.clashWith): both moves stop, both recoil apart in a short stun, sparks
   clash(a, b, pt) {
     const cfg = this.cfg, stun = cfg.clashStun;
@@ -371,11 +390,19 @@ class World {
       const k = p.life / p.max;
       ctx.save(); ctx.translate(0, (p.z || 0) * ZS);
       if (p.t === 'spark') {
-        ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 2.5 * k;
+        ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 2.5 * k * (p.w || 1);
         ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.03, p.y - p.vy * 0.03); ctx.stroke();
       } else if (p.t === 'ring') {
         ctx.strokeStyle = p.col || '#222'; ctx.lineWidth = 3 * k;
-        ctx.beginPath(); ctx.arc(p.x, p.y, 6 + (1 - k) * 36, 0, 7); ctx.stroke();
+        ctx.beginPath(); ctx.arc(p.x, p.y, 6 + (1 - k) * (p.big ? 70 : 36), 0, 7); ctx.stroke();
+      } else if (p.t === 'flash') {
+        ctx.fillStyle = `rgba(255,236,170,${0.85 * k})`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1.4 - 0.6 * k), 0, 7); ctx.fill();
+      } else if (p.t === 'slash') { // a thin crescent across the point, widest in the middle
+        const L = 46 * (1.3 - 0.3 * k), c = Math.cos(p.a), s = Math.sin(p.a), w = 7 * k;
+        ctx.fillStyle = `rgba(255,255,255,${k})`; ctx.strokeStyle = `rgba(192,57,43,${k})`; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(p.x - c * L, p.y - s * L); ctx.quadraticCurveTo(p.x - s * w, p.y + c * w, p.x + c * L, p.y + s * L);
+        ctx.quadraticCurveTo(p.x + s * w, p.y - c * w, p.x - c * L, p.y - s * L); ctx.fill(); ctx.stroke();
       } else {
         ctx.fillStyle = `rgba(120,110,100,${0.35 * k})`;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (2 - k), 0, 7); ctx.fill();

@@ -166,7 +166,7 @@ function drawTimeline() {
     }
     // flag icons along the bottom
     const icons = [k.active && ['my_location', RED[0]], k.inv && ['block', '#2c6fb0'], k.unblock && ['crisis_alert', RED[0]], k.armor && ['shield', '#b07a2c'],
-      k.catch && ['back_hand', '#2c6fb0'], k.warp && ['blur_on', '#8e44ad'], k.grip && ['pan_tool', '#b07a2c'], k.release && ['sports_handball', '#b07a2c'], i === m.cancel && ['sync_alt', '#8e44ad'], !k.p && ['accessibility_new', '#888'], hold && ['pause', '#888']].filter(Boolean);
+      k.catch && ['back_hand', '#2c6fb0'], k.warp && ['blur_on', '#8e44ad'], (k.sound || k.shake || k.after || k.spark) && ['auto_awesome', '#c0392b'], k.grip && ['pan_tool', '#b07a2c'], k.release && ['sports_handball', '#b07a2c'], i === m.cancel && ['sync_alt', '#8e44ad'], !k.p && ['accessibility_new', '#888'], hold && ['pause', '#888']].filter(Boolean);
     icons.forEach(([n, c], j) => glyph(n, x + (4 + j * 14) * dpr, y + h - 4 * dpr, c, 13));
     ctx.restore();
   });
@@ -266,7 +266,7 @@ function pvScen() {
   };
   return s;
 }
-function buildPreview() { anim.pv = newWorld(pvScen(), {}, 1, [currentChar(), CHARS[anim.target.char] || currentChar()]); }
+function buildPreview() { anim.pv = Object.assign(newWorld(pvScen(), {}, 1, [currentChar(), CHARS[anim.target.char] || currentChar()]), { sfx: playSound }); }
 // re-simulate the preview up to move time t (deterministic, so this is what the fight would show)
 function previewAt(t) {
   const w = anim.pv, m = curMove();
@@ -471,6 +471,10 @@ const MOVE_FLAGS = {
 
 // what normalize returns to: the built-in move of the same name (copies like jab2: the move they were copied from)
 const builtInMove = () => (CHAR_DEFS[CURRENT] || CHAR_DEFS.stick).moves[anim.move.replace(/\d+$/, '')];
+const SPARK_TIPS = { hit: 'Hit spark: the plain sparks and ring when a strike during this key lands', heavy: 'Heavy: a big flash, a wide ring and thick sparks',
+  slash: 'Slash: a cut across the point of impact (blades)', blunt: 'Blunt: a flash and chunky bits (clubs, stomps)', none: 'No spark' };
+const SOUND_TIPS = { '': 'No sound as this key is reached (hits and blocks still sound)', whoosh: 'Sound: a whoosh as this key is reached (swings)',
+  hit: 'Sound: a slap as this key is reached', thud: 'Sound: a low thud as this key is reached (landings, stomps)' };
 const KEY_VARS = [{ k: 'e', opts: Object.keys(EASE) }, { k: 'lunge', min: 0, max: 600, step: 10 }];
 function keyPanel() {
   const title = heading('', 'The selected key: the pose reached at its end, how long it takes and how it eases. Drag joints in the editor to pose it. Adding, splitting, deleting and retiming keys: the bar above the timeline.',
@@ -508,6 +512,12 @@ function keyPanel() {
         () => (k().catchH || Object.keys(HEIGHT_TIPS)).includes(ht),
         v => { const cur = (k().catchH || Object.keys(HEIGHT_TIPS)).filter(x => x !== ht), next = v ? Object.keys(HEIGHT_TIPS).filter(x => x === ht || cur.includes(x)) : cur;
           setKey('catchH', next.length === 5 ? undefined : next); }))))),
+    adv(h('div', { cls: 'row', tip: 'Key events: effects played as this key is reached or hits; they change nothing in the fight' }, h('span', { textContent: 'events' }), h('span', { cls: 'bar' },
+      seg(['hit', 'heavy', 'slash', 'blunt', 'none'], () => k().spark || 'hit', v => setKey('spark', v === 'hit' ? undefined : v), SPARK_TIPS, v => v === 'hit' ? ':auto_awesome: hit' : v),
+      seg(['', 'whoosh', 'hit', 'thud'], () => k().sound || '', v => setKey('sound', v || undefined), SOUND_TIPS, v => v || ':block:'),
+      toggle(':blur_on: after', 'After-images: the fighter leaves fading copies of itself while this key plays (fast dashes, teleports)', () => !!k().after, v => setKey('after', v || undefined))))),
+    adv(slider('shake', { min: 0, max: 1, step: 0.05 }, () => k().shake || 0, v => setKey('shake', v || undefined, 'shake'),
+      'Key event: screen shake added as this key is reached (0 none … 1 the most; a heavy landing, a stomp).')),
     ...curMove().weapon ? [h('div', { cls: 'row', tip: 'Weapon hand: where pick-up and throw moves take or let go of the weapon' }, h('span', { textContent: 'hand' }), h('span', { cls: 'bar' },
       ...[['grip', ':pan_tool: grip', 'Grip: picking up (P+G over a weapon), the hand closes on the handle as this key is reached; the weapon slides to the hand until then. Unmarked: the first key.'],
         ['release', ':sports_handball: release', 'Release: throwing (P+G armed), the weapon leaves the hand as this key is reached. Unmarked: the first key.']].map(([n, l, t]) =>

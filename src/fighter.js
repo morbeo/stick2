@@ -6,7 +6,7 @@ class Fighter {
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
       kd: null, downT: 0, wake: null, won: false, wallB: false, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
-      z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
+      z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
       airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null });
     this.hp = this.c('health'); this.ch0 = ch.base || ch; // ch0: the character without its weapon
@@ -240,6 +240,8 @@ class Fighter {
       for (const j of this.ch.ids) a.from[j] ??= this.target[j]; // the weapon's bones join the tween where they are
     }
     if (k.warp) this.warp();
+    if (k.shake) this.w.trauma = Math.min(1, this.w.trauma + k.shake); // key events: screen shake, a sound
+    if (k.sound) this.w.sound(k.sound, this.x);
     if (this.ch.weapon && a.toss && (k.release || first && !a.m.keys.some(x => x.release))) { this.letGo(true, a.charge); this.action = a; }
   }
   // reaching for a weapon: it slides and turns on the floor so its handle meets the hand at the grip key; let go if the reach is cut short
@@ -394,6 +396,8 @@ class Fighter {
     if (this.flip && (this.action || this.kd)) this.flip = 0;
     if (!this.grounded) this.airT += dt;
     for (const g of this.after) g.t -= dt;
+    // key event after: after-images trail the body while the key plays
+    if (this.action?.m.keys[this.action.i]?.after && (this.afterT -= dt) <= 0) { this.afterT = 0.035; const P = this.body(), Q = {}; for (const k in P) Q[k] = [P[k][0], P[k][1]]; this.after.push({ P: Q, t: 0.2 }); }
     this.after = this.after.filter(g => g.t > 0);
     if (this.flip) this.spin = this.flip * 360 * Math.min(1, this.airT / (2 * c('jumpVel') / c('gravity')));
     else if (this.spin) { const to = Math.round(this.spin / 360) * 360; this.spin = approach(this.spin, to, 1440 * dt); if (this.spin === to) this.spin = 0; }
