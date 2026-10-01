@@ -23,6 +23,14 @@ try {
   // the editor helpers: a keyframed idle and walk loop from the procedural cycles, then a fight using them
   pickChar('stick'); studio.stance = 0; setMode('animate'); makeLoop('idle'); makeLoop('walk');
   if (!currentChar().moves.idle || currentChar().moves.walk.keys.length !== 8) errs.push('makeLoop');
+  // movement layers: + layer makes one at the state's procedural pose (its ref); it groups as layer, has a mix slider, and the + layer list drops it
+  { const lb = () => [...document.querySelectorAll('#side button')].find(b => b.textContent.includes('layer')); lb().click();
+    [...document.querySelectorAll('.pop button')].find(x => x.textContent === 'crouch').click();
+    const m = currentChar().moves.crouchLayer, sl = [...document.querySelectorAll('#side .row')].some(r => r.textContent.startsWith('mix'));
+    if (!m || anim.move !== 'crouchLayer' || JSON.stringify(m.keys[0].p) !== JSON.stringify(m.ref) || m.ref.handF === undefined && !Object.keys(m.ref).length || !sl) errs.push('makeLayer ' + [!!m, anim.move, sl]);
+    if (Math.abs(m.ref[currentChar().chains.leg[0][1].id] - currentChar().poses.stance[currentChar().chains.leg[0][1].id]) < 5) errs.push('layer ref is not the crouch');
+    lb().click(); if ([...document.querySelectorAll('.pop button')].some(x => x.textContent === 'crouch')) errs.push('layer list keeps crouch'); closePop();
+    deleteMove(); if (currentChar().moves.crouchLayer) errs.push('delete layer'); }
   // posing: body reach bends the spine as well, limb reach only the arm; mirror swaps the front and back limbs
   anim.move = 'jab'; selectKey(1);
   for (const r of ['limb', 'body']) {

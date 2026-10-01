@@ -637,3 +637,32 @@ test('the gallery shows every move and every movement: each move cell plays its 
   assert.deepEqual(r.unchecked, []);
   for (const [k, v] of Object.entries(r.motions)) assert.ok(v, k);
 });
+
+test('movement layers: a move named <state>Layer adds its offsets from its ref pose on top of the procedural pose while the state lasts, scaled by mix; nothing when idle', () => {
+  const r = JSON.parse(run(`(() => {
+    const out = {}, plain = makeCharacter(CHAR_DEFS.stick), id = plain.chains.spine[0][0].id, ref = plain.poses.stance;
+    const key = { ...ref, [id]: ref[id] + 40 }, layer = mix => ({ ref, mix, keys: [{ d: 0.01, p: key }, { d: 1, p: key }] });
+    const scen = { crouch: 'crouch', rise: 'jump', fall: 'jump', flip: 'flip', run: 'run', dash: 'dash', backDash: 'back dash', backWalk: 'back walk',
+      airDash: 'air dash', guard: 'guard', hurt: 'hit reaction', tumble: 'launched', lying: 'knockdown & getup', dizzy: 'dizzy', turn: 'turn' };
+    const most = (kind, s, mix = 1) => {
+      const ch = makeCharacter({ ...CHAR_DEFS.stick, moves: { ...CHAR_DEFS.stick.moves, [kind + 'Layer']: layer(mix) } });
+      const w = new World(MOVEMENTS[s][1], {}, 7, [ch]); w.loop = false;
+      let m = 0;
+      for (let i = 0; i < 150; i++) {
+        w.advance(1 / 60, NOIN);
+        const f = w.a, P = f.basePose(), at = f.layerAt; f.ch = plain; f.layerAt = {}; const Q = f.basePose(); f.ch = ch; f.layerAt = at;
+        m = Math.max(m, Math.abs(P[id] - Q[id]));
+      }
+      return Math.round(m);
+    };
+    out.kinds = Object.keys(LAYERS); out.scen = Object.keys(scen);
+    for (const k in scen) out[k] = most(k, scen[k]);
+    out.half = most('crouch', 'crouch', 0.5);
+    out.idle = Object.keys(scen).map(k => most(k, 'idle'));
+    return JSON.stringify(out);
+  })()`));
+  assert.deepEqual(r.kinds, r.scen);
+  for (const k of r.scen) assert.ok(r[k] >= 30 && r[k] <= 40, `${k}: ${r[k]}`);
+  assert.equal(r.half, 20);
+  assert.deepEqual(r.idle, r.scen.map(() => 0));
+});

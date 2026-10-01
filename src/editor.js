@@ -534,7 +534,7 @@ function keyPanel() {
 }
 // ---------- move list: grouped by type / striking limb / height, sorted, filtered by name or input ----------
 const MOVE_GROUPS = {
-  type: m => m.weapon ? 'weapon' : m.air ? 'air' : m.throw ? 'throw' : m.special ? 'special' : m.power ? 'normal' : 'other',
+  type: m => m.ref ? 'layer' : m.weapon ? 'weapon' : m.air ? 'air' : m.throw ? 'throw' : m.special ? 'special' : m.power ? 'normal' : 'other',
   limb: (m, ch) => m.power ? [...new Set(hitIds(m).map(id => ch.by[id]?.role || 'none'))].join(' + ') || 'none' : 'other',
   height: m => m.power ? m.height || 'mid' : 'other',
   // the stance whose own binds start the move (main: only the main binds; unbound: no input in any stance)
@@ -543,8 +543,8 @@ const MOVE_GROUPS = {
   style: m => m.style || (m.power ? 'basic' : 'other'),
   none: () => '',
 };
-const GROUP_ORDER = ['main', 'normal', 'special', 'throw', 'weapon', 'air', 'arm', 'leg', 'head', 'spine', 'tail', 'high', 'shigh', 'mid', 'smid', 'low', 'boxing', 'karate', 'muay thai', 'capoeira', 'kung fu', 'taekwondo', 'wrestling', 'basic', 'none', 'other', 'unbound'];
-const GROUP_TIPS = { type: 'Group by type: normal, special, throw, weapon (played while holding a weapon of its class), air, other (not attacks)', limb: 'Group by the striking limb', height: 'Group by height', stance: 'Group by the stance whose binds start the move', style: 'Group by fighting style: boxing, karate, muay thai, capoeira, kung fu, taekwondo, wrestling (the style property), basic', none: 'One list' };
+const GROUP_ORDER = ['main', 'normal', 'special', 'throw', 'weapon', 'air', 'arm', 'leg', 'head', 'spine', 'tail', 'high', 'shigh', 'mid', 'smid', 'low', 'boxing', 'karate', 'muay thai', 'capoeira', 'kung fu', 'taekwondo', 'wrestling', 'basic', 'none', 'layer', 'other', 'unbound'];
+const GROUP_TIPS = { type: 'Group by type: normal, special, throw, weapon (played while holding a weapon of its class), air, layer (movement layers), other (not attacks)', limb: 'Group by the striking limb', height: 'Group by height', stance: 'Group by the stance whose binds start the move', style: 'Group by fighting style: boxing, karate, muay thai, capoeira, kung fu, taekwondo, wrestling (the style property), basic', none: 'One list' };
 const SORT_TIPS = { order: 'As defined', name: 'By name', startup: 'Fastest first (startup frames)', damage: 'Most damage first' };
 const moveDamage = m => m.power ? m.damage ?? m.power * 8 : 0;
 const moveInputs = (ch, n) => [...Object.keys(slotsOf(CFG.plane)), ...Object.keys(ch.motions).flatMap(k => [k + 'Punch', k + 'Kick'])].filter(s => curBinds(withWeapon(ch, ch.moves[n]))[s] === n);
@@ -557,9 +557,24 @@ function makeLoop(kind) {
   const keys = Array.from({ length: n }, (_, i) => {
     const u = (i + 1) / n;
     if (kind === 'walk') f.walkPh = u * 2 * Math.PI; else f.time = u * T;
-    return { d: T / n, e: 'inOutCubic', p: mapVals(f.basePose(), v => Math.round(v)) };
+    return { d: T / n, e: 'inOutCubic', p: mapVals(f.procPose(), v => Math.round(v)) };
   });
   edit(def => { def.moves[name] = { keys }; });
+  pickMove(name);
+}
+// a movement layer (LAYERS): two keys at the procedural pose of the state, its ref; edits are offsets from it, added on top in a fight
+const LAYER_STATE = {
+  crouch: { crouching: true }, rise: { grounded: false, vy: -300 }, fall: { grounded: false, vy: 300 }, flip: { grounded: false, flip: 1 },
+  run: { running: true, vx: 1.6 }, dash: { vx: 2 }, backDash: { vx: -2 }, backWalk: { vx: -1 }, airDash: { grounded: false }, guard: { guarding: true },
+  hurt: {}, tumble: { kd: 'fly', vy: -200 }, lying: { kd: 'down' }, dizzy: { dizzyT: 1 }, turn: { face: 0 },
+};
+function makeLayer(kind) {
+  const ch = currentChar(), name = loopName(ch, studio.stance, kind + 'Layer'), s = LAYER_STATE[kind];
+  const f = Object.assign(Object.create(Fighter.prototype), { ch: { ...ch, moves: {} }, w: { cfg: CFG }, over: {}, stanceI: studio.stance,
+    seed: 1, dir: 1, face: 1, grounded: true, lean: 0, vx: 0, vy: 0, vz: 0, time: 0, walkPh: 0, flip: 0, reelT: 0, dizzyT: 0 }, s);
+  f.vx = (s.vx || 0) * f.c('maxSpeed');
+  const ref = mapVals(f.procPose(), v => Math.round(v));
+  edit(def => { def.moves[name] = { ref, keys: [{ d: 0.3, e: 'inOutCubic', p: { ...ref } }, { d: 0.3, e: 'inOutCubic', p: { ...ref } }] }; });
   pickMove(name);
 }
 // a move as a card: a drawing of its strike (the first active key); hovering plays it
@@ -692,6 +707,12 @@ function moveHeading() {
     vals => edit(def => { const m = def.moves[anim.move]; for (const k in vals) if (vals[k]) m[k] = vals[k]; else delete m[k]; })));
   return el;
 }
+// + layer: a keyframed movement layer for a state of this stance that has none yet
+function layerButton() {
+  const ch = currentChar(), free = Object.keys(LAYERS).filter(k => !ch.moves[loopName(ch, studio.stance, k + 'Layer')]);
+  return free.length ? h('div', { cls: 'bar' }, button(':add: layer :expand_more:', `A keyframed movement layer for the ${ch.stances[studio.stance].name} stance: pick a state; its keys start at the procedural pose of that state and what you change is added on top of the procedural / IK motion while the fighter is in it (the mix slider sets how much; delete it to go back)`,
+    (e, b) => popup(b, h('div', { cls: 'bar', onclick: closePop }, free.map(k => button(k, `${LAYERS[k][0]}: add a ${k} layer`, () => makeLayer(k))))))) : null;
+}
 function movePanel() {
   // the striking bone: the limb ends as buttons, any other bone from the popup or by Shift+clicking its joint
   // click = strike with this bone only, Shift+click = add or remove it (several limbs strike at once)
@@ -712,7 +733,10 @@ function movePanel() {
     ...moveList(),
     loops.length ? h('div', { cls: 'bar' }, loops.map(k => button(`:add: ${loopName(currentChar(), studio.stance, k)} loop`,
       `A keyframed ${k} loop for the ${currentChar().stances[studio.stance].name} stance, made from the procedural ${k}, to edit like a move; it replaces the procedural ${k} in this stance (delete it to go back)`, () => makeLoop(k)))) : null,
+    layerButton(),
     moveHeading(),
+    m().ref ? slider('mix', { min: 0, max: 1, step: 0.05 }, () => m().mix ?? 1, v => setMove('mix', v === 1 ? undefined : v, 'm.mix'),
+      'Layer strength: how much of this layer\'s offsets (its keys minus the procedural pose it was made from) is added on top of the procedural / IK motion in a fight. 0 = off, 1 = as keyed') : null,
     h('div', { cls: 'row', tip: 'Striking bones: each end is a strike (in limb mode the whole bone); with several, the one that lands counts, one hit per target. Shift+click a joint in the editor to pick it, ⌘/Ctrl+Shift+click to add or remove it.' },
       h('span', { textContent: 'hit' }), h('span', { cls: 'bar' }, tipSeg, hitB)),
     h('div', { cls: 'row', tip: 'Which inputs start this move in a fight' }, h('span', { textContent: 'input' }), h('span', { cls: 'bar' }, bindB,

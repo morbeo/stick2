@@ -19,7 +19,7 @@ class Fighter {
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0, jugUsed: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
-      airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null });
+      airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null, layerAt: {} });
     this.hp = this.c('health'); this.ch0 = ch.base || ch; // ch0: the character without its weapon
     this.target = this.basePose();
     this.disp = { ...this.target };
@@ -44,8 +44,19 @@ class Fighter {
   get st() { return this.ch.stances[this.stanceI] || this.ch.stances[0]; } // the current stance: its pose and binds
   get binds() { return this.st[bindsKey(this.c('plane'))]; } // the stance's input table for this plane (2D or 2.5D)
 
-  // the procedural layer, driven by bone roles so any skeleton breathes, walks and leans
+  // the procedural pose plus the movement layers (LAYERS): each plays from when its state began, adding its keys' offsets from its ref pose
   basePose() {
+    const P = this.procPose(), ch = this.ch, t = this.time;
+    for (const k in LAYERS) {
+      const m = ch.moves[loopName(ch, this.stanceI, k + 'Layer')], wt = m && LAYERS[k][1](this);
+      if (!wt) { delete this.layerAt[k]; continue; }
+      const L = samplePose(ch, m, (t - (this.layerAt[k] ??= t)) % total(m), this.c('easing')), mix = wt * (m.mix ?? 1);
+      for (const j in L) P[j] += (L[j] - (m.ref[j] ?? L[j])) * mix;
+    }
+    return P;
+  }
+  // the procedural layer, driven by bone roles so any skeleton breathes, walks and leans
+  procPose() {
     const ch = this.ch, ps = ch.poses, base = this.st.pose, P = { ...base }, t = this.time, g = ch.gait;
     if (this.kd === 'down') return Object.assign(P, ps.lie);
     if (this.kd) {

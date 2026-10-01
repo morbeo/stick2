@@ -418,6 +418,25 @@ const STANCE_KEYS = { 'S+G': 'S+G', '↓S+G': '↓ S+G', '→S+G': '→ S+G', '�
 const stanceKey = k => (k || 'S+G').replace('K+G', 'S+G');
 // a stance's keyframed idle / walk loop: the moves idle / walk for the main stance, craneIdle / craneWalk for a stance named crane
 const loopName = (ch, i, kind) => i ? ch.stances[i].name + kind[0].toUpperCase() + kind.slice(1) : kind;
+// movement layers: a move named <state>Layer (per stance, like the loops) is keyframed on top of the procedural / IK pose while the
+// fighter is in that state: [tip, how much of it shows (0..1) for a fighter f]
+const LAYERS = {
+  crouch: ['Crouching', f => +(!f.kd && f.grounded && (f.crouching || f.squatT > 0))],
+  rise: ['Rising in a jump', f => +(!f.kd && !f.grounded && !f.flip && f.vy <= 0)],
+  fall: ['Falling from a jump', f => +(!f.kd && !f.grounded && !f.flip && f.vy > 0)],
+  flip: ['A ninja flip', f => +(!f.kd && !f.grounded && !!f.flip)],
+  run: ['Running', f => +(!f.kd && f.grounded && f.running && f.dashT <= 0)],
+  dash: ['A forward dash', f => +(f.dashT > 0 && f.vx * f.dir > 0)],
+  backDash: ['A back dash', f => +(f.dashT > 0 && f.vx * f.dir < 0)],
+  backWalk: ['Walking backward, by how fast', f => !f.kd && f.grounded && f.dashT <= 0 && !f.crouching && f.vx * f.dir < 0 ? Math.min(1, -f.vx * f.dir / f.c('maxSpeed')) : 0],
+  airDash: ['An air dash', f => +(f.airDashT > 0)],
+  guard: ['Guarding (and in blockstun)', f => +f.guarding],
+  hurt: ['Hit: the hit reaction, until free', f => +(f.hurtT > 0 && !f.kd && !f.guarding && f.dizzyT <= 0)],
+  tumble: ['Knocked into the air: the tumble', f => +(!!f.kd && f.kd !== 'down')],
+  lying: ['Lying on the floor', f => +(f.kd === 'down')],
+  dizzy: ['Dizzy', f => +(f.dizzyT > 0)],
+  turn: ['Turning around, by how far through the turn', f => 1 - Math.abs(f.face)],
+};
 const BINDS = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: 'palms', backKick: 'fadeKick',
   upPunch: 'hammer', upKick: 'turnKick',
   downPunch: 'launcher', downKick: 'sweep', downFwdPunch: 'bodyBlow', downFwdKick: 'lowKick', downBackPunch: 'crouchJab', downBackKick: 'backSweep',
@@ -756,7 +775,7 @@ function makeHurt(pose, stun, rand, stance) {
 const resolve = (base, p) => p ? { ...base, ...p } : base;
 const total = m => m.keys.reduce((s, k) => s + k.d, 0);
 // the keyframe layer of move m at time t: eased from the base (the stance), key by key (what the springs then chase)
-function samplePose(ch, m, t, easing = CFG.easing, base = ch.poses.stance) {
+function samplePose(ch, m, t, easing = CFG.easing, base = m.ref || ch.poses.stance) { // a layer plays from its ref pose
   let from = base;
   for (const k of m.keys) {
     const to = resolve(base, k.p);
