@@ -195,7 +195,7 @@ function labRender() {
     const h = canvas.height * canvas.height / (canvas.height + ms);
     ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(canvas.width - 5 * dpr, lab.scroll / ms * (canvas.height - h), 3 * dpr, h);
   }
-  drawScope();
+  drawScope(); drawDebug();
 }
 
 function text(s, x, y, col, size, weight = '', align = 'left') {
@@ -468,7 +468,8 @@ const BASIC_CFG = new Set(['plant', 'plantStep', 'maxSpeed', 'jumpVel', 'gravity
   'comboStop', 'comboShake', 'comboSpeed', 'shake', 'zoomPunch', 'squash', 'sparks', 'ghost', 'boxes', 'scope']);
 // fuzzy match: every query letter appears in order (ignoring case and spaces)
 const fuzzy = (q, text) => { let i = 0; text = text.toLowerCase(); for (const c of q.toLowerCase().replace(/\s/g, '')) if ((i = text.indexOf(c, i) + 1) === 0) return false; return true; };
-function configPanel() {
+// debug: shown in the Debug section (the first group), after its variables
+function configPanel(debug = []) {
   let title = '';
   const rows = SCHEMA.map((s, i) => {
     if (Array.isArray(s)) { title = s[0]; return { el: groupHeading(s, i), head: true }; }
@@ -487,13 +488,14 @@ function configPanel() {
       oninput: e => { lab.q = e.target.value; filter(); },
       onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { e.target.value = lab.q = ''; filter(); } } }));
   filter();
-  return [search, heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes) stay.', ''),
+  const first = rows.findIndex((r, i) => i && r.head);
+  return [search, ...rows.slice(0, first).map(r => r.el), ...debug, heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes) stay.', ''),
     h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(optLabel(n), PRESET_TIPS[n], () => applyPreset(n))),
       button(':restart_alt: reset', 'All settings back to their defaults', () => applyPreset('juicy'))),
     heading('Power', 'How hard blows land and how far bodies fly and bounce (off the floor, the walls and the ceiling). Only those settings change.', ''),
     h('div', { cls: 'bar' }, seg(Object.keys(POWER), () => Object.keys(POWER).find(n => Object.entries(POWER[n]).every(([k, v]) => CFG[k] === v)),
       n => setCfg({ ...POWER[n] }), POWER_TIPS, n => `:${POWER_ICONS[n]}: ${n}`)),
-    ...rows.map(r => r.el)];
+    ...rows.slice(first).map(r => r.el)];
 }
 // buttons on a group heading that change all of its variables at once
 const groupKeys = i => { const k = []; for (let j = i + 1; j < SCHEMA.length && !Array.isArray(SCHEMA[j]); j++) k.push(SCHEMA[j].k); return k; };
@@ -527,8 +529,26 @@ function gridLink(row, s) {
   return expLink(row, `test ${s.k} in a grid, one value per cell`,
     () => { lab.kind = 'sweep'; Object.assign(lab.x, { k: s.k, lo: s.min, hi: s.max }); lab.y.k = ''; setMode('grid'); });
 }
-const labSide = () => { const [search, ...rest] = configPanel();
-  return [search, heading('Monitor', 'The bone picked in Debug → scope: its target angle (grey) against the drawn one (red), with the stats of the first or focused fight', ''), scopeCv, stats, ...rest]; };
+const labSide = () => configPanel([dbgInfo, h('div', { cls: 'bar' }, button(':content_copy: copy', 'Copy the debug information (for a bug report)', () => navigator.clipboard?.writeText(dbgInfo.textContent))),
+  h('p', { cls: 'note', textContent: 'monitor: the scope bone\'s target angle (grey) against the drawn one (red), with the stats of the first or focused fight' }), scopeCv, stats]);
+// the Debug section: build, engine and runtime numbers and the focused fight's state, refreshed twice a second
+const dbgInfo = h('pre', { cls: 'note dbg', tip: 'Debug information: the build (npm run build-info writes it), engine version, frame rate, and the focused fight: seed, frame, state hash, each fighter' });
+let dbgT = 0;
+function drawDebug() {
+  if (!dbgInfo.isConnected || performance.now() < dbgT) return;
+  dbgT = performance.now() + 500;
+  const b = typeof BUILD === 'object' ? BUILD : null, w = lab.focus?.w || lab.cells[0]?.w;
+  const name = f => f.action ? (f.action.m.hurt ? 'hurt' : Object.keys(f.ch.moves).find(k => f.ch.moves[k] === f.action.m) || 'move') : f.kd || '';
+  let kb = 0; try { for (const k in localStorage) if (localStorage.hasOwnProperty(k)) kb += (k.length + localStorage[k].length) / 512; } catch {}
+  dbgInfo.textContent = [
+    b ? `build ${b.commit}${b.dirty ? ' + changes' : ''} (${b.branch}) · ${b.date.slice(0, 16).replace('T', ' ')}` : 'build unknown (npm run build-info)',
+    `engine v${ENGINE_VERSION} · ${app.fps} fps · ${app.frameMs.toFixed(1)} ms/frame, worst ${app.worstMs.toFixed(0)} ms`,
+    `${app.mode} / ${lab.mode} · ${mode().worlds().length} worlds · ${Object.keys(DEFAULTS).filter(k => CFG[k] !== DEFAULTS[k]).length} settings changed`,
+    ...w ? [`fight: seed ${w.seed} · frame ${w.log.length} · ${w.simT.toFixed(2)} s · hash ${w.stateHash()} · ${w.hits} hits`,
+      ...w.fighters.map((f, i) => `P${i + 1} ${f.ch.name}: x ${f.x | 0} y ${f.y | 0} vx ${f.vx | 0} · hp ${Math.round(f.hp)} · ${frameState(f)} ${name(f)}`)] : [],
+    `canvas ${canvas.width}×${canvas.height} @${dpr} · storage ${kb.toFixed(0)} KB · ${navigator.userAgent.match(/(Firefox|Chrome|Version)\/[\d.]+/)?.[0] || ''}`,
+  ].join('\n');
+}
 
 // click focuses a cell; in breed / attacks a click breeds around it and Shift+click focuses
 function labClick(x, y, e) {
@@ -573,7 +593,7 @@ const labMode = {
   render: labRender,
   ctxBar: labCtx,
   side: labSide,
-  open: ['presets'],
+  open: ['debug', 'presets'],
   mouse(type, x, y, e) {
     if (lab.mode === 'impact' && !e.shiftKey && impactMouse(type, x, y)) return;
     if (type === 'down') labClick(x, y, e);

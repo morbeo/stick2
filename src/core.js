@@ -2,6 +2,10 @@
 // ---------- config (every tunable is exposed in the side panel) ----------
 // groups: [title, what it does, keys]. vars: k, default v, range or opts, tip (hover text), optTips (per option)
 const SCHEMA = [
+  ['Debug', 'Inspection aids, then the debug information: the build (commit, branch, uncommitted changes), engine version, frame rate, the focused fight (seed, frame, state hash) and each fighter\'s position, health and state, with a copy button for bug reports; and the scope of one bone.', 'G ghost · B boxes'],
+  { k: 'ghost', v: false, tip: 'Draw the keyframe (target) pose in blue behind the sprung pose.' },
+  { k: 'boxes', v: false, tip: 'Draw hurtboxes (blue), held weapons (amber: they clash but are never hurt) and active strikes and flying weapons (red).' },
+  { k: 'scope', v: 'uarmF', tip: 'Bone plotted in the sidebar scope: target (grey) vs drawn (red).' }, // a bone of the current character
   ['Movement', 'How the body travels: ground speed ramps up and down, jumps start with an anticipation squat.', 'A/D move · Space jump · S crouch'],
   { k: 'maxSpeed', v: 260, min: 50, max: 600, step: 10, tip: 'Top walking speed (px/s). Running near it turns J into a dash punch.' },
   { k: 'accel', v: 2400, min: 200, max: 20000, step: 100, tip: 'How fast you reach top speed (px/s²). Low = slidey start, high = instant.' },
@@ -137,10 +141,6 @@ const SCHEMA = [
   { k: 'flash', v: true, tip: 'Victim flashes white on the hit frame.' },
   { k: 'slowmo', v: true, tip: 'Brief slow motion after a finisher.' },
   { k: 'timeScale', v: 1, min: 0.05, max: 1, step: 0.05, tip: 'Simulation speed inside the world (hit stop and physics slow down too).' },
-  ['Debug', 'Inspection aids.', 'G ghost · B boxes'],
-  { k: 'ghost', v: false, tip: 'Draw the keyframe (target) pose in blue behind the sprung pose.' },
-  { k: 'boxes', v: false, tip: 'Draw hurtboxes (blue), held weapons (amber: they clash but are never hurt) and active strikes and flying weapons (red).' },
-  { k: 'scope', v: 'uarmF', tip: 'Bone plotted in the sidebar scope: target (grey) vs drawn (red).' }, // a bone of the current character
 ];
 const CFG = {}, DEFAULTS = {}, SPEC = {};
 for (const s of SCHEMA) if (!Array.isArray(s)) { DEFAULTS[s.k] = CFG[s.k] = s.v; SPEC[s.k] = s; }

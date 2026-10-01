@@ -141,6 +141,10 @@ try {
     const conf = window.confirm; let asked = 0; window.confirm = () => (asked++, true); keepRandom(0); window.confirm = conf;
     if (n1 !== n0 + 1 || Object.keys(DEFS).length !== n1 || !asked || CURRENT !== name) errs.push('keep random ' + [n0, n1, Object.keys(DEFS).length, asked]);
     delete DEFS[name]; delete CHARS[name]; creator.expOn = false; pickChar('stick'); }
+  // debug: the first section of the lab settings, with the engine version and the fighters of the focused fight
+  { setMode('play'); panels(); dbgT = 0; drawDebug();
+    if (!dbgInfo.isConnected || !dbgInfo.textContent.includes('engine v' + ENGINE_VERSION) || !/P2 /.test(dbgInfo.textContent)) errs.push('debug info ' + dbgInfo.textContent.slice(0, 80));
+    if ($('side').querySelector('.head, h3')?.textContent.indexOf('Debug') < 0) errs.push('debug not first'); }
 } catch (e) { errs.push(e.message + ' ' + e.stack.split('\\n')[1]); }
 document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK';
 </script></body>`;

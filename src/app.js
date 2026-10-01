@@ -1,6 +1,6 @@
 'use strict';
 // ---------- app: mode buttons, transport, frame loop, keyboard and mouse ----------
-const app = { mode: 'play', paused: false, stepOnce: false, speed: 1, loop: true, scrub: false, scrubF: null, hintUntil: 0 };
+const app = { mode: 'play', paused: false, stepOnce: false, speed: 1, loop: true, scrub: false, scrubF: null, hintUntil: 0, fps: 0, frameMs: 0, worstMs: 0 };
 const MODES = {
   play: 'Fight in one arena. Pick who fights: you, the AI, scripted combos, crowds.',
   grid: 'Nine copies of one fight side by side, each with different settings. Click a cell to focus it.',
@@ -86,8 +86,11 @@ function drawPaused(r) {
   ctx.restore();
 }
 let last = performance.now();
+const perf = { t0: last, frames: 0, worst: 0 }; // frames per second and the slowest frame, for the Debug panel
 function frame(now) {
   const raw = Math.min(0.05, (now - last) / 1000);
+  perf.frames++; perf.worst = Math.max(perf.worst, now - last);
+  if (now - perf.t0 >= 1000) { Object.assign(app, { fps: perf.frames, worstMs: perf.worst, frameMs: (now - perf.t0) / perf.frames }); Object.assign(perf, { t0: now, frames: 0, worst: 0 }); }
   last = now;
   const inp = readInput();
   if (app.scrub) { if (app.scrubF !== null) scrub(app.scrubF); }
