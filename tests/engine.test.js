@@ -225,6 +225,19 @@ test('rewind replays the fight to the same state, AI and human input included', 
   assert.deepEqual(r.again, r.later), assert.ok(r.same, 'the state hash after replaying forward matches');
 });
 
+test('planted feet stay put while the body walks over them, step when left behind, and rewind the same', () => {
+  const r = plant => json(`(() => { const w = new World(SCENARIOS.walk, { plant: ${plant} }, 3, [CHARS.stick, CHARS.stick]); w.loop = false;
+    let slide = 0, steps = 0, prev = null;
+    for (let i = 0; i < 240; i++) { w.advance(1 / 60, NOIN); const f = w.a, P = f.body(), cur = ['shinF', 'shinB'].map(id => [...P[id]]), on = f.feet.map(x => x && x.t >= 1);
+      if (prev) cur.forEach((p, j) => { if (p[1] > f.groundY - 12 && prev.p[j][1] > f.groundY - 12 && (!${plant} || on[j] && prev.on[j])) slide += Math.abs(p[0] - prev.p[j][0]); });
+      steps += f.feet.filter(x => x && x.t > 0 && x.t < 1).length > 0 && !prev?.stepping; prev = { p: cur, on, stepping: f.feet.some(x => x && x.t > 0 && x.t < 1) }; }
+    const h = w.stateHash(); w.rewind(60); for (let i = 0; i < 60; i++) w.advance(1 / 60, NOIN);
+    return { slide, steps, same: w.stateHash() === h }; })()`);
+  const off = r(false), on = r(true);
+  assert.ok(off.slide > 500, 'off: feet slide ' + off.slide), assert.ok(on.slide < off.slide / 10, 'on: planted ' + on.slide);
+  assert.ok(on.steps >= 3, 'steps ' + on.steps), assert.ok(on.same, 'rewinds to the same state');
+});
+
 test('rewind after a long fight starts from a checkpoint, not from the start', () => {
   const r = json(`(() => { const w = new World(SCENARIOS['ai vs ai'], { health: 1e6 }, 3, [CHARS.stick, CHARS.ninja]); w.loop = false;
     for (let i = 0; i < 7200; i++) w.advance(1 / 60, NOIN);

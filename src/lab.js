@@ -452,7 +452,7 @@ function applyPreset(name) {
   setCfg({ ...DEFAULTS, ...PRESETS[name], ...keep });
 }
 // the settings shown in each group without "more" (the ones most worth turning first)
-const BASIC_CFG = new Set(['maxSpeed', 'jumpVel', 'gravity', 'dashSpeed', 'airSpeed', 'fallSpeed', 'easing', 'attackSpeed', 'filter', 'response',
+const BASIC_CFG = new Set(['plant', 'plantStep', 'maxSpeed', 'jumpVel', 'gravity', 'dashSpeed', 'airSpeed', 'fallSpeed', 'easing', 'attackSpeed', 'filter', 'response',
   'hitstop', 'hitShake', 'hitTest', 'powerScale', 'chains', 'juggleDecay', 'health', 'damage', 'chip', 'parry', 'staggerAt', 'dizzyAt',
   'grabReach', 'techWindow', 'weapon', 'weaponStart', 'disarm', 'falls', 'floorBounce', 'wallBounce', 'plane', 'flips', 'dash',
   'comboStop', 'comboShake', 'comboSpeed', 'shake', 'zoomPunch', 'squash', 'sparks', 'ghost', 'boxes', 'scope']);

@@ -8,7 +8,7 @@ class Fighter {
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, flyT: 0, guardT: -9, stanceI: 0,
-      airJumps: 0, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0 });
+      airJumps: 0, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null });
     this.hp = this.c('health'); this.ch0 = ch.base || ch; // ch0: the character without its weapon
     this.target = this.basePose();
     this.disp = { ...this.target };
@@ -401,6 +401,39 @@ class Fighter {
     }
 
     if (this.rag) this.ragStep(dt);
+    this.plantFeet(dt);
+  }
+  // foot planting (plant setting): a foot the animation puts on the floor stays at its spot in the world and its leg bends to reach it
+  // (two-bone IK on the bones above the ankle, the knee bending the way the animation bends it); a foot left more than plantStep
+  // from where the animation puts it steps there, one foot at a time. The result (planted) is what is drawn and hit; the springs keep disp
+  plantFeet(dt) {
+    const c = k => this.c(k), ch = this.ch;
+    this.planted = null;
+    if (!c('plant') || !this.grounded || this.kd || this.rag || this.spin || this.y < 0) { this.feet = []; return; }
+    const wa = {}, L = fk(ch, this.disp, 1, this.lens, wa), p = { ...this.disp }, k = this.face * (1 - this.sq * 0.5);
+    let fy = 0; for (const b of ch.bones) fy = Math.max(fy, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
+    ch.chains.leg.forEach((cn, i) => {
+      const ai = cn.length >= 3 ? cn.length - 2 : cn.length - 1, a = cn[ai], th = cn[ai - 1], tip = cn[cn.length - 1];
+      if (!th || fy - Math.max(L[a.id][1], L[tip.id][1]) > 4) { this.feet[i] = null; return; } // lifted by the animation: it leads
+      const wx = this.x + L[a.id][0] * k, f = this.feet[i] ??= { x: wx, from: wx, t: 1 }; // t < 1: stepping from from to x
+      const far = Math.abs(f.x - wx), busy = this.feet.some(o => o && o !== f && o.t < 1);
+      if (f.t >= 1 && far > c('plantStep') && (!busy || far > c('plantStep') * 2.5)) { f.from = f.x; f.t = 0; }
+      let fx = f.x, lift = 0;
+      if (f.t < 1) {
+        f.x = wx + (wx - f.from) * 0.25; // lands a little past where the animation wants it
+        f.t = Math.min(1, f.t + dt / c('plantStepT'));
+        fx = f.from + (f.x - f.from) * EASE.inOutCubic(f.t); lift = Math.sin(Math.PI * f.t) * c('plantLift');
+      }
+      // the leg: thigh (th) from its root o, shin (a) to the ankle at (tx, ty), in the unflipped rig space
+      const pb = ch.by[th.parent], pw = pb ? wa[pb.id] : 0, o = L[th.parent || 'hip'], l1 = this.lens[th.id], l2 = this.lens[a.id];
+      const tx = (fx - this.x) / k - o[0], ty = L[a.id][1] - lift - o[1], d = clamp(Math.hypot(tx, ty), Math.abs(l1 - l2) + 0.01, l1 + l2 - 0.01);
+      const base = Math.atan2(tx, ty) / R, al = Math.acos(clamp((l1 * l1 + d * d - l2 * l2) / (2 * l1 * d), -1, 1)) / R;
+      const w1 = [base + al, base - al].reduce((m, w) => Math.abs(wrap180(w - wa[th.id])) < Math.abs(wrap180(m - wa[th.id])) ? w : m);
+      const kn = [o[0] + Math.sin(w1 * R) * l1, o[1] + Math.cos(w1 * R) * l1], w2 = Math.atan2(o[0] + tx - kn[0], o[1] + ty - kn[1]) / R;
+      const set = (b, w, pw, prw) => { p[b.id] = this.disp[b.id] + wrap180(w - pw + b.level * (pw - prw) - this.disp[b.id]); };
+      set(th, w1, pw, pb ? pb.restW : 0); set(a, w2, w1, th.restW);
+    });
+    this.planted = p;
   }
   // this substep's strikes against the foes (after every fighter has moved, so two strikes in the same frame can clash)
   // foes: every fighter on another team (one move can hit several)
@@ -709,7 +742,7 @@ class Fighter {
     for (const k in L) P[k] = [ax + L[k][0] * sx, ay + (L[k][1] - fy) * sy];
     return P;
   }
-  body() { return this.points(this.disp, this.lens); }
+  body() { return this.points(this.planted || this.disp, this.lens); }
   recordTrail() {
     const P = this.body();
     this.trail.push(this.ch.tips.map(b => P[b.id]));
