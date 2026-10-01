@@ -3,9 +3,9 @@
 // [action, group, default keys, tip]. Keys are KeyboardEvent codes, with 'Shift+' / 'Alt+' for combinations
 const ACTIONS = [
   ['left', 'fight', ['KeyA', 'ArrowLeft'], 'Move left'], ['right', 'fight', ['KeyD', 'ArrowRight'], 'Move right'],
-  ['up', 'fight', ['KeyW', 'ArrowUp'], 'Up: a direction for moves · 2.5D: into the screen (lanes: double tap sidesteps)'],
+  ['up', 'fight', ['KeyW', 'ArrowUp'], '2D: jump (with J / K together: an up attack) · 2.5D: a direction for moves and into the screen (lanes: double tap sidesteps)'],
   ['down', 'fight', ['KeyS', 'ArrowDown'], 'Crouch (and the down of special motions) · 2.5D: out of the screen (lanes: double tap sidesteps)'],
-  ['hop', 'fight', ['Space'], 'Jump, in every plane; with ← / → held a ninja flip (flips setting)'],
+  ['hop', 'fight', ['Space'], 'Jump, in every plane (2D: ↑ too); with ← / → held a ninja flip (flips setting)'],
   ['punch', 'fight', ['KeyJ'], 'Punch (P)'], ['kick', 'fight', ['KeyK'], 'Kick (K)'], ['special', 'fight', ['KeyU'], 'Special (S): with a direction, a different special'],
   ['guard', 'fight', ['KeyL'], 'Guard (G), hold: blocks attacks from the front only; with ↓ a low guard. Tap it just before a hit to parry'],
   ['pause', 'transport', ['KeyP'], 'Pause / play'], ['step', 'transport', ['KeyN'], 'Advance one 60 fps frame'],
@@ -34,7 +34,7 @@ function act(e) {
   return ACTIONS.find(([a]) => keymap[a].includes(c))?.[0] ?? ACTIONS.find(([a, g]) => g === 'fight' && keymap[a].includes(e.code))?.[0];
 }
 const fightHint = () => { const k = a => keyLabel(keymap[a][0] || '—');
-  return `${k('left')}/${k('right')} move · ${(mode().worlds()[0]?.cfg ?? CFG).plane === '2d' ? `${k('down')} crouch` : `${k('up')}/${k('down')} depth`} · ${k('hop')} jump · ${k('punch')} punch · ${k('kick')} kick · ${k('special')} special · ${k('guard')} guard (tap: parry) · keys: rebind, macros`; };
+  return `${k('left')}/${k('right')} move · ${(mode().worlds()[0]?.cfg ?? CFG).plane === '2d' ? `${k('up')} jump · ${k('down')} crouch` : `${k('up')}/${k('down')} depth · ${k('hop')} jump`} · ${k('punch')} punch · ${k('kick')} kick · ${k('special')} special · ${k('guard')} guard (tap: parry) · keys: rebind, macros`; };
 const macroFor = e => macros.find(m => m.key === combo(e) || m.key === e.code);
 const keyLabel = k => k.replace('Shift+', '⇧').replace('Alt+', '⌥').replace(/^Key|^Digit/, '')
   .replace(/Arrow(Left|Right|Up|Down)/, (_, d) => ({ Left: '←', Right: '→', Up: '↑', Down: '↓' })[d]).replace('Comma', ',').replace('Period', '.');

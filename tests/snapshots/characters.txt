@@ -1,5 +1,5 @@
 stick      hits 16 hp 0.0 100.0
-brute      hits 11 hp 60.1 62.8
+brute      hits 13 hp 22.4 85.0
 dwarf      hits 12 hp 0.0 100.0
 minotaur   hits 11 hp 71.4 43.2
 demon      hits 13 hp 57.2 23.8

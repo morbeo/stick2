@@ -198,14 +198,25 @@ const STICK_HURT = {
 };
 // ---------- characters ----------
 const HITS = { fh: 'handF', bh: 'handB', ff: 'footF', bf: 'footB' };
-// which move each input slot triggers (a character's binds override these)
+// which move each input slot triggers (a character's binds override these). 2D and 2.5D have separate tables:
+// in 2D ↑ jumps (↑ with J / K in the jump squat is an up attack instead) and the air has its own ↑ / ↓ moves;
+// in 2.5D (VF-style) Space jumps and every direction × button is a ground move.
 // Directions in numpad terms (6 = towards the opponent): a diagonal without a move falls back to its vertical, then to neutral
 const BINDS = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: 'palms', backKick: null,
+  upPunch: 'hammer', upKick: 'turnKick',
+  downPunch: 'launcher', downKick: 'sweep', downFwdPunch: null, downFwdKick: 'lowKick', downBackPunch: null, downBackKick: null,
+  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: null, airUpKick: null, airDownPunch: null, airDownKick: null, throw: 'grab',
+  qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: 'charge', dpKick: null,
+  special: 'spin', fwdSpecial: 'rush', backSpecial: 'catch', upSpecial: 'rising', downSpecial: 'stomp', airSpecial: null };
+const BINDS_25 = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: 'palms', backKick: null,
   upPunch: 'hammer', upKick: 'turnKick', upFwdPunch: 'headbutt', upFwdKick: null, upBackPunch: null, upBackKick: null,
   downPunch: 'launcher', downKick: 'sweep', downFwdPunch: null, downFwdKick: 'lowKick', downBackPunch: null, downBackKick: null,
   dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', throw: 'grab',
   qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: 'charge', dpKick: null,
   special: 'spin', fwdSpecial: 'rush', backSpecial: 'catch', upSpecial: 'rising', downSpecial: 'stomp', airSpecial: null };
+// the table of a plane and where a character keeps its own binds for it
+const slotsOf = plane => plane === '2d' ? BINDS : BINDS_25;
+const bindsKey = plane => plane === '2d' ? 'binds' : 'binds25';
 // special motions in numpad notation (6 = towards the opponent), matched in order against the recent directions
 const MOTIONS = { dp: /6.*2.*3/, qcf: /2.*3.*6/, qcb: /2.*1.*4/ };
 // whole-character stats: each multiplies some fight settings for this character only (1 = as the settings say)
@@ -257,11 +268,11 @@ function makeCharacter(def) {
   const rest = Object.fromEntries(order.map(b => [b.id, b.a]));
   const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains,
     tips: [...chains.arm, ...chains.leg, ...chains.head, ...chains.tail].map(c => c[c.length - 1]),
-    poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, binds: { ...BINDS, ...def.binds },
+    poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, binds: { ...BINDS, ...def.binds }, binds25: { ...BINDS_25, ...def.binds25 },
     stats: Object.fromEntries(CHAR_STATS.map(s => [s.k, def[s.k] ?? 1])), gait: { ...Object.fromEntries(GAIT_VARS.map(s => [s.k, s.v])), ...def.gait } };
   // stances: the main one plus any extra (K+G cycles them); each has its pose and its own binds over the main ones
-  ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: ch.binds },
-    ...(def.stances || []).map(s => ({ name: s.name, pose: { ...ch.poses.stance, ...s.pose }, binds: { ...ch.binds, ...s.binds } }))];
+  ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: ch.binds, binds25: ch.binds25 },
+    ...(def.stances || []).map(s => ({ name: s.name, pose: { ...ch.poses.stance, ...s.pose }, binds: { ...ch.binds, ...s.binds }, binds25: { ...ch.binds25, ...s.binds25 } }))];
   // the cancel window opens at a key marked cancel, else after the last active key
   for (const m of Object.values(ch.moves)) { const c = m.keys.findIndex(k => k.cancel); m.cancel = c >= 0 ? c : m.keys.findLastIndex(k => k.active) + 1; }
   return ch;
@@ -317,10 +328,10 @@ CHAR_DEFS.dwarf = { ...stick, name: 'dwarf', speed: 0.85, jump: 0.85, weight: 1.
   bones: [...sizedBones({ waist: 0.8, chest: 0.85, neck: 0.6, head: 1.15, thigh: 0.6, shin: 0.55, foot: 1.2, uarm: 0.85, farm: 0.85, hand: 1.5 }, 5)
     .map(b => b.role === 'spine' ? { ...b, thick: b.thick + 8, hurt: b.hurt + 3 } : b),
     { id: 'beard', parent: 'head', len: 11, a: -165, role: 'head', thick: 7, lag: 1.5, stretch: 0.1 }] };
-CHAR_DEFS.minotaur = { ...stick, name: 'minotaur', weight: 1.25, health: 1.1, moves: { ...retimed(1.2, 1.35), tailWhip: TAIL_WHIP }, binds: { backKick: 'tailWhip' },
+CHAR_DEFS.minotaur = { ...stick, name: 'minotaur', weight: 1.25, health: 1.1, moves: { ...retimed(1.2, 1.35), tailWhip: TAIL_WHIP }, binds: { backKick: 'tailWhip' }, binds25: { backKick: 'tailWhip' },
   bones: [...sizedBones({ waist: 1.25, chest: 1.4, neck: 1.6, head: 1.35, thigh: 1.15, shin: 1.1, foot: 1.3, uarm: 1.3, farm: 1.3, hand: 1.6 }, 4)
     .map(b => ({ ...b, stiff: 0.75, damp: 1.2 })), ...horns(18, -50, 40), ...tail3(16, 4)] };
-CHAR_DEFS.demon = { ...stick, name: 'demon', jump: 1.15, weight: 0.9, moves: { ...retimed(0.9), tailWhip: TAIL_WHIP }, binds: { backKick: 'tailWhip' },
+CHAR_DEFS.demon = { ...stick, name: 'demon', jump: 1.15, weight: 0.9, moves: { ...retimed(0.9), tailWhip: TAIL_WHIP }, binds: { backKick: 'tailWhip' }, binds25: { backKick: 'tailWhip' },
   bones: [...sizedBones({ waist: 1.1, chest: 1.1, thigh: 1.15, shin: 1.15, uarm: 1.2, farm: 1.25, hand: 1.5 }).map(b => ({ ...b, stretch: b.role === 'arm' ? 0.15 : 0 })),
     ...horns(7, -20, 30), ...tail3(16, 3),
     ...pair(S => ({ id: 'wing' + S, parent: 'chest', len: 20, a: 5 + (S === 'B' ? 12 : 0), role: 'tail', thick: 3, lag: 1.5 })),
@@ -353,10 +364,11 @@ CHAR_DEFS.centaur = { ...mapPoses({ ...stick, moves: mapVals(retimed(1.1, 1.2), 
       { id: 'hoof' + S, parent: 'foreShin' + S, len: 6, a: 90, role: 'leg', side: S.toLowerCase(), hurt: 6, lag: 1.5, level: 1, thick: 5, min: 40, max: 140 }]),
     ...tail3(12, 3).map(b => b.id === 'tail' ? { ...b, a: -150 } : b)] };
 // ninja: slender, long legs, fast and light; a scarf trails from the neck
-CHAR_DEFS.ninja = { ...stick, name: 'ninja', speed: 1.25, jump: 1.15, weight: 0.85, health: 0.9, springs: 1.15, binds: { downFwdKick: 'slide', upFwdKick: 'axeKick', upFwdPunch: 'rising' },
+CHAR_DEFS.ninja = { ...stick, name: 'ninja', speed: 1.25, jump: 1.15, weight: 0.85, health: 0.9, springs: 1.15, binds: { downFwdKick: 'slide', upKick: 'axeKick' }, binds25: { downFwdKick: 'slide', upFwdKick: 'axeKick', upFwdPunch: 'rising' },
   // K+G: the crane, on one leg with the arms spread; its kicks come from the raised knee
   stances: [{ name: 'crane', pose: { waist: 178, chest: 0, neck: 0, head: 0, uarmF: -70, farmF: -40, handF: 0, uarmB: -280, farmB: 40, handB: 0, thighF: 85, shinF: -110, footF: 90, thighB: -4, shinB: 0, footB: 90 },
-    binds: { kick: 'axeKick', fwdKick: 'turnKick', punch: 'elbow', downKick: 'lowKick' } }],
+    binds: { kick: 'axeKick', fwdKick: 'turnKick', punch: 'elbow', downKick: 'lowKick' },
+    binds25: { kick: 'axeKick', fwdKick: 'turnKick', punch: 'elbow', downKick: 'lowKick' } }],
   moves: { ...retimed(0.8, 0.85), ...mapVals({
     // a low slide along the floor, under highs
     slide: attack({ power: 1.1, damage: 8, hit: 'ff', height: 'low', knock: 160, launch: 220, kd: true, lunge: 520 },

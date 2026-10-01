@@ -81,7 +81,7 @@ const SCHEMA = [
   { k: 'topple', v: 0.6, min: 0, max: 1, step: 0.05, tip: 'Ragdoll: the share of a blow that lands at the impact point instead of moving the whole body; more = a hit to the head turns the body over its feet.' },
   { k: 'floorGrip', v: 6, min: 0, max: 20, step: 0.5, tip: 'Ragdoll: floor friction. Low = a body slides far along the floor, high = it stops where it lands.' },
   ['Plane (2D / 2.5D)', 'Fight on a line, on three sidestep lanes, or on a free depth belt. Stick figures are flat, so a strike connects only when both fighters stand at about the same depth.', ''],
-  { k: 'plane', v: '2d', opts: ['2d', 'lanes', 'belt'], tip: 'Where the fight happens. Space jumps in every plane; in 2.5D ↑ / ↓ move in depth.',
+  { k: 'plane', v: '2d', opts: ['2d', 'lanes', 'belt'], tip: 'Where the fight happens, and which moveset is used (2D and 2.5D have separate binds). 2D: ↑ or Space jumps. 2.5D: ↑ / ↓ move in depth, Space jumps.',
     optTips: { '2d': 'One line: ↑ is a direction for moves, ↓ crouches.', lanes: 'Three lanes: double tap ↑ / ↓ to sidestep a lane (dodges straight attacks), hold ↓ to crouch.',
       belt: 'A free depth belt, like a beat \'em up: ↑ / ↓ walk into / out of the screen.' } },
   { k: 'zReach', v: 16, min: 4, max: 60, step: 1, tip: 'Depth difference (px) under which a strike can connect: the thickness of a flat stick figure. Wide moves (spin) reach 3×.' },

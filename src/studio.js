@@ -14,7 +14,10 @@ const studio = { sel: 'uarmF', undo: [], redo: [], lastKey: null, lastT: 0, colo
 // the stance being edited (0 = main): its pose as drawn, its pose and own binds in the definition (what edits change)
 const curStance = (ch = currentChar()) => ch.stances[studio.stance] || ch.stances[0];
 const editPose = def => studio.stance ? def.stances[studio.stance - 1].pose : def.poses.stance;
-const editBinds = def => studio.stance ? (def.stances[studio.stance - 1].binds ??= {}) : (def.binds ??= {});
+// binds follow the plane setting: 2D and 2.5D each have their own table (see BINDS)
+const bkey = () => bindsKey(CFG.plane);
+const curBinds = ch => curStance(ch)[bkey()];
+const editBinds = def => (studio.stance ? def.stances[studio.stance - 1] : def)[bkey()] ??= {};
 const selBone = () => DEFS[CURRENT].bones.find(b => b.id === studio.sel);
 
 // every bone property the creator exposes, with its hover text

@@ -7,7 +7,7 @@ test('every built-in character compiles with poses, moves and a main stance', ()
     const ch = run(`makeCharacter(CHAR_DEFS[${JSON.stringify(n)}])`);
     assert.ok(ch.poses.stance, n), assert.ok(Object.keys(ch.moves).length > 10, n);
     assert.equal(ch.stances[0].name, 'main', n);
-    for (const s of ch.stances) for (const [slot, m] of Object.entries(s.binds)) if (m) assert.ok(ch.moves[m], `${n}/${s.name}: ${slot} → ${m}`);
+    for (const s of ch.stances) for (const [slot, m] of [...Object.entries(s.binds), ...Object.entries(s.binds25)]) if (m) assert.ok(ch.moves[m], `${n}/${s.name}: ${slot} → ${m}`);
   }
 });
 
@@ -56,11 +56,19 @@ test('a keyframed idle loop replaces the procedural idle', () => {
 });
 
 test('head, tail and two-handed strikes land', () => {
-  for (const [ch, inp, move] of [['stick', 'back+punch', 'palms'], ['stick', 'up+fwd+punch', 'headbutt'], ['demon', 'back+kick', 'tailWhip']]) {
-    const r = run(`(() => { const r = fight({ a: [0.1, '${inp}'], b: 'dummy', ax: 330, bx: 372, period: 9 }, [CHARS.${ch}, CHARS.stick], 60); return { hits: r.w.hits, seen: r.seen }; })()`);
+  for (const [ch, inp, move, plane = '2d'] of [['stick', 'back+punch', 'palms'], ['stick', 'up+fwd+punch', 'headbutt', 'lanes'], ['demon', 'back+kick', 'tailWhip']]) {
+    const r = run(`(() => { const r = fight({ a: [0.1, '${inp}'], b: 'dummy', ax: 330, bx: 372, period: 9, cfg: { plane: '${plane}' } }, [CHARS.${ch}, CHARS.stick], 60); return { hits: r.w.hits, seen: r.seen }; })()`);
     assert.ok(r.seen.includes('a:' + move), `${ch} ${inp}: ${r.seen.join(' ')}`);
     assert.ok(r.hits > 0, `${ch} ${move} hits`);
   }
+});
+
+test('2D: ↑ jumps and ↑ with an attack is an up attack; 2.5D: ↑ is a direction with its own moveset', () => {
+  const air = (inp, plane) => run(`(() => { const w = new World({ a: [0.1, '${inp}'], b: 'dummy', ax: 300, bx: 600, period: 9, cfg: { plane: '${plane}' } }, {}, 7, [CHARS.stick, CHARS.stick]);
+    let up = false; for (let i = 0; i < 40; i++) { w.advance(1/60, NOIN); up ||= !w.a.grounded; } return up; })()`);
+  assert.ok(air('up', '2d'), '2D ↑ jumps'), assert.ok(!air('up', 'lanes'), 'lanes ↑ does not jump');
+  const seen = (inp, plane) => run(`fight({ a: [0.1, '${inp}'], b: 'dummy', ax: 330, bx: 372, period: 9, cfg: { plane: '${plane}' } }, [CHARS.stick, CHARS.stick], 40).seen`).join(' ');
+  assert.match(seen('up+fwd+punch', '2d'), /a:hammer/), assert.match(seen('up+fwd+punch', 'lanes'), /a:headbutt/);
 });
 
 test('with several striking bones, any of them can land', () => {

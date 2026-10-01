@@ -287,24 +287,25 @@ function deleteMove() {
   anim.move = Object.keys(DEFS[CURRENT].moves)[0];
   edit(def => {
     delete def.moves[gone];
-    for (const b of [def.binds, ...(def.stances || []).map(s => s.binds)]) for (const s in b) if (b[s] === gone) delete b[s];
+    for (const o of [def, ...(def.stances || [])]) for (const b of [o.binds, o.binds25]) for (const s in b || {}) if (b[s] === gone) delete b[s];
   });
   pickMove(anim.move);
 }
 // input slots (see BINDS): clicking one makes it trigger this move; clicking it again gives it back its default
 const SLOT_TIPS = { punch: 'J standing (5P)', kick: 'K standing (5K)', downPunch: '↓ J crouching (2P)', downKick: '↓ K crouching (2K)',
   fwdPunch: '→ J (6P), else J', fwdKick: '→ K (6K), else K', backPunch: '← J (4P), else J', backKick: '← K (4K), else K',
-  upPunch: '↑ J (8P), else J', upKick: '↑ K (8K), else K', upFwdPunch: '↗ J (9P), else ↑ J', upFwdKick: '↗ K (9K), else ↑ K',
+  upPunch: '↑ J (8P), else J; in 2D press ↑ and J together (the jump squat turns into the attack)', upKick: '↑ K (8K), else K; in 2D press ↑ and K together', upFwdPunch: '↗ J (9P), else ↑ J', upFwdKick: '↗ K (9K), else ↑ K',
   upBackPunch: '↖ J (7P), else ↑ J', upBackKick: '↖ K (7K), else ↑ K', downFwdPunch: '↘ J (3P), else ↓ J', downFwdKick: '↘ K (3K), else ↓ K',
   downBackPunch: '↙ J (1P), else ↓ J', downBackKick: '↙ K (1K), else ↓ K', throw: 'J while holding guard (P+G): a throw',
   dashPunch: 'J while running forward', airPunch: 'J in the air', airKick: 'K in the air',
+  airUpPunch: '↑ J in the air, else J in the air', airUpKick: '↑ K in the air, else K in the air', airDownPunch: '↓ J in the air, else J in the air', airDownKick: '↓ K in the air, else K in the air',
   qcfPunch: '↓↘→ J', qcfKick: '↓↘→ K', qcbPunch: '↓↙← J', qcbKick: '↓↙← K', dpPunch: '→↓↘ J', dpKick: '→↓↘ K',
   special: 'S (U), and any direction without its own special', fwdSpecial: '→ S', backSpecial: '← S', upSpecial: '↑ S', downSpecial: '↓ S', airSpecial: 'S in the air' };
 // binds of the stance picked in the character panel; in an extra stance, unbinding a slot it inherits blanks it there
-const boundSlots = () => Object.keys(BINDS).filter(s => curStance().binds[s] === anim.move);
+const boundSlots = () => Object.keys(slotsOf(CFG.plane)).filter(s => curBinds()[s] === anim.move);
 const toggleBind = s => edit(def => {
   const b = editBinds(def);
-  if (curStance().binds[s] !== anim.move) b[s] = anim.move;
+  if (curBinds()[s] !== anim.move) b[s] = anim.move;
   else if (studio.stance && !(s in b)) b[s] = '';
   else delete b[s];
 });
@@ -387,15 +388,15 @@ const MOVE_GROUPS = {
   limb: (m, ch) => m.power ? [...new Set(hitIds(m).map(id => ch.by[id]?.role || 'none'))].join(' + ') || 'none' : 'other',
   height: m => m.power ? m.height || 'mid' : 'other',
   // the stance whose own binds start the move (main: only the main binds; unbound: no input in any stance)
-  stance: (m, ch, n) => ch.stances.slice(1).filter((s, i) => Object.values(DEFS[CURRENT].stances[i].binds || {}).includes(n)).map(s => s.name).join(' + ')
-    || (Object.values(ch.binds).includes(n) ? 'main' : 'unbound'),
+  stance: (m, ch, n) => ch.stances.slice(1).filter((s, i) => Object.values(DEFS[CURRENT].stances[i][bkey()] || {}).includes(n)).map(s => s.name).join(' + ')
+    || (Object.values(ch[bkey()]).includes(n) ? 'main' : 'unbound'),
   none: () => '',
 };
 const GROUP_ORDER = ['main', 'normal', 'special', 'throw', 'air', 'arm', 'leg', 'head', 'spine', 'tail', 'high', 'shigh', 'mid', 'smid', 'low', 'none', 'other', 'unbound'];
 const GROUP_TIPS = { type: 'Group by type: normal, special, throw, air, other (not attacks)', limb: 'Group by the striking limb', height: 'Group by height', stance: 'Group by the stance whose binds start the move', none: 'One list' };
 const SORT_TIPS = { order: 'As defined', name: 'By name', startup: 'Fastest first (startup frames)', damage: 'Most damage first' };
 const moveDamage = m => m.power ? m.damage ?? m.power * 8 : 0;
-const moveInputs = (ch, n) => Object.keys(BINDS).filter(s => curStance(ch).binds[s] === n);
+const moveInputs = (ch, n) => Object.keys(slotsOf(CFG.plane)).filter(s => curBinds(ch)[s] === n);
 // a keyframed idle or walk loop sampled from the procedural cycle (8 keys over one cycle), to edit from there
 function makeLoop(kind) {
   const ch = currentChar(), n = 8, T = kind === 'walk' ? 0.8 : 2.4;
@@ -470,7 +471,7 @@ function movePanel() {
   reg(hitB, () => { const off = hitIds(m()).filter(id => !currentChar().tips.some(b => b.id === id)); setRich(hitB, off.join(' ') || (hitIds(m()).length ? ':more_horiz:' : 'none')); });
   const tipSeg = h('span', { cls: 'seg' }, currentChar().tips.map(b => boneB(b.id, `Strike with the end of ${b.id} (${b.role}) · Shift+click: add or remove it, so several limbs strike`)));
   const bindB = button('', 'Inputs that trigger this move. Click to bind it to other inputs (copies of moves become playable this way).', (e, b) =>
-    popup(b, h('div', { cls: 'bar' }, Object.keys(BINDS).map(s => toggle(s, `${SLOT_TIPS[s]} · now: ${curStance().binds[s] || 'none'}`, () => curStance().binds[s] === anim.move, () => toggleBind(s))))));
+    popup(b, h('div', { cls: 'bar' }, Object.keys(slotsOf(CFG.plane)).map(s => toggle(s, `${SLOT_TIPS[s]} · now: ${curBinds()[s] || 'none'}`, () => curBinds()[s] === anim.move, () => toggleBind(s))))));
   reg(bindB, () => { setRich(bindB, boundSlots().join(' ') || 'none (combo only)'); });
   const head = heading('Moves', 'Pick a move to edit. Copies can be tuned freely; the built-in names are the ones the controls trigger.', 'Enter play/pause · O onion · I aim');
   head.append(crud({ copy: ['New move copied from this one, under a new name', copyMove], delete: ['Delete this move (only copies)', deleteMove] }));
@@ -484,7 +485,10 @@ function movePanel() {
     moveHeading(),
     h('div', { cls: 'row', tip: 'Striking bones: each end is a strike (in limb mode the whole bone); with several, the one that lands counts, one hit per target. Shift+click a joint in the editor to pick it, ⌘/Ctrl+Shift+click to add or remove it.' },
       h('span', { textContent: 'hit' }), h('span', { cls: 'bar' }, tipSeg, hitB)),
-    h('div', { cls: 'row', tip: 'Which inputs start this move in a fight' }, h('span', { textContent: 'input' }), bindB),
+    h('div', { cls: 'row', tip: 'Which inputs start this move in a fight' }, h('span', { textContent: 'input' }), bindB,
+      seg(['2d', '25'], () => CFG.plane === '2d' ? '2d' : '25', v => { setCfg({ plane: v === '2d' ? '2d' : 'lanes' }); panels(); mode().restart(); },
+        { '2d': '2D moveset: ↑ jumps, air moves by direction (also sets the plane setting)', '25': '2.5D moveset (VF-style): every direction × button is a ground move, Space jumps (also sets the plane to lanes)' },
+        v => v === '2d' ? '2D' : '2.5D')),
     h('div', { cls: 'row', tip: 'Where the move is aimed; a hit reaction still follows the actual impact point' }, h('span', { textContent: 'height' }),
       seg(['high', 'shigh', 'mid', 'smid', 'low'], () => m().height, v => setMove('height', v), HEIGHT_TIPS)),
     ...MOVE_PROPS.map(p => slider(p.k, p, () => m()[p.k] || 0, v => setMove(p.k, v || undefined, 'm.' + p.k), p.tip)),

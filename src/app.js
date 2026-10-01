@@ -27,9 +27,9 @@ function togglePanel() { document.body.classList.toggle('noside'); resize(); }
 
 // help under the rebindable keys (P = punch, K = kick, directions as on the numpad: 2 down, 3 down-forward, 6 forward…)
 const KEYS = [
-  ['combos', 'chains: P,P,P · K,K · P,K · P,P,K · run+P dash punch · air P/K, air P,K\ndirections × P / K: 6P elbow · 6K push kick · 8P hammer (overhead) · 8K turn kick · 2P launcher · 2K sweep · 3K low kick (← free)\nspecials (cancel normals that hit): 236P rush · 623P rising · 214K spin · 236K stomp (hits a fighter on the floor) · 214P charge (unblockable)\n66 dash · 44 back dash · 66 and hold: run'],
+  ['combos', 'chains: P,P,P · K,K · P,K · P,P,K · run+P dash punch · air P/K, air P,K\ndirections × P / K: 6P elbow · 6K push kick · 8P hammer (overhead) · 8K turn kick (2D: ↑ with P / K together) · 2P launcher · 2K sweep · 3K low kick (← free)\nspecials (cancel normals that hit): 236P rush · 623P rising · 214K spin · 236K stomp (hits a fighter on the floor) · 214P charge (unblockable)\n66 dash · 44 back dash · 66 and hold: run'],
   ['guard', 'hold L: guard, front only (not from behind) · ↓+L low guard · tap L just before a hit: parry · highs pass over a crouching fighter\nU special: S spin · → S rush · ↑ S rising · ↓ S stomp · ← S catch (counters a strike)\nJ+L throw (P+G breaks it) · L while knocked flying: recover in the air · L just before landing: tech'],
-  ['2.5D', 'plane setting: lanes / belt · ↑ ↓ move in depth (lanes: double tap = sidestep) · Space jumps in every plane, with ← / → a ninja flip'],
+  ['2.5D', 'plane setting: 2D (↑ jumps) / lanes / belt · 2D and 2.5D have separate movesets (input in animate) · 2.5D: ↑ ↓ move in depth (lanes: double tap = sidestep), 9P headbutt · Space jumps in every plane, with ← / → a ninja flip'],
   ['fixed', '⌘Z undo · ⇧⌘Z redo (character and moves) · Esc back / close'],
   ['grid', 'click a cell: focus it and use its settings, ⌘Z undoes (breed / attacks: breed around it) · Shift+click: only focus'],
   ['character', 'drag a joint: length + angle · Shift+drag: angle only'],

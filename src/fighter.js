@@ -27,6 +27,7 @@ class Fighter {
   c(k) { const v = this.over[k] ?? this.w.cfg[k]; return STAT_OF[k] ? v * this.ch.stats[STAT_OF[k]] : v; } // character stats scale their settings
   get free() { return this.hurtT <= 0 && !this.kd; }
   get st() { return this.ch.stances[this.stanceI] || this.ch.stances[0]; } // the current stance: its pose and binds
+  get binds() { return this.st[bindsKey(this.c('plane'))]; } // the stance's input table for this plane (2D or 2.5D)
 
   // the procedural layer, driven by bone roles so any skeleton breathes, walks and leans
   basePose() {
@@ -139,13 +140,13 @@ class Fighter {
     const i = this.inp, fwd = (i.right - i.left) * this.dir > 0, P = b === 'punch';
     if (b === 'special') { // S: a special per direction, the neutral one when that direction has none
       const slot = !this.grounded ? 'airSpecial' : i.down ? 'downSpecial' : i.up ? 'upSpecial' : fwd ? 'fwdSpecial' : i.right !== i.left ? 'backSpecial' : 'special';
-      return [this.st.binds[slot], this.grounded && this.st.binds.special].find(m => this.ch.moves[m]) || null;
+      return [this.binds[slot], this.grounded && this.binds.special].find(m => this.ch.moves[m]) || null;
     }
-    const B = P ? 'Punch' : 'Kick', has = s => this.ch.moves[this.st.binds[s]] ? this.st.binds[s] : null;
+    const B = P ? 'Punch' : 'Kick', has = s => this.ch.moves[this.binds[s]] ? this.binds[s] : null;
     if (b === 'throw') return this.grounded ? has('throw') : null;
     const sp = this.grounded && motion?.map(k => has(k + B)).find(Boolean);
     if (sp) return sp;
-    if (!this.grounded) return has('air' + B);
+    if (!this.grounded) return has('air' + (i.down ? 'Down' : i.up ? 'Up' : '') + B) || has('air' + B);
     if (P && fwd && !i.down && Math.abs(this.vx) > this.c('maxSpeed') * 0.6 && has('dashPunch')) return has('dashPunch');
     // a direction × button table: ↘K = downFwdKick; a slot without a move falls back to its vertical (downKick), then to neutral
     const v = i.down ? 'down' : i.up ? 'up' : '', hz = fwd ? 'Fwd' : i.right !== i.left ? 'Back' : '';
@@ -180,6 +181,8 @@ class Fighter {
     if (this.buffer?.b === 'stance' && this.free && !a0 && this.grounded) {
       this.stanceI = (this.stanceI + 1) % this.ch.stances.length; this.buffer = null; this.say(this.st.name.toUpperCase());
     }
+    // 2D: J / K with ↑ held in the jump squat is an up attack instead of a jump
+    if (this.buffer && this.squatT > 0 && inp.up && this.buffer.b !== 'stance' && this.c('plane') === '2d') this.squatT = 0;
     if (this.buffer && this.free && this.squatT <= 0) {
       const { b, motion } = this.buffer, fresh = !a0 || a0.m.hurt;
       const m = fresh ? this.pick(b, motion) : this.cancelInto(a0, b, motion);
@@ -205,6 +208,7 @@ class Fighter {
       }
     }
     if (this.kd === 'fly') this.flyT += dt;
+    const upTap = inp.up && !this.prevIn.up;
     this.prevIn = inp;
     if (!inp[fwdK] || !this.free || this.action) this.running = false;
     this.dashT -= dt; this.passT -= dt; this.blockT -= dt; this.parryT -= dt; this.labelT -= dt; this.dizzyT -= dt; this.reelT -= dt; this.splatT -= dt;
@@ -244,7 +248,8 @@ class Fighter {
     // vertical: jump squat (anticipation) -> launch -> land
     // jump cancel: a move that connected can be jumped out of once its active frames are over (juggles)
     const jc = busy && this.action.hit && this.action.i >= this.action.m.cancel && c('jumpCancel');
-    if (inp.hop && this.grounded && this.free && (!busy || jc) && this.squatT <= 0) {
+    const hop = inp.hop || flat && upTap; // 2D: ↑ jumps too
+    if (hop && this.grounded && this.free && (!busy || jc) && this.squatT <= 0) {
       this.squatT = c('jumpSquat') || 1e-6;
       if (jc) this.action = null;
     }
