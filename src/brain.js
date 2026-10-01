@@ -50,7 +50,8 @@ class Replay {
 
 // engine AI: re-thinks every reaction-time interval, walks to range and throws random chains
 const CHAINS = [['punch'], ['punch', 'punch'], ['punch', 'punch', 'punch'], ['kick'], ['kick', 'kick'],
-  ['punch', 'kick'], ['punch', 'punch', 'kick'], ['down+kick']];
+  ['punch', 'kick'], ['punch', 'punch', 'kick'], ['down+kick'],
+  ['punch', 'down', 'down+fwd', 'fwd+punch'], ['punch', 'kick', 'down', 'down+back', 'back+kick']]; // specials cancel the chain
 class Brain {
   constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0 }); }
   input(f, o, h) {
@@ -71,7 +72,9 @@ class Brain {
     this.t = this.rand(0.12, 0.3); // reaction time
     this.plan = null;
     if (!f.free) return;
+    if (o.kd === 'down' && dist < 110 && r < 0.4) { this.q = ['down', 'down+fwd', 'fwd+kick']; this.qt = 0; return; } // stomp
     if (o.kd === 'down' || o.action?.m.inv) { if (dist < 90) this.plan = 'out'; return; }
+    if (!o.grounded && !o.kd && dist < 110 && r < 0.5) { this.q = ['fwd', 'down', 'down+fwd+punch']; this.qt = 0; return; } // anti-air rising
     if (o.kd === 'fly' && dist < 130 && r < 0.6) { this.q = ['jump', 'kick']; this.qt = 0; return; }
     if (dist > 150) { this.plan = r < 0.25 ? 'dash' : 'in'; return; }
     if (dist > 70) { this.plan = r < 0.85 ? 'in' : 'out'; return; }

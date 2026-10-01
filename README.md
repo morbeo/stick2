@@ -4,7 +4,7 @@ A minimal 2D stick-figure fighting engine for the browser: procedural skeleton, 
 
 Open `index.html` directly (no build step), or play it on GitHub Pages: https://morbeo.github.io/stick2/
 
-- **play**: one fight (you / engine AI / dummy / scripted scenarios)
+- **play**: one fight (you / engine AI / dummy / scripted scenarios); the AI cancels chains into rush and spin, stomps a downed fighter and meets jumps with rising
 - **grid**: 3x3 sweep of any tunable (or X x Y), every cell replaying the same seeded fight; **breed** gives the cells random values of the settings you pick around a parent (click the best cell to breed around it); **attacks** generates random attacks for the current character (IK-posed on any limb end), breeds them, and saves one as a move or opens it in animate
 - **combos & cancels**: chains (authored routes, or a free 2-button magic series), specials by motion (↓↘→ J rush, →↓↘ J rising, ↓↙← K spin, ↓↘→ K stomp) that cancel normals on hit, jump cancels into air combos with juggle decay, OTG hits on a fighter lying down; cancel windows show purple on the frame meter and timeline (a key can open the window or be invincible); **cancel test** in the grid compares chain rules on combo fights
 - **combo escalation**: hit stop, shake and zoom that grow per combo hit, attacks or the whole game speeding up (or slowing) along a combo; **combo fx test** in the grid shows each effect on the same air combo
