@@ -125,9 +125,9 @@ function saveAttack(open, c = lab.focus) {
   c.saved = n;
   if (open) { anim.move = n; anim.key = 1; setMode('animate'); }
 }
-// the hovered attack cell's own buttons, in its bottom right corner: save it / save and edit it; their rects go in c.btns for the click
+// the hovered attack cell's own buttons, in its top right corner (clear of the frame meter): save it / save and edit it; their rects go in c.btns for the click
 function drawCellButtons(c, r) {
-  const size = r.w > 220 * dpr ? 11 : 9, bh = (size + 8) * dpr, y = r.y + r.h * 0.76 - bh - 6 * dpr;
+  const size = r.w > 220 * dpr ? 11 : 9, bh = (size + 8) * dpr, y = r.y + 6 * dpr;
   let x = r.x + r.w - 6 * dpr;
   c.btns = [['edit', true], [c.saved ? `saved ${c.saved}` : 'save', false]].map(([t, open]) => {
     const bw = (t.length * 0.62 * size + 12) * dpr;

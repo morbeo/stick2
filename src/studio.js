@@ -5,6 +5,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const STORE = 'stick2.chars';
 const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } })();
 const DEFS = { ...mapVals(CHAR_DEFS, clone), ...saved.defs };
+for (const d of Object.values(saved.defs || {})) d.moves = { ...clone(WEAPON_MOVES), ...d.moves }; // characters saved before weapons get their moves
 for (const k in DEFS) CHARS[k] = makeCharacter(DEFS[k]);
 if (DEFS[saved.current]) CURRENT = saved.current;
 // only edited built-ins are stored, so improved built-ins reach characters nobody changed

@@ -57,6 +57,12 @@ function drawAnimEditor() {
     ctx.fillStyle = hov ? '#ffd' : '#fff'; ctx.fill();
     ctx.strokeStyle = hit ? RED[0] : '#555'; ctx.lineWidth = (hit ? 2.5 : 1.5) * dpr; ctx.stroke();
   }
+  if (anim.aim && P[aimBone()]) { // the joint that follows the cursor: a crosshair ring
+    const [x, y] = P[aimBone()], q = 9 * dpr;
+    ctx.beginPath(); ctx.arc(x, y, q, 0, 7);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { ctx.moveTo(x + dx * q * 0.6, y + dy * q * 0.6); ctx.lineTo(x + dx * q * 1.5, y + dy * q * 1.5); }
+    ctx.strokeStyle = '#07f'; ctx.lineWidth = 1.5 * dpr; ctx.stroke();
+  }
   const hv = ch.by[anim.drag || anim.hover];
   if (hv) text(`${hv.id} ${Math.round(f.pose[hv.id])}°`, Math.min(P[hv.id][0] + 10 * dpr, r.x + r.w - 120 * dpr), P[hv.id][1] - 8 * dpr, '#666', 11);
   text(`${anim.move} · key ${anim.key + 1}/${m.keys.length}${editing ? '' : ' (drag a joint to jump to the selected key)'}`, r.x + 10 * dpr, r.y + 18 * dpr, '#444', 12, 'bold');
