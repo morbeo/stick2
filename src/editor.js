@@ -546,7 +546,6 @@ const MOVE_GROUPS = {
 const GROUP_ORDER = ['main', 'normal', 'special', 'throw', 'weapon', 'air', 'arm', 'leg', 'head', 'spine', 'tail', 'high', 'shigh', 'mid', 'smid', 'low', 'boxing', 'karate', 'muay thai', 'capoeira', 'kung fu', 'taekwondo', 'wrestling', 'basic', 'none', 'layer', 'other', 'unbound'];
 const GROUP_TIPS = { type: 'Group by type: normal, special, throw, weapon (played while holding a weapon of its class), air, layer (movement layers), other (not attacks)', limb: 'Group by the striking limb', height: 'Group by height', stance: 'Group by the stance whose binds start the move', style: 'Group by fighting style: boxing, karate, muay thai, capoeira, kung fu, taekwondo, wrestling (the style property), basic', none: 'One list' };
 const SORT_TIPS = { order: 'As defined', name: 'By name', startup: 'Fastest first (startup frames)', damage: 'Most damage first' };
-const moveDamage = m => m.power ? m.damage ?? m.power * 8 : 0;
 const moveInputs = (ch, n) => [...Object.keys(slotsOf(CFG.plane)), ...Object.keys(ch.motions).flatMap(k => [k + 'Punch', k + 'Kick'])].filter(s => curBinds(withWeapon(ch, ch.moves[n]))[s] === n);
 // a keyframed idle or walk loop sampled from the procedural cycle (8 keys over one cycle), to edit from there
 function makeLoop(kind) {
@@ -597,7 +596,8 @@ function moveCard(n, tip) {
 }
 const VIEW_TIPS = { cards: 'A drawing of each move (hover to play it)', list: 'Compact: names only',
   table: 'Every move in a table over the stage: sort by any column, fuzzy filter, edit the values in place, hover a row to see it play',
-  inputs: 'Every input over the stage: direction pads per button show which directions have no move of their own, and a table of all inputs; click one to give it a move' };
+  inputs: 'Every input over the stage: direction pads per button show which directions have no move of their own, and a table of all inputs; click one to give it a move',
+  combos: 'The combos over the stage: the chain links (P / K after a move chains into the next, chains setting authored) as a tree per starter or a table of routes with damage and frames; add, change and cut links in place' };
 // ---------- move table: every move of the character, sortable, fuzzy-filtered, values edited in place ----------
 // startup / active / recovery edits retime that phase's keys; height opens its options; hovering a row plays the move by the cursor
 const PHASE_TIPS = { startup: 'Startup frames (60 fps) before the first active key. Edit to retime the startup keys.',
@@ -687,7 +687,7 @@ function moveList() {
       [g && h('h4', { textContent: g }), anim.view !== 'list' ? h('div', { cls: 'cards' }, ns.map(n => moveCard(n, tips[n])))
         : h('div', { cls: 'bar' }, seg(ns, () => anim.move, pickMove, tips))]));
     if (!names.length) list.replaceChildren(h('div', { cls: 'note', textContent: 'no move matches the filter' }));
-    if (anim.view === 'table') list.replaceChildren(h('div', { cls: 'note', textContent: 'the move table is over the stage' }));
+    if (anim.view === 'table' || anim.view === 'combos') list.replaceChildren(h('div', { cls: 'note', textContent: `the ${anim.view === 'table' ? 'move table' : 'combos'} are over the stage` }));
     syncAll();
   };
   fill();
@@ -827,7 +827,7 @@ const animMode = {
   ctxBar: animCtx,
   side: movePanel,
   open: ['character', 'moves', 'move', 'key'],
-  overlay: () => anim.view === 'table' ? [moveTable()] : anim.view === 'inputs' ? [inputTable()] : [timelineBar(), targetBar()],
+  overlay: () => anim.view === 'table' ? [moveTable()] : anim.view === 'inputs' ? [inputTable()] : anim.view === 'combos' ? [comboView()] : [timelineBar(), targetBar()],
   mouse: animMouse,
   key: animKey,
   hint: () => 'drag a joint: IK · Alt+drag: one bone · timeline: click a key to select, drag it to reorder, drag its edge to retime, double-click to split, drag the ruler to scrub · , . frame step · Delete key',

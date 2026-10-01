@@ -117,6 +117,17 @@ try {
     if (tabs.length !== 4 || !on?.textContent.includes('play')) errs.push('tabs ' + tabs.length + ' ' + on?.textContent);
     [...document.querySelectorAll('#ctx button')].find(b => b.textContent.includes('fight')).click(); if (app.mode !== 'play') errs.push('view fight ' + app.mode);
     setMode('gallery'); tabs.find(b => b.textContent.includes('animate')).click(); if (app.mode !== 'gallery') errs.push('tab keeps its view ' + app.mode); }
+  // combos: the table lists routes; + P on a route's end adds a link (the route gets longer), clicking that step and cut removes it; the tree shows starters
+  { setMode('animate'); pickChar('stick'); studio.stance = 0; anim.view = 'combos'; combos.view = 'table'; panels();
+    const rows = () => [...document.querySelectorAll('.ctable tbody tr')], row = t => rows().find(r => [...r.cells[0].querySelectorAll('button')].map(b => b.textContent).filter(x => !/ [PK]$/.test(x)).join('›') === t), n0 = rows().length;
+    [...row('jab›cross›uppercut').querySelectorAll('button')].find(b => b.textContent.includes('P')).click();
+    [...document.querySelectorAll('.pop button')].find(b => /(^| )sweep$/.test(b.textContent)).click();
+    if (DEFS.stick.moves.uppercut.next?.punch !== 'sweep' || !row('jab›cross›uppercut›sweep') || rows().length !== n0) errs.push('combo add ' + [DEFS.stick.moves.uppercut.next?.punch, rows().length, n0]);
+    [...row('jab›cross›uppercut›sweep').querySelectorAll('button')].find(b => b.textContent === 'sweep').click();
+    [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('cut')).click();
+    if (DEFS.stick.moves.uppercut.next || rows().length !== n0) errs.push('combo cut ' + rows().length);
+    combos.view = 'tree'; panels(); if (document.querySelectorAll('.ctable .croot').length !== comboRoots(currentChar(), new Set(Object.values(curBinds(currentChar())))).length) errs.push('combo tree');
+    anim.view = 'cards'; panels(); }
   // the gallery: every move, then every movement (with a hover tip); all run without errors
   { setMode('gallery'); const n = Object.keys(currentChar().moves).length, mv = lab.cells.filter(c => c.motion);
     if (lab.cells.length !== n + Object.keys(MOVEMENTS).length || mv.length !== Object.keys(MOVEMENTS).length || !mv.every(c => c.tip)) errs.push('gallery cells ' + lab.cells.length);

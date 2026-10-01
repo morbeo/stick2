@@ -798,6 +798,31 @@ function frameData(m, speed = 1) {
   }
   return mapVals(f, Math.round);
 }
+const moveDamage = m => m.power ? m.damage ?? m.power * 8 : 0;
+// combos (the chains setting authored): a move's next links { punch: 'cross', kick: 'kick' } chain it into another in its cancel window.
+// starters: moves with links that are bound to an input (bound: a Set of names) or that no move links to
+const linksOf = (ch, n) => Object.entries(ch.moves[n]?.next || {}).filter(([, t]) => ch.moves[t]);
+function comboRoots(ch, bound) {
+  const linked = new Set(Object.keys(ch.moves).flatMap(n => linksOf(ch, n).map(l => l[1])));
+  return Object.keys(ch.moves).filter(n => linksOf(ch, n).length && (bound.has(n) || !linked.has(n)));
+}
+// every route from each starter to a move without links (a link back into the route ends it): moves, the button of each link
+// (the first is null), damage before combo scaling and frames until the last move ends (each earlier one until its cancel window opens)
+function comboRoutes(ch, roots, speed = 1) {
+  const out = [], f = m => 60 / (m.power ? speed : 1);
+  const walk = (moves, inputs) => {
+    const next = linksOf(ch, moves.at(-1)).filter(([, t]) => !moves.includes(t));
+    if (!next.length) {
+      if (moves.length < 2) return;
+      const ms = moves.map(n => ch.moves[n]), last = ms.at(-1);
+      out.push({ moves, inputs, damage: ms.reduce((s, m) => s + moveDamage(m), 0),
+        frames: Math.round(ms.slice(0, -1).reduce((s, m) => s + m.keys.slice(0, m.cancel).reduce((a, k) => a + k.d, 0) * f(m), 0) + total(last) * f(last)) });
+    }
+    for (const [b, t] of next) walk([...moves, t], [...inputs, b]);
+  };
+  for (const r of roots) walk([r], [null]);
+  return out;
+}
 
 // forward kinematics, hip (root) at origin, y down. dir in [-1, 1] (fractional while turning). lens: stretched lengths
 // wa (optional) receives each bone's world angle

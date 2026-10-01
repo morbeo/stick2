@@ -32,7 +32,7 @@ const ICONS = {
 };
 const ARROWS = { '←': 'arrow_back', '→': 'arrow_forward', '↑': 'arrow_upward', '↓': 'arrow_downward', '↖': 'north_west', '↗': 'north_east', '↙': 'south_west', '↘': 'south_east' };
 // icons of option values, shown by seg() unless it is given its own labels
-const OPT_ICONS = { cards: 'view_module', list: 'list', table: 'table_rows', inputs: 'stadia_controller', type: 'category', limb: 'front_hand', height: 'height',
+const OPT_ICONS = { cards: 'view_module', list: 'list', table: 'table_rows', inputs: 'stadia_controller', combos: 'trending_up', type: 'category', limb: 'front_hand', height: 'height',
   stance: 'sports_martial_arts', order: 'format_list_numbered', name: 'sort_by_alpha', startup: 'timer', damage: 'heart_broken',
   high: 'vertical_align_top', shigh: 'vertical_align_top', mid: 'vertical_align_center', smid: 'vertical_align_center', low: 'vertical_align_bottom',
   bone: 'straighten', body: 'accessibility_new', stand: 'man', crouch: 'keyboard_double_arrow_down', guard: 'shield', idle: 'man', air: 'air',

@@ -666,3 +666,23 @@ test('movement layers: a move named <state>Layer adds its offsets from its ref p
   assert.equal(r.half, 20);
   assert.deepEqual(r.idle, r.scen.map(() => 0));
 });
+
+test('combo routes: every chain from a starter (a bound move with links, or one no move links to) to its end, with inputs, damage and frames; a loop ends the route', () => {
+  const r = JSON.parse(run(`(() => {
+    const ch = CHARS.stick, bound = new Set(Object.values(ch.stances[0].binds)), roots = comboRoots(ch, bound), routes = comboRoutes(ch, roots);
+    const ppp = routes.find(x => x.moves.join() === 'jab,cross,uppercut'), m = ch.moves;
+    const cf = n => m[n].keys.slice(0, m[n].cancel).reduce((s, k) => s + k.d * 60, 0);
+    const looped = makeCharacter({ ...CHAR_DEFS.stick, moves: { ...CHAR_DEFS.stick.moves, uppercut: { ...CHAR_DEFS.stick.moves.uppercut, next: { punch: 'jab' } } } });
+    const lr = comboRoutes(looped, comboRoots(looped, bound));
+    return JSON.stringify({ roots, ppp, want: { damage: moveDamage(m.jab) + moveDamage(m.cross) + moveDamage(m.uppercut), frames: Math.round(cf('jab') + cf('cross') + total(m.uppercut) * 60) },
+      allLinked: routes.every(x => x.moves.slice(1).every((n, i) => m[x.moves[i]].next[x.inputs[i + 1]] === n)),
+      loop: lr.find(x => x.moves.join().startsWith('jab,cross,uppercut'))?.moves, ends: routes.every(x => !Object.values(m[x.moves.at(-1)].next || {}).some(n => m[n] && !x.moves.includes(n))) });
+  })()`));
+  assert.ok(r.roots.includes('jab') && r.roots.includes('kick'), r.roots.join());
+  assert.ok(r.ppp, 'jab › cross › uppercut');
+  assert.deepEqual(r.ppp.inputs.slice(1), ['punch', 'punch']);
+  assert.equal(r.ppp.damage, r.want.damage);
+  assert.equal(r.ppp.frames, r.want.frames);
+  assert.ok(r.allLinked && r.ends);
+  assert.deepEqual(r.loop, ['jab', 'cross', 'uppercut']);
+});

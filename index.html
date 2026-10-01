@@ -78,6 +78,9 @@
   .mtable tr.on td { background: #222; color: #fff; }
   .mtable td input { width: 46px; font: inherit; background: transparent; border: 1px solid transparent; color: inherit; }
   .mtable td input:hover, .mtable td input:focus { border-color: #bbb; background: #fff; color: #222; }
+  .ctable .croot { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid #e3ded2; } .ctable .croot > .note { width: 70px; margin: 4px 0 0; }
+  .ctable .cnode { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; } .ctable .cnode > .clink { flex-basis: 100%; display: flex; gap: 4px; align-items: flex-start; padding-left: 18px; border-left: 1px solid #cfc8bb; margin-left: 8px; }
+  .ctable .chip { font-weight: bold; } .ctable td button.mini + button.mini { margin-left: 2px; } .ctable td .mini:has(+ .mini), .ctable td .chip { margin-right: 2px; } .ctable .warn { color: #c0392b; margin-bottom: 6px; } .ctable td .note { margin: 0; }
   .itable .bar .fill { flex: 1; } .itable .legend { justify-content: flex-start; margin: 2px 0 8px; align-items: center; }
   .itable .legend .key { padding: 1px 8px; border: 1px solid #cfc8bb; border-radius: 3px; font-weight: normal; }
   .pads { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 12px; }
@@ -152,6 +155,7 @@
 <script src="src/creator.js"></script>
 <script src="src/editor.js"></script>
 <script src="src/inputs.js"></script>
+<script src="src/combos.js"></script>
 <script src="src/breed.js"></script>
 <script src="src/keys.js"></script>
 <script src="src/palette.js"></script>
