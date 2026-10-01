@@ -194,14 +194,14 @@ function animMouse(type, x, y, e) {
     if (posed) buildPreview();
   }
 }
-function animKey(e) {
-  if (e.code === 'ArrowLeft' && e.shiftKey) { selectKey(anim.key - 1); return true; }
-  if (e.code === 'ArrowRight' && e.shiftKey) { selectKey(anim.key + 1); return true; }
-  if (e.code === 'Comma') { anim.playing = false; anim.t = Math.max(0, anim.t - F); anim.key = keyAt(curMove(), anim.t); previewAt(anim.t); return true; }
-  if (e.code === 'Period') { anim.playing = false; anim.t = Math.min(total(curMove()) - 1e-6, anim.t + F); anim.key = keyAt(curMove(), anim.t); previewAt(anim.t); return true; }
-  if (e.code === 'Enter') { anim.playing = !anim.playing; return true; }
-  if (e.code === 'KeyO') { anim.onion = !anim.onion; return true; }
-  if (e.code === 'KeyI') { anim.aim = !anim.aim; return true; }
+function animKey(e, a) {
+  if (a === 'prevKey') { selectKey(anim.key - 1); return true; }
+  if (a === 'nextKey') { selectKey(anim.key + 1); return true; }
+  if (a === 'frameBack') { anim.playing = false; anim.t = Math.max(0, anim.t - F); anim.key = keyAt(curMove(), anim.t); previewAt(anim.t); return true; }
+  if (a === 'frameFwd') { anim.playing = false; anim.t = Math.min(total(curMove()) - 1e-6, anim.t + F); anim.key = keyAt(curMove(), anim.t); previewAt(anim.t); return true; }
+  if (a === 'playMove') { anim.playing = !anim.playing; return true; }
+  if (a === 'onion') { anim.onion = !anim.onion; return true; }
+  if (a === 'aim') { anim.aim = !anim.aim; return true; }
 }
 
 // ---------- key and move edits ----------

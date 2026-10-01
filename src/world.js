@@ -30,7 +30,7 @@ class World {
     const s = this.scen, scripted = Array.isArray(s.a);
     Object.assign(this, { rand: makeRand(this.seed), parts: [], trauma: 0, zoom: 0, slowT: 0, T: 0, simT: 0,
       frozenT: 0, hits: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
-      pend: null, adv: null, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
+      pend: null, adv: null, macro: null, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
     // a vs b, plus any extra fighters: { c: controller, x, team }
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0 }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1 }, ...(s.more || [])];
     const chars = this.chars || [currentChar()];
@@ -72,6 +72,13 @@ class World {
     if (h.tgt.length > HIST) for (const k in h) h[k].shift();
   }
 
+  // a running key macro (keys.js) presses its steps on top of the keys held
+  withMacro(inp, f, o, h) {
+    if (!this.macro || !o) return inp;
+    const m = this.macro.input(f, o, h);
+    if (this.macro.done) this.macro = null;
+    return Object.fromEntries(Object.keys(NOIN).map(k => [k, inp[k] || m[k]]));
+  }
   // input display: the human's input in numpad notation (6 = forward, 2 = down, 8 = jump…) + buttons, repeats merged
   logInput(i) {
     const x = (i.right - i.left) * this.a.dir, n = 5 + x + (i.down ? -3 : i.jump ? 3 : 0), b = (i.punch ? 'P' : '') + (i.kick ? 'K' : '');
@@ -90,7 +97,7 @@ class World {
     this.updateParticles(h);
 
     const fs = this.fighters, tg = fs.map(f => this.nearestFoe(f));
-    const ins = this.ctl.map((c, i) => c === 'human' ? inp : !c || !tg[i] ? NOIN : c.input(fs[i], tg[i], h));
+    const ins = this.ctl.map((c, i) => c === 'human' ? this.withMacro(inp, fs[i], tg[i], h) : !c || !tg[i] ? NOIN : c.input(fs[i], tg[i], h));
     fs.forEach((f, i) => f.bufferInput(ins[i]));
     // recording for the replay dummy: one entry per substep the human is not frozen, directions relative to facing
     if (this.tape && this.ctl[0] === 'human' && this.a.freeze <= 0) {

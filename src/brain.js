@@ -13,6 +13,7 @@ const idle = f => !f.action && f.free && f.grounded && f.squatT <= 0;
 // '!punch' = walk in and press once idle · '@uppercut' = force a move (for the gallery)
 class Script {
   constructor(items) { Object.assign(this, { items, i: 0, wait: 0, hold: null }); }
+  get done() { return this.i >= this.items.length && !this.hold && this.wait <= 0; }
   input(f, o, h) {
     const inp = { ...NOIN };
     if (f.freeze > 0) return inp; // the script's clock stops during hit stop, so timings hold at any hitstop

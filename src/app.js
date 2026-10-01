@@ -23,13 +23,13 @@ function panels() {
 function restart() { mode().restart(); }
 function togglePanel() { document.body.classList.toggle('noside'); resize(); }
 
+// help under the rebindable keys (P = punch, K = kick, directions as on the numpad: 2 down, 3 down-forward, 6 forward…)
 const KEYS = [
-  ['fight', 'A/D or ←/→ move · W/↑/Space jump · S/↓ crouch · J punch · K kick\nchains: J,J,J · K,K · J,K · J,J,K · S+K sweep · run+J dash punch · air J/K, air J,K\nspecials (cancel normals that hit): ↓↘→ J rush · →↓↘ J rising · ↓↙← K spin · ↓↘→ K stomp (hits a fighter on the floor)'],
-  ['transport', 'P pause · N step one frame · R restart · M scrub with the mouse · 1-5 modes · ⌘Z undo · ⇧⌘Z redo (character and moves)'],
-  ['view', 'H hide the side panel · G ghost (keyframe pose) · B hitboxes · Esc back / close'],
+  ['combos', 'chains: P,P,P · K,K · P,K · P,P,K · down+K sweep · run+P dash punch · air P/K, air P,K\nspecials (cancel normals that hit): 236P rush · 623P rising · 214K spin · 236K stomp (hits a fighter on the floor)'],
+  ['fixed', '⌘Z undo · ⇧⌘Z redo (character and moves) · Esc back / close'],
   ['grid', 'click a cell: focus it (breed / attacks: breed around it) · Shift+click: focus'],
-  ['character', 'drag a joint: length + angle · Shift+drag: angle only · Del delete bone'],
-  ['animate', 'drag a joint: IK · Alt+drag: rotate one bone · Shift+←/→ prev/next key · , . step a frame · Enter play/pause move · O onion · I aim'],
+  ['character', 'drag a joint: length + angle · Shift+drag: angle only'],
+  ['animate', 'drag a joint: IK · Alt+drag: rotate one bone'],
 ];
 function buildTop() {
   $('modes').replaceChildren(seg(Object.keys(MODES), () => app.mode, setMode, MODES));
@@ -46,7 +46,7 @@ function buildTop() {
       for (const w of mode().worlds()) { w.loop = v; if (v && w.done) w.reset(); }
     }),
     button('panel', 'Show / hide the side panel (H)', togglePanel),
-    button('?', 'Keys', (e, b) => popup(b, ...KEYS.flatMap(([g, k]) => [h('h4', { textContent: g }), h('p', { cls: 'keys', textContent: k })]))));
+    button('keys', 'Keys: rebind any action, set up macros, and help', keysPanel));
 }
 
 function resize() {
@@ -86,30 +86,34 @@ function scrub(f) {
 
 // ---------- input ----------
 const keys = new Set(), pressed = new Set();
-const MAP = { KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', KeyW: 'jump', ArrowUp: 'jump',
-  Space: 'jump', KeyS: 'down', ArrowDown: 'down', KeyJ: 'punch', KeyK: 'kick' };
+const FIGHT = ['left', 'right', 'jump', 'down', 'punch', 'kick'];
+const fightKey = code => FIGHT.find(a => keymap[a].some(k => k === code || k.endsWith('+' + code)));
 const SHORTCUTS = {
-  KeyP: () => { app.paused = !app.paused; },
-  KeyN: () => { app.paused = app.stepOnce = true; },
-  KeyR: restart,
-  KeyH: togglePanel,
-  KeyG: () => { CFG.ghost = !CFG.ghost; },
-  KeyB: () => { CFG.boxes = !CFG.boxes; },
-  KeyM: () => { app.scrub = !app.scrub; app.scrubF = null; },
-  Digit1: () => setMode('play'), Digit2: () => setMode('grid'), Digit3: () => setMode('gallery'), Digit4: () => setMode('character'), Digit5: () => setMode('animate'),
+  pause: () => { app.paused = !app.paused; },
+  step: () => { app.paused = app.stepOnce = true; },
+  restart,
+  panel: togglePanel,
+  ghost: () => { CFG.ghost = !CFG.ghost; },
+  boxes: () => { CFG.boxes = !CFG.boxes; },
+  scrub: () => { app.scrub = !app.scrub; app.scrubF = null; },
+  ...Object.fromEntries(Object.keys(MODES).map(m => [m, () => setMode(m)])),
 };
+addEventListener('keydown', e => { if (captureKey(e)) e.stopImmediatePropagation(); }, true); // rebinding a key
 addEventListener('keydown', e => {
   if (e.target.type === 'number') return;
   if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyZ' || e.code === 'KeyY')) { e.preventDefault(); e.shiftKey || e.code === 'KeyY' ? redo() : undo(); return; }
-  if (mode().key?.(e)) { e.preventDefault(); syncAll(); return; }
-  if (!e.metaKey && !e.ctrlKey && SHORTCUTS[e.code]) { SHORTCUTS[e.code](); syncAll(); return; }
-  const a = MAP[e.code];
-  if (!a) return;
+  const a = act(e), mod = e.metaKey || e.ctrlKey;
+  if (mode().key?.(e, a)) { e.preventDefault(); syncAll(); return; }
+  if (!mod && SHORTCUTS[a]) { SHORTCUTS[a](); syncAll(); return; }
+  const m = !mod && macroFor(e);
+  if (m) { e.preventDefault(); if (!e.repeat) runMacro(m); return; }
+  const f = FIGHT.includes(a) ? a : fightKey(e.code);
+  if (!f) return;
   e.preventDefault();
-  if (!e.repeat) pressed.add(a);
-  keys.add(a);
+  if (!e.repeat) pressed.add(f);
+  keys.add(f);
 });
-addEventListener('keyup', e => { const a = MAP[e.code]; if (a) keys.delete(a); });
+addEventListener('keyup', e => { const f = fightKey(e.code); if (f) keys.delete(f); });
 addEventListener('blur', () => keys.clear());
 function readInput() {
   const i = { left: keys.has('left'), right: keys.has('right'), down: keys.has('down'),

@@ -159,9 +159,9 @@ function creatorMouse(type, x, y, e) {
     else creator.hover = x < edLayout().ed.w ? pickBone(x, y) : null;
   } else { creator.drag = null; studio.lastKey = null; }
 }
-function creatorKey(e) {
+function creatorKey(e, a) {
   if (creator.expOn) { if (e.code === 'Escape') { setExp(false); return true; } return; }
-  if (e.code === 'Delete' || e.code === 'Backspace') { deleteBone(); return true; }
+  if (a === 'deleteBone') { deleteBone(); return true; }
 }
 
 // ---------- panels ----------

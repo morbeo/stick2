@@ -402,6 +402,6 @@ const labMode = {
   side: labSide,
   mouse(type, x, y, e) { if (type === 'down') labClick(x, y, e); },
   key(e) { if (e.code === 'Escape' && lab.zoom) { lab.zoom = false; return true; } },
-  hint: () => lab.mode === 'play' ? 'A/D move · W jump · S crouch · J punch · K kick'
+  hint: () => lab.mode === 'play' ? fightHint()
     : lab.mode === 'grid' && lab.kind !== 'sweep' ? 'click a cell: breed around it · Shift+click: focus · Esc back' : 'click a cell to focus it · Esc back',
 };
