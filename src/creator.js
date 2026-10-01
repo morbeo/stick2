@@ -226,6 +226,42 @@ function bonePanel() {
 // clicking a variable's name: nine bodies varying only that variable
 const bodyExpLink = (row, k, preview) => expLink(row, `nine bodies varying ${k}; click the best to breed around it`,
   () => { creator.exp.vars = new Set([k]); if (preview) creator.preview = preview; setExp(true); });
+// ---------- radar: the character's chosen stats, other characters overlaid to compare ----------
+const radar = { vars: new Set(['speed', 'dash', 'traction', 'weight', 'jump', 'airSpeed', 'health', 'tempo']), chars: new Set() };
+const RADAR_COLS = ['#c0392b', '#2a6fb0', '#2e8b57', '#b8860b', '#7b4ea3', '#d35400', '#555'];
+const statOf = (k, st) => DEFS[k][st.k] ?? 1;
+function radarPanel() {
+  const cv = h('canvas', { cls: 'radar' }), legend = h('div', { cls: 'legend' });
+  const draw = () => {
+    const S = 250, c = cv.getContext('2d'), axes = CHAR_STATS.filter(st => radar.vars.has(st.k)), n = axes.length, R = 80, cx = S / 2, cy = S / 2;
+    cv.width = cv.height = S * dpr; c.scale(dpr, dpr); c.font = '10px ui-monospace, Menlo, monospace'; c.textAlign = 'center';
+    const ks = [CURRENT, ...[...radar.chars].filter(k => k !== CURRENT && DEFS[k])];
+    legend.replaceChildren(...ks.map((k, i) => h('span', { textContent: k, style: `color: ${RADAR_COLS[i % RADAR_COLS.length]}` })));
+    if (n < 3) { c.fillStyle = '#999'; c.fillText('pick 3 or more stats', cx, cy); return; }
+    const pt = (i, f) => { const a = -Math.PI / 2 + i / n * 2 * Math.PI; return [cx + Math.cos(a) * R * f, cy + Math.sin(a) * R * f]; };
+    const shape = f => { c.beginPath(); axes.forEach((st, i) => c.lineTo(...pt(i, f(st)))); c.closePath(); };
+    const norm = (v, st) => clamp((v - st.min) / (st.max - st.min), 0, 1);
+    c.strokeStyle = '#ddd'; c.lineWidth = 1;
+    for (const f of [0.25, 0.5, 0.75, 1]) { shape(() => f); c.stroke(); }
+    axes.forEach((st, i) => { c.beginPath(); c.moveTo(cx, cy); c.lineTo(...pt(i, 1)); c.stroke(); });
+    c.setLineDash([3, 3]); c.strokeStyle = '#aaa'; shape(st => norm(1, st)); c.stroke(); c.setLineDash([]); // 1 = as the settings say
+    ks.slice().reverse().forEach(k => { // the current character on top
+      const col = RADAR_COLS[ks.indexOf(k) % RADAR_COLS.length];
+      shape(st => norm(statOf(k, st), st)); c.globalAlpha = 0.15; c.fillStyle = col; c.fill();
+      c.globalAlpha = 1; c.strokeStyle = col; c.lineWidth = k === CURRENT ? 2 : 1.5; c.stroke();
+    });
+    c.fillStyle = '#555';
+    axes.forEach((st, i) => { const [x, y] = pt(i, 1.18); c.fillText(st.k, x, y + 3); });
+  };
+  reg(cv, draw);
+  const head = h('h4', { textContent: 'radar', tip: 'Stats on a radar: each axis runs from the stat\'s minimum (centre) to its maximum (rim); the dashed ring is 1 (as the settings say). Pick the axes and the characters to compare.' });
+  head.append(h('span', { cls: 'gops' },
+    button(':tune:', 'Which stats are the axes', (e, b) => popup(b, h('div', { cls: 'bar' }, CHAR_STATS.map(st =>
+      toggle(st.k, `${st.g} · ${st.tip}`, () => radar.vars.has(st.k), on => radar.vars[on ? 'add' : 'delete'](st.k))))), 'mini'),
+    button(':person:', 'Characters to compare with this one', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.keys(DEFS).filter(k => k !== CURRENT).map(k =>
+      toggle(k, `Overlay ${k}`, () => radar.chars.has(k), on => radar.chars[on ? 'add' : 'delete'](k))))), 'mini')));
+  return [head, cv, legend];
+}
 // the character's stats; defaults are the built-in's values (custom characters: 1)
 function statsPanel() {
   const get = k => DEFS[CURRENT][k] ?? 1, dflt = k => CHAR_DEFS[CURRENT]?.[k] ?? 1;
@@ -264,6 +300,7 @@ function bodyPanel() {
     h('h4', { textContent: 'stance pose', tip: 'Set the whole stance from a preset (per limb, so it works for any body)' }),
     stanceRow(),
     h('div', { cls: 'bar' }, Object.entries(POSES).map(([k, p]) => button(k, p.tip, () => edit(def => Object.assign(editPose(def), presetPose(currentChar(), p)))))),
+    ...radarPanel(),
     ...statsPanel(),
     ...gaitPanel(),
   ];
