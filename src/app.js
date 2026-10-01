@@ -10,6 +10,10 @@ const MODES = {
   animate: 'Pose keyframes by dragging joints, retime them on the timeline, and watch the move with springs and hit stop.',
 };
 const mode = () => ({ character: creatorMode, animate: animMode })[app.mode] || labMode;
+// the top bar's tabs: impact is a view of play and gallery a view of animate, picked first in their toolbar
+const VIEWS = { play: ['play', 'impact'], animate: ['animate', 'gallery'] };
+const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', gallery: 'animation', impact: 'crisis_alert', character: 'accessibility_new', animate: 'timeline' };
+const tabOf = m => Object.keys(VIEWS).find(t => VIEWS[t].includes(m)) || m;
 
 function setMode(m) {
   app.mode = m; closePop(); cursor('default');
@@ -18,7 +22,8 @@ function setMode(m) {
   panels();
 }
 function panels() {
-  $('ctx').replaceChildren(...mode().ctxBar());
+  const views = VIEWS[tabOf(app.mode)];
+  $('ctx').replaceChildren(...views ? [grp('view', 'What this tab shows', seg(views, () => app.mode, setMode, MODES, m => `:${MODE_ICONS[m]}: ${{ play: 'fight', animate: 'editor' }[m] || m}`))] : [], ...mode().ctxBar());
   $('side').classList.remove('searching');
   $('side').replaceChildren(...folds(mode().side().filter(Boolean), app.mode, mode().open || []));
   $('over').replaceChildren(...mode().overlay?.() || []); // controls placed over the canvas
@@ -41,8 +46,9 @@ const KEYS = [
   ['animate', 'drag a joint: IK · Alt+drag: rotate one bone · timeline: drag a key to reorder, its edge to retime, double-click to split · Delete removes the key'],
 ];
 function buildTop() {
-  $('modes').replaceChildren(seg(Object.keys(MODES), () => app.mode, setMode, MODES,
-    m => `:${{ play: 'sports_kabaddi', grid: 'grid_view', gallery: 'animation', impact: 'crisis_alert', character: 'accessibility_new', animate: 'timeline' }[m]}: ${m}`));
+  const tabs = Object.keys(MODES).filter(m => tabOf(m) === m);
+  $('modes').replaceChildren(seg(tabs, () => tabOf(app.mode), m => tabOf(app.mode) !== m && setMode(m),
+    Object.fromEntries(tabs.map(m => [m, MODES[m] + (VIEWS[m] ? ` Also: ${VIEWS[m].slice(1).map(v => v + ': ' + MODES[v]).join(' ')}` : '')])), m => `:${MODE_ICONS[m]}: ${m}`));
   const pause = button('', 'Pause / play (P)', () => { app.paused = !app.paused; });
   reg(pause, () => { setRich(pause, app.paused ? ':play_arrow: play' : ':pause: pause'); pause.classList.toggle('on', app.paused); });
   $('global').replaceChildren(
