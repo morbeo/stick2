@@ -632,8 +632,8 @@ function movePanel() {
 }
 
 function animCtx() {
-  return [grp('show', 'Overlays', toggle(':visibility: ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; }),
-    toggle(':check_box_outline_blank: boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }), colorsToggle())];
+  return [grp('show', 'Overlays', toggle(':visibility:', 'Ghost: ' + SPEC.ghost.tip + ' (G)', () => CFG.ghost, v => { CFG.ghost = v; }),
+    toggle(':check_box_outline_blank:', 'Boxes: ' + SPEC.boxes.tip + ' (B)', () => CFG.boxes, v => { CFG.boxes = v; }), colorsToggle())];
 }
 
 // controls over the canvas: transport and key edits above the timeline, the preview's target under the preview

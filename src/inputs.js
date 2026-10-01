@@ -22,7 +22,7 @@ const INPUT_PADS = [
   { name: 'other', tip: 'Run + P, P + G and S in the air', cols: 1,
     cells: [['66P', 'dashPunch'], ['P+G', 'throw'], ['j.S', 'airSpecial']].map(([label, s]) => ({ label, chain: [s], own: true })) },
 ];
-const inputs = { hand: '', unset: false };
+const inputs = { hand: '', unset: false, table: false };
 const HAND_TIPS = { '': 'Unarmed binds', ...Object.fromEntries(Object.entries(WEAPON_CLASSES).map(([k, c]) => [k, `Holding a ${k} weapon (${c.weapon}): ${c.tip}. Its binds hold in every stance and replace the unarmed ones`])) };
 const handChar = () => inputs.hand ? withWeapon(currentChar(), { weapon: inputs.hand }) : currentChar();
 // what a cell does now: its own slot (if the plane has it), the move it starts and the slot that move comes from
@@ -76,18 +76,20 @@ function inputTable() {
     }));
   };
   const ch = currentChar(), names = ch.stances.map(s => s.name);
+  let table;
   wrap.append(
     h('div', { cls: 'bar' },
       seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); }, { 0: 'The main stance' }, i => names[i]),
       seg(['2d', '25'], () => CFG.plane === '2d' ? '2d' : '25', v => { setCfg({ plane: v === '2d' ? '2d' : 'lanes' }); panels(); mode().restart(); },
         { '2d': '2D moveset: ↑ jumps (↑ with P / K together is an up attack), air moves by direction', '25': '2.5D moveset (VF-style): every direction × button is a ground move' }, v => v === '2d' ? '2D' : '2.5D'),
       seg(Object.keys(HAND_TIPS), () => inputs.hand, v => { inputs.hand = v; fill(); }, HAND_TIPS, v => v ? ':swords: ' + v : ':back_hand: unarmed'),
-      toggle(':filter_list: unassigned', 'Only list the inputs without a move of their own', () => inputs.unset, v => { inputs.unset = v; fill(); }),
+      toggle(':table_rows: details', 'The table of every input under the pads: its slot, move, keys, startup, height and damage', () => inputs.table, v => { inputs.table = v; table.hidden = !v; }),
+      toggle(':filter_list: unassigned', 'Only list the inputs without a move of their own (in the table)', () => inputs.unset, v => { inputs.unset = v; fill(); }),
       h('span', { cls: 'fill' }),
       button(':close: editor', 'Back to the keyframe editor', () => { anim.view = 'cards'; unpeek(); panels(); })),
     h('div', { cls: 'legend' }, ...Object.entries({ set: 'own move', fall: '↪ falls back', none: '— nothing', alias: '= same as' }).map(([k, l]) => h('span', { cls: 'key ' + k, tip: STATE_TIPS[k], textContent: l })), count),
     pads,
-    h('table', {}, h('thead', {}, h('tr', {}, ['input', 'slot', 'move', 'plays', 'keys', 'startup', 'height', 'damage'].map(k => h('th', { textContent: k })))), body));
+    table = h('table', { hidden: !inputs.table }, h('thead', {}, h('tr', {}, ['input', 'slot', 'move', 'plays', 'keys', 'startup', 'height', 'damage'].map(k => h('th', { textContent: k })))), body));
   reg(wrap, fill); // undo, plane and stance changes refresh it
   return wrap;
 }

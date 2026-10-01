@@ -344,8 +344,8 @@ const GALLERY_TARGETS = {
   whiff: ['Nobody in range: the move whiffs, pure animation', { bx: 720 }],
   ai: ['The engine AI: moves, attacks back', { b: 'ai' }],
 };
-const meterToggle = () => toggle(':timeline: meter', METER_TIPS, () => lab.meter, v => { lab.meter = v; });
-const boxesToggle = () => toggle(':check_box_outline_blank: boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; });
+const meterToggle = () => toggle(':timeline:', 'Frame meter · ' + METER_TIPS, () => lab.meter, v => { lab.meter = v; });
+const boxesToggle = () => toggle(':check_box_outline_blank:', 'Boxes: ' + SPEC.boxes.tip + ' (B)', () => CFG.boxes, v => { CFG.boxes = v; });
 // training tools (play): record your inputs, then the dummy replays them (mirrored to its facing)
 function trainingCtl() {
   const human = () => SCENARIOS[lab.scen].a === 'human';
@@ -360,7 +360,7 @@ function trainingCtl() {
   const file = toggle(':upload: replay file', 'Play a saved replay file (inputs, settings and characters of a recorded fight); click again to stop. A file from another engine version plays out differently: it asks first, and the top line shows where it goes out of sync',
     () => !!lab.playback, v => v ? loadReplay() : (lab.playback = null, build()));
   const save = button(':download: save replay', `Download this fight so far as a replay file: its inputs, settings and characters, pinned to engine v${ENGINE_VERSION} (other versions play it out differently)`, saveReplay);
-  return [grp('show', 'Training overlays', meterToggle(), toggle(':stadia_controller: inputs', 'Input display: your inputs in numpad notation (6 forward, 2 down, 8 up) and frames held', () => lab.inputs, v => { lab.inputs = v; }), boxesToggle()),
+  return [grp('show', 'Training overlays', meterToggle(), toggle(':stadia_controller:', 'Input display: your inputs in numpad notation (6 forward, 2 down, 8 up) and frames held', () => lab.inputs, v => { lab.inputs = v; }), boxesToggle()),
     grp('dummy', 'Record your inputs for the dummy to play back', rec, rep), grp('replay', 'Replay files: the whole fight, pinned to the engine version', save, file)];
 }
 // replay files (see makeReplay): download the play fight, or load one and play it in place of the scenario
@@ -400,7 +400,7 @@ function zoomBack() {
 }
 function labCtx() {
   if (lab.mode === 'gallery') return [grp('target', 'What the moves play against', seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0]))),
-    grp('show', 'Overlays', meterToggle(), boxesToggle(), toggle(':visibility: ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; }))];
+    grp('show', 'Overlays', meterToggle(), boxesToggle(), toggle(':visibility:', 'Ghost: ' + SPEC.ghost.tip + ' (G)', () => CFG.ghost, v => { CFG.ghost = v; }))];
   if (lab.mode === 'impact') return [
     grp('falls', SPEC.falls.tip, seg(SPEC.falls.opts, () => CFG.falls, v => setCfg({ falls: v }), SPEC.falls.optTips)),
     grp('show', 'Overlays', toggle(':person_off: no attacker', 'Hide the attacker: only the struck body, its blows still land the same way (and drags strike it unobstructed)', () => lab.solo, v => { lab.solo = v; build(); }),
@@ -414,7 +414,7 @@ function labCtx() {
     const back = zoomBack();
     reg(adopt, () => { adopt.hidden = !lab.zoom; });
     els.push(grp('axes', 'The variables swept across the grid', axisButton(lab.x, 'X'), axisButton(lab.y, 'Y')),
-      grp('tests', 'Ready-made comparisons', button(':target: collision test', 'Every hitTest mode (columns) on three fights (rows): compare hits and whiffs of the collision modes', () => {
+      grp('', 'Ready-made comparisons', button(':science: tests :expand_more:', 'Ready-made comparisons: collision modes, chain rules, combo effects, planes', (e, tb) => popup(tb, h('div', { cls: 'bar col', onclick: closePop }, button(':target: collision test', 'Every hitTest mode (columns) on three fights (rows): compare hits and whiffs of the collision modes', () => {
         Object.assign(lab.x, { k: 'hitTest' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = null; build();
       }),
       button(':sync_alt: cancel test', `Every chain rule (columns) on combo fights (rows: ${CANCEL_SCENS.join(' · ')}): what each rule lets through; the meter shows cancel windows in purple`, () => {
@@ -425,7 +425,7 @@ function labCtx() {
       }),
       button(':view_in_ar: 2.5D test', `Every plane (columns: 2D, lanes, belt) on depth fights (rows: ${PLANE_SCENS.join(' · ')}): sidesteps dodge, flips, dashes, AI lining up`, () => {
         Object.assign(lab.x, { k: 'plane' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = PLANE_SCENS; build();
-      })), adopt, back);
+      }))))), adopt, back);
   }
   if (lab.mode === 'grid' && lab.kind !== 'attacks') els.push(grp('stats', 'How the cells are measured and ordered',
     seg([1, 3, 5], () => lab.seeds, v => { lab.seeds = v; build(); }, { 1: 'One fight per cell', 3: 'Each cell fought with 3 seeds; stats averaged (AI fights differ per seed)', 5: '5 seeds per cell, averaged' }, v => `${v} seed${v > 1 ? 's' : ''}`),
