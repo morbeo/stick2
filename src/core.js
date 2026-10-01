@@ -100,7 +100,7 @@ const SCHEMA = [
   { k: 'techWindow', v: 0.25, min: 0, max: 0.6, step: 0.01, tip: 'Seconds a thrown fighter has to break the throw with P+G, and how early (s) before landing a G press techs the fall (a quick get-up). 0 = no breaks, no techs.' },
   { k: 'airRecover', v: 0.3, min: 0, max: 2, step: 0.05, tip: 'Seconds into a knockdown flight after which G flips the fighter back onto its feet in the air. 0 = never.' },
   ['Specials', 'Extra defensive and movement options, each on its own switch. specialScheme picks their inputs: guard (G held with a direction, ↓↓ S) or motion (quarter circles and the dragon punch with S). They are moves (rollFwd, rollBack, teleport) edited in animate.',
-    'guard scheme: G held + → / ← roll · ↓↓ S teleport · ↖ S / ↙ S high / low counter · motion scheme: ↓↘→ S / ↓↙← S roll · →↓↘ S teleport · ↓↓ S / ↙ S high / low counter · blockstun: P / → S guard cancel, K / ← S push block · lying: P / K wake-up attack, → / ← roll, G stay down'],
+    'guard scheme: G held + → / ← roll · ↓↓ S teleport · ↖ S / ↙ S high / low counter · motion scheme: ↓↘→ S / ↓↙← S roll · →↓↘ S teleport · ↓↓ S / ↙ S high / low counter · blockstun: P / → S guard cancel, K / ← S push block · ↑ S+G taunt · lying: P / K wake-up attack, → / ← roll, G stay down'],
   { k: 'specialScheme', v: 'guard', opts: ['guard', 'motion'], tip: 'Which inputs play the specials below.',
     optTips: { guard: 'G held, then → / ←: roll forward / back · ↓↓ S: teleport · ↖ S / ↙ S: high / low counter', motion: '↓↘→ S: roll forward · ↓↙← S: roll back · →↓↘ S: teleport · ↓↓ S / ↙ S: high / low counter' } },
   { k: 'rolls', v: true, tip: 'Rolls: a tumble forward through the foe or back away from it, invincible for rollInv.' },
@@ -112,6 +112,8 @@ const SCHEMA = [
   { k: 'pushBlock', v: true, tip: 'Push block: in blockstun, K (guard scheme) or ← S (motion) ends the blockstun with a shove (pushBlock) that slides the attacker away.' },
   { k: 'pushBlockForce', v: 450, min: 0, max: 1000, step: 10, tip: 'How hard (px/s) a push block shoves the attacker away (÷ its weight).' },
   { k: 'counters', v: true, tip: 'Counters by height: ↖ S (guard scheme) or ↓↓ S (motion) catches a high strike (catchHigh), ↙ S a low one (catchLow), each answered by its own counter; ← S stays the mid catch.' },
+  { k: 'taunt', v: true, tip: 'Taunt: ↑ S+G beckons the foe (taunt), open to any hit while it plays. Off: ↑ S+G is S+G (stance switch).' },
+  { k: 'winPose', v: true, tip: 'Win pose: after a K.O. the controllers pause and each fighter still standing plays its win move.' },
   { k: 'wakeUp', v: true, tip: 'Wake-up options while lying (any scheme): P / K gets up attacking (getupAttack), → / ← gets up rolling forward / back, G held stays down longer (wakeDelay).' },
   { k: 'wakeDelay', v: 0.4, min: 0, max: 1.5, step: 0.05, tip: 'How much longer (s) a fighter holding G may stay down.' },
   ['Weapons', 'A weapon lies on the floor or starts in hand. P+G over one picks it up; while held, P, → P and ↓ P are its class\'s moves (one-handed pierce / slash / blunt, two-handed, pole), heavier weapons hit harder and swing slower. P+G again throws it; a knockdown or a hard blow knocks it loose.', 'P+G pick up / throw (hold to throw harder)'],
@@ -212,7 +214,7 @@ function makeRand(seed) {
 // ---------- simulation state: checkpoints and replays ----------
 // Replays store inputs, not results: a replay recorded with another ENGINE_VERSION plays out differently.
 // Bump it whenever the simulation changes (the replay test fails until you do).
-const ENGINE_VERSION = 19;
+const ENGINE_VERSION = 20;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied

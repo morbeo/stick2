@@ -232,7 +232,7 @@ class World {
     this.updateParticles(h); this.updateItems(h);
 
     const fs = this.fighters, tg = fs.map(f => this.nearestFoe(f));
-    const ins = this.ctl.map((c, i) => c === 'human' ? this.withMacro(inp, fs[i], tg[i], h) : !c || !tg[i] ? NOIN : c.input(fs[i], tg[i], h));
+    const ins = this.koT ? fs.map(() => NOIN) : this.ctl.map((c, i) => c === 'human' ? this.withMacro(inp, fs[i], tg[i], h) : !c || !tg[i] ? NOIN : c.input(fs[i], tg[i], h));
     fs.forEach((f, i) => f.bufferInput(ins[i]));
     // recording for the replay dummy: one entry per substep the human is not frozen, directions relative to facing
     if (this.tape && !this.replaying && this.ctl[0] === 'human' && this.a.freeze <= 0) {
@@ -272,6 +272,8 @@ class World {
     if (this.scen.waves && !this.a.ko) { if (this.foes(this.a).length) this.waveT = 0; else if ((this.waveT += h) > 1.2) this.nextWave(); }
     // a round ends once only one team is still standing
     else if (!this.koT && fs.some(f => f.ko) && new Set(fs.filter(f => !f.ko).map(f => f.team)).size <= 1) this.koT = 2.5;
+    // the round is over: the controllers pause, each survivor plays its win move once it is free on the floor (winPose)
+    if (this.koT) for (const f of fs) if (!f.ko && !f.won && f.free && f.grounded && !f.action && f.c('winPose') && f.ch.moves.win) { f.won = true; f.start('win'); }
     const p = this.scen.period;
     if (p && this.simT >= p || this.koT && (this.koT -= h) <= 0) { if (this.loop) this.reset(); else this.done = true; }
   }

@@ -357,6 +357,20 @@ const STICK_MOVES = {
     { d: 0.05, e: 'outExpo', p: { torso: 5, head: -10, afU: 150, afL: 10, abU: 140, abL: 15 }, warp: true, inv: true },
     { d: 0.22, e: 'inOutCubic', p: null },
   ] },
+  // ↑ S+G (taunt setting): beckons the foe, open the whole time; win (winPose setting): the survivors' fist in the air after a K.O.
+  taunt: { keys: [
+    { d: 0.15, e: 'outQuad', p: { torso: -12, head: -15, afU: 70, afL: 100, abU: -20, abL: 30 } },
+    { d: 0.12, e: 'inOutCubic', p: { torso: -12, head: -15, afU: 75, afL: 40, abU: -20, abL: 30 } },
+    { d: 0.12, e: 'inOutCubic', p: { torso: -12, head: -15, afU: 70, afL: 100, abU: -20, abL: 30 } },
+    { d: 0.12, e: 'inOutCubic', p: { torso: -12, head: -15, afU: 75, afL: 40, abU: -20, abL: 30 } },
+    { d: 0.25, e: 'inOutCubic', p: null },
+  ] },
+  win: { keys: [
+    { d: 0.2, e: 'outQuad', p: { ...CROUCH, afU: 20, afL: 140, abU: 10, abL: 140 } },
+    { d: 0.15, e: 'outBack', p: { torso: -8, head: -20, afU: 170, afL: 15, abU: 30, abL: 110 } },
+    { d: 1.2, p: { torso: -8, head: -20, afU: 172, afL: 10, abU: 30, abL: 110 } },
+    { d: 0.4, e: 'inOutCubic', p: null },
+  ] },
 };
 STICK_MOVES.hammer.keys[0].armor = true;
 STICK_MOVES.guardCancel.keys.slice(0, 2).forEach(k => { k.inv = true; });
@@ -415,8 +429,8 @@ const slotsOf = plane => plane === '2d' ? BINDS : BINDS_25;
 const bindsKey = plane => plane === '2d' ? 'binds' : 'binds25';
 // specials by name, each with its on/off setting, and the input that plays it in each specialScheme:
 // a motion name (MOTIONS) + S, 7S / 1S = S with a diagonal held (numpad), G4 / G6 = ← / → pressed while guarding,
-// b… = pressed in blockstun (bP, bK, b6S = → S, b4S = ← S)
-const SPECIALS = { rollFwd: 'rolls', rollBack: 'rolls', teleport: 'teleport', guardCancel: 'guardCancel', pushBlock: 'pushBlock', catchHigh: 'counters', catchLow: 'counters' };
+// b… = pressed in blockstun (bP, bK, b6S = → S, b4S = ← S); taunt is on ↑ S+G in both
+const SPECIALS = { rollFwd: 'rolls', rollBack: 'rolls', teleport: 'teleport', guardCancel: 'guardCancel', pushBlock: 'pushBlock', catchHigh: 'counters', catchLow: 'counters', taunt: 'taunt' };
 const SPECIAL_SCHEMES = {
   guard: { rollFwd: 'G6', rollBack: 'G4', teleport: 'dd', guardCancel: 'bP', pushBlock: 'bK', catchHigh: '7S', catchLow: '1S' },
   motion: { rollFwd: 'qcf', rollBack: 'qcb', teleport: 'dp', guardCancel: 'b6S', pushBlock: 'b4S', catchHigh: 'dd', catchLow: '1S' },

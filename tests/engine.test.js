@@ -505,3 +505,14 @@ test('counters by height: 7S catches highs, ← S mids, 1S lows (key catchH), ea
   assert.ok(go('down+kick', 'down+back+special', { specialScheme: 'motion' }).caught, 'motion: 1S is still the low counter');
   assert.match(go('punch', "down', 0.03, 'down+special", { specialScheme: 'motion' }).seen, /catchHigh/, 'motion: ↓↓ S is the high counter');
 });
+
+test('↑ S+G taunts; after a K.O. the survivor plays its win move and the controllers pause; taunt / winPose switches', () => {
+  const go = (a, cfg = {}, n = 60) => run(`(() => { const w = new World({ a: ${a}, b: 'dummy', ax: 330, bx: 375, cfg: ${JSON.stringify(cfg)} }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    const seen = []; for (let i = 0; i < ${n} && !w.done; i++) { w.advance(1/60, NOIN); const k = w.a.action && Object.keys(w.a.ch.moves).find(k => w.a.ch.moves[k] === w.a.action.m); if (k && seen[seen.length - 1] !== k) seen.push(k); }
+    return { seen: seen.join(' '), ko: w.b.ko }; })()`);
+  assert.match(go("[0.2, 'up+guard+special']").seen, /taunt/);
+  assert.doesNotMatch(go("[0.2, 'up+guard+special']", { taunt: false }).seen, /taunt/);
+  const ko = "[0.2, 'kick', 0.9, 'kick', 0.3, 'kick']", win = go(ko, { health: 5 }, 150);
+  assert.ok(win.ko); assert.match(win.seen, /^kick win$/, 'won, and the kicks after the K.O. were not played: ' + win.seen);
+  assert.doesNotMatch(go(ko, { health: 5, winPose: false }, 150).seen, /win/);
+});
