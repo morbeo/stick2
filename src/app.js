@@ -43,6 +43,7 @@ function buildTop() {
   $('transport').replaceChildren(pause,
     button(':skip_next: step', 'Advance one 60 fps frame (N)', () => { app.paused = app.stepOnce = true; }),
     button(':restart_alt: restart', 'Restart the fight(s) (R)', restart),
+    button(':undo:', 'Undo the last edit: character, moves or settings (⌘Z)', undo), button(':redo:', 'Redo (⇧⌘Z)', redo),
     seg([1, 0.5, 0.25, 0.1], () => app.speed, v => { app.speed = v; },
       { 1: 'Real time', 0.5: 'Half speed', 0.25: 'Quarter speed', 0.1: 'One tenth: study single frames' }, v => ({ 1: '1×', 0.5: '½', 0.25: '¼', 0.1: '⅒' })[v]),
     toggle(':mouse: scrub', 'Mouse left/right over the view sets the time: every fight is re-simulated to that moment (M)', () => app.scrub, v => { app.scrub = v; app.scrubF = null; }),

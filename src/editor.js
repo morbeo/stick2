@@ -472,15 +472,15 @@ function movePanel() {
   const bindB = button('', 'Inputs that trigger this move. Click to bind it to other inputs (copies of moves become playable this way).', (e, b) =>
     popup(b, h('div', { cls: 'bar' }, Object.keys(BINDS).map(s => toggle(s, `${SLOT_TIPS[s]} · now: ${curStance().binds[s] || 'none'}`, () => curStance().binds[s] === anim.move, () => toggleBind(s))))));
   reg(bindB, () => { setRich(bindB, boundSlots().join(' ') || 'none (combo only)'); });
+  const head = heading('Moves', 'Pick a move to edit. Copies can be tuned freely; the built-in names are the ones the controls trigger.', 'Enter play/pause · O onion · I aim');
+  head.append(crud({ copy: ['New move copied from this one, under a new name', copyMove], delete: ['Delete this move (only copies)', deleteMove] }));
+  const loops = ['idle', 'walk'].filter(k => !currentChar().moves[k]);
   return [...charPanel(),
-    heading('Moves', 'Pick a move to edit. Copies can be tuned freely; the built-in names are the ones the controls trigger.', 'Enter play/pause · O onion · I aim'),
+    head,
     stanceRow(),
     ...moveList(),
-    h('div', { cls: 'bar' }, button(':content_copy: copy', 'Duplicate this move under a new name', copyMove),
-      button(':delete: delete', 'Delete this move (only copies)', deleteMove),
-      ...['idle', 'walk'].map(k => currentChar().moves[k] ? null : button(`:add: ${k} loop`,
-        `A keyframed ${k} loop made from the procedural ${k}, to edit like a move; it replaces the procedural ${k} (delete it to go back)`, () => makeLoop(k)))),
-    ...keyPanel(),
+    loops.length ? h('div', { cls: 'bar' }, loops.map(k => button(`:add: ${k} loop`,
+      `A keyframed ${k} loop made from the procedural ${k}, to edit like a move; it replaces the procedural ${k} (delete it to go back)`, () => makeLoop(k)))) : null,
     moveHeading(),
     h('div', { cls: 'row', tip: 'Striking bones: each end is a strike (in limb mode the whole bone); with several, the one that lands counts, one hit per target. Shift+click a joint in the editor to pick it, ⌘/Ctrl+Shift+click to add or remove it.' },
       h('span', { textContent: 'hit' }), h('span', { cls: 'bar' }, tipSeg, hitB)),
@@ -489,6 +489,7 @@ function movePanel() {
       seg(['high', 'shigh', 'mid', 'smid', 'low'], () => m().height, v => setMove('height', v), HEIGHT_TIPS)),
     ...MOVE_PROPS.map(p => slider(p.k, p, () => m()[p.k] || 0, v => setMove(p.k, v || undefined, 'm.' + p.k), p.tip)),
     h('div', { cls: 'bar' }, Object.entries(MOVE_FLAGS).map(([f, tip]) => toggle(f, tip, () => !!m()[f], v => setMove(f, v || undefined)))),
+    ...keyPanel(),
   ];
 }
 

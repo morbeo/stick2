@@ -87,6 +87,12 @@ function expLink(row, what, fn) {
   n.onclick = e => { e.preventDefault(); fn(); };
   return row;
 }
+// the actions on a thing (character, move, bone, stance), always in this order and with these icons, as small buttons on its heading
+// (variable groups carry the group buttons in the same place); ops: { kind: [tip, fn] }, extra: more buttons after them
+const CRUD = { new: 'add', random: 'casino', copy: 'content_copy', rename: 'edit', revert: 'history', delete: 'delete', import: 'upload', export: 'download' };
+function crud(ops, ...extra) {
+  return h('span', { cls: 'gops' }, ...Object.keys(CRUD).filter(k => ops[k]).map(k => button(`:${CRUD[k]}:`, ops[k][0], ops[k][1], 'mini')), ...extra);
+}
 // a group heading with an ⓘ button that pops up what the group does and its keys
 function heading(title, info, keys) {
   return h('h3', {}, title, info && button(':info:', 'about this group', (e, b) => popup(b, h('b', { textContent: title }),

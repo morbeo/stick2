@@ -207,8 +207,7 @@ function stanceRow() {
   return h('div', { cls: 'row', tip: 'Stances: K+G switches to the next one in a fight. The stance picked here is the one the pose and input edits change, and the one previews start in.' },
     h('span', { textContent: 'stance' }), h('span', { cls: 'bar' },
       seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); }, Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose and binds` : 'The main stance'])), i => names[i]),
-      button(':add:', 'New stance: a copy of the current one with no binds of its own', add, 'mini'),
-      button(':delete:', 'Delete this stance (not the main one)', del, 'mini')));
+      crud({ new: ['New stance: a copy of the current one with no binds of its own', add], delete: ['Delete this stance (not the main one)', del] })));
 }
 // the generator's variables; the random characters experiment shows nine of them
 function randomPanel(changed = () => {}) {
@@ -219,21 +218,18 @@ function randomPanel(changed = () => {}) {
   return [title, ...RANDOM_VARS.map(s => slider(s.k, s, () => studio.rnd[s.k], v => set({ [s.k]: v }), s.tip))];
 }
 function charPanel() {
-  return [
-    heading('Character', 'Pick the fighter every mode uses. Edits are saved in this browser automatically; export a file to keep or share one.',
-      '⌘Z undo · ⇧⌘Z redo'),
-    h('div', { cls: 'bar' },
-      button(':casino: random', 'Generate a random character: proportions, thickness, extra limbs, stance and stats', () => addChar(randomDef(makeRand(Math.random() * 1e9 | 0)))),
-      button(':tune:', 'What the random characters are drawn from, and an experiment grid of them', (e, b) => popup(b, ...randomPanel())),
-      button(':content_copy: copy', 'Make a new character from this one', () => addChar(DEFS[CURRENT], CURRENT)),
-      button(':upload: import', 'Load a character JSON file as a new character', importChar)),
-    h('div', { cls: 'cards' }, Object.keys(DEFS).map(charCard)),
-    h('div', { cls: 'bar' },
-      button(':edit: rename', 'Rename this character (a built-in one is copied under the new name)', renameChar),
-      button(':history: revert', 'Throw away the edits of this built-in character (undoable)', revertChar),
-      button(':delete: delete', 'Delete this character (only your own ones)', deleteChar),
-      button(':download: export', 'Download this character as a JSON file', exportChar)),
-  ];
+  const head = heading('Character', 'Pick the fighter every mode uses. Edits are saved in this browser automatically; export a file to keep or share one.',
+    '⌘Z undo · ⇧⌘Z redo');
+  head.append(crud({
+    random: ['New random character: proportions, thickness, extra limbs, stance and stats', () => addChar(randomDef(makeRand(Math.random() * 1e9 | 0)))],
+    copy: ['New character copied from this one', () => addChar(DEFS[CURRENT], CURRENT)],
+    rename: ['Rename this character (a built-in one is copied under the new name)', renameChar],
+    revert: ['Throw away the edits of this built-in character (undoable)', revertChar],
+    delete: ['Delete this character (only your own ones)', deleteChar],
+    import: ['Load a character JSON file as a new character', importChar],
+    export: ['Download this character as a JSON file', exportChar],
+  }, button(':tune:', 'What the random characters are drawn from, and an experiment grid of them', (e, b) => popup(b, ...randomPanel()), 'mini')));
+  return [head, h('div', { cls: 'cards' }, Object.keys(DEFS).map(charCard))];
 }
 
 // ---------- pose presets: local angles per limb chain (index 0 = the bone at the root of the limb), by role ----------

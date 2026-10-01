@@ -250,21 +250,18 @@ function bodyPanel() {
   return [...charPanel(),
     heading('Body', 'Build the skeleton. Limbs are role-based: legs walk, arms swing, tails follow through. New parts attach to the selected torso bone.',
       '⌘Z undo · ⇧⌘Z redo · Del delete · drag joints in the editor'),
-    h('div', { cls: 'bar' },
-      ...Object.keys(LIMBS).map(k => button(`+ ${k}`, LIMB_TIPS[k], () => addLimb(k))),
-      button(':add: joint', 'Add one bone at the end of the selected bone (same role and side)', addBone)),
-    h('div', { cls: 'bar' },
-      button(':content_copy: copy', 'Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb),
-      button(':delete: delete', 'Delete the selected bone and everything below it (Del)', deleteBone),
-      button(':undo: undo', 'Undo (⌘Z)', undo), button(':redo: redo', 'Redo (⇧⌘Z)', redo)),
+    h('div', { cls: 'bar' }, ...Object.keys(LIMBS).map(k => button(`+ ${k}`, LIMB_TIPS[k], () => addLimb(k)))),
+    h('h4', { textContent: 'bones', tip: 'Click to select · ▾ ▸ fold a branch' }, crud({
+      new: ['Add one bone at the end of the selected bone (same role and side)', addBone],
+      copy: ['Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb],
+      delete: ['Delete the selected bone and everything below it (Del)', deleteBone] })),
+    boneTree(),
+    ...bonePanel(),
     h('h4', { textContent: 'stance pose', tip: 'Set the whole stance from a preset (per limb, so it works for any body)' }),
     stanceRow(),
     h('div', { cls: 'bar' }, Object.entries(POSES).map(([k, p]) => button(k, p.tip, () => edit(def => Object.assign(editPose(def), presetPose(currentChar(), p)))))),
     ...statsPanel(),
     ...gaitPanel(),
-    h('h4', { textContent: 'bones', tip: 'Click to select · ▾ ▸ fold a branch' }),
-    boneTree(),
-    ...bonePanel(),
   ];
 }
 function expPanel() {
