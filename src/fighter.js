@@ -7,7 +7,7 @@ class Fighter {
       kd: null, downT: 0, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
-      guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, flyT: 0, guardT: -9 });
+      guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, flyT: 0, guardT: -9, stanceI: 0 });
     this.hp = this.c('health');
     this.target = this.basePose();
     this.disp = { ...this.target };
@@ -26,10 +26,11 @@ class Fighter {
   }
   c(k) { const v = this.over[k] ?? this.w.cfg[k]; return STAT_OF[k] ? v * this.ch.stats[STAT_OF[k]] : v; } // character stats scale their settings
   get free() { return this.hurtT <= 0 && !this.kd; }
+  get st() { return this.ch.stances[this.stanceI] || this.ch.stances[0]; } // the current stance: its pose and binds
 
   // the procedural layer, driven by bone roles so any skeleton breathes, walks and leans
   basePose() {
-    const ch = this.ch, ps = ch.poses, P = { ...ps.stance }, t = this.time;
+    const ch = this.ch, ps = ch.poses, base = this.st.pose, P = { ...base }, t = this.time, g = ch.gait;
     if (this.kd === 'down') return Object.assign(P, ps.lie);
     if (this.kd) {
       // tumbling: arch while rising, reach for the floor while dropping, limbs flailing
@@ -41,7 +42,7 @@ class Fighter {
     }
     const turn = (b, d) => { if (b) P[b.id] += b.fwd * d; }; // + swings the bone's end forward
     const flex = (b, d) => { if (b) P[b.id] += b.flex * d; };
-    const spine = ch.chains.spine[0]?.[0], br = Math.sin(t * 2.2);
+    const spine = ch.chains.spine[0]?.[0], br = Math.sin(t * 2.2) * g.breath;
     turn(spine, br * 1.5); for (const c of ch.chains.arm) turn(c[0], br * 2); // breathing
     // slow idle wander, stronger on loose bones; legs excluded so planted feet don't slide
     ch.bones.forEach((b, i) => { if (b.role !== 'leg') P[b.id] += wander(t * 0.8 + this.seed + i * 13) * (1.5 + 2.2 * b.lag); });
@@ -51,21 +52,29 @@ class Fighter {
     } else if (this.crouching || this.squatT > 0) Object.assign(P, ps.crouch);
     else {
       const w = Math.min(1.6, Math.hypot(this.vx, this.vz) / this.c('maxSpeed')), ph = this.walkPh, back = this.vx * this.dir < 0;
-      const st = back ? 0.7 : 1, id = Math.max(0, 1 - w), s = this.seed;
+      const st = back ? 0.7 : 1, id = Math.max(0, 1 - w), s = this.seed, amp = id * g.idleAmt;
+      // keyframed loops (moves named idle / walk) replace the procedural cycles, blended by how fast the fighter moves
+      const loop = (m, time, k) => { const L = samplePose(ch, m, time, this.c('easing'), base); for (const j in L) P[j] += (L[j] - base[j]) * k; };
+      const idleL = ch.moves.idle, walkL = ch.moves.walk;
       // idle: each fighter has its own stance width and one of three idles (weight shift, boxer bounce, sway)
-      const style = Math.floor(s) % 3, shift = Math.sin(t * 0.9 + s), bounce = 1 + Math.sin(t * 5.5 + s);
+      const style = g.idle === 'auto' ? Math.floor(s) % 3 : ['shift', 'bounce', 'sway'].indexOf(g.idle), shift = Math.sin(t * 0.9 + s), bounce = 1 + Math.sin(t * 5.5 + s);
       ch.chains.leg.forEach((c, i) => {
         const side = i % 2 ? -1 : 1;
         turn(c[0], side * ((s % 1) - 0.5) * 10 * id);
-        if (style === 0) flex(c[1], Math.max(0, shift * side) * 10 * id);
-        if (style === 1) { turn(c[0], bounce * 4 * id); flex(c[1], bounce * 7 * id); }
+        if (idleL) return;
+        if (style === 0) flex(c[1], Math.max(0, shift * side) * 10 * amp);
+        if (style === 1) { turn(c[0], bounce * 4 * amp); flex(c[1], bounce * 7 * amp); }
       });
-      if (style === 2) turn(spine, wander(t * 1.3 + s) * 5 * id);
+      if (idleL) loop(idleL, t % total(idleL), id);
+      else if (style === 2) turn(spine, wander(t * 1.3 + s) * 5 * amp);
       // walk: legs alternate (a centaur trots: diagonal pairs), each arm counter-swings the leg on its side,
-      // shorter steps and a raised guard walking backwards
-      ch.chains.leg.forEach((c, i) => { const q = ph + i * Math.PI; turn(c[0], Math.sin(q) * 28 * w * st); flex(c[1], Math.max(0, Math.cos(q)) * 40 * w * st); });
-      ch.chains.arm.forEach((c, i) => { const q = ph + (i + 1) * Math.PI; turn(c[0], Math.sin(q) * 22 * w * st * st); flex(c[1], Math.max(0, Math.sin(q)) * 15 * w + (back ? 20 * w : 0)); });
-      turn(spine, 4 * w * Math.sign(this.vx * this.dir));
+      // shorter steps and a raised guard walking backwards; a walk loop plays one cycle (two steps) per 2π of the phase
+      if (walkL) loop(walkL, ((ph / (2 * Math.PI)) % 1 + 1) % 1 * total(walkL), Math.min(1, w));
+      else {
+        ch.chains.leg.forEach((c, i) => { const q = ph + i * Math.PI; turn(c[0], Math.sin(q) * 28 * g.stride * w * st); flex(c[1], Math.max(0, Math.cos(q)) * 40 * g.lift * w * st); });
+        ch.chains.arm.forEach((c, i) => { const q = ph + (i + 1) * Math.PI; turn(c[0], Math.sin(q) * 22 * g.armSwing * w * st * st); flex(c[1], Math.max(0, Math.sin(q)) * 15 * g.armSwing * w + (back ? 20 * w : 0)); });
+      }
+      turn(spine, 4 * g.lean * w * Math.sign(this.vx * this.dir));
     }
     // reeling (stagger) or dizzy: the body sways on wobbly knees, the head lolls
     const reel = this.dizzyT > 0 ? 1 : clamp(this.reelT * 3, 0, 1);
@@ -116,7 +125,9 @@ class Fighter {
     const n = 5 + (inp.right - inp.left) * this.dir - (inp.down ? 3 : 0), t = this.w.simT, d = this.dirs;
     if (d[d.length - 1]?.n !== n) d.push({ n, t });
     while (d.length > 1 && t - d[1].t > this.c('motionWindow')) d.shift();
-    for (const b of ['punch', 'kick', 'special']) if (inp[b]) this.buffer = { b: b === 'punch' && inp.guard ? 'throw' : b, t: 0.2, motion: this.motion() };
+    // P+G throws; K+G switches stance (when the character has more than one)
+    const as = b => !inp.guard ? b : b === 'punch' ? 'throw' : b === 'kick' && this.ch.stances.length > 1 ? 'stance' : b;
+    for (const b of ['punch', 'kick', 'special']) if (inp[b]) this.buffer = { b: as(b), t: 0.2, motion: this.motion() };
   }
   // every special motion in the recent directions (6236 is both →↓↘ and ↓↘→: the first one with a move bound wins)
   motion() {
@@ -128,9 +139,9 @@ class Fighter {
     const i = this.inp, fwd = (i.right - i.left) * this.dir > 0, P = b === 'punch';
     if (b === 'special') { // S: a special per direction, the neutral one when that direction has none
       const slot = !this.grounded ? 'airSpecial' : i.down ? 'downSpecial' : i.up ? 'upSpecial' : fwd ? 'fwdSpecial' : i.right !== i.left ? 'backSpecial' : 'special';
-      return [this.ch.binds[slot], this.grounded && this.ch.binds.special].find(m => this.ch.moves[m]) || null;
+      return [this.st.binds[slot], this.grounded && this.st.binds.special].find(m => this.ch.moves[m]) || null;
     }
-    const B = P ? 'Punch' : 'Kick', has = s => this.ch.moves[this.ch.binds[s]] ? this.ch.binds[s] : null;
+    const B = P ? 'Punch' : 'Kick', has = s => this.ch.moves[this.st.binds[s]] ? this.st.binds[s] : null;
     if (b === 'throw') return this.grounded ? has('throw') : null;
     const sp = this.grounded && motion?.map(k => has(k + B)).find(Boolean);
     if (sp) return sp;
@@ -166,6 +177,9 @@ class Fighter {
 
     // start a move, or chain into the next one once the current move's active frames are over
     const a0 = this.action;
+    if (this.buffer?.b === 'stance' && this.free && !a0 && this.grounded) {
+      this.stanceI = (this.stanceI + 1) % this.ch.stances.length; this.buffer = null; this.say(this.st.name.toUpperCase());
+    }
     if (this.buffer && this.free && this.squatT <= 0) {
       const { b, motion } = this.buffer, fresh = !a0 || a0.m.hurt;
       const m = fresh ? this.pick(b, motion) : this.cancelInto(a0, b, motion);
@@ -376,7 +390,7 @@ class Fighter {
   parryHit(att) {
     this.parryT = 0; this.say('PARRY');
     const set = att.ch.hurt.high, stun = this.c('parryStun');
-    att.buffer = null; att.start(makeHurt(set[Math.floor(this.w.rand() * set.length)], stun, this.w.rand, att.ch.poses.stance)); att.hurtT = stun;
+    att.buffer = null; att.start(makeHurt(set[Math.floor(this.w.rand() * set.length)], stun, this.w.rand, att.st.pose)); att.hurtT = stun;
   }
   // a strike caught by a catch key: the counter move answers it at once (its damage lands now, its keys only animate)
   catchHit(att, hit) {
@@ -389,7 +403,7 @@ class Fighter {
   // a throw connected: the victim is held for the tech window, then thrown by the move named in the grab's throw
   seize(o) {
     o.heldBy = this; o.heldT = this.c('techWindow'); o.buffer = null; o.guarding = false; o.blockT = 0; o.dir = -this.dir;
-    o.start(makeHurt(o.ch.hurt.mid[0], 9, this.w.rand, o.ch.poses.stance)); o.hurtT = 9;
+    o.start(makeHurt(o.ch.hurt.mid[0], 9, this.w.rand, o.st.pose)); o.hurtT = 9;
     const toss = this.ch.moves[this.action.m.throw];
     o.heldM = toss || this.action.m;
     if (toss) this.start(toss);
@@ -437,7 +451,7 @@ class Fighter {
       const set = this.ch.hurt[this.zone(hit.pt)].filter(p => p !== this.lastHurt);
       this.lastHurt = set[Math.floor(this.w.rand() * set.length)];
       const stun = m.stun * ck * Math.max(0.45, 1 - 0.07 * (combo - 1)); // long combos stun less
-      this.start(makeHurt(this.lastHurt, stun, this.w.rand, this.ch.poses.stance));
+      this.start(makeHurt(this.lastHurt, stun, this.w.rand, this.st.pose));
       this.hurtT = stun;
       const da = this.c('dizzyAt'), sa = this.c('staggerAt');
       if (da && this.stunM >= da) { this.dizzyT = this.c('dizzyTime'); this.hurtT = Math.max(stun, this.dizzyT); this.stunM = da; this.say('DIZZY'); }

@@ -210,6 +210,16 @@ const CHAR_STATS = [
   { k: 'tempo', cfg: ['attackSpeed'], min: 0.6, max: 1.5, step: 0.05, tip: 'How fast its moves play, × attackSpeed.' },
   { k: 'springs', cfg: ['freq'], min: 0.4, max: 2, step: 0.05, tip: 'Limb spring frequency, × freq: above 1 snappy, below 1 floppy.' },
 ];
+// walk and idle, per character: the procedural cycle's knobs (moves named idle / walk, if any, replace it with keyframed loops)
+const GAIT_VARS = [
+  { k: 'stride', v: 1, min: 0, max: 2, step: 0.05, tip: 'How far the legs swing walking.' },
+  { k: 'lift', v: 1, min: 0, max: 2.5, step: 0.05, tip: 'How high the knees come up on each step.' },
+  { k: 'armSwing', v: 1, min: 0, max: 2.5, step: 0.05, tip: 'How much the arms counter-swing the legs.' },
+  { k: 'lean', v: 1, min: -2, max: 3, step: 0.1, tip: 'Torso lean into the walking direction.' },
+  { k: 'idle', v: 'auto', opts: ['auto', 'shift', 'bounce', 'sway', 'still'], tip: 'Idle style: weight shift, boxer bounce, sway or still; auto picks one per fighter.' },
+  { k: 'idleAmt', v: 1, min: 0, max: 3, step: 0.05, tip: 'Strength of the idle motion.' },
+  { k: 'breath', v: 1, min: 0, max: 3, step: 0.1, tip: 'Breathing: the chest and arms rise and fall.' },
+];
 const STAT_OF = Object.fromEntries(CHAR_STATS.flatMap(s => s.cfg.map(k => [k, s.k])));
 function makeCharacter(def) {
   def = JSON.parse(JSON.stringify(def)); // the caller's definition stays untouched (it is what gets edited and saved)
@@ -240,7 +250,10 @@ function makeCharacter(def) {
   const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains,
     tips: [...chains.arm, ...chains.leg].map(c => c[c.length - 1]),
     poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, binds: { ...BINDS, ...def.binds },
-    stats: Object.fromEntries(CHAR_STATS.map(s => [s.k, def[s.k] ?? 1])) };
+    stats: Object.fromEntries(CHAR_STATS.map(s => [s.k, def[s.k] ?? 1])), gait: { ...Object.fromEntries(GAIT_VARS.map(s => [s.k, s.v])), ...def.gait } };
+  // stances: the main one plus any extra (K+G cycles them); each has its pose and its own binds over the main ones
+  ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: ch.binds },
+    ...(def.stances || []).map(s => ({ name: s.name, pose: { ...ch.poses.stance, ...s.pose }, binds: { ...ch.binds, ...s.binds } }))];
   // the cancel window opens at a key marked cancel, else after the last active key
   for (const m of Object.values(ch.moves)) { const c = m.keys.findIndex(k => k.cancel); m.cancel = c >= 0 ? c : m.keys.findLastIndex(k => k.active) + 1; }
   return ch;
@@ -321,6 +334,9 @@ CHAR_DEFS.centaur = { ...mapPoses({ ...stick, moves: mapVals(retimed(1.1, 1.2), 
     ...tail3(12, 3).map(b => b.id === 'tail' ? { ...b, a: -150 } : b)] };
 // ninja: slender, long legs, fast and light; a scarf trails from the neck
 CHAR_DEFS.ninja = { ...stick, name: 'ninja', speed: 1.25, jump: 1.15, weight: 0.85, health: 0.9, springs: 1.15, binds: { downFwdKick: 'slide', upFwdKick: 'axeKick', upFwdPunch: 'rising' },
+  // K+G: the crane, on one leg with the arms spread; its kicks come from the raised knee
+  stances: [{ name: 'crane', pose: { waist: 178, chest: 0, neck: 0, head: 0, uarmF: -70, farmF: -40, handF: 0, uarmB: -280, farmB: 40, handB: 0, thighF: 85, shinF: -110, footF: 90, thighB: -4, shinB: 0, footB: 90 },
+    binds: { kick: 'axeKick', fwdKick: 'turnKick', punch: 'elbow', downKick: 'lowKick' } }],
   moves: { ...retimed(0.8, 0.85), ...mapVals({
     // a low slide along the floor, under highs
     slide: attack({ power: 1.1, damage: 8, hit: 'ff', height: 'low', knock: 160, launch: 220, kd: true, lunge: 520 },
@@ -368,6 +384,21 @@ function makeHurt(pose, stun, rand, stance) {
   ] };
 }
 const resolve = (base, p) => p ? { ...base, ...p } : base;
+const total = m => m.keys.reduce((s, k) => s + k.d, 0);
+// the keyframe layer of move m at time t: eased from the base (the stance), key by key (what the springs then chase)
+function samplePose(ch, m, t, easing = CFG.easing, base = ch.poses.stance) {
+  let from = base;
+  for (const k of m.keys) {
+    const to = resolve(base, k.p);
+    if (t < k.d) {
+      const e = EASE[easing === 'authored' ? k.e || 'linear' : easing](t / k.d), p = {};
+      for (const j of ch.ids) p[j] = from[j] + (to[j] - from[j]) * e;
+      return p;
+    }
+    t -= k.d; from = to;
+  }
+  return from;
+}
 // startup / active / recovery in 60 fps frames
 function frameData(m, speed = 1) {
   const f = { startup: 0, active: 0, recovery: 0 };

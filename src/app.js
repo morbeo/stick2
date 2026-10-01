@@ -17,7 +17,7 @@ function setMode(m) {
 }
 function panels() {
   $('ctx').replaceChildren(...mode().ctxBar());
-  $('side').replaceChildren(...mode().side());
+  $('side').replaceChildren(...mode().side().filter(Boolean));
   $('over').replaceChildren(...mode().overlay?.() || []); // controls placed over the canvas
   syncAll();
 }

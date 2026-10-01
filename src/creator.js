@@ -7,7 +7,7 @@ const PREVIEWS = {
   walk: ['walk', 'Walk forward and back: check the walk cycle and arm swing.'],
   'vs ai': ['ai vs ai', 'Two copies fight each other with the engine AI.'],
 };
-const previewScen = () => SCENARIOS[PREVIEWS[creator.preview][0]];
+const previewScen = () => { const s = SCENARIOS[PREVIEWS[creator.preview][0]]; return { ...s, init: w => { s.init?.(w); w.a.stanceI = studio.stance; } }; };
 
 // ---------- editor view: the stance pose, big, with a handle on every joint ----------
 function edLayout() {
@@ -17,7 +17,7 @@ function edLayout() {
 // screen transform of the figure; the hips stay put while dragging so the body doesn't jump under the cursor
 function edFrame() {
   const ch = currentChar(), r = edLayout().ed, s = Math.min(r.h / 190, r.w / 130), ground = r.y + r.h * 0.85;
-  const wa = {}, L = fk(ch, ch.poses.stance, 1, null, wa);
+  const wa = {}, L = fk(ch, curStance(ch).pose, 1, null, wa);
   if (!creator.drag) {
     let low = 0;
     for (const b of ch.bones) low = Math.max(low, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
@@ -73,15 +73,15 @@ function dragTo(x, y, shift) {
   const f = edFrame(), b = f.ch.by[creator.drag], pb = f.ch.by[b.parent];
   if (b.lock) { // a locked bone swings its group from the first unlocked bone above
     const u = unlockedAbove(f.ch, b), pv = u && f.P[u.parent || 'hip'], ang = (p, q) => Math.atan2(q[0] - p[0], q[1] - p[1]) / R;
-    if (u) edit(def => { def.poses.stance[u.id] = Math.round(f.ch.poses.stance[u.id] + wrap(ang(pv, [x, y]) - ang(pv, f.P[b.id]))); }, 'drag:' + b.id);
+    if (u) edit(def => { editPose(def)[u.id] = Math.round(curStance(f.ch).pose[u.id] + wrap(ang(pv, [x, y]) - ang(pv, f.P[b.id]))); }, 'drag:' + b.id);
     return;
   }
   const pp = f.P[b.parent || 'hip'], dx = (x - pp[0]) / f.s, dy = (y - pp[1]) / f.s;
-  const pw = pb ? f.wa[pb.id] : 0, cur = f.ch.poses.stance[b.id];
+  const pw = pb ? f.wa[pb.id] : 0, cur = curStance(f.ch).pose[b.id];
   let local = Math.atan2(dx, dy) / R - pw + b.level * (pw - (pb ? pb.restW : 0)); // inverse of fk's world angle
   local = cur + ((local - cur) % 360 + 540) % 360 - 180; // continuous with the current angle
   edit(def => {
-    def.poses.stance[b.id] = Math.round(local);
+    editPose(def)[b.id] = Math.round(local);
     if (!shift && b.shape !== 'circle') def.bones.find(d => d.id === b.id).len = Math.max(2, Math.round(Math.hypot(dx, dy)));
   }, 'drag:' + b.id);
 }
@@ -92,6 +92,7 @@ function mutate(def, rand, lv, i) {
   const d = clone(def), ex = creator.exp;
   const vary = (v, key, p) => +clamp(Math.round(bounce(v + (lv[key] ??= levels(8, rand))[i - 1] * ex.spread * breed.exag * (p.max - p.min), p.min, p.max) / p.step) * p.step, p.min, p.max).toFixed(3);
   for (const p of CHAR_STATS) if (ex.vars.has(p.k)) d[p.k] = vary(d[p.k] ?? 1, p.k, p); // stats live on the definition itself
+  for (const p of GAIT_VARS) if (!p.opts && ex.vars.has(p.k)) d.gait = { ...d.gait, [p.k]: vary(d.gait?.[p.k] ?? p.v, p.k, p) };
   for (const b of d.bones) for (const p of BONE_PROPS) if (ex.vars.has(p.k))
     b[p.k] = vary(b[p.k] ?? BONE[p.k], (ex.sym ? b.id.replace(/[FB]$/, '') : b.id) + '.' + p.k, p); // F/B partners share a level
   return d;
@@ -213,8 +214,8 @@ function bonePanel() {
     row('side', 'Draw order and colour', seg(['f', '', 'b'], () => prop('side'), v => edit(d => { d.bones.find(b => b.id === studio.sel).side = v; }), SIDE_TIPS,
       o => ({ f: 'front', '': 'centre', b: 'back' })[o])),
     row('shape', 'How the bone is drawn', seg(['line', 'circle'], () => prop('shape'), v => edit(d => { d.bones.find(b => b.id === studio.sel).shape = v; }), SHAPE_TIPS)),
-    slider('stance', { min: -270, max: 270, step: 1 }, () => currentChar().poses.stance[studio.sel] ?? 0,
-      v => edit(def => { def.poses.stance[studio.sel] = v; }, 'stance:' + studio.sel),
+    slider('stance', { min: -270, max: 270, step: 1 }, () => curStance().pose[studio.sel] ?? 0,
+      v => edit(def => { editPose(def)[studio.sel] = v; }, 'stance:' + studio.sel),
       'Angle in the stance pose, relative to the parent (0 = straight on, root bones: 0 = down, 180 = up). Moves are layered on top.'),
     ...BONE_PROPS.map(p => slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip)),
     row('limits', 'Clamp how far this joint can bend', toggle(':straighten: limits', 'Clamp how far this joint can bend', () => prop('min') !== undefined, lim)),
@@ -230,6 +231,18 @@ function statsPanel() {
     ['Experiment: nine bodies varying the stats; click the best to breed around it', () => { creator.exp.vars = new Set(CHAR_STATS.map(s => s.k)); setExp(true); }]));
   return [title, ...CHAR_STATS.map(s => slider(s.k, s, () => get(s.k), v => edit(def => { def[s.k] = v; }, 'stat:' + s.k), s.tip))];
 }
+// walk and idle knobs; keyframed loops (moves named idle / walk, made in animate) replace them
+function gaitPanel() {
+  const spec = k => GAIT_VARS.find(s => s.k === k), get = k => DEFS[CURRENT].gait?.[k] ?? spec(k).v, dflt = k => CHAR_DEFS[CURRENT]?.gait?.[k] ?? spec(k).v;
+  const set = vals => edit(def => { def.gait = { ...def.gait, ...vals }; }, 'gait:' + Object.keys(vals).join());
+  const title = h('h4', { textContent: 'walk & idle', tip: 'The procedural walk and idle of this character. Preview: walk shows the cycle. A keyframed idle or walk loop (animate) replaces them.' });
+  title.append(groupOps(GAIT_VARS, get, dflt, set,
+    ['Experiment: nine bodies varying the walk and idle; click the best to breed around it', () => { creator.exp.vars = new Set(GAIT_VARS.filter(s => !s.opts).map(s => s.k)); creator.preview = 'walk'; setExp(true); }]));
+  const loops = ['idle', 'walk'].filter(n => currentChar().moves[n]);
+  return [title, loops.length ? h('div', { cls: 'note', textContent: `keyframed ${loops.join(' and ')} loop replaces the procedural one` }) : null,
+    ...GAIT_VARS.map(s => s.opts ? h('div', { cls: 'row', tip: s.tip }, h('span', { textContent: s.k }), seg(s.opts, () => get(s.k), v => set({ [s.k]: v })))
+      : slider(s.k, s, () => get(s.k), v => set({ [s.k]: v }), s.tip))];
+}
 function bodyPanel() {
   return [...charPanel(),
     heading('Body', 'Build the skeleton. Limbs are role-based: legs walk, arms swing, tails follow through. New parts attach to the selected torso bone.',
@@ -242,8 +255,10 @@ function bodyPanel() {
       button(':delete: delete', 'Delete the selected bone and everything below it (Del)', deleteBone),
       button(':undo: undo', 'Undo (⌘Z)', undo), button(':redo: redo', 'Redo (⇧⌘Z)', redo)),
     h('h4', { textContent: 'stance pose', tip: 'Set the whole stance from a preset (per limb, so it works for any body)' }),
-    h('div', { cls: 'bar' }, Object.entries(POSES).map(([k, p]) => button(k, p.tip, () => edit(def => Object.assign(def.poses.stance, presetPose(currentChar(), p)))))),
+    stanceRow(),
+    h('div', { cls: 'bar' }, Object.entries(POSES).map(([k, p]) => button(k, p.tip, () => edit(def => Object.assign(editPose(def), presetPose(currentChar(), p)))))),
     ...statsPanel(),
+    ...gaitPanel(),
     h('h4', { textContent: 'bones', tip: 'Click to select · ▾ ▸ fold a branch' }),
     boneTree(),
     ...bonePanel(),
@@ -264,7 +279,7 @@ function expPanel() {
       button(':casino: reroll', 'New random variations around the same parent', () => { ex.seed++; buildExp(); }),
       button(':restart_alt: restart', 'Start again from your current character', () => { ex.parent = null; buildExp(); })),
     h('h4', { textContent: 'vary', tip: 'Which bone properties and stats the variations change' }),
-    h('div', { cls: 'bar' }, [...BONE_PROPS, ...CHAR_STATS].map(p => toggle(p.k, p.tip, () => ex.vars.has(p.k), on => { ex.vars[on ? 'add' : 'delete'](p.k); buildExp(); })),
+    h('div', { cls: 'bar' }, [...BONE_PROPS, ...CHAR_STATS, ...GAIT_VARS.filter(s => !s.opts)].map(p => toggle(p.k, p.tip, () => ex.vars.has(p.k), on => { ex.vars[on ? 'add' : 'delete'](p.k); buildExp(); })),
       toggle(':add: limbs', 'Experimental limbs: each variation also adds a random limb, drops one, or grows an extra joint', () => ex.limbs, v => { ex.limbs = v; buildExp(); })),
     slider('spread', { min: 0.02, max: 0.5, step: 0.01 }, () => ex.spread, v => { ex.spread = v; },
       'How far variations stray from the parent, as a fraction of each property\'s range. Applied on the next breed or reroll.'),

@@ -10,7 +10,11 @@ if (DEFS[saved.current]) CURRENT = saved.current;
 // only edited built-ins are stored, so improved built-ins reach characters nobody changed
 const edited = () => Object.fromEntries(Object.entries(DEFS).filter(([k, d]) => !CHAR_DEFS[k] || JSON.stringify(d) !== JSON.stringify(CHAR_DEFS[k])));
 const save = () => { try { localStorage.setItem(STORE, JSON.stringify({ defs: edited(), current: CURRENT })); } catch {} };
-const studio = { sel: 'uarmF', undo: [], redo: [], lastKey: null, lastT: 0, colors: false, fold: new Set() };
+const studio = { sel: 'uarmF', undo: [], redo: [], lastKey: null, lastT: 0, colors: false, fold: new Set(), stance: 0 };
+// the stance being edited (0 = main): its pose as drawn, its pose and own binds in the definition (what edits change)
+const curStance = (ch = currentChar()) => ch.stances[studio.stance] || ch.stances[0];
+const editPose = def => studio.stance ? def.stances[studio.stance - 1].pose : def.poses.stance;
+const editBinds = def => studio.stance ? (def.stances[studio.stance - 1].binds ??= {}) : (def.binds ??= {});
 const selBone = () => DEFS[CURRENT].bones.find(b => b.id === studio.sel);
 
 // every bone property the creator exposes, with its hover text
@@ -91,7 +95,7 @@ function forEachPose(def, fn) {
 
 // ---------- characters: pick, copy, revert, delete, export / import ----------
 function pickChar(name) {
-  CURRENT = name; studio.undo = []; studio.redo = []; studio.lastKey = null;
+  CURRENT = name; studio.stance = 0; studio.undo = []; studio.redo = []; studio.lastKey = null;
   if (!currentChar().by[studio.sel]) studio.sel = currentChar().ids[0];
   if (!currentChar().by[CFG.scope]) CFG.scope = currentChar().ids[0];
   save(); setMode(app.mode); // every mode rebuilds its fights with the new character
@@ -190,6 +194,22 @@ function charCard(k) {
   reg(b, () => { b.classList.toggle('on', CURRENT === k); drawThumb(cv, CHARS[k]); });
   return b;
 }
+// the character's stances: K+G cycles them in a fight; each has its own pose and binds (unset slots use the main ones)
+function stanceRow() {
+  const add = () => {
+    const name = prompt('Name of the new stance (it starts as a copy of the current one)', 'stance' + currentChar().stances.length)?.trim();
+    if (!name) return;
+    edit(def => { (def.stances ??= []).push({ name, pose: { ...curStance().pose }, binds: {} }); });
+    studio.stance = currentChar().stances.length - 1; panels();
+  };
+  const del = () => { if (!studio.stance) return; const i = studio.stance - 1; studio.stance = 0; edit(def => { def.stances.splice(i, 1); if (!def.stances.length) delete def.stances; }); panels(); };
+  const names = currentChar().stances.map(s => s.name);
+  return h('div', { cls: 'row', tip: 'Stances: K+G switches to the next one in a fight. The stance picked here is the one the pose and input edits change, and the one previews start in.' },
+    h('span', { textContent: 'stance' }), h('span', { cls: 'bar' },
+      seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); }, Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose and binds` : 'The main stance'])), i => names[i]),
+      button(':add:', 'New stance: a copy of the current one with no binds of its own', add, 'mini'),
+      button(':delete:', 'Delete this stance (not the main one)', del, 'mini')));
+}
 // the generator's variables; the random characters experiment shows nine of them
 function randomPanel(changed = () => {}) {
   const set = vals => { Object.assign(studio.rnd, vals); changed(); syncAll(); };
@@ -225,6 +245,12 @@ const POSES = {
   karate: { tip: 'Lead hand extended, rear fist at the hip, deep front knee.', spine: [168, 0], head: [0, 0], arm: { f: [-110, 40, 0], b: [-185, 150, 0] }, leg: { f: [40, -30, 90], b: [-30, -5, 90] } },
   relaxed: { tip: 'Standing loose, arms hanging.', spine: [178, 0], head: [0, 5], arm: { f: [-175, 20, 0], b: [-185, 20, 0] }, leg: { f: [8, -5, 90], b: [-8, -3, 90] } },
   wide: { tip: 'Arms spread forward and back, feet apart: a showy or clumsy stance.', spine: [178, 0], head: [0, 0], arm: { f: [-110, 40, 0], b: [-240, 40, 0] }, leg: { f: [35, -10, 90], b: [-35, -10, 90] } },
+  southpaw: { tip: 'The boxer mirrored: the other hand and foot lead.', spine: [172, 0], head: [0, 0], arm: { f: [-165, 125, 0], b: [-145, 115, 0] }, leg: { f: [-18, 0, 90], b: [25, -25, 90] } },
+  muay: { tip: 'Tall, hands high, lead heel light: ready to check and knee.', spine: [178, 0], head: [0, 5], arm: { f: [-165, 140, 0], b: [-172, 150, 0] }, leg: { f: [15, -30, 115], b: [-20, -5, 90] } },
+  tiger: { tip: 'Low and forward, claws out: a pouncing animal style.', spine: [160, 0], head: [0, -10], arm: { f: [-100, 70, 0], b: [-120, 85, 0] }, leg: { f: [45, -55, 90], b: [-30, -30, 90] } },
+  crane: { tip: 'On one leg, the front knee raised, arms spread like wings.', spine: [178, 0], head: [0, 0], arm: { f: [-70, -40, 0], b: [-280, 40, 0] }, leg: { f: [85, -110, 90], b: [-4, 0, 90] } },
+  sumo: { tip: 'Very wide and low, hands forward: a wall of a stance.', spine: [168, 0], head: [0, -5], arm: { f: [-125, 35, 0], b: [-135, 35, 0] }, leg: { f: [55, -55, 90], b: [-55, -35, 90] } },
+  drunken: { tip: 'Leaning back, one hand high, loose knees: unpredictable.', spine: [190, 0], head: [0, 20], arm: { f: [-125, 125, 0], b: [-205, 60, 0] }, leg: { f: [30, -40, 90], b: [-5, -25, 90] } },
   tpose: { tip: 'Straight limbs: a neutral pose to edit the body from.', spine: [180, 0], head: [0, 0], arm: { f: [-90, 0, 0], b: [-270, 0, 0] }, leg: { f: [0, 0, 90], b: [0, 0, 90] } },
 };
 // the preset's angles for every bone of a character (partial: only chains the preset covers)
