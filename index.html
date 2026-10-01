@@ -26,10 +26,14 @@
   .gops { margin-left: auto; display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 1px; }
   button.mini { padding: 0 2px; font-size: 11px; line-height: 16px; }
   .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 3px 0; }
-  #top { grid-area: top; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
-    padding: 6px 10px; border-bottom: 1px solid #ddd7cb; }
+  #top { grid-area: top; padding: 4px 10px; border-bottom: 1px solid #ddd7cb; }
+  .trow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin: 2px 0; }
+  #modes { margin-right: 10px; } #global { margin-left: auto; }
+  #global, #transport, #ctx { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; }
+  .grp { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px; padding: 0 9px; border-left: 1px solid #ddd7cb; }
+  #transport > .grp:first-child { border-left: 0; padding-left: 0; } #global > .grp:last-child { padding-right: 0; }
+  .grp .gl { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #aaa; margin-right: 2px; }
   #top input[type=number] { width: 56px; }
-  #ctx { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   #stage { grid-area: stage; position: relative; min-width: 0; min-height: 0; }
   #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   #over { position: absolute; inset: 0; pointer-events: none; }
@@ -56,6 +60,20 @@
   .mtable tr.on td { background: #222; color: #fff; }
   .mtable td input { width: 46px; font: inherit; background: transparent; border: 1px solid transparent; color: inherit; }
   .mtable td input:hover, .mtable td input:focus { border-color: #bbb; background: #fff; color: #222; }
+  .itable .bar .fill { flex: 1; } .itable .legend { justify-content: flex-start; margin: 2px 0 8px; align-items: center; }
+  .itable .legend .key { padding: 1px 8px; border: 1px solid #cfc8bb; border-radius: 3px; font-weight: normal; }
+  .pads { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 12px; }
+  .pad h4 { margin: 0 0 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
+  .pad .grid { display: grid; gap: 2px; }
+  .pad button { width: 92px; height: 36px; padding: 1px 3px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; white-space: nowrap; font-size: 11px; line-height: 1.25; }
+  .pad button .d { color: #999; font-size: 10px; }
+  .itable :is(button, span).set { background: #fbfaf6; }
+  .itable :is(button, span).fall { background: repeating-linear-gradient(45deg, #fbf3df 0 4px, #f2e4bf 4px 8px); border-style: dashed; color: #8a6d1c; }
+  .itable :is(button, span).none { background: #f6dcd8; border-color: #c0392b; color: #c0392b; }
+  .itable :is(button, span).alias { background: transparent; border-style: dotted; color: #aaa; }
+  .pad button.cur { outline: 2px solid #222; outline-offset: -1px; font-weight: bold; }
+  .itable tr.none td { color: #c0392b; } .itable tr.fall td { color: #8a6d1c; }
+  .itable tr.none td:first-child { box-shadow: inset 3px 0 #c0392b; } .itable tr.fall td:first-child { box-shadow: inset 3px 0 #d9b44a; }
   .peek { position: fixed; z-index: 11; pointer-events: none; background: #fbfaf6; border: 1px solid #bbb; border-radius: 4px; padding: 4px; text-align: center; font-size: 11px; font-weight: bold; }
   .peek canvas { width: 120px; height: 128px; display: block; }
   .legend { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; font-size: 11px; font-weight: bold; }
@@ -84,9 +102,8 @@
 </head>
 <body>
 <div id="top">
-  <span id="modes"></span>
-  <span id="ctx"></span>
-  <span id="transport" class="bar"></span>
+  <div class="trow"><span id="modes"></span><span id="global"></span></div>
+  <div class="trow"><span id="transport"></span><span id="ctx"></span></div>
 </div>
 <div id="stage"><canvas id="c"></canvas><div id="over"></div></div>
 <div id="side"></div>
@@ -101,6 +118,7 @@
 <script src="src/lab.js"></script>
 <script src="src/creator.js"></script>
 <script src="src/editor.js"></script>
+<script src="src/inputs.js"></script>
 <script src="src/breed.js"></script>
 <script src="src/keys.js"></script>
 <script src="src/app.js"></script>

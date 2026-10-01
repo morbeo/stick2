@@ -415,7 +415,7 @@ function keyPanel() {
     h('div', { cls: 'bar' },
       button(':accessibility_new: stance', 'This key returns to the stance (clears its pose)', () => setKey('p', null)),
       button(':flip: mirror', 'Swap the front and back limbs in this key (left arm takes the right arm\'s angles and back)', mirrorKey),
-      button('hold', 'Copy the previous key\'s pose (hold still)', () => setKey('p', clone(keyPose(edChar(), curMove(), Math.max(0, anim.key - 1))))),
+      button(':pause: hold', 'Copy the previous key\'s pose (hold still)', () => setKey('p', clone(keyPose(edChar(), curMove(), Math.max(0, anim.key - 1))))),
       button(':accessibility_new: pose', 'Start this key from a preset pose', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.entries(POSES).map(([n, p]) =>
         button(n, p.tip, () => setKey('p', { ...keyPose(edChar(), curMove(), anim.key), ...presetPose(edChar(), p) }))))))),
     h('div', { cls: 'row', tip: 'Easing curve into this key\'s pose' }, h('span', { textContent: 'easing' }),
@@ -484,7 +484,8 @@ function moveCard(n, tip) {
   return b;
 }
 const VIEW_TIPS = { cards: 'A drawing of each move (hover to play it)', list: 'Compact: names only',
-  table: 'Every move in a table over the stage: sort by any column, fuzzy filter, edit the values in place, hover a row to see it play' };
+  table: 'Every move in a table over the stage: sort by any column, fuzzy filter, edit the values in place, hover a row to see it play',
+  inputs: 'Every input over the stage: direction pads per button show which directions have no move of their own, and a table of all inputs; click one to give it a move' };
 // ---------- move table: every move of the character, sortable, fuzzy-filtered, values edited in place ----------
 // startup / active / recovery edits retime that phase's keys; height opens its options; hovering a row plays the move by the cursor
 const PHASE_TIPS = { startup: 'Startup frames (60 fps) before the first active key. Edit to retime the startup keys.',
@@ -570,7 +571,7 @@ function moveList() {
     const tips = Object.fromEntries(names.map(n => { const m = ch.moves[n], d = fd(n);
       return [n, `${d.startup}f startup · ${d.active} active · ${d.recovery} recovery${m.power ? ` · ${fmt(moveDamage(m))} damage · ${m.height || 'mid'}` : ''} · input: ${moveInputs(ch, n).join(' ') || 'none'}`]; }));
     list.replaceChildren(...[...groups].sort((a, b) => rank(a[0]) - rank(b[0])).flatMap(([g, ns]) =>
-      [g && h('h4', { textContent: g }), anim.view === 'cards' ? h('div', { cls: 'cards' }, ns.map(n => moveCard(n, tips[n])))
+      [g && h('h4', { textContent: g }), anim.view !== 'list' ? h('div', { cls: 'cards' }, ns.map(n => moveCard(n, tips[n])))
         : h('div', { cls: 'bar' }, seg(ns, () => anim.move, pickMove, tips))]));
     if (!names.length) list.replaceChildren(h('div', { cls: 'note', textContent: 'no move matches the filter' }));
     if (anim.view === 'table') list.replaceChildren(h('div', { cls: 'note', textContent: 'the move table is over the stage' }));
@@ -615,7 +616,8 @@ function movePanel() {
     moveHeading(),
     h('div', { cls: 'row', tip: 'Striking bones: each end is a strike (in limb mode the whole bone); with several, the one that lands counts, one hit per target. Shift+click a joint in the editor to pick it, ⌘/Ctrl+Shift+click to add or remove it.' },
       h('span', { textContent: 'hit' }), h('span', { cls: 'bar' }, tipSeg, hitB)),
-    h('div', { cls: 'row', tip: 'Which inputs start this move in a fight' }, h('span', { textContent: 'input' }), bindB,
+    h('div', { cls: 'row', tip: 'Which inputs start this move in a fight' }, h('span', { textContent: 'input' }), h('span', { cls: 'bar' }, bindB,
+      button(':stadia_controller:', 'All inputs: which directions and buttons have no move, and what each one starts', () => { anim.view = 'inputs'; panels(); }, 'mini')),
       seg(['2d', '25'], () => CFG.plane === '2d' ? '2d' : '25', v => { setCfg({ plane: v === '2d' ? '2d' : 'lanes' }); panels(); mode().restart(); },
         { '2d': '2D moveset: ↑ jumps, air moves by direction (also sets the plane setting)', '25': '2.5D moveset (VF-style): every direction × button is a ground move, Space jumps (also sets the plane to lanes)' },
         v => v === '2d' ? '2D' : '2.5D')),
@@ -628,9 +630,8 @@ function movePanel() {
 }
 
 function animCtx() {
-  return [
-    toggle(':visibility: ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; }),
-    toggle(':check_box_outline_blank: boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }), colorsToggle()];
+  return [grp('show', 'Overlays', toggle(':visibility: ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; }),
+    toggle(':check_box_outline_blank: boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }), colorsToggle())];
 }
 
 // controls over the canvas: transport and key edits above the timeline, the preview's target under the preview
@@ -684,7 +685,7 @@ const animMode = {
   render() { clear(); drawAnimEditor(); drawTimeline(); drawCell({ w: anim.pv, label: 'preview (springs + hit stop)' }, anLayout().pv, { plot: false }); },
   ctxBar: animCtx,
   side: movePanel,
-  overlay: () => anim.view === 'table' ? [moveTable()] : [timelineBar(), targetBar()],
+  overlay: () => anim.view === 'table' ? [moveTable()] : anim.view === 'inputs' ? [inputTable()] : [timelineBar(), targetBar()],
   mouse: animMouse,
   key: animKey,
   hint: () => 'drag a joint: IK · Alt+drag: one bone · timeline: click a key to select, drag it to reorder, drag its edge to retime, double-click to split, drag the ruler to scrub · , . frame step · Delete key',

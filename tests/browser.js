@@ -48,6 +48,16 @@ try {
   rows().find(r => r.firstChild.textContent === 'sweep').click(); if (anim.move !== 'sweep' || anim.view !== 'cards') errs.push('table click opens the editor');
   pickMove('slash'); if (edChar().weapon !== 'sword' || MOVE_GROUPS.type(curMove()) !== 'weapon' || boundSlots().join() !== 'punch') errs.push('weapon move ' + [edChar().weapon, boundSlots()]);
   toggleBind('backPunch'); if (DEFS[CURRENT].wbinds?.slash?.backPunch !== 'slash' || !boundSlots().includes('backPunch')) errs.push('weapon bind');
+  // the input table: pads show unassigned directions; clicking one and a move in its popup binds it (undoable), none blanks it
+  { pickChar('stick'); studio.stance = 0; setCfg({ plane: '2d' }); setMode('animate'); anim.move = 'jab'; anim.view = 'inputs'; panels();
+    const cell = l => [...document.querySelectorAll('.pad button')].find(b => b.querySelector('.d').textContent.trim().endsWith(l));
+    if (!cell('4K').classList.contains('fall') || !cell('623K').classList.contains('none') || !cell('7P').classList.contains('alias')) errs.push('input pads ' + ['4K', '623K', '7P'].map(l => cell(l).className));
+    cell('4K').click(); [...document.querySelectorAll('.pop button')].find(b => b.textContent.trim() === 'roundhouse').click();
+    if (DEFS[CURRENT].binds.backKick !== 'roundhouse' || !cell('4K').classList.contains('set')) errs.push('input assign ' + DEFS[CURRENT].binds.backKick);
+    undo(); if (DEFS[CURRENT].binds?.backKick || !cell('4K').classList.contains('fall')) errs.push('input undo');
+    cell('6K').click(); [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('none')).click();
+    if (!cell('6K').classList.contains('fall') || currentChar().binds.fwdKick !== '') errs.push('input none ' + cell('6K').className);
+    undo(); anim.view = 'cards'; panels(); }
   // the attack grid: a hovered cell's own save button keeps that attack (once, however often it is pressed), without breeding
   lab.kind = 'attacks'; setMode('grid'); lab.hover = 4; labRender();
   const cell = lab.cells[4], sb = cell.btns.find(b => !b.open), seed = breed.seed, nMoves = Object.keys(DEFS[CURRENT].moves).length;

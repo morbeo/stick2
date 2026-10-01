@@ -360,8 +360,8 @@ function trainingCtl() {
   const file = toggle(':upload: replay file', 'Play a saved replay file (inputs, settings and characters of a recorded fight); click again to stop. A file from another engine version plays out differently: it asks first, and the top line shows where it goes out of sync',
     () => !!lab.playback, v => v ? loadReplay() : (lab.playback = null, build()));
   const save = button(':download: save replay', `Download this fight so far as a replay file: its inputs, settings and characters, pinned to engine v${ENGINE_VERSION} (other versions play it out differently)`, saveReplay);
-  return [meterToggle(), toggle(':stadia_controller: inputs', 'Input display: your inputs in numpad notation (6 forward, 2 down, 8 up) and frames held', () => lab.inputs, v => { lab.inputs = v; }),
-    rec, rep, save, file, boxesToggle()];
+  return [grp('show', 'Training overlays', meterToggle(), toggle(':stadia_controller: inputs', 'Input display: your inputs in numpad notation (6 forward, 2 down, 8 up) and frames held', () => lab.inputs, v => { lab.inputs = v; }), boxesToggle()),
+    grp('dummy', 'Record your inputs for the dummy to play back', rec, rep), grp('replay', 'Replay files: the whole fight, pinned to the engine version', save, file)];
 }
 // replay files (see makeReplay): download the play fight, or load one and play it in place of the scenario
 function saveReplay() {
@@ -399,21 +399,21 @@ function zoomBack() {
   return back;
 }
 function labCtx() {
-  if (lab.mode === 'gallery') return [seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0])),
-    meterToggle(), boxesToggle(), toggle(':visibility: ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; })];
+  if (lab.mode === 'gallery') return [grp('target', 'What the moves play against', seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0]))),
+    grp('show', 'Overlays', meterToggle(), boxesToggle(), toggle(':visibility: ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; }))];
   if (lab.mode === 'impact') return [
-    seg(SPEC.falls.opts, () => CFG.falls, v => setCfg({ falls: v }), SPEC.falls.optTips),
-    meterToggle(), boxesToggle(), zoomBack()];
+    grp('falls', SPEC.falls.tip, seg(SPEC.falls.opts, () => CFG.falls, v => setCfg({ falls: v }), SPEC.falls.optTips)),
+    grp('show', 'Overlays', meterToggle(), boxesToggle()), zoomBack()];
   const els = [];
-  if (lab.mode === 'grid') els.push(seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS));
-  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(scenButton(k => { lab.scen = k; lab.playback = null; build(); }));
+  if (lab.mode === 'grid') els.push(grp('grid', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
+  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('fight', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = null; build(); })));
   if (lab.mode === 'grid' && lab.kind !== 'sweep') els.push(...breedCtx());
   else if (lab.mode === 'grid') {
     const adopt = button(':check: use these values', 'Copy the focused cell\'s values into the settings (side panel)', () => setCfg(lab.focus.over));
     const back = zoomBack();
     reg(adopt, () => { adopt.hidden = !lab.zoom; });
-    els.push(axisButton(lab.x, 'X'), axisButton(lab.y, 'Y'),
-      button(':target: collision test', 'Every hitTest mode (columns) on three fights (rows): compare hits and whiffs of the collision modes', () => {
+    els.push(grp('axes', 'The variables swept across the grid', axisButton(lab.x, 'X'), axisButton(lab.y, 'Y')),
+      grp('tests', 'Ready-made comparisons', button(':target: collision test', 'Every hitTest mode (columns) on three fights (rows): compare hits and whiffs of the collision modes', () => {
         Object.assign(lab.x, { k: 'hitTest' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = null; build();
       }),
       button(':sync_alt: cancel test', `Every chain rule (columns) on combo fights (rows: ${CANCEL_SCENS.join(' · ')}): what each rule lets through; the meter shows cancel windows in purple`, () => {
@@ -424,11 +424,11 @@ function labCtx() {
       }),
       button(':view_in_ar: 2.5D test', `Every plane (columns: 2D, lanes, belt) on depth fights (rows: ${PLANE_SCENS.join(' · ')}): sidesteps dodge, flips, dashes, AI lining up`, () => {
         Object.assign(lab.x, { k: 'plane' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = PLANE_SCENS; build();
-      }), adopt, back);
+      })), adopt, back);
   }
-  if (lab.mode === 'grid' && lab.kind !== 'attacks') els.push(
+  if (lab.mode === 'grid' && lab.kind !== 'attacks') els.push(grp('stats', 'How the cells are measured and ordered',
     seg([1, 3, 5], () => lab.seeds, v => { lab.seeds = v; build(); }, { 1: 'One fight per cell', 3: 'Each cell fought with 3 seeds; stats averaged (AI fights differ per seed)', 5: '5 seeds per cell, averaged' }, v => `${v} seed${v > 1 ? 's' : ''}`),
-    sortButton(), meterToggle());
+    sortButton(), meterToggle()));
   if (lab.mode === 'play') els.push(...trainingCtl());
   return els;
 }
@@ -469,9 +469,10 @@ function configPanel() {
       oninput: e => { lab.q = e.target.value; filter(); },
       onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { e.target.value = lab.q = ''; filter(); } } }));
   filter();
-  return [h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(n, PRESET_TIPS[n], () => applyPreset(n))),
+  return [search, heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes) stay.', ''),
+    h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(optLabel(n), PRESET_TIPS[n], () => applyPreset(n))),
       button(':restart_alt: reset', 'All settings back to their defaults', () => applyPreset('juicy'))),
-    search, ...rows.map(r => r.el)];
+    ...rows.map(r => r.el)];
 }
 // buttons on a group heading that change all of its variables at once
 const groupKeys = i => { const k = []; for (let j = i + 1; j < SCHEMA.length && !Array.isArray(SCHEMA[j]); j++) k.push(SCHEMA[j].k); return k; };
@@ -505,7 +506,7 @@ function gridLink(row, s) {
   return expLink(row, `test ${s.k} in a grid, one value per cell`,
     () => { lab.kind = 'sweep'; Object.assign(lab.x, { k: s.k, lo: s.min, hi: s.max }); lab.y.k = ''; setMode('grid'); });
 }
-const labSide = () => [scopeCv, stats, ...configPanel()];
+const labSide = () => [heading('Monitor', 'The bone picked in Debug → scope: its target angle (grey) against the drawn one (red), with the stats of the first or focused fight', ''), scopeCv, stats, ...configPanel()];
 
 // click focuses a cell; in breed / attacks a click breeds around it and Shift+click focuses
 function labClick(x, y, e) {

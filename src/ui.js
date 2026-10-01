@@ -21,10 +21,26 @@ const ICONS = {
   rotate_right: 0xe41a, open_with: 0xe89f, pan_tool: 0xe925, swap_horiz: 0xe8d4, flip: 0xe3e8, auto_awesome: 0xe65f,
   waves: 0xe176, stadia_controller: 0xf135, blur_on: 0xe3a5, sync_alt: 0xea18, sports_handball: 0xea33,
   target: 0xe719, trending_up: 0xe8e5, hourglass_empty: 0xe88b, select_all: 0xe162, block: 0xf08c,
-  crisis_alert: 0xebe9, star: 0xf09a,
+  crisis_alert: 0xebe9, star: 0xf09a, filter_list: 0xe152,
+  view_module: 0xe8f0, list: 0xe896, table_rows: 0xf101, category: 0xe72c, height: 0xea16, sort_by_alpha: 0xe053,
+  format_list_numbered: 0xe242, heart_broken: 0xeac2, vertical_align_top: 0xe25a, vertical_align_center: 0xe259, vertical_align_bottom: 0xe258,
+  smart_toy: 0xf06c, air: 0xefd8, directions_walk: 0xe536, theaters: 0xe8da, cloud: 0xf15c, grain: 0xe3ea, horizontal_rule: 0xf108,
+  circle: 0xef4a, man: 0xe4eb, airline_seat_flat: 0xe630, cyclone: 0xebd5, pets: 0xe91d, face: 0xf008, footprint: 0xf87d,
+  keyboard_double_arrow_down: 0xead0, view_stream: 0xe8f2, crop_landscape: 0xe3c3, accessibility: 0xe84e,
   check: 0xe668, save: 0xe161, history: 0xe8b3, view_in_ar: 0xefc9, content_cut: 0xe14e, more_horiz: 0xe5d3, search: 0xe8b6
 };
 const ARROWS = { '←': 'arrow_back', '→': 'arrow_forward', '↑': 'arrow_upward', '↓': 'arrow_downward', '↖': 'north_west', '↗': 'north_east', '↙': 'south_west', '↘': 'south_east' };
+// icons of option values, shown by seg() unless it is given its own labels
+const OPT_ICONS = { cards: 'view_module', list: 'list', table: 'table_rows', inputs: 'stadia_controller', type: 'category', limb: 'front_hand', height: 'height',
+  stance: 'sports_martial_arts', order: 'format_list_numbered', name: 'sort_by_alpha', startup: 'timer', damage: 'heart_broken',
+  high: 'vertical_align_top', shigh: 'vertical_align_top', mid: 'vertical_align_center', smid: 'vertical_align_center', low: 'vertical_align_bottom',
+  bone: 'straighten', body: 'accessibility_new', stand: 'man', crouch: 'keyboard_double_arrow_down', guard: 'shield', idle: 'man', air: 'air',
+  down: 'airline_seat_flat', dizzy: 'cyclone', toward: 'arrow_forward', away: 'arrow_back', sweep: 'tune', breed: 'science', attacks: 'sports_mma',
+  dummy: 'person', whiff: 'air', ai: 'smart_toy', showcase: 'theaters', walk: 'directions_walk', 'vs ai': 'smart_toy', '2d': 'crop_landscape',
+  lanes: 'view_stream', belt: 'view_in_ar', spine: 'accessibility', head: 'face', arm: 'front_hand', leg: 'footprint', tail: 'pets',
+  line: 'horizontal_rule', circle: 'circle', ragdoll: 'sports_kabaddi', pose: 'accessibility_new',
+  raw: 'grain', tweened: 'animation', spring: 'waves', floaty: 'cloud', juicy: 'auto_awesome' };
+const optLabel = o => OPT_ICONS[o] ? `:${OPT_ICONS[o]}: ${o}` : String(o);
 const icon = (name, tip) => h('span', { cls: 'ic', textContent: String.fromCodePoint(ICONS[name]), tip });
 // text with icons: ':name:' and the arrows ← → ↑ ↓ ↖ ↗ ↙ ↘ become icon glyphs, the rest stays text
 function rich(text) {
@@ -65,13 +81,15 @@ function toggle(label, tip, get, set) {
   return b;
 }
 // one-of-many as a row of buttons (instead of a dropdown). tips: { option: text }
-function seg(opts, get, set, tips = {}, label = o => String(o)) {
+function seg(opts, get, set, tips = {}, label = optLabel) {
   return h('span', { cls: 'seg' }, opts.map(o => {
     const b = button(label(o), tips[o], () => set(o));
     reg(b, () => b.classList.toggle('on', get() === o));
     return b;
   }));
 }
+// a labelled group of toolbar controls (related tools sit together, divided from the next group)
+const grp = (label, tip, ...els) => h('span', { cls: 'grp', tip }, label && h('span', { cls: 'gl', textContent: label }), ...els.flat());
 function slider(label, { min, max, step }, get, set, tip) {
   const inp = h('input', { type: 'range', min, max, step }), val = h('span', { cls: 'v' });
   inp.addEventListener('input', () => { set(+inp.value); val.textContent = fmt(+inp.value); });

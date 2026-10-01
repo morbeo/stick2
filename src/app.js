@@ -42,21 +42,22 @@ function buildTop() {
     m => `:${{ play: 'sports_kabaddi', grid: 'grid_view', gallery: 'animation', impact: 'crisis_alert', character: 'accessibility_new', animate: 'timeline' }[m]}: ${m}`));
   const pause = button('', 'Pause / play (P)', () => { app.paused = !app.paused; });
   reg(pause, () => { setRich(pause, app.paused ? ':play_arrow: play' : ':pause: pause'); pause.classList.toggle('on', app.paused); });
-  $('transport').replaceChildren(pause,
-    button(':fast_rewind: rewind', 'Back one second: every fight is replayed from its start with the same inputs, so your own and the AI\'s fights rewind too; play on from there to try something else (V)', () => rewind(60)),
+  $('global').replaceChildren(
+    grp('', 'Edit history', button(':undo:', 'Undo the last edit: character, moves or settings (⌘Z)', undo), button(':redo:', 'Redo (⇧⌘Z)', redo)),
+    grp('', 'Layout and keys', button(':view_sidebar: panel', 'Show / hide the side panel (H)', togglePanel),
+      button(':keyboard: keys', 'Keys: rebind any action, set up macros, and help', keysPanel)));
+  $('transport').replaceChildren(grp('', 'Playback', pause,
+    button(':fast_rewind: rewind', 'Back one second: every fight is restored from its last checkpoint and replayed with the same inputs, so your own and the AI\'s fights rewind too; play on from there to try something else (V)', () => rewind(60)),
     button(':skip_previous:', 'Back one frame (⇧N)', () => rewind(1)),
     button(':skip_next: step', 'Advance one 60 fps frame (N)', () => { app.paused = app.stepOnce = true; }),
-    button(':restart_alt: restart', 'Restart the fight(s) (R)', restart),
-    button(':undo:', 'Undo the last edit: character, moves or settings (⌘Z)', undo), button(':redo:', 'Redo (⇧⌘Z)', redo),
-    seg([1, 0.5, 0.25, 0.1], () => app.speed, v => { app.speed = v; },
+    button(':restart_alt: restart', 'Restart the fight(s) (R)', restart)),
+    grp('', 'Speed and time', seg([1, 0.5, 0.25, 0.1], () => app.speed, v => { app.speed = v; },
       { 1: 'Real time', 0.5: 'Half speed', 0.25: 'Quarter speed', 0.1: 'One tenth: study single frames' }, v => ({ 1: '1×', 0.5: '½', 0.25: '¼', 0.1: '⅒' })[v]),
     toggle(':mouse: scrub', 'Mouse left/right over the view sets the time: every fight is re-simulated to that moment (M)', () => app.scrub, v => { app.scrub = v; app.scrubF = null; }),
     toggle(':repeat: loop', 'Scripted fights restart when their period ends; off = stop at the end', () => app.loop, v => {
       app.loop = v;
       for (const w of mode().worlds()) { w.loop = v; if (v && w.done) w.reset(); }
-    }),
-    button(':view_sidebar: panel', 'Show / hide the side panel (H)', togglePanel),
-    button(':keyboard: keys', 'Keys: rebind any action, set up macros, and help', keysPanel));
+    })));
 }
 
 function resize() {

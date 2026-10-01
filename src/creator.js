@@ -180,12 +180,10 @@ function creatorKey(e, a) {
 // ---------- panels ----------
 function creatorCtx() {
   return [
-    h('span', { cls: 'note', textContent: 'preview' }),
-    seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); }, mapVals(PREVIEWS, p => p[1])),
-    toggle(':science: experiment', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
-      () => creator.expOn && creator.exp.kind === 'body', on => setExp(on)),
-    toggle(':check_box_outline_blank: boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }),
-    colorsToggle(),
+    grp('preview', 'What the preview on the right plays', seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); }, mapVals(PREVIEWS, p => p[1]))),
+    grp('', 'Experiment', toggle(':science: experiment', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
+      () => creator.expOn && creator.exp.kind === 'body', on => setExp(on))),
+    grp('show', 'Overlays', toggle(':check_box_outline_blank: boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }), colorsToggle()),
   ];
 }
 const setProp = (k, v) => edit(def => { def.bones.find(b => b.id === studio.sel)[k] = v; }, studio.sel + '.' + k);
@@ -290,7 +288,7 @@ function bodyPanel() {
   return [...charPanel(),
     heading('Body', 'Build the skeleton. Limbs are role-based: legs walk, arms swing, tails follow through. New parts attach to the selected torso bone.',
       '⌘Z undo · ⇧⌘Z redo · Del delete · drag joints in the editor'),
-    h('div', { cls: 'bar' }, ...Object.keys(LIMBS).map(k => button(`+ ${k}`, LIMB_TIPS[k], () => addLimb(k)))),
+    h('div', { cls: 'bar' }, ...Object.keys(LIMBS).map(k => button(`:add: :${OPT_ICONS[k]}: ${k}`, LIMB_TIPS[k], () => addLimb(k)))),
     h('h4', { textContent: 'bones', tip: 'Click to select · ▾ ▸ fold a branch' }, crud({
       new: ['Add one bone at the end of the selected bone (same role and side)', addBone],
       copy: ['Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb],

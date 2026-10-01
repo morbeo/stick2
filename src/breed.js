@@ -166,22 +166,22 @@ const exagSeg = rebuild => seg([1, 2, 4], () => breed.exag, v => { breed.exag = 
   { 1: 'Variations as far as the spread says', 2: 'Exaggerate: twice the spread', 4: 'Exaggerate: four times the spread, for clearly different cells' }, v => `×${v}`);
 function breedCtx() {
   const reroll = button(':casino: reroll', 'New random cells around the same parent (attacks without a parent: nine new attacks)', () => { breed.seed++; build(); });
-  if (lab.kind === 'breed') return [varsButton(), spreadButton(), exagSeg(build), reroll,
-    button(':check: use parent', 'Copy the parent\'s values into the settings (side panel)', () => setCfg(breed.cfg)),
-    button(':restart_alt: restart', 'Start again from the current settings', () => { breed.cfg = null; build(); })];
+  if (lab.kind === 'breed') return [grp('vary', 'What changes between cells, and how much', varsButton(), spreadButton(), exagSeg(build), reroll),
+    grp('parent', 'The settings the cells vary around', button(':check: use parent', 'Copy the parent\'s values into the settings (side panel)', () => setCfg(breed.cfg)),
+      button(':restart_alt: restart', 'Start again from the current settings', () => { breed.cfg = null; build(); }))];
   const noFocus = el => { reg(el, () => { el.disabled = !lab.focus?.gen; }); return el; };
   const fresh = () => { breed.atk = null; breed.seed++; build(); };
   const ch = currentChar(), poseB = button('', 'Pose → animation: new attacks strike into a pose (a preset or one of the character\'s stances), starting with a move the other way', (e, b) =>
     popup(b, h('div', { cls: 'bar' }, toggle('none', 'Random strikes aimed by limb and height', () => !breed.pose, () => { breed.pose = null; fresh(); }),
       ...Object.entries(POSE_TARGETS(ch)).map(([n, t]) => toggle(n, t.tip, () => breed.pose === n, () => { breed.pose = n; fresh(); })))));
   reg(poseB, () => { setRich(poseB, `:accessibility_new: ${breed.pose ? 'into ' + breed.pose : 'any pose'}`); });
-  return [spreadButton(), exagSeg(build), reroll,
-    seg(['any', ...strikeRoles(ch)], () => breed.limb, v => { breed.limb = v; fresh(); },
-      { any: 'New attacks strike with any limb', ...Object.fromEntries(strikeRoles(ch).map(r => [r, `New attacks strike with the end of a ${r}`])) }),
+  return [grp('vary', 'How far the cells stray from the parent', spreadButton(), exagSeg(build), reroll),
+    grp('new', 'What new attacks are like', seg(['any', ...strikeRoles(ch)], () => breed.limb, v => { breed.limb = v; fresh(); },
+      { any: 'New attacks strike with any limb', ...Object.fromEntries(strikeRoles(ch).map(r => [r, `New attacks strike with the end of a ${r}`])) }, v => v === 'any' ? 'any limb' : optLabel(v)),
     seg(['any', ...Object.keys(HEIGHTS)], () => breed.height, v => { breed.height = v; fresh(); },
-      { any: 'New attacks at any height', high: 'High attacks (crouching ducks them)', mid: 'Mid attacks', low: 'Low attacks (guard crouching)' }),
+      { any: 'New attacks at any height', high: 'High attacks (crouching ducks them)', mid: 'Mid attacks', low: 'Low attacks (guard crouching)' }, v => v === 'any' ? 'any height' : optLabel(v)),
     poseB,
-    button(':casino: new', 'Throw the parent away: nine new random attacks', () => { breed.atk = null; breed.seed++; build(); }),
-    noFocus(button(':save: save move', 'Add the parent (or the focused cell) to the character\'s moves as genN. Hovering a cell also shows its own save / edit buttons', () => saveAttack(false))),
-    noFocus(button(':animation: edit in animate', 'Save it and open it in the animation editor', () => saveAttack(true)))];
+    button(':casino: new', 'Throw the parent away: nine new random attacks', () => { breed.atk = null; breed.seed++; build(); })),
+    grp('keep', 'Keep the parent or focused attack', noFocus(button(':save: save move', 'Add the parent (or the focused cell) to the character\'s moves as genN. Hovering a cell also shows its own save / edit buttons', () => saveAttack(false))),
+    noFocus(button(':animation: edit in animate', 'Save it and open it in the animation editor', () => saveAttack(true))))];
 }
