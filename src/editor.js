@@ -1,7 +1,7 @@
 'use strict';
 // ---------- animate mode: pose keyframes by dragging joints (IK), retime them on a frame timeline, preview with springs ----------
 const anim = { move: 'jab', key: 1, t: 0, playing: true, onion: true, aim: false, drag: null, hover: null, anchor: null, pv: null, hold: false,
-  target: { char: null, stance: 'stand', state: 'idle', facing: 'toward' }, group: 'type', sort: 'order', filter: '' };
+  target: { char: null, stance: 'stand', state: 'idle', facing: 'toward' }, group: 'type', sort: 'order', filter: '', view: 'cards' };
 const curMove = () => currentChar().moves[anim.move];
 const defMove = () => DEFS[CURRENT].moves[anim.move];
 const F = 1 / 60; // one frame
@@ -387,6 +387,25 @@ const GROUP_TIPS = { type: 'Group by type: normal, special, throw, air, other (n
 const SORT_TIPS = { order: 'As defined', name: 'By name', startup: 'Fastest first (startup frames)', damage: 'Most damage first' };
 const moveDamage = m => m.power ? m.damage ?? m.power * 8 : 0;
 const moveInputs = (ch, n) => Object.keys(BINDS).filter(s => ch.binds[s] === n);
+// a move as a card: a drawing of its strike (the first active key); hovering plays it
+function moveCard(n, tip) {
+  const cv = h('canvas'), b = h('button', { cls: 'card', tip, onclick: () => pickMove(n) }, cv, h('span', { textContent: n }));
+  const ch = currentChar(), m = ch.moves[n];
+  const still = () => drawThumb(cv, ch, keyPose(ch, m, Math.max(0, m.keys.findIndex(k => k.active))));
+  let raf = 0;
+  b.onmouseenter = () => {
+    const t0 = performance.now(), loop = now => {
+      if (!b.isConnected) return;
+      drawThumb(cv, ch, samplePose(ch, m, (now - t0) / 1000 % (total(m) + 0.3)));
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+  };
+  b.onmouseleave = () => { cancelAnimationFrame(raf); raf = 0; still(); };
+  reg(b, () => { b.classList.toggle('on', anim.move === n); if (!raf) still(); });
+  return b;
+}
+const VIEW_TIPS = { cards: 'A drawing of each move (hover to play it)', list: 'Compact: names only' };
 function moveList() {
   const list = h('div'), fill = () => {
     const ch = currentChar(), q = anim.filter.trim().toLowerCase(), fd = n => frameData(ch.moves[n], 1);
@@ -398,12 +417,14 @@ function moveList() {
     const tips = Object.fromEntries(names.map(n => { const m = ch.moves[n], d = fd(n);
       return [n, `${d.startup}f startup · ${d.active} active · ${d.recovery} recovery${m.power ? ` · ${fmt(moveDamage(m))} damage · ${m.height || 'mid'}` : ''} · input: ${moveInputs(ch, n).join(' ') || 'none'}`]; }));
     list.replaceChildren(...[...groups].sort((a, b) => rank(a[0]) - rank(b[0])).flatMap(([g, ns]) =>
-      [g && h('h4', { textContent: g }), h('div', { cls: 'bar' }, seg(ns, () => anim.move, pickMove, tips))]));
+      [g && h('h4', { textContent: g }), anim.view === 'cards' ? h('div', { cls: 'cards' }, ns.map(n => moveCard(n, tips[n])))
+        : h('div', { cls: 'bar' }, seg(ns, () => anim.move, pickMove, tips))]));
     if (!names.length) list.replaceChildren(h('div', { cls: 'note', textContent: 'no move matches the filter' }));
     syncAll();
   };
   fill();
   return [
+    h('div', { cls: 'row', tip: 'How the moves are shown' }, h('span', { textContent: 'view' }), seg(Object.keys(VIEW_TIPS), () => anim.view, v => { anim.view = v; fill(); }, VIEW_TIPS)),
     h('div', { cls: 'row', tip: 'How the moves are grouped' }, h('span', { textContent: 'group' }), seg(Object.keys(MOVE_GROUPS), () => anim.group, v => { anim.group = v; fill(); }, GROUP_TIPS)),
     h('div', { cls: 'row', tip: 'Order within a group' }, h('span', { textContent: 'sort' }), seg(Object.keys(SORT_TIPS), () => anim.sort, v => { anim.sort = v; fill(); }, SORT_TIPS)),
     h('div', { cls: 'row', tip: 'Show only moves whose name, group or input contains this text (e.g. kick, air, qcf)' }, h('span', { textContent: 'filter' }),

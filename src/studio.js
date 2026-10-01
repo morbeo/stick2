@@ -140,46 +140,71 @@ function importChar() {
 // a random character: the stick's skeleton with random proportions and thickness, maybe extra limbs, a stance preset;
 // its moves are retimed to its size (bigger = slower and harder)
 const SYLLABLES = ['ka', 'ro', 'zu', 'mi', 'gor', 'ta', 'ven', 'shi', 'bo', 'rak', 'lu', 'dra', 'ni', 'vex', 'ul', 'ash'];
-function randomDef(rand) {
-  const pick = a => a[Math.floor(rand() * a.length)], size = rand(0.8, 1.3), seg = {}, thick = Math.round(rand(-1, 5)), core = Math.round(rand(0, 8));
+// what the generator draws from (studio.rnd holds the current values)
+const RANDOM_VARS = [
+  { k: 'size', v: 1.05, min: 0.6, max: 1.6, step: 0.05, tip: 'Average overall size (bigger also means slower, harder hitting moves).' },
+  { k: 'sizeVar', v: 0.25, min: 0, max: 0.5, step: 0.05, tip: 'How much the size varies around the average.' },
+  { k: 'shape', v: 0.3, min: 0, max: 0.6, step: 0.05, tip: 'Proportions: how much each limb segment strays from the size (front and back partners match).' },
+  { k: 'thick', v: 2, min: -1, max: 8, step: 1, tip: 'Average extra stroke width (px); varies ±3.' },
+  { k: 'core', v: 4, min: 0, max: 10, step: 1, tip: 'Average extra thickness of the torso (px); varies from 0 to twice this.' },
+  { k: 'limbs', v: 1, min: 0, max: 3, step: 0.5, tip: 'Average number of extra arms, tails or heads (up to twice this).' },
+  { k: 'stats', v: 0.15, min: 0, max: 0.5, step: 0.05, tip: 'How much the stats (jump, weight, health, toughness, tempo, springs) stray from 1; weight and health also follow the size.' },
+];
+studio.rnd = Object.fromEntries(RANDOM_VARS.map(s => [s.k, s.v]));
+function randomDef(rand, o = studio.rnd) {
+  const pick = a => a[Math.floor(rand() * a.length)], size = rand(o.size - o.sizeVar, o.size + o.sizeVar), seg = {};
+  const thick = Math.round(rand(o.thick - 3, o.thick + 3)), core = Math.round(rand(0, 2 * o.core));
   const def = clone(CHAR_DEFS.stick);
   def.name = pick(SYLLABLES) + pick(SYLLABLES);
   for (const b of def.bones) {
-    const k = seg[b.id.replace(/[FB]$/, '')] ??= size * rand(0.75, 1.35); // front and back partners match
+    const k = seg[b.id.replace(/[FB]$/, '')] ??= size * rand(1 - o.shape, 1 + o.shape); // front and back partners match
     b.len = Math.max(3, Math.round(b.len * k));
     b.thick = Math.max(2, (b.thick ?? BONE.thick) + thick + (b.role === 'spine' ? core : 0));
     if (b.hurt) b.hurt = Math.max(4, Math.round(b.hurt * Math.sqrt(k)) + Math.round(thick / 2));
   }
   const spine = def.bones.filter(b => b.role === 'spine');
-  for (let n = pick([0, 1, 1, 2]); n > 0; n--) attachLimb(def, pick(['arm', 'arm', 'tail', 'head']), pick(spine).id);
+  for (let n = Math.round(rand(0, 2 * o.limbs)); n > 0; n--) attachLimb(def, pick(['arm', 'arm', 'tail', 'head']), pick(spine).id);
   const preset = pick(Object.keys(POSES).filter(k => k !== 'tpose'));
   Object.assign(def.poses.stance, presetPose(makeCharacter(def), POSES[preset]));
   const t = size * rand(0.9, 1.1);
   def.speed = +clamp(rand(0.9, 1.2) / size, 0.6, 1.4).toFixed(2);
+  for (const st of CHAR_STATS.slice(1)) {
+    const v = rand(1 - o.stats, 1 + o.stats) * (st.k === 'weight' || st.k === 'health' ? size : 1);
+    if (Math.abs(v - 1) > 0.02) def[st.k] = +clamp(Math.round(v / st.step) * st.step, st.min, st.max).toFixed(2);
+  }
   def.moves = mapVals(def.moves, m => m.power ? { ...m, power: +(m.power * size).toFixed(2), knock: Math.round(m.knock * size),
     keys: m.keys.map(k => ({ ...k, d: +(k.d * t).toFixed(4) })) } : m);
   return def;
 }
-// a small drawing of a character's stance; one scale for all, so sizes compare
-function drawThumb(cv, ch) {
-  const w = cv.width = 60 * dpr, hh = cv.height = 64 * dpr, c = cv.getContext('2d'), L = fk(ch, ch.poses.stance, 1), s = hh * 0.92 / 125;
+// a small drawing of a character (its stance, or any pose); one scale for all, so sizes compare
+function drawThumb(cv, ch, pose = ch.poses.stance) {
+  const w = cv.width = 60 * dpr, hh = cv.height = 64 * dpr, c = cv.getContext('2d'), L = fk(ch, pose, 1), s = hh * 0.92 / 125;
   let low = 0, x0 = 0, x1 = 0;
   for (const b of ch.bones) { const p = L[b.id], r = b.shape === 'circle' ? b.len : 0; low = Math.max(low, p[1] + r); x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); }
   c.translate(w / 2 - (x0 + x1) / 2 * s, hh - 3 * dpr - low * s); c.scale(s, s);
   drawFigure(c, ch, L, INK[0], INK[1]);
 }
 function charCard(k) {
-  const cv = h('canvas'), b = h('button', { cls: 'card', tip: `${CHAR_DEFS[k] ? 'Built-in' : 'Your character'}: ${k} · ${CHARS[k].bones.length} bones · speed ${CHARS[k].speed}`,
+  const cv = h('canvas'), b = h('button', { cls: 'card', tip: `${CHAR_DEFS[k] ? 'Built-in' : 'Your character'}: ${k} · ${CHARS[k].bones.length} bones · speed ${CHARS[k].stats.speed}`,
     onclick: () => { pickChar(k); syncAll(); } }, cv, h('span', { textContent: k }));
   reg(b, () => { b.classList.toggle('on', CURRENT === k); drawThumb(cv, CHARS[k]); });
   return b;
+}
+// the generator's variables; the random characters experiment shows nine of them
+function randomPanel(changed = () => {}) {
+  const set = vals => { Object.assign(studio.rnd, vals); changed(); syncAll(); };
+  const title = h('h4', { textContent: 'generator', tip: 'What the random button draws from' });
+  title.append(groupOps(RANDOM_VARS, k => studio.rnd[k], k => RANDOM_VARS.find(s => s.k === k).v, set,
+    ['Experiment: a grid of nine random characters; click one to keep it', () => randomExp()]));
+  return [title, ...RANDOM_VARS.map(s => slider(s.k, s, () => studio.rnd[s.k], v => set({ [s.k]: v }), s.tip))];
 }
 function charPanel() {
   return [
     heading('Character', 'Pick the fighter every mode uses. Edits are saved in this browser automatically; export a file to keep or share one.',
       '⌘Z undo · ⇧⌘Z redo'),
     h('div', { cls: 'bar' },
-      button(':casino: random', 'Generate a random character: proportions, thickness, extra limbs, stance and speed', () => addChar(randomDef(makeRand(Math.random() * 1e9 | 0)))),
+      button(':casino: random', 'Generate a random character: proportions, thickness, extra limbs, stance and stats', () => addChar(randomDef(makeRand(Math.random() * 1e9 | 0)))),
+      button(':tune:', 'What the random characters are drawn from, and an experiment grid of them', (e, b) => popup(b, ...randomPanel())),
       button(':content_copy: copy', 'Make a new character from this one', () => addChar(DEFS[CURRENT], CURRENT)),
       button(':upload: import', 'Load a character JSON file as a new character', importChar)),
     h('div', { cls: 'cards' }, Object.keys(DEFS).map(charCard)),

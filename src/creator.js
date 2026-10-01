@@ -1,7 +1,7 @@
 'use strict';
 // ---------- character mode: drag the skeleton, tune bones, watch it fight live; body experiment grid ----------
 const creator = { preview: 'showcase', w: null, drag: null, hover: null, anchor: null, expOn: false,
-  exp: { vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
+  exp: { kind: 'body', vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
 const PREVIEWS = {
   showcase: ['showcase', 'Scripted demo: walk in, J,J,K chain, sweep, jump kick, back off.'],
   walk: ['walk', 'Walk forward and back: check the walk cycle and arm swing.'],
@@ -90,11 +90,10 @@ function dragTo(x, y, shift) {
 // lv: per bone property, one distinct level per cell (see levels in breed.js); exaggerate (breed.exag) scales the spread
 function mutate(def, rand, lv, i) {
   const d = clone(def), ex = creator.exp;
-  for (const b of d.bones) for (const k of ex.vars) {
-    const p = BONE_PROPS.find(p => p.k === k), key = (ex.sym ? b.id.replace(/[FB]$/, '') : b.id) + '.' + k; // F/B partners share a level
-    const v = bounce((b[k] ?? BONE[k]) + (lv[key] ??= levels(8, rand))[i - 1] * ex.spread * breed.exag * (p.max - p.min), p.min, p.max);
-    b[k] = +clamp(Math.round(v / p.step) * p.step, p.min, p.max).toFixed(3);
-  }
+  const vary = (v, key, p) => +clamp(Math.round(bounce(v + (lv[key] ??= levels(8, rand))[i - 1] * ex.spread * breed.exag * (p.max - p.min), p.min, p.max) / p.step) * p.step, p.min, p.max).toFixed(3);
+  for (const p of CHAR_STATS) if (ex.vars.has(p.k)) d[p.k] = vary(d[p.k] ?? 1, p.k, p); // stats live on the definition itself
+  for (const b of d.bones) for (const p of BONE_PROPS) if (ex.vars.has(p.k))
+    b[p.k] = vary(b[p.k] ?? BONE[p.k], (ex.sym ? b.id.replace(/[FB]$/, '') : b.id) + '.' + p.k, p); // F/B partners share a level
   return d;
 }
 // experimental limbs: add a limb at a random torso bone, drop a limb, or grow a joint on a limb's end
@@ -121,6 +120,10 @@ function mutateLimbs(d, rand) {
 }
 function buildExp() {
   const ex = creator.exp, rand = makeRand(ex.seed * 7919), lv = {};
+  if (ex.kind === 'random') { // nine random characters, each against the current one
+    ex.cells = Array.from({ length: 9 }, (_, i) => { const def = randomDef(makeRand(ex.seed * 7919 + i)); return { def, w: newWorld(previewScen(), {}, 7, [makeCharacter(def), currentChar()]), label: def.name }; });
+    return;
+  }
   ex.parent ??= clone(DEFS[CURRENT]);
   ex.cells = Array.from({ length: 9 }, (_, i) => {
     const def = i ? mutate(ex.parent, rand, lv, i) : ex.parent, note = i && ex.limbs ? mutateLimbs(def, rand) : '';
@@ -128,17 +131,23 @@ function buildExp() {
     return { def, w: newWorld(previewScen(), {}, 7, [makeCharacter(def), currentChar()]), label: i ? `#${i} ${note}` : 'parent' };
   });
 }
-function setExp(on) {
-  creator.expOn = on;
+function setExp(on, kind = 'body') {
+  creator.expOn = on; creator.exp.kind = kind;
   if (on) { creator.exp.parent = null; buildExp(); }
   panels();
+}
+
+function randomExp() {
+  closePop();
+  if (app.mode === 'character') return setExp(true, 'random');
+  creator.expOn = true; creator.exp.kind = 'random'; setMode('character');
 }
 
 function creatorRender() {
   clear();
   if (creator.expOn) {
     const rects = cellRects(9, 3, fullArea());
-    creator.exp.cells.forEach((c, i) => drawCell(c, rects[i], { plot: false, selected: i === 0 && 'parent' }));
+    creator.exp.cells.forEach((c, i) => drawCell(c, rects[i], { plot: false, selected: creator.exp.kind === 'body' && i === 0 && 'parent' }));
     return;
   }
   const { pv } = edLayout();
@@ -149,7 +158,8 @@ function creatorMouse(type, x, y, e) {
   if (creator.expOn) {
     const ex = creator.exp, i = hitRect(cellRects(9, 3, fullArea()), x, y);
     cursor(i >= 0 ? 'pointer' : 'default');
-    if (type === 'down' && i >= 0) { ex.parent = ex.cells[i].def; ex.seed++; buildExp(); }
+    if (type === 'down' && i >= 0 && ex.kind === 'random') { addChar(ex.cells[i].def); ex.cells[i].label += ' · kept'; }
+    else if (type === 'down' && i >= 0) { ex.parent = ex.cells[i].def; ex.seed++; buildExp(); }
     return;
   }
   if (type === 'down') {
@@ -172,7 +182,7 @@ function creatorCtx() {
     h('span', { cls: 'note', textContent: 'preview' }),
     seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); }, mapVals(PREVIEWS, p => p[1])),
     toggle(':science: experiment', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
-      () => creator.expOn, setExp),
+      () => creator.expOn && creator.exp.kind === 'body', on => setExp(on)),
     toggle(':check_box_outline_blank: boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }),
     colorsToggle(),
   ];
@@ -212,6 +222,14 @@ function bonePanel() {
     row('lock', 'Lock to the parent', toggle(':lock: lock', 'Locked: the joint keeps its angle to its parent while posing. Dragging it (or IK through it) turns the first unlocked bone above, so locked bones move as one group.',
       () => !!prop('lock'), v => setProp('lock', v || undefined)))];
 }
+// the character's stats; defaults are the built-in's values (custom characters: 1)
+function statsPanel() {
+  const get = k => DEFS[CURRENT][k] ?? 1, dflt = k => CHAR_DEFS[CURRENT]?.[k] ?? 1;
+  const title = h('h4', { textContent: 'stats', tip: 'Multipliers on the fight settings for this character only (1 = as the settings say)' });
+  title.append(groupOps(CHAR_STATS, get, dflt, vals => edit(def => Object.assign(def, vals)),
+    ['Experiment: nine bodies varying the stats; click the best to breed around it', () => { creator.exp.vars = new Set(CHAR_STATS.map(s => s.k)); setExp(true); }]));
+  return [title, ...CHAR_STATS.map(s => slider(s.k, s, () => get(s.k), v => edit(def => { def[s.k] = v; }, 'stat:' + s.k), s.tip))];
+}
 function bodyPanel() {
   return [...charPanel(),
     heading('Body', 'Build the skeleton. Limbs are role-based: legs walk, arms swing, tails follow through. New parts attach to the selected torso bone.',
@@ -225,8 +243,7 @@ function bodyPanel() {
       button(':undo: undo', 'Undo (⌘Z)', undo), button(':redo: redo', 'Redo (⇧⌘Z)', redo)),
     h('h4', { textContent: 'stance pose', tip: 'Set the whole stance from a preset (per limb, so it works for any body)' }),
     h('div', { cls: 'bar' }, Object.entries(POSES).map(([k, p]) => button(k, p.tip, () => edit(def => Object.assign(def.poses.stance, presetPose(currentChar(), p)))))),
-    slider('speed', { min: 0.5, max: 1.6, step: 0.05 }, () => DEFS[CURRENT].speed ?? 1, v => edit(def => { def.speed = v; }, 'speed'),
-      'Walk speed of this character, × maxSpeed (dashes and runs too). Heavy bodies feel right a little slower.'),
+    ...statsPanel(),
     h('h4', { textContent: 'bones', tip: 'Click to select · ▾ ▸ fold a branch' }),
     boneTree(),
     ...bonePanel(),
@@ -234,6 +251,11 @@ function bodyPanel() {
 }
 function expPanel() {
   const ex = creator.exp;
+  if (ex.kind === 'random') return [
+    heading('Random characters', 'Nine random characters drawn from the variables below, each fighting your current character. Click one to keep it as a new character.',
+      'click a cell: keep it · Esc: back to the editor'),
+    h('div', { cls: 'bar' }, button(':casino: reroll', 'Nine new random characters', () => { ex.seed++; buildExp(); })),
+    ...randomPanel(buildExp)];
   return [
     heading('Body experiment', 'Nine bodies: the parent (framed) and 8 random variations of the chosen properties. Click a cell to make it the parent and breed new variations; repeat to home in, then keep it.',
       'click a cell: breed · Esc: back to the editor'),
@@ -241,8 +263,8 @@ function expPanel() {
       button(':lock: keep parent', 'Make the parent body your character (undoable)', () => edit(def => Object.assign(def, clone(ex.parent)))),
       button(':casino: reroll', 'New random variations around the same parent', () => { ex.seed++; buildExp(); }),
       button(':restart_alt: restart', 'Start again from your current character', () => { ex.parent = null; buildExp(); })),
-    h('h4', { textContent: 'vary', tip: 'Which bone properties the variations change' }),
-    h('div', { cls: 'bar' }, BONE_PROPS.map(p => toggle(p.k, p.tip, () => ex.vars.has(p.k), on => { ex.vars[on ? 'add' : 'delete'](p.k); buildExp(); })),
+    h('h4', { textContent: 'vary', tip: 'Which bone properties and stats the variations change' }),
+    h('div', { cls: 'bar' }, [...BONE_PROPS, ...CHAR_STATS].map(p => toggle(p.k, p.tip, () => ex.vars.has(p.k), on => { ex.vars[on ? 'add' : 'delete'](p.k); buildExp(); })),
       toggle(':add: limbs', 'Experimental limbs: each variation also adds a random limb, drops one, or grows an extra joint', () => ex.limbs, v => { ex.limbs = v; buildExp(); })),
     slider('spread', { min: 0.02, max: 0.5, step: 0.01 }, () => ex.spread, v => { ex.spread = v; },
       'How far variations stray from the parent, as a fraction of each property\'s range. Applied on the next breed or reroll.'),
@@ -261,6 +283,6 @@ const creatorMode = {
   side: () => creator.expOn ? expPanel() : bodyPanel(),
   mouse: creatorMouse,
   key: creatorKey,
-  hint: () => creator.expOn ? 'click a cell to breed around it · Esc back to the editor'
+  hint: () => creator.expOn ? (creator.exp.kind === 'random' ? 'click a cell to keep it' : 'click a cell to breed around it') + ' · Esc back to the editor'
     : 'drag a joint: length + angle · Shift+drag: angle only · click: select · Del delete · ⌘Z undo',
 };

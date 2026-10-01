@@ -24,7 +24,7 @@ class Fighter {
       this.lens[b.id] = b.len;
     }
   }
-  c(k) { const v = this.over[k] ?? this.w.cfg[k]; return k === 'maxSpeed' ? v * this.ch.speed : v; } // a character's speed scales its walk
+  c(k) { const v = this.over[k] ?? this.w.cfg[k]; return STAT_OF[k] ? v * this.ch.stats[STAT_OF[k]] : v; } // character stats scale their settings
   get free() { return this.hurtT <= 0 && !this.kd; }
 
   // the procedural layer, driven by bone roles so any skeleton breathes, walks and leans
@@ -367,7 +367,7 @@ class Fighter {
   blockHit(att, m) {
     const bs = (m.stun || 0.4) * this.c('blockStun');
     this.hurtT = this.blockT = bs; this.guarding = true; this.combo = 0; this.buffer = null; this.parryT = 0;
-    this.vx = att.dir * m.knock * this.c('blockPush');
+    this.vx = att.dir * m.knock * this.c('blockPush') / this.ch.stats.weight;
     if (this.c('health') > 0) this.hp = Math.max(1, this.hp - this.damageOf(m, 1) * (m.chip || this.c('chip'))); // chip never knocks out
     for (const c of this.ch.chains.arm) this.jolt(c[0], -300 * m.power); // the guard gives
     this.sqv -= this.c('squash') * 8 * m.power;
@@ -426,11 +426,11 @@ class Fighter {
     this.comboShown = combo; this.comboT = 1; this.comboPop = 1;
     const juggle = !!this.kd || !this.grounded, otg = this.kd === 'down';
     this.dir = -att.dir; this.buffer = null; this.squatT = 0; this.flashT = 0.1;
-    this.vx = att.dir * m.knock * (juggle ? 0.6 : 1);
+    this.vx = att.dir * m.knock * (juggle ? 0.6 : 1) / this.ch.stats.weight;
     if (m.kd || m.crumple || juggle || combo >= 7 || this.ko) {
       this.juggles = this.kd ? this.juggles + 1 : 0;
       this.kd = 'fly'; this.bounces = otg ? 99 : 0; this.grounded = false; this.action = null; this.hurtT = 0; // hit off the ground: a small pop, no bounce
-      this.vy = -Math.max(m.launch || 300, this.ko ? 380 : 0) * this.c('juggleDecay') ** this.juggles;
+      this.vy = -Math.max(m.launch || 300, this.ko ? 380 : 0) * this.c('juggleDecay') ** this.juggles / this.ch.stats.weight;
       this.splat = !!m.wall; this.gb = !!m.bounce && !otg; this.splatT = 0; this.flyT = 0;
       if (m.crumple && !juggle) { this.vx = att.dir * 30; this.vy = -120; this.bounces = 99; this.say('CRUMPLE'); } // folds where it stands
     } else {
