@@ -122,7 +122,8 @@ function mutateLimbs(d, rand) {
 function buildExp() {
   const ex = creator.exp, rand = makeRand(ex.seed * 7919), lv = {};
   if (ex.kind === 'random') { // nine random characters, each against the current one
-    ex.cells = Array.from({ length: 9 }, (_, i) => { const def = randomDef(makeRand(ex.seed * 7919 + i)); return { def, w: newWorld(previewScen(), {}, 7, [makeCharacter(def), currentChar()]), label: def.name }; });
+    ex.cells = Array.from({ length: 9 }, (_, i) => { const def = randomDef(makeRand(ex.seed * 7919 + i)), kept = ex.kept?.[ex.seed + ':' + i];
+      return { def, w: newWorld(previewScen(), {}, 7, [makeCharacter(def), currentChar()]), label: def.name + (kept && DEFS[kept] ? ` · kept as ${kept}` : '') }; });
     return;
   }
   ex.parent ??= clone(DEFS[CURRENT]);
@@ -155,11 +156,18 @@ function creatorRender() {
   drawEditor();
   drawCell({ w: creator.w, label: 'preview' }, pv, { plot: false });
 }
+// keeping a random cell adds it once; clicking it again offers to update that character instead of adding a copy
+function keepRandom(i) {
+  const ex = creator.exp, id = ex.seed + ':' + i, name = (ex.kept ||= {})[id], def = ex.cells[i].def;
+  if (!name || !DEFS[name]) { addChar(def); ex.kept[id] = CURRENT; return; }
+  if (!confirm(`This character is already kept as "${name}". Update "${name}" with it (your edits to it are replaced)?`)) return;
+  DEFS[name] = { ...clone(def), name }; CHARS[name] = makeCharacter(DEFS[name]); pickChar(name);
+}
 function creatorMouse(type, x, y, e) {
   if (creator.expOn) {
     const ex = creator.exp, i = hitRect(cellRects(9, 3, fullArea()), x, y);
     cursor(i >= 0 ? 'pointer' : 'default');
-    if (type === 'down' && i >= 0 && ex.kind === 'random') { addChar(ex.cells[i].def); ex.cells[i].label += ' · kept'; }
+    if (type === 'down' && i >= 0 && ex.kind === 'random') keepRandom(i);
     else if (type === 'down' && i >= 0) { ex.parent = ex.cells[i].def; ex.seed++; buildExp(); }
     return;
   }
@@ -312,7 +320,7 @@ function bodyPanel() {
 function expPanel() {
   const ex = creator.exp;
   if (ex.kind === 'random') return [
-    heading('Random characters', 'Nine random characters drawn from the variables below, each fighting your current character. Click one to keep it as a new character.',
+    heading('Random characters', 'Nine random characters drawn from the variables below, each fighting your current character. Click one to keep it as a new character; clicking a kept one again offers to update that character.',
       'click a cell: keep it · Esc: back to the editor'),
     h('div', { cls: 'bar' }, button(':casino: reroll', 'Nine new random characters', () => { ex.seed++; buildExp(); })),
     ...randomPanel(buildExp)];

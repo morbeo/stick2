@@ -136,6 +136,11 @@ try {
     mode().render(); const { step, cw } = stripCells(anLayout().ed); animMouse('down', cw * 2.5, anLayout().ed.h / 2, { detail: 1 });
     if (Math.abs(anim.t - 2 * step) > 1e-6) errs.push('strip click ' + anim.t);
     anim.cmpView = 'overlay'; mode().render(); anim.cmpView = 'off'; anim.cmp = null; }
+  // random characters: keeping a cell twice asks to update the kept character instead of adding a copy
+  { setMode('character'); randomExp(); const n0 = Object.keys(DEFS).length; keepRandom(0); const name = CURRENT, n1 = Object.keys(DEFS).length;
+    const conf = window.confirm; let asked = 0; window.confirm = () => (asked++, true); keepRandom(0); window.confirm = conf;
+    if (n1 !== n0 + 1 || Object.keys(DEFS).length !== n1 || !asked || CURRENT !== name) errs.push('keep random ' + [n0, n1, Object.keys(DEFS).length, asked]);
+    delete DEFS[name]; delete CHARS[name]; creator.expOn = false; pickChar('stick'); }
 } catch (e) { errs.push(e.message + ' ' + e.stack.split('\\n')[1]); }
 document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK';
 </script></body>`;
