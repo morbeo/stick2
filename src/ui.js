@@ -80,6 +80,13 @@ function slider(label, { min, max, step }, get, set, tip) {
   reg(row, () => { const v = get(); if (document.activeElement !== inp) inp.value = v; val.textContent = fmt(v); });
   return row;
 }
+// a variable row whose name starts an experiment with that variable when clicked (dotted underline, a flask on hover)
+function expLink(row, what, fn) {
+  const n = row.firstChild;
+  n.className = 'vname'; n.dataset.tip = `${row.dataset.tip || ''} · Click the name: ${what}`;
+  n.onclick = e => { e.preventDefault(); fn(); };
+  return row;
+}
 // a group heading with an ⓘ button that pops up what the group does and its keys
 function heading(title, info, keys) {
   return h('h3', {}, title, info && button(':info:', 'about this group', (e, b) => popup(b, h('b', { textContent: title }),

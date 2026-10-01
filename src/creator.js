@@ -217,19 +217,22 @@ function bonePanel() {
     slider('stance', { min: -270, max: 270, step: 1 }, () => curStance().pose[studio.sel] ?? 0,
       v => edit(def => { editPose(def)[studio.sel] = v; }, 'stance:' + studio.sel),
       'Angle in the stance pose, relative to the parent (0 = straight on, root bones: 0 = down, 180 = up). Moves are layered on top.'),
-    ...BONE_PROPS.map(p => slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip)),
+    ...BONE_PROPS.map(p => bodyExpLink(slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip), p.k)),
     row('limits', 'Clamp how far this joint can bend', toggle(':straighten: limits', 'Clamp how far this joint can bend', () => prop('min') !== undefined, lim)),
     ...limRows,
     row('lock', 'Lock to the parent', toggle(':lock: lock', 'Locked: the joint keeps its angle to its parent while posing. Dragging it (or IK through it) turns the first unlocked bone above, so locked bones move as one group.',
       () => !!prop('lock'), v => setProp('lock', v || undefined)))];
 }
+// clicking a variable's name: nine bodies varying only that variable
+const bodyExpLink = (row, k, preview) => expLink(row, `nine bodies varying ${k}; click the best to breed around it`,
+  () => { creator.exp.vars = new Set([k]); if (preview) creator.preview = preview; setExp(true); });
 // the character's stats; defaults are the built-in's values (custom characters: 1)
 function statsPanel() {
   const get = k => DEFS[CURRENT][k] ?? 1, dflt = k => CHAR_DEFS[CURRENT]?.[k] ?? 1;
   const title = h('h4', { textContent: 'stats', tip: 'Multipliers on the fight settings for this character only (1 = as the settings say)' });
   title.append(groupOps(CHAR_STATS, get, dflt, vals => edit(def => Object.assign(def, vals)),
     ['Experiment: nine bodies varying the stats; click the best to breed around it', () => { creator.exp.vars = new Set(CHAR_STATS.map(s => s.k)); setExp(true); }]));
-  return [title, ...CHAR_STATS.map(s => slider(s.k, s, () => get(s.k), v => edit(def => { def[s.k] = v; }, 'stat:' + s.k), s.tip))];
+  return [title, ...CHAR_STATS.map(s => bodyExpLink(slider(s.k, s, () => get(s.k), v => edit(def => { def[s.k] = v; }, 'stat:' + s.k), s.tip), s.k))];
 }
 // walk and idle knobs; keyframed loops (moves named idle / walk, made in animate) replace them
 function gaitPanel() {
@@ -241,7 +244,7 @@ function gaitPanel() {
   const loops = ['idle', 'walk'].filter(n => currentChar().moves[n]);
   return [title, loops.length ? h('div', { cls: 'note', textContent: `keyframed ${loops.join(' and ')} loop replaces the procedural one` }) : null,
     ...GAIT_VARS.map(s => s.opts ? h('div', { cls: 'row', tip: s.tip }, h('span', { textContent: s.k }), seg(s.opts, () => get(s.k), v => set({ [s.k]: v })))
-      : slider(s.k, s, () => get(s.k), v => set({ [s.k]: v }), s.tip))];
+      : bodyExpLink(slider(s.k, s, () => get(s.k), v => set({ [s.k]: v }), s.tip), s.k, 'walk'))];
 }
 function bodyPanel() {
   return [...charPanel(),

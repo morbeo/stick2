@@ -49,7 +49,8 @@
   .card.on canvas { filter: invert(1) brightness(1.6); }
   .tree { display: flex; align-items: center; gap: 2px; margin: 1px 0; }
   .tree button { padding: 0 6px; } button.twist, span.twist { width: 18px; padding: 0; border: 0; background: none; }
-  .vname { cursor: pointer; } .vname:hover { text-decoration: underline; }
+  .vname { cursor: pointer; text-decoration: underline dotted #aaa; text-underline-offset: 3px; }
+  .vname:hover { color: #c0392b; text-decoration: underline solid; } .vname:hover::after { content: '\ea4b'; font-family: Icons; margin-left: 3px; }
   .row > .seg, .row > button { grid-column: 2 / 4; justify-self: start; }
   #side h4 { margin: 8px 0 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
   [hidden] { display: none !important; }

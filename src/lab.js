@@ -457,10 +457,8 @@ function groupHeading(s, i) {
 }
 // clicking a variable's name sweeps it across the grid
 function gridLink(row, s) {
-  const n = row.firstChild;
-  n.className = 'vname'; n.dataset.tip = `${s.tip} · Click the name: test ${s.k} in a grid`;
-  n.onclick = e => { e.preventDefault(); lab.kind = 'sweep'; Object.assign(lab.x, { k: s.k, lo: s.min, hi: s.max }); lab.y.k = ''; setMode('grid'); };
-  return row;
+  return expLink(row, `test ${s.k} in a grid, one value per cell`,
+    () => { lab.kind = 'sweep'; Object.assign(lab.x, { k: s.k, lo: s.min, hi: s.max }); lab.y.k = ''; setMode('grid'); });
 }
 const labSide = () => [scopeCv, stats, ...configPanel()];
 
