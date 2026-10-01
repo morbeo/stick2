@@ -200,7 +200,7 @@ function bonePanel() {
     if (on) { b.min = -90; b.max = 90; } else { delete b.min; delete b.max; }
   });
   const limRows = ['min', 'max'].map(k => slider(k, { min: -180, max: 180, step: 1 }, () => prop(k) ?? 0, v => setProp(k, v),
-    `Joint limit (${k}), relative to the parent. The drawn pose is clamped after the spring, so overshoot never hyperextends.`));
+    `Joint limit (${k}), relative to the parent. The drawn pose is clamped after the spring, so overshoot never hyperextends; posing in animate can go past it (the IK prefers to stay inside), and a key posed past it is kept.`));
   for (const r of limRows) reg(r, () => { r.hidden = prop('min') === undefined; });
   // defaults: the bone as the built-in character has it (custom bones: the general defaults)
   const own = k => CHAR_DEFS[CURRENT]?.bones.find(b => b.id === studio.sel)?.[k], dflt = k => own(k) ?? BONE[k];

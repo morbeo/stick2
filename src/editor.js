@@ -57,12 +57,15 @@ function drawAnimEditor() {
     ctx.fillStyle = hov ? '#ffd' : '#fff'; ctx.fill();
     ctx.strokeStyle = hit ? RED[0] : '#555'; ctx.lineWidth = (hit ? 2.5 : 1.5) * dpr; ctx.stroke();
   }
+  { const [x, y] = P.hip, hov = anim.hover === 'hip' || anim.drag === 'hip', q = (hov ? 5.5 : 4) * dpr; // the hip: a square handle
+    ctx.fillStyle = hov ? '#ffd' : '#fff'; ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5 * dpr; ctx.fillRect(x - q, y - q, q * 2, q * 2); ctx.strokeRect(x - q, y - q, q * 2, q * 2); }
   if (anim.aim && P[aimBone()]) { // the joint that follows the cursor: a crosshair ring
     const [x, y] = P[aimBone()], q = 9 * dpr;
     ctx.beginPath(); ctx.arc(x, y, q, 0, 7);
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { ctx.moveTo(x + dx * q * 0.6, y + dy * q * 0.6); ctx.lineTo(x + dx * q * 1.5, y + dy * q * 1.5); }
     ctx.strokeStyle = '#07f'; ctx.lineWidth = 1.5 * dpr; ctx.stroke();
   }
+  if (anim.hover === 'hip' || anim.drag === 'hip') text('hip: the body moves, the feet stay', Math.min(P.hip[0] + 10 * dpr, r.x + r.w - 220 * dpr), P.hip[1] - 8 * dpr, '#666', 11);
   const hv = ch.by[anim.drag || anim.hover];
   if (hv) text(`${hv.id} ${Math.round(f.pose[hv.id])}°`, Math.min(P[hv.id][0] + 10 * dpr, r.x + r.w - 120 * dpr), P[hv.id][1] - 8 * dpr, '#666', 11);
   text(`${anim.move} · key ${anim.key + 1}/${m.keys.length}${editing ? '' : ' (drag a joint to jump to the selected key)'}`, r.x + 10 * dpr, r.y + 18 * dpr, '#444', 12, 'bold');
@@ -151,19 +154,36 @@ function ikChain(ch, id, single, reach = anim.reach) {
   }
   return c;
 }
-const limit = (b, v) => b.min === undefined ? v : clamp(v, b.min, b.max);
+const limit = (b, v, lim = true) => !lim || b.min === undefined ? v : clamp(v, b.min, b.max);
 const wrap = d => ((d % 360) + 540) % 360 - 180;
 // cyclic coordinate descent: turn each joint of the chain so the end of bone id points at the target (rig space)
-function ik(ch, pose, id, target, chain, rounds = 12) {
-  const ang = (p, q) => Math.atan2(q[0] - p[0], q[1] - p[1]) / R;
+// joint limits shape the solve (knees bend the right way), but never stop a drag: if they keep the end from the target, it solves without them
+function ik(ch, pose, id, target, chain, rounds = 12, lim = true) {
+  const ang = (p, q) => Math.atan2(q[0] - p[0], q[1] - p[1]) / R, p0 = { ...pose };
   for (let it = 0; it < rounds; it++) for (const b of chain) {
     const P = fk(ch, pose, 1), pv = P[b.parent || 'hip'];
-    pose[b.id] = limit(b, pose[b.id] + wrap(ang(pv, target) - ang(pv, P[id])));
+    pose[b.id] = limit(b, pose[b.id] + wrap(ang(pv, target) - ang(pv, P[id])), lim);
   }
+  const miss = q => { const e = fk(ch, q, 1)[id]; return Math.hypot(e[0] - target[0], e[1] - target[1]); };
+  if (lim) { const free = ik(ch, p0, id, target, chain, rounds, false); if (miss(free) < miss(pose) - 0.5) return free; }
   return pose;
 }
+// the hip (the root): dragging it moves the body over the feet, every leg bends so its ankle stays where it was
+const ankleOf = c => c[c.length >= 3 ? c.length - 2 : c.length - 1];
+// (measured from where the drag began, anim.hip0; the view follows the hip so the feet stay put on screen)
+function hipTo(f, x, y) {
+  const ch = f.ch, h0 = anim.hip0, dx = (x - h0.x) / f.s, dy = (y - h0.y) / f.s, pose = { ...h0.pose }, chain = [];
+  anim.anchor = [h0.a[0] + x - h0.x, h0.a[1] + y - h0.y];
+  for (const c of ch.chains.leg) {
+    const a = ankleOf(c), legs = c.slice(0, c.indexOf(a) + 1).filter(b => !b.lock).reverse(); // end first (CCD)
+    ik(ch, pose, a.id, [h0.L[a.id][0] - dx, h0.L[a.id][1] - dy], legs);
+    chain.push(...legs);
+  }
+  return { pose, chain };
+}
 function poseTo(id, x, y, single) {
-  const f = anFrame(), ch = f.ch, chain = ikChain(ch, id, single), pose = ik(ch, { ...f.pose }, id, f.toLocal(x, y), chain, single ? 1 : 12);
+  const f = anFrame(), ch = f.ch;
+  const { chain, pose } = id === 'hip' ? hipTo(f, x, y) : (c => ({ chain: c, pose: ik(ch, { ...f.pose }, id, f.toLocal(x, y), c, single ? 1 : 12) }))(ikChain(ch, id, single));
   edit(def => {
     const k = def.moves[anim.move].keys[anim.key];
     k.p = k.p || {};
@@ -174,7 +194,7 @@ const aimBone = () => anim.aimId || hitIds(curMove())[0]; // what aim moves: a d
 function pickJoint(x, y) {
   const { ch, P } = anFrame();
   let best = null, bd = 12 * dpr;
-  for (const b of ch.bones) { const d = Math.hypot(P[b.id][0] - x, P[b.id][1] - y); if (d < bd) { bd = d; best = b.id; } }
+  for (const id of [...ch.ids, 'hip']) { const d = Math.hypot(P[id][0] - x, P[id][1] - y); if (d < bd) { bd = d; best = id; } }
   return best;
 }
 function selectKey(i) {
@@ -230,9 +250,10 @@ function animMouse(type, x, y, e) {
       }
     } else {
       const id = pickJoint(x, y);
+      if (id === 'hip' && (e.shiftKey || e.detail === 2)) return; // the hip neither strikes nor aims
       if (id && e.shiftKey) { pickHit(id, e.metaKey || e.ctrlKey); return; } // Shift+click: the striking bone (⌘/Ctrl too: add or remove it)
       if (id && e.detail === 2) { anim.aim = true; anim.aimId = id; return; } // double-click: that joint follows the cursor
-      if (id) { selectKey(anim.key); anFrame(); anim.drag = id; anim.hold = true; } // anFrame: re-anchor at the key pose before freezing
+      if (id) { selectKey(anim.key); const f = anFrame(); anim.drag = id; anim.hold = true; anim.hip0 = { x, y, a: [...f.o], L: f.L, pose: f.pose }; } // anFrame: re-anchor at the key pose before freezing
     }
   }
   if (type === 'move') {

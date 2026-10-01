@@ -393,8 +393,8 @@ class Fighter {
         this.disp[j] = mode === 'damp' ? this.disp[j] + (x - this.disp[j]) * (1 - Math.exp(-c('dampRate') * dt)) : x;
         this.flt[j].reset(this.disp[j]);
       }
-      // limits are applied after the filter so spring overshoot never hyperextends a joint
-      if (b.min !== undefined) this.disp[j] = clamp(this.disp[j], b.min, b.max);
+      // limits are applied after the filter so spring overshoot never hyperextends a joint; a pose authored past a limit is kept
+      if (b.min !== undefined) this.disp[j] = clamp(this.disp[j], Math.min(b.min, x), Math.max(b.max, x));
       // stretch: fast-swinging bones lengthen, then ease back
       const want = b.len * (1 + b.stretch * Math.min(1, Math.abs(this.disp[j] - this.prev[j]) / dt / 1500));
       this.lens[j] += (want - this.lens[j]) * (1 - Math.exp(-30 * dt));
