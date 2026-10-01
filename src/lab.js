@@ -119,9 +119,23 @@ function drawCell(c, r, { full = false, plot = true, selected = false, meter = f
     ctx.fillStyle = RED[0]; ctx.fillRect(r.x + r.w - tw - 2 * dpr, r.y + 2 * dpr, tw, 16 * dpr);
     text(tag, r.x + r.w - tw / 2 - 2 * dpr, r.y + 14 * dpr, '#fff', 11, 'bold', 'center');
   }
-  if (c.label) text(c.label, r.x + 8 * dpr, r.y + 16 * dpr, '#444', 12, 'bold');
+  const ly = c.label ? drawLabel(c.label, r, full) : r.y + 16 * dpr;
   if (meter) drawMeter(c.w, { x: r.x + 6 * dpr, y: r.y + r.h - ph - (full ? 40 : 16) * dpr, w: r.w - 12 * dpr, h: (full ? 30 : 10) * dpr }, full);
-  if (!full) text(cellStats(c), r.x + 8 * dpr, r.y + 30 * dpr, '#999', 11);
+  if (!full) text(cellStats(c), r.x + 8 * dpr, ly + 14 * dpr, '#999', r.w < 260 * dpr ? 9 : 11);
+}
+// the label's parts (split on double spaces, e.g. k=v pairs) wrapped to the cell width, smaller in small cells; returns the last line's y
+function drawLabel(label, r, full) {
+  const size = full || r.w > 360 * dpr ? 12 : r.w > 220 * dpr ? 10 : 9, cw = 0.62 * size * dpr, max = Math.max(4, Math.floor((r.w - 16 * dpr) / cw));
+  const lines = [];
+  for (const p of label.split(/\s{2,}/)) {
+    const part = p.length > max ? p.slice(0, max - 1) + '…' : p, last = lines.length - 1;
+    if (last >= 0 && lines[last].length + 2 + part.length <= max) lines[last] += '  ' + part; else lines.push(part);
+  }
+  const lh = (size + 3) * dpr, y0 = r.y + (size + 4) * dpr;
+  ctx.fillStyle = 'rgba(243,240,232,0.8)';
+  ctx.fillRect(r.x + 4 * dpr, r.y + 4 * dpr, Math.max(...lines.map(l => l.length)) * cw + 8 * dpr, lines.length * lh + 2 * dpr);
+  lines.forEach((l, i) => text(l, r.x + 8 * dpr, y0 + i * lh, '#444', size, 'bold'));
+  return y0 + (lines.length - 1) * lh;
 }
 // hits / whiffs / frozen % (averaged over the cell's seeds) and the last hit's frame advantage
 const METRICS = {
