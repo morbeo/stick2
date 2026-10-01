@@ -50,7 +50,7 @@ class Fighter {
     const spine = ch.chains.spine[0]?.[0], br = Math.sin(t * 2.2) * g.breath;
     turn(spine, br * 1.5); for (const c of ch.chains.arm) turn(c[0], br * 2); // breathing
     // slow idle wander, stronger on loose bones; legs excluded so planted feet don't slide
-    ch.bones.forEach((b, i) => { if (b.role !== 'leg') P[b.id] += wander(t * 0.8 + this.seed + i * 13) * (1.5 + 2.2 * b.lag); });
+    ch.bones.forEach((b, i) => { if (b.role !== 'leg') P[b.id] += wander(t * 0.8 + this.seed + i * 13) * (1.5 + 2.2 * b.lag) * b.sway; });
     if (!this.grounded) {
       const k = this.flip ? 0 : clamp(this.vy / 500, 0, 1); // tuck while rising (and through a flip), reach for the ground while falling
       for (const j in ps.air) P[j] = ps.air[j] + ((ps.airFall[j] ?? ps.air[j]) - ps.air[j]) * k;
@@ -124,10 +124,10 @@ class Fighter {
   // a bounce: every limb gets a kick, heavier at the loose ends
   flailJolt(imp) {
     const k = imp * this.c('flail');
-    for (const b of this.ch.bones) this.flt[b.id].yd += this.w.rand(-1, 1) * 900 * k * (b.lag + 0.5);
+    for (const b of this.ch.bones) this.flt[b.id].yd += this.w.rand(-1, 1) * 900 * k * (b.lag + 0.5) * b.react;
   }
   // push a bone's spring: + swings its end forward
-  jolt(b, v) { if (b) this.flt[b.id].yd += b.fwd * v; }
+  jolt(b, v) { if (b) this.flt[b.id].yd += b.fwd * v * b.react; }
 
   // runs every substep, hit stop included: directions are remembered for special motions, buttons are buffered
   bufferInput(inp) {
@@ -531,9 +531,9 @@ class Fighter {
     return this.parryT > 0 && this.c('parry') ? 'parry' : 'block';
   }
   blockHit(att, m) {
-    const bs = (m.stun || 0.4) * this.c('blockStun');
+    const bs = m.bstun || (m.stun || 0.4) * this.c('blockStun');
     this.hurtT = this.blockT = bs; this.guarding = true; this.combo = 0; this.buffer = null; this.parryT = 0;
-    this.vx = att.dir * m.knock * this.c('blockPush') * this.c('powerScale') / this.ch.stats.weight;
+    this.vx = att.dir * (m.bpush || m.knock * this.c('blockPush')) * this.c('powerScale') / this.ch.stats.weight;
     if (this.c('health') > 0) this.hp = Math.max(1, this.hp - this.damageOf(m, 1) * (m.chip || this.c('chip'))); // chip never knocks out
     for (const c of this.ch.chains.arm) this.jolt(c[0], -300 * m.power); // the guard gives
     this.sqv -= this.c('squash') * 8 * m.power;
@@ -617,10 +617,10 @@ class Fighter {
     const fx = att.dir, fy = m.launch ? -0.6 : m.height === 'low' ? 0 : -0.2, fn = Math.hypot(fx, fy);
     for (let b = hit.bone; b; b = this.ch.by[b.parent]) {
       const o = P[b.parent || 'hip'], rx = hit.pt[0] - o[0], ry = hit.pt[1] - o[1];
-      this.flt[b.id].yd += (fx * ry - fy * rx) * sd / fn * k / b.inertia; // force · tangent of the pivot's rotation
+      this.flt[b.id].yd += (fx * ry - fy * rx) * sd / fn * k / b.inertia * b.react; // force · tangent of the pivot's rotation
     }
     // plus a little noise so repeated hits never land identically
-    for (const b of this.ch.bones) this.flt[b.id].yd += this.w.rand(-1, 1) * 80 * m.power * (b.lag + 0.5);
+    for (const b of this.ch.bones) this.flt[b.id].yd += this.w.rand(-1, 1) * 80 * m.power * (b.lag + 0.5) * b.react;
     this.sqv -= this.c('squash') * 15 * m.power;
   }
 

@@ -13,6 +13,7 @@ const BONE = {
   level: 0,            // 0 = rigid child, 1 = keeps its rest world angle whatever the parent does (feet stay flat)
   stretch: 0,          // how much the bone lengthens while swinging fast (0.2 = up to +20%)
   stiff: 1, damp: 1,   // multipliers on the spring frequency / damping
+  react: 1, sway: 1,   // secondary motion: how hard blows and bounces jolt the bone; how much it drifts while idle
 };
 
 // ---------- the default stick fighter ----------

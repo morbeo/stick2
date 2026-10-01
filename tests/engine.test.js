@@ -133,6 +133,25 @@ test('a fully limp body lies with its knees bent (slack), neither straight nor f
   assert.ok(knees.every(k => k > 15 && k < 150), `knees ${knees}`);
 });
 
+test('per-move hit stop, blockstun and block push override the settings', () => {
+  const probe = (mv, guard) => run(`(() => { const d = { ...CHAR_DEFS.stick, moves: { ...CHAR_DEFS.stick.moves, kick: { ...CHAR_DEFS.stick.moves.kick, ...${JSON.stringify(mv)} } } };
+    const w = new World({ a: [0.1, '@kick'], b: ${guard ? "[{ hold: 'guard', t: 3 }]" : "'dummy'"}, ax: 330, bx: 385, period: 9 }, {}, 7, [makeCharacter(d), CHARS.stick]); w.loop = false;
+    let fr = 0, bt = 0, vx = 0; for (let i = 0; i < 90; i++) { w.advance(1/60, NOIN); fr = Math.max(fr, w.b.freeze); bt = Math.max(bt, w.b.blockT); vx = Math.max(vx, Math.abs(w.b.vx)); }
+    return { fr: +fr.toFixed(3), bt: +bt.toFixed(3), vx: Math.round(vx) }; })()`);
+  assert.ok(probe({ stop: 0.3 }).fr > probe({}).fr + 0.1, 'hit stop');
+  assert.equal(probe({ bstun: 0.9 }, true).bt, 0.9, 'blockstun');
+  assert.ok(probe({ bpush: 500 }, true).vx > probe({}, true).vx + 100, 'block push');
+});
+
+test('bones with react 0 are not jolted by bounces or blocks', () => {
+  const kick = react => run(`(() => { const d = { ...CHAR_DEFS.stick, bones: CHAR_DEFS.stick.bones.map(b => ({ ...b, react: ${react} })) };
+    const w = new World({ a: 'dummy', b: 'dummy', period: 9 }, {}, 7, [makeCharacter(d), CHARS.stick]); w.loop = false; w.advance(1/60, NOIN);
+    const f = w.a, before = Object.values(f.flt).map(s => s.yd); f.flailJolt(1); f.jolt(f.ch.by.uarmF, 300);
+    return Math.max(...Object.values(f.flt).map((s, i) => Math.abs(s.yd - before[i]))); })()`);
+  assert.equal(kick(0), 0);
+  assert.ok(kick(1) > 100);
+});
+
 test('power scale makes hits knock further', () => {
   const dist = ps => run(`(() => { const w = new World({ a: [0.1, '@roundhouse'], b: 'dummy', ax: 330, bx: 385, period: 9 }, { powerScale: ${ps} }, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
     let mx = 0; for (let i = 0; i < 90; i++) { w.advance(1/60, NOIN); mx = Math.max(mx, w.b.x); } return mx - 385; })()`);

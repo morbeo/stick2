@@ -327,6 +327,9 @@ const MOVE_PROPS = [
   { k: 'stun', min: 0, max: 1, step: 0.02, tip: 'Hitstun (s): how long the victim cannot act. Shrinks along a combo. Blockstun is a fraction of it (blockStun).' },
   { k: 'damage', min: 0, max: 40, step: 1, tip: 'Health taken on hit (× damage setting, scaled down along a combo). Unset = power × 8.' },
   { k: 'chip', min: 0, max: 1, step: 0.01, tip: 'Fraction of the damage this move still does when blocked (never knocks out). 0 = the chip setting.' },
+  { k: 'stop', min: 0, max: 0.4, step: 0.01, tip: 'Hit stop (s): how long both fighters freeze on impact (shrinks along a combo, half on block). 0 = power × the hitstop setting.' },
+  { k: 'bstun', min: 0, max: 1, step: 0.02, tip: 'Blockstun (s): how long a blocking defender is stuck in guard. 0 = stun × the blockStun setting.' },
+  { k: 'bpush', min: 0, max: 600, step: 10, tip: 'Pushback on block (px/s). 0 = knock × the blockPush setting.' },
 ];
 // what each height is blocked by (guard and parry are front only)
 const HEIGHT_TIPS = {
