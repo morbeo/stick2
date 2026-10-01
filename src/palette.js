@@ -9,6 +9,7 @@ function paletteEntries() {
   });
   const keyOf = a => keymap[a]?.[0] ? keyLabel(keymap[a][0]) : '';
   return [
+    ...docTopics().map(t => ({ kind: 'docs', name: t.title, tip: t.body, run: () => openDocs(t.id) })),
     ...Object.keys(MODES).map(m => ({ kind: 'mode', name: m, tip: MODES[m], key: keyOf(m), run: () => setMode(m) })),
     ...tools,
     ...ACTIONS.filter(([a, g]) => SHORTCUTS[a] && g !== 'modes').map(([a, , , tip]) => ({ kind: 'action', name: a, tip, key: keyOf(a), run: SHORTCUTS[a] })),

@@ -115,7 +115,8 @@ function crud(ops, ...extra) {
 // a group heading with an ⓘ button that pops up what the group does and its keys
 function heading(title, info, keys) {
   return h('h3', {}, title, info && button(':info:', 'about this group', (e, b) => popup(b, h('b', { textContent: title }),
-    h('p', {}, ...rich(info)), keys && h('p', { cls: 'keys' }, ...rich(keys))), 'info'));
+    h('p', {}, ...rich(info)), keys && h('p', { cls: 'keys' }, ...rich(keys)),
+    docFor(title) && h('div', { cls: 'bar' }, button(':chevron_right: docs', 'Read more in the docs, with live demos', () => openDocs(docFor(title).id)))), 'info'));
 }
 
 // ---------- side panel sections: a heading folds what follows it, up to the next heading; rows marked adv wait behind "more" ----------

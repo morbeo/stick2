@@ -114,6 +114,19 @@
   .keyspop { width: 340px; }
   input.macro { flex: 1; min-width: 0; font: inherit; font-size: 11px; margin: 0 4px; }
   .pop h4 { display: flex; align-items: center; margin: 8px 0 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
+  #docs { position: fixed; inset: 0; z-index: 15; background: #0002; display: flex; justify-content: center; align-items: center; }
+  .dbox { width: min(1100px, 94vw); height: 88vh; background: #fbfaf6; border: 1px solid #bbb; border-radius: 6px; box-shadow: 0 8px 30px #0003; display: flex; overflow: hidden; }
+  .dside { width: 230px; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid #ddd7cb; padding: 8px; gap: 6px; }
+  .dside .bar { flex-wrap: nowrap; } .dside input { flex: 1; min-width: 0; font: inherit; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; }
+  .dtoc { overflow: auto; overflow-x: hidden; } .dtoc .pitem { overflow: hidden; text-overflow: ellipsis; } .dtoc h4 { margin: 8px 0 2px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
+  .dbody { flex: 1; overflow: auto; padding: 12px 20px; } .dbody h2 { margin: 0 0 8px; font-size: 18px; }
+  .dbody p { max-width: 720px; line-height: 1.5; color: #333; } .dbody .bar { margin: 10px 0; align-items: center; }
+  .demos { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; } .demo canvas { width: 360px; height: 200px; display: block; border: 1px solid #ddd7cb; border-radius: 4px; }
+  .demo .bar { margin: 3px 0; gap: 3px; } .demo b { margin-right: auto; font-size: 11px; }
+  .dbody dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; max-width: 900px; font-size: 12px; }
+  .dbody dt { font-weight: bold; display: flex; align-items: center; gap: 3px; } .dbody dt.hit { background: #f6e7b0; } .dbody dd { margin: 0; color: #444; }
+  body.docspage { display: block; } body.docspage > :not(#docs, .tip, .pop) { display: none; }
+  body.docspage #docs { position: static; background: none; height: 100vh; } body.docspage .dbox { width: 100%; height: 100%; border: 0; border-radius: 0; box-shadow: none; }
   .tip { position: fixed; z-index: 20; display: none; pointer-events: none; max-width: 320px; padding: 4px 7px;
     background: #222; color: #f3f0e8; border-radius: 3px; font-size: 11px; white-space: pre-wrap; }
 </style>
@@ -142,6 +155,7 @@
 <script src="src/breed.js"></script>
 <script src="src/keys.js"></script>
 <script src="src/palette.js"></script>
+<script src="src/docs.js"></script>
 <script src="src/app.js"></script>
 </body>
 </html>

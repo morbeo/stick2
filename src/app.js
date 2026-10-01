@@ -56,6 +56,7 @@ function buildTop() {
     grp('', 'Layout and keys', button(':search:', 'Find anything (⌘K): a mode, a toolbar tool, an action, a character, a move or a setting', openPalette),
       button(':view_sidebar:', 'Panel: show / hide the side panel (H)', togglePanel),
       button(':keyboard:', 'Keys: rebind any action, set up macros, and help', keysPanel),
+      button(':info:', 'Docs: how everything works, with live demo fights, and every setting, move flag, input and key explained; searchable (also in ⌘K)', () => openDocs()),
       toggle(':help:', 'Hints: the line of mouse and key help under the view and the frame meter\'s colour legend; off, they show for a few seconds on the first visit to each mode (?)', () => ui.hints, toggleHints),
       toggle(':waves:', 'Sound: whooshes, hits and blocks in play and in the animate preview, synthesized live (no sound files); off by default in automated browsers', () => !muted(), toggleMute)));
   $('transport').replaceChildren(grp('', 'Playback', pause,
@@ -173,6 +174,7 @@ addEventListener('mouseup', e => { if (!down) return; down = false; mode().mouse
 
 buildTop();
 setMode('play');
+readHash();
 new ResizeObserver(resize).observe($('stage'));
 resize();
 requestAnimationFrame(frame);

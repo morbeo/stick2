@@ -169,6 +169,19 @@ try {
   { setMode('play'); panels(); dbgT = 0; drawDebug();
     if (!dbgInfo.isConnected || !dbgInfo.textContent.includes('engine v' + ENGINE_VERSION) || !/P2 /.test(dbgInfo.textContent)) errs.push('debug info ' + dbgInfo.textContent.slice(0, 80));
     if ($('side').querySelector('.head, h3')?.textContent.indexOf('Debug') < 0) errs.push('debug not first'); }
+  // docs: a topic for every settings group, search, a live demo that advances, the ⓘ "docs" link, ⌘K entries, the page form
+  { setMode('play'); panels(); openDocs('specials');
+    const miss = SCHEMA.filter(s => Array.isArray(s) && !docFor(s[0])).map(s => s[0]); if (miss.length) errs.push('docs miss ' + miss);
+    const d = docs.demos[0], t0 = d.w.T; docsFrame(); docsFrame(); if (!(d.w.T > t0) || docs.demos.length < 4) errs.push('docs demo ' + [t0, d.w.T, docs.demos.length]);
+    const q = document.querySelector('#docs input'); q.value = 'jugglepoints'; q.dispatchEvent(new Event('input'));
+    const toc = [...document.querySelectorAll('#docs .dtoc .pitem')].map(x => x.textContent); if (!toc.includes('Combos & cancels') || toc.includes('Weapons')) errs.push('docs search ' + toc);
+    closeDocs(); if ($('docs')) errs.push('docs close');
+    const info = [...document.querySelectorAll('#side h3')].find(x => x.textContent.startsWith('Specials')).querySelector('button.info'); info.click();
+    const link = [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('docs')); link?.click();
+    if (!link || docs.topic !== 'set-specials' || !$('docs')) errs.push('docs link'); closeDocs();
+    if (!paletteEntries().some(e => e.kind === 'docs' && e.name === 'Key events')) errs.push('docs palette');
+    location.hash = 'docs=weapons'; readHash(); if (!document.body.classList.contains('docspage') || docs.topic !== 'weapons') errs.push('docs page'); closeDocs();
+    if (document.body.classList.contains('docspage')) errs.push('docs page close'); }
 } catch (e) { errs.push(e.message + ' ' + e.stack.split('\\n')[1]); }
 document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK';
 </script></body>`;
@@ -177,5 +190,9 @@ fs.writeFileSync(out, fs.readFileSync(path.join(root, 'index.html'), 'utf8')
 const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
   '--virtual-time-budget=5000', '--dump-dom', 'file://' + out], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 const title = (dom.match(/<title>([^<]*)/) || [])[1] || 'no title';
-console.log(title);
-process.exit(title === 'OK' ? 0 : 1);
+// docs.html opens the app as the docs page
+const docsDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
+  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'docs.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+const docsOk = /class="docspage"/.test(docsDom) && docsDom.includes('id="docs"');
+console.log(title, docsOk ? '· docs.html OK' : '· docs.html FAILED');
+process.exit(title === 'OK' && docsOk ? 0 : 1);
