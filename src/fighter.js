@@ -7,7 +7,7 @@ class Fighter {
       kd: null, downT: 0, wake: null, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
-      guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, flyT: 0, guardT: -9, stanceI: 0,
+      guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
       airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null });
     this.hp = this.c('health'); this.ch0 = ch.base || ch; // ch0: the character without its weapon
     this.target = this.basePose();
@@ -316,6 +316,13 @@ class Fighter {
       }
     }
     if (this.kd === 'fly') this.flyT += dt;
+    // in blockstun (guard scheme: P / K, motion: → S / ← S): a guard cancel strikes back, a push block shoves the attacker off
+    if (this.blockT > 0 && !this.heldBy) {
+      const p = this.prevIn, x = (inp.right - inp.left) * this.dir;
+      const t = inp.punch && !p.punch ? 'bP' : inp.kick && !p.kick ? 'bK' : inp.special && !p.special && x ? (x > 0 ? 'b6S' : 'b4S') : '';
+      const n = t && this.special(t);
+      if (n) this.guardOut(n);
+    }
     const upTap = inp.up && !this.prevIn.up;
     this.prevIn = inp;
     if (!inp[fwdK] || !this.free || this.action) this.running = false;
@@ -750,12 +757,23 @@ class Fighter {
     return this.parryT > 0 && this.c('parry') ? 'parry' : 'block';
   }
   blockHit(att, m) {
-    const bs = m.bstun || (m.stun || 0.4) * this.c('blockStun');
-    this.hurtT = this.blockT = bs; this.guarding = true; this.combo = 0; this.buffer = null; this.parryT = 0;
-    this.vx = att.dir * (m.bpush || m.knock * this.c('blockPush')) * this.c('powerScale') / this.ch.stats.weight;
-    if (this.c('health') > 0) this.hp = Math.max(1, this.hp - this.damageOf(m, 1) * (m.chip || this.c('chip'))); // chip never knocks out
+    // just guard: G tapped within justGuardWindow before the parry window: shorter blockstun, no chip, no push
+    const just = this.c('justGuard') && this.w.simT - this.guardT <= (this.c('parry') ? this.c('parryWindow') : 0) + this.c('justGuardWindow');
+    const bs = (m.bstun || (m.stun || 0.4) * this.c('blockStun')) * (just ? this.c('justGuardStun') : 1);
+    this.hurtT = this.blockT = bs; this.guarding = true; this.combo = 0; this.buffer = null; this.parryT = 0; this.blocked = att;
+    this.vx = just ? 0 : att.dir * (m.bpush || m.knock * this.c('blockPush')) * this.c('powerScale') / this.ch.stats.weight;
+    if (this.c('health') > 0 && !just) this.hp = Math.max(1, this.hp - this.damageOf(m, 1) * (m.chip || this.c('chip'))); // chip never knocks out
+    if (just) { this.say('JUST'); this.flashT = 0.08; }
     for (const c of this.ch.chains.arm) this.jolt(c[0], -300 * m.power); // the guard gives
     this.sqv -= this.c('squash') * 8 * m.power;
+  }
+  // out of blockstun into a guard cancel (paid in health) or a push block (the last attacker blocked slides away)
+  guardOut(n) {
+    const att = this.blocked;
+    this.blockT = this.hurtT = 0; this.guarding = false; this.buffer = null; this.used = []; this.start(n);
+    if (n === 'guardCancel' && this.c('health') > 0) this.hp = Math.max(1, this.hp - this.c('guardCancelCost'));
+    if (n === 'pushBlock' && att) att.vx = -att.dir * this.c('pushBlockForce') * this.c('powerScale') / att.ch.stats.weight;
+    this.say(n === 'guardCancel' ? 'GUARD CANCEL' : 'PUSH');
   }
   // a parry: the defender is free at once, the attacker staggers
   parryHit(att) {

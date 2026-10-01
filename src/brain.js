@@ -63,9 +63,9 @@ const AI_LEVELS = {
 };
 // the presses that make each scheme input (SPECIAL_SCHEMES), queued one after another
 const SCHEME_INPUTS = { G6: ['guard+fwd'], G4: ['guard+back'], dd: ['down', 'down+special'], qcf: ['down', 'down+fwd', 'fwd+special'],
-  qcb: ['down', 'down+back', 'back+special'], dp: ['fwd', 'down', 'down+fwd+special'] };
+  qcb: ['down', 'down+back', 'back+special'], dp: ['fwd', 'down', 'down+fwd+special'], bP: ['punch'], bK: ['kick'], b6S: ['fwd+special'], b4S: ['back+special'] };
 class Brain {
-  constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0, held: null, brk: false, flying: false, tech: false, lying: false, wake: null }); }
+  constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0, held: null, brk: false, flying: false, tech: false, lying: false, wake: null, blocking: false, out: null, outT: 0 }); }
   input(f, o, h) {
     const inp = { ...NOIN }, dist = Math.abs(o.x - f.x) - (f.ch.extent[1] + o.ch.extent[1] - 38); // the gap as between two sticks (a centaur's body is long)
     const L = AI_LEVELS[f.c('aiLevel')] || AI_LEVELS.normal;
@@ -82,6 +82,12 @@ class Brain {
       if (this.lying && f.c('wakeUp') && this.rand() < L.tech) { const r = this.rand(); this.wake = dist < 120 && r < 0.4 ? 'kick' : r < 0.7 ? 'back' : r < 0.85 ? 'fwd' : 'guard'; }
     }
     if (f.kd === 'down') { if (this.wake) press(inp, this.wake, f, o); return inp; }
+    // blockstun: decide once whether to get out (guard cancel or push block), then press after the reaction time
+    if ((f.blockT > 0) !== this.blocking) {
+      this.blocking = f.blockT > 0; this.out = null; this.outT = 0;
+      if (this.blocking && this.rand() < L.brk * 0.3) { const s = SPECIAL_SCHEMES[f.c('specialScheme')] || {}, n = this.rand() < 0.5 ? 'guardCancel' : 'pushBlock'; if (f.special(s[n]) === n) this.out = s[n]; }
+    }
+    if (this.out && (this.outT += h) >= L.react) { press(inp, SCHEME_INPUTS[this.out][0], f, o); this.out = null; return inp; }
     if (this.q.length) {
       if ((this.qt -= h) <= 0) { press(inp, this.q.shift(), f, o); this.qt = this.rand(0.1, 0.16); }
       return inp;
@@ -189,6 +195,9 @@ const SCENARIOS = {
   'roll through': { a: [0.1, { hold: 'guard+fwd', t: 0.1 }], b: [0.12, 'kick'], ax: 300, bx: 380, period: 2 },
   'roll back': { a: [0.2, { hold: 'guard+back', t: 0.1 }], b: 'dummy', ax: 330, bx: 400, period: 2 },
   'teleport': { a: [0.2, 'down', 0.05, 'down+special'], b: 'dummy', period: 2 },
+  'guard cancel': { a: [0.2, 'kick'], b: [{ hold: 'guard', t: 0.4 }, 'punch'], period: 2 },
+  'push block': { a: [0.2, 'kick'], b: [{ hold: 'guard', t: 0.4 }, 'kick'], period: 2 },
+  'just guard': { a: [0.2, 'kick'], b: [0.19, { hold: 'guard', t: 0.6 }], period: 2 },
   'wake-up attack': { a: ['down+kick'], b: [1, 'kick'], period: 2.6 },
   'wake-up roll': { a: ['down+kick'], b: [1, 'back'], period: 2.6 },
   'OTG stomp': { a: ['down+kick', 0.6, { hold: 'fwd', t: 0.25 }, 'down', 'down+fwd', 'fwd+kick'], b: 'dummy', period: 3 },

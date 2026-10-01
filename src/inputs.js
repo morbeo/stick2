@@ -23,9 +23,9 @@ const INPUT_PADS = [
     cells: [['66P', 'dashPunch'], ['P+G', 'throw'], ['K+G', 'throw2'], ['j.S', 'airSpecial']].map(([label, s]) => ({ label, chain: [s], own: true })) },
 ];
 // the specials of the scheme in use (SPECIAL_SCHEMES): fixed moves by name, set while switched on; click opens the move
-const SCHEME_LABELS = { G6: 'G+6', G4: 'G+4', dd: '22S', qcf: '236S', qcb: '214S', dp: '623S' };
+const SCHEME_LABELS = { G6: 'G+6', G4: 'G+4', dd: '22S', qcf: '236S', qcb: '214S', dp: '623S', bP: 'guard: P', bK: 'guard: K', b6S: 'guard: 6S', b4S: 'guard: 4S' };
 const specialsPad = () => { const s = SPECIAL_SCHEMES[CFG.specialScheme] || {};
-  return { name: 'specials', tip: `Rolls, teleport… in the ${CFG.specialScheme} scheme (Specials settings: specialScheme and a switch each). They are moves by name: click to edit one`, cols: 1,
+  return { name: 'specials', tip: `Rolls, teleport, guard cancel and push block (guard: = in blockstun)… in the ${CFG.specialScheme} scheme (Specials settings: specialScheme and a switch each). They are moves by name: click to edit one`, cols: 1,
     cells: Object.keys(s).map(n => ({ label: SCHEME_LABELS[s[n]] || s[n], chain: [], fixed: n })) }; };
 const inputs = { hand: '', unset: false, table: false };
 // the character's own motions (def.motions, see customMotions): two cells each, P and K, after the built-in motions

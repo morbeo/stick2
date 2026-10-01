@@ -309,6 +309,15 @@ const STICK_MOVES = {
     { d: 0.14, e: 'outCubic', p: { ...CROUCH, afU: 30, afL: 110, abU: 20, abL: 120 } },
     { d: 0.18, e: 'inOutCubic', p: null },
   ] },
+  // out of blockstun: guardCancel strikes back (invincible as it starts), pushBlock shoves the attacker away
+  guardCancel: { ...attack({ power: 1.2, damage: 7, hit: 'fh', height: 'mid', knock: 320, stun: 0.4, lunge: 120 },
+    [0.04, { torso: -10, afU: 30, afL: 120, abU: 40, abL: 110 }],
+    [0.05, { torso: 20, afU: 92, afL: 5, abU: 30, abL: 120, lfU: 35, lfL: -30, lbU: -25, lbL: 0 }], 0.05, 0.2) },
+  pushBlock: { keys: [
+    { d: 0.04, e: 'outQuad', p: { torso: -8, afU: 50, afL: 100, abU: 45, abL: 105 }, inv: true },
+    { d: 0.1, e: 'outExpo', p: { torso: 15, afU: 88, afL: 10, abU: 84, abL: 15, lfU: 30, lfL: -25, lbU: -30, lbL: 0 }, inv: true },
+    { d: 0.16, e: 'inOutCubic', p: null },
+  ] },
   // specials (SPECIAL_SCHEMES): rolls tumble through or away (flag roll: invincible for rollInv), teleport reappears behind at its warp key
   rollFwd: { roll: true, keys: [
     { d: 0.05, e: 'outQuad', p: TUCK },
@@ -327,6 +336,7 @@ const STICK_MOVES = {
   ] },
 };
 STICK_MOVES.hammer.keys[0].armor = true;
+STICK_MOVES.guardCancel.keys.slice(0, 2).forEach(k => { k.inv = true; });
 STICK_MOVES.charge.keys.forEach(k => { if (k.active) k.unblock = true; });
 // the fighting style of each move (the style move group); the rest are plain basics
 const MOVE_STYLES = {
@@ -381,11 +391,11 @@ const BINDS_25 = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'push
 const slotsOf = plane => plane === '2d' ? BINDS : BINDS_25;
 const bindsKey = plane => plane === '2d' ? 'binds' : 'binds25';
 // specials by name, each with its on/off setting, and the input that plays it in each specialScheme:
-// a motion name (MOTIONS) + S, or G4 / G6 = ← / → pressed while guarding
-const SPECIALS = { rollFwd: 'rolls', rollBack: 'rolls', teleport: 'teleport' };
+// a motion name (MOTIONS) + S, G4 / G6 = ← / → pressed while guarding, b… = pressed in blockstun (bP, bK, b6S = → S, b4S = ← S)
+const SPECIALS = { rollFwd: 'rolls', rollBack: 'rolls', teleport: 'teleport', guardCancel: 'guardCancel', pushBlock: 'pushBlock' };
 const SPECIAL_SCHEMES = {
-  guard: { rollFwd: 'G6', rollBack: 'G4', teleport: 'dd' },
-  motion: { rollFwd: 'qcf', rollBack: 'qcb', teleport: 'dp' },
+  guard: { rollFwd: 'G6', rollBack: 'G4', teleport: 'dd', guardCancel: 'bP', pushBlock: 'bK' },
+  motion: { rollFwd: 'qcf', rollBack: 'qcb', teleport: 'dp', guardCancel: 'b6S', pushBlock: 'b4S' },
 };
 // special motions in numpad notation (6 = towards the opponent), matched in order against the recent directions
 const MOTIONS = { dp: /6.*2.*3/, qcf: /2.*3.*6/, qcb: /2.*1.*4/, dd: /252/ };

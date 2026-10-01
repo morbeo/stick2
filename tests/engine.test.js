@@ -467,3 +467,21 @@ test('wake-up: P / K while down gets up attacking, ← / → rolls, G held stays
   assert.ok(Math.abs(stay.up - plain.up - 30) <= 2, `stayed down ${stay.up - plain.up} frames more`);
   assert.ok(Math.abs(go("'dummy'", { downTime: 1.2 }).up - plain.up - 36) <= 2);
 });
+
+test('in blockstun P guard cancels (costs health), K push blocks (the attacker slides off); G tapped just before the parry window: just guard', () => {
+  const go = (b, cfg = {}) => run(`(() => { const w = new World({ a: [0.2, 'kick'], b: ${b}, cfg: ${JSON.stringify(cfg)} }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    const seen = new Set(), labels = new Set(); let bs = 0;
+    for (let i = 0; i < 70; i++) { w.advance(1/60, NOIN); const k = w.b.action && Object.keys(w.b.ch.moves).find(k => w.b.ch.moves[k] === w.b.action.m); if (k) seen.add(k);
+      if (w.b.labelT > 0) labels.add(w.b.label); bs = Math.max(bs, w.b.blockT); }
+    return { seen: [...seen].join(' '), labels: [...labels].join(' '), hp: w.b.hp, ahp: w.a.hp, ax: w.a.x, bs }; })()`);
+  const hold = go("[{ hold: 'guard', t: 2 }]"), gc = go("[{ hold: 'guard', t: 0.4 }, 'punch']"), push = go("[{ hold: 'guard', t: 0.4 }, 'kick']");
+  assert.match(gc.seen, /guardCancel/); assert.ok(hold.hp - gc.hp >= 5, `paid ${hold.hp - gc.hp}`); assert.ok(gc.ahp < 100, 'the cancel hits');
+  assert.match(push.seen, /pushBlock/); assert.ok(push.ax < hold.ax - 40, `pushed to ${push.ax} from ${hold.ax}`);
+  assert.doesNotMatch(go("[{ hold: 'guard', t: 0.4 }, 'punch']", { guardCancel: false }).seen, /guardCancel/);
+  assert.doesNotMatch(go("[{ hold: 'guard', t: 0.4 }, 'kick']", { pushBlock: false }).seen, /pushBlock/);
+  assert.match(go("[{ hold: 'guard', t: 0.4 }, 'fwd+special']", { specialScheme: 'motion' }).seen, /guardCancel/);
+  const just = go("[0.19, { hold: 'guard', t: 2 }]");
+  assert.match(just.labels, /JUST/); assert.equal(just.hp, 100); assert.ok(hold.hp < 100, 'a plain block chips');
+  assert.ok(just.bs < hold.bs * 0.7, `blockstun ${just.bs} vs ${hold.bs}`);
+  assert.doesNotMatch(go("[0.19, { hold: 'guard', t: 2 }]", { justGuard: false }).labels, /JUST/);
+});

@@ -85,6 +85,9 @@ const SCHEMA = [
   { k: 'blockPush', v: 0.6, min: 0, max: 1.5, step: 0.05, tip: 'Pushback on block as a fraction of the move\'s knockback.' },
   { k: 'parry', v: true, tip: 'A guard tapped just before a hit parries it: no damage, the attacker staggers.' },
   { k: 'parryWindow', v: 0.1, min: 0.02, max: 0.3, step: 0.01, tip: 'How long (s) after the guard tap a hit is parried. 0.1 = 6 frames.' },
+  { k: 'justGuard', v: true, tip: 'Just guard: a guard tapped a little earlier than a parry (within justGuardWindow before the parry window) blocks perfectly: shorter blockstun, no chip, no push (JUST).' },
+  { k: 'justGuardWindow', v: 0.05, min: 0.01, max: 0.2, step: 0.01, tip: 'How long (s) the just guard window lasts, before the parry window (from the start of it with parry off).' },
+  { k: 'justGuardStun', v: 0.5, min: 0, max: 1, step: 0.05, tip: 'Blockstun after a just guard, as a fraction of the normal blockstun.' },
   { k: 'parryStun', v: 0.45, min: 0.1, max: 1, step: 0.05, tip: 'How long (s) a parried attacker staggers.' },
   ['Stagger & dizzy', 'A heavy blow staggers: extra stun, the fighter reels. Damage also fills a stun meter (the yellow bar under health) that drains while the fighter is free; when it is full the fighter is dizzy: helpless, swaying, stars over the head, until the time runs out or a hit wakes it.', ''],
   { k: 'staggerAt', v: 11, min: 0, max: 40, step: 1, tip: 'A move whose damage (before combo scaling) is at least this staggers on hit, unless it knocks down. 0 = never.' },
@@ -97,13 +100,17 @@ const SCHEMA = [
   { k: 'techWindow', v: 0.25, min: 0, max: 0.6, step: 0.01, tip: 'Seconds a thrown fighter has to break the throw with P+G, and how early (s) before landing a G press techs the fall (a quick get-up). 0 = no breaks, no techs.' },
   { k: 'airRecover', v: 0.3, min: 0, max: 2, step: 0.05, tip: 'Seconds into a knockdown flight after which G flips the fighter back onto its feet in the air. 0 = never.' },
   ['Specials', 'Extra defensive and movement options, each on its own switch. specialScheme picks their inputs: guard (G held with a direction, ↓↓ S) or motion (quarter circles and the dragon punch with S). They are moves (rollFwd, rollBack, teleport) edited in animate.',
-    'guard scheme: G held + → / ← roll · ↓↓ S teleport · motion scheme: ↓↘→ S / ↓↙← S roll · →↓↘ S teleport · lying: P / K wake-up attack, → / ← roll, G stay down'],
+    'guard scheme: G held + → / ← roll · ↓↓ S teleport · motion scheme: ↓↘→ S / ↓↙← S roll · →↓↘ S teleport · blockstun: P / → S guard cancel, K / ← S push block · lying: P / K wake-up attack, → / ← roll, G stay down'],
   { k: 'specialScheme', v: 'guard', opts: ['guard', 'motion'], tip: 'Which inputs play the specials below.',
     optTips: { guard: 'G held, then → / ←: roll forward / back · ↓↓ S: teleport', motion: '↓↘→ S: roll forward · ↓↙← S: roll back · →↓↘ S: teleport' } },
   { k: 'rolls', v: true, tip: 'Rolls: a tumble forward through the foe or back away from it, invincible for rollInv.' },
   { k: 'rollInv', v: 0.3, min: 0, max: 0.6, step: 0.01, tip: 'Seconds from the start of a roll (move flag roll) that it is invincible and passes through fighters.' },
   { k: 'teleport', v: true, tip: 'Teleport: vanish and reappear behind the foe (the key marked warp), leaving after-images.' },
   { k: 'teleportDist', v: 60, min: 20, max: 200, step: 5, tip: 'How far (px) behind the foe a teleport lands.' },
+  { k: 'guardCancel', v: true, tip: 'Guard cancel: in blockstun, P (guard scheme) or → S (motion) strikes back at once (guardCancel, invincible as it starts) for guardCancelCost health.' },
+  { k: 'guardCancelCost', v: 5, min: 0, max: 30, step: 1, tip: 'Health a guard cancel costs (it never knocks out).' },
+  { k: 'pushBlock', v: true, tip: 'Push block: in blockstun, K (guard scheme) or ← S (motion) ends the blockstun with a shove (pushBlock) that slides the attacker away.' },
+  { k: 'pushBlockForce', v: 450, min: 0, max: 1000, step: 10, tip: 'How hard (px/s) a push block shoves the attacker away (÷ its weight).' },
   { k: 'wakeUp', v: true, tip: 'Wake-up options while lying (any scheme): P / K gets up attacking (getupAttack), → / ← gets up rolling forward / back, G held stays down longer (wakeDelay).' },
   { k: 'wakeDelay', v: 0.4, min: 0, max: 1.5, step: 0.05, tip: 'How much longer (s) a fighter holding G may stay down.' },
   ['Weapons', 'A weapon lies on the floor or starts in hand. P+G over one picks it up; while held, P, → P and ↓ P are its class\'s moves (one-handed pierce / slash / blunt, two-handed, pole), heavier weapons hit harder and swing slower. P+G again throws it; a knockdown or a hard blow knocks it loose.', 'P+G pick up / throw (hold to throw harder)'],
@@ -204,7 +211,7 @@ function makeRand(seed) {
 // ---------- simulation state: checkpoints and replays ----------
 // Replays store inputs, not results: a replay recorded with another ENGINE_VERSION plays out differently.
 // Bump it whenever the simulation changes (the replay test fails until you do).
-const ENGINE_VERSION = 17;
+const ENGINE_VERSION = 18;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied
