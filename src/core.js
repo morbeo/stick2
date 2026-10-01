@@ -52,6 +52,7 @@ const SCHEMA = [
   { k: 'health', v: 100, min: 0, max: 300, step: 10, tip: 'Health of every fighter. 0 = endless (training).' },
   { k: 'damage', v: 1, min: 0, max: 3, step: 0.1, tip: 'Damage multiplier on every move\'s damage.' },
   { k: 'comboDamage', v: 0.9, min: 0.5, max: 1, step: 0.01, tip: 'Damage × this per extra combo hit, so long combos do not kill outright. 1 = no scaling.' },
+  { k: 'counterHit', v: 1.25, min: 1, max: 2, step: 0.05, tip: 'A hit on a fighter in the startup or active frames of its own attack is a counter hit: damage and hitstun × this. 1 = off.' },
   { k: 'chip', v: 0.1, min: 0, max: 0.5, step: 0.01, tip: 'Fraction of the damage a blocked hit still does (it never knocks out).' },
   { k: 'blockStun', v: 0.7, min: 0, max: 1.5, step: 0.05, tip: 'Blockstun as a fraction of the move\'s hitstun: how long the defender is stuck in guard.' },
   { k: 'blockPush', v: 0.6, min: 0, max: 1.5, step: 0.05, tip: 'Pushback on block as a fraction of the move\'s knockback.' },

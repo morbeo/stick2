@@ -116,12 +116,41 @@ const STICK_MOVES = {
   stomp: attack({ power: 1.1, damage: 8, hit: 'ff', height: 'low', knock: 60, launch: 240, kd: true, otg: true, special: true },
     [0.08, { torso: -5, lfU: 80, lfL: -120, afU: 50, abU: 30 }],
     [0.06, { torso: 12, lfU: 42, lfL: -4, lbU: -15, lbL: 0, afU: 20, abU: 60 }], 0.08, 0.2),
+  // directional normals (→ / ↑ / ↓ / ↘ with J or K, see BINDS); the elbow strikes with the end of the upper arm
+  elbow: attack({ power: 1.3, damage: 10, hit: 'uarmF', height: 'mid', knock: 260, stun: 0.42, lunge: 200, next: { kick: 'kick' } },
+    [0.07, { torso: 2, afU: 40, afL: 150, abU: 30, abL: 120 }],
+    [0.05, { torso: 30, afU: 80, afL: 155, abU: -25, abL: 110, lfU: 45, lfL: -40, lbU: -30, lbL: 0 }], 0.06, 0.2),
+  // pushes the victim away instead of stunning long
+  pushKick: attack({ power: 1.2, damage: 8, hit: 'ff', height: 'mid', knock: 480, stun: 0.3 },
+    [0.09, { torso: -8, lfU: 95, lfL: -120, afU: 30, abU: 40 }],
+    [0.06, { torso: -24, lfU: 92, lfL: 0, lbU: -12, lbL: 0, afU: 10, afL: 80, abU: 50 }], 0.07, 0.24),
+  // overhead: beats a crouching guard; armored while it winds up (takes the hit without flinching); smashes the victim off the floor
+  hammer: attack({ power: 1.5, damage: 12, hit: 'fh', height: 'shigh', knock: 120, launch: 100, kd: true, bounce: true },
+    [0.13, { torso: -10, afU: 175, afL: 50, abU: 160, abL: 60 }],
+    [0.06, { torso: 32, afU: 70, afL: 15, abU: 60, abL: 30, lfU: 40, lfL: -35, lbU: -25, lbL: 0 }], 0.06, 0.28),
+  // a turning back kick, head high; near a wall the victim splats against it
+  turnKick: attack({ power: 1.8, damage: 15, hit: 'bf', height: 'high', knock: 400, launch: 300, kd: true, lunge: 180, wall: true },
+    [0.1, { torso: -15, head: 10, lbU: 20, lbL: -110, lfU: 0, lfL: -10, afU: 60, afL: 90, abU: -30, abL: 80 }],
+    [0.07, { torso: -45, head: 15, lbU: 125, lbL: 0, lfU: -2, lfL: 0, afU: -30, afL: 50, abU: 80, abL: 40 }], 0.09, 0.28),
+  // from a crouch, straight up: the launcher that starts juggles
+  launcher: attack({ power: 1.5, damage: 10, hit: 'fh', height: 'mid', knock: 80, launch: 560, kd: true },
+    [0.08, { ...CROUCH, afU: -10, afL: 100, abU: 30, abL: 120 }],
+    [0.06, { torso: 12, afU: 165, afL: 20, abU: 10, abL: 130, lfU: 30, lfL: -30, lbU: -15, lbL: -10 }], 0.08, 0.3),
+  lowKick: attack({ power: 1, damage: 6, hit: 'ff', height: 'low', knock: 120, stun: 0.34 },
+    [0.06, { torso: 0, lfU: 45, lfL: -70 }],
+    [0.05, { torso: -12, lfU: 55, lfL: -4, lbU: -15, lbL: 0, afU: 50, abU: 20 }], 0.06, 0.18),
+  // a long wind-up, then both palms: unblockable (its active keys go through guard), but it can be hit out of; the victim crumples
+  charge: attack({ power: 2, damage: 18, hit: 'fh', height: 'mid', knock: 460, crumple: true, lunge: 320, special: true },
+    [0.36, { torso: -15, afU: -50, afL: 110, abU: -60, abL: 100, lfU: 35, lfL: -50 }],
+    [0.06, { torso: 30, afU: 95, afL: 5, abU: 90, abL: 15, lfU: 55, lfL: -30, lbU: -40, lbL: 0 }], 0.08, 0.36),
   getup: { inv: true, keys: [
     { d: 0.18, e: 'outCubic', p: { torso: -30, head: 10, lfU: 75, lfL: -130, lbU: 60, lbL: -140, afU: -40, afL: 20, abU: -60, abL: 10 } },
     { d: 0.16, e: 'outCubic', p: { ...CROUCH, afU: 30, afL: 110, abU: 20, abL: 120 } },
     { d: 0.2, e: 'inOutCubic', p: null },
   ] },
 };
+STICK_MOVES.hammer.keys[0].armor = true;
+STICK_MOVES.charge.keys.forEach(k => { if (k.active) k.unblock = true; });
 const STICK_HURT = {
   high: [
     { torso: -22, head: -28, afU: -20, afL: 40, abU: -40, abL: 30 },
@@ -139,8 +168,12 @@ const STICK_HURT = {
 // ---------- characters ----------
 const HITS = { fh: 'handF', bh: 'handB', ff: 'footF', bf: 'footB' };
 // which move each input slot triggers (a character's binds override these)
-const BINDS = { punch: 'jab', kick: 'kick', downPunch: 'jab', downKick: 'sweep', dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick',
-  qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: null, dpKick: null,
+// Directions in numpad terms (6 = towards the opponent): a diagonal without a move falls back to its vertical, then to neutral
+const BINDS = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: null, backKick: null,
+  upPunch: 'hammer', upKick: 'turnKick', upFwdPunch: null, upFwdKick: null, upBackPunch: null, upBackKick: null,
+  downPunch: 'launcher', downKick: 'sweep', downFwdPunch: null, downFwdKick: 'lowKick', downBackPunch: null, downBackKick: null,
+  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick',
+  qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: 'charge', dpKick: null,
   special: 'spin', fwdSpecial: 'rush', backSpecial: null, upSpecial: 'rising', downSpecial: 'stomp', airSpecial: null };
 // special motions in numpad notation (6 = towards the opponent), matched in order against the recent directions
 const MOTIONS = { dp: /6.*2.*3/, qcf: /2.*3.*6/, qcb: /2.*1.*4/ };
@@ -178,7 +211,7 @@ function makeCharacter(def) {
   for (const m of Object.values(ch.moves)) { const c = m.keys.findIndex(k => k.cancel); m.cancel = c >= 0 ? c : m.keys.findLastIndex(k => k.active) + 1; }
   return ch;
 }
-const oldMove = m => ({ ...m, hit: HITS[m.hit], keys: m.keys.map(k => ({ ...k, p: fromOld(k.p) })) });
+const oldMove = m => ({ ...m, hit: HITS[m.hit] || m.hit, keys: m.keys.map(k => ({ ...k, p: fromOld(k.p) })) });
 const mapVals = (o, f) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, f(v)]));
 // built-in definitions (plain JSON: what the creator edits, saves and reverts to); CHARS = compiled
 const CHAR_DEFS = {
@@ -237,7 +270,17 @@ CHAR_DEFS.centaur = { ...mapPoses({ ...stick, moves: retimed(1.1, 1.2) }, p => {
       { id: 'hoof' + S, parent: 'foreShin' + S, len: 6, a: 90, role: 'leg', side: S.toLowerCase(), hurt: 6, lag: 1.5, level: 1, thick: 5, min: 40, max: 140 }]),
     ...tail3(12, 3).map(b => b.id === 'tail' ? { ...b, a: -150 } : b)] };
 // ninja: slender, long legs, fast and light; a scarf trails from the neck
-CHAR_DEFS.ninja = { ...stick, name: 'ninja', speed: 1.25, moves: retimed(0.8, 0.85),
+CHAR_DEFS.ninja = { ...stick, name: 'ninja', speed: 1.25, binds: { downFwdKick: 'slide', upFwdKick: 'axeKick', upFwdPunch: 'rising' },
+  moves: { ...retimed(0.8, 0.85), ...mapVals({
+    // a low slide along the floor, under highs
+    slide: attack({ power: 1.1, damage: 8, hit: 'ff', height: 'low', knock: 160, launch: 220, kd: true, lunge: 520 },
+      [0.06, { torso: -20, lfU: 60, lfL: -90, lbU: 10, lbL: -110 }],
+      [0.06, { torso: -50, lfU: 85, lfL: 0, lbU: 30, lbL: -135, afU: -70, afL: 30, abU: -90, abL: 20 }], 0.14, 0.2),
+    // the heel comes down from above the head: an overhead
+    axeKick: attack({ power: 1.6, damage: 13, hit: 'ff', height: 'shigh', knock: 150, stun: 0.5, lunge: 140 },
+      [0.1, { torso: -22, lfU: 170, lfL: -5, afU: 40, abU: 60 }],
+      [0.06, { torso: 15, lfU: 55, lfL: 0, lbU: -15, lbL: 0, afU: 30, abU: 40 }], 0.06, 0.24),
+  }, oldMove) },
   bones: [...sizedBones({ waist: 1.05, chest: 0.95, head: 0.9, thigh: 1.15, shin: 1.15, uarm: 1.05, farm: 1.05 }, -1),
     { id: 'scarf', parent: 'neck', len: 12, a: -100, role: 'tail', thick: 3, lag: 2, stretch: 0.2 },
     { id: 'scarfEnd', parent: 'scarf', len: 12, a: -10, role: 'tail', thick: 2, lag: 3.5, stretch: 0.3, min: -60, max: 60 }] };

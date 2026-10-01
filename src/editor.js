@@ -97,6 +97,7 @@ function drawTimeline() {
     if (w > 60 * dpr) text(`${k.e || 'linear'}${k.p ? '' : ' → stance'}`, x + 5 * dpr, y + 28 * dpr, '#888', 9);
     if (k.inv) text('inv', x + 5 * dpr, y + h - 5 * dpr, '#2c6fb0', 9, 'bold');
     if (k.unblock) text('unbl', x + w - 30 * dpr, y + h - 5 * dpr, RED[0], 9, 'bold');
+    if (k.armor) text('armr', x + w - 30 * dpr, y + h - 17 * dpr, '#b07a2c', 9, 'bold');
   });
   // the cancel window: a purple bar from the key it opens at to the end
   const cx = r.x + keyStart(m, m.cancel) * px;
@@ -287,7 +288,11 @@ function deleteMove() {
   pickMove(anim.move);
 }
 // input slots (see BINDS): clicking one makes it trigger this move; clicking it again gives it back its default
-const SLOT_TIPS = { punch: 'J standing', kick: 'K standing', downPunch: 'S+J crouching', downKick: 'S+K crouching',
+const SLOT_TIPS = { punch: 'J standing (5P)', kick: 'K standing (5K)', downPunch: '↓ J crouching (2P)', downKick: '↓ K crouching (2K)',
+  fwdPunch: '→ J (6P), else J', fwdKick: '→ K (6K), else K', backPunch: '← J (4P), else J', backKick: '← K (4K), else K',
+  upPunch: '↑ J (8P), else J', upKick: '↑ K (8K), else K', upFwdPunch: '↗ J (9P), else ↑ J', upFwdKick: '↗ K (9K), else ↑ K',
+  upBackPunch: '↖ J (7P), else ↑ J', upBackKick: '↖ K (7K), else ↑ K', downFwdPunch: '↘ J (3P), else ↓ J', downFwdKick: '↘ K (3K), else ↓ K',
+  downBackPunch: '↙ J (1P), else ↓ J', downBackKick: '↙ K (1K), else ↓ K',
   dashPunch: 'J while running forward', airPunch: 'J in the air', airKick: 'K in the air',
   qcfPunch: '↓↘→ J', qcfKick: '↓↘→ K', qcbPunch: '↓↙← J', qcbKick: '↓↙← K', dpPunch: '→↓↘ J', dpKick: '→↓↘ K',
   special: 'S (U), and any direction without its own special', fwdSpecial: '→ S', backSpecial: '← S', upSpecial: '↑ S', downSpecial: '↓ S', airSpecial: 'S in the air' };
@@ -328,6 +333,9 @@ const MOVE_FLAGS = {
   special: 'Special: normals that hit can be cancelled into it (if specialCancel is on).',
   otg: 'Off the ground: hits a fighter lying on the floor and pops it up (otg setting: flagged).',
   wide: 'Wide: in 2.5D it reaches 3× zReach in depth, so a sidestep does not dodge it.',
+  crumple: 'Crumple: the victim folds to the floor where it stands, open to a follow-up before it lands.',
+  wall: 'Wall splat: a victim knocked into the arena wall sticks to it a moment instead of bouncing off.',
+  bounce: 'Ground bounce: a knocked-down victim bounces high off the floor once, open to a juggle.',
 };
 
 // what normalize returns to: the built-in move of the same name (copies like jab2: the move they were copied from)
@@ -355,7 +363,9 @@ function keyPanel() {
         v => edit(def => { def.moves[anim.move].keys.forEach((x, i) => { if (i === anim.key && v) x.cancel = true; else delete x.cancel; }); })),
       toggle(':block: inv', 'Invincible during this key (reversals like rising)', () => !!k().inv, v => setKey('inv', v || undefined)),
       toggle(':crisis_alert: unblock', 'Unblockable: a hit during this key goes through guard and parry. The striking limb glows red while unblockable frames are coming.',
-        () => !!k().unblock, v => setKey('unblock', v || undefined)))),
+        () => !!k().unblock, v => setKey('unblock', v || undefined)),
+      toggle(':shield: armor', 'Armor: a hit during this key does its damage, but the move goes on (no flinch, no knockdown) unless it would knock out.',
+        () => !!k().armor, v => setKey('armor', v || undefined)))),
     slider('lunge', { min: 0, max: 600, step: 10 }, () => k().lunge || 0, v => setKey('lunge', v || undefined, 'lunge'),
       'Forward speed given when this key starts (px/s): steps into the strike.'),
   ];

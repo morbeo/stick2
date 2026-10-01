@@ -7,7 +7,7 @@ class Fighter {
       kd: null, downT: 0, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
-      guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0 });
+      guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false });
     this.hp = this.c('health');
     this.target = this.basePose();
     this.disp = { ...this.target };
@@ -130,12 +130,15 @@ class Fighter {
       const slot = !this.grounded ? 'airSpecial' : i.down ? 'downSpecial' : i.up ? 'upSpecial' : fwd ? 'fwdSpecial' : i.right !== i.left ? 'backSpecial' : 'special';
       return [this.ch.binds[slot], this.grounded && this.ch.binds.special].find(m => this.ch.moves[m]) || null;
     }
-    const sp = this.grounded && motion?.map(k => this.ch.binds[k + (P ? 'Punch' : 'Kick')]).find(m => this.ch.moves[m]);
+    const B = P ? 'Punch' : 'Kick', has = s => this.ch.moves[this.ch.binds[s]] ? this.ch.binds[s] : null;
+    const sp = this.grounded && motion?.map(k => has(k + B)).find(Boolean);
     if (sp) return sp;
-    const slot = !this.grounded ? (P ? 'airPunch' : 'airKick') : i.down ? (P ? 'downPunch' : 'downKick')
-      : P && fwd && Math.abs(this.vx) > this.c('maxSpeed') * 0.6 ? 'dashPunch' : b;
-    const m = this.ch.binds[slot];
-    return this.ch.moves[m] ? m : null;
+    if (!this.grounded) return has('air' + B);
+    if (P && fwd && !i.down && Math.abs(this.vx) > this.c('maxSpeed') * 0.6 && has('dashPunch')) return has('dashPunch');
+    // a direction × button table: ↘K = downFwdKick; a slot without a move falls back to its vertical (downKick), then to neutral
+    const v = i.down ? 'down' : i.up ? 'up' : '', hz = fwd ? 'Fwd' : i.right !== i.left ? 'Back' : '';
+    const slots = [v && hz && v + hz + B, v ? v + B : hz && hz.toLowerCase() + B, b];
+    return slots.map(s => s && has(s)).find(Boolean) || null;
   }
   // what the running move can be cancelled into, once its cancel window is open (Combos & cancels)
   cancelInto(a, b, motion) {
@@ -181,7 +184,7 @@ class Fighter {
     if (inp.guard && !this.prevIn.guard) this.parryT = c('parryWindow');
     this.prevIn = inp;
     if (!inp[fwdK] || !this.free || this.action) this.running = false;
-    this.dashT -= dt; this.passT -= dt; this.blockT -= dt; this.parryT -= dt; this.labelT -= dt; this.dizzyT -= dt; this.reelT -= dt;
+    this.dashT -= dt; this.passT -= dt; this.blockT -= dt; this.parryT -= dt; this.labelT -= dt; this.dizzyT -= dt; this.reelT -= dt; this.splatT -= dt;
     if (this.free) this.stunM = Math.max(0, this.stunM - c('dizzyDrain') * dt);
     // guard: held while free on the ground, and kept through blockstun; with ↓ it is a low guard (in the belt too)
     const busy = this.action && !this.action.m.hurt;
@@ -202,7 +205,10 @@ class Fighter {
     if (this.x < 40 || this.x > W - 40) {
       this.x = clamp(this.x, 40, W - 40);
       const wb = this.kd === 'fly' ? c('wallBounce') : 0, imp = Math.min(1, Math.abs(this.vx) / 600);
-      if (wb && imp > 0.15) { // off the wall: back into the arena, popped up a little
+      if (this.splat && imp > 0.15) { // a wall splat (move flag wall): stuck flat on the wall a moment, then it slides off
+        this.splat = false; this.vx = 0; this.vy = 0; this.splatT = 0.35; this.flailJolt(imp); this.say('WALL');
+        this.w.trauma = Math.min(1, this.w.trauma + 0.3 * imp);
+      } else if (wb && imp > 0.15) { // off the wall: back into the arena, popped up a little
         this.vx *= -wb; this.vy = Math.min(this.vy, -120 * imp); this.flailJolt(imp);
         this.w.trauma = Math.min(1, this.w.trauma + 0.2 * imp);
       } else this.vx = 0;
@@ -229,7 +235,7 @@ class Fighter {
     if (!this.grounded) this.airT += dt;
     if (this.flip) this.spin = this.flip * 360 * Math.min(1, this.airT / (2 * c('jumpVel') / c('gravity')));
     else if (this.spin) { const to = Math.round(this.spin / 360) * 360; this.spin = approach(this.spin, to, 1440 * dt); if (this.spin === to) this.spin = 0; }
-    if (!this.grounded) {
+    if (!this.grounded && this.splatT <= 0) {
       this.vy += c('gravity') * dt; this.y += this.vy * dt;
       if (this.y >= 0) {
         const imp = Math.min(1, this.vy / 800);
@@ -242,10 +248,13 @@ class Fighter {
         if (this.kd === 'fly') {
           const up = -imp * 800 * c('floorBounce');
           this.flailJolt(imp);
-          if (this.bounces < c('bounces') && up < -60) {
+          if (this.gb) { // a ground bounce (move flag bounce): high off the floor, open to a juggle
+            this.gb = false; this.grounded = false; this.vy = -Math.max(420, -up); this.vx *= 0.6; this.say('BOUNCE');
+            this.w.trauma = Math.min(1, this.w.trauma + 0.25 * imp);
+          } else if (this.bounces < c('bounces') && up < -60) {
             this.bounces++; this.grounded = false; this.vy = up; this.vx *= 0.7;
             this.w.trauma = Math.min(1, this.w.trauma + 0.15 * imp);
-          } else { this.kd = 'down'; this.downT = 0.6; }
+          } else { this.kd = 'down'; this.downT = 0.6; this.splat = false; }
         }
       }
     }
@@ -357,7 +366,16 @@ class Fighter {
   damageOf(m, combo) { return (m.damage ?? m.power * 8) * this.c('damage') * this.c('comboDamage') ** (combo - 1); }
   say(text) { this.label = text; this.labelT = 0.9; }
   takeHit(att, m, hit) {
-    const combo = this.combo = (this.free ? 0 : this.combo) + 1, dmg = this.damageOf(m, combo), wasDizzy = this.dizzyT > 0;
+    const a = this.action, own = a && !a.m.hurt;
+    if (own && a.m.keys[a.i]?.armor && (this.c('health') <= 0 || this.hp > this.damageOf(m, 1))) { // armor: the damage lands, the move goes on
+      if (this.c('health') > 0) this.hp -= this.damageOf(m, 1);
+      this.flashT = 0.1; this.say('ARMOR'); this.sqv -= this.c('squash') * 8 * m.power;
+      return;
+    }
+    // counter hit: caught in the startup or active frames of its own attack
+    const ck = own && a.m.power && a.i < a.m.cancel ? this.c('counterHit') : 1;
+    const combo = this.combo = (this.free ? 0 : this.combo) + 1, dmg = this.damageOf(m, combo) * ck, wasDizzy = this.dizzyT > 0;
+    if (ck > 1) this.say('COUNTER');
     if (this.c('health') > 0 && (this.hp -= dmg) <= 0) { this.hp = 0; this.ko = true; this.say('K.O.'); }
     this.dizzyT = 0; this.reelT = 0;
     this.stunM = wasDizzy ? 0 : this.stunM + dmg; // a hit wakes a dizzy fighter (and empties the meter)
@@ -365,14 +383,16 @@ class Fighter {
     const juggle = !!this.kd || !this.grounded, otg = this.kd === 'down';
     this.dir = -att.dir; this.buffer = null; this.squatT = 0; this.flashT = 0.1;
     this.vx = att.dir * m.knock * (juggle ? 0.6 : 1);
-    if (m.kd || juggle || combo >= 7 || this.ko) {
+    if (m.kd || m.crumple || juggle || combo >= 7 || this.ko) {
       this.juggles = this.kd ? this.juggles + 1 : 0;
       this.kd = 'fly'; this.bounces = otg ? 99 : 0; this.grounded = false; this.action = null; this.hurtT = 0; // hit off the ground: a small pop, no bounce
       this.vy = -Math.max(m.launch || 300, this.ko ? 380 : 0) * this.c('juggleDecay') ** this.juggles;
+      this.splat = !!m.wall; this.gb = !!m.bounce && !otg; this.splatT = 0;
+      if (m.crumple && !juggle) { this.vx = att.dir * 30; this.vy = -120; this.bounces = 99; this.say('CRUMPLE'); } // folds where it stands
     } else {
       const set = this.ch.hurt[this.zone(hit.pt)].filter(p => p !== this.lastHurt);
       this.lastHurt = set[Math.floor(this.w.rand() * set.length)];
-      const stun = m.stun * Math.max(0.45, 1 - 0.07 * (combo - 1)); // long combos stun less
+      const stun = m.stun * ck * Math.max(0.45, 1 - 0.07 * (combo - 1)); // long combos stun less
       this.start(makeHurt(this.lastHurt, stun, this.w.rand, this.ch.poses.stance));
       this.hurtT = stun;
       const da = this.c('dizzyAt'), sa = this.c('staggerAt');

@@ -50,7 +50,7 @@ class Replay {
 
 // engine AI: re-thinks every reaction-time interval, walks to range and throws random chains
 const CHAINS = [['punch'], ['punch', 'punch'], ['punch', 'punch', 'punch'], ['kick'], ['kick', 'kick'],
-  ['punch', 'kick'], ['punch', 'punch', 'kick'], ['down+kick'],
+  ['punch', 'kick'], ['punch', 'punch', 'kick'], ['down+kick'], ['fwd+punch', 'kick'], ['fwd+kick'], ['down+fwd+kick'], ['down+punch'], ['up+kick'],
   ['punch', 'down', 'down+fwd', 'fwd+punch'], ['punch', 'kick', 'down', 'down+back', 'back+kick'], ['punch', 'punch', 'fwd+special'], ['kick', 'special']]; // specials cancel the chain
 class Brain {
   constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0 }); }
@@ -94,6 +94,7 @@ class Brain {
     if (dist > 70) { this.plan = r < 0.85 ? 'in' : 'out'; return; }
     if (r < 0.12) { this.plan = 'out'; return; }
     if (r < 0.2) return; // hesitate
+    if (o.guarding && r < 0.5) { this.q = [o.crouching ? 'up+punch' : 'down+fwd+kick']; this.qt = 0; return; } // overhead vs a low guard, low vs a standing one
     this.q = CHAINS[Math.floor(this.rand() * CHAINS.length)].slice(); this.qt = 0;
   }
 }
