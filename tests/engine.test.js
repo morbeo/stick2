@@ -115,6 +115,15 @@ test('character stats: max jumps, jump height under any gravity, air dash, air d
   assert.ok(seen(3).includes('a:toss') && !seen(0).includes('a:toss'), `grab range: ${seen(3)} / ${seen(0)}`);
 });
 
+test('mid turn the body keeps turnWidth of its width and tucks in (turnTuck)', () => {
+  const wid = over => run(`(() => { const w = new World({ a: 'idle', b: 'dummy', ax: 300, bx: 600, period: 9 }, ${JSON.stringify(over)}, 7, [CHARS.stick, CHARS.stick]);
+    const f = w.a, xs = P => { const v = Object.values(P).map(p => p[0]); return Math.max(...v) - Math.min(...v); };
+    const full = xs(f.points(f.ch.poses.stance)); f.face = 0.02; return [xs(f.points(f.ch.poses.stance)) / full, f.basePose().shinF - f.ch.poses.stance.shinF]; })()`);
+  const thin = wid({ turnWidth: 0, turnTuck: 0 }), keep = wid({ turnWidth: 0.5, turnTuck: 1 });
+  assert.ok(thin[0] < 0.1 && keep[0] > 0.45, `${thin} / ${keep}`);
+  assert.ok(Math.abs(keep[1] - thin[1]) > 20, `tuck ${thin[1]} / ${keep[1]}`);
+});
+
 test('↓ then jump is a super jump; a jump next to a wall is a triangle jump off it', () => {
   const probe = (script, ax = 300, over = {}) => run(`(() => { const w = new World({ a: ${JSON.stringify(script)}, b: 'dummy', ax: ${ax}, bx: 700, period: 9 }, ${JSON.stringify(over)}, 7, [CHARS.stick, CHARS.stick]);
     let top = 0, vx = 0; for (let i = 0; i < 90; i++) { w.advance(1/60, NOIN); top = Math.min(top, w.a.y); vx = Math.max(vx, w.a.vx); } return { top, vx }; })()`);

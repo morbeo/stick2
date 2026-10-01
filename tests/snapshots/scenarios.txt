@@ -29,7 +29,7 @@ tech           hits 1 blocks 0 hp 100.0 90.0 x 330 433
 air recover    hits 1 blocks 0 hp 100.0 86.0 x 341 509
 OTG stomp      hits 1 blocks 0 hp 100.0 90.0 x 404 458
 ai 2v2         hits 15 blocks 0 hp 26.2 76.1 x 82 216
-ai free-for-all hits 12 blocks 0 hp 30.7 70.2 x 564 513
+ai free-for-all hits 13 blocks 0 hp 25.4 70.2 x 560 513
 ai vs waves    hits 8 blocks 0 hp 40.0 81.3 x 342 381
 sandwich       hits 5 blocks 0 hp 100.0 77.4 x 330 633
 showcase       hits 4 blocks 0 hp 100.0 68.4 x 544 717

@@ -90,6 +90,9 @@ class Fighter {
       ch.chains.arm.forEach((c, i) => turn(c[0], -20 * reel + Math.sin(t * 3 + i) * 15 * reel));
     }
     if (this.guarding) ch.chains.arm.forEach((c, i) => { turn(c[0], i ? 50 : 40); flex(c[1], 25); }); // guard: forearms up in front of the face
+    // mid turn the body gathers in (turnTuck): knees bend, arms pull in, the spine hunches, so it reads as a pivot, not a card flipping
+    const tk = (1 - Math.abs(this.face)) * this.c('turnTuck');
+    if (tk) { ch.chains.leg.forEach(c => flex(c[1], 30 * tk)); ch.chains.arm.forEach(c => flex(c[1], 40 * tk)); turn(spine, -10 * tk); }
     turn(spine, this.lean);
     return P;
   }
@@ -421,7 +424,7 @@ class Fighter {
     const c = k => this.c(k), ch = this.ch;
     this.planted = null;
     if (!c('plant') || !this.grounded || this.kd || this.rag || this.spin || this.y < 0) { this.feet = []; return; }
-    const wa = {}, L = fk(ch, this.disp, 1, this.lens, wa), p = { ...this.disp }, k = this.face * (1 - this.sq * 0.5);
+    const wa = {}, L = fk(ch, this.disp, 1, this.lens, wa), p = { ...this.disp }, k = this.xs * (1 - this.sq * 0.5);
     let fy = 0; for (const b of ch.bones) fy = Math.max(fy, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
     ch.chains.leg.forEach((cn, i) => {
       const ai = cn.length >= 3 ? cn.length - 2 : cn.length - 1, a = cn[ai], th = cn[ai - 1], tip = cn[cn.length - 1];
@@ -749,9 +752,11 @@ class Fighter {
     this.sqv -= this.c('squash') * 15 * m.power;
   }
 
+  // the drawn width while turning (face goes from -1 to 1): never thinner than turnWidth, mirrored at the halfway point
+  get xs() { const w = this.c('turnWidth'), f = this.face; return (Math.sign(f) || this.dir) * (w + (1 - w) * Math.abs(f)); }
   // world-space joints: lowest body point snapped to the ground, then squash/stretch around it
   points(p, lens) {
-    const L = fk(this.ch, p, this.face, lens);
+    const L = fk(this.ch, p, this.xs, lens);
     let fy = 0;
     for (const b of this.ch.bones) fy = Math.max(fy, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
     if (this.spin) {

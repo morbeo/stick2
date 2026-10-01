@@ -15,6 +15,8 @@ const SCHEMA = [
   { k: 'jumpSquat', v: 0.06, min: 0, max: 0.2, step: 0.01, tip: 'Crouch before leaving the ground (s): anticipation that sells the jump. 0 = instant.' },
   { k: 'dashSpeed', v: 2.2, min: 1, max: 4, step: 0.1, tip: 'Dash speed × maxSpeed (a back dash goes 0.8 of it).' },
   { k: 'turnSpeed', v: 12, min: 2, max: 40, step: 1, tip: 'How fast a fighter turns around (1/s). It cannot start a move until it has turned halfway.' },
+  { k: 'turnWidth', v: 0.35, min: 0, max: 1, step: 0.05, tip: 'How thin the body gets while turning: 0 = squashed to a paper-thin profile, 1 = mirrored at once halfway through the turn.' },
+  { k: 'turnTuck', v: 1, min: 0, max: 2, step: 0.1, tip: 'How much the body gathers in mid turn: knees bend, arms pull in, the back hunches. 0 = stays in its stance.' },
   ['Air', 'Moving in the air: drift, falling speed, fast falls, extra jumps (max jumps is per character), air dodges and air dashes.', '↓ then jump: super jump · ↓ while falling: fast fall · jump in the air: another jump (next to a wall: triangle jump) · G in the air: dodge · double tap → / ← in the air: air dash'],
   { k: 'airSpeed', v: 260, min: 0, max: 600, step: 10, tip: 'Top drifting speed in the air (px/s).' },
   { k: 'airAccel', v: 1600, min: 0, max: 6000, step: 100, tip: 'How fast the air drift speeds up and slows down (px/s²). 0 = no air control, the jump keeps its launch speed.' },
@@ -184,7 +186,7 @@ function makeRand(seed) {
 // ---------- simulation state: checkpoints and replays ----------
 // Replays store inputs, not results: a replay recorded with another ENGINE_VERSION plays out differently.
 // Bump it whenever the simulation changes (the replay test fails until you do).
-const ENGINE_VERSION = 9;
+const ENGINE_VERSION = 10;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied
