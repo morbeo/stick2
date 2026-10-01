@@ -1,6 +1,6 @@
 'use strict';
 // ---------- character mode: drag the skeleton, tune bones, watch it fight live; body experiment grid ----------
-const creator = { preview: 'showcase', w: null, drag: null, hover: null, anchor: null, expOn: false,
+const creator = { preview: 'showcase', w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, tfilter: '', tsort: { k: '', dir: 1 },
   exp: { kind: 'body', vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
 const PREVIEWS = {
   showcase: ['showcase', 'Scripted demo: walk in, J,J,K chain, sweep, jump kick, back off.'],
@@ -293,6 +293,71 @@ function gaitPanel() {
     ...GAIT_VARS.map(s => s.opts ? h('div', { cls: 'row', tip: s.tip }, h('span', { textContent: s.k }), seg(s.opts, () => get(s.k), v => set({ [s.k]: v })))
       : bodyExpLink(slider(s.k, s, () => get(s.k), v => set({ [s.k]: v }), s.tip), s.k, 'walk'))];
 }
+// ---------- bone table: every bone with its properties, edited in place; a row click selects (⌘/Ctrl/Shift+click adds) ----------
+// an edit in a selected row goes to every selected bone, in any other row to that bone only
+const BONE_TIPS = { role: 'What the bone does in procedural motion (click to change)', side: 'Draw order and colour (click to change)', shape: 'How the bone is drawn (click to change)' };
+const BONE_COLS = [
+  { k: 'id', tip: 'Click a row to select the bone (⌘/Ctrl/Shift+click adds it to the selection)', get: b => b.id },
+  { k: 'parent', tip: 'The bone it hangs from', get: b => b.parent || '' },
+  ...['role', 'side', 'shape'].map(k => ({ k, tip: BONE_TIPS[k], get: b => b[k] ?? BONE[k] ?? '', opts: { role: ROLE_TIPS, side: SIDE_TIPS, shape: SHAPE_TIPS }[k] })),
+  { k: 'stance', tip: 'Angle in the stance pose, relative to the parent', get: b => curStance().pose[b.id] ?? 0, num: { min: -270, max: 270, step: 1 } },
+  ...BONE_PROPS.map(p => ({ k: p.k, tip: p.tip, get: b => b[p.k] ?? BONE[p.k], num: p })),
+  ...['min', 'max'].map(k => ({ k, tip: `Joint limit (${k}) relative to the parent; empty = no limits`, get: b => b[k] ?? '', num: { min: -180, max: 180, step: 1 } })),
+  { k: 'lock', tip: 'Locked: keeps its angle to its parent while posing (click to switch)', get: b => b.lock ? 'lock' : '' },
+];
+const SIDE_NAMES = { f: 'front', '': 'centre', b: 'back' };
+function setBoneCol(id, k, v) {
+  const ids = selIds().includes(id) ? selIds() : [id];
+  edit(def => {
+    for (const b of def.bones.filter(b => ids.includes(b.id))) {
+      if (k === 'stance') editPose(def)[b.id] = v;
+      else if (k === 'min' || k === 'max') {
+        if (v === null) { delete b.min; delete b.max; } else { b[k] = v; b.min ??= -180; b.max ??= 180; }
+      } else if (v === undefined) delete b[k]; else b[k] = v;
+    }
+  });
+}
+function boneTable() {
+  const body = h('tbody'), head = h('tr'), wrap = h('div', { cls: 'mtable btable' });
+  let sig = '';
+  const fill = () => {
+    const def = DEFS[CURRENT], q = creator.tfilter.trim(), { k: sk, dir } = creator.tsort, col = BONE_COLS.find(c => c.k === sk);
+    sig = JSON.stringify([def.bones, curStance().pose]);
+    const rows = currentChar().bones.map(cb => def.bones.find(b => b.id === cb.id)).filter(Boolean).map(b => ({ b, v: BONE_COLS.map(c => c.get(b)) }))
+      .filter(r => !q || fuzzy(q, r.v.filter(v => typeof v === 'string').join(' ')));
+    if (col) { const i = BONE_COLS.indexOf(col);
+      rows.sort((a, b) => dir * (typeof a.v[i] === 'number' && typeof b.v[i] === 'number' ? a.v[i] - b.v[i] : String(a.v[i]).localeCompare(String(b.v[i])))); }
+    head.replaceChildren(...BONE_COLS.map(c => h('th', { tip: `${c.tip} · click: sort`, textContent: c.k + (c.k === sk ? (dir > 0 ? ' ▲' : ' ▼') : ''),
+      onclick: () => { creator.tsort = { k: c.k, dir: c.k === sk ? -dir : 1 }; fill(); } })));
+    body.replaceChildren(...rows.map(({ b, v }) => {
+      const tr = h('tr', { onclick: e => { pickBoneSel(b.id, e.shiftKey || e.metaKey || e.ctrlKey); syncAll(); } });
+      reg(tr, () => tr.classList.toggle('on', selIds().includes(b.id)));
+      const stop = e => e.stopPropagation();
+      tr.append(...BONE_COLS.map((c, i) => {
+        const td = h('td'), tip = `${b.id} · ${c.tip}${selIds().length > 1 && selIds().includes(b.id) ? ' · goes to every selected bone' : ''}`;
+        if (c.k === 'id') { td.textContent = v[i]; td.style.borderLeft = `4px solid ${ROLE_COLS[b.role][b.side === 'b' ? 1 : 0]}`; }
+        else if (c.num) td.append(h('input', { type: 'number', min: c.num.min, max: c.num.max, step: c.num.step, value: v[i], tip, onclick: stop, onkeydown: stop,
+          onchange: e => { const x = parseFloat(e.target.value), blank = e.target.value === '';
+            setBoneCol(b.id, c.k, c.k === 'min' || c.k === 'max' ? (blank ? null : clamp(x, c.num.min, c.num.max)) : blank ? (c.k === 'stance' ? 0 : undefined) : clamp(x, c.num.min, c.num.max)); fill(); } }));
+        else if (c.opts) td.append(button(c.k === 'side' ? SIDE_NAMES[v[i]] : v[i], tip, (e, el) => { stop(e);
+          popup(el, seg(Object.keys(c.opts), () => b[c.k] ?? BONE[c.k], x => { setBoneCol(b.id, c.k, x); closePop(); fill(); }, c.opts, c.k === 'side' ? o => SIDE_NAMES[o] : optLabel)); }, 'mini'));
+        else if (c.k === 'lock') td.append(button(b.lock ? ':lock:' : '—', tip, e => { stop(e); setBoneCol(b.id, 'lock', b.lock ? undefined : true); fill(); }, 'mini'));
+        else td.textContent = v[i];
+        return td;
+      }));
+      return tr;
+    }));
+    if (!rows.length) body.replaceChildren(h('tr', {}, h('td', { colSpan: BONE_COLS.length, cls: 'note', textContent: 'no bone matches the filter' })));
+  };
+  fill();
+  // undo, joint drags and panel edits change the bones from outside: refill (not while a cell is being typed in)
+  reg(wrap, () => { if (!wrap.contains(document.activeElement) && JSON.stringify([DEFS[CURRENT].bones, curStance().pose]) !== sig) fill(); });
+  const filter = h('input', { cls: 'macro', value: creator.tfilter, placeholder: 'fuzzy filter: id, parent, role, side, shape', tip: 'Letters in order match (e.g. "shf" finds shinF); any column with text counts',
+    oninput: e => { creator.tfilter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() });
+  wrap.append(h('div', { cls: 'bar' }, filter, button(':close:', 'Close the bone table', () => { creator.table = false; panels(); }, 'mini')),
+    h('table', {}, h('thead', {}, head), body));
+  return wrap;
+}
 function bodyPanel() {
   return [...charPanel(),
     heading('Body', 'Build the skeleton. Limbs are role-based: legs walk, arms swing, tails follow through. New parts attach to the selected torso bone.',
@@ -301,7 +366,8 @@ function bodyPanel() {
     h('h4', { textContent: 'bones', tip: 'Click to select · ▾ ▸ fold a branch' }, crud({
       new: ['Add one bone at the end of the selected bone (same role and side)', addBone],
       copy: ['Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb],
-      delete: ['Delete the selected bone and everything below it (Del)', deleteBone] })),
+      delete: ['Delete the selected bone and everything below it (Del)', deleteBone] },
+      toggle(':table_rows:', 'Bone table: every bone and its properties in a table under the editor; edit values in place, click rows to select (⌘/Ctrl/Shift+click adds), an edit in a selected row goes to every selected bone', () => creator.table, v => { creator.table = v; panels(); }))),
     boneTree(),
     ...bonePanel(),
     heading('Stance pose', 'Set the whole stance from a preset (per limb, so it works for any body), or turn a pose into attacks', ''),
@@ -348,6 +414,7 @@ const creatorMode = {
   render: creatorRender,
   ctxBar: creatorCtx,
   side: () => creator.expOn ? expPanel() : bodyPanel(),
+  overlay: () => creator.table && !creator.expOn ? [boneTable()] : [],
   open: ['character', 'body', 'bone', 'stance pose', 'random characters', 'body experiment'],
   mouse: creatorMouse,
   key: creatorKey,

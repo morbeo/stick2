@@ -152,6 +152,19 @@ try {
     tb('uarmB').dispatchEvent(new MouseEvent('click', { bubbles: true, metaKey: true })); if (selIds().sort().join() !== 'thighF,uarmF') errs.push('multi-select remove ' + selIds());
     tb('farmF').click(); if (selIds().join() !== 'farmF') errs.push('plain click ' + selIds());
     undo(); }
+  // bone table: rows select (⌘+click adds), an edit in a selected row goes to every selected bone, in another row to that bone only
+  { setMode('character'); pickChar('stick'); creator.table = true; panels();
+    const row = id => [...document.querySelectorAll('.btable tbody tr')].find(r => r.firstChild.textContent === id);
+    const cell = (id, k) => row(id).children[BONE_COLS.findIndex(c => c.k === k)].querySelector('input');
+    const lag = id => DEFS.stick.bones.find(b => b.id === id).lag;
+    row('shinF').click(); row('shinB').dispatchEvent(new MouseEvent('click', { bubbles: true, metaKey: true })); syncAll();
+    const on = [...document.querySelectorAll('.btable tr.on')].length;
+    const c = cell('shinB', 'lag'); c.value = '2.3'; c.dispatchEvent(new Event('change'));
+    const o = cell('footF', 'lag'); o.value = '0.4'; o.dispatchEvent(new Event('change'));
+    if (on !== 2 || lag('shinF') !== 2.3 || lag('shinB') !== 2.3 || lag('footF') !== 0.4 || lag('footB') === 0.4 || selIds().sort().join() !== 'shinB,shinF')
+      errs.push('bone table ' + [on, lag('shinF'), lag('shinB'), lag('footF'), selIds()]);
+    undo(); undo(); syncAll(); if (cell('shinF', 'lag').value === '2.3') errs.push('bone table after undo');
+    creator.table = false; panels(); }
   // debug: the first section of the lab settings, with the engine version and the fighters of the focused fight
   { setMode('play'); panels(); dbgT = 0; drawDebug();
     if (!dbgInfo.isConnected || !dbgInfo.textContent.includes('engine v' + ENGINE_VERSION) || !/P2 /.test(dbgInfo.textContent)) errs.push('debug info ' + dbgInfo.textContent.slice(0, 80));
