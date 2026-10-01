@@ -210,3 +210,14 @@ test('a knockdown disarms: the weapon falls to the floor', () => {
   const r = json(`(() => { const r = fight(SCENARIOS.disarm, [CHARS.stick, CHARS.stick], 120); return { w: r.w.b.ch.weapon, it: r.w.items.map(i => i.type) }; })()`);
   assert.equal(r.w, undefined), assert.deepEqual(r.it, ['sword']);
 });
+
+test('rewind replays the fight to the same state, AI and human input included', () => {
+  const r = json(`(() => { const w = new World(SCENARIOS['you vs ai'], {}, 7, [CHARS.stick, CHARS.ninja]), st = () => [w.a.x, w.b.x, w.a.hp, w.b.hp, w.hits, w.b.action?.i ?? -1].map(v => Math.round(v * 1000));
+    const inp = i => ({ ...NOIN, right: i % 90 < 40, punch: i % 23 === 0, kick: i % 37 === 0 });
+    for (let i = 0; i < 400; i++) w.advance(i % 3 ? 1 / 60 : 1 / 50, inp(i));
+    const at = st();
+    for (let i = 400; i < 520; i++) w.advance(1 / 60, inp(i));
+    const later = st(); w.rewind(120);
+    return { at, later, back: st(), n: w.log.length }; })()`);
+  assert.deepEqual(r.back, r.at), assert.notDeepEqual(r.later, r.at), assert.equal(r.n, 400);
+});

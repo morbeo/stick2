@@ -23,6 +23,8 @@ function panels() {
   syncAll();
 }
 function restart() { mode().restart(); }
+// rewind every fight n frames and pause there
+function rewind(n) { app.paused = true; app.scrub = false; for (const w of mode().worlds()) w.rewind(n); }
 function togglePanel() { document.body.classList.toggle('noside'); resize(); }
 
 // help under the rebindable keys (P = punch, K = kick, directions as on the numpad: 2 down, 3 down-forward, 6 forward…)
@@ -41,6 +43,8 @@ function buildTop() {
   const pause = button('', 'Pause / play (P)', () => { app.paused = !app.paused; });
   reg(pause, () => { setRich(pause, app.paused ? ':play_arrow: play' : ':pause: pause'); pause.classList.toggle('on', app.paused); });
   $('transport').replaceChildren(pause,
+    button(':fast_rewind: rewind', 'Back one second: every fight is replayed from its start with the same inputs, so your own and the AI\'s fights rewind too; play on from there to try something else (V)', () => rewind(60)),
+    button(':skip_previous:', 'Back one frame (⇧N)', () => rewind(1)),
     button(':skip_next: step', 'Advance one 60 fps frame (N)', () => { app.paused = app.stepOnce = true; }),
     button(':restart_alt: restart', 'Restart the fight(s) (R)', restart),
     button(':undo:', 'Undo the last edit: character, moves or settings (⌘Z)', undo), button(':redo:', 'Redo (⇧⌘Z)', redo),
@@ -106,6 +110,7 @@ const fightKey = code => FIGHT.find(a => keymap[a].some(k => k === code || k.end
 const SHORTCUTS = {
   pause: () => { app.paused = !app.paused; },
   step: () => { app.paused = app.stepOnce = true; },
+  rewind: () => rewind(60), stepBack: () => rewind(1),
   restart,
   panel: togglePanel,
   ghost: () => { CFG.ghost = !CFG.ghost; },

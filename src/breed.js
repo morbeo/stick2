@@ -1,7 +1,8 @@
 'use strict';
 // ---------- grid experiments: 9 cells bred around a parent (cell 0, framed); click a cell to breed around it ----------
 // breed: random values of chosen settings · attacks: random moves for the current character, posed with IK
-const breed = { vars: new Set(['freq', 'zeta', 'hitstop']), spread: 0.15, exag: 1, seed: 1, cfg: null, atk: null };
+// limb / height: what new random attacks strike with and at ('any' = random); pose: new attacks strike into this pose (see POSE_TARGETS)
+const breed = { vars: new Set(['freq', 'zeta', 'hitstop']), spread: 0.15, exag: 1, seed: 1, cfg: null, atk: null, limb: 'any', height: 'any', pose: null };
 const snap = (s, v) => +(Math.round(clamp(v, s.min, s.max) / s.step) * s.step).toFixed(4);
 // distinct variations: every variable gets n evenly spaced offsets in [-1, 1] in a shuffled order, one per cell,
 // so no two cells share a value and none equals the parent; past the range a value bounces back instead of sticking to the end
@@ -44,9 +45,12 @@ function breedCells() {
 // limb ends that can strike, and the direction each height aims at (world degrees: 90 = forward, 180 = up)
 const HEIGHTS = { high: [115, 145], mid: [80, 110], low: [40, 70] };
 const strikers = ch => ch.bones.filter(b => b.role !== 'spine' && !ch.bones.some(k => k.parent === b.id)).map(b => b.id);
+const strikeRoles = ch => [...new Set(strikers(ch).map(id => ch.by[id].role))];
 function genAttack(ch, rand) {
   const pick = a => a[Math.floor(rand() * a.length)], fr = (a, b) => Math.round(rand(a, b)) / 60;
-  const hit = pick(strikers(ch)), chain = ikChain(ch, hit), height = pick(Object.keys(HEIGHTS));
+  if (breed.pose && POSE_TARGETS(ch)[breed.pose]) return poseAttack(ch, POSE_TARGETS(ch)[breed.pose].pose, rand, pick, fr);
+  const limb = strikers(ch).filter(id => breed.limb === 'any' || ch.by[id].role === breed.limb);
+  const hit = pick(limb.length ? limb : strikers(ch)), chain = ikChain(ch, hit), height = HEIGHTS[breed.height] ? breed.height : pick(Object.keys(HEIGHTS));
   const spine = ch.bones.find(b => b.role === 'spine') || chain[0], st = ch.poses.stance, lean = rand(5, 30), deg = rand(...HEIGHTS[height]);
   const reach = chain.reduce((s, b) => s + b.len, 0);
   // lean the torso, then IK the limb towards a point at `ext` × its length in direction a from its root joint
@@ -63,6 +67,26 @@ function genAttack(ch, rand) {
       { d: fr(2, 5), e: pick(['outExpo', 'outCubic', 'outBack']), p: strike, active: true, lunge: rand() < 0.5 ? Math.round(rand(50, 250)) : 0 },
       { d: fr(3, 8), p: { ...strike }, active: true },
       { d: fr(9, 18), e: 'inOutCubic', p: null },
+    ] };
+}
+// ---------- pose → animation: attacks that strike into a pose (a preset, or one of the character's stances) ----------
+// the striking limb is the one whose end moves furthest, the height where it ends; the anticipation moves the other way first
+const POSE_TARGETS = ch => ({
+  ...mapVals(POSES, p => ({ pose: { ...ch.poses.stance, ...presetPose(ch, p) }, tip: p.tip })),
+  ...Object.fromEntries(ch.stances.slice(1).map(s => [s.name, { pose: s.pose, tip: `The ${s.name} stance's pose` }])),
+});
+function poseAttack(ch, pose, rand, pick, fr) {
+  const st = ch.poses.stance, A = fk(ch, st, 1), B = fk(ch, pose, 1), moved = id => Math.hypot(B[id][0] - A[id][0], B[id][1] - A[id][1]);
+  const hit = strikers(ch).filter(id => breed.limb === 'any' || ch.by[id].role === breed.limb).sort((a, b) => moved(b) - moved(a))[0] || strikers(ch)[0];
+  const y = B[hit][1], top = Math.min(...Object.values(B).map(p => p[1])), height = y < top * 0.6 ? 'high' : y < top * 0.15 ? 'mid' : 'low';
+  const k = -rand(0.15, 0.5), r1 = v => Math.round(v * 10) / 10, ids = Object.keys(pose).filter(id => ch.by[id] && Math.abs(pose[id] - st[id]) > 0.5);
+  const ant = Object.fromEntries(ids.map(id => [id, r1(limit(ch.by[id], st[id] + (pose[id] - st[id]) * k))])), strike = Object.fromEntries(ids.map(id => [id, r1(pose[id])]));
+  return { power: +rand(0.8, 1.6).toFixed(1), hit, height, knock: Math.round(rand(10, 35)) * 10, stun: +rand(0.3, 0.5).toFixed(2),
+    keys: [
+      { d: fr(4, 12), e: pick(['outQuad', 'inOutCubic', 'outCubic']), p: ant },
+      { d: fr(3, 7), e: pick(['outExpo', 'outCubic', 'outBack']), p: strike, active: true, lunge: rand() < 0.4 ? Math.round(rand(50, 200)) : 0 },
+      { d: fr(3, 10), p: { ...strike }, active: true },
+      { d: fr(10, 20), e: 'inOutCubic', p: null },
     ] };
 }
 // jitter every key's angles and length, and the hit properties; a held pose stays equal to the strike before it
@@ -85,7 +109,7 @@ function attackCells() {
     // the attack is added as move 'gen' to a copy of the character; it hits an unchanged dummy
     const gch = makeCharacter({ ...DEFS[CURRENT], moves: { ...DEFS[CURRENT].moves, gen: m } });
     return { w: newWorld(galleryScen('gen'), {}, 7, [gch, ch]), move: 'gen', gen: m, parent: !!parent && !i,
-      label: parent && !i ? 'parent' : `${hitIds(m).join('+')} ${m.height}` };
+      label: parent && !i ? 'parent' : `${hitIds(m).join('+')} ${m.height}${breed.pose && !parent ? ' → ' + breed.pose : ''}` };
   });
 }
 // add the attack of cell c (default: the focused cell) to the character's moves as genN; the same attack saved again keeps its name
@@ -146,7 +170,17 @@ function breedCtx() {
     button(':check: use parent', 'Copy the parent\'s values into the settings (side panel)', () => setCfg(breed.cfg)),
     button(':restart_alt: restart', 'Start again from the current settings', () => { breed.cfg = null; build(); })];
   const noFocus = el => { reg(el, () => { el.disabled = !lab.focus?.gen; }); return el; };
+  const fresh = () => { breed.atk = null; breed.seed++; build(); };
+  const ch = currentChar(), poseB = button('', 'Pose → animation: new attacks strike into a pose (a preset or one of the character\'s stances), starting with a move the other way', (e, b) =>
+    popup(b, h('div', { cls: 'bar' }, toggle('none', 'Random strikes aimed by limb and height', () => !breed.pose, () => { breed.pose = null; fresh(); }),
+      ...Object.entries(POSE_TARGETS(ch)).map(([n, t]) => toggle(n, t.tip, () => breed.pose === n, () => { breed.pose = n; fresh(); })))));
+  reg(poseB, () => { setRich(poseB, `:accessibility_new: ${breed.pose ? 'into ' + breed.pose : 'any pose'}`); });
   return [spreadButton(), exagSeg(build), reroll,
+    seg(['any', ...strikeRoles(ch)], () => breed.limb, v => { breed.limb = v; fresh(); },
+      { any: 'New attacks strike with any limb', ...Object.fromEntries(strikeRoles(ch).map(r => [r, `New attacks strike with the end of a ${r}`])) }),
+    seg(['any', ...Object.keys(HEIGHTS)], () => breed.height, v => { breed.height = v; fresh(); },
+      { any: 'New attacks at any height', high: 'High attacks (crouching ducks them)', mid: 'Mid attacks', low: 'Low attacks (guard crouching)' }),
+    poseB,
     button(':casino: new', 'Throw the parent away: nine new random attacks', () => { breed.atk = null; breed.seed++; build(); }),
     noFocus(button(':save: save move', 'Add the parent (or the focused cell) to the character\'s moves as genN. Hovering a cell also shows its own save / edit buttons', () => saveAttack(false))),
     noFocus(button(':animation: edit in animate', 'Save it and open it in the animation editor', () => saveAttack(true)))];

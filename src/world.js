@@ -35,6 +35,7 @@ class World {
     Object.assign(this, { rand: makeRand(this.seed), parts: [], trauma: 0, zoom: 0, slowT: 0, T: 0, simT: 0,
       frozenT: 0, hits: 0, blocks: 0, parries: 0, koT: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
       pend: null, adv: null, macro: null, combo: 1, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
+    if (!this.replaying) this.log = []; // every frame since the start: [dt, input], for rewind
     // a vs b, plus any extra fighters: { c: controller, x, team }
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0 }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1 }, ...(s.more || [])];
     const chars = this.chars || [currentChar()];
@@ -115,6 +116,7 @@ class World {
   // one frame of wall time; inp = the human's input for this frame (edges included)
   advance(raw, inp) {
     if (this.done) return;
+    if (!this.replaying) { this.log.push([raw, inp, this.macroSeq]); this.macroSeq = null; } // a macro started this frame replays too
     const slow = this.slowT > 0 && !this.frozen; // finisher slow-mo starts once the freeze is over
     if (slow) this.slowT -= raw;
     this.combo = Math.max(1, ...this.fighters.map(f => f.combo)); // the longest running combo drives Combo escalation
@@ -131,6 +133,13 @@ class World {
     if (h.tgt.length > HIST) for (const k in h) h[k].shift();
   }
 
+  // rewind: back n frames. The fight is deterministic, so it restarts and replays the logged frames (with the current settings)
+  rewind(n) {
+    const log = this.log.slice(0, Math.max(0, this.log.length - n));
+    this.done = false; this.replaying = true; this.reset();
+    for (const [dt, inp, mq] of log) { if (mq) this.macro = new Script(parseMacro(mq)); this.advance(dt, inp); }
+    this.replaying = false; this.log = log;
+  }
   // a running key macro (keys.js) presses its steps on top of the keys held
   withMacro(inp, f, o, h) {
     if (!this.macro || !o) return inp;
@@ -160,7 +169,7 @@ class World {
     const ins = this.ctl.map((c, i) => c === 'human' ? this.withMacro(inp, fs[i], tg[i], h) : !c || !tg[i] ? NOIN : c.input(fs[i], tg[i], h));
     fs.forEach((f, i) => f.bufferInput(ins[i]));
     // recording for the replay dummy: one entry per substep the human is not frozen, directions relative to facing
-    if (this.tape && this.ctl[0] === 'human' && this.a.freeze <= 0) {
+    if (this.tape && !this.replaying && this.ctl[0] === 'human' && this.a.freeze <= 0) {
       const i = ins[0], d = this.a.dir > 0;
       this.tape.push({ fwd: d ? i.right : i.left, back: d ? i.left : i.right, up: i.up, down: i.down, hop: i.hop, punch: i.punch, kick: i.kick, special: i.special, guard: i.guard });
     }

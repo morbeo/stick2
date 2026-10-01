@@ -9,6 +9,7 @@ const ACTIONS = [
   ['punch', 'fight', ['KeyJ'], 'Punch (P)'], ['kick', 'fight', ['KeyK'], 'Kick (K)'], ['special', 'fight', ['KeyU'], 'Special (S): with a direction, a different special'],
   ['guard', 'fight', ['KeyL'], 'Guard (G), hold: blocks attacks from the front only; with ↓ a low guard. Tap it just before a hit to parry'],
   ['pause', 'transport', ['KeyP'], 'Pause / play'], ['step', 'transport', ['KeyN'], 'Advance one 60 fps frame'],
+  ['rewind', 'transport', ['KeyV'], 'Rewind one second (the fight replays its inputs up to there)'], ['stepBack', 'transport', ['Shift+KeyN'], 'Back one frame'],
   ['restart', 'transport', ['KeyR'], 'Restart the fight(s)'], ['scrub', 'transport', ['KeyM'], 'Scrub: the mouse sets the time'],
   ['panel', 'view', ['KeyH'], 'Hide / show the side panel'], ['ghost', 'view', ['KeyG'], 'Ghost of the keyframe pose'], ['boxes', 'view', ['KeyB'], 'Hitboxes'],
   ['play', 'modes', ['Digit1'], 'Play mode'], ['grid', 'modes', ['Digit2'], 'Grid mode'], ['gallery', 'modes', ['Digit3'], 'Gallery mode'],
@@ -53,7 +54,7 @@ function parseMacro(seq) {
 }
 // a macro plays in every world the keyboard controls (merged with the keys held), see World.step
 function runMacro(m) {
-  for (const w of mode().worlds()) if (w.ctl[0] === 'human') w.macro = new Script(parseMacro(m.seq));
+  for (const w of mode().worlds()) if (w.ctl[0] === 'human') { w.macro = new Script(parseMacro(m.seq)); w.macroSeq = m.seq; }
 }
 
 // ---------- keys panel: click a key to rebind it (Esc cancels, Backspace removes), + adds one ----------

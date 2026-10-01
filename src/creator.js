@@ -300,6 +300,10 @@ function bodyPanel() {
     h('h4', { textContent: 'stance pose', tip: 'Set the whole stance from a preset (per limb, so it works for any body)' }),
     ...stanceRow(),
     h('div', { cls: 'bar' }, Object.entries(POSES).map(([k, p]) => button(k, p.tip, () => edit(def => Object.assign(editPose(def), presetPose(currentChar(), p)))))),
+    h('div', { cls: 'bar' }, button(':animation: pose → animation', 'Turn a pose into moves: nine attacks that strike into it from the main stance (each with its own anticipation and timing) in the attack grid; click one to breed variations, then save it or edit it in animate', (e, b) =>
+      popup(b, h('div', { cls: 'bar' }, Object.entries(POSE_TARGETS(currentChar())).map(([n, t]) => button(n, t.tip, () => {
+        Object.assign(breed, { pose: n, atk: null }); breed.seed++; lab.kind = 'attacks'; setMode('grid');
+      })))))),
     ...radarPanel(),
     ...statsPanel(),
     ...gaitPanel(),
