@@ -60,7 +60,7 @@ class Fighter {
       const st = back ? 0.7 : 1, id = Math.max(0, 1 - w), s = this.seed, amp = id * g.idleAmt;
       // keyframed loops (moves named idle / walk) replace the procedural cycles, blended by how fast the fighter moves
       const loop = (m, time, k) => { const L = samplePose(ch, m, time, this.c('easing'), base); for (const j in L) P[j] += (L[j] - base[j]) * k; };
-      const idleL = ch.moves.idle, walkL = ch.moves.walk;
+      const idleL = ch.moves[loopName(ch, this.stanceI, 'idle')], walkL = ch.moves[loopName(ch, this.stanceI, 'walk')];
       // idle: each fighter has its own stance width and one of three idles (weight shift, boxer bounce, sway)
       const style = g.idle === 'auto' ? Math.floor(s) % 3 : ['shift', 'bounce', 'sway'].indexOf(g.idle), shift = Math.sin(t * 0.9 + s), bounce = 1 + Math.sin(t * 5.5 + s);
       ch.chains.leg.forEach((c, i) => {
@@ -134,9 +134,15 @@ class Fighter {
     const n = 5 + (inp.right - inp.left) * this.dir - (inp.down ? 3 : 0), t = this.w.simT, d = this.dirs;
     if (d[d.length - 1]?.n !== n) d.push({ n, t });
     while (d.length > 1 && t - d[1].t > this.c('motionWindow')) d.shift();
-    // P+G throws; K+G switches stance (when the character has more than one)
-    const as = b => !inp.guard ? b : b === 'punch' ? 'throw' : b === 'kick' && this.ch.stances.length > 1 ? 'stance' : b;
-    for (const b of ['punch', 'kick', 'special']) if (inp[b]) this.buffer = { b: as(b), t: 0.2, motion: this.motion() };
+    // P+G throws; K+G (with a direction or not) switches to the stance with that key
+    const to = inp.guard && inp.kick ? this.stanceTo((['', '↓', '↓', '↓', '←', '', '→'][n] || '') + 'K+G') : -1;
+    const as = b => !inp.guard ? b : b === 'punch' ? 'throw' : b === 'kick' && to >= 0 ? 'stance' : b;
+    for (const b of ['punch', 'kick', 'special']) if (inp[b]) this.buffer = { b: as(b), t: 0.2, motion: this.motion(), to };
+  }
+  // the stance a key switches to: the next one after the current among the stances with that key and main (-1: none)
+  stanceTo(key) {
+    const c = this.ch.stances.map((s, i) => i).filter(i => !i || this.ch.stances[i].key === key);
+    return c.length < 2 ? -1 : c.find(i => i > this.stanceI) ?? c[0];
   }
   // every special motion in the recent directions (6236 is both →↓↘ and ↓↘→: the first one with a move bound wins)
   motion() {
@@ -187,7 +193,7 @@ class Fighter {
     // start a move, or chain into the next one once the current move's active frames are over
     const a0 = this.action;
     if (this.buffer?.b === 'stance' && this.free && !a0 && this.grounded) {
-      this.stanceI = (this.stanceI + 1) % this.ch.stances.length; this.buffer = null; this.say(this.st.name.toUpperCase());
+      this.stanceI = this.buffer.to; this.buffer = null; this.say(this.st.name.toUpperCase());
     }
     // 2D: J / K with ↑ held in the jump squat is an up attack instead of a jump
     if (this.buffer && this.squatT > 0 && inp.up && this.buffer.b !== 'stance' && this.c('plane') === '2d') this.squatT = 0;

@@ -63,8 +63,19 @@ function drawAnimEditor() {
     : `drag: IK (reach: ${anim.reach}) · Alt+drag: rotate one bone · double-click a joint: it follows the cursor`, r.x + 10 * dpr, r.y + 34 * dpr, '#999', 11);
 }
 
-// timeline: ruler (scrub) on top, one block per key (width = frames, red = active); drag a block's right edge to retime,
-// drag a block to reorder, double-click to split
+// timeline: ruler (scrub) on top, one block per key (width = frames); drag a block's right edge to retime,
+// drag a block to reorder, double-click to split. Block colour = phase (green startup, red active, blue recovery, sand: no hits),
+// hatching = inv (blue /), unblock (red crosshatch), armor (amber stripes); the curve = easing, the arrow = lunge, icons below
+const PHASE_COL = { startup: '#cfe0c6', active: '#e0998f', recovery: '#c8d6e6', none: '#e4ded2' };
+function glyph(name, x, y, col, size) { ctx.fillStyle = col; ctx.font = `${size * dpr}px Icons`; ctx.fillText(String.fromCodePoint(ICONS[name]), x, y); }
+function hatch(x, y, w, h, col, dirs, gap = 6 * dpr) {
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.strokeStyle = col; ctx.lineWidth = dpr; ctx.beginPath();
+  for (const d of dirs) for (let i = -h; i < w + h; i += gap) {
+    if (d === '-') { if (i >= 0 && i < h) { ctx.moveTo(x, y + i); ctx.lineTo(x + w, y + i); } continue; }
+    ctx.moveTo(x + i, y + (d === '/' ? h : 0)); ctx.lineTo(x + i + h, y + (d === '/' ? 0 : h));
+  }
+  ctx.stroke(); ctx.restore();
+}
 function drawTimeline() {
   const r = anLayout().tl, m = curMove(), T = total(m), px = r.w / T, rh = 16 * dpr;
   ctx.fillStyle = '#fbfaf6'; ctx.fillRect(r.x, r.y, r.w, r.h);
@@ -73,17 +84,40 @@ function drawTimeline() {
     ctx.fillStyle = big ? '#aaa' : '#ddd'; ctx.fillRect(x, r.y + (big ? 4 : 9) * dpr, dpr, (big ? 12 : 7) * dpr);
     if (i % 10 === 0 && i) text(String(i), x + 2 * dpr, r.y + 12 * dpr, '#aaa', 9);
   }
+  const first = m.keys.findIndex(k => k.active), last = m.keys.findLastIndex(k => k.active);
   m.keys.forEach((k, i) => {
-    const x = r.x + keyStart(m, i) * px, w = k.d * px, y = r.y + rh + 4 * dpr, h = r.h - rh - 6 * dpr;
-    ctx.fillStyle = k.active ? '#e0998f' : '#e4ded2'; ctx.fillRect(x + dpr, y, w - 2 * dpr, h);
+    const x = r.x + keyStart(m, i) * px, w = k.d * px, y = r.y + rh + 4 * dpr, h = r.h - rh - 6 * dpr, bx = x + dpr, bw = w - 2 * dpr;
+    const phase = first < 0 ? 'none' : k.active ? 'active' : i < first ? 'startup' : i > last ? 'recovery' : 'active';
+    const hold = i > 0 && k.p && JSON.stringify(k.p) === JSON.stringify(m.keys[i - 1].p);
+    ctx.fillStyle = PHASE_COL[phase]; if (!k.active && phase === 'active') ctx.globalAlpha = 0.5; // a gap between active keys
+    ctx.fillRect(bx, y, bw, h); ctx.globalAlpha = 1;
+    if (k.inv) hatch(bx, y, bw, h, '#2c6fb0aa', ['/']);
+    if (k.unblock) hatch(bx, y, bw, h, RED[0] + 'aa', ['/', '\\'], 8 * dpr);
+    if (k.armor) hatch(bx, y, bw, h, '#b07a2caa', ['-'], 5 * dpr);
+    if (!k.p) { ctx.setLineDash([3 * dpr, 3 * dpr]); ctx.strokeStyle = '#999'; ctx.lineWidth = dpr; ctx.strokeRect(bx + dpr, y + dpr, bw - 2 * dpr, h - 2 * dpr); ctx.setLineDash([]); }
     if (i === anim.key) { ctx.strokeStyle = '#222'; ctx.lineWidth = 2 * dpr; ctx.strokeRect(x + 2 * dpr, y + dpr, w - 4 * dpr, h - 2 * dpr); }
     ctx.fillStyle = '#888'; ctx.fillRect(x + w - 3 * dpr, y + h * 0.3, 2 * dpr, h * 0.4); // resize grip
+    ctx.save(); ctx.beginPath(); ctx.rect(bx, y, bw - 4 * dpr, h); ctx.clip();
     text(`${Math.round(k.d * 60)}f`, x + 5 * dpr, y + 14 * dpr, '#444', 11, 'bold');
-    if (w > 60 * dpr) text(`${k.e || 'linear'}${k.p ? '' : ' → stance'}`, x + 5 * dpr, y + 28 * dpr, '#888', 9);
-    if (k.inv) text('inv', x + 5 * dpr, y + h - 5 * dpr, '#2c6fb0', 9, 'bold');
-    if (k.unblock) text('unbl', x + w - 30 * dpr, y + h - 5 * dpr, RED[0], 9, 'bold');
-    if (k.armor) text('armr', x + w - 30 * dpr, y + h - 17 * dpr, '#b07a2c', 9, 'bold');
-    if (k.catch) text('catch', x + 5 * dpr, y + h - 17 * dpr, '#2c6fb0', 9, 'bold');
+    // the easing curve, top right
+    const cw = Math.min(26 * dpr, bw - 40 * dpr), ch = 14 * dpr, cx = x + w - cw - 7 * dpr, cy = y + 4 * dpr;
+    if (cw > 10 * dpr) {
+      ctx.strokeStyle = '#666'; ctx.lineWidth = 1.2 * dpr; ctx.beginPath();
+      for (let j = 0; j <= 16; j++) { const t = j / 16, v = EASE[k.e || 'linear'](t); ctx[j ? 'lineTo' : 'moveTo'](cx + t * cw, cy + ch - v * ch); }
+      ctx.stroke();
+    }
+    if (w > 70 * dpr) text(k.p ? hold ? 'hold' : k.e || 'linear' : 'to stance', x + 5 * dpr, y + 27 * dpr, '#777', 9);
+    // the lunge: an arrow, longer for a stronger push
+    if (k.lunge) {
+      const ax = x + 5 * dpr, ay = y + 36 * dpr, al = Math.max(8 * dpr, Math.min(bw - 12 * dpr, k.lunge / 600 * bw));
+      ctx.strokeStyle = ctx.fillStyle = '#2d7a3e'; ctx.lineWidth = 2 * dpr; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax + al, ay); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ax + al + 4 * dpr, ay); ctx.lineTo(ax + al - 2 * dpr, ay - 4 * dpr); ctx.lineTo(ax + al - 2 * dpr, ay + 4 * dpr); ctx.fill();
+    }
+    // flag icons along the bottom
+    const icons = [k.active && ['my_location', RED[0]], k.inv && ['block', '#2c6fb0'], k.unblock && ['crisis_alert', RED[0]], k.armor && ['shield', '#b07a2c'],
+      k.catch && ['back_hand', '#2c6fb0'], i === m.cancel && ['sync_alt', '#8e44ad'], !k.p && ['accessibility_new', '#888'], hold && ['pause', '#888']].filter(Boolean);
+    icons.forEach(([n, c], j) => glyph(n, x + (4 + j * 14) * dpr, y + h - 4 * dpr, c, 13));
+    ctx.restore();
   });
   // the cancel window: a purple bar from the key it opens at to the end
   const cx = r.x + keyStart(m, m.cancel) * px;
@@ -403,7 +437,7 @@ const moveDamage = m => m.power ? m.damage ?? m.power * 8 : 0;
 const moveInputs = (ch, n) => Object.keys(slotsOf(CFG.plane)).filter(s => curBinds(ch)[s] === n);
 // a keyframed idle or walk loop sampled from the procedural cycle (8 keys over one cycle), to edit from there
 function makeLoop(kind) {
-  const ch = currentChar(), n = 8, T = kind === 'walk' ? 0.8 : 2.4;
+  const ch = currentChar(), n = 8, name = loopName(ch, studio.stance, kind), T = kind === 'walk' ? 0.8 : 2.4;
   const f = Object.assign(Object.create(Fighter.prototype), { ch: { ...ch, moves: {} }, w: { cfg: CFG }, over: {}, stanceI: studio.stance,
     seed: 1, dir: 1, grounded: true, lean: 0, vy: 0, vz: 0, time: 0, walkPh: 0 });
   f.vx = kind === 'walk' ? f.c('maxSpeed') : 0;
@@ -412,8 +446,8 @@ function makeLoop(kind) {
     if (kind === 'walk') f.walkPh = u * 2 * Math.PI; else f.time = u * T;
     return { d: T / n, e: 'inOutCubic', p: mapVals(f.basePose(), v => Math.round(v)) };
   });
-  edit(def => { def.moves[kind] = { keys }; });
-  pickMove(kind);
+  edit(def => { def.moves[name] = { keys }; });
+  pickMove(name);
 }
 // a move as a card: a drawing of its strike (the first active key); hovering plays it
 function moveCard(n, tip) {
@@ -440,9 +474,10 @@ const VIEW_TIPS = { cards: 'A drawing of each move (hover to play it)', list: 'C
 const PHASE_TIPS = { startup: 'Startup frames (60 fps) before the first active key. Edit to retime the startup keys.',
   active: 'Active frames: the strike can hit. Edit to retime the active keys.', recovery: 'Recovery frames after the last active key. Edit to retime them.' };
 const TABLE_COLS = [
-  { k: 'name', tip: 'Click a row to select the move, hover it to see it play', get: (m, n) => n },
+  { k: 'name', tip: 'Click a row to open the move in the keyframe editor, hover it to see it play', get: (m, n) => n },
   { k: 'type', tip: GROUP_TIPS.type, get: (m, n, ch) => MOVE_GROUPS.type(m, ch, n) },
   { k: 'input', tip: 'Inputs that start it (in the moveset of the plane setting: 2D or 2.5D)', get: (m, n, ch) => moveInputs(ch, n).join(' ') },
+  { k: 'stance', tip: GROUP_TIPS.stance, get: (m, n, ch) => MOVE_GROUPS.stance(m, ch, n) },
   { k: 'limb', tip: 'Striking bones', get: m => m.power ? hitIds(m).join('+') : '' },
   { k: 'height', tip: 'Height: what blocks it (click a value to change it)', get: m => m.power ? m.height || 'mid' : '', height: true },
   ...Object.keys(PHASE_TIPS).map(k => ({ k, tip: PHASE_TIPS[k], get: m => frameData(m)[k], phase: true })),
@@ -480,7 +515,7 @@ function moveTable() {
     head.replaceChildren(...TABLE_COLS.map(c => h('th', { tip: `${c.tip} · click: sort`, textContent: c.k + (c.k === sk ? (dir > 0 ? ' ▲' : ' ▼') : ''),
       onclick: () => { anim.tsort = { k: c.k, dir: c.k === sk ? -dir : 1 }; fill(); } })));
     body.replaceChildren(...rows.map(({ n, v }) => {
-      const m = ch.moves[n], tr = h('tr', { cls: anim.move === n ? 'on' : '', onclick: () => { anim.tscroll = wrap.scrollTop; pickMove(n); },
+      const m = ch.moves[n], tr = h('tr', { cls: anim.move === n ? 'on' : '', onclick: () => { anim.tscroll = wrap.scrollTop; anim.view = 'cards'; unpeek(); pickMove(n); },
         onmousemove: e => peekMove(n, e), onmouseleave: unpeek });
       tr.append(...TABLE_COLS.map((c, i) => {
         const td = h('td');
@@ -554,13 +589,13 @@ function movePanel() {
   reg(bindB, () => { setRich(bindB, boundSlots().join(' ') || 'none (combo only)'); });
   const head = heading('Moves', 'Pick a move to edit. Copies can be tuned freely; the built-in names are the ones the controls trigger.', 'Enter play/pause · O onion · I aim');
   head.append(crud({ copy: ['New move copied from this one, under a new name', copyMove], delete: ['Delete this move (only copies)', deleteMove] }));
-  const loops = ['idle', 'walk'].filter(k => !currentChar().moves[k]);
+  const loops = ['idle', 'walk'].filter(k => !currentChar().moves[loopName(currentChar(), studio.stance, k)]);
   return [...charPanel(),
     head,
-    stanceRow(),
+    ...stanceRow(),
     ...moveList(),
-    loops.length ? h('div', { cls: 'bar' }, loops.map(k => button(`:add: ${k} loop`,
-      `A keyframed ${k} loop made from the procedural ${k}, to edit like a move; it replaces the procedural ${k} (delete it to go back)`, () => makeLoop(k)))) : null,
+    loops.length ? h('div', { cls: 'bar' }, loops.map(k => button(`:add: ${loopName(currentChar(), studio.stance, k)} loop`,
+      `A keyframed ${k} loop for the ${currentChar().stances[studio.stance].name} stance, made from the procedural ${k}, to edit like a move; it replaces the procedural ${k} in this stance (delete it to go back)`, () => makeLoop(k)))) : null,
     moveHeading(),
     h('div', { cls: 'row', tip: 'Striking bones: each end is a strike (in limb mode the whole bone); with several, the one that lands counts, one hit per target. Shift+click a joint in the editor to pick it, ⌘/Ctrl+Shift+click to add or remove it.' },
       h('span', { textContent: 'hit' }), h('span', { cls: 'bar' }, tipSeg, hitB)),

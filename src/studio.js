@@ -199,7 +199,7 @@ function charCard(k) {
   reg(b, () => { b.classList.toggle('on', CURRENT === k); drawThumb(cv, CHARS[k]); });
   return b;
 }
-// the character's stances: K+G cycles them in a fight; each has its own pose and binds (unset slots use the main ones)
+// the character's stances: each has its own pose, binds (unset slots use the main ones), key and idle / walk loops
 function stanceRow() {
   const add = () => {
     const name = prompt('Name of the new stance (it starts as a copy of the current one)', 'stance' + currentChar().stances.length)?.trim();
@@ -208,11 +208,14 @@ function stanceRow() {
     studio.stance = currentChar().stances.length - 1; panels();
   };
   const del = () => { if (!studio.stance) return; const i = studio.stance - 1; studio.stance = 0; edit(def => { def.stances.splice(i, 1); if (!def.stances.length) delete def.stances; }); panels(); };
-  const names = currentChar().stances.map(s => s.name);
-  return h('div', { cls: 'row', tip: 'Stances: K+G switches to the next one in a fight. The stance picked here is the one the pose and input edits change, and the one previews start in.' },
+  const names = currentChar().stances.map(s => s.name), i = studio.stance;
+  const keyTips = Object.fromEntries(Object.entries(STANCE_KEYS).map(([k, l]) => [k, `${l} switches to ${names[i]}; pressed again in it, back to main (stances sharing a key take turns)`]));
+  return [h('div', { cls: 'row', tip: 'Stances: their key switches to them in a fight. The stance picked here is the one the pose, input and idle / walk loop edits change, and the one previews start in.' },
     h('span', { textContent: 'stance' }), h('span', { cls: 'bar' },
-      seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); }, Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose and binds` : 'The main stance'])), i => names[i]),
-      crud({ new: ['New stance: a copy of the current one with no binds of its own', add], delete: ['Delete this stance (not the main one)', del] })));
+      seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); }, Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance'])), i => names[i]),
+      crud({ new: ['New stance: a copy of the current one with no binds of its own', add], delete: ['Delete this stance (not the main one)', del] }))),
+    i ? h('div', { cls: 'row', tip: `The input that switches to ${names[i]} in a fight (→ = toward the opponent)` }, h('span', { textContent: 'key' }),
+      seg(Object.keys(STANCE_KEYS), () => DEFS[CURRENT].stances?.[i - 1]?.key || 'K+G', v => edit(def => { def.stances[i - 1].key = v; }), keyTips, k => STANCE_KEYS[k])) : null];
 }
 // the generator's variables; the random characters experiment shows nine of them
 function randomPanel(changed = () => {}) {

@@ -281,7 +281,7 @@ function gaitPanel() {
   const title = h('h4', { textContent: 'walk & idle', tip: 'The procedural walk and idle of this character. Preview: walk shows the cycle. A keyframed idle or walk loop (animate) replaces them.' });
   title.append(groupOps(GAIT_VARS, get, dflt, set,
     ['Experiment: nine bodies varying the walk and idle; click the best to breed around it', () => { creator.exp.vars = new Set(GAIT_VARS.filter(s => !s.opts).map(s => s.k)); creator.preview = 'walk'; setExp(true); }]));
-  const loops = ['idle', 'walk'].filter(n => currentChar().moves[n]);
+  const loops = ['idle', 'walk'].map(n => loopName(currentChar(), studio.stance, n)).filter(n => currentChar().moves[n]);
   return [title, loops.length ? h('div', { cls: 'note', textContent: `keyframed ${loops.join(' and ')} loop replaces the procedural one` }) : null,
     ...GAIT_VARS.map(s => s.opts ? h('div', { cls: 'row', tip: s.tip }, h('span', { textContent: s.k }), seg(s.opts, () => get(s.k), v => set({ [s.k]: v })))
       : bodyExpLink(slider(s.k, s, () => get(s.k), v => set({ [s.k]: v }), s.tip), s.k, 'walk'))];
@@ -298,7 +298,7 @@ function bodyPanel() {
     boneTree(),
     ...bonePanel(),
     h('h4', { textContent: 'stance pose', tip: 'Set the whole stance from a preset (per limb, so it works for any body)' }),
-    stanceRow(),
+    ...stanceRow(),
     h('div', { cls: 'bar' }, Object.entries(POSES).map(([k, p]) => button(k, p.tip, () => edit(def => Object.assign(editPose(def), presetPose(currentChar(), p)))))),
     ...radarPanel(),
     ...statsPanel(),

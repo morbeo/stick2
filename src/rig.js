@@ -203,6 +203,10 @@ const HITS = { fh: 'handF', bh: 'handB', ff: 'footF', bf: 'footB' };
 // in 2D ↑ jumps (↑ with J / K in the jump squat is an up attack instead) and the air has its own ↑ / ↓ moves;
 // in 2.5D (VF-style) Space jumps and every direction × button is a ground move.
 // Directions in numpad terms (6 = towards the opponent): a diagonal without a move falls back to its vertical, then to neutral
+// the inputs that switch stance (→ = toward the opponent); stances sharing a key are cycled, pressing it again goes back to main
+const STANCE_KEYS = { 'K+G': 'K+G', '↓K+G': '↓ K+G', '→K+G': '→ K+G', '←K+G': '← K+G' };
+// a stance's keyframed idle / walk loop: the moves idle / walk for the main stance, craneIdle / craneWalk for a stance named crane
+const loopName = (ch, i, kind) => i ? ch.stances[i].name + kind[0].toUpperCase() + kind.slice(1) : kind;
 const BINDS = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: 'palms', backKick: null,
   upPunch: 'hammer', upKick: 'turnKick',
   downPunch: 'launcher', downKick: 'sweep', downFwdPunch: null, downFwdKick: 'lowKick', downBackPunch: null, downBackKick: null,
@@ -283,9 +287,9 @@ function makeCharacter(def) {
     tips: [...chains.arm, ...chains.leg, ...chains.head, ...chains.tail].map(c => c[c.length - 1]),
     poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, binds: { ...BINDS, ...def.binds }, binds25: { ...BINDS_25, ...def.binds25 },
     stats: Object.fromEntries(CHAR_STATS.map(s => [s.k, def[s.k] ?? 1])), gait: { ...Object.fromEntries(GAIT_VARS.map(s => [s.k, s.v])), ...def.gait } };
-  // stances: the main one plus any extra (K+G cycles them); each has its pose and its own binds over the main ones
+  // stances: the main one plus any extra; each has its pose, its own binds over the main ones and the key that switches to it
   ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: ch.binds, binds25: ch.binds25 },
-    ...(def.stances || []).map(s => ({ name: s.name, pose: { ...ch.poses.stance, ...s.pose }, binds: { ...ch.binds, ...s.binds }, binds25: { ...ch.binds25, ...s.binds25 } }))];
+    ...(def.stances || []).map(s => ({ name: s.name, key: s.key || 'K+G', pose: { ...ch.poses.stance, ...s.pose }, binds: { ...ch.binds, ...s.binds }, binds25: { ...ch.binds25, ...s.binds25 } }))];
   // the cancel window opens at a key marked cancel, else after the last active key
   for (const m of Object.values(ch.moves)) { const c = m.keys.findIndex(k => k.cancel); m.cancel = c >= 0 ? c : m.keys.findLastIndex(k => k.active) + 1; }
   return ch;

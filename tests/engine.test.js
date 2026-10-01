@@ -55,6 +55,22 @@ test('a keyframed idle loop replaces the procedural idle', () => {
   assert.ok(Math.abs(r - 40) < 6, String(r));
 });
 
+test('a stance key with a direction switches to it, and back to main when pressed again', () => {
+  const ninja = d => `(() => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.ninja)); d.stances[0].key = '↓K+G'; return makeCharacter(d); })()`;
+  const st = inp => run(`fight({ a: ${JSON.stringify(inp)}, b: 'dummy', ax: 330, bx: 380, period: 9 }, [${ninja()}, CHARS.stick], 150).w.a.stanceI`);
+  assert.equal(st([0.1, 'kick+guard']), 0, 'plain K+G no longer switches');
+  assert.equal(st([0.1, 'down+kick+guard']), 1);
+  assert.equal(st([0.1, 'down+kick+guard', 1, 'down+kick+guard']), 0);
+});
+
+test('each stance plays its own idle loop (craneIdle), not the main one', () => {
+  const r = run(`(() => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.ninja)), ch0 = makeCharacter(d), main = { ...ch0.poses.stance, uarmF: 40 }, crane = { ...ch0.stances[1].pose, uarmF: -60 };
+    d.moves = { ...d.moves, idle: { keys: [{ d: 1, p: main }, { d: 1, p: main }] }, craneIdle: { keys: [{ d: 1, p: crane }, { d: 1, p: crane }] } };
+    const w = new World(SCENARIOS[Object.keys(SCENARIOS)[0]], {}, 7, [makeCharacter(d), CHARS.stick]);
+    w.a.time = 1.5; const a = w.a.basePose().uarmF; w.a.stanceI = 1; return [a, w.a.basePose().uarmF]; })()`);
+  assert.ok(Math.abs(r[0] - 40) < 6, String(r)), assert.ok(Math.abs(r[1] + 60) < 6, String(r));
+});
+
 test('head, tail and two-handed strikes land', () => {
   for (const [ch, inp, move, plane = '2d'] of [['stick', 'back+punch', 'palms'], ['stick', 'up+fwd+punch', 'headbutt', 'lanes'], ['demon', 'back+kick', 'tailWhip']]) {
     const r = run(`(() => { const r = fight({ a: [0.1, '${inp}'], b: 'dummy', ax: 330, bx: 372, period: 9, cfg: { plane: '${plane}' } }, [CHARS.${ch}, CHARS.stick], 60); return { hits: r.w.hits, seen: r.seen }; })()`);
