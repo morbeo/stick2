@@ -301,6 +301,14 @@ const STICK_MOVES = {
     { d: 0.16, e: 'outCubic', p: { ...CROUCH, afU: 30, afL: 110, abU: 20, abL: 120 } },
     { d: 0.2, e: 'inOutCubic', p: null },
   ] },
+  // wake-up (wakeUp setting): P / K while lying, a kick from the floor on the way up, invincible as it rises
+  getupAttack: { power: 1, damage: 7, hit: 'ff', height: 'mid', knock: 260, stun: 0.4, keys: [
+    { d: 0.12, e: 'outCubic', p: { torso: -30, head: 10, lfU: 75, lfL: -130, lbU: 60, lbL: -140, afU: -40, afL: 20, abU: -60, abL: 10 }, inv: true },
+    { d: 0.06, e: 'outExpo', p: { torso: -40, head: 15, lfU: 100, lfL: -5, lbU: 60, lbL: -140, afU: -50, afL: 20, abU: -70, abL: 10 }, active: true },
+    { d: 0.06, p: { torso: -40, head: 15, lfU: 100, lfL: -5, lbU: 60, lbL: -140, afU: -50, afL: 20, abU: -70, abL: 10 }, active: true },
+    { d: 0.14, e: 'outCubic', p: { ...CROUCH, afU: 30, afL: 110, abU: 20, abL: 120 } },
+    { d: 0.18, e: 'inOutCubic', p: null },
+  ] },
   // specials (SPECIAL_SCHEMES): rolls tumble through or away (flag roll: invincible for rollInv), teleport reappears behind at its warp key
   rollFwd: { roll: true, keys: [
     { d: 0.05, e: 'outQuad', p: TUCK },

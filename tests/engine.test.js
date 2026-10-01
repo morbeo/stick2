@@ -450,3 +450,20 @@ test('rolls (G held + → / ←) pass through the foe untouched; teleport (↓�
   assert.match(go("['fwd', 'down', 'down+fwd+special']", m).seen, /teleport/);
   assert.doesNotMatch(go(fwd, m).seen, /roll/);
 });
+
+test('wake-up: P / K while down gets up attacking, ← / → rolls, G held stays down up to wakeDelay; downTime; wakeUp off: a plain get-up', () => {
+  const go = (b, cfg = {}) => run(`(() => { const w = new World({ a: ['down+kick'], b: ${b}, cfg: ${JSON.stringify(cfg)} }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    let up = -1, wake = '';
+    for (let i = 0; i < 240; i++) { const was = w.b.kd; w.advance(1/60, NOIN);
+      if (was === 'down' && !w.b.kd && up < 0) { up = i; wake = Object.keys(w.b.ch.moves).find(k => w.b.ch.moves[k] === w.b.action?.m) || ''; } }
+    return { up, wake }; })()`);
+  const plain = go("'dummy'");
+  assert.equal(plain.wake, 'getup');
+  assert.equal(go("[1.0, 'kick']").wake, 'getupAttack');
+  assert.equal(go("[1.0, 'back']").wake, 'rollBack');
+  assert.equal(go("[1.0, 'fwd']").wake, 'rollFwd');
+  assert.equal(go("[1.0, 'kick']", { wakeUp: false }).wake, 'getup');
+  const stay = go("[0.8, { hold: 'guard', t: 3 }]", { wakeDelay: 0.5 });
+  assert.ok(Math.abs(stay.up - plain.up - 30) <= 2, `stayed down ${stay.up - plain.up} frames more`);
+  assert.ok(Math.abs(go("'dummy'", { downTime: 1.2 }).up - plain.up - 36) <= 2);
+});

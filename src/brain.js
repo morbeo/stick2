@@ -65,7 +65,7 @@ const AI_LEVELS = {
 const SCHEME_INPUTS = { G6: ['guard+fwd'], G4: ['guard+back'], dd: ['down', 'down+special'], qcf: ['down', 'down+fwd', 'fwd+special'],
   qcb: ['down', 'down+back', 'back+special'], dp: ['fwd', 'down', 'down+fwd+special'] };
 class Brain {
-  constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0, held: null, brk: false, flying: false, tech: false }); }
+  constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0, held: null, brk: false, flying: false, tech: false, lying: false, wake: null }); }
   input(f, o, h) {
     const inp = { ...NOIN }, dist = Math.abs(o.x - f.x) - (f.ch.extent[1] + o.ch.extent[1] - 38); // the gap as between two sticks (a centaur's body is long)
     const L = AI_LEVELS[f.c('aiLevel')] || AI_LEVELS.normal;
@@ -76,6 +76,12 @@ class Brain {
     // a knockdown flight: decide once whether to tech the landing (G just before touching down)
     if ((f.kd === 'fly') !== this.flying) { this.flying = f.kd === 'fly'; this.tech = this.flying && this.rand() < L.tech; }
     if (f.kd === 'fly') { inp.guard = this.tech && f.vy > 0 && f.y > -30; return inp; }
+    // lying (wakeUp setting): decide once how to get up, as often as it techs: attack a foe close by, roll, or stay down a while
+    if ((f.kd === 'down') !== this.lying) {
+      this.lying = f.kd === 'down'; this.wake = null;
+      if (this.lying && f.c('wakeUp') && this.rand() < L.tech) { const r = this.rand(); this.wake = dist < 120 && r < 0.4 ? 'kick' : r < 0.7 ? 'back' : r < 0.85 ? 'fwd' : 'guard'; }
+    }
+    if (f.kd === 'down') { if (this.wake) press(inp, this.wake, f, o); return inp; }
     if (this.q.length) {
       if ((this.qt -= h) <= 0) { press(inp, this.q.shift(), f, o); this.qt = this.rand(0.1, 0.16); }
       return inp;
@@ -183,6 +189,8 @@ const SCENARIOS = {
   'roll through': { a: [0.1, { hold: 'guard+fwd', t: 0.1 }], b: [0.12, 'kick'], ax: 300, bx: 380, period: 2 },
   'roll back': { a: [0.2, { hold: 'guard+back', t: 0.1 }], b: 'dummy', ax: 330, bx: 400, period: 2 },
   'teleport': { a: [0.2, 'down', 0.05, 'down+special'], b: 'dummy', period: 2 },
+  'wake-up attack': { a: ['down+kick'], b: [1, 'kick'], period: 2.6 },
+  'wake-up roll': { a: ['down+kick'], b: [1, 'back'], period: 2.6 },
   'OTG stomp': { a: ['down+kick', 0.6, { hold: 'fwd', t: 0.25 }, 'down', 'down+fwd', 'fwd+kick'], b: 'dummy', period: 3 },
   // several opponents: extra fighters are { c: controller, x, team }; same team = allies
   'you vs 2 ai': { a: 'human', b: 'ai', bx: 520, more: [{ c: 'ai', x: 640, team: 1 }] },

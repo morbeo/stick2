@@ -97,13 +97,15 @@ const SCHEMA = [
   { k: 'techWindow', v: 0.25, min: 0, max: 0.6, step: 0.01, tip: 'Seconds a thrown fighter has to break the throw with P+G, and how early (s) before landing a G press techs the fall (a quick get-up). 0 = no breaks, no techs.' },
   { k: 'airRecover', v: 0.3, min: 0, max: 2, step: 0.05, tip: 'Seconds into a knockdown flight after which G flips the fighter back onto its feet in the air. 0 = never.' },
   ['Specials', 'Extra defensive and movement options, each on its own switch. specialScheme picks their inputs: guard (G held with a direction, ↓↓ S) or motion (quarter circles and the dragon punch with S). They are moves (rollFwd, rollBack, teleport) edited in animate.',
-    'guard scheme: G held + → / ← roll · ↓↓ S teleport · motion scheme: ↓↘→ S / ↓↙← S roll · →↓↘ S teleport'],
+    'guard scheme: G held + → / ← roll · ↓↓ S teleport · motion scheme: ↓↘→ S / ↓↙← S roll · →↓↘ S teleport · lying: P / K wake-up attack, → / ← roll, G stay down'],
   { k: 'specialScheme', v: 'guard', opts: ['guard', 'motion'], tip: 'Which inputs play the specials below.',
     optTips: { guard: 'G held, then → / ←: roll forward / back · ↓↓ S: teleport', motion: '↓↘→ S: roll forward · ↓↙← S: roll back · →↓↘ S: teleport' } },
   { k: 'rolls', v: true, tip: 'Rolls: a tumble forward through the foe or back away from it, invincible for rollInv.' },
   { k: 'rollInv', v: 0.3, min: 0, max: 0.6, step: 0.01, tip: 'Seconds from the start of a roll (move flag roll) that it is invincible and passes through fighters.' },
   { k: 'teleport', v: true, tip: 'Teleport: vanish and reappear behind the foe (the key marked warp), leaving after-images.' },
   { k: 'teleportDist', v: 60, min: 20, max: 200, step: 5, tip: 'How far (px) behind the foe a teleport lands.' },
+  { k: 'wakeUp', v: true, tip: 'Wake-up options while lying (any scheme): P / K gets up attacking (getupAttack), → / ← gets up rolling forward / back, G held stays down longer (wakeDelay).' },
+  { k: 'wakeDelay', v: 0.4, min: 0, max: 1.5, step: 0.05, tip: 'How much longer (s) a fighter holding G may stay down.' },
   ['Weapons', 'A weapon lies on the floor or starts in hand. P+G over one picks it up; while held, P, → P and ↓ P are its class\'s moves (one-handed pierce / slash / blunt, two-handed, pole), heavier weapons hit harder and swing slower. P+G again throws it; a knockdown or a hard blow knocks it loose.', 'P+G pick up / throw (hold to throw harder)'],
   { k: 'weapon', v: 'none', opts: ['none', 'random', 'dagger', 'sword', 'axe', 'bat', 'nunchucks', 'hammer', 'staff'], tip: 'The weapon each fight starts with (one per fighter), or none.',
     optTips: { none: 'No weapons (scenarios can still bring their own).', random: 'A random weapon per fighter.' } },
@@ -127,6 +129,7 @@ const SCHEMA = [
       pose: 'The fall pose on springs: the body stays upright in the air and lies down on landing.' } },
   { k: 'tone', v: 0.4, min: 0, max: 1, step: 0.05, tip: 'Ragdoll muscle tone: how much a falling body keeps the fall pose. 0 = limp as a rope, 1 = stiff.' },
   { k: 'topple', v: 0.6, min: 0, max: 1, step: 0.05, tip: 'Ragdoll: the share of a blow that lands at the impact point instead of moving the whole body; more = a hit to the head turns the body over its feet.' },
+  { k: 'downTime', v: 0.6, min: 0.1, max: 2, step: 0.05, tip: 'How long (s) a knocked-down fighter lies on the floor before it gets up.' },
   { k: 'floorGrip', v: 6, min: 0, max: 20, step: 0.5, tip: 'Ragdoll: floor friction. Low = a body slides far along the floor, high = it stops where it lands.' },
   ['Waves', 'The endless waves scenarios: once every enemy is down, the next wave runs in from both edges. Losing starts over at wave 1. Needs health above 0.', ''],
   { k: 'waves', v: 'growing', opts: ['one', 'pairs', 'growing', 'horde'], tip: 'How many enemies each wave brings.',
@@ -201,7 +204,7 @@ function makeRand(seed) {
 // ---------- simulation state: checkpoints and replays ----------
 // Replays store inputs, not results: a replay recorded with another ENGINE_VERSION plays out differently.
 // Bump it whenever the simulation changes (the replay test fails until you do).
-const ENGINE_VERSION = 16;
+const ENGINE_VERSION = 17;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied

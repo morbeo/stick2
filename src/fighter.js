@@ -4,7 +4,7 @@ class Fighter {
     Object.assign(this, { w, x, groundY: w.groundY, dir, face: dir, col, ch, over, y: 0, vx: 0, vy: 0, grounded: true,
       time: 0, seed: w.rand(0, 100), walkPh: 0, lean: 0, inp: NOIN,
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
-      kd: null, downT: 0, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
+      kd: null, downT: 0, wake: null, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, flyT: 0, guardT: -9, stanceI: 0,
@@ -418,11 +418,21 @@ class Fighter {
           } else if (this.bounces < c('bounces') && up < -60) {
             this.bounces++; this.grounded = false; this.vy = up; this.vx *= 0.7;
             this.w.trauma = Math.min(1, this.w.trauma + 0.15 * imp);
-          } else { this.kd = 'down'; this.downT = 0.6; this.splat = false; }
+          } else { this.kd = 'down'; this.downT = c('downTime'); this.splat = false; }
         }
       }
     }
-    if (this.kd === 'down' && !this.ko && (this.downT -= dt) <= 0) { this.endRag(); this.kd = null; this.start('getup'); this.hurtT = 0.5; }
+    if (this.kd === 'down' && !this.ko) {
+      // wake-up (wakeUp setting): P / K gets up attacking, → / ← rolling that way, G held lies up to wakeDelay longer
+      const wk = c('wakeUp'), stay = wk && inp.guard && this.downT > -c('wakeDelay');
+      if (wk && (inp.punch || inp.kick)) this.wake = 'getupAttack';
+      else if (wk && inp.left !== inp.right) this.wake = (inp.right - inp.left) * this.dir > 0 ? 'rollFwd' : 'rollBack';
+      if (wk) this.buffer = null; // the press was the wake-up's
+      if ((this.downT -= dt) <= 0 && !stay) {
+        const m = this.ch.moves[this.wake] ? this.wake : 'getup';
+        this.endRag(); this.kd = null; this.wake = null; this.start(m); this.hurtT = m === 'getup' ? 0.5 : 0;
+      }
+    }
 
     // squash & stretch spring (sq > 0 = stretch)
     const w = 2 * Math.PI * 4.5;
@@ -677,7 +687,7 @@ class Fighter {
     this.vx = ps.reduce((s, q) => s + q.vx, 0) / ps.length; this.vy = ps.reduce((s, q) => s + q.vy, 0) / ps.length;
     // it lies still once it has landed and slowed down (or after a long tumble)
     if (this.kd === 'fly' && this.splatT <= 0 && (r.landed && Math.hypot(this.vx, this.vy) < 60 || this.flyT > 3)) {
-      this.kd = 'down'; this.downT = 0.6; this.splat = false; this.grounded = true;
+      this.kd = 'down'; this.downT = this.c('downTime'); this.splat = false; this.grounded = true;
     }
   }
 
