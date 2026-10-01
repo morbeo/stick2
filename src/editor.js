@@ -1,6 +1,6 @@
 'use strict';
 // ---------- animate mode: pose keyframes by dragging joints (IK), retime them on a frame timeline, preview with springs ----------
-const anim = { move: 'jab', key: 1, t: 0, playing: true, onion: true, aim: false, drag: null, hover: null, anchor: null, pv: null, hold: false,
+const anim = { move: 'jab', key: 1, t: 0, playing: true, onion: true, aim: false, aimId: null, reach: 'limb', drag: null, hover: null, anchor: null, pv: null, hold: false,
   target: { char: null, stance: 'stand', state: 'idle', facing: 'toward' }, group: 'type', sort: 'order', filter: '', view: 'cards' };
 const curMove = () => currentChar().moves[anim.move];
 const defMove = () => DEFS[CURRENT].moves[anim.move];
@@ -58,7 +58,8 @@ function drawAnimEditor() {
   const hv = ch.by[anim.drag || anim.hover];
   if (hv) text(`${hv.id} ${Math.round(f.pose[hv.id])}°`, Math.min(P[hv.id][0] + 10 * dpr, r.x + r.w - 120 * dpr), P[hv.id][1] - 8 * dpr, '#666', 11);
   text(`${anim.move} · key ${anim.key + 1}/${m.keys.length}${editing ? '' : ' (drag a joint to jump to the selected key)'}`, r.x + 10 * dpr, r.y + 18 * dpr, '#444', 12, 'bold');
-  text(anim.aim ? 'aim: the striking limb follows the cursor · click to set' : 'drag: IK · Alt+drag: rotate one bone', r.x + 10 * dpr, r.y + 34 * dpr, '#999', 11);
+  text(anim.aim ? `aim: ${anim.aimId || 'the striking limb'} follows the cursor (reach: ${anim.reach}) · click to set`
+    : `drag: IK (reach: ${anim.reach}) · Alt+drag: rotate one bone · double-click a joint: it follows the cursor`, r.x + 10 * dpr, r.y + 34 * dpr, '#999', 11);
 }
 
 // timeline: ruler (scrub) on top, one block per key (width = frames, red = active); drag a block's right edge to retime,
@@ -94,13 +95,16 @@ function drawTimeline() {
 }
 
 // ---------- posing ----------
-// joints the drag bends: the bone and up to two ancestors of the same role (dragging a hand bends the arm, not the spine)
-// the bone and up to 2 ancestors of its role; locked bones are skipped (they turn with their parent)
-function ikChain(ch, id, single) {
+// joints the drag bends, by reach: bone = only the bone · limb = the bone and up to two ancestors of the same role
+// (dragging a hand bends the arm, not the spine) · body = every ancestor, so the torso leans and turns with the reach
+// locked bones are skipped (they turn with their parent)
+const REACH_TIPS = { bone: 'Dragging a joint turns only its bone (also Alt+drag)', limb: 'Dragging a joint bends its limb (a hand bends the arm)',
+  body: 'Dragging a joint moves everything it hangs from: reach with a hand and the torso leans after it' };
+function ikChain(ch, id, single, reach = anim.reach) {
   const b0 = ch.by[id], c = [];
-  if (single) { const u = unlockedAbove(ch, b0); return u ? [u] : []; }
-  for (let b = b0; b && c.length < 3; b = ch.by[b.parent]) {
-    if (b !== b0 && b.role !== b0.role && b0.role !== 'spine') break;
+  if (single || reach === 'bone') { const u = unlockedAbove(ch, b0); return u ? [u] : []; }
+  for (let b = b0; b && (reach === 'body' || c.length < 3); b = ch.by[b.parent]) {
+    if (reach !== 'body' && b !== b0 && b.role !== b0.role && b0.role !== 'spine') break;
     if (!b.lock) c.push(b);
   }
   return c;
@@ -124,6 +128,7 @@ function poseTo(id, x, y, single) {
     for (const b of chain) k.p[b.id] = Math.round(pose[b.id] * 10) / 10;
   }, 'pose:' + anim.key + id);
 }
+const aimBone = () => anim.aimId || hitIds(curMove())[0]; // what aim moves: a double-clicked joint, else the striking bone
 function pickJoint(x, y) {
   const { ch, P } = anFrame();
   let best = null, bd = 12 * dpr;
@@ -172,7 +177,7 @@ function animMouse(type, x, y, e) {
   const L = anLayout(), m = curMove(), inTl = y >= L.tl.y - 4 * dpr && x < L.ed.w, tl = L.tl, px = tl.w / total(m), ruler = inTl && y < tl.y + 18 * dpr;
   const tAt = () => clamp((x - tl.x) / px, 0, total(m) - 1e-6), edge = () => inTl && !ruler ? m.keys.findIndex((k, i) => Math.abs(x - tl.x - keyEnd(m, i) * px) < 6 * dpr) : -1;
   if (type === 'down') {
-    if (anim.aim) { anim.aim = false; studio.lastKey = null; return; }
+    if (anim.aim) { anim.aim = false; anim.aimId = null; studio.lastKey = null; return; }
     if (inTl) {
       if (ruler) { anim.drag = { scrub: true }; anim.playing = false; }
       else {
@@ -184,6 +189,7 @@ function animMouse(type, x, y, e) {
     } else {
       const id = pickJoint(x, y);
       if (id && e.shiftKey) { pickHit(id, e.metaKey || e.ctrlKey); return; } // Shift+click: the striking bone (⌘/Ctrl too: add or remove it)
+      if (id && e.detail === 2) { anim.aim = true; anim.aimId = id; return; } // double-click: that joint follows the cursor
       if (id) { selectKey(anim.key); anFrame(); anim.drag = id; anim.hold = true; } // anFrame: re-anchor at the key pose before freezing
     }
   }
@@ -196,7 +202,7 @@ function animMouse(type, x, y, e) {
       edit(def => { def.moves[anim.move].keys[d.key].d = frames / 60; }, 'dur:' + d.key);
       anim.key = d.key; anim.t = keyEnd(curMove(), d.key);
     } else if (typeof d === 'string') poseTo(d, x, y, e.altKey);
-    else if (anim.aim && x < L.ed.w && !inTl && hitIds(curMove())[0]) { if (!anim.playing) selectKey(anim.key); poseTo(hitIds(curMove())[0], x, y, false); }
+    else if (anim.aim && x < L.ed.w && !inTl && aimBone()) { if (!anim.playing) selectKey(anim.key); poseTo(aimBone(), x, y, false); }
     else anim.hover = x < L.ed.w && !inTl ? pickJoint(x, y) : null;
     if (d?.scrub) previewAt(anim.t);
     cursor(d?.scrub || ruler ? 'col-resize' : d?.key !== undefined || edge() >= 0 ? 'ew-resize' : d?.order !== undefined || typeof d === 'string' ? 'grabbing'
@@ -216,12 +222,18 @@ function animKey(e, a) {
   if (a === 'deleteBone') { deleteKey(); return true; } // Delete: the selected key
   if (a === 'playMove') { anim.playing = !anim.playing; return true; }
   if (a === 'onion') { anim.onion = !anim.onion; return true; }
-  if (a === 'aim') { anim.aim = !anim.aim; return true; }
+  if (a === 'aim') { anim.aim = !anim.aim; anim.aimId = null; return true; }
 }
 
 function stepFrame(n) { anim.playing = false; anim.t = clamp(anim.t + n * F, 0, total(curMove()) - 1e-6); anim.key = keyAt(curMove(), anim.t); previewAt(anim.t); }
 
 // ---------- key and move edits ----------
+// the key's pose with every front bone (id ending in F) swapped with its back twin (B)
+function mirrorKey() {
+  const ch = currentChar(), p = keyPose(ch, curMove(), anim.key), out = { ...p };
+  for (const id of ch.ids) { const tw = id.slice(0, -1) + ({ F: 'B', B: 'F' })[id.slice(-1)]; if (tw !== id && ch.by[tw] && p[tw] !== undefined) out[id] = p[tw]; }
+  setKey('p', out);
+}
 const setKey = (k, v, key = null) => edit(def => { def.moves[anim.move].keys[anim.key][k] = v; }, key);
 const setMove = (k, v, key = null) => edit(def => { def.moves[anim.move][k] = v; }, key);
 // the striking bones: only this one, or (add) add / remove it so several limbs strike at once
@@ -347,6 +359,7 @@ function keyPanel() {
   return [title,
     h('div', { cls: 'bar' },
       button(':accessibility_new: stance', 'This key returns to the stance (clears its pose)', () => setKey('p', null)),
+      button(':flip: mirror', 'Swap the front and back limbs in this key (left arm takes the right arm\'s angles and back)', mirrorKey),
       button('hold', 'Copy the previous key\'s pose (hold still)', () => setKey('p', clone(keyPose(currentChar(), curMove(), Math.max(0, anim.key - 1))))),
       button(':accessibility_new: pose', 'Start this key from a preset pose', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.entries(POSES).map(([n, p]) =>
         button(n, p.tip, () => setKey('p', { ...keyPose(currentChar(), curMove(), anim.key), ...presetPose(currentChar(), p) }))))))),
@@ -506,7 +519,8 @@ function timelineBar() {
     b(':remove:', 'One frame shorter', () => keyFrames(-1)), frames, b(':add:', 'One frame longer', () => keyFrames(1)),
     h('span', { cls: 'sep' }),
     toggle(':layers:', 'Onion skin: ghosts of the previous (blue) and next (green) keys (O)', () => anim.onion, v => { anim.onion = v; }),
-    toggle(':my_location:', 'Aim: the striking limb follows the cursor through IK; click to set the pose (I)', () => anim.aim, v => { anim.aim = v; }),
+    toggle(':my_location:', 'Aim: the striking limb follows the cursor through IK; click to set the pose (I). Double-click any joint to make that one follow', () => anim.aim, v => { anim.aim = v; anim.aimId = null; }),
+    seg(Object.keys(REACH_TIPS), () => anim.reach, v => { anim.reach = v; }, REACH_TIPS),
     fd);
 }
 function targetBar() {

@@ -23,6 +23,15 @@ try {
   // the editor helpers: a keyframed idle and walk loop from the procedural cycles, then a fight using them
   pickChar('stick'); studio.stance = 0; setMode('animate'); makeLoop('idle'); makeLoop('walk');
   if (!currentChar().moves.idle || currentChar().moves.walk.keys.length !== 8) errs.push('makeLoop');
+  // posing: body reach bends the spine as well, limb reach only the arm; mirror swaps the front and back limbs
+  anim.move = 'jab'; selectKey(1);
+  for (const r of ['limb', 'body']) {
+    anim.reach = r; const hp = anFrame().P.handF, before = keyPose(currentChar(), curMove(), 1).chest;
+    poseTo('handF', hp[0] - 200 * dpr, hp[1] - 150 * dpr, false);
+    if ((keyPose(currentChar(), curMove(), 1).chest !== before) !== (r === 'body')) errs.push('reach ' + r);
+  }
+  const pre = keyPose(currentChar(), curMove(), 1); mirrorKey();
+  const post = keyPose(currentChar(), curMove(), 1); if (post.uarmF !== pre.uarmB || post.farmB !== pre.farmF) errs.push('mirror');
   setMode('play'); for (let i = 0; i < 60; i++) for (const w of mode().worlds()) w.advance(1/60, NOIN);
 } catch (e) { errs.push(e.message); }
 document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK';
