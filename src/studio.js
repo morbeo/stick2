@@ -33,6 +33,7 @@ const BONE_PROPS = [
   { k: 'damp', min: 0.2, max: 3, step: 0.05, tip: 'Multiplies the spring damping: <1 wobbles longer, >1 settles without overshoot.' },
   { k: 'react', min: 0, max: 3, step: 0.05, tip: 'Hit reaction: how hard blows, blocks and bounces jolt this bone. 0 = unmoved by impacts, 2 = flops loosely.' },
   { k: 'sway', min: 0, max: 3, step: 0.05, tip: 'Idle sway: how much the bone drifts on its own while standing (deeper bones more). 0 = still.' },
+  { k: 'dangle', min: 0, max: 1.5, step: 0.05, tip: 'Secondary motion: how much the bone hangs like a rope (tails, scarves, hair): it droops with gravity, trails a run and a jump and lifts in a fall. 0 = only its animation.' },
 ];
 const ROLE_TIPS = {
   spine: 'Torso: breathes, leans into movement, carries arms and head.',

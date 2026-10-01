@@ -14,6 +14,7 @@ const BONE = {
   stretch: 0,          // how much the bone lengthens while swinging fast (0.2 = up to +20%)
   stiff: 1, damp: 1,   // multipliers on the spring frequency / damping
   react: 1, sway: 1,   // secondary motion: how hard blows and bounces jolt the bone; how much it drifts while idle
+  dangle: 0,           // how much the bone swings with the body's motion: trails behind a run, lifts in a fall (tails, scarves)
 };
 
 // ---------- the default stick fighter ----------
@@ -527,9 +528,9 @@ const horns = (len, a, curl) => ['F', 'B'].flatMap(S => [
   { id: 'horn' + S, parent: 'head', len, a: a + (S === 'B' ? 15 : 0), role: 'head', side: S.toLowerCase(), thick: 3, lag: 0.5 },
   { id: 'hornTip' + S, parent: 'horn' + S, len: Math.round(len * 0.7), a: curl, role: 'head', side: S.toLowerCase(), thick: 2, lag: 1 }]);
 const tail3 = (len, thick) => [
-  { id: 'tail', parent: null, len, a: -120, role: 'tail', thick, lag: 1 },
-  { id: 'tailMid', parent: 'tail', len: Math.round(len * 0.9), a: -20, role: 'tail', thick: thick - 1, lag: 2, min: -70, max: 70 },
-  { id: 'tailEnd', parent: 'tailMid', len: Math.round(len * 0.8), a: -20, role: 'tail', thick: Math.max(1, thick - 2), lag: 3, stretch: 0.25, min: -70, max: 70 }];
+  { id: 'tail', parent: null, len, a: -120, role: 'tail', thick, lag: 1, dangle: 0.15 },
+  { id: 'tailMid', parent: 'tail', len: Math.round(len * 0.9), a: -20, role: 'tail', thick: thick - 1, lag: 2, dangle: 0.2, min: -70, max: 70 },
+  { id: 'tailEnd', parent: 'tailMid', len: Math.round(len * 0.8), a: -20, role: 'tail', thick: Math.max(1, thick - 2), lag: 3, stretch: 0.25, dangle: 0.3, min: -70, max: 70 }];
 // characters with a tail (tail3) swing it up over the back and thrust it forward like a scorpion on ← K
 const TAIL_WHIP = (() => {
   const m = oldMove(attack({ power: 1.4, damage: 11, hit: 'tailEnd', height: 'mid', knock: 200, stun: 0.45, lunge: 60 },
@@ -551,7 +552,7 @@ const { stick } = CHAR_DEFS;
 CHAR_DEFS.dwarf = { ...stick, name: 'dwarf', speed: 0.85, jump: 0.85, gravity: 1.2, dash: 1.15, grabRange: 1.3, weight: 1.2, tough: 1.2, moves: retimed(1.1, 1.15),
   bones: [...sizedBones({ waist: 0.8, chest: 0.85, neck: 0.6, head: 1.15, thigh: 0.6, shin: 0.55, foot: 1.2, uarm: 0.85, farm: 0.85, hand: 1.5 }, 5)
     .map(b => b.role === 'spine' ? { ...b, thick: b.thick + 8, hurt: b.hurt + 3 } : b),
-    { id: 'beard', parent: 'head', len: 11, a: -165, role: 'head', thick: 7, lag: 1.5, stretch: 0.1 }] };
+    { id: 'beard', parent: 'head', len: 11, a: -165, role: 'head', thick: 7, lag: 1.5, stretch: 0.1, dangle: 0.3 }] };
 CHAR_DEFS.minotaur = { ...stick, name: 'minotaur', weight: 1.25, health: 1.1, dash: 1.3, turnaround: 0.6, traction: 0.8, moves: { ...retimed(1.2, 1.35), tailWhip: TAIL_WHIP }, binds: { backKick: 'tailWhip' }, binds25: { backKick: 'tailWhip' },
   bones: [...sizedBones({ waist: 1.25, chest: 1.4, neck: 1.6, head: 1.35, thigh: 1.15, shin: 1.1, foot: 1.3, uarm: 1.3, farm: 1.3, hand: 1.6 }, 4)
     .map(b => ({ ...b, stiff: 0.75, damp: 1.2 })), ...horns(18, -50, 40), ...tail3(16, 4)] };
@@ -605,9 +606,9 @@ CHAR_DEFS.ninja = { ...stick, name: 'ninja', speed: 1.25, jump: 1.15, weight: 0.
   }, oldMove) },
   bones: [...sizedBones({ waist: 1.05, chest: 0.95, head: 0.9, thigh: 1.15, shin: 1.15, uarm: 1.05, farm: 1.05 }, -1),
     // the scarf trails behind the neck (+ angle = backwards for a bone hanging off it) and flutters on its springs
-    { id: 'scarf', parent: 'neck', len: 13, a: 105, role: 'tail', thick: 4, lag: 2, stretch: 0.2 },
-    { id: 'scarfMid', parent: 'scarf', len: 13, a: -15, role: 'tail', thick: 3, lag: 3, stretch: 0.25, min: -60, max: 60 },
-    { id: 'scarfEnd', parent: 'scarfMid', len: 11, a: -15, role: 'tail', thick: 2, lag: 4, stretch: 0.3, min: -60, max: 60 }] };
+    { id: 'scarf', parent: 'neck', len: 13, a: 105, role: 'tail', thick: 4, lag: 2, stretch: 0.2, dangle: 0.45 },
+    { id: 'scarfMid', parent: 'scarf', len: 13, a: -15, role: 'tail', thick: 3, lag: 3, stretch: 0.25, dangle: 0.35, min: -60, max: 60 },
+    { id: 'scarfEnd', parent: 'scarfMid', len: 11, a: -15, role: 'tail', thick: 2, lag: 4, stretch: 0.3, dangle: 0.35, min: -60, max: 60 }] };
 // ape: long heavy arms, short legs, hunched forward
 CHAR_DEFS.ape = { ...stick, name: 'ape', speed: 0.95, jump: 1.1, grabRange: 1.6, airAccel: 1.2, moves: retimed(1.05, 1.15),
   bones: sizedBones({ waist: 0.95, chest: 1.15, neck: 0.6, head: 1.05, thigh: 0.8, shin: 0.75, uarm: 1.5, farm: 1.5, hand: 1.6 }, 3)

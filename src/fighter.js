@@ -399,8 +399,11 @@ class Fighter {
 
     // filter layer: displayed pose chases the target pose
     const mode = c('filter');
+    // dangling bones (dangle) hang like a rope: turned toward gravity plus the drag of the body's motion, so they droop at rest,
+    // stream back from a run and lift in a fall; wa: world angles of the drawn pose, parents first (|| 0: a restored checkpoint has no -0)
+    const wa = {}, dd = c('dangleDrag'), blow = Math.atan2(-this.vx * this.dir / dd || 0, 1 - this.vy / dd) / R, gust = this.rag ? 0 : c('dangle');
     for (const b of this.ch.bones) {
-      const j = b.id, x = this.target[j];
+      const j = b.id, wp = b.parent ? wa[b.parent] : 0, t = this.target[j], x = b.dangle && gust ? t + clamp(b.dangle * gust, 0, 1) * wrap180(blow - wp - t) : t;
       this.prev[j] = this.disp[j];
       if (mode === 'spring') this.disp[j] = this.flt[j].update(dt, x, c('freq') * b.stiff * c('followThru') ** b.lag, c('zeta') * b.damp, c('response'));
       else {
@@ -412,6 +415,7 @@ class Fighter {
       // stretch: fast-swinging bones lengthen, then ease back
       const want = b.len * (1 + b.stretch * Math.min(1, Math.abs(this.disp[j] - this.prev[j]) / dt / 1500));
       this.lens[j] += (want - this.lens[j]) * (1 - Math.exp(-30 * dt));
+      wa[j] = wp + this.disp[j];
     }
 
     if (this.rag) this.ragStep(dt);
@@ -730,10 +734,11 @@ class Fighter {
       if (m.crumple && !juggle) { this.vx = att.dir * 30; this.vy = -120; this.bounces = 99; this.say('CRUMPLE'); } // folds where it stands
       if (this.c('falls') === 'ragdoll') { if (!this.rag) this.startRag(); this.rag.tone = m.crumple && !juggle ? 0.15 : 1; this.ragHit(hit); }
     } else {
-      const set = this.ch.hurt[this.zone(hit.pt)].filter(p => p !== this.lastHurt);
+      // a hurt pose other than the last one, kept by zone and index (a restored checkpoint holds copies, not the same objects)
+      const zone = this.zone(hit.pt), all = this.ch.hurt[zone], set = all.map((p, i) => zone + i).filter(k => k !== this.lastHurt);
       this.lastHurt = set[Math.floor(this.w.rand() * set.length)];
       const stun = m.stun * ck * Math.max(0.45, 1 - 0.07 * (combo - 1)); // long combos stun less
-      this.start(makeHurt(this.lastHurt, stun, this.w.rand, this.st.pose));
+      this.start(makeHurt(all[+this.lastHurt.slice(zone.length)], stun, this.w.rand, this.st.pose));
       this.hurtT = stun;
       const da = this.c('dizzyAt'), sa = this.c('staggerAt');
       if (da && this.stunM >= da) { this.dizzyT = this.c('dizzyTime'); this.hurtT = Math.max(stun, this.dizzyT); this.stunM = da; this.say('DIZZY'); }

@@ -124,6 +124,16 @@ test('mid turn the body keeps turnWidth of its width and tucks in (turnTuck)', (
   assert.ok(Math.abs(keep[1] - thin[1]) > 20, `tuck ${thin[1]} / ${keep[1]}`);
 });
 
+test('dangling bones (the ninja scarf) droop at rest, trail a run and lift in a fall, by dangle', () => {
+  const end = (over, vx, vy) => run(`(() => { const w = new World({ a: 'idle', b: 'dummy', ax: 300, bx: 600, period: 9 }, ${JSON.stringify(over)}, 7, [CHARS.ninja, CHARS.stick]);
+    const f = w.a; for (let i = 0; i < 40; i++) { f.vx = ${vx}; f.vy = ${vy}; f.update(1 / 60, NOIN); f.x = 300; f.y = 0; }
+    const P = f.points(f.disp); return [P.scarfEnd[0] - P.neck[0], P.scarfEnd[1] - P.neck[1]]; })()`);
+  const still = end({}, 0, 0), runR = end({}, 400, 0), off = end({ dangle: 0 }, 0, 0), fall = end({}, 0, 700);
+  assert.ok(runR[0] < still[0] - 5, `run trails back: ${runR} vs ${still}`);
+  assert.ok(off[1] < still[1] - 5, `droops at rest, not with dangle 0: ${off} vs ${still}`);
+  assert.ok(fall[1] < still[1] - 5, `fall lifts it: ${fall} vs ${still}`);
+});
+
 test('↓ then jump is a super jump; a jump next to a wall is a triangle jump off it', () => {
   const probe = (script, ax = 300, over = {}) => run(`(() => { const w = new World({ a: ${JSON.stringify(script)}, b: 'dummy', ax: ${ax}, bx: 700, period: 9 }, ${JSON.stringify(over)}, 7, [CHARS.stick, CHARS.stick]);
     let top = 0, vx = 0; for (let i = 0; i < 90; i++) { w.advance(1/60, NOIN); top = Math.min(top, w.a.y); vx = Math.max(vx, w.a.vx); } return { top, vx }; })()`);

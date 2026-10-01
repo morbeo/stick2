@@ -39,6 +39,8 @@ const SCHEMA = [
   { k: 'freq', v: 6, min: 0.5, max: 15, step: 0.1, tip: 'Spring speed (Hz). Low = floaty, high = snappy.' },
   { k: 'zeta', v: 0.5, min: 0, max: 1.5, step: 0.01, tip: 'Spring damping. <1 overshoots and wobbles, 1 settles exactly, >1 is sluggish.' },
   { k: 'response', v: 2, min: -3, max: 4, step: 0.1, tip: 'Initial response. <0 anticipates (starts the wrong way), >1 overshoots early.' },
+  { k: 'dangle', v: 1, min: 0, max: 2, step: 0.05, tip: 'Bones with dangle (tails, the scarf, a beard) hang like a rope, turned toward gravity plus the drag of the body\'s motion: they droop at rest, stream back from a run and lift in a fall. × each bone\'s dangle, 0 = off.' },
+  { k: 'dangleDrag', v: 300, min: 50, max: 1000, step: 10, tip: 'The speed (px/s) at which the drag on dangling bones equals gravity (blown halfway to level): lower = they stream out at a walk.' },
   { k: 'followThru', v: 0.8, min: 0.3, max: 1, step: 0.01, tip: "Per-bone frequency × followThru^lag, so hands, heads and tails trail the torso. 1 = everything moves together." },
   ['Feet', 'Foot planting (Sumotori-style): a foot on the floor stays where it landed while the body moves over it, the leg bending to reach it; a foot left too far from where the animation puts it steps there. Off: the feet follow the animation (and slide).', ''],
   { k: 'plant', v: false, tip: 'Plant the feet: a foot on the floor stays put and the leg bends to reach it; it steps when left too far behind. Drawing and hit tests use the planted legs.' },
@@ -186,7 +188,7 @@ function makeRand(seed) {
 // ---------- simulation state: checkpoints and replays ----------
 // Replays store inputs, not results: a replay recorded with another ENGINE_VERSION plays out differently.
 // Bump it whenever the simulation changes (the replay test fails until you do).
-const ENGINE_VERSION = 10;
+const ENGINE_VERSION = 11;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied
