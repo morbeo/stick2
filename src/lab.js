@@ -374,22 +374,29 @@ function configPanel() {
 }
 // buttons on a group heading that change all of its variables at once
 const groupKeys = i => { const k = []; for (let j = i + 1; j < SCHEMA.length && !Array.isArray(SCHEMA[j]); j++) k.push(SCHEMA[j].k); return k; };
+// spec s: { min, max, step } for numbers, { opts } for choices, { v: boolean } for switches; v = current value, d = default
 const nudge = f => (s, v) => typeof s.v === 'boolean' ? f > 0 : s.opts ? v : snap(s, v + f * (s.max - s.min));
 const GROUP_OPS = {
   ':casino:': ['Randomize: every variable of the group gets a random value', s => typeof s.v === 'boolean' ? Math.random() < 0.5
     : s.opts ? s.opts[Math.floor(Math.random() * s.opts.length)] : snap(s, s.min + Math.random() * (s.max - s.min))],
-  ':restart_alt:': ['Normalize: the group back to its defaults', s => s.v],
+  ':restart_alt:': ['Normalize: the group back to its defaults', (s, v, d) => d],
   ':arrow_drop_up:': ['Empower: numbers up by 15% of their range, switches on', nudge(0.15)],
   ':arrow_drop_down:': ['Diminish: numbers down by 15% of their range, switches off', nudge(-0.15)],
 };
+// the group buttons for any variables: specs (with k), get(k) / dflt(k) the current and default value, apply({ k: v }) in one
+// undo step; exp: [tip, fn] for an experiment button
+function groupOps(specs, get, dflt, apply, exp) {
+  return h('span', { cls: 'gops' }, ...Object.entries(GROUP_OPS).map(([l, [tip, f]]) =>
+    button(l, tip, () => apply(Object.fromEntries(specs.map(s => [s.k, f(s, get(s.k), dflt(s.k))]))), 'mini')),
+    exp && button(':science:', exp[0], exp[1], 'mini'));
+}
 function groupHeading(s, i) {
   const el = heading(...s), ks = groupKeys(i).filter(k => k !== 'scope');
   if (s[0] === 'Debug') return el;
-  el.append(h('span', { cls: 'gops' }, ...Object.entries(GROUP_OPS).map(([l, [tip, f]]) =>
-    button(l, tip, () => setCfg(Object.fromEntries(ks.map(k => [k, f(SPEC[k], CFG[k])]))), 'mini')),
-    button(':science:', 'Experiment: breed the group\'s variables in the grid, click the best cell to breed around it', () => {
+  el.append(groupOps(ks.map(k => SPEC[k]), k => CFG[k], k => SPEC[k].v, vals => setCfg(vals),
+    ['Experiment: breed the group\'s variables in the grid, click the best cell to breed around it', () => {
       lab.kind = 'breed'; breed.vars = new Set(ks); breed.cfg = null; setMode('grid');
-    }, 'mini')));
+    }]));
   return el;
 }
 // clicking a variable's name sweeps it across the grid

@@ -87,11 +87,12 @@ function dragTo(x, y, shift) {
 }
 
 // ---------- body experiment: 9 mutants of a parent body; click one to breed around it ----------
-function mutate(def, rand) {
-  const d = clone(def), ex = creator.exp, dice = {};
+// lv: per bone property, one distinct level per cell (see levels in breed.js); exaggerate (breed.exag) scales the spread
+function mutate(def, rand, lv, i) {
+  const d = clone(def), ex = creator.exp;
   for (const b of d.bones) for (const k of ex.vars) {
-    const p = BONE_PROPS.find(p => p.k === k), key = (ex.sym ? b.id.replace(/[FB]$/, '') : b.id) + '.' + k; // F/B partners share a roll
-    const v = (b[k] ?? BONE[k]) + (dice[key] ??= rand(-1, 1)) * ex.spread * (p.max - p.min);
+    const p = BONE_PROPS.find(p => p.k === k), key = (ex.sym ? b.id.replace(/[FB]$/, '') : b.id) + '.' + k; // F/B partners share a level
+    const v = bounce((b[k] ?? BONE[k]) + (lv[key] ??= levels(8, rand))[i - 1] * ex.spread * breed.exag * (p.max - p.min), p.min, p.max);
     b[k] = +clamp(Math.round(v / p.step) * p.step, p.min, p.max).toFixed(3);
   }
   return d;
@@ -119,10 +120,10 @@ function mutateLimbs(d, rand) {
   return '+joint @' + end.id;
 }
 function buildExp() {
-  const ex = creator.exp, rand = makeRand(ex.seed * 7919);
+  const ex = creator.exp, rand = makeRand(ex.seed * 7919), lv = {};
   ex.parent ??= clone(DEFS[CURRENT]);
   ex.cells = Array.from({ length: 9 }, (_, i) => {
-    const def = i ? mutate(ex.parent, rand) : ex.parent, note = i && ex.limbs ? mutateLimbs(def, rand) : '';
+    const def = i ? mutate(ex.parent, rand, lv, i) : ex.parent, note = i && ex.limbs ? mutateLimbs(def, rand) : '';
     // the mutant fights an unchanged copy of the current character, same seed in every cell
     return { def, w: newWorld(previewScen(), {}, 7, [makeCharacter(def), currentChar()]), label: i ? `#${i} ${note}` : 'parent' };
   });
@@ -190,6 +191,13 @@ function bonePanel() {
   const limRows = ['min', 'max'].map(k => slider(k, { min: -180, max: 180, step: 1 }, () => prop(k) ?? 0, v => setProp(k, v),
     `Joint limit (${k}), relative to the parent. The drawn pose is clamped after the spring, so overshoot never hyperextends.`));
   for (const r of limRows) reg(r, () => { r.hidden = prop('min') === undefined; });
+  // defaults: the bone as the built-in character has it (custom bones: the general defaults)
+  const own = k => CHAR_DEFS[CURRENT]?.bones.find(b => b.id === studio.sel)?.[k], dflt = k => own(k) ?? BONE[k];
+  title.append(groupOps(BONE_PROPS, prop, dflt, vals => edit(def => {
+    const b = def.bones.find(b => b.id === studio.sel);
+    for (const k in vals) if (own(k) === undefined && vals[k] === BONE[k]) delete b[k]; else b[k] = vals[k];
+  }),
+    ['Experiment: nine bodies varying these properties; click the best to breed around it', () => { BONE_PROPS.forEach(p => creator.exp.vars.add(p.k)); setExp(true); }]));
   return [title,
     row('role', 'What the bone does in procedural motion', seg(Object.keys(ROLE_TIPS), () => prop('role'), v => edit(d => { d.bones.find(b => b.id === studio.sel).role = v; }), ROLE_TIPS)),
     row('side', 'Draw order and colour', seg(['f', '', 'b'], () => prop('side'), v => edit(d => { d.bones.find(b => b.id === studio.sel).side = v; }), SIDE_TIPS,
@@ -238,6 +246,7 @@ function expPanel() {
       toggle(':add: limbs', 'Experimental limbs: each variation also adds a random limb, drops one, or grows an extra joint', () => ex.limbs, v => { ex.limbs = v; buildExp(); })),
     slider('spread', { min: 0.02, max: 0.5, step: 0.01 }, () => ex.spread, v => { ex.spread = v; },
       'How far variations stray from the parent, as a fraction of each property\'s range. Applied on the next breed or reroll.'),
+    h('div', { cls: 'row', tip: 'Multiply the spread so the differences between bodies stand out' }, h('span', { textContent: 'exaggerate' }), exagSeg(buildExp)),
     h('div', { cls: 'bar' }, toggle(':flip: symmetric', 'Front and back partners (handF/handB…) change together', () => ex.sym, v => { ex.sym = v; buildExp(); })),
   ];
 }

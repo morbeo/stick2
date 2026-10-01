@@ -1,22 +1,31 @@
 'use strict';
 // ---------- grid experiments: 9 cells bred around a parent (cell 0, framed); click a cell to breed around it ----------
 // breed: random values of chosen settings · attacks: random moves for the current character, posed with IK
-const breed = { vars: new Set(['freq', 'zeta', 'hitstop']), spread: 0.15, seed: 1, cfg: null, atk: null };
+const breed = { vars: new Set(['freq', 'zeta', 'hitstop']), spread: 0.15, exag: 1, seed: 1, cfg: null, atk: null };
 const snap = (s, v) => +(Math.round(clamp(v, s.min, s.max) / s.step) * s.step).toFixed(4);
+// distinct variations: every variable gets n evenly spaced offsets in [-1, 1] in a shuffled order, one per cell,
+// so no two cells share a value and none equals the parent; past the range a value bounces back instead of sticking to the end
+function levels(n, rand) {
+  const a = Array.from({ length: n }, (_, i) => n > 1 ? -1 + 2 * i / (n - 1) : 0);
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+const bounce = (v, lo, hi) => { const r = hi - lo, t = ((v - lo) % (2 * r) + 2 * r) % (2 * r); return lo + (t > r ? 2 * r - t : t); };
+const amount = () => breed.spread * breed.exag; // exaggerate (×1 ×2 ×4) scales every experiment's spread
 const BREED_TIPS = {
   sweep: 'Each cell gets one value of the X (and Y) variable across its range.',
   breed: 'Cells get random values of the variables you pick, around a parent. Click the best cell to breed around it.',
   attacks: 'Nine random attacks for the current character. Click one to breed variations of it, then save it or open it in animate.',
 };
 
-// numbers move by up to spread × their range; options and switches change with probability 2 × spread
-function mutateCfg(base, rand) {
-  const o = { ...base }, p = Math.min(1, breed.spread * 2);
+// numbers move by their level (see levels) × spread × their range; options and switches change with probability 2 × spread
+function mutateCfg(base, rand, lv) {
+  const o = { ...base }, p = Math.min(1, amount() * 2);
   for (const k in o) {
     const s = SPEC[k];
     if (s.opts) { if (rand() < p) o[k] = s.opts[Math.floor(rand() * s.opts.length)]; }
     else if (typeof s.v === 'boolean') { if (rand() < p) o[k] = !o[k]; }
-    else o[k] = snap(s, o[k] + rand(-1, 1) * breed.spread * (s.max - s.min));
+    else o[k] = snap(s, bounce(o[k] + lv(k) * amount() * (s.max - s.min), s.min, s.max));
   }
   return o;
 }
@@ -24,8 +33,9 @@ const diffLabel = (o, base) => Object.keys(o).filter(k => o[k] !== base[k]).map(
 function breedCells() {
   const rand = makeRand(breed.seed * 7919), parent = Object.fromEntries([...breed.vars].map(k => [k, breed.cfg?.[k] ?? CFG[k]]));
   breed.cfg = parent;
+  const lv = mapVals(parent, () => levels(8, rand));
   return Array.from({ length: 9 }, (_, i) => {
-    const over = i ? mutateCfg(parent, rand) : parent;
+    const over = i ? mutateCfg(parent, rand, k => lv[k][i - 1]) : parent;
     return { w: newWorld(SCENARIOS[lab.scen], over, 7), over, plot: [...breed.vars][0], parent: !i, label: i ? diffLabel(over, parent) : 'parent' };
   });
 }
@@ -56,21 +66,22 @@ function genAttack(ch, rand) {
     ] };
 }
 // jitter every key's angles and length, and the hit properties; a held pose stays equal to the strike before it
-function mutateAttack(m, ch, rand) {
-  const d = clone(m), s = breed.spread;
+// lv(name): this cell's level (see levels) for key lengths, power and knock, so cells differ clearly in timing and force
+function mutateAttack(m, ch, rand, lv) {
+  const d = clone(m), s = amount();
   d.keys.forEach((k, i) => {
-    k.d = Math.max(1, Math.round(k.d * 60 + rand(-1, 1) * s * 20)) / 60;
+    k.d = Math.max(1, Math.round(k.d * 60 + lv('d' + i) * s * 20)) / 60;
     if (i && JSON.stringify(m.keys[i].p) === JSON.stringify(m.keys[i - 1].p)) k.p = d.keys[i - 1].p && { ...d.keys[i - 1].p };
     else if (k.p) for (const id in k.p) k.p[id] = Math.round(limit(ch.by[id], k.p[id] + rand(-1, 1) * s * 90) * 10) / 10;
   });
-  d.power = +clamp(d.power + rand(-1, 1) * s * 2, 0.2, 3).toFixed(1);
-  d.knock = Math.round(clamp(d.knock + rand(-1, 1) * s * 600, 0, 600) / 10) * 10;
+  d.power = +bounce(d.power + lv('power') * s * 2, 0.2, 3).toFixed(1);
+  d.knock = Math.round(bounce(d.knock + lv('knock') * s * 600, 0, 600) / 10) * 10;
   return d;
 }
 function attackCells() {
-  const rand = makeRand(breed.seed * 7919), ch = currentChar(), parent = breed.atk;
+  const rand = makeRand(breed.seed * 7919), ch = currentChar(), parent = breed.atk, lv = {};
   return Array.from({ length: 9 }, (_, i) => {
-    const m = !parent ? genAttack(ch, rand) : i ? mutateAttack(parent, ch, rand) : parent;
+    const m = !parent ? genAttack(ch, rand) : i ? mutateAttack(parent, ch, rand, k => (lv[k] ??= levels(8, rand))[i - 1]) : parent;
     // the attack is added as move 'gen' to a copy of the character; it hits an unchanged dummy
     const gch = makeCharacter({ ...DEFS[CURRENT], moves: { ...DEFS[CURRENT].moves, gen: m } });
     return { w: newWorld(galleryScen('gen'), {}, 7, [gch, ch]), move: 'gen', gen: m, parent: !!parent && !i,
@@ -105,13 +116,16 @@ function spreadButton() {
   reg(b, () => { setRich(b, `spread ${fmt(breed.spread)}`); });
   return b;
 }
+// exaggerate: multiplies the spread of every grid experiment (settings, attacks, bodies) so the differences stand out
+const exagSeg = rebuild => seg([1, 2, 4], () => breed.exag, v => { breed.exag = v; rebuild(); },
+  { 1: 'Variations as far as the spread says', 2: 'Exaggerate: twice the spread', 4: 'Exaggerate: four times the spread, for clearly different cells' }, v => `×${v}`);
 function breedCtx() {
   const reroll = button(':casino: reroll', 'New random cells around the same parent (attacks without a parent: nine new attacks)', () => { breed.seed++; build(); });
-  if (lab.kind === 'breed') return [varsButton(), spreadButton(), reroll,
+  if (lab.kind === 'breed') return [varsButton(), spreadButton(), exagSeg(build), reroll,
     button(':check: use parent', 'Copy the parent\'s values into the settings (side panel)', () => setCfg(breed.cfg)),
     button(':restart_alt: restart', 'Start again from the current settings', () => { breed.cfg = null; build(); })];
   const noFocus = el => { reg(el, () => { el.disabled = !lab.focus?.gen; }); return el; };
-  return [spreadButton(), reroll,
+  return [spreadButton(), exagSeg(build), reroll,
     button(':casino: new', 'Throw the parent away: nine new random attacks', () => { breed.atk = null; breed.seed++; build(); }),
     noFocus(button(':save: save move', 'Add the parent (or the focused cell) to the character\'s moves as genN', () => saveAttack(false))),
     noFocus(button(':animation: edit in animate', 'Save it and open it in the animation editor', () => saveAttack(true)))];

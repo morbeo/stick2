@@ -330,11 +330,16 @@ const MOVE_FLAGS = {
   wide: 'Wide: in 2.5D it reaches 3× zReach in depth, so a sidestep does not dodge it.',
 };
 
+// what normalize returns to: the built-in move of the same name (copies like jab2: the move they were copied from)
+const builtInMove = () => (CHAR_DEFS[CURRENT] || CHAR_DEFS.stick).moves[anim.move.replace(/\d+$/, '')];
+const KEY_VARS = [{ k: 'e', opts: Object.keys(EASE) }, { k: 'lunge', min: 0, max: 600, step: 10 }];
 function keyPanel() {
   const title = heading('', 'The selected key: the pose reached at its end, how long it takes and how it eases. Drag joints in the editor to pose it. Adding, splitting, deleting and retiming keys: the bar above the timeline.',
     'Shift+←/→ prev/next key · , / . step a frame · Enter play/pause · Delete deletes the key');
   reg(title, () => { title.firstChild.textContent = `Key ${anim.key + 1} / ${curMove().keys.length}`; });
   const k = () => curMove().keys[anim.key];
+  title.append(groupOps(KEY_VARS, n => k()[n] ?? (n === 'e' ? 'linear' : 0), n => builtInMove()?.keys[anim.key]?.[n] ?? k()[n],
+    vals => edit(def => { const key = def.moves[anim.move].keys[anim.key]; for (const n in vals) if (vals[n]) key[n] = vals[n]; else delete key[n]; })));
   return [title,
     h('div', { cls: 'bar' },
       button(':accessibility_new: stance', 'This key returns to the stance (clears its pose)', () => setKey('p', null)),
@@ -390,6 +395,13 @@ function moveList() {
       h('input', { cls: 'macro', value: anim.filter, placeholder: 'name, group or input', oninput: e => { anim.filter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() })),
     list];
 }
+const MOVE_VARS = [...MOVE_PROPS, { k: 'height', opts: ['high', 'shigh', 'mid', 'smid', 'low'] }];
+function moveHeading() {
+  const el = heading('Move', 'What happens on hit. Frame data (60 fps) is in the bar above the timeline.', '');
+  el.append(groupOps(MOVE_VARS, k => curMove()[k] ?? (k === 'height' ? 'mid' : 0), k => { const b = builtInMove(); return b ? b[k] : curMove()[k]; },
+    vals => edit(def => { const m = def.moves[anim.move]; for (const k in vals) if (vals[k]) m[k] = vals[k]; else delete m[k]; })));
+  return el;
+}
 function movePanel() {
   const m = () => curMove(), hitB = button('', 'The bone whose end is the strike (and whose limb is tested in limb mode)', (e, b) =>
     popup(b, h('div', { cls: 'bar' }, seg(currentChar().ids, () => m().hit, v => setMove('hit', v)))));
@@ -403,7 +415,7 @@ function movePanel() {
     h('div', { cls: 'bar' }, button(':content_copy: copy', 'Duplicate this move under a new name', copyMove),
       button(':delete: delete', 'Delete this move (only copies)', deleteMove)),
     ...keyPanel(),
-    heading('Move', 'What happens on hit. Frame data (60 fps) is under the timeline.', ''),
+    moveHeading(),
     h('div', { cls: 'row', tip: 'Striking bone' }, h('span', { textContent: 'hit' }), hitB),
     h('div', { cls: 'row', tip: 'Which inputs start this move in a fight' }, h('span', { textContent: 'input' }), bindB),
     h('div', { cls: 'row', tip: 'Where the move is aimed; a hit reaction still follows the actual impact point' }, h('span', { textContent: 'height' }),
