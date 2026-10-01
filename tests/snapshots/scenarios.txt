@@ -1,5 +1,5 @@
 ai vs ai       hits 8 blocks 0 hp 62.0 74.8 x 222 172
-ai vs dummy    hits 5 blocks 0 hp 100.0 56.8 x 723 761
+ai vs dummy    hits 5 blocks 0 hp 100.0 56.8 x 722 760
 jab spam       hits 10 blocks 0 hp 100.0 50.0 x 387 444
 J,J,J          hits 3 blocks 0 hp 100.0 79.0 x 357 477
 K,K            hits 2 blocks 0 hp 100.0 78.4 x 341 574

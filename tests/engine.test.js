@@ -578,3 +578,18 @@ test('a fighter lying on the floor rests on it: no joint of the lie pose hangs f
   const s = run(`(() => { const { w, seen } = fight(SCENARIOS['OTG stomp'], [CHARS.stick], 180); return { seen, hp: w.b.hp }; })()`);
   assert.ok(s.seen.includes('a:stomp'), s.seen.join(' ')), assert.ok(s.hp < 100 - 5 - 8 + 1, 'sweep + stomp landed: ' + s.hp);
 });
+
+test('a forward dash passes a foe backed against the wall (either side, either fighter dashing) and the push apart keeps both inside the walls', () => {
+  const r = run(`[[100, 40, 'a'], [100, 52, 'a'], [W - 100, W - 40, 'a'], [40, 100, 'b'], [W - 40, W - 100, 'b']].map(([ax, bx, who]) => {
+    const dash = [0.2, 'fwd', 0.05, 'fwd'], w = new World({ a: who === 'a' ? dash : 'dummy', b: who === 'b' ? dash : 'dummy', ax, bx }, {}, 7, [CHARS.stick]); w.loop = false;
+    let out = false;
+    for (let i = 0; i < 70; i++) { w.advance(1/60, NOIN); out ||= w.fighters.some(f => f.x < 40 - 0.01 || f.x > W - 40 + 0.01); }
+    const d = who === 'a' ? w.a : w.b, o = who === 'a' ? w.b : w.a;
+    return { who, ax, bx, crossed: Math.sign(d.x - o.x) !== Math.sign(who === 'a' ? ax - bx : bx - ax), out, dx: d.x, ox: o.x };
+  })`);
+  assert.ok(r.every(c => c.crossed && !c.out), JSON.stringify(r));
+  // in the open a dash from afar still stops at the foe (it passes only within its first frames)
+  const far = run(`(() => { const w = new World({ a: [0.2, 'fwd', 0.05, 'fwd'], b: 'dummy', ax: 200, bx: 320 }, {}, 7, [CHARS.stick]); w.loop = false;
+    for (let i = 0; i < 70; i++) w.advance(1/60, NOIN); return w.a.x < w.b.x; })()`);
+  assert.ok(far);
+});

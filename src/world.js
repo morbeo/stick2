@@ -248,12 +248,18 @@ class World {
     for (const l of landed) if (l.a.m.throw && l.f.action === l.a && l.o.free && !l.o.heldBy) l.f.seize(l.o);
     // push apart by the bodies' extents (unless someone is knocked down, or held in a throw: pinned at its spot), then face the nearest foe
     for (let i = 0; i < fs.length; i++) for (let j = i + 1; j < fs.length; j++) {
-      const a = fs[i], b = fs[j], d = b.x - a.x, sd = Math.sign(d) || 1;
+      const a = fs[i], b = fs[j], d = b.x - a.x;
+      // level (both against a wall): the one moving, else facing, that way more ends up nearer it, so a dash into the corner gets past
+      const sd = Math.abs(d) > 0.5 ? Math.sign(d) : Math.sign(b.vx - a.vx) || Math.sign(b.dir - a.dir) || Math.sign(d) || 1;
       // the gap the two bodies need: the facing sides of their extents (a centaur's horse body reaches far in front)
       const side = (f, toward) => f.ch.extent[toward === f.dir ? 1 : 0], need = side(a, sd) + side(b, -sd);
-      if (Math.abs(d) < need && Math.abs(a.y - b.y) < 60 && Math.abs(a.z - b.z) < cfg.zReach && !a.kd && !b.kd && a.passT <= 0 && b.passT <= 0 && a.heldBy !== b && b.heldBy !== a) {
-        const push = (need - Math.abs(d)) / 2 * sd;
-        a.x -= push; b.x += push;
+      if (Math.abs(d) < need && Math.abs(a.y - b.y) < 60 && Math.abs(a.z - b.z) < cfg.zReach && !a.kd && !b.kd && a.heldBy !== b && b.heldBy !== a) {
+        // a dash that began passing keeps passing while it is still dashing inside the other body
+        if (a.passT > 0 || b.passT > 0) { for (const f of [a, b]) if (f.passT > 0 && f.dashT > 0) f.passT = Math.max(f.passT, 2 * h); continue; }
+        // pushed apart, but never into a wall: the one against it stays, the other takes the whole push
+        const gap = need - Math.abs(d), ax = a.x - gap / 2 * sd, bx = b.x + gap / 2 * sd;
+        const k = Math.max(0, 40 - Math.min(ax, bx)) - Math.max(0, Math.max(ax, bx) - (W - 40));
+        a.x = ax + k; b.x = bx + k;
       }
     }
     fs.forEach((f, i) => { if (tg[i] && !f.action && f.free && f.grounded) f.dir = (Math.sign(tg[i].x - f.x) || f.dir) * (f.away ? -1 : 1); });

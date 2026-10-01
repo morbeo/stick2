@@ -5,5 +5,5 @@ minotaur   hits 13 hp 17.5 100.0
 demon      hits 11 hp 65.3 52.1
 centaur    hits 9 hp 69.8 58.9
 ninja      hits 10 hp 90.0 19.3
-ape        hits 11 hp 16.0 93.8
+ape        hits 11 hp 9.0 100.0
 asura      hits 13 hp 25.8 76.1
