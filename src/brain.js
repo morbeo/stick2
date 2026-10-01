@@ -53,13 +53,26 @@ const CHAINS = [['punch'], ['punch', 'punch'], ['punch', 'punch', 'punch'], ['ki
   ['punch', 'kick'], ['punch', 'punch', 'kick'], ['down+kick'], ['fwd+punch', 'kick'], ['fwd+kick'], ['down+fwd+kick'], ['down+punch'], ['up+kick'],
   ['punch', 'down', 'down+fwd', 'fwd+punch'], ['punch', 'kick', 'down', 'down+back', 'back+kick'], ['punch', 'punch', 'fwd+special'], ['kick', 'special'],
   ['down+back+punch', 'down+fwd+punch'], ['back+kick'], ['down+back+kick']]; // specials cancel the chain
+// difficulty (aiLevel setting): think = seconds between decisions, react = seconds before reacting to a throw, then the chance to
+// guard a startup, break a throw, tech a landing, anti-air a jump and juggle a launched foe; break and tech are rolled once per event
+const AI_LEVELS = {
+  easy: { think: [0.3, 0.5], react: 0.18, guard: 0.15, brk: 0.1, tech: 0.1, antiAir: 0.2, juggle: 0.25 },
+  normal: { think: [0.12, 0.3], react: 0.12, guard: 0.4, brk: 0.35, tech: 0.35, antiAir: 0.5, juggle: 0.6 },
+  hard: { think: [0.08, 0.2], react: 0.08, guard: 0.6, brk: 0.6, tech: 0.6, antiAir: 0.7, juggle: 0.75 },
+  expert: { think: [0.05, 0.12], react: 0.05, guard: 0.8, brk: 0.85, tech: 0.85, antiAir: 0.85, juggle: 0.9 },
+};
 class Brain {
-  constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0 }); }
+  constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0, held: null, brk: false, flying: false, tech: false }); }
   input(f, o, h) {
     const inp = { ...NOIN }, dist = Math.abs(o.x - f.x) - (f.ch.extent[1] + o.ch.extent[1] - 38); // the gap as between two sticks (a centaur's body is long)
+    const L = AI_LEVELS[f.c('aiLevel')] || AI_LEVELS.normal;
     if (!f.free) this.q = [];
-    if (f.heldBy) { if (this.rand() < 0.05) inp.punch = inp.guard = true; return inp; } // try to break the throw
-    if (f.kd === 'fly') { inp.guard = f.vy > 0 && f.y > -30 && this.rand() < 0.1; return inp; } // sometimes tech the landing
+    // a throw: decide once whether to break it, then press P+G after the reaction time
+    if (f.heldBy !== this.held) { this.held = f.heldBy; this.brk = !!f.heldBy && this.rand() < L.brk; }
+    if (f.heldBy) { if (this.brk && f.c('techWindow') - f.heldT >= L.react) inp.punch = inp.guard = true; return inp; }
+    // a knockdown flight: decide once whether to tech the landing (G just before touching down)
+    if ((f.kd === 'fly') !== this.flying) { this.flying = f.kd === 'fly'; this.tech = this.flying && this.rand() < L.tech; }
+    if (f.kd === 'fly') { inp.guard = this.tech && f.vy > 0 && f.y > -30; return inp; }
     if (this.q.length) {
       if ((this.qt -= h) <= 0) { press(inp, this.q.shift(), f, o); this.qt = this.rand(0.1, 0.16); }
       return inp;
@@ -74,8 +87,8 @@ class Brain {
     return inp;
   }
   think(f, o, dist) {
-    const r = this.rand();
-    this.t = this.rand(0.12, 0.3); // reaction time
+    const r = this.rand(), L = AI_LEVELS[f.c('aiLevel')] || AI_LEVELS.normal;
+    this.t = this.rand(...L.think); // reaction time
     this.plan = null;
     if (!f.free) return;
     // 2.5D: line up in depth first (belt: walk, lanes: sidestep), and sometimes sidestep an attack coming in
@@ -87,7 +100,7 @@ class Brain {
     }
     if (plane === 'lanes' && idle(f) && dist < 110 && r < (o.action?.m.power ? 0.5 : 0.12)) { this.q = r < 0.2 || f.z > 0 ? ['up', 'up'] : ['down', 'down']; this.qt = 0; return; }
     // an attack starting up in front: guard it (low against lows); a fresh guard press that lands just in time parries
-    if (frameState(o) === 'startup' && dist < 130 && (o.x - f.x) * f.dir > 0 && r < 0.4) { this.plan = o.action.m.height === 'low' ? 'guardLow' : 'guard'; this.t = 0.3; return; }
+    if (frameState(o) === 'startup' && dist < 130 && (o.x - f.x) * f.dir > 0 && r < L.guard) { this.plan = o.action.m.height === 'low' ? 'guardLow' : 'guard'; this.t = 0.3; return; }
     if (plane === 'belt' && dist > 150 && r < 0.2) { this.plan = f.z > 0 ? 'zin' : 'zout'; return; } // circle around on the belt
     if (o.kd === 'down' && dist < 110 && r < 0.4) { this.q = ['down', 'down+fwd', 'fwd+kick']; this.qt = 0; return; } // stomp
     if (o.kd === 'down' || o.action?.m.inv) { if (dist < 90) this.plan = 'out'; return; }
@@ -95,8 +108,8 @@ class Brain {
     const it = !f.ch.weapon && f.w.items.length ? f.w.items.filter(i => i.rest && !i.taker && Math.abs(i.x - f.x) < 260).sort((a, b) => Math.abs(a.x - f.x) - Math.abs(b.x - f.x))[0] : null;
     if (it && dist > 60 && r < 0.8) { if (f.w.itemNear(f) === it) { this.q = ['punch+guard']; this.qt = 0; } else { this.plan = 'item'; this.item = it; } return; }
     if (f.ch.weapon && dist > 200 && dist < 450 && r < 0.06) { this.q = ['punch+guard']; this.qt = 0; return; }
-    if (!o.grounded && !o.kd && dist < 110 && r < 0.5) { this.q = ['fwd', 'down', 'down+fwd+punch']; this.qt = 0; return; } // anti-air rising
-    if (o.kd === 'fly' && dist < 130 && r < 0.6) { this.q = ['hop', 'kick']; this.qt = 0; return; }
+    if (!o.grounded && !o.kd && dist < 110 && r < L.antiAir) { this.q = ['fwd', 'down', 'down+fwd+punch']; this.qt = 0; return; } // anti-air rising
+    if (o.kd === 'fly' && dist < 130 && r < L.juggle) { this.q = ['hop', 'kick']; this.qt = 0; return; }
     if (dist > 220 && f.c('dash') && r < 0.3) { this.q = ['fwd', 'fwd']; this.qt = 0; this.plan = 'in'; return; } // dash, then run in
     if (dist > 150) { this.plan = r < 0.25 ? 'dash' : 'in'; return; }
     if (dist > 70) { this.plan = r < 0.85 ? 'in' : 'out'; return; }

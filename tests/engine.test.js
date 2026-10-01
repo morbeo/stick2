@@ -404,3 +404,19 @@ test('every attack, hitting a standing dummy, leaves it drawable and free again 
     } return bad.join(' '); })()`);
   assert.equal(bad, '');
 });
+
+test('AI difficulty: throw-break rates rise with aiLevel and do not depend on the frame rate', () => {
+  const rate = (lvl, dt) => run(`(() => { let held = 0, broke = 0;
+    for (let seed = 1; seed <= 80; seed++) {
+      const w = new World({ a: ['punch+guard'], b: 'ai', ax: 330, bx: 372 }, { aiLevel: '${lvl}' }, seed, [CHARS.stick, CHARS.stick]); w.loop = false;
+      let h = false, br = false;
+      for (let t = 0; t < 1.2; t += ${dt}) { w.advance(${dt}, NOIN); h = h || !!w.b.heldBy; br = br || w.b.label === 'BREAK'; if (h && !w.b.heldBy) break; }
+      if (h) { held++; if (br) broke++; }
+    } return [held, broke / held]; })()`);
+  const r = ['easy', 'normal', 'hard', 'expert'].map(l => rate(l, 1 / 60));
+  for (const [held] of r) assert.ok(held >= 70, 'enough throws landed: ' + held);
+  const p = r.map(x => x[1]);
+  assert.ok(p[0] < p[1] && p[1] < p[2] && p[2] < p[3], p.join(' '));
+  for (const [x, want] of p.map((x, i) => [x, [0.1, 0.35, 0.6, 0.85][i]])) assert.ok(Math.abs(x - want) < 0.2, `${x} vs ${want}`);
+  assert.ok(Math.abs(rate('normal', 1 / 144)[1] - p[1]) < 0.2, 'same rate at 144 Hz');
+});

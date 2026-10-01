@@ -123,6 +123,9 @@ const SCHEMA = [
     optTips: { one: 'One at a time.', pairs: 'Two per wave, one from each side.', growing: 'Wave n brings n enemies (at most 5).', horde: 'Four per wave.' } },
   { k: 'waveMix', v: true, tip: 'Enemies are random built-in characters. Off: all of them are the opponent\'s character.' },
   { k: 'waveHeal', v: 0.25, min: 0, max: 1, step: 0.05, tip: 'Share of full health you get back when a wave is cleared.' },
+  ['AI', 'How well the engine AI fights: how often it decides, how fast it reacts and how often it guards, breaks throws, techs landings, anti-airs and juggles.', ''],
+  { k: 'aiLevel', v: 'normal', opts: ['easy', 'normal', 'hard', 'expert'], tip: 'Difficulty of the engine AI. A scenario can set its own.',
+    optTips: { easy: 'Slow to decide, rarely guards; breaks 1 throw in 10.', normal: 'Guards about 2 attacks in 5; breaks about 1 throw in 3.', hard: 'Quick, guards most startups; breaks 3 throws in 5.', expert: 'Reacts within a few frames; breaks most throws and techs most landings.' } },
   ['Plane (2D / 2.5D)', 'Fight on a line, on three sidestep lanes, or on a free depth belt. Stick figures are flat, so a strike connects only when both fighters stand at about the same depth.', ''],
   { k: 'plane', v: '2d', opts: ['2d', 'lanes', 'belt'], tip: 'Where the fight happens, and which moveset is used (2D and 2.5D have separate binds). 2D: ↑ or Space jumps. 2.5D: ↑ / ↓ move in depth, Space jumps.',
     optTips: { '2d': 'One line: ↑ jumps, ↓ crouches.', lanes: 'Three lanes: double tap ↑ / ↓ to sidestep a lane (dodges straight attacks), hold ↓ to crouch.',
@@ -188,7 +191,7 @@ function makeRand(seed) {
 // ---------- simulation state: checkpoints and replays ----------
 // Replays store inputs, not results: a replay recorded with another ENGINE_VERSION plays out differently.
 // Bump it whenever the simulation changes (the replay test fails until you do).
-const ENGINE_VERSION = 13;
+const ENGINE_VERSION = 14;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied
