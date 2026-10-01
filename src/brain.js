@@ -44,7 +44,7 @@ class Replay {
     if (f.freeze > 0 || !this.tape.length) return { ...NOIN };
     const e = this.tape[this.i], d = f.dir > 0;
     this.i = (this.i + 1) % this.tape.length;
-    return { left: d ? e.back : e.fwd, right: d ? e.fwd : e.back, up: !!e.up, down: e.down, hop: !!e.hop, punch: e.punch, kick: e.kick, special: !!e.special, guard: !!e.guard };
+    return { left: d ? e.back : e.fwd, right: d ? e.fwd : e.back, up: !!e.up, down: e.down, hop: !!e.hop, punch: e.punch, kick: e.kick, special: !!e.special, guard: !!e.guard, punchHeld: !!e.punchHeld };
   }
 }
 
@@ -83,6 +83,7 @@ class Brain {
     else if (this.plan === 'zin' || this.plan === 'zout') press(inp, (this.plan === 'zin' ? 'up' : 'down') + (dist > 70 ? '+fwd' : ''), f, o);
     else if (this.plan === 'guard' || this.plan === 'guardLow') press(inp, this.plan === 'guard' ? 'guard' : 'down+guard', f, o);
     else if (this.plan === 'item') inp[this.item.x > f.x ? 'right' : 'left'] = true;
+    else if (this.plan === 'charge') inp.guard = inp.punchHeld = true;
     else if (this.plan === 'dash') { press(inp, 'fwd', f, o); if (dist < 120) { inp.punch = true; this.plan = null; } }
     return inp;
   }
@@ -107,7 +108,7 @@ class Brain {
     // weapons: go and pick up one lying near (P+G over it); armed, sometimes throw it from range
     const it = !f.ch.weapon && f.w.items.length ? f.w.items.filter(i => i.rest && !i.taker && Math.abs(i.x - f.x) < 260).sort((a, b) => Math.abs(a.x - f.x) - Math.abs(b.x - f.x))[0] : null;
     if (it && dist > 60 && r < 0.8) { if (f.w.itemNear(f) === it) { this.q = ['punch+guard']; this.qt = 0; } else { this.plan = 'item'; this.item = it; } return; }
-    if (f.ch.weapon && dist > 200 && dist < 450 && r < 0.06) { this.q = ['punch+guard']; this.qt = 0; return; }
+    if (f.ch.weapon && dist > 200 && dist < 450 && r < 0.06) { this.q = ['punch+guard']; this.qt = 0; this.plan = 'charge'; this.t = this.rand(0, 0.8); return; } // held a while: a harder throw
     if (!o.grounded && !o.kd && dist < 110 && r < L.antiAir) { this.q = ['fwd', 'down', 'down+fwd+punch']; this.qt = 0; return; } // anti-air rising
     if (o.kd === 'fly' && dist < 130 && r < L.juggle) { this.q = ['hop', 'kick']; this.qt = 0; return; }
     if (dist > 220 && f.c('dash') && r < 0.3) { this.q = ['fwd', 'fwd']; this.qt = 0; this.plan = 'in'; return; } // dash, then run in

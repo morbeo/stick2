@@ -199,10 +199,13 @@ class Fighter {
     return { x: (o[0] + e[0]) / 2, y: (o[1] + e[1]) / 2, rot: Math.atan2(e[1] - o[1], e[0] - o[0]) };
   }
   // the weapon leaves the hand: thrown (live: it hits foes) or knocked loose
-  letGo(live) {
+  // a charged throw (charge = seconds the wind-up was held) flies faster and flatter, spins faster and hits harder: × up to throwCharge
+  letGo(live, charge = 0) {
     const w = this.w, at = this.weaponAt(), it = { type: this.ch.weapon, ...at, z: this.z, owner: this, live, spin: 0, t: 0 };
-    if (live) Object.assign(it, { x: at.x + this.dir * 10, vx: this.dir * this.c('throwSpeed'), vy: -60, spin: this.dir * (this.weapon.cls === 'pierce' ? 0 : 18), rot: this.dir > 0 ? 0 : Math.PI });
+    const k = 1 + Math.min(1, charge / (this.c('throwChargeT') || 1)) * (this.c('throwCharge') - 1);
+    if (live) Object.assign(it, { x: at.x + this.dir * 10, vx: this.dir * this.c('throwSpeed') * k, vy: -60, spin: this.dir * (this.weapon.cls === 'pierce' ? 0 : 18) * k, rot: this.dir > 0 ? 0 : Math.PI, power: k });
     else Object.assign(it, { vx: -this.dir * 120 + w.rand(-60, 60), vy: -320, spin: w.rand(-12, 12) });
+    if (live && k > 1 && k >= this.c('throwCharge')) this.say('POWER');
     w.items.push(it);
     this.setChar(this.ch0);
   }
@@ -224,7 +227,7 @@ class Fighter {
       this.w.items.splice(this.w.items.indexOf(it), 1); this.wield(it.type); this.action = a; this.say(it.type.toUpperCase());
       for (const j of this.ch.ids) a.from[j] ??= this.target[j]; // the weapon's bones join the tween where they are
     }
-    if (this.ch.weapon && a.toss && (k.release || first && !a.m.keys.some(x => x.release))) { this.letGo(true); this.action = a; }
+    if (this.ch.weapon && a.toss && (k.release || first && !a.m.keys.some(x => x.release))) { this.letGo(true, a.charge); this.action = a; }
   }
   // reaching for a weapon: it slides and turns on the floor so its handle meets the hand at the grip key; let go if the reach is cut short
   reach(dt) {
@@ -406,6 +409,9 @@ class Fighter {
     if (this.action) {
       const a = this.action, keys = a.m.keys, ch = this.ch;
       a.t += dt * (a.m.power ? c('attackSpeed') * (1 + c('comboSpeed') * (this.w.combo - 1)) * (a.m.weapon && this.weapon ? weaponSpeed(this.weapon) : 1) : 1);
+      // a weapon throw with P+G still held: the key before the release holds its pose, charging up to throwChargeT
+      if (a.toss && this.ch.weapon && this.inp.guard && this.inp.punchHeld && a.i === Math.max(0, keys.findIndex(k => k.release) - 1)
+        && a.t >= keys[a.i].d && (a.charge || 0) < c('throwChargeT')) { a.charge = (a.charge || 0) + dt; a.t = keys[a.i].d * 0.999; }
       while (a.i < keys.length && a.t >= keys[a.i].d) {
         a.t -= keys[a.i].d; a.from = resolve(base, keys[a.i].p); this.keyReached(keys[a.i++]);
         if (keys[a.i]?.lunge) this.vx = this.dir * keys[a.i].lunge;
@@ -873,6 +879,11 @@ class Fighter {
     if (a?.m.keys.some((k, i) => k.unblock && i >= a.i)) for (const id of hitIds(a.m)) if (P[id]) { // unblockable frames coming: the striking limbs glow
       ctx.fillStyle = `rgba(192,57,43,${0.25 + 0.2 * Math.sin(this.time * 40)})`;
       ctx.beginPath(); ctx.arc(P[id][0], P[id][1], 9, 0, 7); ctx.fill();
+    }
+    if (a?.charge && this.ch.weapon && P.weapon) { // a weapon throw charging: the weapon glows brighter and wider as it charges
+      const q = Math.min(1, a.charge / this.c('throwChargeT')), o = P[this.ch.by.weapon.parent], e = P[this.ch.by.weaponTip ? 'weaponTip' : 'weapon'];
+      ctx.strokeStyle = `rgba(230,180,34,${0.2 + 0.4 * q})`; ctx.lineWidth = 6 + 10 * q; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0], e[1]); ctx.stroke();
     }
     // health bar and callouts (PARRY, K.O.) over the head
     let top = this.groundY; for (const k in P) top = Math.min(top, P[k][1]);

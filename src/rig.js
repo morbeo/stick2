@@ -522,7 +522,8 @@ function armed(ch, type) {
 // a weapon move is shown (editor, gallery) by the character holding its class's weapon
 const withWeapon = (ch, m) => m?.weapon ? armed(ch, WEAPON_CLASSES[m.weapon].weapon) : ch.base || ch;
 // a thrown weapon: one blow, by its weight
-const thrownMove = type => { const w = WEAPONS[type]; return { power: weaponPower(w), damage: Math.round(5 + 6 * w.weight), knock: 160, stun: 0.4, height: 'mid' }; };
+// k: a charged throw's multiplier (Fighter.letGo) on its damage and knockback
+const thrownMove = (type, k = 1) => { const w = WEAPONS[type]; return { power: weaponPower(w), damage: Math.round((5 + 6 * w.weight) * k), knock: 160 * k, stun: 0.4, height: 'mid' }; };
 
 // brute: the stick's skeleton and moves, bigger, much thicker, heavier and slower (speed scales its walk)
 const BRUTE_SCALE = { waist: 1.2, chest: 1.35, neck: 1, head: 1.25, thigh: 1.1, shin: 1.05, foot: 1.2, uarm: 1.3, farm: 1.3, hand: 1.5 };

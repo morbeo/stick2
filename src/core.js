@@ -96,12 +96,14 @@ const SCHEMA = [
   { k: 'grabReach', v: 10, min: 0, max: 40, step: 1, tip: 'Extra radius of a throw\'s grab (px), on top of hitR.' },
   { k: 'techWindow', v: 0.25, min: 0, max: 0.6, step: 0.01, tip: 'Seconds a thrown fighter has to break the throw with P+G, and how early (s) before landing a G press techs the fall (a quick get-up). 0 = no breaks, no techs.' },
   { k: 'airRecover', v: 0.3, min: 0, max: 2, step: 0.05, tip: 'Seconds into a knockdown flight after which G flips the fighter back onto its feet in the air. 0 = never.' },
-  ['Weapons', 'A weapon lies on the floor or starts in hand. P+G over one picks it up; while held, P, → P and ↓ P are its class\'s moves (one-handed pierce / slash / blunt, two-handed, pole), heavier weapons hit harder and swing slower. P+G again throws it; a knockdown or a hard blow knocks it loose.', 'P+G pick up / throw'],
+  ['Weapons', 'A weapon lies on the floor or starts in hand. P+G over one picks it up; while held, P, → P and ↓ P are its class\'s moves (one-handed pierce / slash / blunt, two-handed, pole), heavier weapons hit harder and swing slower. P+G again throws it; a knockdown or a hard blow knocks it loose.', 'P+G pick up / throw (hold to throw harder)'],
   { k: 'weapon', v: 'none', opts: ['none', 'random', 'dagger', 'sword', 'axe', 'bat', 'nunchucks', 'hammer', 'staff'], tip: 'The weapon each fight starts with (one per fighter), or none.',
     optTips: { none: 'No weapons (scenarios can still bring their own).', random: 'A random weapon per fighter.' } },
   { k: 'weaponStart', v: 'floor', opts: ['floor', 'held'], tip: 'Where the weapons start.', optTips: { floor: 'Lying on the floor in front of each fighter: walk over and press P+G.', held: 'Already in hand.' } },
   { k: 'disarm', v: 1.5, min: 0.5, max: 4, step: 0.1, tip: 'A blow of at least this power (× power scale) knocks the weapon out of the hand; knockdowns always do.' },
   { k: 'throwSpeed', v: 700, min: 200, max: 1400, step: 20, tip: 'Speed of a thrown weapon (px/s).' },
+  { k: 'throwCharge', v: 1.8, min: 1, max: 3, step: 0.05, tip: 'Keep P+G held while throwing a weapon: the wind-up holds and the throw charges, up to this × speed, spin, damage and knockback. 1 = no charging.' },
+  { k: 'throwChargeT', v: 0.6, min: 0.1, max: 2, step: 0.05, tip: 'Seconds of holding P+G for a fully charged weapon throw (it flashes POWER).' },
   { k: 'clash', v: 'weapons', opts: ['off', 'weapons', 'all'], tip: 'Two active strikes that meet cancel each other: both recoil apart. A held weapon clashes but is never hurt (hits pass to the body); an active strike also bats a thrown weapon away.',
     optTips: { off: 'Strikes pass through each other and through weapons.', weapons: 'Only when a weapon is one of the two strikes (or a thrown one).', all: 'Any two strikes, bare limbs too (Smash-style clank).' } },
   { k: 'clashStun', v: 0.3, min: 0, max: 1, step: 0.02, tip: 'Seconds both fighters reel after a clash.' },
@@ -191,7 +193,7 @@ function makeRand(seed) {
 // ---------- simulation state: checkpoints and replays ----------
 // Replays store inputs, not results: a replay recorded with another ENGINE_VERSION plays out differently.
 // Bump it whenever the simulation changes (the replay test fails until you do).
-const ENGINE_VERSION = 14;
+const ENGINE_VERSION = 15;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied

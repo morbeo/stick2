@@ -155,7 +155,7 @@ addEventListener('keyup', e => { const f = fightKey(e.code); if (f) keys.delete(
 addEventListener('blur', () => keys.clear());
 function readInput() {
   const i = { left: keys.has('left'), right: keys.has('right'), up: keys.has('up'), down: keys.has('down'), guard: keys.has('guard'),
-    hop: pressed.has('hop'), punch: pressed.has('punch'), kick: pressed.has('kick'), special: pressed.has('special') };
+    hop: pressed.has('hop'), punch: pressed.has('punch'), kick: pressed.has('kick'), special: pressed.has('special'), punchHeld: keys.has('punch') };
   pressed.clear(); // edges are consumed by the first substep only
   return i;
 }

@@ -420,3 +420,15 @@ test('AI difficulty: throw-break rates rise with aiLevel and do not depend on th
   for (const [x, want] of p.map((x, i) => [x, [0.1, 0.35, 0.6, 0.85][i]])) assert.ok(Math.abs(x - want) < 0.2, `${x} vs ${want}`);
   assert.ok(Math.abs(rate('normal', 1 / 144)[1] - p[1]) < 0.2, 'same rate at 144 Hz');
 });
+
+test('holding P+G charges a weapon throw: it flies farther and hits harder', () => {
+  const go = hold => run(`(() => { const w = new World({ a: ['punch+guard'${hold ? ", { hold: 'punchHeld+guard', t: 1 }" : ''}], aw: 'dagger', b: 'dummy', ax: 150, bx: 420 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    let it = null, hp = w.b.hp, vx = 0, charge = 0;
+    for (let i = 0; i < 150; i++) { w.advance(1/60, NOIN); charge = Math.max(charge, w.a.action?.charge || 0); if (!it && w.items[0]) { it = w.items[0]; vx = Math.abs(it.vx); } }
+    return { vx, dmg: hp - w.b.hp, charge, power: it?.power }; })()`);
+  const tap = go(false), held = go(true);
+  assert.equal(tap.charge, 0);
+  assert.ok(held.charge > 0.5, 'charged ' + held.charge);
+  assert.ok(held.vx > tap.vx * 1.5, `${held.vx} vs ${tap.vx}`);
+  assert.ok(held.dmg > tap.dmg && tap.dmg > 0, `${held.dmg} vs ${tap.dmg}`);
+});
