@@ -7,7 +7,7 @@ function paletteEntries() {
     const text = b.textContent.replace(/[\uE000-\uF8FF]/g, '').trim(), name = text && !/^[\d½¼⅒×]+$/.test(text) ? text : tipName(b.dataset.tip);
     return { kind: 'tool', name, tip: b.dataset.tip, run: () => b.click() };
   });
-  const keyOf = a => keymap[a]?.[0] ? keyLabel(keymap[a][0]) : '';
+  const keyOf = a => keymap[a]?.[0] ? shortcutLabel(a) : '';
   return [
     ...docTopics().map(t => ({ kind: 'docs', name: t.title, tip: t.body, run: () => openDocs(t.id) })),
     ...Object.keys(MODES).map(m => ({ kind: 'mode', name: m, tip: MODES[m], key: keyOf(m), run: () => setMode(m) })),

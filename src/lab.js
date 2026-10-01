@@ -355,7 +355,7 @@ const GALLERY_TARGETS = {
   ai: ['The engine AI: moves, attacks back', { b: 'ai' }],
 };
 const meterToggle = () => toggle(':timeline:', 'Frame meter · ' + METER_TIPS, () => lab.meter, v => { lab.meter = v; });
-const boxesToggle = () => toggle(':check_box_outline_blank:', 'Boxes: ' + SPEC.boxes.tip + ' (B)', () => CFG.boxes, v => { CFG.boxes = v; });
+const boxesToggle = () => toggle(':check_box_outline_blank:', 'Boxes: ' + SPEC.boxes.tip + keyTip('boxes'), () => CFG.boxes, v => { CFG.boxes = v; });
 // training tools (play): record your inputs, then the dummy replays them (mirrored to its facing)
 function trainingCtl() {
   const human = () => SCENARIOS[lab.scen].a === 'human';
@@ -410,7 +410,7 @@ function zoomBack() {
 }
 function labCtx() {
   if (lab.mode === 'gallery') return [grp('target', 'What the moves play against', seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0]))),
-    grp('show', 'Overlays', meterToggle(), boxesToggle(), toggle(':visibility:', 'Ghost: ' + SPEC.ghost.tip + ' (G)', () => CFG.ghost, v => { CFG.ghost = v; }))];
+    grp('show', 'Overlays', meterToggle(), boxesToggle(), toggle(':visibility:', 'Ghost: ' + SPEC.ghost.tip + keyTip('ghost'), () => CFG.ghost, v => { CFG.ghost = v; }))];
   if (lab.mode === 'impact') return [
     grp('falls', SPEC.falls.tip, seg(SPEC.falls.opts, () => CFG.falls, v => setCfg({ falls: v }), SPEC.falls.optTips)),
     grp('show', 'Overlays', toggle(':person_off: no attacker', 'Hide the attacker: only the struck body, its blows still land the same way (and drags strike it unobstructed)', () => lab.solo, v => { lab.solo = v; build(); }),

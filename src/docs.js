@@ -44,10 +44,10 @@ function refTopics() {
   const sets = [];
   for (const s of SCHEMA) if (Array.isArray(s)) sets.push({ id: 'set-' + s[0].toLowerCase().replace(/\W+/g, '-'), title: s[0], body: s[1], items: [], ref: true });
     else sets.at(-1).items.push([s.k, `${s.tip}${s.optTips ? ' · ' + Object.entries(s.optTips).map(([o, t]) => `${o}: ${t}`).join(' · ') : ''} (default ${fmt(s.v)})`, () => openSetting(s.k)]);
-  const keyName = a => keymap[a].map(keyLabel).join(' / ') || '—';
+  const keyName = a => keymap[a].map(k => { const f = keyIn(k, groupOf(a), 'fight'); return keyLabel(k) + (f !== k && ctxOf(groupOf(a)).includes('fight') ? `, in a fight ${keyLabel(f)}` : ''); }).join(' / ') || '—';
   return [
     { id: 'inputs', title: 'Inputs and combos', body: 'P = J, K = K, S = U, G = L by default (rebind them under Keys). Directions as on the numpad: 2 down, 3 down-forward, 6 forward, 8 up.', items: KEYS.map(([n, t]) => [n, t]), ref: true },
-    { id: 'keys', title: 'Keyboard', body: 'Every rebindable key, as bound now.', items: ACTIONS.map(([a, g, , t]) => [`${a} (${keyName(a)})`, `${g}: ${t}`]), ref: true },
+    { id: 'keys', title: 'Keyboard', body: 'Every rebindable key, as bound now. In a fight (play, grid) the letters are the fighter\'s: a shortcut on a letter takes ⇧ there (⇧P pause); in the editor modes shortcuts take the plain key and the fight keys do nothing.', items: ACTIONS.map(([a, g, , t]) => [`${a} (${keyName(a)})`, `${g}: ${t}`]), ref: true },
     { id: 'slots', title: 'Input slots', body: 'The inputs a move can be bound to (input row of the move panel).', items: Object.entries(SLOT_TIPS), ref: true },
     { id: 'flags', title: 'Move flags', body: 'Switches on a move (move panel).', items: Object.entries(MOVE_FLAGS), ref: true },
     { id: 'props', title: 'Move properties', body: 'Numbers on a move (move panel); unset ones fall back to the settings.', items: MOVE_PROPS.map(p => [p.k, p.tip]), ref: true },

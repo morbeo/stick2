@@ -198,6 +198,23 @@ try {
   { setMode('play'); panels(); dbgT = 0; drawDebug();
     if (!dbgInfo.isConnected || !dbgInfo.textContent.includes('engine v' + ENGINE_VERSION) || !/P2 /.test(dbgInfo.textContent)) errs.push('debug info ' + dbgInfo.textContent.slice(0, 80));
     if ($('side').querySelector('.head, h3')?.textContent.indexOf('Debug') < 0) errs.push('debug not first'); }
+  // keys by context: in a fight a shortcut letter takes ⇧ and the letters are the fighter's; in the editor modes the plain key
+  // is the shortcut and fight keys do nothing; a focused slider keeps its keys; a clicked button lets go of focus; clashes are flagged
+  { const kd = (code, o = {}, t = document.body) => { t.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, ...o })); t.dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true, ...o })); };
+    setMode('play'); app.paused = false; readInput();
+    kd('KeyP'); const p0 = app.paused; kd('KeyP', { shiftKey: true }); const p1 = app.paused; app.paused = false;
+    kd('KeyJ'); const punch = readInput().punch, panel = document.body.classList.contains('noside'); kd('KeyH'); const panel1 = document.body.classList.contains('noside');
+    setMode('animate'); app.paused = false; kd('KeyP'); const p2 = app.paused; app.paused = false; kd('KeyJ'); const punch2 = readInput().punch;
+    if (p0 || !p1 || !punch || panel1 !== panel || !p2 || punch2) errs.push('key contexts ' + [p0, p1, punch, panel1 === panel, p2, punch2]);
+    setMode('play'); const sl = document.querySelector('#side input[type=range]'); sl.focus(); const v0 = sl.value; kd('KeyD', {}, sl); kd('KeyA', {}, sl);
+    if (readInput().right || readInput().left) errs.push('a focused slider passes keys to the fighter');
+    sl.blur(); const b = [...document.querySelectorAll('#global button')][0]; b.focus(); b.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    if (document.activeElement === b) errs.push('a clicked button keeps focus');
+    if (keyClashes().size) errs.push('default keys clash ' + [...keyClashes()]);
+    keymap.onion = ['KeyP']; if (!keyClashes().has('onion') || !keyClashes().has('pause')) errs.push('clash not flagged');
+    keymap.onion = ['KeyO']; unbind('KeyJ', 'view'); if (!keymap.punch.includes('KeyJ')) errs.push('a view key took the punch key');
+    unbind('KeyP', 'animate'); if (keymap.pause.includes('KeyP')) errs.push('an editor key did not take the pause key');
+    keymap.pause = ['KeyP']; }
   // docs: a topic for every settings group, search, a live demo that advances, the ⓘ "docs" link, ⌘K entries, the page form
   { setMode('play'); panels(); const g0 = CFG.gravity; CFG.gravity = g0 * 3; openDocs('specials'); CFG.gravity = g0;
     if (docs.demos[0].w.cfg.gravity !== DEFAULTS.gravity || docs.demos[0].w.a.ch.name !== 'stick') errs.push('docs demo uses your settings');
