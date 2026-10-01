@@ -177,6 +177,25 @@ class World {
       }
     }
   }
+  // the impact tool: a blow at world point (x, y) pushed by (dx, dy) (longer = harder; a long one knocks down),
+  // on the fighter whose bone passes nearest; false if no body is near
+  poke(x, y, dx, dy) {
+    let best = null, bd = 25;
+    for (const f of this.fighters) {
+      const P = f.body();
+      for (const b of f.ch.bones) {
+        const d = distSeg([x, y], b.shape === 'circle' ? P[b.id] : P[b.parent || 'hip'], P[b.id]) - (b.shape === 'circle' ? b.len : 0);
+        if (d < bd) { bd = d; best = [f, b]; }
+      }
+    }
+    if (!best) return false;
+    const [vic, bone] = best, len = Math.hypot(dx, dy), p = clamp(len / 60, 0.2, 3);
+    const att = Object.assign(Object.create(this.fighters.find(f => f !== vic)), { dir: Math.sign(dx) || -vic.dir }); // the other fighter, struck from dx's side
+    const m = { power: p, knock: Math.abs(dx) * 6, launch: Math.max(0, -dy) * 6, kd: p >= 1, stun: 0.25 + 0.1 * p, damage: 0, height: dy > len / 2 ? 'low' : 'mid' };
+    this.onHit(att, vic, { pt: [x, y], bone }, m, null);
+    this.pend = null;
+    return true;
+  }
   dust(x, y, imp, z = 0) {
     if (this.cfg.squash <= 0) return;
     for (let i = 0; i < 3 + imp * 6; i++) {
@@ -226,7 +245,8 @@ class World {
     const sy = tr * (Math.sin(T * 89 + 2) + Math.sin(T * 127 + 3)) * 0.5;
     ctx.save();
     ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
-    ctx.transform(s, 0, 0, s, r.x + r.w / 2 + (sx - cx) * s, r.y + r.h / 2 + (sy - cy) * s);
+    this.view = { s, ox: r.x + r.w / 2 + (sx - cx) * s, oy: r.y + r.h / 2 + (sy - cy) * s }; // screen = world · s + o
+    ctx.transform(s, 0, 0, s, this.view.ox, this.view.oy);
     ctx.strokeStyle = '#cfc8bb'; ctx.lineWidth = 2;
     const plane = cfg.plane, g = this.groundY;
     if (plane !== '2d') { // the floor in depth; lanes get a line each

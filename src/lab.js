@@ -43,6 +43,19 @@ function axisValues(ax, n) {
 }
 const galleryMoves = (ms = currentChar().moves) => [...GALLERY.filter(m => ms[m]), ...Object.keys(ms).filter(m => ms[m].power && !GALLERY.includes(m))];
 
+// impact: standard hits on the current character, struck by the stick fighter
+const IMPACTS = {
+  'jab (high)': ['A light high jab: a short hit reaction, no fall', { a: [0.1, '@jab'] }],
+  'kick (mid)': ['A mid kick: a heavier hit reaction', { a: [0.1, '@kick'] }],
+  'sweep (low)': ['Takes the legs: a fall from the feet', { a: [0.1, '@sweep'], bx: 380 }],
+  roundhouse: ['A high knockdown: the body tips over its feet', { a: [0.1, '@roundhouse'], bx: 385 }],
+  launcher: ['Launched up into the air, then the fall', { a: [0.1, '@launcher'] }],
+  'wall splat': ['Kicked into the wall: it sticks for a moment, then drops', { a: [0.1, '@turnKick'], ax: 640, bx: 700 }],
+  'ground bounce': ['An overhead that bounces it off the floor', { a: [0.1, '@hammer'] }],
+  crumple: ['Folds where it stands', { a: [0.1, '@charge'], bx: 380 }],
+  'K.O.': ['The fight\'s last hit: the body goes limp', { a: [0.1, '@roundhouse'], bx: 385, cfg: { health: 100 }, init: w => { w.b.hp = 1; } }],
+};
+
 function build() {
   const scen = SCENARIOS[lab.scen];
   lab.cells = []; lab.cols = 3; lab.zoom = false; lab.scroll = 0;
@@ -50,6 +63,8 @@ function build() {
     const replay = lab.replay && lab.tape?.length && scen.a === 'human';
     lab.cells.push({ w: newWorld(replay ? { ...scen, b: { tape: lab.tape } } : scen) }); lab.cols = 1;
   }
+  else if (lab.mode === 'impact') for (const [k, [tip, s]] of Object.entries(IMPACTS))
+    lab.cells.push({ w: newWorld({ b: 'dummy', period: 3, ...s }, {}, 7, [CHARS.stick, currentChar()]), label: k, tip });
   else if (lab.mode === 'gallery') for (const m of galleryMoves()) lab.cells.push({ w: newWorld({ ...galleryScen(m), ...GALLERY_TARGETS[lab.target][1] }), move: m, label: m });
   else if (lab.kind !== 'sweep') lab.cells = lab.kind === 'breed' ? breedCells() : attackCells();
   else {
@@ -142,10 +157,16 @@ function labRender() {
   clear();
   lab.scroll = clamp(lab.scroll, 0, maxScroll()); // the canvas or the column count may have changed
   const cells = shown(), play = lab.mode === 'play', rects = labRects(cells.length);
-  cells.forEach((c, i) => drawCell(c, rects[i], { full: play, plot: !play, meter: lab.meter,
+  cells.forEach((c, i) => drawCell(c, rects[i], { full: play, plot: !play && lab.mode !== 'impact', meter: lab.meter,
     selected: !play && !lab.zoom && (lab.mode === 'grid' && lab.kind !== 'sweep' ? c.parent && 'parent'
       : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) && 'current settings' : c === lab.focus && 'focused') }));
   if (play && lab.inputs && cells[0].w.ctl[0] === 'human') drawInputs(cells[0].w, 10 * dpr, 60 * dpr);
+  const d = lab.drag;
+  if (d) { // the blow being dragged: from the struck point, its direction and strength
+    ctx.strokeStyle = RED[0]; ctx.lineWidth = 3 * dpr; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(d.x0, d.y0); ctx.lineTo(d.x, d.y); ctx.stroke();
+    ctx.beginPath(); ctx.arc(d.x0, d.y0, 5 * dpr, 0, 7); ctx.fillStyle = RED[0]; ctx.fill();
+  }
   const ms = maxScroll();
   if (ms > 0) { // scrollbar
     const h = canvas.height * canvas.height / (canvas.height + ms);
@@ -327,17 +348,25 @@ function sortButton() {
   return button(':sort: sort', 'Reorder the cells once by a metric (they keep running)', (e, b) => popup(b, h('div', { cls: 'bar' },
     Object.entries(METRICS).map(([k, [tip, f]]) => button(k, tip, () => { lab.cells.sort((p, q) => avg(q, f) - avg(p, f)); closePop(); })))));
 }
+function zoomBack() {
+  const back = button(':grid_view: back to grid', 'Show all cells again (Esc)', () => { lab.zoom = false; });
+  reg(back, () => { back.hidden = !lab.zoom; });
+  return back;
+}
 function labCtx() {
   if (lab.mode === 'gallery') return [seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0])),
     meterToggle(), boxesToggle(), toggle(':visibility: ghost', SPEC.ghost.tip, () => CFG.ghost, v => { CFG.ghost = v; })];
+  if (lab.mode === 'impact') return [
+    seg(SPEC.falls.opts, () => CFG.falls, v => setCfg({ falls: v }), SPEC.falls.optTips),
+    meterToggle(), boxesToggle(), zoomBack()];
   const els = [];
   if (lab.mode === 'grid') els.push(seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS));
   if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(scenButton(k => { lab.scen = k; build(); }));
   if (lab.mode === 'grid' && lab.kind !== 'sweep') els.push(...breedCtx());
   else if (lab.mode === 'grid') {
     const adopt = button(':check: use these values', 'Copy the focused cell\'s values into the settings (side panel)', () => setCfg(lab.focus.over));
-    const back = button(':grid_view: back to grid', 'Show all cells again (Esc)', () => { lab.zoom = false; });
-    reg(adopt, () => { adopt.hidden = !lab.zoom; }); reg(back, () => { back.hidden = !lab.zoom; });
+    const back = zoomBack();
+    reg(adopt, () => { adopt.hidden = !lab.zoom; });
     els.push(axisButton(lab.x, 'X'), axisButton(lab.y, 'Y'),
       button(':target: collision test', 'Every hitTest mode (columns) on three fights (rows): compare hits and whiffs of the collision modes', () => {
         Object.assign(lab.x, { k: 'hitTest' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = null; build();
@@ -447,6 +476,28 @@ function labClick(x, y, e) {
   if (lab.mode === 'grid' && lab.kind !== 'sweep' && !e.shiftKey) breedFrom(lab.cells[i]); else lab.zoom = true;
 }
 
+// impact: drag from a point on a body to strike it there; a plain click is a medium blow from the front
+function impactMouse(type, x, y) {
+  const d = lab.drag;
+  if (type === 'down') {
+    const rects = labRects(), i = hitRect(rects, x, y), w = shown()[i]?.w;
+    if (!w?.view) return false;
+    lab.drag = { w, x0: x, y0: y, x, y };
+    cursor('crosshair');
+    return true;
+  }
+  if (!d) { cursor(hitRect(labRects(), x, y) >= 0 ? 'crosshair' : 'default'); return true; }
+  Object.assign(d, { x, y });
+  if (type === 'up') {
+    lab.drag = null;
+    const v = d.w.view, wx = (d.x0 - v.ox) / v.s, wy = (d.y0 - v.oy) / v.s;
+    let dx = (x - d.x0) / v.s, dy = (y - d.y0) / v.s;
+    if (Math.hypot(dx, dy) < 4) { const f = d.w.fighters.reduce((a, b) => Math.abs(b.x - wx) < Math.abs(a.x - wx) ? b : a); dx = -f.dir * 50; dy = -10; }
+    if (!d.w.poke(wx, wy, dx, dy) && Math.hypot(dx, dy) < 4) { lab.focus = shown().find(c => c.w === d.w); lab.zoom = !lab.zoom; } // a click off the bodies: focus / back
+  }
+  return true;
+}
+
 const labMode = {
   enter(m) { lab.mode = m; build(); },
   restart: build,
@@ -455,11 +506,13 @@ const labMode = {
   ctxBar: labCtx,
   side: labSide,
   mouse(type, x, y, e) {
+    if (lab.mode === 'impact' && !e.shiftKey && impactMouse(type, x, y)) return;
     if (type === 'down') labClick(x, y, e);
     cursor(lab.mode !== 'play' && (lab.zoom || hitRect(labRects(), x, y) >= 0) ? 'pointer' : 'default');
   },
   wheel(dy) { const ms = maxScroll(); if (!ms) return false; lab.scroll = clamp(lab.scroll + dy * dpr, 0, ms); return true; },
   key(e) { if (e.code === 'Escape' && lab.zoom) { lab.zoom = false; return true; } },
   hint: () => lab.mode === 'play' ? fightHint()
+    : lab.mode === 'impact' ? 'drag on a body: strike it there (direction and length = the blow, long = knockdown) · click a body: a medium blow · click beside: focus / back · Esc back'
     : lab.mode === 'grid' && lab.kind !== 'sweep' ? 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back' : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',
 };

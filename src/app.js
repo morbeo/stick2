@@ -5,6 +5,7 @@ const MODES = {
   play: 'Fight in one arena. Pick who fights: you, the AI, scripted combos, crowds.',
   grid: 'Nine copies of one fight side by side, each with different settings. Click a cell to focus it.',
   gallery: 'Every move of the character looping, with its keyframe timeline and frame data.',
+  impact: 'Hit reactions and falls: standard hits on the character side by side; drag on a body to strike it anywhere.',
   character: 'Build the fighter: drag joints, add limbs, tune bones. The preview fights with it live.',
   animate: 'Pose keyframes by dragging joints, retime them on the timeline, and watch the move with springs and hit stop.',
 };
@@ -36,7 +37,7 @@ const KEYS = [
 ];
 function buildTop() {
   $('modes').replaceChildren(seg(Object.keys(MODES), () => app.mode, setMode, MODES,
-    m => `:${{ play: 'sports_kabaddi', grid: 'grid_view', gallery: 'animation', character: 'accessibility_new', animate: 'timeline' }[m]}: ${m}`));
+    m => `:${{ play: 'sports_kabaddi', grid: 'grid_view', gallery: 'animation', impact: 'crisis_alert', character: 'accessibility_new', animate: 'timeline' }[m]}: ${m}`));
   const pause = button('', 'Pause / play (P)', () => { app.paused = !app.paused; });
   reg(pause, () => { setRich(pause, app.paused ? ':play_arrow: play' : ':pause: pause'); pause.classList.toggle('on', app.paused); });
   $('transport').replaceChildren(pause,

@@ -13,6 +13,7 @@ const ACTIONS = [
   ['panel', 'view', ['KeyH'], 'Hide / show the side panel'], ['ghost', 'view', ['KeyG'], 'Ghost of the keyframe pose'], ['boxes', 'view', ['KeyB'], 'Hitboxes'],
   ['play', 'modes', ['Digit1'], 'Play mode'], ['grid', 'modes', ['Digit2'], 'Grid mode'], ['gallery', 'modes', ['Digit3'], 'Gallery mode'],
   ['character', 'modes', ['Digit4'], 'Character mode'], ['animate', 'modes', ['Digit5'], 'Animate mode'],
+  ['impact', 'modes', ['Digit6'], 'Impact mode'],
   ['prevKey', 'animate', ['Shift+ArrowLeft'], 'Previous key'], ['nextKey', 'animate', ['Shift+ArrowRight'], 'Next key'],
   ['frameBack', 'animate', ['Comma'], 'Step the move back a frame'], ['frameFwd', 'animate', ['Period'], 'Step the move forward a frame'],
   ['playMove', 'animate', ['Enter'], 'Play / pause the move'], ['onion', 'animate', ['KeyO'], 'Onion skin'], ['aim', 'animate', ['KeyI'], 'Aim the striking limb at the cursor'],

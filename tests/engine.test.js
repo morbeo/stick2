@@ -104,3 +104,12 @@ test('power scale makes hits knock further', () => {
     let mx = 0; for (let i = 0; i < 90; i++) { w.advance(1/60, NOIN); mx = Math.max(mx, w.b.x); } return mx - 385; })()`);
   assert.ok(dist(2) > dist(1) + 20 && dist(1) > dist(0.5), `${dist(0.5)} ${dist(1)} ${dist(2)}`);
 });
+
+test('the impact tool strikes the body under the point, a long drag knocks it down', () => {
+  const r = run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', period: 9 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false; w.advance(1/60, NOIN);
+    const h = w.b.body().head, miss = w.poke(h[0], h[1] - 200, 50, 0), small = w.poke(h[0], h[1], 20, 0), kd1 = w.b.kd;
+    for (let i = 0; i < 60; i++) w.advance(1/60, NOIN);
+    const big = w.poke(w.b.body().head[0], w.b.body().head[1], 120, -60); w.advance(1/60, NOIN);
+    return { miss, small, kd1, big, kd2: w.b.kd, rag: !!w.b.rag, hits: w.hits }; })()`);
+  assert.deepEqual({ ...r }, { miss: false, small: true, kd1: null, big: true, kd2: 'fly', rag: true, hits: 2 });
+});
