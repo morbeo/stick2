@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build-info": "node tools/build-info.js",
+    "coverage": "node --test --experimental-test-coverage --test-coverage-include='src/**' tests/*.test.js",
     "pretest": "node tools/build-info.js",
     "test": "node --test tests/*.test.js",
     "test:update": "UPDATE=1 node --test tests/*.test.js",

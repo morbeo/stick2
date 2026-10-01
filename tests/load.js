@@ -3,7 +3,7 @@ const fs = require('fs'), vm = require('vm'), path = require('path');
 const SRC = path.join(__dirname, '..', 'src');
 module.exports = function load(files = ['core', 'rig', 'fighter', 'world', 'brain']) {
   const ctx = vm.createContext({ console, Math, Object, Array, JSON });
-  for (const f of files) vm.runInContext(fs.readFileSync(path.join(SRC, f + '.js'), 'utf8'), ctx, { filename: f + '.js' });
+  for (const f of files) vm.runInContext(fs.readFileSync(path.join(SRC, f + '.js'), 'utf8'), ctx, { filename: path.join(SRC, f + '.js') });
   const run = code => vm.runInContext(code, ctx);
   // a scripted fight: returns the world after n frames plus the moves each side started
   run(`var fight = (sc, chars, n = 150) => {
