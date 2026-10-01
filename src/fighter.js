@@ -403,7 +403,7 @@ class Fighter {
           const a = r.p[b.parent || 'hip'], e = r.p[b.id], ex = e.x - a.x, ey = e.y - a.y, l2 = ex * ex + ey * ey || 1e-6;
           A[b.id] = Math.atan2(ex * d, ey) / R; Om[b.id] = (ey * (e.vx - a.vx) - ex * (e.vy - a.vy)) * d / l2;
         }
-        const K = 400 * c('tone') * r.tone, KL = 3000;
+        const K = 400 * c('tone') * r.tone, KL = 3000, KS = 150;
         for (const b of ch.bones) {
           if (b === ref) continue;
           const pb = ch.by[b.parent], pid = pb ? pb.id : ref.id, a = r.p[b.parent || 'hip'], e = r.p[b.id], far = r.p[pb ? pb.parent || 'hip' : ref.id];
@@ -413,6 +413,10 @@ class Fighter {
           if (b.min !== undefined) {
             const mid = (b.min + b.max) / 2, x = mid + wrap180(rel - mid), over = x < b.min ? b.min - x : x > b.max ? b.max - x : 0;
             if (over) { k += KL; f += KL * over * R; }
+            // slack: a limp body's hinges (knees, elbows: rest angle at one end of the range) still settle bent, not straight as a rope
+            // (the less tone, the more slack): about to the middle of their range, a different amount per joint and body
+            const z = clamp(b.a ?? 0, b.min, b.max), ks = KS * (1 - c('tone') * r.tone);
+            if (pb && Math.min(z - b.min, b.max - z) < (b.max - b.min) / 5) { k += ks; f += ks * (z + (mid - z) * (0.8 + 0.4 * wander(this.seed + ch.bones.indexOf(b) * 3.7)) - x) * R; }
           }
           // implicit (backward Euler) spring and critical damper: stable however stiff
           const dw = (om + dt * f) / (1 + 2 * Math.sqrt(k) * dt + k * dt * dt) - om;

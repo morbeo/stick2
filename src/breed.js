@@ -88,11 +88,32 @@ function attackCells() {
       label: parent && !i ? 'parent' : `${hitIds(m).join('+')} ${m.height}` };
   });
 }
-function saveAttack(open) {
-  let n = 1;
-  while (DEFS[CURRENT].moves['gen' + n]) n++;
-  edit(def => { def.moves['gen' + n] = clone(lab.focus.gen); });
-  if (open) { anim.move = 'gen' + n; anim.key = 1; setMode('animate'); }
+// add the attack of cell c (default: the focused cell) to the character's moves as genN; the same attack saved again keeps its name
+function saveAttack(open, c = lab.focus) {
+  const moves = DEFS[CURRENT].moves, json = JSON.stringify(c.gen);
+  let n = Object.keys(moves).find(k => JSON.stringify(moves[k]) === json);
+  if (!n) {
+    let i = 1;
+    while (moves['gen' + i]) i++;
+    n = 'gen' + i;
+    edit(def => { def.moves[n] = clone(c.gen); });
+  }
+  c.saved = n;
+  if (open) { anim.move = n; anim.key = 1; setMode('animate'); }
+}
+// the hovered attack cell's own buttons, in its bottom right corner: save it / save and edit it; their rects go in c.btns for the click
+function drawCellButtons(c, r) {
+  const size = r.w > 220 * dpr ? 11 : 9, bh = (size + 8) * dpr, y = r.y + r.h * 0.76 - bh - 6 * dpr;
+  let x = r.x + r.w - 6 * dpr;
+  c.btns = [['edit', true], [c.saved ? `saved ${c.saved}` : 'save', false]].map(([t, open]) => {
+    const bw = (t.length * 0.62 * size + 12) * dpr;
+    x -= bw;
+    ctx.fillStyle = open ? RED[0] : '#444'; ctx.fillRect(x, y, bw, bh);
+    text(t, x + bw / 2, y + bh - 6 * dpr, '#fff', size, 'bold', 'center');
+    const b = { x, y, w: bw, h: bh, open };
+    x -= 4 * dpr;
+    return b;
+  });
 }
 
 // click a cell: it becomes the parent, the others are new variations of it
@@ -127,6 +148,6 @@ function breedCtx() {
   const noFocus = el => { reg(el, () => { el.disabled = !lab.focus?.gen; }); return el; };
   return [spreadButton(), exagSeg(build), reroll,
     button(':casino: new', 'Throw the parent away: nine new random attacks', () => { breed.atk = null; breed.seed++; build(); }),
-    noFocus(button(':save: save move', 'Add the parent (or the focused cell) to the character\'s moves as genN', () => saveAttack(false))),
+    noFocus(button(':save: save move', 'Add the parent (or the focused cell) to the character\'s moves as genN. Hovering a cell also shows its own save / edit buttons', () => saveAttack(false))),
     noFocus(button(':animation: edit in animate', 'Save it and open it in the animation editor', () => saveAttack(true)))];
 }

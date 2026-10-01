@@ -174,6 +174,7 @@ function labRender() {
   cells.forEach((c, i) => drawCell(c, rects[i], { full: play, plot: !play && lab.mode !== 'impact', meter: lab.meter,
     selected: !play && !lab.zoom && (lab.mode === 'grid' && lab.kind !== 'sweep' ? c.parent && 'parent'
       : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) && 'current settings' : c === lab.focus && 'focused') }));
+  if (lab.mode === 'grid' && lab.kind === 'attacks' && !lab.zoom) cells.forEach((c, i) => { c.btns = null; if (i === lab.hover) drawCellButtons(c, rects[i]); });
   if (play && lab.inputs && cells[0].w.ctl[0] === 'human') drawInputs(cells[0].w, 10 * dpr, 60 * dpr);
   const d = lab.drag;
   if (d) { // the blow being dragged: from the struck point, its direction and strength
@@ -482,6 +483,8 @@ function labClick(x, y, e) {
   if (lab.zoom) { lab.zoom = false; return; }
   const i = hitRect(labRects(), x, y);
   if (i < 0) return;
+  const b = lab.cells[i].btns?.find(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
+  if (b) return saveAttack(b.open, lab.cells[i]);
   lab.focus = lab.cells[i];
   // a pick in a settings experiment also sets those settings (⌘Z undoes it); Shift+click only looks
   if (lab.mode === 'grid' && !e.shiftKey && lab.focus.over) setCfg(lab.focus.over);
@@ -520,11 +523,12 @@ const labMode = {
   mouse(type, x, y, e) {
     if (lab.mode === 'impact' && !e.shiftKey && impactMouse(type, x, y)) return;
     if (type === 'down') labClick(x, y, e);
+    lab.hover = hitRect(labRects(), x, y);
     cursor(lab.mode !== 'play' && (lab.zoom || hitRect(labRects(), x, y) >= 0) ? 'pointer' : 'default');
   },
   wheel(dy) { const ms = maxScroll(); if (!ms) return false; lab.scroll = clamp(lab.scroll + dy * dpr, 0, ms); return true; },
   key(e) { if (e.code === 'Escape' && lab.zoom) { lab.zoom = false; return true; } },
   hint: () => lab.mode === 'play' ? fightHint()
     : lab.mode === 'impact' ? 'drag on a body: strike it there (direction and length = the blow, long = knockdown) · click a body: a medium blow · click beside: focus / back · Esc back'
-    : lab.mode === 'grid' && lab.kind !== 'sweep' ? 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back' : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',
+    : lab.mode === 'grid' && lab.kind !== 'sweep' ? (lab.kind === 'attacks' ? 'click a cell: breed around it · its save / edit buttons: keep that attack · Shift+click: focus · Esc back' : 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back') : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',
 };

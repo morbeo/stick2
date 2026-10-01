@@ -45,6 +45,11 @@ try {
   edit1('kick', TABLE_COLS.findIndex(c => c.k === 'knock'), 333); if (currentChar().moves.kick.knock !== 333) errs.push('table edit');
   edit1('kick', 5, 12); if (frameData(currentChar().moves.kick).startup !== 12) errs.push('table retime ' + frameData(currentChar().moves.kick).startup);
   anim.view = 'cards';
+  // the attack grid: a hovered cell's own save button keeps that attack (once, however often it is pressed), without breeding
+  lab.kind = 'attacks'; setMode('grid'); lab.hover = 4; labRender();
+  const cell = lab.cells[4], sb = cell.btns.find(b => !b.open), seed = breed.seed, nMoves = Object.keys(DEFS[CURRENT].moves).length;
+  for (let i = 0; i < 2; i++) labClick(sb.x + 2, sb.y + 2, {});
+  const dm = DEFS[CURRENT].moves; if (Object.keys(dm).length !== nMoves + 1 || JSON.stringify(dm[cell.saved]) !== JSON.stringify(cell.gen) || breed.seed !== seed) errs.push('cell save ' + [Object.keys(dm).length, nMoves, cell.saved, breed.seed, seed]);
   setMode('play'); for (let i = 0; i < 60; i++) for (const w of mode().worlds()) w.advance(1/60, NOIN);
 } catch (e) { errs.push(e.message); }
 document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK';

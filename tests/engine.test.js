@@ -124,6 +124,15 @@ test('a limp body collapses and comes to rest, with joint limits and muscle tone
   }
 });
 
+test('a fully limp body lies with its knees bent (slack), neither straight nor folded flat', () => {
+  const knees = run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 500, period: 9 }, { tone: 0 }, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    w.advance(1/60, NOIN); const f = w.a; f.kd = 'fly'; f.grounded = false; f.vx = -250; f.vy = -350; f.startRag(); f.ragHit({ pt: [f.rag.p.head.x, f.rag.p.head.y] });
+    for (let i = 0; i < 480; i++) { f.target = f.basePose(); f.ragStep(1/120); }
+    const p = f.rag.p, ang = (a, e) => Math.atan2(e.x - a.x, e.y - a.y) / R;
+    return ['F', 'B'].map(s => Math.round(Math.abs(wrap180(ang(p['thigh' + s], p['shin' + s]) - ang(p.hip, p['thigh' + s]))))); })()`);
+  assert.ok(knees.every(k => k > 15 && k < 150), `knees ${knees}`);
+});
+
 test('power scale makes hits knock further', () => {
   const dist = ps => run(`(() => { const w = new World({ a: [0.1, '@roundhouse'], b: 'dummy', ax: 330, bx: 385, period: 9 }, { powerScale: ${ps} }, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
     let mx = 0; for (let i = 0; i < 90; i++) { w.advance(1/60, NOIN); mx = Math.max(mx, w.b.x); } return mx - 385; })()`);
