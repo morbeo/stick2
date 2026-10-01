@@ -51,7 +51,7 @@ function refTopics() {
     { id: 'slots', title: 'Input slots', body: 'The inputs a move can be bound to (input row of the move panel).', items: Object.entries(SLOT_TIPS), ref: true },
     { id: 'flags', title: 'Move flags', body: 'Switches on a move (move panel).', items: Object.entries(MOVE_FLAGS), ref: true },
     { id: 'props', title: 'Move properties', body: 'Numbers on a move (move panel); unset ones fall back to the settings.', items: MOVE_PROPS.map(p => [p.k, p.tip]), ref: true },
-    { id: 'easing', title: 'Easing', body: 'How a key moves into its pose.', items: Object.entries(EASE_TIPS), ref: true },
+    { id: 'easing', title: 'Easing', body: 'How a key moves into its pose. Each curve is time → progress toward the pose; the dot beside it moves the way a joint would.', items: Object.entries(EASE_TIPS), ease: true, ref: true },
     ...sets,
   ];
 }
@@ -90,16 +90,19 @@ function renderDocs(root) {
       docs.page ? button(':sports_kabaddi: app', 'Open the app', closeDocs) : button(':close:', 'Close the docs (Esc)', closeDocs)), toc), body));
   fill();
 }
+// a demo shows the engine as shipped: default settings and the built-in stick, whatever the editors have changed
+const demoWorld = s => Object.assign(new World(SCENARIOS[s], { ...DEFAULTS, ...SCENARIOS[s].cfg }, 7, [docs.ch ??= makeCharacter(CHAR_DEFS.stick)]), { loop: true });
 // one topic: its text, live demo fights, items (settings link to themselves), try buttons; matches of the search are marked
 function showTopic(el, t, q) {
+  docs.curves = [];
   docs.demos = (t.demos || []).filter(s => SCENARIOS[s]).map(s => {
-    const cv = h('canvas', { width: 360, height: 200 }), d = { s, cv, paused: false, w: Object.assign(new World(SCENARIOS[s], {}, 7), { loop: true }) };
+    const cv = h('canvas', { width: 360, height: 200 }), d = { s, cv, paused: false, w: demoWorld(s) };
     const pause = button('', 'Pause / play this demo', () => { d.paused = !d.paused; }, 'mini');
     reg(pause, () => setRich(pause, d.paused ? ':play_arrow:' : ':pause:'));
     d.el = h('div', { cls: 'demo' }, cv, h('div', { cls: 'bar' }, h('b', { textContent: s }), pause,
       button(':skip_next:', 'Step one frame', () => { d.paused = true; d.w.advance(1 / 60, NOIN); }, 'mini'),
       button(':restart_alt:', 'Restart this demo', () => d.w.reset(), 'mini'),
-      button(':play_arrow: try', 'Run this fight in play mode', () => { closeDocs(); playScen(s); }, 'mini')));
+      button(':play_arrow: try', 'Run this fight in play mode, with your settings and character', () => { closeDocs(); playScen(s); }, 'mini')));
     return d;
   });
   const mark = s => q && s.toLowerCase().includes(q.toLowerCase());
@@ -108,11 +111,28 @@ function showTopic(el, t, q) {
     docs.demos.length && h('div', { cls: 'demos' }, docs.demos.map(d => d.el)),
     t.items?.length && h('dl', {}, t.items.flatMap(([n, txt, fn]) => [
       h('dt', { cls: mark(n) || mark(txt) ? 'hit' : '' }, ...rich(n), fn && button(':chevron_right:', `Open ${n} in the app`, run(fn), 'mini')),
-      h('dd', {}, ...rich(txt))])),
+      h('dd', {}, t.ease && easeCurve(n), ...rich(txt))])),
     (t.tries?.length || t.set) && h('div', { cls: 'bar' }, h('span', { cls: 'gl', textContent: 'try it' }), (t.tries || []).map(([l, tip, fn]) => button(l, tip, run(fn))),
       t.set && button(`:tune: ${t.set}`, `The ${t.set} settings, each explained`, () => { docs.topic = docFor(t.set).id; renderDocs($('docs')); }))].filter(Boolean));
   el.scrollTop = 0;
   el.querySelector('dt.hit')?.scrollIntoView({ block: 'center' });
+}
+// an easing's example: its curve with a dot riding it over time, and the same progress as a dot sliding along a track
+function easeCurve(n) {
+  const cv = h('canvas', { width: 150, height: 56, cls: 'ease' });
+  docs.curves.push({ cv, f: EASE[n] }); return cv;
+}
+function drawCurve({ cv, f }, now) {
+  const c = cv.getContext('2d'), W = cv.width, H = cv.height, x0 = 4, w = 70, y0 = H - 10, hh = 34;
+  const t = Math.min(1, (now / 1000 % 1.6) / 1.2), Y = v => y0 - v * hh;
+  c.clearRect(0, 0, W, H); c.lineWidth = 1; c.strokeStyle = '#d8d2c4';
+  c.beginPath(); c.moveTo(x0, Y(0)); c.lineTo(x0 + w, Y(0)); c.moveTo(x0, Y(1)); c.lineTo(x0 + w, Y(1)); c.stroke();
+  c.strokeStyle = '#555'; c.lineWidth = 1.5; c.beginPath();
+  for (let i = 0; i <= 60; i++) c.lineTo(x0 + i / 60 * w, Y(f(i / 60)));
+  c.stroke();
+  c.fillStyle = '#c0392b'; c.beginPath(); c.arc(x0 + t * w, Y(f(t)), 3, 0, 7); c.fill();
+  const tx = 90, tw = 52; c.strokeStyle = '#d8d2c4'; c.beginPath(); c.moveTo(tx, H / 2); c.lineTo(tx + tw, H / 2); c.stroke();
+  c.beginPath(); c.arc(tx + f(t) * tw, H / 2, 4, 0, 7); c.fill();
 }
 // the demos run while the docs are open, 60 frames a second whatever the app's pause
 function docsFrame() {
@@ -123,6 +143,8 @@ function docsFrame() {
     c.fillStyle = '#f3f0e8'; c.fillRect(0, 0, d.cv.width, d.cv.height);
     d.w.render(c, { x: 0, y: 0, w: d.cv.width, h: d.cv.height });
   }
+  const now = performance.now();
+  for (const k of docs.curves || []) drawCurve(k, now);
   requestAnimationFrame(docsFrame);
 }
 // the address: #docs or #docs=topic opens the docs page, #mode=animate a mode
