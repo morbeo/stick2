@@ -15,11 +15,16 @@ const SCHEMA = [
   { k: 'jumpSquat', v: 0.06, min: 0, max: 0.2, step: 0.01, tip: 'Crouch before leaving the ground (s): anticipation that sells the jump. 0 = instant.' },
   { k: 'dashSpeed', v: 2.2, min: 1, max: 4, step: 0.1, tip: 'Dash speed × maxSpeed (a back dash goes 0.8 of it).' },
   { k: 'turnSpeed', v: 12, min: 2, max: 40, step: 1, tip: 'How fast a fighter turns around (1/s). It cannot start a move until it has turned halfway.' },
-  ['Air', 'Moving in the air: drift, falling speed, fast falls, extra jumps (max jumps is per character), air dodges and air dashes.', '↓ while falling: fast fall · jump in the air: another jump · G in the air: dodge · double tap → / ← in the air: air dash'],
+  ['Air', 'Moving in the air: drift, falling speed, fast falls, extra jumps (max jumps is per character), air dodges and air dashes.', '↓ then jump: super jump · ↓ while falling: fast fall · jump in the air: another jump (next to a wall: triangle jump) · G in the air: dodge · double tap → / ← in the air: air dash'],
   { k: 'airSpeed', v: 260, min: 0, max: 600, step: 10, tip: 'Top drifting speed in the air (px/s).' },
   { k: 'airAccel', v: 1600, min: 0, max: 6000, step: 100, tip: 'How fast the air drift speeds up and slows down (px/s²). 0 = no air control, the jump keeps its launch speed.' },
   { k: 'fallSpeed', v: 800, min: 300, max: 2000, step: 20, tip: 'Top falling speed (px/s). ↓ while falling drops at it at once (fast fall).' },
   { k: 'airDodge', v: 0.25, min: 0, max: 0.6, step: 0.01, tip: 'G in the air: intangible this long (s); with a direction held, a short burst that way. Once per jump, 0 = off.' },
+  { k: 'superJump', v: 1.35, min: 1, max: 2, step: 0.05, tip: '↓ then jump (2D: ↓ then ↑, or ↓ + Space): a super jump, its launch speed × this, from a longer squat. 1 = off.' },
+  { k: 'superJumpWindow', v: 0.2, min: 0.05, max: 0.5, step: 0.01, tip: 'Super jump: how long after ↓ the jump still counts (s).' },
+  { k: 'wallJump', v: 0.95, min: 0, max: 1.5, step: 0.05, tip: 'Jump in the air next to a wall: a triangle jump off it, up at this × jumpVel and away. It gives back the air dodge and dash, not the extra jumps. 0 = off.' },
+  { k: 'wallJumpPush', v: 380, min: 0, max: 900, step: 10, tip: 'Triangle jump: speed away from the wall (px/s).' },
+  { k: 'wallJumpReach', v: 14, min: 0, max: 60, step: 1, tip: 'Triangle jump: how close to the wall counts as touching it (px).' },
   { k: 'airDash', v: 520, min: 0, max: 1200, step: 20, tip: 'Double tap → / ← in the air: a level dash at this speed (px/s). Once per jump, 0 = off.' },
   ['Tweening (keyframes)', 'Each attack is a list of keyframe poses; the pose is eased from one key into the next.', 'J punch · K kick · chains: J,J,J · K,K · J,K · J,J,K · S+K sweep · run+J dash · air J/K'],
   { k: 'easing', v: 'authored', opts: ['authored', 'step', 'linear', 'outQuad', 'outCubic', 'outExpo', 'inOutCubic', 'outBack', 'outElastic'],
@@ -179,7 +184,7 @@ function makeRand(seed) {
 // ---------- simulation state: checkpoints and replays ----------
 // Replays store inputs, not results: a replay recorded with another ENGINE_VERSION plays out differently.
 // Bump it whenever the simulation changes (the replay test fails until you do).
-const ENGINE_VERSION = 8;
+const ENGINE_VERSION = 9;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied

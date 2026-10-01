@@ -8,7 +8,7 @@ class Fighter {
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, flyT: 0, guardT: -9, stanceI: 0,
-      airJumps: 0, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null });
+      airJumps: 0, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null });
     this.hp = this.c('health'); this.ch0 = ch.base || ch; // ch0: the character without its weapon
     this.target = this.basePose();
     this.disp = { ...this.target };
@@ -312,15 +312,22 @@ class Fighter {
     // jump cancel: a move that connected can be jumped out of once its active frames are over (juggles)
     const jc = busy && this.action.hit && this.action.i >= this.action.m.cancel && c('jumpCancel');
     const hop = inp.hop || flat && upTap; // 2D: ↑ jumps too
+    if (inp.down && this.grounded) this.lowAt = this.w.simT; // super jump: ↓ shortly before the jump
+    const wall = this.x < 40 + c('wallJumpReach') ? 1 : this.x > W - 40 - c('wallJumpReach') ? -1 : 0;
     if (hop && this.grounded && this.free && (!busy || jc) && this.squatT <= 0) {
-      this.squatT = c('jumpSquat') || 1e-6;
+      this.superJ = c('superJump') > 1 && this.w.simT - this.lowAt <= c('superJumpWindow');
+      this.squatT = (c('jumpSquat') || 1e-6) * (this.superJ ? 1.5 : 1);
       if (jc) this.action = null;
+    } else if (hop && wall && !this.grounded && this.free && !busy && c('wallJump') > 0 && this.airT > 0.1) { // triangle jump: off the wall, up and away
+      this.vy = -c('jumpVel') * c('wallJump'); this.vx = wall * c('wallJumpPush'); this.sqv += c('squash') * 20; this.flip = 0; this.airT = 0;
+      this.airDodged = this.airDashed = false; this.say('WALL JUMP');
     } else if (hop && !this.grounded && this.free && !busy && this.airJumps < this.ch.stats.jumps - 1) { // max jumps: another jump in the air
       this.airJumps++; this.vy = -c('jumpVel') * 0.9; this.sqv += c('squash') * 20; this.flip = 0;
       this.vx = (inp.right - inp.left) * Math.max(Math.abs(this.vx), c('airSpeed') * 0.8);
     }
     if (this.squatT > 0 && (this.squatT -= dt) <= 0) {
-      this.grounded = false; this.vy = -c('jumpVel'); this.sqv += c('squash') * 25; this.airT = 0;
+      this.grounded = false; this.vy = -c('jumpVel') * (this.superJ ? c('superJump') : 1); this.sqv += c('squash') * (this.superJ ? 40 : 25); this.airT = 0;
+      if (this.superJ) this.say('SUPER');
       const x = inp.right - inp.left, fl = c('flips');
       if (x && (fl === 'always' || fl === '2.5D' && !flat)) this.flip = x * this.dir; // +1 forward flip, -1 back flip
     }

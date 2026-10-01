@@ -115,6 +115,17 @@ test('character stats: max jumps, jump height under any gravity, air dash, air d
   assert.ok(seen(3).includes('a:toss') && !seen(0).includes('a:toss'), `grab range: ${seen(3)} / ${seen(0)}`);
 });
 
+test('↓ then jump is a super jump; a jump next to a wall is a triangle jump off it', () => {
+  const probe = (script, ax = 300, over = {}) => run(`(() => { const w = new World({ a: ${JSON.stringify(script)}, b: 'dummy', ax: ${ax}, bx: 700, period: 9 }, ${JSON.stringify(over)}, 7, [CHARS.stick, CHARS.stick]);
+    let top = 0, vx = 0; for (let i = 0; i < 90; i++) { w.advance(1/60, NOIN); top = Math.min(top, w.a.y); vx = Math.max(vx, w.a.vx); } return { top, vx }; })()`);
+  const one = probe(['hop']), sup = probe(['down', 0.1, 'hop']);
+  assert.ok(sup.top < one.top * 1.6, `super jump ${sup.top} vs ${one.top}`);
+  assert.equal(probe(['down', 0.1, 'hop'], 300, { superJump: 1 }).top, one.top, 'superJump 1 is off');
+  assert.ok(Math.abs(probe(['down', 0.5, 'hop']).top - one.top) < 2, 'too late after ↓');
+  assert.ok(probe(['hop', 0.25, 'hop'], 45).vx > 300, 'wall jump pushes away from the left wall');
+  assert.ok(probe(['hop', 0.25, 'hop'], 45, { wallJump: 0 }).vx < 100, 'wallJump 0 is off');
+});
+
 test('with several striking bones, any of them can land', () => {
   // palms with only the back hand listed, and with both: both versions must connect, the pair never misses where one hand lands
   const r = run(`(() => { const out = {};
