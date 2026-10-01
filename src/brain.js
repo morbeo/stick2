@@ -51,7 +51,8 @@ class Replay {
 // engine AI: re-thinks every reaction-time interval, walks to range and throws random chains
 const CHAINS = [['punch'], ['punch', 'punch'], ['punch', 'punch', 'punch'], ['kick'], ['kick', 'kick'],
   ['punch', 'kick'], ['punch', 'punch', 'kick'], ['down+kick'], ['fwd+punch', 'kick'], ['fwd+kick'], ['down+fwd+kick'], ['down+punch'], ['up+kick'],
-  ['punch', 'down', 'down+fwd', 'fwd+punch'], ['punch', 'kick', 'down', 'down+back', 'back+kick'], ['punch', 'punch', 'fwd+special'], ['kick', 'special']]; // specials cancel the chain
+  ['punch', 'down', 'down+fwd', 'fwd+punch'], ['punch', 'kick', 'down', 'down+back', 'back+kick'], ['punch', 'punch', 'fwd+special'], ['kick', 'special'],
+  ['down+back+punch', 'down+fwd+punch'], ['back+kick'], ['down+back+kick']]; // specials cancel the chain
 class Brain {
   constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0 }); }
   input(f, o, h) {

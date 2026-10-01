@@ -51,12 +51,15 @@ try {
   // the input table: pads show unassigned directions; clicking one and a move in its popup binds it (undoable), none blanks it
   { pickChar('stick'); studio.stance = 0; setCfg({ plane: '2d' }); setMode('animate'); anim.move = 'jab'; anim.view = 'inputs'; panels();
     const cell = l => [...document.querySelectorAll('.pad button')].find(b => b.querySelector('.d').textContent.trim().endsWith(l));
-    if (!cell('4K').classList.contains('fall') || !cell('623K').classList.contains('none') || !cell('7P').classList.contains('alias')) errs.push('input pads ' + ['4K', '623K', '7P'].map(l => cell(l).className));
-    cell('4K').click(); [...document.querySelectorAll('.pop button')].find(b => b.textContent.trim() === 'roundhouse').click();
+    const unset = [...document.querySelectorAll('.pad button')].filter(b => !b.classList.contains('set') && !b.classList.contains('alias'));
+    if (unset.length || !cell('7P').classList.contains('alias')) errs.push('input pads unset ' + unset.map(b => b.textContent));
+    const pick = (l, t) => { cell(l).click(); [...document.querySelectorAll('.pop button')].find(b => b.textContent.trim() === t || t === 'none' && b.textContent.includes('none')).click(); };
+    pick('4K', 'none'); pick('623K', 'none');
+    if (!cell('4K').classList.contains('fall') || !cell('623K').classList.contains('none')) errs.push('input none ' + ['4K', '623K'].map(l => cell(l).className));
+    pick('4K', 'roundhouse');
     if (DEFS[CURRENT].binds.backKick !== 'roundhouse' || !cell('4K').classList.contains('set')) errs.push('input assign ' + DEFS[CURRENT].binds.backKick);
-    undo(); if (DEFS[CURRENT].binds?.backKick || !cell('4K').classList.contains('fall')) errs.push('input undo');
-    cell('6K').click(); [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('none')).click();
-    if (!cell('6K').classList.contains('fall') || currentChar().binds.fwdKick !== '') errs.push('input none ' + cell('6K').className);
+    undo(); if (DEFS[CURRENT].binds.backKick !== '' || !cell('4K').classList.contains('fall')) errs.push('input undo');
+    undo(); undo();
     undo(); anim.view = 'cards'; panels(); }
   // the attack grid: a hovered cell's own save button keeps that attack (once, however often it is pressed), without breeding
   lab.kind = 'attacks'; setMode('grid'); lab.hover = 4; labRender();
