@@ -98,6 +98,7 @@ function drawTimeline() {
     if (k.inv) text('inv', x + 5 * dpr, y + h - 5 * dpr, '#2c6fb0', 9, 'bold');
     if (k.unblock) text('unbl', x + w - 30 * dpr, y + h - 5 * dpr, RED[0], 9, 'bold');
     if (k.armor) text('armr', x + w - 30 * dpr, y + h - 17 * dpr, '#b07a2c', 9, 'bold');
+    if (k.catch) text('catch', x + 5 * dpr, y + h - 17 * dpr, '#2c6fb0', 9, 'bold');
   });
   // the cancel window: a purple bar from the key it opens at to the end
   const cx = r.x + keyStart(m, m.cancel) * px;
@@ -292,7 +293,7 @@ const SLOT_TIPS = { punch: 'J standing (5P)', kick: 'K standing (5K)', downPunch
   fwdPunch: '→ J (6P), else J', fwdKick: '→ K (6K), else K', backPunch: '← J (4P), else J', backKick: '← K (4K), else K',
   upPunch: '↑ J (8P), else J', upKick: '↑ K (8K), else K', upFwdPunch: '↗ J (9P), else ↑ J', upFwdKick: '↗ K (9K), else ↑ K',
   upBackPunch: '↖ J (7P), else ↑ J', upBackKick: '↖ K (7K), else ↑ K', downFwdPunch: '↘ J (3P), else ↓ J', downFwdKick: '↘ K (3K), else ↓ K',
-  downBackPunch: '↙ J (1P), else ↓ J', downBackKick: '↙ K (1K), else ↓ K',
+  downBackPunch: '↙ J (1P), else ↓ J', downBackKick: '↙ K (1K), else ↓ K', throw: 'J while holding guard (P+G): a throw',
   dashPunch: 'J while running forward', airPunch: 'J in the air', airKick: 'K in the air',
   qcfPunch: '↓↘→ J', qcfKick: '↓↘→ K', qcbPunch: '↓↙← J', qcbKick: '↓↙← K', dpPunch: '→↓↘ J', dpKick: '→↓↘ K',
   special: 'S (U), and any direction without its own special', fwdSpecial: '→ S', backSpecial: '← S', upSpecial: '↑ S', downSpecial: '↓ S', airSpecial: 'S in the air' };
@@ -365,20 +366,22 @@ function keyPanel() {
       toggle(':crisis_alert: unblock', 'Unblockable: a hit during this key goes through guard and parry. The striking limb glows red while unblockable frames are coming.',
         () => !!k().unblock, v => setKey('unblock', v || undefined)),
       toggle(':shield: armor', 'Armor: a hit during this key does its damage, but the move goes on (no flinch, no knockdown) unless it would knock out.',
-        () => !!k().armor, v => setKey('armor', v || undefined)))),
+        () => !!k().armor, v => setKey('armor', v || undefined)),
+      toggle(':back_hand: catch', 'Catch: a strike from the front landing during this key is caught, and the move named in the move\'s counter answers it (← S catch → reversal).',
+        () => !!k().catch, v => setKey('catch', v || undefined)))),
     slider('lunge', { min: 0, max: 600, step: 10 }, () => k().lunge || 0, v => setKey('lunge', v || undefined, 'lunge'),
       'Forward speed given when this key starts (px/s): steps into the strike.'),
   ];
 }
 // ---------- move list: grouped by type / striking limb / height, sorted, filtered by name or input ----------
 const MOVE_GROUPS = {
-  type: m => m.air ? 'air' : m.special ? 'special' : m.power ? 'normal' : 'other',
+  type: m => m.air ? 'air' : m.throw ? 'throw' : m.special ? 'special' : m.power ? 'normal' : 'other',
   limb: (m, ch) => m.power ? ch.by[m.hit]?.role || 'none' : 'other',
   height: m => m.power ? m.height || 'mid' : 'other',
   none: () => '',
 };
-const GROUP_ORDER = ['normal', 'special', 'air', 'arm', 'leg', 'head', 'spine', 'tail', 'high', 'shigh', 'mid', 'smid', 'low', 'none', 'other'];
-const GROUP_TIPS = { type: 'Group by type: normal, special, air, other (not attacks)', limb: 'Group by the striking limb', height: 'Group by height', none: 'One list' };
+const GROUP_ORDER = ['normal', 'special', 'throw', 'air', 'arm', 'leg', 'head', 'spine', 'tail', 'high', 'shigh', 'mid', 'smid', 'low', 'none', 'other'];
+const GROUP_TIPS = { type: 'Group by type: normal, special, throw, air, other (not attacks)', limb: 'Group by the striking limb', height: 'Group by height', none: 'One list' };
 const SORT_TIPS = { order: 'As defined', name: 'By name', startup: 'Fastest first (startup frames)', damage: 'Most damage first' };
 const moveDamage = m => m.power ? m.damage ?? m.power * 8 : 0;
 const moveInputs = (ch, n) => Object.keys(BINDS).filter(s => ch.binds[s] === n);

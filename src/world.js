@@ -146,6 +146,7 @@ class World {
     const cfg = this.cfg, pt = hit.pt;
     this.pend = { att, vic, at: null, vt: null };
     if (def) { // blocked or parried: a shorter freeze and a ring, no combo
+      if (def === 'catch') { vic.catchHit(att, hit); return; }
       if (def === 'parry') { vic.parryHit(att); this.parries++; } else { vic.blockHit(att, m); this.blocks++; }
       const hs = cfg.hitstop * m.power * (def === 'parry' ? 1.2 : 0.5);
       vic.freeze = att.freeze = hs;

@@ -57,6 +57,8 @@ class Brain {
   input(f, o, h) {
     const inp = { ...NOIN }, dist = Math.abs(o.x - f.x);
     if (!f.free) this.q = [];
+    if (f.heldBy) { if (this.rand() < 0.05) inp.punch = inp.guard = true; return inp; } // try to break the throw
+    if (f.kd === 'fly') { inp.guard = f.vy > 0 && f.y > -30 && this.rand() < 0.1; return inp; } // sometimes tech the landing
     if (this.q.length) {
       if ((this.qt -= h) <= 0) { press(inp, this.q.shift(), f, o); this.qt = this.rand(0.1, 0.16); }
       return inp;
@@ -94,7 +96,7 @@ class Brain {
     if (dist > 70) { this.plan = r < 0.85 ? 'in' : 'out'; return; }
     if (r < 0.12) { this.plan = 'out'; return; }
     if (r < 0.2) return; // hesitate
-    if (o.guarding && r < 0.5) { this.q = [o.crouching ? 'up+punch' : 'down+fwd+kick']; this.qt = 0; return; } // overhead vs a low guard, low vs a standing one
+    if (o.guarding && r < 0.5) { this.q = [o.crouching ? 'up+punch' : dist < 60 && r < 0.3 ? 'punch+guard' : 'down+fwd+kick']; this.qt = 0; return; } // overhead vs a low guard; throw or low vs a standing one
     this.q = CHAINS[Math.floor(this.rand() * CHAINS.length)].slice(); this.qt = 0;
   }
 }
@@ -138,6 +140,12 @@ const SCENARIOS = {
   'vs low guard': { a: ['!punch', 0.5, '!kick', 0.6, '!down+kick'], b: [{ hold: 'down+guard', t: 3 }], period: 2.6 },
   'parry': { a: [0.2, 'kick', 0.4, 'punch'], b: [0.25, 'guard'], period: 2 },
   'specials (S)': { a: ['!special', 1, '!fwd+special', 1, '!up+special'], b: 'dummy', period: 4.4 },
+  // throws (P+G), breaking one, the catch counter (← S), techs and air recovery (G while falling)
+  'throw': { a: [0.2, 'punch+guard'], b: [{ hold: 'guard', t: 2 }], ax: 330, bx: 372, period: 2.4 },
+  'throw break': { a: [0.2, 'punch+guard'], b: [0.38, 'punch+guard'], ax: 330, bx: 372, period: 2.4 },
+  'catch': { a: [0.3, 'kick'], b: [0.15, 'back+special'], period: 2.4 },
+  'tech': { a: ['down+kick'], b: [0.3, 'guard'], period: 2.4 },
+  'air recover': { a: [0.1, '@roundhouse'], b: [0.58, 'guard'], period: 2.4 },
   'OTG stomp': { a: ['down+kick', 0.6, { hold: 'fwd', t: 0.25 }, 'down', 'down+fwd', 'fwd+kick'], b: 'dummy', period: 3 },
   // several opponents: extra fighters are { c: controller, x, team }; same team = allies
   'you vs 2 ai': { a: 'human', b: 'ai', bx: 520, more: [{ c: 'ai', x: 640, team: 1 }] },

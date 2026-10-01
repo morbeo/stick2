@@ -143,6 +143,29 @@ const STICK_MOVES = {
   charge: attack({ power: 2, damage: 18, hit: 'fh', height: 'mid', knock: 460, crumple: true, lunge: 320, special: true },
     [0.36, { torso: -15, afU: -50, afL: 110, abU: -60, abL: 100, lfU: 35, lfL: -50 }],
     [0.06, { torso: 30, afU: 95, afL: 5, abU: 90, abL: 15, lfU: 55, lfL: -30, lbU: -40, lbL: 0 }], 0.08, 0.36),
+  // P+G: a short reach that ignores guard (not a crouching fighter: it is high); on connect the victim is held for the
+  // techWindow (P+G breaks it), then thrown by the move named in throw. toss has no active keys: the release does the damage
+  grab: { power: 1, damage: 0, hit: 'fh', height: 'high', knock: 0, throw: 'toss', keys: [
+    { d: 0.06, e: 'outQuad', p: { torso: 15, afU: 70, afL: 40, abU: 60, abL: 50 } },
+    { d: 0.06, e: 'outExpo', p: { torso: 22, afU: 92, afL: 5, abU: 88, abL: 10, lfU: 40, lfL: -35 }, active: true, lunge: 120 },
+    { d: 0.32, e: 'inOutCubic', p: null },
+  ] },
+  toss: { power: 1.5, damage: 14, hit: 'fh', height: 'mid', knock: 260, launch: 450, kd: true, keys: [
+    { d: 0.2, e: 'outQuad', p: { torso: -10, afU: 60, afL: 90, abU: 50, abL: 100, lfU: 20, lfL: -40, lbU: -30, lbL: -20 } },
+    { d: 0.08, e: 'outExpo', p: { torso: 35, afU: 150, afL: 10, abU: 140, abL: 20, lfU: 45, lfL: -30, lbU: -35, lbL: 0 } },
+    { d: 0.3, e: 'inOutCubic', p: null },
+  ] },
+  // ← S: a counter stance; a strike from the front landing during its catch key is caught and answered by the counter move
+  catch: { power: 1, special: true, counter: 'reversal', keys: [
+    { d: 0.05, e: 'outQuad', p: { torso: -5, afU: 80, afL: 60, abU: 40, abL: 90 } },
+    { d: 0.3, p: { torso: -5, afU: 85, afL: 55, abU: 45, abL: 85 }, catch: true },
+    { d: 0.25, e: 'inOutCubic', p: null },
+  ] },
+  reversal: { power: 1.6, damage: 13, hit: 'bh', height: 'mid', knock: 350, launch: 380, kd: true, keys: [
+    { d: 0.05, e: 'outExpo', p: { torso: 30, abU: 110, abL: 0, afU: 20, afL: 130, lbU: -30, lbL: 0, lfU: 35 } },
+    { d: 0.1, p: { torso: 30, abU: 110, abL: 0, afU: 20, afL: 130, lbU: -30, lbL: 0, lfU: 35 } },
+    { d: 0.3, e: 'inOutCubic', p: null },
+  ] },
   getup: { inv: true, keys: [
     { d: 0.18, e: 'outCubic', p: { torso: -30, head: 10, lfU: 75, lfL: -130, lbU: 60, lbL: -140, afU: -40, afL: 20, abU: -60, abL: 10 } },
     { d: 0.16, e: 'outCubic', p: { ...CROUCH, afU: 30, afL: 110, abU: 20, abL: 120 } },
@@ -172,9 +195,9 @@ const HITS = { fh: 'handF', bh: 'handB', ff: 'footF', bf: 'footB' };
 const BINDS = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: null, backKick: null,
   upPunch: 'hammer', upKick: 'turnKick', upFwdPunch: null, upFwdKick: null, upBackPunch: null, upBackKick: null,
   downPunch: 'launcher', downKick: 'sweep', downFwdPunch: null, downFwdKick: 'lowKick', downBackPunch: null, downBackKick: null,
-  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick',
+  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', throw: 'grab',
   qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: 'charge', dpKick: null,
-  special: 'spin', fwdSpecial: 'rush', backSpecial: null, upSpecial: 'rising', downSpecial: 'stomp', airSpecial: null };
+  special: 'spin', fwdSpecial: 'rush', backSpecial: 'catch', upSpecial: 'rising', downSpecial: 'stomp', airSpecial: null };
 // special motions in numpad notation (6 = towards the opponent), matched in order against the recent directions
 const MOTIONS = { dp: /6.*2.*3/, qcf: /2.*3.*6/, qcb: /2.*1.*4/ };
 function makeCharacter(def) {
