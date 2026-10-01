@@ -593,3 +593,19 @@ test('a forward dash passes a foe backed against the wall (either side, either f
     for (let i = 0; i < 70; i++) w.advance(1/60, NOIN); return w.a.x < w.b.x; })()`);
   assert.ok(far);
 });
+
+test('staff collision: a flying weapon hits along its whole drawn length (a staff\'s part behind the grip too); a weapon swing sweeps from its last substep, no gaps', () => {
+  const r = run(`(() => { const it = { type: 'staff', x: 100, y: 50, rot: 0 }, [p, q] = itemSeg(it), w = WEAPONS.staff;
+    const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+    const g = new World(SCENARIOS['you vs dummy'], {}, 7, [CHARS.stick]); g.loop = false; g.a.x = 300; g.b.x = 2000; g.a.wield('staff');
+    for (let i = 0; i < 20; i++) g.advance(1/60, NOIN);
+    g.a.force('whirl'); for (let i = 0; i < 9; i++) g.advance(1/60, NOIN); // into the swing
+    const now = g.a.strikeShapes(g.a.action.m)[0], back = [now[0][0] - 60, now[0][1] + 40], tipWas = [now[1][0] - 50, now[1][1] + 70];
+    g.a.lastSegs = { weapon: [back, tipWas] }; // where the staff was a substep ago, far off
+    const ss = g.a.strikeShapes(g.a.action.m).filter(s => s.id === 'weapon'), swept = ss.length;
+    const chain = [[back, tipWas], ...ss.filter(s => s.sweep), ss[0]];
+    let worst = 0; for (let k = 1; k < chain.length; k++) worst = Math.max(worst, ...[0, 1].map(e => Math.hypot(chain[k][e][0] - chain[k - 1][e][0], chain[k][e][1] - chain[k - 1][e][1])));
+    return { len, want: w.len + w.back, worst, swept }; })()`);
+  assert.ok(Math.abs(r.len - r.want) < 1e-6, JSON.stringify(r));
+  assert.ok(r.swept > 1 && r.worst <= 6.5, JSON.stringify(r));
+});

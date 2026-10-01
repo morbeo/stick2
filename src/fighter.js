@@ -591,6 +591,7 @@ class Fighter {
       if (h) { a.hits.push(o); a.hit = true; out.push({ f: this, o, h, a, m: this.weaponHit(a.m), key: a.m.keys[a.i] }); }
     }
     this.lastTips = Object.fromEntries(ss.map(s => [s.id, s[1]]));
+    this.lastSegs = Object.fromEntries(ss.filter(s => !s.sweep).map(s => [s.id, [s[0], s[1]]]));
   }
 
   // ---------- ragdoll (falls setting): a knocked-down body as point masses joined by its bones ----------
@@ -737,11 +738,17 @@ class Fighter {
     const mode = this.c('hitTest'), P = mode === 'target' ? this.points(this.target) : this.body(), r = this.c('hitR') + (m.throw ? this.c('grabReach') : 0);
     // a weapon strikes along its whole length (a staff behind the hand too), nunchucks with both sticks
     const ids = hitIds(m).flatMap(id => id === 'weapon' && this.ch.by.weaponTip ? [id, 'weaponTip'] : [id]);
-    return ids.map(id => this.ch.by[id]).filter(Boolean).map(b => {
+    return ids.map(id => this.ch.by[id]).filter(Boolean).flatMap(b => {
       const tip = P[b.id], o = P[b.parent || 'hip'], k = -(b.back || 0) / b.len;
       const s = b.role === 'weapon' ? [[o[0] + (tip[0] - o[0]) * k, o[1] + (tip[1] - o[1]) * k], tip, r]
         : mode === 'limb' ? [o, tip, r + b.thick / 2] : [mode === 'swept' && this.lastTips?.[b.id] || tip, tip, r];
-      s.id = b.id; return s;
+      s.id = b.id;
+      // a weapon sweeps: the in-betweens from where it was last substep, so a fast swing (a staff whirl) can't skip over a body
+      const was = b.role === 'weapon' && this.lastSegs?.[b.id];
+      if (!was) return [s];
+      const n = Math.min(16, Math.ceil(Math.max(Math.hypot(was[0][0] - s[0][0], was[0][1] - s[0][1]), Math.hypot(was[1][0] - s[1][0], was[1][1] - s[1][1])) / 6)), lerp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+      const mid = []; for (let i = 1; i < n; i++) mid.push(Object.assign([lerp(was[0], s[0], i / n), lerp(was[1], s[1], i / n), r], { id: b.id, sweep: true }));
+      return [s, ...mid];
     });
   }
   // the held weapon's shapes (as if it struck), for clashes and the boxes view

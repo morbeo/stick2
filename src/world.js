@@ -28,6 +28,11 @@ function frameState(f) {
 // checkpoint interval (frames); what a checkpoint leaves out: the logs, settings and UI state, kept as they are on restore
 const CHECK = 60, KEEP = ['log', 'checkpoints', 'sums', 'playback', 'desync', 'replaying', 'tape', 'loop', 'scrubN', 'scen', 'over', 'chars', 'cfg'];
 
+// a flying weapon's hit segment [end, end, radius]: its whole drawn length, the part behind the grip too (a staff is held along it)
+function itemSeg(it, r = 0) {
+  const w = WEAPONS[it.type], l = (w.len + (w.back || 0)) / 2, ux = Math.cos(it.rot) * l, uy = Math.sin(it.rot) * l;
+  return [[it.x - ux, it.y - uy], [it.x + ux, it.y + uy], r];
+}
 class World {
   // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, more?, period?, init? } (see brain.js)
   // chars: character per fighter slot (the last one fills the rest); default = the current character
@@ -109,7 +114,7 @@ class World {
       }
       if (!it.live) continue;
       // a thrown weapon hits its thrower's foes along its length, once
-      const ux = Math.cos(it.rot) * w.len / 2, uy = Math.sin(it.rot) * w.len / 2, seg = [[it.x - ux, it.y - uy], [it.x + ux, it.y + uy], cfg.hitR];
+      const seg = itemSeg(it, cfg.hitR);
       // an active strike in its path bats it away (clash setting on)
       const bat = cfg.clash !== 'off' && this.foes(it.owner).find(o => Math.abs(o.z - it.z) <= cfg.zReach && o.action?.m.keys[o.action.i]?.active && !o.action.m.throw
         && o.strikeShapes(o.action.m).some(t => distSegSeg(seg[0], seg[1], t[0], t[1]) < seg[2] + t[2] + 2 + (o.ch.by[t.id]?.thick ?? BONE.thick) / 2));
@@ -135,9 +140,9 @@ class World {
       ctx.save(); ctx.translate(0, it.z * ZS + lie);
       drawWeapon(ctx, { ...w, back: w.back || 0 }, [it.x - c * half, it.y - s * half], [it.x + c * (w.len - half), it.y + s * (w.len - half)], null);
       if (this.cfg.boxes && it.live) { // a flying weapon's hitbox
-        const ux = c * w.len / 2, uy = s * w.len / 2;
+        const [p, q] = itemSeg(it);
         ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = this.cfg.hitR * 2 + 7; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(it.x - ux, it.y - uy); ctx.lineTo(it.x + ux, it.y + uy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
       }
       ctx.restore();
     }
