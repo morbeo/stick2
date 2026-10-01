@@ -92,7 +92,7 @@ class Brain {
     if (o.kd === 'down' && dist < 110 && r < 0.4) { this.q = ['down', 'down+fwd', 'fwd+kick']; this.qt = 0; return; } // stomp
     if (o.kd === 'down' || o.action?.m.inv) { if (dist < 90) this.plan = 'out'; return; }
     // weapons: go and pick up one lying near (P+G over it); armed, sometimes throw it from range
-    const it = !f.ch.weapon && f.w.items.length ? f.w.items.filter(i => i.rest && Math.abs(i.x - f.x) < 260).sort((a, b) => Math.abs(a.x - f.x) - Math.abs(b.x - f.x))[0] : null;
+    const it = !f.ch.weapon && f.w.items.length ? f.w.items.filter(i => i.rest && !i.taker && Math.abs(i.x - f.x) < 260).sort((a, b) => Math.abs(a.x - f.x) - Math.abs(b.x - f.x))[0] : null;
     if (it && dist > 60 && r < 0.8) { if (f.w.itemNear(f) === it) { this.q = ['punch+guard']; this.qt = 0; } else { this.plan = 'item'; this.item = it; } return; }
     if (f.ch.weapon && dist > 200 && dist < 450 && r < 0.06) { this.q = ['punch+guard']; this.qt = 0; return; }
     if (!o.grounded && !o.kd && dist < 110 && r < 0.5) { this.q = ['fwd', 'down', 'down+fwd+punch']; this.qt = 0; return; } // anti-air rising
@@ -168,7 +168,7 @@ const SCENARIOS = {
   'weapon throw': { a: [0.3, 'punch+guard'], aw: 'dagger', b: 'dummy', ax: 250, bx: 480, period: 2.4 },
   'disarm': { a: [0.2, '@launcher'], b: 'dummy', bw: 'sword', period: 2.6 },
   'weapon clash': { a: [0.3, 'punch'], b: [0.3, 'punch'], aw: 'sword', bw: 'sword', ax: 300, bx: 400, period: 2 },
-  'deflect': { a: [0.3, 'punch+guard'], aw: 'dagger', b: [0.35, 'punch'], bw: 'sword', ax: 250, bx: 450, period: 2.4 },
+  'deflect': { a: [0.3, 'punch+guard'], aw: 'dagger', b: [0.45, 'punch'], bw: 'sword', ax: 250, bx: 450, period: 2.4 },
   'sword vs staff ai': { a: 'ai', b: 'ai', aw: 'sword', bw: 'staff' },
   'weapons ai': { a: 'ai', b: 'ai', items: [{ type: 'axe', x: 330 }, { type: 'nunchucks', x: 470 }] },
   'walk': { a: [{ hold: 'fwd', t: 0.8 }, 0.3, { hold: 'back', t: 0.8 }], b: 'dummy', ax: 250, bx: 550, period: 2.4 },

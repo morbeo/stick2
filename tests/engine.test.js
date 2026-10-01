@@ -286,8 +286,24 @@ test('a weapon compiles into the hand with its class\'s binds; wbinds override t
 test('P+G over a weapon picks it up and P swings it', () => {
   const r = json(`(() => { const r = fight(SCENARIOS['pick up & slash'], [CHARS.stick, CHARS.stick], 300); return { w: r.w.a.ch.weapon, seen: r.seen, hits: r.w.hits, items: r.w.items.length }; })()`);
   assert.equal(r.w, 'sword'), assert.equal(r.items, 0);
-  assert.deepEqual(r.seen.slice(0, 3), ['a:slash', 'a:chop', 'a:lowSlash']);
+  assert.deepEqual(r.seen.slice(0, 4), ['a:pickUp', 'a:slash', 'a:chop', 'a:lowSlash']);
   assert.ok(r.hits >= 2);
+});
+
+test('pick up by the handle at the grip key, throw at the release key; unmarked: the first key', () => {
+  const r = json(`(() => { const go = (flags, sc) => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.stick));
+      if (!flags) for (const n of ['pickUp', 'weaponThrow']) d.moves[n].keys.forEach(k => { delete k.grip; delete k.release; });
+      const w = new World(SCENARIOS[sc], {}, 7, [makeCharacter(d), CHARS.stick]), out = [];
+      for (let i = 0; i < 120; i++) { w.advance(1 / 60, NOIN); const a = w.a, it = w.items.find(i => i.taker === a);
+        if (a.action && (a.action.pick || a.action.toss)) out.push([a.action.i, !!a.ch.weapon, it ? Math.abs(a.body()[a.weaponIds?.[0] || 'handF'][0] - (it.x - Math.cos(it.rot) * WEAPONS[it.type].len / 2)) : -1]); }
+      return out; };
+    return { pick: go(true, 'pick up & slash'), pick0: go(false, 'pick up & slash'), toss: go(true, 'weapon throw'), toss0: go(false, 'weapon throw') }; })()`);
+  const at = (o, armed) => o.find(([, w]) => w === armed)?.[0];
+  assert.equal(at(r.pick, true), 1, 'gripped as the first key is reached'), assert.equal(at(r.pick, false), 0);
+  const near = r.pick.filter(([i, w, d]) => !w && d >= 0).at(-1);
+  assert.ok(near[2] < 8, 'the handle is at the hand when it closes: ' + near[2]);
+  assert.equal(at(r.toss, false), 2, 'released at the second key, after the wind-up');
+  assert.equal(at(r.pick0, true), 1), assert.equal(at(r.toss0, false), 1, 'no release key: the first');
 });
 
 test('P+G with a weapon throws it: it hits from range and the thrower is unarmed', () => {

@@ -165,7 +165,7 @@ function drawTimeline() {
     }
     // flag icons along the bottom
     const icons = [k.active && ['my_location', RED[0]], k.inv && ['block', '#2c6fb0'], k.unblock && ['crisis_alert', RED[0]], k.armor && ['shield', '#b07a2c'],
-      k.catch && ['back_hand', '#2c6fb0'], i === m.cancel && ['sync_alt', '#8e44ad'], !k.p && ['accessibility_new', '#888'], hold && ['pause', '#888']].filter(Boolean);
+      k.catch && ['back_hand', '#2c6fb0'], k.grip && ['pan_tool', '#b07a2c'], k.release && ['sports_handball', '#b07a2c'], i === m.cancel && ['sync_alt', '#8e44ad'], !k.p && ['accessibility_new', '#888'], hold && ['pause', '#888']].filter(Boolean);
     icons.forEach(([n, c], j) => glyph(n, x + (4 + j * 14) * dpr, y + h - 4 * dpr, c, 13));
     ctx.restore();
   });
@@ -367,7 +367,7 @@ function splitKey(t) {
   const p = mapVals(samplePose(edChar(), m, keyStart(m, i) + f / 60), v => Math.round(v * 10) / 10);
   edit(def => {
     const ks = def.moves[anim.move].keys, k = ks[i];
-    ks.splice(i, 0, { ...k, d: f / 60, p }); // the first part starts where the key did: it keeps the lunge and cancel
+    ks.splice(i, 0, { ...k, d: f / 60, p, grip: undefined, release: undefined }); // the first part starts where the key did: it keeps the lunge and cancel
     k.d = (n - f) / 60; delete k.lunge; delete k.cancel;
   });
   selectKey(i);
@@ -498,6 +498,10 @@ function keyPanel() {
         () => !!k().armor, v => setKey('armor', v || undefined)),
       toggle(':back_hand: catch', 'Catch: a strike from the front landing during this key is caught, and the move named in the move\'s counter answers it (← S catch → reversal).',
         () => !!k().catch, v => setKey('catch', v || undefined)))),
+    ...curMove().weapon ? [h('div', { cls: 'row', tip: 'Weapon hand: where pick-up and throw moves take or let go of the weapon' }, h('span', { textContent: 'hand' }), h('span', { cls: 'bar' },
+      ...[['grip', ':pan_tool: grip', 'Grip: picking up (P+G over a weapon), the hand closes on the handle as this key is reached; the weapon slides to the hand until then. Unmarked: the first key.'],
+        ['release', ':sports_handball: release', 'Release: throwing (P+G armed), the weapon leaves the hand as this key is reached. Unmarked: the first key.']].map(([n, l, t]) =>
+        toggle(l, t, () => !!k()[n], v => edit(def => { def.moves[anim.move].keys.forEach((x, i) => { if (i === anim.key && v) x[n] = true; else delete x[n]; }); })))))] : [],
     slider('lunge', { min: 0, max: 600, step: 10 }, () => k().lunge || 0, v => setKey('lunge', v || undefined, 'lunge'),
       'Forward speed given when this key starts (px/s): steps into the strike.'),
   ];

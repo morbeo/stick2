@@ -8,7 +8,7 @@ class Fighter {
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, flyT: 0, guardT: -9, stanceI: 0,
-      airJumps: 0, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null });
+      airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null });
     this.hp = this.c('health'); this.ch0 = ch.base || ch; // ch0: the character without its weapon
     this.target = this.basePose();
     this.disp = { ...this.target };
@@ -206,16 +206,36 @@ class Fighter {
     w.items.push(it);
     this.setChar(this.ch0);
   }
-  // P+G free on the ground: throw the held weapon, or pick up the one at the feet (null = nothing to do, a grab instead)
+  // P+G free on the ground: throw the held weapon (weaponThrow: it leaves the hand at the key marked release), or reach for the one
+  // at the feet (pickUp: the hand closes on its handle at the key marked grip); false = nothing to do, a grab instead
   weaponGrab() {
-    if (this.ch.weapon) { this.letGo(true); this.start({ keys: [{ d: 0.06, e: 'outQuad', p: this.ch.moves.jab?.keys[1].p || {} }, { d: 0.18, e: 'inOutCubic', p: null }] }); return true; }
+    if (this.ch.weapon) { this.start(this.ch.moves.weaponThrow || WEAPON_MOVES.weaponThrow); this.action.toss = true; return true; }
     const it = this.w.itemNear(this);
     if (!it) return false;
-    this.w.items.splice(this.w.items.indexOf(it), 1);
-    this.wield(it.type);
-    this.start({ keys: [{ d: 0.12, e: 'outQuad', p: this.ch.poses.crouch }, { d: 0.14, e: 'inOutCubic', p: null }] });
-    this.say(it.type.toUpperCase());
+    it.taker = this; this.taking = it;
+    this.start(this.ch0.moves.pickUp || WEAPON_MOVES.pickUp); this.action.pick = true;
     return true;
+  }
+  // a key of the running move reached its pose (wield and letGo change the character, the move goes on)
+  keyReached(k) {
+    const a = this.action, first = k === a.m.keys[0];
+    if (this.taking && a.pick && (k.grip || first && !a.m.keys.some(x => x.grip))) {
+      const it = this.taking; this.taking = null;
+      this.w.items.splice(this.w.items.indexOf(it), 1); this.wield(it.type); this.action = a; this.say(it.type.toUpperCase());
+      for (const j of this.ch.ids) a.from[j] ??= this.target[j]; // the weapon's bones join the tween where they are
+    }
+    if (this.ch.weapon && a.toss && (k.release || first && !a.m.keys.some(x => x.release))) { this.letGo(true); this.action = a; }
+  }
+  // reaching for a weapon: it slides and turns on the floor so its handle meets the hand at the grip key; let go if the reach is cut short
+  reach(dt) {
+    const it = this.taking;
+    if (!this.action?.pick) { it.taker = null; this.taking = null; return; }
+    const hand = this.body()[(this.ch.chains.arm.find(c => c[0].side === 'f') || this.ch.chains.arm[0])?.at(-1).id];
+    if (!hand) return;
+    const a = this.action, keys = a.m.keys, g = Math.max(0, keys.findIndex(k => k.grip)), left = keys.slice(a.i, g + 1).reduce((s, k) => s + k.d, -a.t);
+    const half = WEAPONS[it.type].len / 2, rot = this.dir > 0 ? 0 : Math.PI, k = Math.min(1, dt / Math.max(dt, left)); // the rest of the way in the time left
+    it.rot += wrap180((rot - it.rot) / R) * R * k;
+    it.x += (hand[0] + Math.cos(it.rot) * half - it.x) * k;
   }
   // a weapon move's blow, by the weight of the weapon held
   weaponHit(m) {
@@ -230,6 +250,7 @@ class Fighter {
     this.comboPop *= Math.exp(-10 * dt);
     if (this.free) this.combo = 0;
     if (this.heldBy) this.held(dt, inp);
+    if (this.taking) this.reach(dt);
 
     // start a move, or chain into the next one once the current move's active frames are over
     const a0 = this.action;
@@ -381,15 +402,16 @@ class Fighter {
     this.sq += this.sqv * dt;
 
     // tween layer: keyframes eased from a snapshot toward (live base ⊕ key)
-    const base = this.basePose();
+    let base = this.basePose();
     if (this.action) {
-      const a = this.action, keys = a.m.keys;
+      const a = this.action, keys = a.m.keys, ch = this.ch;
       a.t += dt * (a.m.power ? c('attackSpeed') * (1 + c('comboSpeed') * (this.w.combo - 1)) * (a.m.weapon && this.weapon ? weaponSpeed(this.weapon) : 1) : 1);
       while (a.i < keys.length && a.t >= keys[a.i].d) {
-        a.t -= keys[a.i].d; a.from = resolve(base, keys[a.i].p); a.i++;
+        a.t -= keys[a.i].d; a.from = resolve(base, keys[a.i].p); this.keyReached(keys[a.i++]);
         if (keys[a.i]?.lunge) this.vx = this.dir * keys[a.i].lunge;
       }
       if (a.i >= keys.length) this.action = null;
+      if (this.ch !== ch) base = this.basePose(); // a grip / release key swapped the body
     }
     if (this.action) {
       const a = this.action, k = a.m.keys[a.i], to = resolve(base, k.p);

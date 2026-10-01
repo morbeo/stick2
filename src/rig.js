@@ -484,6 +484,14 @@ const WEAPON_MOVES = {
   poke: wAtk('pole', { power: 1, damage: 7, height: 'mid', knock: 180, stun: 0.35 }, [0.07, wPose('jab', 0)], [0.05, wPose('jab', 1)], 0.06, 0.18),
   whirl: wAtk('pole', { power: 1.3, damage: 10, height: 'high', knock: 200, stun: 0.4, wide: true }, [0.1, wPose('hammer', 0, 40)], [0.07, wPose('hammer', 1, -40)], 0.07, 0.26),
   trip: wAtk('pole', { power: 1, damage: 7, height: 'low', knock: 60, launch: 150, kd: true }, [0.09, wPose('launcher', 0, 80)], [0.06, wPose('launcher', 0, 10)], 0.06, 0.24),
+  // not attacks (P+G): crouch and reach, the hand closes on the handle at the grip key; wind up over the shoulder, the weapon leaves at the release key
+  pickUp: { weapon: 'slash', keys: [
+    { d: 0.16, e: 'outQuad', grip: true, p: { waist: 110, chest: 0, neck: 20, uarmF: -75, farmF: -5, handF: 0, weapon: 80, thighF: 85, shinF: -135, thighB: -25, shinB: -95 } },
+    { d: 0.18, e: 'inOutCubic', p: null }] },
+  weaponThrow: { weapon: 'slash', keys: [
+    { d: 0.14, e: 'outQuad', p: wPose('overhand', 0, 140) },
+    { d: 0.07, e: 'linear', release: true, p: wPose('overhand', 1, 20) },
+    { d: 0.2, e: 'inOutCubic', p: null }] },
 };
 // classes: their moves on P, → P and ↓ P while a weapon of the class is held (a character's wbinds override them), and the weapon the editor shows
 const WEAPON_CLASSES = {

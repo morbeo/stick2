@@ -92,7 +92,7 @@ class World {
   // the lying weapon a fighter stands over, or null
   itemNear(f) {
     let best = null;
-    for (const it of this.items) if (it.rest && Math.abs(it.x - f.x) < 40 && Math.abs(it.z - f.z) < 20 && (!best || Math.abs(it.x - f.x) < Math.abs(best.x - f.x))) best = it;
+    for (const it of this.items) if (it.rest && !it.taker && Math.abs(it.x - f.x) < 40 && Math.abs(it.z - f.z) < 20 && (!best || Math.abs(it.x - f.x) < Math.abs(best.x - f.x))) best = it;
     return best;
   }
   updateItems(h) {

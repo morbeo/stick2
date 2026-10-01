@@ -38,7 +38,7 @@ weapon throw   hits 1 blocks 0 hp 100.0 93.0 x 250 492
 disarm         hits 1 blocks 0 hp 100.0 90.0 x 330 413
 weapon clash   hits 0 blocks 0 hp 100.0 100.0 x 267 433
 deflect        hits 0 blocks 0 hp 100.0 100.0 x 250 450
-sword vs staff ai hits 7 blocks 0 hp 67.1 57.1 x 315 377
-weapons ai     hits 4 blocks 0 hp 78.5 78.4 x 333 535
+sword vs staff ai hits 6 blocks 0 hp 67.1 72.7 x 277 327
+weapons ai     hits 7 blocks 0 hp 42.2 92.0 x 278 400
 walk           hits 0 blocks 0 hp 100.0 100.0 x 250 550
 jump           hits 0 blocks 0 hp 100.0 100.0 x 450 550
