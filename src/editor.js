@@ -446,6 +446,7 @@ const MOVE_PROPS = [
   { k: 'stop', min: 0, max: 0.4, step: 0.01, tip: 'Hit stop (s): how long both fighters freeze on impact (shrinks along a combo, half on block). 0 = power × the hitstop setting.' },
   { k: 'bstun', min: 0, max: 1, step: 0.02, tip: 'Blockstun (s): how long a blocking defender is stuck in guard. 0 = stun × the blockStun setting.' },
   { k: 'bpush', min: 0, max: 600, step: 10, tip: 'Pushback on block (px/s). 0 = knock × the blockPush setting.' },
+  { k: 'juggle', min: 0, max: 10, step: 1, tip: 'Juggle cost: points it spends from the victim\'s juggle pool when it hits a foe in the air or lying (jugglePoints setting; 0 there = no limit). Unset = 1.', def: 1 },
 ];
 // what each height is blocked by (guard and parry are front only)
 const HEIGHT_TIPS = {
@@ -455,6 +456,8 @@ const HEIGHT_TIPS = {
   smid: 'Special mid: blocked standing or crouching.',
   low: 'Low: blocked crouching only; hits a standing guard. No upward push.',
 };
+const HITS_TIPS = { stand: 'Hits a standing foe', crouch: 'Hits a crouching foe (off: passes over it, like a high)', air: 'Hits a foe in the air (off: no anti-air, no juggle)' };
+const HIT_STATES = Object.keys(HITS_TIPS);
 const MOVE_FLAGS = {
   kd: 'Knockdown: the victim is launched, bounces and lies down.',
   air: 'Air move: performed while jumping, cancelled on landing.',
@@ -466,6 +469,7 @@ const MOVE_FLAGS = {
   wall: 'Wall splat: a victim knocked into the arena wall sticks to it a moment instead of bouncing off.',
   wallbounce: 'Wall bounce: a victim knocked into the arena wall bounces back out at wallBounceSpeed, popped up, its juggle count reset for a follow-up (spin).',
   bounce: 'Ground bounce: a knocked-down victim bounces high off the floor once, open to a juggle.',
+  noAirGuard: 'No air guard: hits a fighter guarding in the air (airGuard setting).',
   roll: 'Roll: invincible and passing through fighters for rollInv from its start; the body turns over once, the way its lunge goes (rollFwd, rollBack).',
 };
 
@@ -592,6 +596,7 @@ const TABLE_COLS = [
   { k: 'height', tip: 'Height: what blocks it (click a value to change it)', get: m => m.power ? m.height || 'mid' : '', height: true },
   ...Object.keys(PHASE_TIPS).map(k => ({ k, tip: PHASE_TIPS[k], get: m => frameData(m)[k], phase: true })),
   ...MOVE_PROPS.map(p => ({ k: p.k, tip: p.tip, get: m => m[p.k] ?? '', prop: p })),
+  { k: 'hits', tip: 'The states of the foe it hits (set in the move panel; empty = any)', get: m => m.hits?.join(' ') ?? '' },
   { k: 'flags', tip: 'Move flags (set them in the move panel)', get: m => Object.keys(MOVE_FLAGS).filter(f => m[f]).join(' ') },
 ];
 function setPhase(n, phase, frames) {
@@ -717,6 +722,9 @@ function movePanel() {
         v => v === '2d' ? '2D' : '2.5D')),
     h('div', { cls: 'row', tip: 'Where the move is aimed; a hit reaction still follows the actual impact point' }, h('span', { textContent: 'height' }),
       seg(['high', 'shigh', 'mid', 'smid', 'low'], () => m().height, v => setMove('height', v), HEIGHT_TIPS)),
+    adv(h('div', { cls: 'row', tip: 'Hits: the states of the foe this move can hit (hits; all lit = any); a lying foe: the otg flag' }, h('span', { textContent: 'hits' }), h('span', { cls: 'bar' },
+      ...Object.entries(HITS_TIPS).map(([s, tip]) => toggle(s, tip, () => (m().hits || HIT_STATES).includes(s),
+        v => { const next = HIT_STATES.filter(x => x === s ? v : (m().hits || HIT_STATES).includes(x)); setMove('hits', next.length === HIT_STATES.length ? undefined : next); }))))),
     ...MOVE_PROPS.map(p => { const r = slider(p.k, p, () => m()[p.k] ?? p.def ?? 0, v => setMove(p.k, v === (p.def ?? 0) ? undefined : v, 'm.' + p.k), p.tip); return MOVE_BASIC.includes(p.k) ? r : adv(r); }),
     h('div', { cls: 'bar' }, Object.entries(MOVE_FLAGS).map(([f, tip]) => toggle(f, tip, () => !!m()[f], v => setMove(f, v || undefined)))),
     ...keyPanel(),

@@ -71,6 +71,7 @@ const SCHEMA = [
   { k: 'specialCancel', v: true, tip: 'A normal move that hit can be cancelled into a special (↓↘→ J …).' },
   { k: 'jumpCancel', v: true, tip: 'A move that hit can be cancelled into a jump: launch, jump, air combo.' },
   { k: 'juggleDecay', v: 1, min: 0.5, max: 1, step: 0.05, tip: 'Launch speed × this per extra hit on an airborne fighter, so air combos end. 1 = no decay.' },
+  { k: 'jugglePoints', v: 0, min: 0, max: 20, step: 1, tip: 'Juggle points: each hit on an airborne or lying fighter spends the move\'s juggle cost (1 unset) from this pool, refilled when it is back on its feet; a hit it can\'t pay for passes through. 0 = no limit.' },
   { k: 'otg', v: 'flagged', opts: ['off', 'flagged', 'all'], tip: 'Off the ground: which moves can hit a fighter lying on the floor (it pops up).',
     optTips: { off: 'Nothing hits a downed fighter.', flagged: 'Only moves marked otg (stomp).', all: 'Every move.' } },
   { k: 'motionWindow', v: 0.3, min: 0.1, max: 0.8, step: 0.05, tip: 'How long (s) the directions of a special motion (↓↘→ …) stay valid.' },
@@ -83,6 +84,7 @@ const SCHEMA = [
   { k: 'chip', v: 0.1, min: 0, max: 0.5, step: 0.01, tip: 'Fraction of the damage a blocked hit still does (it never knocks out).' },
   { k: 'blockStun', v: 0.7, min: 0, max: 1.5, step: 0.05, tip: 'Blockstun as a fraction of the move\'s hitstun: how long the defender is stuck in guard.' },
   { k: 'blockPush', v: 0.6, min: 0, max: 1.5, step: 0.05, tip: 'Pushback on block as a fraction of the move\'s knockback.' },
+  { k: 'airGuard', v: false, tip: 'Air guard: a jumping fighter holding G blocks too, every height (a move flagged noAirGuard still hits).' },
   { k: 'parry', v: true, tip: 'A guard tapped just before a hit parries it: no damage, the attacker staggers.' },
   { k: 'parryWindow', v: 0.1, min: 0.02, max: 0.3, step: 0.01, tip: 'How long (s) after the guard tap a hit is parried. 0.1 = 6 frames.' },
   { k: 'justGuard', v: true, tip: 'Just guard: a guard tapped a little earlier than a parry (within justGuardWindow before the parry window) blocks perfectly: shorter blockstun, no chip, no push (JUST).' },
@@ -216,7 +218,7 @@ function makeRand(seed) {
 // ---------- simulation state: checkpoints and replays ----------
 // Replays store inputs, not results: a replay recorded with another ENGINE_VERSION plays out differently.
 // Bump it whenever the simulation changes (the replay test fails until you do).
-const ENGINE_VERSION = 21;
+const ENGINE_VERSION = 22;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied

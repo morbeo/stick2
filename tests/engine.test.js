@@ -544,3 +544,21 @@ test('key events: sound, shake, after-images and the hit spark style play as key
   assert.ok(r.a.tr > r.b.tr, `shake ${r.a.tr} vs ${r.b.tr}`); assert.ok(r.a.after > 0 && r.b.after === 0); assert.ok(r.a.slash > 0 && r.b.slash === 0);
   assert.equal(r.a.hash, r.b.hash); assert.ok(r.a.hp < 100);
 });
+
+test('hit flags: a move\'s hits (stand / crouch / air) skips other states; airGuard blocks in the air unless the move is noAirGuard; jugglePoints ends air combos', () => {
+  const r = run(`(() => { const kick = CHAR_DEFS.stick.moves.kick;
+    const withKick = p => makeCharacter({ ...CHAR_DEFS.stick, moves: { ...CHAR_DEFS.stick.moves, kick: { ...kick, ...p } } });
+    const hp = (ch, b, cfg = {}, init) => { const w = new World({ a: [0.1, 'kick'], b, ax: 330, bx: 380, cfg, init }, {}, 7, [ch, CHARS.stick]); w.loop = false;
+      for (let i = 0; i < 50; i++) w.advance(1/60, NOIN); return { hp: w.b.hp, blocks: w.blocks }; };
+    const crouch = [{ hold: 'down', t: 2 }], air = w => { w.b.grounded = false; w.b.y = -40; w.b.vy = -500; };
+    const combo = cfg => { const w = new World({ a: [0.1, 'kick', 0.3, 'kick', 0.3, 'kick'], b: 'dummy', ax: 330, bx: 375, cfg }, {}, 7, [withKick({ kd: true, knock: 20, launch: 300, juggle: 2 }), CHARS.stick]);
+      w.loop = false; for (let i = 0; i < 150; i++) w.advance(1/60, NOIN); return w.hits; };
+    return { crouchAll: hp(CHARS.stick, crouch).hp, crouchNo: hp(withKick({ hits: ['stand', 'air'] }), crouch).hp, standNo: hp(withKick({ hits: ['stand', 'air'] }), 'dummy').hp,
+      airOff: hp(CHARS.stick, [{ hold: 'guard', t: 2 }], {}, air), airOn: hp(CHARS.stick, [{ hold: 'guard', t: 2 }], { airGuard: true }, air),
+      airNo: hp(withKick({ noAirGuard: true }), [{ hold: 'guard', t: 2 }], { airGuard: true }, air),
+      comboFree: combo({ chains: 'none' }), comboPool: combo({ chains: 'none', jugglePoints: 1 }), comboRoom: combo({ chains: 'none', jugglePoints: 2 }) }; })()`);
+  assert.ok(r.crouchAll < 100, 'a kick hits a croucher'); assert.equal(r.crouchNo, 100, 'without crouch in hits it whiffs'); assert.ok(r.standNo < 100);
+  assert.equal(r.airOff.blocks, 0); assert.ok(r.airOff.hp < 100, 'no air guard by default');
+  assert.equal(r.airOn.blocks, 1, 'airGuard: blocked in the air'); assert.equal(r.airNo.blocks, 0, 'noAirGuard goes through');
+  assert.ok(r.comboFree >= 2 && r.comboPool === 1, `juggle pool: ${r.comboPool} hits vs ${r.comboFree}`); assert.equal(r.comboRoom, r.comboFree, 'a pool that can pay lets it land');
+});

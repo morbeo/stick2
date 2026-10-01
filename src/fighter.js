@@ -5,7 +5,7 @@ class Fighter {
       time: 0, seed: w.rand(0, 100), walkPh: 0, lean: 0, inp: NOIN,
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
       kd: null, downT: 0, wake: null, won: false, wallB: false, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
-      sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
+      sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0, jugUsed: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
       airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null });
@@ -334,9 +334,10 @@ class Fighter {
     if (!inp[fwdK] || !this.free || this.action) this.running = false;
     this.dashT -= dt; this.passT -= dt; this.invT -= dt; this.blockT -= dt; this.parryT -= dt; this.labelT -= dt; this.dodgeT -= dt; this.airDashT -= dt; this.dizzyT -= dt; this.reelT -= dt; this.splatT -= dt;
     if (this.free) this.stunM = Math.max(0, this.stunM - c('dizzyDrain') * dt);
-    // guard: held while free on the ground, and kept through blockstun; with ↓ it is a low guard (in the belt too)
+    if (this.grounded && !this.kd) this.jugUsed = 0; // back on its feet: the juggle pool refills
+    // guard: held while free on the ground (or in the air: airGuard), and kept through blockstun; with ↓ it is a low guard (in the belt too)
     const busy = this.action && !this.action.m.hurt;
-    this.guarding = this.blockT > 0 || inp.guard && this.free && this.grounded && !busy && this.squatT <= 0;
+    this.guarding = this.blockT > 0 || inp.guard && this.free && (this.grounded || c('airGuard')) && !busy && this.squatT <= 0;
     this.crouching = (this.free || this.blockT > 0) && inp.down && this.grounded && (c('plane') !== 'belt' || this.guarding);
 
     // horizontal: accelerate toward desired speed, never snap
@@ -568,6 +569,9 @@ class Fighter {
     const otg = c('otg') === 'all' || c('otg') === 'flagged' && a?.m.otg;
     if (ss.length) for (const o of foes) if (!a.hits.includes(o) && Math.abs(o.z - this.z) <= c('zReach') * (a.m.wide ? 3 : 1)) {
       if (a.m.height === 'high' && o.crouching) continue; // highs pass over a crouching fighter
+      const air = !!o.kd || !o.grounded;
+      if (a.m.hits && !o.kd && !a.m.hits.includes(!o.grounded ? 'air' : o.crouching ? 'crouch' : 'stand')) continue; // the move's hits: the states it can hit
+      if (air && c('jugglePoints') && o.jugUsed + (a.m.juggle ?? 1) > c('jugglePoints')) continue; // the juggle pool can't pay for it
       if (a.m.throw && (!o.grounded || !o.free || o.heldBy || o.squatT > 0)) continue; // throws only catch a standing, free fighter
       const cl = this.clashWith(o, ss);
       if (cl) { this.w.clash(this, o, cl); break; }
@@ -768,6 +772,7 @@ class Fighter {
     if (k?.catch && (att.x - this.x) * this.dir > 0 && (!k.catchH || k.catchH.includes(h))) return 'catch';
     const able = this.guarding || this.parryT > 0 && this.free && this.grounded && !this.action && this.squatT <= 0;
     if (key?.unblock || !able || (att.x - this.x) * this.dir <= 0) return null;
+    if (!this.grounded) return m.noAirGuard ? null : this.parryT > 0 && this.c('parry') ? 'parry' : 'block'; // air guard: every height
     if (!(h === 'smid' || (this.crouching ? h === 'low' : h !== 'low'))) return null;
     return this.parryT > 0 && this.c('parry') ? 'parry' : 'block';
   }
@@ -849,6 +854,7 @@ class Fighter {
     this.stunM = wasDizzy ? 0 : this.stunM + dmg; // a hit wakes a dizzy fighter (and empties the meter)
     this.comboShown = combo; this.comboT = 1; this.comboPop = 1;
     const juggle = !!this.kd || !this.grounded, otg = this.kd === 'down';
+    if (juggle) this.jugUsed += m.juggle ?? 1;
     this.dir = -att.dir; this.buffer = null; this.squatT = 0; this.flashT = 0.1;
     const ps = this.c('powerScale');
     this.vx = att.dir * m.knock * ps * (juggle ? 0.6 : 1) / this.ch.stats.weight;
