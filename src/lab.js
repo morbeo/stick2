@@ -113,11 +113,12 @@ const avg = (c, f) => { const ws = [c.w, ...(c.extra || [])]; return ws.reduce((
 function cellStats(c) {
   const n = v => c.extra ? v.toFixed(1) : v, w = c.w;
   return `frozen ${Math.round(100 * avg(c, METRICS.frozen[1]))}%  ${n(avg(c, METRICS.hits[1]))} hits  ${n(avg(c, METRICS.whiffs[1]))} whiffs` +
+    (w.blocks ? `  ${w.blocks} blocked` : '') + (w.parries ? `  ${w.parries} parried` : '') +
     (w.adv === null ? '' : `  ${w.adv >= 0 ? '+' : ''}${w.adv}f`);
 }
 // frame meter: one column per frame, newest on the right; top row = left fighter, bottom = right fighter
-const METER_COLS = { idle: null, air: '#cfd8e0', move: '#b3a79a', startup: '#3a9d5d', active: '#c0392b', recovery: '#2c6fb0', cancel: '#8e44ad', hit: '#e6b422', down: '#e8dcb5', stop: '#fff' };
-const METER_TIPS = 'frame meter: green startup · red active · blue recovery · purple cancel window · yellow hitstun · pale knocked down · white hit stop · grey air / other';
+const METER_COLS = { idle: null, air: '#cfd8e0', move: '#b3a79a', startup: '#3a9d5d', active: '#c0392b', recovery: '#2c6fb0', cancel: '#8e44ad', hit: '#e6b422', block: '#7fb3d5', down: '#e8dcb5', stop: '#fff' };
+const METER_TIPS = 'frame meter: green startup · red active · blue recovery · purple cancel window · yellow hitstun · light blue blockstun · pale knocked down · white hit stop · grey air / other';
 function drawMeter(w, r, full) {
   const fs = w.hist.fs, n = full ? 120 : 60, cw = r.w / n, rh = r.h / 2 - dpr;
   ctx.fillStyle = '#0000000d'; ctx.fillRect(r.x, r.y, r.w, r.h);
@@ -309,7 +310,7 @@ function trainingCtl() {
   const rep = toggle(':replay: replay', 'The dummy plays your recording in a loop: practise against your own combo or pressure', () => lab.replay, v => { lab.replay = v; build(); });
   reg(rec, () => { rec.disabled = !human(); });
   reg(rep, () => { rep.disabled = !human() || lab.rec || !lab.tape?.length; });
-  return [meterToggle(), toggle(':stadia_controller: inputs', 'Input display: your inputs in numpad notation (6 forward, 2 down, 8 jump) and frames held', () => lab.inputs, v => { lab.inputs = v; }),
+  return [meterToggle(), toggle(':stadia_controller: inputs', 'Input display: your inputs in numpad notation (6 forward, 2 down, 8 up) and frames held', () => lab.inputs, v => { lab.inputs = v; }),
     rec, rep, boxesToggle()];
 }
 function sortButton() {

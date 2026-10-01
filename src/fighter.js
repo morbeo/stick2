@@ -6,7 +6,9 @@ class Fighter {
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
       kd: null, downT: 0, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
-      z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0 });
+      z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
+      guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0 });
+    this.hp = this.c('health');
     this.target = this.basePose();
     this.disp = { ...this.target };
     this.prev = { ...this.target };
@@ -65,6 +67,7 @@ class Fighter {
       ch.chains.arm.forEach((c, i) => { const q = ph + (i + 1) * Math.PI; turn(c[0], Math.sin(q) * 22 * w * st * st); flex(c[1], Math.max(0, Math.sin(q)) * 15 * w + (back ? 20 * w : 0)); });
       turn(spine, 4 * w * Math.sign(this.vx * this.dir));
     }
+    if (this.guarding) ch.chains.arm.forEach((c, i) => { turn(c[0], i ? 50 : 40); flex(c[1], 25); }); // guard: forearms up in front of the face
     turn(spine, this.lean);
     return P;
   }
@@ -86,7 +89,7 @@ class Fighter {
       const tz = this.lane * LANE + (homing && o.z - this.lane * LANE) * homing;
       this.vz = (tz - this.z) * 12;
     } else {
-      const want = this.free && !busy && this.grounded && this.squatT <= 0 ? (inp.down - inp.up) * this.c('zSpeed') : 0;
+      const want = this.free && !busy && !this.guarding && this.grounded && this.squatT <= 0 ? (inp.down - inp.up) * this.c('zSpeed') : 0;
       this.vz = approach(this.vz, want, this.c('accel') * dt);
       if (homing) this.vz += (o.z - this.z) * homing * 10;
     }
@@ -105,8 +108,7 @@ class Fighter {
     const n = 5 + (inp.right - inp.left) * this.dir - (inp.down ? 3 : 0), t = this.w.simT, d = this.dirs;
     if (d[d.length - 1]?.n !== n) d.push({ n, t });
     while (d.length > 1 && t - d[1].t > this.c('motionWindow')) d.shift();
-    if (inp.punch) this.buffer = { b: 'punch', t: 0.2, motion: this.motion() };
-    if (inp.kick) this.buffer = { b: 'kick', t: 0.2, motion: this.motion() };
+    for (const b of ['punch', 'kick', 'special']) if (inp[b]) this.buffer = { b, t: 0.2, motion: this.motion() };
   }
   // every special motion in the recent directions (6236 is both →↓↘ and ↓↘→: the first one with a move bound wins)
   motion() {
@@ -116,6 +118,10 @@ class Fighter {
   // input slot -> the move the character binds to it (see BINDS); a special motion picks its special on the ground
   pick(b, motion) {
     const i = this.inp, fwd = (i.right - i.left) * this.dir > 0, P = b === 'punch';
+    if (b === 'special') { // S: a special per direction, the neutral one when that direction has none
+      const slot = !this.grounded ? 'airSpecial' : i.down ? 'downSpecial' : i.up ? 'upSpecial' : fwd ? 'fwdSpecial' : i.right !== i.left ? 'backSpecial' : 'special';
+      return [this.ch.binds[slot], this.grounded && this.ch.binds.special].find(m => this.ch.moves[m]) || null;
+    }
     const sp = this.grounded && motion?.map(k => this.ch.binds[k + (P ? 'Punch' : 'Kick')]).find(m => this.ch.moves[m]);
     if (sp) return sp;
     const slot = !this.grounded ? (P ? 'airPunch' : 'airKick') : i.down ? (P ? 'downPunch' : 'downKick')
@@ -164,14 +170,17 @@ class Fighter {
       if (this.tap?.k === k && this.w.simT - this.tap.t < 0.25) { this.tap = null; this.doubleTap(k); }
       else this.tap = { k, t: this.w.simT };
     }
+    if (inp.guard && !this.prevIn.guard) this.parryT = c('parryWindow');
     this.prevIn = inp;
     if (!inp[fwdK] || !this.free || this.action) this.running = false;
-    this.dashT -= dt; this.passT -= dt;
+    this.dashT -= dt; this.passT -= dt; this.blockT -= dt; this.parryT -= dt; this.labelT -= dt;
+    // guard: held while free on the ground, and kept through blockstun; with ↓ it is a low guard (in the belt too)
+    const busy = this.action && !this.action.m.hurt;
+    this.guarding = this.blockT > 0 || inp.guard && this.free && this.grounded && !busy && this.squatT <= 0;
+    this.crouching = (this.free || this.blockT > 0) && inp.down && this.grounded && (c('plane') !== 'belt' || this.guarding);
 
     // horizontal: accelerate toward desired speed, never snap
-    this.crouching = this.free && inp.down && this.grounded && c('plane') !== 'belt';
-    const busy = this.action && !this.action.m.hurt;
-    const locked = !this.free || (busy && this.grounded) || this.squatT > 0 || this.crouching || this.dashT > 0;
+    const locked = !this.free || (busy && this.grounded) || this.squatT > 0 || this.crouching || this.dashT > 0 || this.guarding;
     const want = locked ? 0 : (inp.right - inp.left) * c('maxSpeed') * (this.running ? c('runSpeed') : 1);
     const drag = this.dashT > 0 ? 0.1 : this.kd === 'fly' ? 0.05 : !this.free ? 0.35 : busy ? 0.4 : 1; // dashes, lunges and knockback slide
     const rate = want && Math.sign(want) === Math.sign(this.vx || want) ? c('accel') : c('decel') * drag;
@@ -197,7 +206,7 @@ class Fighter {
     // vertical: jump squat (anticipation) -> launch -> land
     // jump cancel: a move that connected can be jumped out of once its active frames are over (juggles)
     const jc = busy && this.action.hit && this.action.i >= this.action.m.cancel && c('jumpCancel');
-    if ((flat ? inp.jump || inp.hop : inp.hop) && this.grounded && this.free && (!busy || jc) && this.squatT <= 0) {
+    if (inp.hop && this.grounded && this.free && (!busy || jc) && this.squatT <= 0) {
       this.squatT = c('jumpSquat') || 1e-6;
       if (jc) this.action = null;
     }
@@ -231,7 +240,7 @@ class Fighter {
         }
       }
     }
-    if (this.kd === 'down' && (this.downT -= dt) <= 0) { this.kd = null; this.start('getup'); this.hurtT = 0.5; }
+    if (this.kd === 'down' && !this.ko && (this.downT -= dt) <= 0) { this.kd = null; this.start('getup'); this.hurtT = 0.5; }
 
     // squash & stretch spring (sq > 0 = stretch)
     const w = 2 * Math.PI * 4.5;
@@ -275,8 +284,9 @@ class Fighter {
     const a = this.action, s = a?.m.keys[a.i].active && this.strikeShape(a.m);
     const otg = c('otg') === 'all' || c('otg') === 'flagged' && a?.m.otg;
     if (s) for (const o of foes) if (!a.hits.includes(o) && Math.abs(o.z - this.z) <= c('zReach') * (a.m.wide ? 3 : 1)) {
+      if (a.m.height === 'high' && o.crouching) continue; // highs pass over a crouching fighter
       const h = o.hurtAt(s, c('hitTest') === 'target', otg);
-      if (h) { a.hits.push(o); a.hit = true; this.w.onHit(this, o, h, a.m); }
+      if (h) { a.hits.push(o); a.hit = true; this.w.onHit(this, o, h, a.m, o.defend(this, a.m)); }
     }
     this.lastTip = s ? s[1] : null;
   }
@@ -311,16 +321,42 @@ class Fighter {
     const f = (g - pt[1]) / (g - top || 1);
     return f > 0.68 ? 'high' : f > 0.28 ? 'mid' : 'low';
   }
+  // a strike connected: 'parry' (guard tapped just before), 'block' (guarding), or null = it hits.
+  // Front only. Standing guard: high, special high, mid, special mid · crouching guard: low, special mid
+  defend(att, m) {
+    const able = this.guarding || this.parryT > 0 && this.free && this.grounded && !this.action && this.squatT <= 0;
+    if (m.unblock || !able || (att.x - this.x) * this.dir <= 0) return null;
+    const h = m.height || 'mid';
+    if (!(h === 'smid' || (this.crouching ? h === 'low' : h !== 'low'))) return null;
+    return this.parryT > 0 && this.c('parry') ? 'parry' : 'block';
+  }
+  blockHit(att, m) {
+    const bs = (m.stun || 0.4) * this.c('blockStun');
+    this.hurtT = this.blockT = bs; this.guarding = true; this.combo = 0; this.buffer = null; this.parryT = 0;
+    this.vx = att.dir * m.knock * this.c('blockPush');
+    if (this.c('health') > 0) this.hp = Math.max(1, this.hp - this.damageOf(m, 1) * this.c('chip')); // chip never knocks out
+    for (const c of this.ch.chains.arm) this.jolt(c[0], -300 * m.power); // the guard gives
+    this.sqv -= this.c('squash') * 8 * m.power;
+  }
+  // a parry: the defender is free at once, the attacker staggers
+  parryHit(att) {
+    this.parryT = 0; this.say('PARRY');
+    const set = att.ch.hurt.high, stun = this.c('parryStun');
+    att.buffer = null; att.start(makeHurt(set[Math.floor(this.w.rand() * set.length)], stun, this.w.rand, att.ch.poses.stance)); att.hurtT = stun;
+  }
+  damageOf(m, combo) { return (m.damage ?? m.power * 8) * this.c('damage') * this.c('comboDamage') ** (combo - 1); }
+  say(text) { this.label = text; this.labelT = 0.9; }
   takeHit(att, m, hit) {
     const combo = this.combo = (this.free ? 0 : this.combo) + 1;
+    if (this.c('health') > 0 && (this.hp -= this.damageOf(m, combo)) <= 0) { this.hp = 0; this.ko = true; this.say('K.O.'); }
     this.comboShown = combo; this.comboT = 1; this.comboPop = 1;
     const juggle = !!this.kd || !this.grounded, otg = this.kd === 'down';
     this.dir = -att.dir; this.buffer = null; this.squatT = 0; this.flashT = 0.1;
     this.vx = att.dir * m.knock * (juggle ? 0.6 : 1);
-    if (m.kd || juggle || combo >= 7) {
+    if (m.kd || juggle || combo >= 7 || this.ko) {
       this.juggles = this.kd ? this.juggles + 1 : 0;
       this.kd = 'fly'; this.bounces = otg ? 99 : 0; this.grounded = false; this.action = null; this.hurtT = 0; // hit off the ground: a small pop, no bounce
-      this.vy = -(m.launch || 300) * this.c('juggleDecay') ** this.juggles;
+      this.vy = -Math.max(m.launch || 300, this.ko ? 380 : 0) * this.c('juggleDecay') ** this.juggles;
     } else {
       const set = this.ch.hurt[this.zone(hit.pt)].filter(p => p !== this.lastHurt);
       this.lastHurt = set[Math.floor(this.w.rand() * set.length)];
@@ -397,6 +433,18 @@ class Fighter {
     if (this.flashT > 0 && this.c('flash')) { drawFigure(ctx, this.ch, P, '#111', '#111', 4); drawFigure(ctx, this.ch, P, '#fff', '#fff'); }
     else drawFigure(ctx, this.ch, P, this.col[0], this.col[1]);
     if (this.c('boxes')) this.drawBoxes(ctx);
+    // health bar and callouts (PARRY, K.O.) over the head
+    let top = this.groundY; for (const k in P) top = Math.min(top, P[k][1]);
+    const hp = this.c('health');
+    if (hp > 0) {
+      ctx.fillStyle = 'rgba(0,0,0,.1)'; ctx.fillRect(this.x - 18, top - 16, 36, 4);
+      ctx.fillStyle = this.col[0]; ctx.fillRect(this.x - 18, top - 16, 36 * this.hp / hp, 4);
+    }
+    if (this.labelT > 0) {
+      ctx.globalAlpha = Math.min(1, this.labelT * 3); ctx.fillStyle = this.col[0]; ctx.textAlign = 'center';
+      ctx.font = 'bold 13px ui-monospace, Menlo, monospace'; ctx.fillText(this.label, this.x, top - 24 - (0.9 - this.labelT) * 20);
+      ctx.globalAlpha = 1; ctx.textAlign = 'left';
+    }
 
     if (this.comboT > 0 && this.comboShown > 1) {
       ctx.globalAlpha = Math.min(1, this.comboT * 3);

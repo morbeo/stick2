@@ -243,7 +243,8 @@ function deleteMove() {
 // input slots (see BINDS): clicking one makes it trigger this move; clicking it again gives it back its default
 const SLOT_TIPS = { punch: 'J standing', kick: 'K standing', downPunch: 'S+J crouching', downKick: 'S+K crouching',
   dashPunch: 'J while running forward', airPunch: 'J in the air', airKick: 'K in the air',
-  qcfPunch: '↓↘→ J', qcfKick: '↓↘→ K', qcbPunch: '↓↙← J', qcbKick: '↓↙← K', dpPunch: '→↓↘ J', dpKick: '→↓↘ K' };
+  qcfPunch: '↓↘→ J', qcfKick: '↓↘→ K', qcbPunch: '↓↙← J', qcbKick: '↓↙← K', dpPunch: '→↓↘ J', dpKick: '→↓↘ K',
+  special: 'S (U), and any direction without its own special', fwdSpecial: '→ S', backSpecial: '← S', upSpecial: '↑ S', downSpecial: '↓ S', airSpecial: 'S in the air' };
 const boundSlots = () => Object.keys(BINDS).filter(s => currentChar().binds[s] === anim.move);
 const toggleBind = s => edit(def => {
   def.binds ??= {};
@@ -263,8 +264,17 @@ const MOVE_PROPS = [
   { k: 'power', min: 0.2, max: 3, step: 0.1, tip: 'Scales hit stop, shake, sparks and the impact spin. Moves with power are sped up by attackSpeed.' },
   { k: 'knock', min: 0, max: 600, step: 10, tip: 'Knockback speed given to the victim (px/s).' },
   { k: 'launch', min: 0, max: 800, step: 10, tip: 'Upward speed on a knockdown (px/s). Also tilts the impact spin upward.' },
-  { k: 'stun', min: 0, max: 1, step: 0.02, tip: 'Hitstun (s): how long the victim cannot act. Shrinks along a combo.' },
+  { k: 'stun', min: 0, max: 1, step: 0.02, tip: 'Hitstun (s): how long the victim cannot act. Shrinks along a combo. Blockstun is a fraction of it (blockStun).' },
+  { k: 'damage', min: 0, max: 40, step: 1, tip: 'Health taken on hit (× damage setting, scaled down along a combo). Unset = power × 8.' },
 ];
+// what each height is blocked by (guard and parry are front only)
+const HEIGHT_TIPS = {
+  high: 'High: blocked standing; passes over a crouching fighter.',
+  shigh: 'Special high (overhead, jump-ins): blocked standing only; hits a crouching guard and cannot be ducked.',
+  mid: 'Mid: blocked standing; hits a crouching guard.',
+  smid: 'Special mid: blocked standing or crouching.',
+  low: 'Low: blocked crouching only; hits a standing guard. No upward push.',
+};
 const MOVE_FLAGS = {
   kd: 'Knockdown: the victim is launched, bounces and lies down.',
   air: 'Air move: performed while jumping, cancelled on landing.',
@@ -272,6 +282,7 @@ const MOVE_FLAGS = {
   special: 'Special: normals that hit can be cancelled into it (if specialCancel is on).',
   otg: 'Off the ground: hits a fighter lying on the floor and pops it up (otg setting: flagged).',
   wide: 'Wide: in 2.5D it reaches 3× zReach in depth, so a sidestep does not dodge it.',
+  unblock: 'Unblockable: guard and parry do not stop it.',
 };
 
 function keyPanel() {
@@ -319,7 +330,7 @@ function movePanel() {
     h('div', { cls: 'row', tip: 'Striking bone' }, h('span', { textContent: 'hit' }), hitB),
     h('div', { cls: 'row', tip: 'Which inputs start this move in a fight' }, h('span', { textContent: 'input' }), bindB),
     h('div', { cls: 'row', tip: 'Where the move is aimed; a hit reaction still follows the actual impact point' }, h('span', { textContent: 'height' }),
-      seg(['high', 'mid', 'low'], () => m().height, v => setMove('height', v), { high: 'Aimed at the head', mid: 'Aimed at the body', low: 'Aimed at the legs: no upward push' })),
+      seg(['high', 'shigh', 'mid', 'smid', 'low'], () => m().height, v => setMove('height', v), HEIGHT_TIPS)),
     ...MOVE_PROPS.map(p => slider(p.k, p, () => m()[p.k] || 0, v => setMove(p.k, v || undefined, 'm.' + p.k), p.tip)),
     h('div', { cls: 'bar' }, Object.entries(MOVE_FLAGS).map(([f, tip]) => toggle(f, tip, () => !!m()[f], v => setMove(f, v || undefined)))),
   ];

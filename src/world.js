@@ -3,7 +3,7 @@
 const W = 800, H = 450, GROUND = 360;
 const INK = ['#222', '#8a8580'], RED = ['#c0392b', '#e0998f'];
 const COLS = [INK, RED, ['#2c6fb0', '#94b7d8'], ['#2e8b57', '#97c5ab'], ['#8e44ad', '#c6a2d6'], ['#b9770e', '#e0c08a']];
-const NOIN = { left: false, right: false, up: false, down: false, jump: false, hop: false, punch: false, kick: false };
+const NOIN = { left: false, right: false, up: false, down: false, hop: false, punch: false, kick: false, special: false, guard: false };
 // depth (2.5D): z > 0 is toward the camera. Drawn lower and bigger; hits are tested in the fight plane plus a depth check
 const ZMAX = 60, LANE = 40, ZS = 0.45, ZK = 0.0025;
 const HIST = 240;
@@ -12,6 +12,7 @@ const HIST = 240;
 function frameState(f) {
   if (f.freeze > 0) return 'stop';
   if (f.kd) return 'down';
+  if (f.blockT > 0) return 'block';
   if (!f.free) return 'hit';
   const a = f.action;
   if (!a) return f.grounded ? 'idle' : 'air';
@@ -31,7 +32,7 @@ class World {
   reset() {
     const s = this.scen, scripted = Array.isArray(s.a);
     Object.assign(this, { rand: makeRand(this.seed), parts: [], trauma: 0, zoom: 0, slowT: 0, T: 0, simT: 0,
-      frozenT: 0, hits: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
+      frozenT: 0, hits: 0, blocks: 0, parries: 0, koT: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
       pend: null, adv: null, macro: null, combo: 1, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
     // a vs b, plus any extra fighters: { c: controller, x, team }
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0 }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1 }, ...(s.more || [])];
@@ -48,7 +49,7 @@ class World {
     if (this.chars) this.chars = this.chars.map(c => c === from ? to : c);
     for (const f of this.fighters) if (f.ch === from) f.setChar(to);
   }
-  foes(f) { return this.fighters.filter(o => o.team !== f.team); }
+  foes(f) { return this.fighters.filter(o => o.team !== f.team && !o.ko); }
   nearestFoe(f) {
     let best = null;
     for (const o of this.foes(f)) if (!best || Math.abs(o.x - f.x) < Math.abs(best.x - f.x)) best = o;
@@ -66,7 +67,7 @@ class World {
     if (dt <= 0) return;
     // fixed-size substeps (<= 1/120 s) keep springs and physics identical at any refresh rate
     const n = Math.ceil(dt * 120);
-    for (let i = 0; i < n && !this.done; i++) this.step(dt / n, i ? { ...inp, jump: false, hop: false, punch: false, kick: false } : inp);
+    for (let i = 0; i < n && !this.done; i++) this.step(dt / n, i ? { ...inp, hop: false, punch: false, kick: false, special: false } : inp);
     for (const f of this.fighters) if (f.freeze <= 0) f.recordTrail();
     const h = this.hist, j = this.cfg.scope;
     h.tgt.push(this.a.target[j] ?? 0); h.disp.push(this.a.disp[j] ?? 0); h.vx.push(this.a.vx); h.y.push(this.a.y);
@@ -82,11 +83,12 @@ class World {
     if (this.macro.done) this.macro = null;
     return Object.fromEntries(Object.keys(NOIN).map(k => [k, inp[k] || m[k]]));
   }
-  // input display: the human's input in numpad notation (6 = forward, 2 = down, 8 = jump…) + buttons, repeats merged
+  // input display: the human's input in numpad notation (6 = forward, 2 = down, 8 = up…) + buttons, repeats merged
   logInput(i) {
-    const x = (i.right - i.left) * this.a.dir, n = 5 + x + (i.down ? -3 : i.jump ? 3 : 0), b = (i.punch ? 'P' : '') + (i.kick ? 'K' : '');
+    const x = (i.right - i.left) * this.a.dir, n = 5 + x + (i.down ? -3 : i.up ? 3 : 0);
+    const b = (i.punch ? 'P' : '') + (i.kick ? 'K' : '') + (i.special ? 'S' : '') + (i.guard ? 'G' : '');
     const last = this.inputs[this.inputs.length - 1];
-    if (last && last.n === n && !b && !last.b) last.f++;
+    if (last && last.n === n && last.b === b && (!b || b === 'G')) last.f++; // a held guard merges too
     else { this.inputs.push({ n, b, f: 1 }); if (this.inputs.length > 20) this.inputs.shift(); }
   }
 
@@ -105,7 +107,7 @@ class World {
     // recording for the replay dummy: one entry per substep the human is not frozen, directions relative to facing
     if (this.tape && this.ctl[0] === 'human' && this.a.freeze <= 0) {
       const i = ins[0], d = this.a.dir > 0;
-      this.tape.push({ fwd: d ? i.right : i.left, back: d ? i.left : i.right, up: i.up, down: i.down, jump: i.jump, hop: i.hop, punch: i.punch, kick: i.kick });
+      this.tape.push({ fwd: d ? i.right : i.left, back: d ? i.left : i.right, up: i.up, down: i.down, hop: i.hop, punch: i.punch, kick: i.kick, special: i.special, guard: i.guard });
     }
     fs.forEach((f, i) => {
       if (f.freeze > 0) f.freeze -= h; // hit stop: this fighter sits out the substep
@@ -131,15 +133,25 @@ class World {
       if (pd.at !== null && pd.vt !== null) { this.adv = Math.round((pd.vt - pd.at) * 60); this.pend = null; }
     }
 
+    // a round ends once only one team is still standing
+    if (!this.koT && fs.some(f => f.ko) && new Set(fs.filter(f => !f.ko).map(f => f.team)).size <= 1) this.koT = 2.5;
     const p = this.scen.period;
-    if (p && this.simT >= p) { if (this.loop) this.reset(); else this.done = true; }
+    if (p && this.simT >= p || this.koT && (this.koT -= h) <= 0) { if (this.loop) this.reset(); else this.done = true; }
   }
 
   // ---------- juice ----------
-  onHit(att, vic, hit, m) {
+  onHit(att, vic, hit, m, def) {
     const cfg = this.cfg, pt = hit.pt;
-    vic.takeHit(att, m, hit);
     this.pend = { att, vic, at: null, vt: null };
+    if (def) { // blocked or parried: a shorter freeze and a ring, no combo
+      if (def === 'parry') { vic.parryHit(att); this.parries++; } else { vic.blockHit(att, m); this.blocks++; }
+      const hs = cfg.hitstop * m.power * (def === 'parry' ? 1.2 : 0.5);
+      vic.freeze = att.freeze = hs;
+      this.trauma = Math.min(1, this.trauma + 0.1 * m.power);
+      this.parts.push({ t: 'ring', x: pt[0], y: pt[1], z: vic.z, life: 0.16, max: 0.16, col: def === 'parry' ? '#2c6fb0' : '#888' });
+      return;
+    }
+    vic.takeHit(att, m, hit);
     const fin = vic.kd === 'fly', power = m.power * (fin ? cfg.hitstopFin : 1);
     // freeze shrinks along a combo, and a budget caps total frozen time so long strings don't turn to stop-motion
     const n = vic.combo - 1, want = cfg.hitstop * power * cfg.hitstopDecay ** n * Math.max(0, 1 + cfg.comboStop * n);
@@ -188,7 +200,7 @@ class World {
         ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 2.5 * k;
         ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.03, p.y - p.vy * 0.03); ctx.stroke();
       } else if (p.t === 'ring') {
-        ctx.strokeStyle = '#222'; ctx.lineWidth = 3 * k;
+        ctx.strokeStyle = p.col || '#222'; ctx.lineWidth = 3 * k;
         ctx.beginPath(); ctx.arc(p.x, p.y, 6 + (1 - k) * 36, 0, 7); ctx.stroke();
       } else {
         ctx.fillStyle = `rgba(120,110,100,${0.35 * k})`;

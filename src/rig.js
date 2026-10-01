@@ -67,53 +67,53 @@ const attack = (o, [ad, ap], [sd, sp], hd, rd) => ({ ...o, keys: [
 // keys: d = duration (s), e = easing, p = partial pose (null = back to base). hit = striking joint.
 // next = chain targets, usable once the active frames are over.
 const STICK_MOVES = {
-  jab: attack({ power: 1, hit: 'fh', height: 'high', knock: 120, stun: 0.32, next: { punch: 'cross', kick: 'kick' } },
+  jab: attack({ power: 1, damage: 5, hit: 'fh', height: 'high', knock: 120, stun: 0.32, next: { punch: 'cross', kick: 'kick' } },
     [0.06, { torso: 0, afU: 10, afL: 135, abU: 30 }],
     [0.05, { torso: 18, afU: 98, afL: 0, abU: -15, abL: 130 }], 0.06, 0.16),
-  cross: attack({ power: 1.1, hit: 'bh', height: 'high', knock: 140, stun: 0.36, lunge: 120, next: { punch: 'uppercut', kick: 'roundhouse' } },
+  cross: attack({ power: 1.1, damage: 7, hit: 'bh', height: 'high', knock: 140, stun: 0.36, lunge: 120, next: { punch: 'uppercut', kick: 'roundhouse' } },
     [0.06, { torso: 4, abU: 5, abL: 140, afU: 40, afL: 120 }],
     [0.05, { torso: 26, abU: 112, abL: 0, afU: 20, afL: 130, lbU: -28, lbL: 0, lfU: 30 }], 0.07, 0.18),
   // custom shape: the strike drives forward into the body, the follow-through rises
-  uppercut: { power: 1.6, hit: 'fh', height: 'high', knock: 120, launch: 520, kd: true, keys: [
+  uppercut: { power: 1.6, damage: 12, hit: 'fh', height: 'high', knock: 120, launch: 520, kd: true, keys: [
     { d: 0.08, e: 'outQuad', p: { torso: 28, afU: -10, afL: 90, abU: 40, abL: 120, lfU: 45, lfL: -70, lbU: -25, lbL: -30 } },
     { d: 0.06, e: 'outExpo', p: { torso: 20, afU: 115, afL: 50, abU: 0, abL: 130, lfU: 30, lfL: -25, lbU: -22, lbL: 0 }, active: true, lunge: 220 },
     { d: 0.09, e: 'outQuad', p: { torso: 6, afU: 150, afL: 35, abU: 0, abL: 130, lfU: 22, lfL: -10, lbU: -22, lbL: 0 }, active: true },
     { d: 0.26, e: 'inOutCubic', p: null },
   ] },
-  kick: attack({ power: 1.3, hit: 'ff', height: 'mid', knock: 200, stun: 0.4, next: { kick: 'roundhouse', punch: 'cross' } },
+  kick: attack({ power: 1.3, damage: 9, hit: 'ff', height: 'mid', knock: 200, stun: 0.4, next: { kick: 'roundhouse', punch: 'cross' } },
     [0.09, { torso: -5, lfU: 75, lfL: -120, afU: 20, abU: 40 }],
     [0.07, { torso: -28, lfU: 100, lfL: -5, lbU: -10, lbL: 0, afU: -10, afL: 60, abU: 60 }], 0.08, 0.22),
-  roundhouse: attack({ power: 1.7, hit: 'bf', height: 'high', knock: 380, launch: 280, kd: true, lunge: 160 },
+  roundhouse: attack({ power: 1.7, damage: 14, hit: 'bf', height: 'high', knock: 380, launch: 280, kd: true, lunge: 160 },
     [0.09, { torso: -8, lbU: 30, lbL: -120, lfU: 5, lfL: -10, afU: 50, afL: 100, abU: -20, abL: 80 }],
     [0.07, { torso: -32, lbU: 118, lbL: -8, lfU: 2, lfL: 0, afU: -20, afL: 60, abU: 70, abL: 40 }], 0.09, 0.26),
-  sweep: attack({ power: 1.2, hit: 'ff', height: 'low', knock: 150, launch: 250, kd: true },
+  sweep: attack({ power: 1.2, damage: 10, hit: 'ff', height: 'low', knock: 150, launch: 250, kd: true },
     [0.07, { torso: 30, lbU: -5, lbL: -120, lfU: 40, lfL: -110, afU: -20, afL: 60, abU: -30, abL: 40 }],
     [0.08, { torso: 40, lfU: 84, lfL: -2, lbU: 10, lbL: -125, afU: -40, afL: 30, abU: -50, abL: 30 }], 0.08, 0.24),
-  dashPunch: attack({ power: 1.4, hit: 'fh', height: 'mid', knock: 380, stun: 0.5, lunge: 450, next: { punch: 'uppercut' } },
+  dashPunch: attack({ power: 1.4, damage: 11, hit: 'fh', height: 'mid', knock: 380, stun: 0.5, lunge: 450, next: { punch: 'uppercut' } },
     [0.05, { torso: 10, afU: 20, afL: 130 }],
     [0.06, { torso: 30, afU: 110, afL: 0, abU: -40, abL: 60, lfU: 50, lfL: -40, lbU: -40, lbL: 0 }], 0.12, 0.22),
-  airKick: attack({ power: 1.3, hit: 'ff', height: 'high', knock: 250, stun: 0.4, air: true },
+  airKick: attack({ power: 1.3, damage: 9, hit: 'ff', height: 'shigh', knock: 250, stun: 0.4, air: true },
     [0.06, { torso: -10, lfU: 60, lfL: -110, lbU: 10, lbL: -100 }],
     [0.06, { torso: -25, lfU: 70, lfL: -3, lbU: -5, lbL: -90, afU: 40, afL: 90, abU: 60, abL: 60 }], 0.25, 0.15),
-  airPunch: attack({ power: 1.1, hit: 'fh', height: 'high', knock: 160, stun: 0.36, air: true, next: { kick: 'airKick' } },
+  airPunch: attack({ power: 1.1, damage: 7, hit: 'fh', height: 'shigh', knock: 160, stun: 0.36, air: true, next: { kick: 'airKick' } },
     [0.05, { torso: 5, afU: 150, afL: 60 }],
     [0.06, { torso: 25, afU: 75, afL: 0, abU: -20, abL: 120 }], 0.12, 0.15),
   // specials (motion + button), cancellable from normals that hit
-  rush: attack({ power: 1.5, hit: 'fh', height: 'mid', knock: 320, stun: 0.5, lunge: 520, special: true },
+  rush: attack({ power: 1.5, damage: 12, hit: 'fh', height: 'mid', knock: 320, stun: 0.5, lunge: 520, special: true },
     [0.08, { torso: 4, afU: 10, afL: 140, abU: 40, abL: 120, lfU: 40, lfL: -60 }],
     [0.05, { torso: 32, afU: 105, afL: 0, abU: -30, abL: 70, lfU: 55, lfL: -30, lbU: -45, lbL: 0 }], 0.1, 0.26),
   // invincible while it rises
-  rising: { power: 1.8, hit: 'fh', height: 'high', knock: 100, launch: 680, kd: true, special: true, keys: [
+  rising: { power: 1.8, damage: 14, hit: 'fh', height: 'high', knock: 100, launch: 680, kd: true, special: true, keys: [
     { d: 0.05, e: 'outQuad', p: { torso: 30, afU: -20, afL: 100, abU: 40, abL: 120, lfU: 55, lfL: -90, lbU: -25, lbL: -40 }, inv: true },
     { d: 0.06, e: 'outExpo', p: { torso: 10, afU: 150, afL: 20, abU: 0, abL: 130, lfU: 20, lfL: -10, lbU: -20, lbL: 0 }, active: true, lunge: 160, inv: true },
     { d: 0.1, e: 'outQuad', p: { torso: 0, afU: 170, afL: 10, abU: -10, abL: 130, lfU: 15, lfL: -5, lbU: -20, lbL: 0 }, active: true },
     { d: 0.34, e: 'inOutCubic', p: null },
   ] },
-  spin: attack({ power: 1.9, hit: 'bf', height: 'high', knock: 420, launch: 320, kd: true, lunge: 260, special: true, wide: true },
+  spin: attack({ power: 1.9, damage: 15, hit: 'bf', height: 'high', knock: 420, launch: 320, kd: true, lunge: 260, special: true, wide: true },
     [0.1, { torso: -12, lbU: 40, lbL: -130, lfU: 0, lfL: -15, afU: 60, afL: 90, abU: -30, abL: 70 }],
     [0.07, { torso: -36, lbU: 120, lbL: -5, lfU: 0, lfL: 0, afU: -30, afL: 50, abU: 80, abL: 30 }], 0.1, 0.3),
   // hits a fighter lying on the floor
-  stomp: attack({ power: 1.1, hit: 'ff', height: 'low', knock: 60, launch: 240, kd: true, otg: true, special: true },
+  stomp: attack({ power: 1.1, damage: 8, hit: 'ff', height: 'low', knock: 60, launch: 240, kd: true, otg: true, special: true },
     [0.08, { torso: -5, lfU: 80, lfL: -120, afU: 50, abU: 30 }],
     [0.06, { torso: 12, lfU: 42, lfL: -4, lbU: -15, lbL: 0, afU: 20, abU: 60 }], 0.08, 0.2),
   getup: { inv: true, keys: [
@@ -140,7 +140,8 @@ const STICK_HURT = {
 const HITS = { fh: 'handF', bh: 'handB', ff: 'footF', bf: 'footB' };
 // which move each input slot triggers (a character's binds override these)
 const BINDS = { punch: 'jab', kick: 'kick', downPunch: 'jab', downKick: 'sweep', dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick',
-  qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: null, dpKick: null };
+  qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: null, dpKick: null,
+  special: 'spin', fwdSpecial: 'rush', backSpecial: null, upSpecial: 'rising', downSpecial: 'stomp', airSpecial: null };
 // special motions in numpad notation (6 = towards the opponent), matched in order against the recent directions
 const MOTIONS = { dp: /6.*2.*3/, qcf: /2.*3.*6/, qcb: /2.*1.*4/ };
 function makeCharacter(def) {

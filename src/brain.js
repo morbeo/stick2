@@ -44,14 +44,14 @@ class Replay {
     if (f.freeze > 0 || !this.tape.length) return { ...NOIN };
     const e = this.tape[this.i], d = f.dir > 0;
     this.i = (this.i + 1) % this.tape.length;
-    return { left: d ? e.back : e.fwd, right: d ? e.fwd : e.back, up: !!e.up, down: e.down, jump: e.jump, hop: !!e.hop, punch: e.punch, kick: e.kick };
+    return { left: d ? e.back : e.fwd, right: d ? e.fwd : e.back, up: !!e.up, down: e.down, hop: !!e.hop, punch: e.punch, kick: e.kick, special: !!e.special, guard: !!e.guard };
   }
 }
 
 // engine AI: re-thinks every reaction-time interval, walks to range and throws random chains
 const CHAINS = [['punch'], ['punch', 'punch'], ['punch', 'punch', 'punch'], ['kick'], ['kick', 'kick'],
   ['punch', 'kick'], ['punch', 'punch', 'kick'], ['down+kick'],
-  ['punch', 'down', 'down+fwd', 'fwd+punch'], ['punch', 'kick', 'down', 'down+back', 'back+kick']]; // specials cancel the chain
+  ['punch', 'down', 'down+fwd', 'fwd+punch'], ['punch', 'kick', 'down', 'down+back', 'back+kick'], ['punch', 'punch', 'fwd+special'], ['kick', 'special']]; // specials cancel the chain
 class Brain {
   constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0 }); }
   input(f, o, h) {
@@ -65,6 +65,7 @@ class Brain {
     if (this.plan === 'in') press(inp, 'fwd', f, o);
     else if (this.plan === 'out') press(inp, 'back', f, o);
     else if (this.plan === 'zin' || this.plan === 'zout') press(inp, (this.plan === 'zin' ? 'up' : 'down') + (dist > 70 ? '+fwd' : ''), f, o);
+    else if (this.plan === 'guard' || this.plan === 'guardLow') press(inp, this.plan === 'guard' ? 'guard' : 'down+guard', f, o);
     else if (this.plan === 'dash') { press(inp, 'fwd', f, o); if (dist < 120) { inp.punch = true; this.plan = null; } }
     return inp;
   }
@@ -81,11 +82,13 @@ class Brain {
       return;
     }
     if (plane === 'lanes' && idle(f) && dist < 110 && r < (o.action?.m.power ? 0.5 : 0.12)) { this.q = r < 0.2 || f.z > 0 ? ['up', 'up'] : ['down', 'down']; this.qt = 0; return; }
+    // an attack starting up in front: guard it (low against lows); a fresh guard press that lands just in time parries
+    if (frameState(o) === 'startup' && dist < 130 && (o.x - f.x) * f.dir > 0 && r < 0.4) { this.plan = o.action.m.height === 'low' ? 'guardLow' : 'guard'; this.t = 0.3; return; }
     if (plane === 'belt' && dist > 150 && r < 0.2) { this.plan = f.z > 0 ? 'zin' : 'zout'; return; } // circle around on the belt
     if (o.kd === 'down' && dist < 110 && r < 0.4) { this.q = ['down', 'down+fwd', 'fwd+kick']; this.qt = 0; return; } // stomp
     if (o.kd === 'down' || o.action?.m.inv) { if (dist < 90) this.plan = 'out'; return; }
     if (!o.grounded && !o.kd && dist < 110 && r < 0.5) { this.q = ['fwd', 'down', 'down+fwd+punch']; this.qt = 0; return; } // anti-air rising
-    if (o.kd === 'fly' && dist < 130 && r < 0.6) { this.q = ['jump', 'kick']; this.qt = 0; return; }
+    if (o.kd === 'fly' && dist < 130 && r < 0.6) { this.q = ['hop', 'kick']; this.qt = 0; return; }
     if (dist > 220 && f.c('dash') && r < 0.3) { this.q = ['fwd', 'fwd']; this.qt = 0; this.plan = 'in'; return; } // dash, then run in
     if (dist > 150) { this.plan = r < 0.25 ? 'dash' : 'in'; return; }
     if (dist > 70) { this.plan = r < 0.85 ? 'in' : 'out'; return; }
@@ -114,21 +117,26 @@ const SCENARIOS = {
   'K,K': { a: ['kick', 0.2, 'kick'], b: 'dummy', period: 2.6 },
   'J,J,K': { a: ['punch', 0.13, 'punch', 0.13, 'kick'], b: 'dummy', period: 2.6 },
   'J,K,K': { a: ['punch', 0.13, 'kick', 0.2, 'kick'], b: 'dummy', period: 2.6 },
-  'juggle': { a: ['punch', 0.13, 'punch', 0.13, 'punch', 0.35, 'fwd+jump', { hold: 'fwd', t: 0.1 }, 'kick'], b: 'dummy', period: 3.2 },
+  'juggle': { a: ['punch', 0.13, 'punch', 0.13, 'punch', 0.35, 'fwd+hop', { hold: 'fwd', t: 0.1 }, 'kick'], b: 'dummy', period: 3.2 },
   'sweep': { a: ['down+kick'], b: 'dummy', period: 2.4 },
   'dash punch': { a: [{ hold: 'fwd', t: 0.35 }, 'fwd+punch'], b: 'dummy', ax: 250, bx: 450, period: 2.4 },
-  'air kick': { a: ['jump', 0.12, 'kick'], b: 'dummy', period: 1.6 },
+  'air kick': { a: ['hop', 0.12, 'kick'], b: 'dummy', period: 1.6 },
   // cancels and specials (motions: 2 = down, 3 = down-forward, 6 = forward …)
   'J→rush': { a: ['punch', 0.1, 'down', 'down+fwd', 'fwd+punch'], b: 'dummy', period: 2.6 },
   'J,K→spin': { a: ['punch', 0.13, 'kick', 0.1, 'down', 'down+back', 'back+kick'], b: 'dummy', period: 2.8 },
   'rising': { a: ['fwd', 'down', 'down+fwd+punch'], b: 'dummy', period: 2.4 },
-  'air combo': { a: ['punch', 0.13, 'punch', 0.13, 'punch', 0.3, 'fwd+jump', { hold: 'fwd', t: 0.1 }, 'punch', 0.14, 'kick'], b: 'dummy', period: 3.2 },
+  'air combo': { a: ['punch', 0.13, 'punch', 0.13, 'punch', 0.3, 'fwd+hop', { hold: 'fwd', t: 0.1 }, 'punch', 0.14, 'kick'], b: 'dummy', period: 3.2 },
   // 2.5D (the plane comes with the scenario; a grid's plane axis overrides it)
   'sidestep': { a: [0.3, 'punch', 0.5, 'punch'], b: ['up', 0.05, 'up'], cfg: { plane: 'lanes' }, period: 2 },
   'ninja flip': { a: ['fwd+hop', { hold: 'fwd', t: 0.6 }, 0.3, 'back+hop', { hold: 'back', t: 0.6 }], ax: 220, b: 'dummy', cfg: { plane: 'belt' }, period: 2.6 },
   'dash & run': { a: ['fwd', 0.05, 'fwd', { hold: 'fwd', t: 0.45 }, 'fwd+punch'], ax: 120, b: 'dummy', bx: 440, period: 2.4 },
   'belt ai': { a: 'ai', b: 'ai', cfg: { plane: 'belt' } },
   'lanes ai': { a: 'ai', b: 'ai', cfg: { plane: 'lanes' } },
+  // guard (G) and parry: the dummy guards standing, crouching, or taps guard just before the kick lands
+  'vs guard': { a: [0.3, '!punch', 0.5, '!kick', 0.6, '!down+kick'], b: [{ hold: 'guard', t: 3 }], period: 2.6 },
+  'vs low guard': { a: ['!punch', 0.5, '!kick', 0.6, '!down+kick'], b: [{ hold: 'down+guard', t: 3 }], period: 2.6 },
+  'parry': { a: [0.2, 'kick', 0.4, 'punch'], b: [0.25, 'guard'], period: 2 },
+  'specials (S)': { a: ['!special', 1, '!fwd+special', 1, '!up+special'], b: 'dummy', period: 4.4 },
   'OTG stomp': { a: ['down+kick', 0.6, { hold: 'fwd', t: 0.25 }, 'down', 'down+fwd', 'fwd+kick'], b: 'dummy', period: 3 },
   // several opponents: extra fighters are { c: controller, x, team }; same team = allies
   'you vs 2 ai': { a: 'human', b: 'ai', bx: 520, more: [{ c: 'ai', x: 640, team: 1 }] },
@@ -136,14 +144,14 @@ const SCENARIOS = {
   'ai 2v2': { a: 'ai', b: 'ai', more: [{ c: 'ai', x: 200, team: 0 }, { c: 'ai', x: 600, team: 1 }] },
   'ai free-for-all': { a: 'ai', b: 'ai', more: [{ c: 'ai', x: 150, team: 2 }, { c: 'ai', x: 650, team: 3 }] },
   'sandwich': { a: ['punch', 0.13, 'punch', 0.13, 'kick', 0.7, 'punch', 0.13, 'punch', 0.13, 'kick'], b: 'dummy', bx: 372, more: [{ c: 'dummy', x: 285, team: 1 }], period: 3.4 },
-  'showcase': { a: ['!punch', 0.13, 'punch', 0.13, 'kick', 0.9, '!down+kick', 1.1, 'jump', 0.12, 'kick', 0.8, { hold: 'back', t: 0.5 }], b: 'dummy', ax: 250, bx: 420, period: 5.5 },
+  'showcase': { a: ['!punch', 0.13, 'punch', 0.13, 'kick', 0.9, '!down+kick', 1.1, 'hop', 0.12, 'kick', 0.8, { hold: 'back', t: 0.5 }], b: 'dummy', ax: 250, bx: 420, period: 5.5 },
   'walk': { a: [{ hold: 'fwd', t: 0.8 }, 0.3, { hold: 'back', t: 0.8 }], b: 'dummy', ax: 250, bx: 550, period: 2.4 },
-  'jump': { a: ['jump', 0.7, 'fwd+jump', 0.1, { hold: 'fwd', t: 0.5 }], b: 'dummy', ax: 250, bx: 550, period: 2 },
+  'jump': { a: ['hop', 0.7, 'fwd+hop', 0.1, { hold: 'fwd', t: 0.5 }], b: 'dummy', ax: 250, bx: 550, period: 2 },
 };
 
 // gallery: one looping cell per attack, forced with '@' so no input logic gets in the way
 const GALLERY = ['jab', 'cross', 'uppercut', 'kick', 'roundhouse', 'sweep', 'dashPunch', 'airKick', 'airPunch', 'rush', 'rising', 'spin', 'stomp'];
 const galleryScen = (m, air = m.startsWith('air')) => ({
-  a: air ? ['jump', m === 'airPunch' ? 0.4 : 0.15, '@' + m] : [0.1, '@' + m], b: 'dummy',
+  a: air ? ['hop', m === 'airPunch' ? 0.4 : 0.15, '@' + m] : [0.1, '@' + m], b: 'dummy',
   ax: 330, bx: m === 'dashPunch' ? 430 : 375, period: 2.4,
 });
