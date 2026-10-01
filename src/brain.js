@@ -129,6 +129,7 @@ class Brain {
       if (this.rand() < L.brk * 0.2 && this.special(f, ht === 'low' ? 'catchLow' : ht.endsWith('high') ? 'catchHigh' : '')) return;
       this.plan = o.action.m.height === 'low' ? 'guardLow' : 'guard'; this.t = 0.3; return; }
     if (plane === 'belt' && dist > 150 && r < 0.2) { this.plan = f.z > 0 ? 'zin' : 'zout'; return; } // circle around on the belt
+    if (o.kd === 'down' && dist < 140 && r < 0.15 && f.c('pounce') && f.ch.moves.pounce) { this.q = ['fwd+hop', 'down+special']; this.qt = 0; return; } // pounce
     if (o.kd === 'down' && dist < 110 && r < 0.4) { this.q = ['down', 'down+fwd', 'fwd+kick']; this.qt = 0; return; } // stomp
     if (o.kd === 'down' && dist > 150 && r < 0.3 && f.c('taunt')) { this.q = ['up+guard+special']; this.qt = 0; return; } // taunt a foe lying far off
     if (o.kd === 'down' || o.action?.m.inv) { if (dist < 90) this.plan = 'out'; return; }
@@ -208,6 +209,8 @@ const SCENARIOS = {
   'wake-up roll': { a: ['down+kick'], b: [1, 'back'], period: 2.6 },
   'taunt': { a: [0.2, 'up+guard+special'], b: 'dummy', period: 1.6 },
   'win pose': { a: [0.2, 'kick'], b: 'dummy', cfg: { health: 5 } },
+  'pounce': { a: ['down+kick', 0.6, { hold: 'fwd', t: 0.35 }, 'hop', 0.1, 'down+special'], b: 'dummy', period: 3 },
+  'wall bounce': { a: [0.2, 'special', 0.5, 'hop', 0.05, 'kick'], b: 'dummy', ax: 560, bx: 640, period: 2.4 },
   'OTG stomp': { a: ['down+kick', 0.6, { hold: 'fwd', t: 0.25 }, 'down', 'down+fwd', 'fwd+kick'], b: 'dummy', period: 3 },
   // several opponents: extra fighters are { c: controller, x, team }; same team = allies
   'you vs 2 ai': { a: 'human', b: 'ai', bx: 520, more: [{ c: 'ai', x: 640, team: 1 }] },

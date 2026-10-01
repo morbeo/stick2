@@ -4,7 +4,7 @@ class Fighter {
     Object.assign(this, { w, x, groundY: w.groundY, dir, face: dir, col, ch, over, y: 0, vx: 0, vy: 0, grounded: true,
       time: 0, seed: w.rand(0, 100), walkPh: 0, lean: 0, inp: NOIN,
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
-      kd: null, downT: 0, wake: null, won: false, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
+      kd: null, downT: 0, wake: null, won: false, wallB: false, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
@@ -157,6 +157,7 @@ class Fighter {
   pick(b, motion) {
     const i = this.inp, fwd = (i.right - i.left) * this.dir > 0, P = b === 'punch';
     if (b === 'special') { // S: a special per direction, the neutral one when that direction has none
+      if (!this.grounded && i.down && this.c('pounce') && this.ch.moves.pounce) return 'pounce';
       const n = (i.down ? 1 : i.up ? 7 : 4) + (fwd ? 2 : i.right !== i.left ? 0 : 1); // the direction held, numpad
       const sp = this.grounded && [...(motion || []), n + 'S'].map(t => this.special(t)).find(Boolean); // a scheme's special on a motion or a direction (SPECIAL_SCHEMES)
       if (sp) return sp;
@@ -354,6 +355,8 @@ class Fighter {
       if (this.splat && imp > 0.15) { // a wall splat (move flag wall): stuck flat on the wall a moment, then it slides off
         this.splat = false; this.vx = 0; this.vy = 0; this.splatT = 0.35; this.flailJolt(imp); this.say('WALL');
         this.w.trauma = Math.min(1, this.w.trauma + 0.3 * imp);
+      } else if (this.wallB && imp > 0.15) { // a wall bounce (move flag wallbounce): back out at wallBounceSpeed, a fresh juggle
+        this.wallBounced(); this.vx = -Math.sign(this.vx) * c('wallBounceSpeed'); this.vy = Math.min(this.vy, -300); this.flailJolt(imp);
       } else if (wb && imp > 0.15) { // off the wall: back into the arena, popped up a little
         this.vx *= -wb; this.vy = Math.min(this.vy, -120 * imp); this.flailJolt(imp);
         this.w.trauma = Math.min(1, this.w.trauma + 0.2 * imp);
@@ -416,7 +419,7 @@ class Fighter {
         this.ch.chains.leg.forEach((c, i) => { if (c[1]) this.flt[c[1].id].yd += c[1].flex * (i ? 400 : 500) * imp; }); // knees absorb
         this.jolt(this.ch.chains.spine[0]?.[0], 250 * imp);
         this.w.dust(this.x, this.groundY, imp, this.z);
-        if (this.action?.m.air) this.action = null;
+        if (this.action?.m.air && !this.action.m.otg) this.action = null; // an air move ends on landing, but an off-the-ground one (pounce) lands into its strike
         if (this.kd === 'fly' && !this.gb && !this.ko && c('techWindow') && this.w.simT - this.guardT < c('techWindow')) {
           this.kd = null; this.start('getup'); this.hurtT = 0.3; this.vx = -this.dir * 150; this.say('TECH'); // G just before landing: a quick get-up
         } else if (this.kd === 'fly') {
@@ -460,6 +463,7 @@ class Fighter {
       while (a.i < keys.length && a.t >= keys[a.i].d) {
         a.t -= keys[a.i].d; a.from = resolve(base, keys[a.i].p); this.keyReached(keys[a.i++]);
         if (keys[a.i]?.lunge) this.vx = this.dir * keys[a.i].lunge;
+        if (keys[a.i]?.drop && !this.grounded) this.vy = keys[a.i].drop;
       }
       if (a.i >= keys.length) {
         this.action = null;
@@ -662,8 +666,13 @@ class Fighter {
         if (q.top < 0) { q.vy = -q.top * cb; ceil = Math.max(ceil, -q.top); } // off the ceiling
       }
       if (ceil > 150) this.w.trauma = Math.min(1, this.w.trauma + 0.2 * Math.min(1, ceil / 800));
+      // a wallbounce victim bounces as soon as any part of it reaches the wall it is flying at
+      const side = Math.sign(hip.pvx);
+      if (this.wallB && Math.abs(hip.pvx) > 90 && ps.some(q => side > 0 ? q.x >= W - 20 : q.x <= 20)) {
+        this.wallBounced(); for (const q of ps) { q.vx = -side * c('wallBounceSpeed'); q.vy = Math.min(q.vy, -300); }
+      }
       // the hips hit a wall: splat (move flag wall) or bounce back
-      if ((hip.x <= 40 || hip.x >= W - 40) && Math.sign(hip.pvx) === Math.sign(hip.x - W / 2)) {
+      else if ((hip.x <= 40 || hip.x >= W - 40) && Math.sign(hip.pvx) === Math.sign(hip.x - W / 2)) {
         const imp = Math.min(1, Math.abs(hip.pvx) / 600), wb = c('wallBounce');
         if (this.splat && imp > 0.15) { this.splat = false; this.splatT = 0.35; this.say('WALL'); this.w.trauma = Math.min(1, this.w.trauma + 0.3 * imp); }
         else if (wb && imp > 0.15) { for (const q of ps) q.vx = -q.pvx * wb; this.w.trauma = Math.min(1, this.w.trauma + 0.2 * imp); }
@@ -777,6 +786,10 @@ class Fighter {
     if (n === 'pushBlock' && att) att.vx = -att.dir * this.c('pushBlockForce') * this.c('powerScale') / att.ch.stats.weight;
     this.say(n === 'guardCancel' ? 'GUARD CANCEL' : 'PUSH');
   }
+  // off the wall from a wallbounce hit: the juggle count starts over, so the follow-up launches full height
+  wallBounced() {
+    this.wallB = false; this.juggles = 0; this.say('WALL BOUNCE'); this.w.trauma = Math.min(1, this.w.trauma + 0.3);
+  }
   // a parry: the defender is free at once, the attacker staggers
   parryHit(att) {
     this.parryT = 0; this.say('PARRY');
@@ -839,7 +852,7 @@ class Fighter {
       this.juggles = this.kd ? this.juggles + 1 : 0;
       this.kd = 'fly'; this.bounces = otg ? 99 : 0; this.grounded = false; this.action = null; this.hurtT = 0; // hit off the ground: a small pop, no bounce
       this.vy = -Math.max((m.launch || 300) * ps, this.ko ? 380 : 0) * this.c('juggleDecay') ** this.juggles / this.ch.stats.weight;
-      this.splat = !!m.wall; this.gb = !!m.bounce && !otg; this.splatT = 0; this.flyT = 0;
+      this.splat = !!m.wall; this.wallB = !!m.wallbounce; this.gb = !!m.bounce && !otg; this.splatT = 0; this.flyT = 0;
       if (m.crumple && !juggle) { this.vx = att.dir * 30; this.vy = -120; this.bounces = 99; this.say('CRUMPLE'); } // folds where it stands
       if (this.c('falls') === 'ragdoll') { if (!this.rag) this.startRag(); this.rag.tone = m.crumple && !juggle ? 0.15 : 1; this.ragHit(hit); }
     } else {

@@ -464,6 +464,7 @@ const MOVE_FLAGS = {
   wide: 'Wide: in 2.5D it reaches 3× zReach in depth, so a sidestep does not dodge it.',
   crumple: 'Crumple: the victim folds to the floor where it stands, open to a follow-up before it lands.',
   wall: 'Wall splat: a victim knocked into the arena wall sticks to it a moment instead of bouncing off.',
+  wallbounce: 'Wall bounce: a victim knocked into the arena wall bounces back out at wallBounceSpeed, popped up, its juggle count reset for a follow-up (spin).',
   bounce: 'Ground bounce: a knocked-down victim bounces high off the floor once, open to a juggle.',
   roll: 'Roll: invincible and passing through fighters for rollInv from its start; the body turns over once, the way its lunge goes (rollFwd, rollBack).',
 };
@@ -513,6 +514,8 @@ function keyPanel() {
         toggle(l, t, () => !!k()[n], v => edit(def => { def.moves[anim.move].keys.forEach((x, i) => { if (i === anim.key && v) x[n] = true; else delete x[n]; }); })))))] : [],
     slider('lunge', { min: -600, max: 600, step: 10 }, () => k().lunge || 0, v => setKey('lunge', v || undefined, 'lunge'),
       'Forward speed given when this key starts (px/s): steps into the strike; below 0 it moves back (rollBack).'),
+    slider('drop', { min: -900, max: 900, step: 10 }, () => k().drop || 0, v => setKey('drop', v || undefined, 'drop'),
+      'In the air: vertical speed given when this key starts (px/s): above 0 drives down (pounce), below 0 lifts.'),
   ];
 }
 // ---------- move list: grouped by type / striking limb / height, sorted, filtered by name or input ----------

@@ -516,3 +516,18 @@ test('↑ S+G taunts; after a K.O. the survivor plays its win move and the contr
   assert.ok(win.ko); assert.match(win.seen, /^kick win$/, 'won, and the kicks after the K.O. were not played: ' + win.seen);
   assert.doesNotMatch(go(ko, { health: 5, winPose: false }, 150).seen, /win/);
 });
+
+test('air ↓ S pounces onto a fighter lying on the floor; a wallbounce hit (spin) bounces the victim back off the wall, juggle count reset', () => {
+  const go = (sc, cfg = {}, n = 150) => run(`(() => { const w = new World({ ...SCENARIOS[${JSON.stringify(sc)}], cfg: ${JSON.stringify(cfg)} }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    const seen = new Set(), labels = new Set(); let down = null, xmax = 0, xmin = 9999, jug = -1;
+    for (let i = 0; i < ${n}; i++) { w.advance(1/60, NOIN); const k = w.a.action && Object.keys(w.a.ch.moves).find(k => w.a.ch.moves[k] === w.a.action.m); if (k) seen.add(k);
+      if (w.b.labelT > 0 && !labels.has(w.b.label)) { labels.add(w.b.label); if (w.b.label === 'WALL BOUNCE') jug = w.b.juggles; }
+      if (w.b.kd === 'down' && down === null) down = w.b.hp; xmax = Math.max(xmax, w.b.x); if (jug >= 0) xmin = Math.min(xmin, w.b.x); }
+    return { seen: [...seen].join(' '), labels: [...labels].join(' '), hp: w.b.hp, down, xmin, xmax, jug }; })()`);
+  const p = go('pounce');
+  assert.match(p.seen, /pounce/); assert.ok(p.hp < p.down, `the pounce hits the lying foe: ${p.down} → ${p.hp}`);
+  assert.doesNotMatch(go('pounce', { pounce: false }).seen, /pounce/);
+  const wb = go('wall bounce');
+  assert.match(wb.labels, /WALL BOUNCE/); assert.equal(wb.jug, 0); assert.ok(wb.xmax - wb.xmin > 80, `bounced back ${wb.xmax - wb.xmin}px`);
+  assert.ok(wb.hp < 80, 'the follow-up air kick lands: ' + wb.hp);
+});

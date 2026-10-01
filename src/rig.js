@@ -112,7 +112,7 @@ const STICK_MOVES = {
     { d: 0.1, e: 'outQuad', p: { torso: 0, afU: 170, afL: 10, abU: -10, abL: 130, lfU: 15, lfL: -5, lbU: -20, lbL: 0 }, active: true },
     { d: 0.34, e: 'inOutCubic', p: null },
   ] },
-  spin: attack({ power: 1.9, damage: 15, hit: 'bf', height: 'high', knock: 420, launch: 320, kd: true, lunge: 260, special: true, wide: true },
+  spin: attack({ power: 1.9, damage: 15, hit: 'bf', height: 'high', knock: 420, launch: 320, kd: true, wallbounce: true, lunge: 260, special: true, wide: true },
     [0.1, { torso: -12, lbU: 40, lbL: -130, lfU: 0, lfL: -15, afU: 60, afL: 90, abU: -30, abL: 70 }],
     [0.07, { torso: -36, lbU: 120, lbL: -5, lfU: 0, lfL: 0, afU: -30, afL: 50, abU: 80, abL: 30 }], 0.1, 0.3),
   // hits a fighter lying on the floor
@@ -357,6 +357,12 @@ const STICK_MOVES = {
     { d: 0.05, e: 'outExpo', p: { torso: 5, head: -10, afU: 150, afL: 10, abU: 140, abL: 15 }, warp: true, inv: true },
     { d: 0.22, e: 'inOutCubic', p: null },
   ] },
+  // ↓ S in the air (pounce setting): a dive onto a fighter lying on the floor (otg), driven down by its key's drop
+  pounce: { power: 1.3, damage: 9, hit: ['fh', 'bh'], height: 'low', knock: 60, launch: 160, kd: true, otg: true, air: true, special: true, keys: [
+    { d: 0.08, e: 'outQuad', p: { torso: -20, afU: 160, afL: 30, abU: 150, abL: 40, lfU: 60, lfL: -100, lbU: 40, lbL: -110 } },
+    { d: 0.35, e: 'outExpo', p: { torso: 70, head: -25, afU: 60, afL: 5, abU: 55, abL: 10, lfU: 100, lfL: -140, lbU: 20, lbL: -110 }, active: true, drop: 900, lunge: 260 },
+    { d: 0.15, e: 'inOutCubic', p: null },
+  ] },
   // ↑ S+G (taunt setting): beckons the foe, open the whole time; win (winPose setting): the survivors' fist in the air after a K.O.
   taunt: { keys: [
     { d: 0.15, e: 'outQuad', p: { torso: -12, head: -15, afU: 70, afL: 100, abU: -20, abL: 30 } },
@@ -429,8 +435,8 @@ const slotsOf = plane => plane === '2d' ? BINDS : BINDS_25;
 const bindsKey = plane => plane === '2d' ? 'binds' : 'binds25';
 // specials by name, each with its on/off setting, and the input that plays it in each specialScheme:
 // a motion name (MOTIONS) + S, 7S / 1S = S with a diagonal held (numpad), G4 / G6 = ← / → pressed while guarding,
-// b… = pressed in blockstun (bP, bK, b6S = → S, b4S = ← S); taunt is on ↑ S+G in both
-const SPECIALS = { rollFwd: 'rolls', rollBack: 'rolls', teleport: 'teleport', guardCancel: 'guardCancel', pushBlock: 'pushBlock', catchHigh: 'counters', catchLow: 'counters', taunt: 'taunt' };
+// b… = pressed in blockstun (bP, bK, b6S = → S, b4S = ← S); taunt is on ↑ S+G and pounce on ↓ S in the air in both
+const SPECIALS = { rollFwd: 'rolls', rollBack: 'rolls', teleport: 'teleport', guardCancel: 'guardCancel', pushBlock: 'pushBlock', catchHigh: 'counters', catchLow: 'counters', taunt: 'taunt', pounce: 'pounce' };
 const SPECIAL_SCHEMES = {
   guard: { rollFwd: 'G6', rollBack: 'G4', teleport: 'dd', guardCancel: 'bP', pushBlock: 'bK', catchHigh: '7S', catchLow: '1S' },
   motion: { rollFwd: 'qcf', rollBack: 'qcb', teleport: 'dp', guardCancel: 'b6S', pushBlock: 'b4S', catchHigh: 'dd', catchLow: '1S' },
