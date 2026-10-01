@@ -305,8 +305,10 @@ CHAR_DEFS.ninja = { ...stick, name: 'ninja', speed: 1.25, binds: { downFwdKick: 
       [0.06, { torso: 15, lfU: 55, lfL: 0, lbU: -15, lbL: 0, afU: 30, abU: 40 }], 0.06, 0.24),
   }, oldMove) },
   bones: [...sizedBones({ waist: 1.05, chest: 0.95, head: 0.9, thigh: 1.15, shin: 1.15, uarm: 1.05, farm: 1.05 }, -1),
-    { id: 'scarf', parent: 'neck', len: 12, a: -100, role: 'tail', thick: 3, lag: 2, stretch: 0.2 },
-    { id: 'scarfEnd', parent: 'scarf', len: 12, a: -10, role: 'tail', thick: 2, lag: 3.5, stretch: 0.3, min: -60, max: 60 }] };
+    // the scarf trails behind the neck (+ angle = backwards for a bone hanging off it) and flutters on its springs
+    { id: 'scarf', parent: 'neck', len: 13, a: 105, role: 'tail', thick: 4, lag: 2, stretch: 0.2 },
+    { id: 'scarfMid', parent: 'scarf', len: 13, a: -15, role: 'tail', thick: 3, lag: 3, stretch: 0.25, min: -60, max: 60 },
+    { id: 'scarfEnd', parent: 'scarfMid', len: 11, a: -15, role: 'tail', thick: 2, lag: 4, stretch: 0.3, min: -60, max: 60 }] };
 // ape: long heavy arms, short legs, hunched forward
 CHAR_DEFS.ape = { ...stick, name: 'ape', speed: 0.95, moves: retimed(1.05, 1.15),
   bones: sizedBones({ waist: 0.95, chest: 1.15, neck: 0.6, head: 1.05, thigh: 0.8, shin: 0.75, uarm: 1.5, farm: 1.5, hand: 1.6 }, 3)

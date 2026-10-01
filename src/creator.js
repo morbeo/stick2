@@ -252,6 +252,7 @@ function expPanel() {
 }
 
 const creatorMode = {
+  preview: () => creator.expOn ? null : edLayout().pv,
   enter() { creator.w = newWorld(previewScen()); if (creator.expOn) buildExp(); },
   restart() { creatorMode.enter(); },
   worlds: () => creator.expOn ? creator.exp.cells.map(c => c.w) : [creator.w],

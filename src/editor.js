@@ -199,6 +199,7 @@ function animMouse(type, x, y, e) {
       }
     } else {
       const id = pickJoint(x, y);
+      if (id && e.shiftKey) { if (curMove().hit !== id) setMove('hit', id); buildPreview(); return; } // Shift+click: the striking bone
       if (id) { selectKey(anim.key); anFrame(); anim.drag = id; anim.hold = true; } // anFrame: re-anchor at the key pose before freezing
     }
   }
@@ -318,6 +319,7 @@ const MOVE_PROPS = [
   { k: 'launch', min: 0, max: 800, step: 10, tip: 'Upward speed on a knockdown (px/s). Also tilts the impact spin upward.' },
   { k: 'stun', min: 0, max: 1, step: 0.02, tip: 'Hitstun (s): how long the victim cannot act. Shrinks along a combo. Blockstun is a fraction of it (blockStun).' },
   { k: 'damage', min: 0, max: 40, step: 1, tip: 'Health taken on hit (× damage setting, scaled down along a combo). Unset = power × 8.' },
+  { k: 'chip', min: 0, max: 1, step: 0.01, tip: 'Fraction of the damage this move still does when blocked (never knocks out). 0 = the chip setting.' },
 ];
 // what each height is blocked by (guard and parry are front only)
 const HEIGHT_TIPS = {
@@ -416,9 +418,12 @@ function moveHeading() {
   return el;
 }
 function movePanel() {
-  const m = () => curMove(), hitB = button('', 'The bone whose end is the strike (and whose limb is tested in limb mode)', (e, b) =>
-    popup(b, h('div', { cls: 'bar' }, seg(currentChar().ids, () => m().hit, v => setMove('hit', v)))));
-  reg(hitB, () => { setRich(hitB, m().hit || 'none'); });
+  // the striking bone: the limb ends as buttons, any other bone from the popup or by Shift+clicking its joint
+  const m = () => curMove(), hitB = button('', 'Any other bone as the strike (or Shift+click its joint in the editor)', (e, b) =>
+    popup(b, h('div', { cls: 'bar' }, seg(currentChar().ids, () => m().hit, v => { setMove('hit', v); buildPreview(); }))));
+  reg(hitB, () => { setRich(hitB, currentChar().tips.some(b => b.id === m().hit) ? ':more_horiz:' : m().hit || 'none'); });
+  const tipSeg = seg(currentChar().tips.map(b => b.id), () => m().hit, v => { setMove('hit', v); buildPreview(); },
+    Object.fromEntries(currentChar().tips.map(b => [b.id, `Strike with the end of ${b.id} (${b.role})`])));
   const bindB = button('', 'Inputs that trigger this move. Click to bind it to other inputs (copies of moves become playable this way).', (e, b) =>
     popup(b, h('div', { cls: 'bar' }, Object.keys(BINDS).map(s => toggle(s, `${SLOT_TIPS[s]} · now: ${currentChar().binds[s]}`, () => currentChar().binds[s] === anim.move, () => toggleBind(s))))));
   reg(bindB, () => { setRich(bindB, boundSlots().join(' ') || 'none (combo only)'); });
@@ -429,7 +434,8 @@ function movePanel() {
       button(':delete: delete', 'Delete this move (only copies)', deleteMove)),
     ...keyPanel(),
     moveHeading(),
-    h('div', { cls: 'row', tip: 'Striking bone' }, h('span', { textContent: 'hit' }), hitB),
+    h('div', { cls: 'row', tip: 'Striking bone: its end is the strike (in limb mode the whole bone). Shift+click a joint in the editor to pick it.' },
+      h('span', { textContent: 'hit' }), h('span', { cls: 'bar' }, tipSeg, hitB)),
     h('div', { cls: 'row', tip: 'Which inputs start this move in a fight' }, h('span', { textContent: 'input' }), bindB),
     h('div', { cls: 'row', tip: 'Where the move is aimed; a hit reaction still follows the actual impact point' }, h('span', { textContent: 'height' }),
       seg(['high', 'shigh', 'mid', 'smid', 'low'], () => m().height, v => setMove('height', v), HEIGHT_TIPS)),
@@ -478,6 +484,7 @@ function targetBar() {
 }
 
 const animMode = {
+  preview: () => anLayout().pv,
   enter() { if (!curMove()) anim.move = Object.keys(currentChar().moves)[0]; selectKey(Math.min(anim.key, curMove().keys.length - 1)); anim.playing = true; buildPreview(); },
   restart() { anim.t = 0; buildPreview(); },
   worlds: () => anim.hold ? [] : [anim.pv],

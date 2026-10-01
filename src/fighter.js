@@ -368,7 +368,7 @@ class Fighter {
     const bs = (m.stun || 0.4) * this.c('blockStun');
     this.hurtT = this.blockT = bs; this.guarding = true; this.combo = 0; this.buffer = null; this.parryT = 0;
     this.vx = att.dir * m.knock * this.c('blockPush');
-    if (this.c('health') > 0) this.hp = Math.max(1, this.hp - this.damageOf(m, 1) * this.c('chip')); // chip never knocks out
+    if (this.c('health') > 0) this.hp = Math.max(1, this.hp - this.damageOf(m, 1) * (m.chip || this.c('chip'))); // chip never knocks out
     for (const c of this.ch.chains.arm) this.jolt(c[0], -300 * m.power); // the guard gives
     this.sqv -= this.c('squash') * 8 * m.power;
   }

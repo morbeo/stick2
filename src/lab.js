@@ -45,7 +45,7 @@ const galleryMoves = (ms = currentChar().moves) => [...GALLERY.filter(m => ms[m]
 
 function build() {
   const scen = SCENARIOS[lab.scen];
-  lab.cells = []; lab.cols = 3; lab.zoom = false;
+  lab.cells = []; lab.cols = 3; lab.zoom = false; lab.scroll = 0;
   if (lab.mode === 'play') {
     const replay = lab.replay && lab.tape?.length && scen.a === 'human';
     lab.cells.push({ w: newWorld(replay ? { ...scen, b: { tape: lab.tape } } : scen) }); lab.cols = 1;
@@ -69,13 +69,16 @@ function build() {
   lab.focus = lab.cells[0];
 }
 
-// rects of n cells in cols columns inside area (device px)
-function cellRects(n, cols, area) {
+// rects of n cells in cols columns inside area (device px); with minH the cells keep at least that height and scroll
+function cellRects(n, cols, area, minH = 0, scroll = 0) {
   const rows = Math.ceil(n / cols), g = n > 1 ? 4 * dpr : 0;
-  const cw = (area.w - g * (cols + 1)) / cols, ch = (area.h - g * (rows + 1)) / rows;
-  return Array.from({ length: n }, (_, i) => ({ x: area.x + g + (i % cols) * (cw + g), y: area.y + g + Math.floor(i / cols) * (ch + g), w: cw, h: ch }));
+  const cw = (area.w - g * (cols + 1)) / cols, ch = Math.max(minH, (area.h - g * (rows + 1)) / rows);
+  return Array.from({ length: n }, (_, i) => ({ x: area.x + g + (i % cols) * (cw + g), y: area.y + g + Math.floor(i / cols) * (ch + g) - scroll, w: cw, h: ch }));
 }
 const fullArea = () => ({ x: 0, y: 0, w: canvas.width, h: canvas.height });
+// the lab's cells; the gallery keeps its cells readable and scrolls (mouse wheel) instead of shrinking them
+const labRects = (n = shown().length) => cellRects(n, lab.zoom ? 1 : lab.cols, fullArea(), lab.mode === 'gallery' && !lab.zoom ? 190 * dpr : 0, lab.zoom ? 0 : lab.scroll);
+const maxScroll = () => { const r = labRects(); return r.length ? Math.max(0, r[r.length - 1].y + r[r.length - 1].h + lab.scroll + 4 * dpr - canvas.height) : 0; };
 const shown = () => lab.zoom ? [lab.focus] : lab.cells;
 const hitRect = (rects, x, y) => rects.findIndex(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
 
@@ -137,11 +140,17 @@ function drawInputs(w, x, y) {
 }
 function labRender() {
   clear();
-  const cells = shown(), play = lab.mode === 'play', rects = cellRects(cells.length, lab.zoom ? 1 : lab.cols, fullArea());
+  lab.scroll = clamp(lab.scroll, 0, maxScroll()); // the canvas or the column count may have changed
+  const cells = shown(), play = lab.mode === 'play', rects = labRects(cells.length);
   cells.forEach((c, i) => drawCell(c, rects[i], { full: play, plot: !play, meter: lab.meter,
     selected: !play && !lab.zoom && (lab.mode === 'grid' && lab.kind !== 'sweep' ? c.parent && 'parent'
       : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) && 'current settings' : c === lab.focus && 'focused') }));
   if (play && lab.inputs && cells[0].w.ctl[0] === 'human') drawInputs(cells[0].w, 10 * dpr, 60 * dpr);
+  const ms = maxScroll();
+  if (ms > 0) { // scrollbar
+    const h = canvas.height * canvas.height / (canvas.height + ms);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(canvas.width - 5 * dpr, lab.scroll / ms * (canvas.height - h), 3 * dpr, h);
+  }
   drawScope();
 }
 
@@ -367,10 +376,28 @@ function applyPreset(name) {
   const keep = { ghost: CFG.ghost, boxes: CFG.boxes, scope: CFG.scope, timeScale: CFG.timeScale };
   setCfg({ ...DEFAULTS, ...PRESETS[name], ...keep });
 }
+// fuzzy match: every query letter appears in order (ignoring case and spaces)
+const fuzzy = (q, text) => { let i = 0; text = text.toLowerCase(); for (const c of q.toLowerCase().replace(/\s/g, '')) if ((i = text.indexOf(c, i) + 1) === 0) return false; return true; };
 function configPanel() {
+  let title = '';
+  const rows = SCHEMA.map((s, i) => {
+    if (Array.isArray(s)) { title = s[0]; return { el: groupHeading(s, i), head: true }; }
+    return { el: s.k === 'scope' ? cfgControl(s) : gridLink(cfgControl(s), s), name: `${s.k} ${title}`, tip: (s.tip || '').toLowerCase() };
+  });
+  const filter = () => {
+    const q = lab.q || '';
+    // fuzzy on the name and group title; tooltips only by plain substring (a loose fuzzy match there hits everything)
+    for (const r of rows) if (!r.head) r.el.hidden = !!q && !fuzzy(q, r.name) && !r.tip.includes(q.toLowerCase());
+    rows.forEach((r, i) => { if (r.head) { let any = false; for (let j = i + 1; j < rows.length && !rows[j].head; j++) any ||= !rows[j].el.hidden; r.el.hidden = !any; } });
+  };
+  const search = h('div', { cls: 'bar' }, ...rich(':search:'),
+    h('input', { cls: 'macro', value: lab.q || '', placeholder: 'search variables', tip: 'Fuzzy search: letters in order match names and groups, plain text matches tooltips · Esc clears',
+      oninput: e => { lab.q = e.target.value; filter(); },
+      onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { e.target.value = lab.q = ''; filter(); } } }));
+  filter();
   return [h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(n, PRESET_TIPS[n], () => applyPreset(n))),
       button(':restart_alt: reset', 'All settings back to their defaults', () => applyPreset('juicy'))),
-    ...SCHEMA.map((s, i) => Array.isArray(s) ? groupHeading(s, i) : s.k === 'scope' ? cfgControl(s) : gridLink(cfgControl(s), s))];
+    search, ...rows.map(r => r.el)];
 }
 // buttons on a group heading that change all of its variables at once
 const groupKeys = i => { const k = []; for (let j = i + 1; j < SCHEMA.length && !Array.isArray(SCHEMA[j]); j++) k.push(SCHEMA[j].k); return k; };
@@ -412,7 +439,7 @@ const labSide = () => [scopeCv, stats, ...configPanel()];
 function labClick(x, y, e) {
   if (lab.mode === 'play') return;
   if (lab.zoom) { lab.zoom = false; return; }
-  const i = hitRect(cellRects(lab.cells.length, lab.cols, fullArea()), x, y);
+  const i = hitRect(labRects(), x, y);
   if (i < 0) return;
   lab.focus = lab.cells[i];
   // a pick in a settings experiment also sets those settings (⌘Z undoes it); Shift+click only looks
@@ -429,8 +456,9 @@ const labMode = {
   side: labSide,
   mouse(type, x, y, e) {
     if (type === 'down') labClick(x, y, e);
-    cursor(lab.mode !== 'play' && (lab.zoom || hitRect(cellRects(lab.cells.length, lab.cols, fullArea()), x, y) >= 0) ? 'pointer' : 'default');
+    cursor(lab.mode !== 'play' && (lab.zoom || hitRect(labRects(), x, y) >= 0) ? 'pointer' : 'default');
   },
+  wheel(dy) { const ms = maxScroll(); if (!ms) return false; lab.scroll = clamp(lab.scroll + dy * dpr, 0, ms); return true; },
   key(e) { if (e.code === 'Escape' && lab.zoom) { lab.zoom = false; return true; } },
   hint: () => lab.mode === 'play' ? fightHint()
     : lab.mode === 'grid' && lab.kind !== 'sweep' ? 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back' : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',

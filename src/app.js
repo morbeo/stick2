@@ -59,6 +59,14 @@ function resize() {
   canvas.width = st.clientWidth * dpr; canvas.height = st.clientHeight * dpr;
 }
 
+// a big pause sign over the running preview, so a stopped game never looks frozen by mistake
+function drawPaused(r) {
+  const cx = r.x + r.w / 2, cy = r.y + r.h * 0.3, s = Math.min(r.w, r.h) * 0.06;
+  ctx.save(); ctx.globalAlpha = 0.55; ctx.fillStyle = '#222';
+  ctx.fillRect(cx - s * 1.1, cy - s * 1.4, s * 0.75, s * 2.8); ctx.fillRect(cx + s * 0.35, cy - s * 1.4, s * 0.75, s * 2.8);
+  ctx.font = `bold ${s * 1.1}px ui-monospace, Menlo, monospace`; ctx.textAlign = 'center'; ctx.fillText('PAUSED', cx, cy + s * 3);
+  ctx.restore();
+}
 let last = performance.now();
 function frame(now) {
   const raw = Math.min(0.05, (now - last) / 1000);
@@ -72,6 +80,7 @@ function frame(now) {
     app.stepOnce = false;
   }
   mode().render();
+  if (app.paused && !app.scrub) drawPaused(mode().preview?.() || { x: 0, y: 0, w: canvas.width, h: canvas.height });
   setRich($('help'), mode().hint());
   requestAnimationFrame(frame);
 }
@@ -133,6 +142,7 @@ addEventListener('mousemove', e => {
   if (app.scrub && e.target === canvas) app.scrubF = clamp(at(e)[0] / canvas.width, 0, 1);
   else if (down || e.target === canvas) mode().mouse?.('move', ...at(e), e);
 });
+canvas.addEventListener('wheel', e => { if (mode().wheel?.(e.deltaY, e)) e.preventDefault(); }, { passive: false });
 addEventListener('mouseup', e => { if (!down) return; down = false; mode().mouse?.('up', ...at(e), e); syncAll(); });
 
 buildTop();
