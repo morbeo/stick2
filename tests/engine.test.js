@@ -1,0 +1,56 @@
+// unit tests of the rig and fighter
+const test = require('node:test'), assert = require('node:assert/strict'), load = require('./load');
+const { run } = load();
+
+test('every built-in character compiles with poses, moves and a main stance', () => {
+  for (const n of run('Object.keys(CHAR_DEFS)')) {
+    const ch = run(`makeCharacter(CHAR_DEFS[${JSON.stringify(n)}])`);
+    assert.ok(ch.poses.stance, n), assert.ok(Object.keys(ch.moves).length > 10, n);
+    assert.equal(ch.stances[0].name, 'main', n);
+    for (const s of ch.stances) for (const [slot, m] of Object.entries(s.binds)) if (m) assert.ok(ch.moves[m], `${n}/${s.name}: ${slot} → ${m}`);
+  }
+});
+
+test('samplePose hits the first key at t=0 and the last key at the end', () => {
+  const r = run(`(() => { const ch = CHARS.stick, m = ch.moves.jab;
+    return { t: total(m), a: samplePose(ch, m, 0), z: samplePose(ch, m, total(m)), k: m.keys[m.keys.length - 1].p, s: ch.poses.stance }; })()`);
+  assert.ok(r.t > 0);
+  for (const b in r.k) assert.ok(Math.abs(r.z[b] - r.k[b]) < 1e-6, b);
+});
+
+test('stats scale the fight settings per character', () => {
+  const r = run(`(() => { const w = new World(SCENARIOS[Object.keys(SCENARIOS)[0]], {}, 7, [CHARS.ninja, CHARS.stick]);
+    return [w.a.c('maxSpeed'), w.b.c('maxSpeed'), w.a.c('jumpVel'), w.b.c('jumpVel')]; })()`);
+  assert.ok(r[0] > r[1], 'ninja faster'), assert.ok(r[2] > r[3], 'ninja jumps higher');
+});
+
+test('heavier characters fly less far from the same hit', () => {
+  const kb = ch => run(`(() => { const r = fight({ a: [0.1, 'punch'], b: 'dummy', ax: 330, bx: 375, period: 3 }, [CHARS.stick, CHARS.${ch}], 40); return r.w.b.x; })()`);
+  assert.ok(kb('stick') > kb('brute'));
+});
+
+test('centaur forelegs bend forward, hind legs back', () => {
+  const p = run('CHARS.centaur.poses.stance');
+  assert.ok(p.foreThighF !== undefined && p.foreShinF !== undefined);
+  assert.ok(p.shinF > 0, 'hind shin bends back'), assert.ok(p.foreShinF < 0, 'fore shin bends forward');
+});
+
+test('K+G switches the ninja into crane and changes the moveset', () => {
+  const r = run(`(() => { const r = fight({ a: [0.1, 'kick+guard', 1, 'kick'], b: 'dummy', ax: 330, bx: 380, period: 9 }, [CHARS.ninja, CHARS.stick], 120);
+    return { st: r.w.a.stanceI, seen: r.seen }; })()`);
+  assert.equal(r.st, 1);
+  assert.ok(r.seen.includes('a:axeKick'), r.seen.join(' '));
+});
+
+test('K+G on a one-stance character is not a stance switch', () => {
+  const r = run(`fight({ a: [0.1, 'kick+guard'], b: 'dummy', ax: 330, bx: 380, period: 9 }, [CHARS.stick, CHARS.stick], 60).w.a.stanceI`);
+  assert.equal(r, 0);
+});
+
+test('a keyframed idle loop replaces the procedural idle', () => {
+  const r = run(`(() => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.stick)), pose = { ...CHARS.stick.poses.stance, uarmF: 40 };
+    d.moves = { ...d.moves, idle: { keys: [{ d: 1, p: pose }, { d: 1, p: pose }] } };
+    const w = new World(SCENARIOS[Object.keys(SCENARIOS)[0]], {}, 7, [makeCharacter(d), CHARS.stick]);
+    w.a.time = 1.5; return w.a.basePose().uarmF; })()`);
+  assert.ok(Math.abs(r - 40) < 6, String(r));
+});
