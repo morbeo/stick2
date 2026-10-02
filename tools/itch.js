@@ -7,8 +7,10 @@ const FILES = ['index.html', 'docs.html', 'src', 'fonts', 'LICENSE'], TARGET = '
 
 execFileSync('node', [path.join(__dirname, 'build-info.js')], { cwd: root, stdio: 'inherit' });
 const { BUILD } = new Function(fs.readFileSync(path.join(root, 'src', 'build.js'), 'utf8') + '; return { BUILD };')();
-if (BUILD.dirty && push) { console.error('uncommitted changes: commit them before pushing to itch.io'); process.exit(1); }
-if (BUILD.dirty) console.warn('warning: uncommitted changes are in the build');
+// uncommitted changes in what goes into the zip (other untracked files don't matter)
+const dirty = execFileSync('git', ['status', '--porcelain', '--', ...FILES], { cwd: root, encoding: 'utf8' }).trim();
+if (dirty && push) { console.error('uncommitted changes: commit them before pushing to itch.io\n' + dirty); process.exit(1); }
+if (dirty) console.warn('warning: uncommitted changes are in the build\n' + dirty);
 fs.mkdirSync(dist, { recursive: true });
 fs.rmSync(zip, { force: true });
 execFileSync('zip', ['-rqX', zip, ...FILES, '-x', '*.DS_Store'], { cwd: root, stdio: 'inherit' });
