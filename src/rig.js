@@ -569,10 +569,11 @@ function makeCharacter(def) {
     b.inertia = (b.mass + 30) ** 2 / 3;
   }
   // limb chains per role: start where the parent has another role, follow the first child of the same role
+  // (a stance body's hidden bones are in no chain: no walk, swing or trail)
   const chains = { spine: [], head: [], arm: [], leg: [], tail: [], weapon: [] };
-  for (const b of order) if (!b.parent || by[b.parent].role !== b.role) {
+  for (const b of order) if (!b.hidden && (!b.parent || by[b.parent].role !== b.role)) {
     const c = [b];
-    for (let k; (k = c[c.length - 1].kids.find(k => k.role === b.role));) c.push(k);
+    for (let k; (k = c[c.length - 1].kids.find(k => k.role === b.role && !k.hidden));) c.push(k);
     chains[b.role].push(c);
   }
   const rest = Object.fromEntries(order.map(b => [b.id, b.a]));
@@ -682,13 +683,39 @@ function weaponBones(ch, type) {
   if (w.chain) return [{ ...b, id: 'weapon', parent, len: Math.round(w.len / 2), a: w.a }, { ...b, id: 'weaponTip', parent: 'weapon', len: Math.round(w.len / 2), a: 0, lag: 3, stiff: 0.6, damp: 0.5, react: 2 }];
   return [{ ...b, id: 'weapon', parent, len: w.len, a: w.a, back: w.back || 0 }];
 }
-// the character holding a weapon (compiled once per character and weapon; the weapon moves are there even when the def lacks them)
-function armed(ch, type) {
-  const base = ch.base || ch;
-  if (!WEAPONS[type]) return base;
-  base.armed ??= {};
-  return base.armed[type] ??= Object.assign(makeCharacter({ ...base.def, weapon: type, moves: { ...WEAPON_MOVES, ...base.def.moves }, bones: [...base.def.bones, ...weaponBones(base, type)] }), { base });
+// ---------- stance bodies: a stance can change the body (def.stances[i].body), compiled like a weapon ----------
+// body: { bones: { id: { len, thick, shape, fx, hidden, … } } over the bones, add: [more bones], scale (× every length, thickness
+// and hurtbox), stats: { k: v } over the character's (not health), gait: { k: v }, chains: { move: next } (that move's links in it) }.
+// A hidden bone (and all below it) has no length, hurtbox or chain and isn't drawn
+function stanceDef(def, i) {
+  const b = def.stances[i - 1].body, k = b.scale || 1, over = b.bones || {};
+  const bones = [...def.bones, ...(b.add || [])].map(x => ({ ...x, ...over[x.id] })), by = Object.fromEntries(bones.map(x => [x.id, x]));
+  const hid = x => !!x && (!!x.hidden || hid(by[x.parent]));
+  const hidden = new Set(bones.filter(hid).map(x => x.id));
+  for (const x of bones) {
+    if (hidden.has(x.id)) Object.assign(x, { hidden: true, len: 0, hurt: 0 });
+    else { delete x.hidden; if (k !== 1) Object.assign(x, { len: (x.len ?? BONE.len) * k, hurt: (x.hurt ?? BONE.hurt) * k, thick: (x.thick ?? BONE.thick) * k }); }
+  }
+  const moves = { ...def.moves };
+  for (const [n, next] of Object.entries(b.chains || {})) if (moves[n]) moves[n] = { ...moves[n], next };
+  const stats = Object.fromEntries(Object.entries(b.stats || {}).filter(([s]) => s !== 'health' && CHAR_STATS.some(c => c.k === s)));
+  return { ...def, bones, moves, ...stats, gait: { ...def.gait, ...b.gait } };
 }
+// a character in stance i (its body, if the stance has one) holding a weapon (if any): compiled once and cached on the base character.
+// Every variant has all the stances, so stance indexes and loop names work in any of them
+function variant(ch, i, type) {
+  const base = ch.base || ch, si = i && base.def.stances?.[i - 1]?.body ? i : 0, w = WEAPONS[type] ? type : '', key = si + ':' + w;
+  if (!si && !w) return base;
+  base.variants ??= {};
+  if (base.variants[key]) return base.variants[key];
+  let def = si ? stanceDef(base.def, si) : base.def;
+  if (w) def = { ...def, weapon: w, moves: { ...WEAPON_MOVES, ...def.moves }, bones: [...def.bones, ...weaponBones(si ? variant(base, si, '') : base, w)] };
+  return base.variants[key] = Object.assign(makeCharacter(def), { base, si });
+}
+// the character holding a weapon (in the same stance body; the weapon moves are there even when the def lacks them); no type: unarmed
+function armed(ch, type) { return variant(ch, ch.si || 0, type); }
+// the character in stance i, holding what it holds
+const stanceChar = (ch, i) => variant(ch, i, ch.weapon);
 // a weapon move is shown (editor, gallery) by the character holding its class's weapon
 const withWeapon = (ch, m) => m?.weapon ? armed(ch, WEAPON_CLASSES[m.weapon].weapon) : ch.base || ch;
 // a thrown weapon: one blow, by its weight
@@ -792,6 +819,7 @@ function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null) {
   ctx.lineCap = ctx.lineJoin = 'round';
   for (const side of ['b', '', 'f']) for (const b of ch.bones) if (b.side === side) {
     const o = P[b.parent || 'hip'], e = P[b.id], c = tint ? tint(b) : side === 'b' ? back : col;
+    if (b.hidden && (b.shape === 'circle' || Math.hypot(e[0] - o[0], e[1] - o[1]) < 0.5)) continue; // a stance's hidden bone (drawn while it shrinks away)
     if (b.shape === 'circle') { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(e[0], e[1], b.len + extra / 2, 0, 7); ctx.fill(); continue; }
     if (b.role === 'weapon') { drawWeapon(ctx, b, o, e, extra || tint?.(b) ? c : null, extra); continue; }
     ctx.strokeStyle = c; ctx.lineWidth = b.thick + extra;

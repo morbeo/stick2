@@ -9,17 +9,17 @@ const linkKey = (L, d) => d === 5 ? (L === 'P' ? 'punch' : 'kick') : d + L;
 const SLOT_NOTE = Object.fromEntries(INPUT_PADS.flatMap(p => p.cells.filter(c => c.own).map(c => [c.chain[0], c.label])));
 const COMBO_TIPS = { tree: 'Every starter with its branches: the input that chains into each next move (P, K, or a direction with it like 6P); ✕ cuts a link, + P / + K adds one',
   table: 'One row per route from a starter to its end: inputs, damage (before combo scaling) and frames; click a step to change or cut it, hover one to play the combo up to it, + P / + K extends the route' };
-// set (or with '' remove) the link from a move on a button
+// set (or with '' remove) the link from a move on a button (in a stance's body with this stance only: nextOf / setNext)
 function setLink(from, b, to) {
   edit(def => {
-    const m = def.moves[from], next = { ...m.next, [b]: to };
+    const next = { ...nextOf(def, from), [b]: to };
     if (!to) delete next[b];
-    if (Object.keys(next).length) m.next = next; else delete m.next;
+    setNext(def, from, next);
   });
 }
 // a popup of the moves a link can point to: normals of the same kind (air with air, weapon with weapon), and the direction held with the button
 function pickLink(anchor, from, b, done) {
-  const ch = currentChar(), src = ch.moves[from], cur = src.next?.[b], groups = new Map();
+  const ch = viewChar(), src = ch.moves[from], cur = src.next?.[b], groups = new Map();
   for (const n of Object.keys(ch.moves)) {
     const m = ch.moves[n];
     if (!m.power || !!m.air !== !!src.air || !!m.weapon !== !!src.weapon) continue;
@@ -28,7 +28,7 @@ function pickLink(anchor, from, b, done) {
   const set = v => { setLink(from, b, v); closePop(); done(); }, L = linkBtn(b);
   // another direction: an existing link moves to it, a new one is made on it
   const dirs = [7, 8, 9, 4, 5, 6, 1, 2, 3].filter(d => d === linkDir(b) || !src.next?.[linkKey(L, d)]);
-  const setDir = d => { const k = linkKey(L, d); if (!cur) { closePop(); return pickLink(anchor, from, k, done); } edit(def => { const m = def.moves[from]; m.next = { ...m.next, [k]: cur }; delete m.next[b]; }); closePop(); done(); };
+  const setDir = d => { const k = linkKey(L, d); if (!cur) { closePop(); return pickLink(anchor, from, k, done); } edit(def => { const next = { ...nextOf(def, from), [k]: cur }; delete next[b]; setNext(def, from, next); }); closePop(); done(); };
   const dirTips = Object.fromEntries(dirs.map(d => [d, d === 5 ? `${L} with no direction held (also the fallback for a direction without its own link)` : `${d}${L}: ${L} with ${DIR_ARROW[d]} held (→ toward the foe)`]));
   popup(anchor, h('b', { textContent: `${from} › ${linkName(b)}` }), h('p', { textContent: `The move ${linkName(b)} chains ${from} into, in its cancel window (chains setting authored)` }),
     h('div', { cls: 'bar' }, h('span', { cls: 'note', textContent: 'direction' }), seg(dirs, () => linkDir(b), setDir, dirTips, d => DIR_ARROW[d] || '·')),
@@ -37,7 +37,7 @@ function pickLink(anchor, from, b, done) {
 }
 // + P / + K while the button has a direction without a link: a new link on it (no direction if that is free; the popup picks another)
 const addLinks = (from, done) => ['P', 'K'].flatMap(L => {
-  const next = currentChar().moves[from].next || {}, d = [5, 6, 4, 2, 8, 3, 1, 9, 7].find(d => !next[linkKey(L, d)]);
+  const next = viewChar().moves[from].next || {}, d = [5, 6, 4, 2, 8, 3, 1, 9, 7].find(d => !next[linkKey(L, d)]);
   return d ? [button(`:add: ${L}`, `Chain ${from} into a move on ${L} (or a direction with it, like 6${L})`, (e, el) => { e.stopPropagation(); pickLink(el, from, linkKey(L, d), done); }, 'mini')] : [];
 });
 // a move as a chip: click opens it in the editor, hover plays it (with a route: the route up to it)
@@ -46,7 +46,7 @@ const moveChip = (n, route = [n]) => h('button', { cls: 'chip', tip: `${n} · Cl
 function comboView() {
   const wrap = h('div', { cls: 'mtable ctable' }), body = h('div'), count = h('span', { cls: 'note' });
   const fill = () => {
-    const ch = currentChar(), binds = curBinds(ch), bound = new Set(Object.values(binds)), roots = comboRoots(ch, bound);
+    const ch = viewChar(), binds = curBinds(ch), bound = new Set(Object.values(binds)), roots = comboRoots(ch, bound);
     const routes = comboRoutes(ch, roots, CFG.attackSpeed), slot = n => { const s = Object.keys(binds).find(s => binds[s] === n); return s && (SLOT_NOTE[s] || s); };
     count.textContent = `${roots.length} starters · ${routes.length} routes`;
     const warn = CFG.chains !== 'authored' && h('div', { cls: 'note warn' }, `The chains setting is ${CFG.chains}: these links only chain with it authored `,

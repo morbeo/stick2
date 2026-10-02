@@ -64,6 +64,17 @@ The **shadow** section (character tab, under walk & idle) sets the shadow drawn 
 - **dx, dy:** moves it from the feet. **lift:** how fast it shrinks as the fighter rises (0 = never). **skew** (body only): how far it leans.
 - Only what differs from the default is saved (`shadow` in the character JSON), with group buttons to randomize or reset.
 
+### Stance bodies
+
+A stance can have its own body. Pick the stance under the stance pose and switch on **this stance only**:
+
+- Bone edits (length, thickness, shape, effects, the other properties), new limbs and bones, stats, walk & idle and combo links then change that stance only. Off, they change the character in every stance.
+- **Del** hides a bone in the stance (with everything below it): it isn't drawn, has no hurtbox and doesn't walk. The **hidden** toggle shows it again.
+- **size** scales the whole body in the stance: every length, thickness and hurtbox.
+- Health stays the character's. **revert body** throws the stance's body away.
+- The editor and the preview show the stance picked. In a fight the switch keeps the running move; new bones grow in.
+- In the character JSON: `stances[i].body = { bones: { id: { len, … , hidden } }, add: [bones], scale, stats, gait, chains: { move: next } }`. Only what differs is stored.
+
 ### In the air
 
 - Every fighter gets air drift, a top fall speed with ↓ fast fall, an **air dodge** (G in the air: intangible; with a direction, a burst) and an **air dash** (double tap in the air), once per jump.

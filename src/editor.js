@@ -257,7 +257,7 @@ const TARGET_TIPS = {
 };
 function pvScen() {
   const s = targetScen(anim.move, curMove(), anim.target), init = s.init;
-  s.init = w => { w.a.stanceI = studio.stance; init(w); };
+  s.init = w => { w.a.setStance(studio.stance); init(w); };
   return s;
 }
 function buildPreview() { anim.pv = Object.assign(newWorld(pvScen(), {}, 1, [currentChar(), CHARS[anim.target.char] || currentChar()]), { sfx: playSound }); }

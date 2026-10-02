@@ -9,7 +9,7 @@ const PREVIEWS = {
   impact: [null, 'The body alone, no attacker: strike it low, mid, high… with the blow buttons and watch it fall (the ragdoll).'],
 };
 // the preview's scenario (impact: the experiment grid plays the showcase)
-const previewScen = () => { const s = SCENARIOS[PREVIEWS[creator.preview][0] || 'showcase']; return { ...s, init: w => { s.init?.(w); w.a.stanceI = studio.stance; } }; };
+const previewScen = () => { const s = SCENARIOS[PREVIEWS[creator.preview][0] || 'showcase']; return { ...s, init: w => { s.init?.(w); w.a.setStance(studio.stance); } }; };
 
 // ---------- editor view: the stance pose, big, with a handle on every joint ----------
 function edLayout() {
@@ -18,7 +18,7 @@ function edLayout() {
 }
 // screen transform of the figure; the hips stay put while dragging so the body doesn't jump under the cursor
 function edFrame() {
-  const ch = currentChar(), r = edLayout().ed, s = Math.min(r.h / 190, r.w / 130), ground = r.y + r.h * 0.85;
+  const ch = viewChar(), r = edLayout().ed, s = Math.min(r.h / 190, r.w / 130), ground = r.y + r.h * 0.85;
   const wa = {}, L = fk(ch, curStance(ch).pose, 1, null, wa);
   if (!creator.drag) {
     let low = 0;
@@ -90,7 +90,7 @@ function dragTo(x, y, shift) {
   local = cur + ((local - cur) % 360 + 540) % 360 - 180; // continuous with the current angle
   edit(def => {
     editPose(def)[b.id] = Math.round(local);
-    if (!shift && b.shape !== 'circle') def.bones.find(d => d.id === b.id).len = Math.max(2, Math.round(Math.hypot(dx, dy)));
+    if (!shift && b.shape !== 'circle') boneDef(def, b.id).len = Math.max(2, Math.round(Math.hypot(dx, dy) / (stanceBody()?.scale || 1))); // (drawn × the stance's size)
   }, 'drag:' + b.id);
 }
 // dragging the hip moves the body over the feet in the stance: every leg bends so its ankle stays (as in animate, see hipTo)
@@ -223,7 +223,7 @@ const BONE_BASIC = ['len', 'thick', 'hurt', 'lag', 'stretch']; // the rest wait 
 function bonePanel() {
   const title = heading('', 'Properties of the selected bone. Click a joint in the editor or a name above to select; ⌘/Ctrl+click (Shift+click in the tree) adds bones to the selection: the values shown are the last one\'s, a change goes to every selected bone.',
     'drag joint: length + angle · Shift+drag: angle only · drag the hip (square): move the waist over the feet · Del delete bone');
-  reg(title, () => { const n = selIds().length; title.firstChild.textContent = `Bone · ${studio.sel}${n > 1 ? ` + ${n - 1}` : ''}`; });
+  reg(title, () => { const n = selIds().length; title.firstChild.textContent = `Bone · ${studio.sel}${n > 1 ? ` + ${n - 1}` : ''}${stanceOnly() ? ` · ${curStance().name} only` : ''}`; });
   title.dataset.fold = 'bone';
   const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', { textContent: label }), ...c);
   const lim = on => edit(def => {
@@ -251,6 +251,8 @@ function bonePanel() {
     ...BONE_PROPS.map(p => { const r = bodyExpLink(slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip), p.k); return BONE_BASIC.includes(p.k) ? r : adv(r); }),
     row('limits', 'Clamp how far this joint can bend', toggle(':straighten: limits', 'On: the joint bends only between min and max (starts at ±90° from the parent); off removes them (undoable)', () => prop('min') !== undefined, lim)),
     ...limRows,
+    stanceOnly() ? row('hidden', 'Hidden in this stance', toggle(':visibility: hidden', 'Hidden in this stance: the bone and everything below it are not drawn, have no hurtbox and take no part in walking (Del does the same here)',
+      () => !!viewChar().by[studio.sel]?.hidden, v => edit(def => { for (const b of selDefs(def)) if (v) b.hidden = true; else delete b.hidden; }))) : null,
     row('lock', 'Lock to the parent', toggle(':lock: lock', 'Locked: the joint keeps its angle to its parent while posing. Dragging it (or IK through it) turns the first unlocked bone above, so locked bones move as one group.',
       () => !!prop('lock'), v => setProp('lock', v || undefined)))];
 }
@@ -294,21 +296,24 @@ function radarPanel() {
   return [head, cv, legend];
 }
 // the character's stats; defaults are the built-in's values (custom characters: 1)
+// (in stance only: the stance body's stats over the character's; health stays the character's)
 function statsPanel() {
-  const get = k => DEFS[CURRENT][k] ?? 1, dflt = k => CHAR_DEFS[CURRENT]?.[k] ?? 1;
+  const own = stanceOnly(), get = k => (own ? stanceBody()?.stats?.[k] : undefined) ?? DEFS[CURRENT][k] ?? 1, dflt = k => own ? DEFS[CURRENT][k] ?? 1 : CHAR_DEFS[CURRENT]?.[k] ?? 1;
+  const put = (def, vals) => Object.assign(own ? editBody(def).stats ??= {} : def, vals);
   // one heading per group (ground / air / fight), each with its group buttons
   return Object.keys(STAT_GROUPS).flatMap(g => {
-    const specs = CHAR_STATS.filter(s => s.g === g);
+    const specs = CHAR_STATS.filter(s => s.g === g && !(own && s.k === 'health'));
     const title = h('h3', { textContent: `${g} stats`, tip: `${STAT_GROUPS[g]}. Multipliers on the fight settings for this character only (1 = as the settings say)` });
-    title.append(groupOps(specs, get, dflt, vals => edit(def => Object.assign(def, vals)),
+    title.append(groupOps(specs, get, dflt, vals => edit(def => put(def, vals)),
       [`Experiment: nine bodies varying the ${g} stats; click the best to breed around it`, () => { creator.exp.vars = new Set(specs.map(s => s.k)); setExp(true); }]));
-    return [title, ...specs.map(s => bodyExpLink(slider(s.k, s, () => get(s.k), v => edit(def => { def[s.k] = v; }, 'stat:' + s.k), s.tip), s.k))];
+    return [title, ...specs.map(s => bodyExpLink(slider(s.k, s, () => get(s.k), v => edit(def => put(def, { [s.k]: v }), 'stat:' + s.k), s.tip), s.k))];
   });
 }
 // walk and idle knobs; keyframed loops (moves named idle / walk, made in animate) replace them
 function gaitPanel() {
-  const spec = k => GAIT_VARS.find(s => s.k === k), get = k => DEFS[CURRENT].gait?.[k] ?? spec(k).v, dflt = k => CHAR_DEFS[CURRENT]?.gait?.[k] ?? spec(k).v;
-  const set = vals => edit(def => { def.gait = { ...def.gait, ...vals }; }, 'gait:' + Object.keys(vals).join());
+  const own = stanceOnly(), spec = k => GAIT_VARS.find(s => s.k === k), main = k => DEFS[CURRENT].gait?.[k] ?? spec(k).v;
+  const get = k => (own ? stanceBody()?.gait?.[k] : undefined) ?? main(k), dflt = k => own ? main(k) : CHAR_DEFS[CURRENT]?.gait?.[k] ?? spec(k).v;
+  const set = vals => edit(def => { if (own) { const b = editBody(def); b.gait = { ...b.gait, ...vals }; } else def.gait = { ...def.gait, ...vals }; }, 'gait:' + Object.keys(vals).join());
   const title = h('h3', { textContent: 'walk & idle', tip: 'The procedural walk and idle of this character. Preview: walk shows the cycle. A keyframed idle or walk loop (animate) replaces them.' });
   title.append(groupOps(GAIT_VARS, get, dflt, set,
     ['Experiment: nine bodies varying the walk and idle; click the best to breed around it', () => { creator.exp.vars = new Set(GAIT_VARS.filter(s => !s.opts).map(s => s.k)); creator.preview = 'walk'; setExp(true); }]));
@@ -360,9 +365,11 @@ const SIDE_NAMES = { f: 'front', '': 'centre', b: 'back' };
 function setBoneCol(id, k, v) {
   const ids = selIds().includes(id) ? selIds() : [id];
   edit(def => {
-    for (const b of def.bones.filter(b => ids.includes(b.id))) {
-      if (k === 'stance') editPose(def)[b.id] = v;
-      else if (k === 'min' || k === 'max') {
+    for (const id of ids) {
+      if (k === 'stance') { editPose(def)[id] = v; continue; }
+      const b = boneDef(def, id);
+      if (!b) continue;
+      if (k === 'min' || k === 'max') {
         if (v === null) { delete b.min; delete b.max; } else { b[k] = v; b.min ??= -180; b.max ??= 180; }
       } else if (v === undefined) delete b[k]; else b[k] = v;
     }
@@ -374,8 +381,8 @@ function boneTable() {
   let sig = '';
   const fill = () => {
     const def = DEFS[CURRENT], q = creator.tfilter.trim(), { k: sk, dir } = creator.tsort, col = BONE_COLS.find(c => c.k === sk);
-    sig = JSON.stringify([def.bones, curStance().pose]);
-    const rows = currentChar().bones.map(cb => def.bones.find(b => b.id === cb.id)).filter(Boolean).map(b => ({ b, v: BONE_COLS.map(c => c.get(b)) }))
+    sig = JSON.stringify([def.bones, stanceBody(), curStance().pose]);
+    const rows = viewChar().bones.map(cb => boneView(cb.id)).filter(Boolean).map(b => ({ b, v: BONE_COLS.map(c => c.get(b)) }))
       .filter(r => !q || fuzzy(q, r.v.filter(v => typeof v === 'string').join(' ')));
     if (col) { const i = BONE_COLS.indexOf(col);
       rows.sort((a, b) => dir * (typeof a.v[i] === 'number' && typeof b.v[i] === 'number' ? a.v[i] - b.v[i] : String(a.v[i]).localeCompare(String(b.v[i])))); }
@@ -409,7 +416,7 @@ function boneTable() {
   };
   fill();
   // undo, joint drags and panel edits change the bones from outside: refill (not while a cell is being typed in)
-  reg(wrap, () => { if (!wrap.contains(document.activeElement) && JSON.stringify([DEFS[CURRENT].bones, curStance().pose]) !== sig) fill(); });
+  reg(wrap, () => { if (!wrap.contains(document.activeElement) && JSON.stringify([DEFS[CURRENT].bones, stanceBody(), curStance().pose]) !== sig) fill(); });
   const filter = h('input', { cls: 'macro', value: creator.tfilter, placeholder: 'fuzzy filter: id, parent, role, side, shape', tip: 'Letters in order match (e.g. "shf" finds shinF); any column with text counts',
     oninput: e => { creator.tfilter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() });
   wrap.append(stageHead('bone table', BONES_TIP, filter),

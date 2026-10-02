@@ -436,6 +436,7 @@ The **plane** setting (lanes and belt are 2.5D):
 
 - A stance's key switches to it: S+G, ↓ S+G, → S+G or ← S+G, picked under the stance buttons. Pressed again, it goes back to main. Stances sharing a key take turns. Saved K+G keys become S+G.
 - Each stance has its own pose, its own binds over the main ones, and its own idle / walk loops.
+- A stance can have its own body: bones longer, shorter, hidden or added, a size, stats, gait and combo links (see [Stance bodies](editing.md#stance-bodies)).
 - Edit one by picking the stance above the stance pose (character) or in the move group (animate). **group: stance** (and the table's stance column) shows which moves each stance adds.
 - More preset poses: southpaw, muay thai, tiger, crane, sumo, drunken.
 

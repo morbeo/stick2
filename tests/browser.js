@@ -235,6 +235,19 @@ try {
     creatorMouse('up', 0, 0, {});
     if (Math.abs(f1.P.hip[1] - hp[1] - 20) > 1 || off > 3 || JSON.stringify(curStance().pose) === p0) errs.push('hip drag ' + [f1.P.hip[1] - hp[1], off]);
     undo(); if (JSON.stringify(curStance().pose) !== p0) errs.push('hip drag undo'); }
+  // this stance only: with a second stance picked, a bone length edit goes to the stance's body (the main body and the other stance keep theirs),
+  // the editor and the preview show it, Del hides a bone there, undo takes it back
+  { setMode('character'); pickChar('stick'); studio.stance = 1; studio.sel = 'uarmF'; panels(); mode().restart();
+    const own = () => [...document.querySelectorAll('#side button')].find(b => b.dataset.tip?.startsWith('This stance only'));
+    if (!own()) errs.push('no stance only toggle');
+    own().click(); setProp('len', 30);
+    const body = DEFS.stick.stances[0].body;
+    if (!studio.own || DEFS.stick.bones.find(b => b.id === 'uarmF').len !== 17 || body?.bones?.uarmF?.len !== 30 || CHARS.stick.by.uarmF.len !== 17
+      || viewChar().by.uarmF.len !== 30 || edFrame().ch.by.uarmF.len !== 30 || creator.w.a.ch.by.uarmF.len !== 30) errs.push('stance only len ' + JSON.stringify(body));
+    deleteBone(); if (!viewChar().by.handF.hidden || CHARS.stick.by.uarmF.hidden) errs.push('stance only hide');
+    undo(); undo(); if (DEFS.stick.stances[0].body?.bones?.uarmF?.len) errs.push('stance only undo');
+    studio.stance = 0; panels(); if (own()) errs.push('stance only toggle on main');
+    studio.own = false; }
   // the bone table rearranges bones: drag a row's id onto another to move it before it (the draw order), click parent to hang it from another bone
   { setMode('character'); pickChar('stick'); lay('character').panel = 'bones'; creator.tsort = { k: '', dir: 1 }; creator.tfilter = ''; panels();
     const idCell = id => [...document.querySelectorAll('.btable tbody td:first-child')].find(td => td.textContent === id), ids = () => currentChar().ids;

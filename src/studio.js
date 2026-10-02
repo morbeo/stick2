@@ -21,19 +21,44 @@ const loadCfg = () => { try { for (const [k, v] of Object.entries(JSON.parse(loc
 loadCfg();
 // the display aids (ghost, boxes, scope, hud, labels): saved, but not undo steps
 const setDisplay = (k, v) => { CFG[k] = v; saveCfg(); };
-const studio = { sel: 'uarmF', also: new Set(), undo: [], redo: [], lastKey: null, lastT: 0, fold: new Set(), stance: 0 };
+const studio = { sel: 'uarmF', also: new Set(), undo: [], redo: [], lastKey: null, lastT: 0, fold: new Set(), stance: 0, own: false };
 layFlag(studio, 'colors', 'colours');
 // the stance being edited (0 = main): its pose as drawn, its pose and own binds in the definition (what edits change)
-const curStance = (ch = currentChar()) => ch.stances[studio.stance] || ch.stances[0];
+const curStance = (ch = viewChar()) => ch.stances[studio.stance] || ch.stances[0];
 const editPose = def => studio.stance ? def.stances[studio.stance - 1].pose : def.poses.stance;
+// the character as the editors show it: in the stance picked, with its body (stanceChar)
+const viewChar = () => stanceChar(currentChar(), studio.stance);
+// "this stance only" (own, with a stance other than main picked): bone, size, stat, gait, effect and chain edits go to the stance's
+// body (def.stances[i].body, see stanceDef) instead of the character
+const stanceOnly = () => studio.stance > 0 && studio.own && !!DEFS[CURRENT].stances?.[studio.stance - 1];
+const editBody = def => def.stances[studio.stance - 1].body ??= {};
+const stanceBody = (def = DEFS[CURRENT]) => studio.stance ? def.stances?.[studio.stance - 1]?.body : undefined;
+// the definition a bone edit changes: a bone the stance adds is its own entry; else the stance's override (stance only) or the bone
+function boneDef(def, id) {
+  const add = stanceBody(def)?.add?.find(b => b.id === id);
+  if (add) return add;
+  if (!stanceOnly()) return def.bones.find(b => b.id === id);
+  const o = editBody(def).bones ??= {};
+  return o[id] ??= {};
+}
+// a move's chain links as the combo editors see and change them: in stance only, the stance body's own (chains)
+const nextOf = (def, n) => (stanceOnly() && stanceBody(def)?.chains?.[n]) || def.moves[n].next;
+function setNext(def, n, next) {
+  const has = next && Object.keys(next).length;
+  if (stanceOnly()) (editBody(def).chains ??= {})[n] = has ? next : {};
+  else if (has) def.moves[n].next = next; else delete def.moves[n].next;
+}
 // binds follow the plane setting: 2D and 2.5D each have their own table (see BINDS)
 const bkey = () => bindsKey(CFG.plane);
 const curBinds = ch => curStance(ch)[bkey()];
 const editBinds = def => (studio.stance ? def.stances[studio.stance - 1] : def)[bkey()] ??= {};
-const selBone = () => DEFS[CURRENT].bones.find(b => b.id === studio.sel);
+// (in stance only: with the stance's overrides; a bone the stance adds: its own entry)
+const boneView = id => { const def = DEFS[CURRENT], b = def.bones.find(b => b.id === id), body = stanceBody(def);
+  return body?.add?.find(x => x.id === id) || (b && stanceOnly() && body?.bones?.[b.id] ? { ...b, ...body.bones[b.id] } : b); };
+const selBone = () => boneView(studio.sel);
 // the selection: the bone the panel shows (sel) and the others ⌘/Ctrl-clicked with it (also); bone edits go to all of them
-const selIds = () => [studio.sel, ...[...studio.also].filter(id => id !== studio.sel && currentChar().by[id])];
-const selDefs = def => def.bones.filter(b => selIds().includes(b.id));
+const selIds = () => [studio.sel, ...[...studio.also].filter(id => id !== studio.sel && viewChar().by[id])];
+const selDefs = def => selIds().map(id => boneDef(def, id)).filter(Boolean);
 function pickBoneSel(id, add) {
   const ids = selIds();
   if (!add) { studio.sel = id; studio.also.clear(); }
@@ -105,13 +130,13 @@ function undoRedo(from, to) {
 const undo = () => undoRedo(studio.undo, studio.redo), redo = () => undoRedo(studio.redo, studio.undo);
 
 function recompile() {
-  const old = CHARS[CURRENT], ch = CHARS[CURRENT] = makeCharacter(DEFS[CURRENT]);
-  if (!ch.by[studio.sel]) studio.sel = ch.ids[0];
+  const old = CHARS[CURRENT], ch = CHARS[CURRENT] = makeCharacter(DEFS[CURRENT]), v = viewChar();
+  if (!v.by[studio.sel]) studio.sel = v.ids[0];
   if (!ch.by[CFG.scope]) CFG.scope = ch.ids[0];
   for (const w of mode().worlds()) w.swapChar(old, ch);
   save();
   mode().changed?.();
-  if (ch.ids.join() !== old.ids.join()) panels(); else syncAll();
+  if (v.ids.join() !== stanceChar(old, studio.stance).ids.join()) panels(); else syncAll();
 }
 
 // every pose a definition holds (named poses, move keys, hit reactions), to rename or drop bones everywhere
@@ -283,7 +308,14 @@ function stanceRow() {
       seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); }, Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance: the base pose, binds and loops'])), i => names[i]),
       crud({ new: ['New stance: a copy of the current one with no binds of its own', add], delete: ['Delete this stance (not the main one)', del] }))),
     i ? h('div', { cls: 'row', tip: `The input that switches to ${names[i]} in a fight (→ = toward the opponent)` }, h('span', { textContent: 'key' }),
-      seg(Object.keys(STANCE_KEYS), () => stanceKey(DEFS[CURRENT].stances?.[i - 1]?.key), v => edit(def => { def.stances[i - 1].key = v; }), keyTips, k => STANCE_KEYS[k])) : null];
+      seg(Object.keys(STANCE_KEYS), () => stanceKey(DEFS[CURRENT].stances?.[i - 1]?.key), v => edit(def => { def.stances[i - 1].key = v; }), keyTips, k => STANCE_KEYS[k])) : null,
+    i ? h('div', { cls: 'row', tip: `The body in ${names[i]}: the same as main, or changed for this stance only` }, h('span', { textContent: 'body' }), h('span', { cls: 'bar' },
+      toggle(':accessibility_new: this stance only', `This stance only: bone edits (length, thickness, shape, effects…, new limbs, delete = hide), size, stats, walk and combo links go to ${names[i]}'s own body, not the character's. Off: they change the character in every stance`,
+        () => studio.own, v => { studio.own = v; panels(); }),
+      button(':history: revert body', `Throw away ${names[i]}'s own body: back to the main body (undoable)`, () => edit(def => { delete def.stances[i - 1].body; }), 'mini'))) : null,
+    i && studio.own ? slider('size', { min: 0.5, max: 2, step: 0.05 }, () => stanceBody()?.scale ?? 1,
+      v => edit(def => { if (v === 1) delete editBody(def).scale; else editBody(def).scale = v; }, 'stance scale'),
+      `Size of the whole body in ${names[i]}: × every bone's length, thickness and hurtbox`) : null];
 }
 // the generator's variables; the random characters experiment shows nine of them
 function randomPanel(changed = () => {}) {
@@ -345,12 +377,12 @@ const unlockedAbove = (ch, b) => { while (b?.lock) b = ch.by[b.parent]; return b
 
 // collapsible bone tree: ▾/▸ folds a branch, the stripe is the role colour, 🔒 = locked
 function boneTree() {
-  const ch = currentChar(), rows = [];
+  const ch = viewChar(), rows = [];
   const walk = (b, depth) => {
     const fold = studio.fold.has(b.id);
     const tw = b.kids.length ? button(fold ? '▸' : '▾', fold ? `Show the bones under ${b.id}` : `Hide the bones under ${b.id} in this list`, () => { studio.fold[fold ? 'delete' : 'add'](b.id); panels(); }, 'twist')
       : h('span', { cls: 'twist' });
-    const nb = button(b.id + (b.lock ? ' 🔒' : ''), `${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''} · ${b.len}px${fold ? ` · ${subtree(DEFS[CURRENT], b.id).length - 1} hidden` : ''} · click: select it (Shift / ⌘: add to the selection)`,
+    const nb = button(b.id + (b.lock ? ' 🔒' : '') + (b.hidden ? ' (hidden)' : ''), `${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''} · ${b.len}px${fold ? ` · ${subtree(DEFS[CURRENT], b.id).length - 1} hidden` : ''} · click: select it (Shift / ⌘: add to the selection)`,
       e => pickBoneSel(b.id, e.shiftKey || e.metaKey || e.ctrlKey));
     nb.style.borderLeft = `4px solid ${ROLE_COLS[b.role][b.side === 'b' ? 1 : 0]}`;
     reg(nb, () => nb.classList.toggle('on', selIds().includes(b.id)));
@@ -379,8 +411,14 @@ const LIMB_TIPS = {
   tail: 'Add a 3-bone tail at the selected torso bone, or at the hips.',
   head: 'Add a neck and head at the selected torso bone, or at the top of the spine.',
 };
+// (stance only: the stance's body adds it)
 function addLimb(kind) {
-  edit(def => { studio.sel = attachLimb(def, kind, studio.sel); }); studio.also.clear();
+  edit(def => {
+    if (!stanceOnly()) { studio.sel = attachLimb(def, kind, studio.sel); return; }
+    const body = editBody(def), all = { bones: [...def.bones, ...body.add || []] }, n = all.bones.length;
+    studio.sel = attachLimb(all, kind, studio.sel); body.add = [...body.add || [], ...all.bones.slice(n)];
+  });
+  studio.also.clear();
 }
 // adds a limb to a definition at torso bone `at` (or the default place); returns its first bone's id
 function attachLimb(def, kind, at) {
@@ -403,10 +441,10 @@ function attachLimb(def, kind, at) {
 // one more joint at the end of the selected bone, same role and side
 function addBone() {
   edit(def => {
-    const p = selBone(), ids = new Set(def.bones.map(b => b.id));
+    const p = selBone(), into = stanceOnly() ? editBody(def).add ??= [] : def.bones, ids = new Set([...def.bones, ...stanceBody(def)?.add || []].map(b => b.id));
     let id = 'bone', n = 1;
     while (ids.has(id + n)) n++;
-    def.bones.push({ id: id + n, parent: p?.id ?? null, len: 10, role: p?.role ?? 'tail', side: p?.side ?? '', lag: (p?.lag ?? 0) + 0.5 });
+    into.push({ id: id + n, parent: p?.id ?? null, len: 10, role: p?.role ?? 'tail', side: p?.side ?? '', lag: (p?.lag ?? 0) + 0.5 });
     studio.sel = id + n; studio.also.clear();
   });
 }
@@ -419,7 +457,15 @@ function moveBone(id, before) {
 }
 const parentChoices = (def, id) => { const sub = new Set(subtree(def, id)); return def.bones.filter(b => !sub.has(b.id)).map(b => b.id); };
 function setParent(id, p) { edit(def => { def.bones.find(b => b.id === id).parent = p; }); }
+// a bone the stance adds goes from its body; in stance only, any other bone is hidden in the stance (with all below it)
 function deleteBone() {
+  const body = stanceBody();
+  if (body?.add?.some(b => b.id === studio.sel)) {
+    const gone = new Set(subtree({ bones: [...DEFS[CURRENT].bones, ...body.add] }, studio.sel));
+    studio.sel = selBone().parent ?? currentChar().ids[0]; studio.also.clear();
+    return edit(def => { const b = editBody(def); b.add = b.add.filter(x => !gone.has(x.id)); if (!b.add.length) delete b.add; });
+  }
+  if (stanceOnly()) return edit(def => { for (const b of selDefs(def)) b.hidden = true; });
   const def = DEFS[CURRENT], gone = new Set(subtree(def, studio.sel));
   if (gone.size >= def.bones.length) return; // keep at least one bone
   studio.sel = selBone().parent ?? studio.sel; studio.also.clear();

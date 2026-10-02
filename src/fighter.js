@@ -20,21 +20,32 @@ class Fighter {
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, heldAt: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
       airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null, layerAt: {}, away: false, turnRate: 0, turnMid: null });
-    this.hp = this.c('health'); this.ch0 = ch.base || ch; // ch0: the character without its weapon
+    this.hp = this.c('health'); this.ch0 = ch.weapon ? armed(ch, '') : ch; // ch0: the character without its weapon
     this.target = this.basePose();
     this.disp = { ...this.target };
     this.prev = { ...this.target };
     this.flt = {}; this.lens = {};
     for (const b of ch.bones) { this.flt[b.id] = new SecondOrder(this.target[b.id]); this.lens[b.id] = b.len; }
   }
-  // swap the body live (character editor): new bones start at the base pose, the running move is dropped
-  setChar(ch) {
-    this.ch = ch; this.ch0 = ch.base || ch; this.action = null; this.trail = [];
+  // swap the body live (character editor, weapons): new bones start at the base pose, the running move is dropped.
+  // keep (a stance body): the move goes on, bones new to the body join it where they are and grow from nothing, lengths ease over
+  setChar(ch, keep = false) {
+    const old = this.ch;
+    this.ch = ch; this.ch0 = ch.weapon ? armed(ch, '') : ch; this.trail = [];
+    if (!keep) this.action = null;
     const base = this.basePose();
     for (const b of ch.bones) {
-      if (!this.flt[b.id]) { this.flt[b.id] = new SecondOrder(base[b.id]); this.target[b.id] = this.disp[b.id] = this.prev[b.id] = base[b.id]; }
-      this.lens[b.id] = b.len;
+      const fresh = keep && !old.by[b.id];
+      if (!this.flt[b.id] || fresh) { this.flt[b.id] = new SecondOrder(base[b.id]); this.target[b.id] = this.disp[b.id] = this.prev[b.id] = base[b.id]; }
+      if (!keep) this.lens[b.id] = b.len; else if (fresh) this.lens[b.id] = 0;
     }
+    if (keep && this.action) for (const j of ch.ids) this.action.from[j] ??= this.target[j];
+  }
+  // switch to stance i: its body (stanceChar; a running move goes on)
+  setStance(i) {
+    this.stanceI = i;
+    const ch = stanceChar(this.ch, i);
+    if (ch !== this.ch) this.setChar(ch, true);
   }
   c(k) { // character stats scale their settings
     const v = this.over[k] ?? this.w.cfg[k], s = STAT_OF[k];
@@ -334,7 +345,7 @@ class Fighter {
     // start a move, or chain into the next one once the current move's active frames are over
     const a0 = this.action;
     if (this.buffer?.b === 'stance' && this.free && !a0 && this.grounded) {
-      this.stanceI = this.buffer.to; this.buffer = null; this.say(this.st.name.toUpperCase());
+      const to = this.buffer.to; this.buffer = null; this.say(this.ch.stances[to].name.toUpperCase()); this.setStance(to);
     }
     // 2D: J / K with ↑ held in the jump squat is an up attack instead of a jump
     if (this.buffer && this.squatT > 0 && inp.up && this.buffer.b !== 'stance' && this.c('plane') === '2d') this.squatT = 0;

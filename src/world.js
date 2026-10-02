@@ -103,7 +103,7 @@ class World {
   // a character was edited: fighters wearing the old build switch to the new one mid-fight
   swapChar(from, to) {
     if (this.chars) this.chars = this.chars.map(c => c === from ? to : c);
-    for (const f of this.fighters) if (f.ch0 === from) f.setChar(armed(to, f.ch.weapon));
+    for (const f of this.fighters) if ((f.ch.base || f.ch) === from) f.setChar(variant(to, f.stanceI, f.ch.weapon));
     this.checkpoints = []; // they hold the old build
   }
   // ---------- weapons lying around or flying (see Fighter.letGo) ----------
