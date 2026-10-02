@@ -73,20 +73,6 @@ const macroFor = e => macros.find(m => m.key === combo(e) || m.key === e.code);
 const keyLabel = k => k.replace('Shift+', '⇧').replace('Alt+', '⌥').replace(/^Key|^Digit/, '')
   .replace(/Arrow(Left|Right|Up|Down)/, (_, d) => ({ Left: '←', Right: '→', Up: '↑', Down: '↓' })[d]).replace('Comma', ',').replace('Period', '.');
 
-// macro text: comma-separated steps. Numpad digits are directions relative to the opponent (2 down, 3 down-forward,
-// 6 forward, 4 back, 8 up …), P / K / S / G the buttons, a number with a dot waits that many seconds: '2, 3, 6P' · 'P, 0.13, P, 0.13, K'
-const NUMPAD = { 1: 'down+back', 2: 'down', 3: 'down+fwd', 4: 'back', 5: '', 6: 'fwd', 7: 'back+up', 8: 'up', 9: 'fwd+up' };
-const BUTTONS = { P: 'punch', K: 'kick', S: 'special', G: 'guard' };
-function parseMacro(seq) {
-  return seq.split(',').map(s => s.trim()).filter(Boolean).map(s => {
-    const hold = s.match(/^hold (\S+) ([\d.]+)$/); // 'hold up 0.2': a direction held that long
-    if (hold) return { hold: hold[1], t: +hold[2] };
-    if (s.includes('.')) return +s || 0;
-    const m = s.match(/^([1-9]?)([PKSG]*)$/i);
-    if (!m) return s; // word form: 'down+fwd+punch'
-    return [NUMPAD[m[1] || 5], ...[...m[2].toUpperCase()].map(b => BUTTONS[b])].filter(Boolean).join('+') || 0;
-  });
-}
 // a macro plays in every world the keyboard controls (merged with the keys held), see World.step
 function runMacro(m) {
   for (const w of mode().worlds()) if (w.ctl[0] === 'human' && !w.playback) { w.macro = new Script(parseMacro(m.seq)); w.macroSeq = m.seq; }

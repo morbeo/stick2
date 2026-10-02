@@ -1,10 +1,7 @@
-// loads the engine scripts (no DOM) into one vm context, the way index.html does
-const fs = require('fs'), vm = require('vm'), path = require('path');
-const SRC = path.join(__dirname, '..', 'src');
-module.exports = function load(files = ['core', 'rig', 'fx', 'roster', 'fighter', 'world', 'brain', 'checks']) {
-  const ctx = vm.createContext({ console, Math, Object, Array, JSON });
-  for (const f of files) vm.runInContext(fs.readFileSync(path.join(SRC, f + '.js'), 'utf8'), ctx, { filename: path.join(SRC, f + '.js') });
-  const run = code => vm.runInContext(code, ctx);
+// loads the engine scripts (no DOM) into one vm context, the way index.html does (tools/engine.js), plus a test helper
+const engine = require('../tools/engine');
+module.exports = function load(files) {
+  const { ctx, run } = engine(files);
   // a scripted fight: returns the world after n frames plus the moves each side started
   run(`var fight = (sc, chars, n = 150) => {
     const w = new World(sc, {}, 7, chars); w.loop = false; const seen = [];

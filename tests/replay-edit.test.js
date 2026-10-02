@@ -1,6 +1,6 @@
 // the replay editor: events recorded while a replay plays, without changing the fight; seeking lands on the same state as playing there
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('fs'), path = require('path'), load = require('./load');
-const { run } = load(['core', 'rig', 'fx', 'roster', 'fighter', 'world', 'brain', 'checks', 'replay']);
+const { run } = load([...require('../tools/engine').ENGINE, 'replay']);
 const reps = fs.readFileSync(path.join(__dirname, 'fixtures', 'replays.json'), 'utf8');
 run(`var REPS = ${reps};`);
 
@@ -73,6 +73,16 @@ test('undoing an edit brings the frames and the fight back', () => {
     rp.sel = new Set(rp.events.filter(e => e.kind === 'press').map(e => e.i)); reelEdit(deleteInputs);
     const h1 = rp.master.stateHash(); reelRestore(snap);
     return [h0 !== h1, rp.master.stateHash() === h0, reelSnap() === snap];
+  })())`));
+  assert.deepEqual(r, [true, true, true]);
+});
+
+test('recordFight (events.js, used without the replay tab) finds the same events and stats as the replay tab', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => {
+    loadReel(JSON.parse(JSON.stringify(REPS[0])));
+    const tab = rp.base.map(e => [e.f, e.type, e.who, e.name]).sort().join('|'), w = replayWorld(REPS[0]); w.loop = false;
+    const rec = recordFight(w), mine = rec.events.map(e => [e.f, e.type, e.who, e.name]).sort().join('|');
+    return [tab === mine, rec.N === rp.N, JSON.stringify(fightStats(rec.events, rec.lanes)) === JSON.stringify(fightStats(rp.base, rp.lanes))];
   })())`));
   assert.deepEqual(r, [true, true, true]);
 });

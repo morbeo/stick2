@@ -3,26 +3,6 @@
 // The reel is a replay file (makeReplay in world.js). A master world plays it once with the event recorder on (World.ev) and keeps
 // checkpoints; the shown world seeks by restoring the last checkpoint before a frame and playing the frames after it.
 
-// event types: colour, icon, what they are
-const EVENT_TYPES = {
-  input: ['#7f8c8d', 'keyboard', 'Your inputs: button presses, held directions and guard, macros'],
-  move: ['#2c6fb0', 'sports_martial_arts', 'Moves started (attacks, specials, throws, rolls, getups)'],
-  hit: ['#c0392b', 'bolt', 'Hits that landed, combos (two hits or more), clashes'],
-  defence: ['#16a085', 'shield', 'Blocks, parries, catches, just guards, guard cancels and push blocks'],
-  throw: ['#8e44ad', 'sports_kabaddi', 'Throws landed and throws broken'],
-  fall: ['#d35400', 'airline_seat_flat', 'Launches, knockdowns, bounces, wall hits, techs, air recoveries, wake-ups'],
-  state: ['#d4a017', 'star', 'K.O., counter hits, dizzy, stagger, armor, crumple, disarm'],
-  movement: ['#27ae60', 'directions_run', 'Jumps, dashes, super jumps, wall jumps'],
-  item: ['#7d5a3c', 'swords', 'Weapons picked up and lost, shots fired'],
-  meta: ['#666', 'layers', 'Stance switches, waves'],
-};
-// callouts (Fighter.say) by type; parries and catches come from the hits already, a weapon's name is its pick-up
-const SAY_TYPES = { 'K.O.': 'state', COUNTER: 'state', DIZZY: 'state', STAGGER: 'state', ARMOR: 'state', CRUMPLE: 'state', DISARM: 'state',
-  JUST: 'defence', 'GUARD CANCEL': 'defence', PUSH: 'defence', THROW: 'throw', BREAK: 'throw', WALL: 'fall', 'WALL BOUNCE': 'fall', BOUNCE: 'fall',
-  TECH: 'fall', RECOVER: 'fall', SUPER: 'movement', CHASE: 'movement', 'WALL JUMP': 'movement', CLASH: 'hit', DEFLECT: 'hit', POWER: 'item', PARRY: null, CATCH: null };
-const sayType = s => s in SAY_TYPES ? SAY_TYPES[s] : WEAPONS[s] ? 'item' : 'meta'; // the rest: waves, stance names
-const BTN_NAMES = { punch: 'P', kick: 'K', special: 'S', hop: 'jump' }, HELD_NAMES = { left: '←', right: '→', up: '↑', down: '↓', guard: 'G' };
-
 const rp = { reel: null, master: null, view: null, frames: [], T: [0], N: 0, events: [], n: 0, t: 0, show: new Set(Object.keys(EVENT_TYPES)), sel: new Set(),
   footOn: true, fsel: null, filter: '', sort: { k: 't', dir: 1 }, hover: null, drag: null, scrollTo: null, lanes: {}, v: [0, 1], fold: new Set(), base: [], mx: -1, my: -1 };
 const fmtT = t => t.toFixed(2) + 's';
@@ -35,8 +15,7 @@ function loadReel(rep, name) {
   const w = rp.master = replayWorld(rep);
   w.loop = false; // the recording ends at its K.O. (a play fight's log starts at its last restart)
   rp.frames = w.playback.frames; rp.rec = []; rp.lanes = {};
-  w.rec = e => { const def = e.type === 'parry' || e.type === 'block' || e.type === 'catch', type = e.type === 'say' ? sayType(e.name) : def ? 'defence' : e.type;
-    if (type) rp.rec.push({ ...e, kind: e.type, type, name: def ? `${e.type} ${e.name}`.trim() : e.name }); };
+  w.rec = e => { const c = classifyEvent(e); if (c) rp.rec.push(c); };
   simFrom(0);
   rp.reel.desync = w.desync; // against the file's own checksums; edits make those meaningless, so they go
   w.playback.sums = {}; w.playback.end = null;
@@ -44,7 +23,6 @@ function loadReel(rep, name) {
   rp.view = replayWorld(rep); rp.view.loop = false; rp.view.replaying = true;
   rpSeek(0);
 }
-const fstate = f => ({ kd: f.kd, gr: f.grounded, dash: f.dashT > 0, st: f.stanceI, wp: f.ch.weapon });
 // play the master from frame k (from its last checkpoint before) to the end or its K.O., recording events and lanes from there
 function simFrom(k) {
   const w = rp.master;
@@ -61,12 +39,7 @@ function simFrom(k) {
   for (const f of w.fighters) prev[f.id] = fstate(f);
   for (let i = from; i < rp.frames.length && !w.done; i++) {
     w.advance(0, NOIN); // a replay world plays its own frames
-    for (const f of w.fighters) {
-      diffFighter(f, i, prev);
-      const l = rp.lanes[f.id] ??= { id: f.id, name: f.ch.name, col: f.col[0], max: f.c('health'), hp: [], stun: [], fs: [] }; // per frame, for the fighter rows
-      l.hp[i] = f.hp; l.stun[i] = f.stunM / (f.c('dizzyAt') || 1); l.fs[i] = frameState(f);
-    }
-    for (const s of w.shots) if (!s.seen) { s.seen = true; rp.rec.push({ f: i, type: 'item', kind: 'shot', who: s.owner.id, name: 'shot ' + s.look }); }
+    recordFrame(w, i, prev, rp.lanes, rp.rec);
   }
   rp.N = w.log.length;
   rp.T = rp.frames.reduce((a, f) => (a.push(a[a.length - 1] + f[0]), a), [0]);
@@ -78,44 +51,6 @@ function rebuildEvents() {
   const marks = rp.reel.rep.marks.map((m, j) => ({ f: m.f, type: 'meta', kind: 'mark', who: -1, name: '⚑ ' + m.name, mark: j }));
   rp.events = [...rp.base, ...marks].sort((a, b) => a.f - b.f).map((e, i) => ({ ...e, i }));
   rp.sel.clear();
-}
-// combos: the hits in a row on one fighter (each hit carries its count), as spans from the first hit to the last
-function comboSpans(evs) {
-  const open = {}, out = [], close = c => { if (c?.n > 1) out.push({ f: c.f, end: c.last, type: 'hit', kind: 'combo', who: c.att, name: `${c.n}-hit combo`, data: { vic: c.vic, dmg: c.dmg } }); };
-  for (const e of evs) {
-    if (e.kind !== 'hit') continue;
-    const v = e.data.vic, c = open[v];
-    if (e.data.combo > 1 && c) Object.assign(c, { n: e.data.combo, last: e.f, dmg: c.dmg + e.data.dmg });
-    else { close(c); open[v] = { f: e.f, last: e.f, n: 1, att: e.who, vic: v, dmg: e.data.dmg }; }
-  }
-  Object.values(open).forEach(close);
-  return out;
-}
-// what changed on a fighter this frame: falls, jumps, dashes, stance and weapon
-function diffFighter(f, i, prev) {
-  const p = prev[f.id], s = prev[f.id] = fstate(f);
-  if (!p) return;
-  const ev = (type, name) => rp.rec.push({ f: i, type, kind: 'state', who: f.id, name });
-  if (s.kd !== p.kd) ev('fall', s.kd === 'fly' ? 'launched' : s.kd === 'down' ? 'down' : 'wake up');
-  if (!s.gr && p.gr && !s.kd && !f.heldBy) ev('movement', 'jump');
-  if (s.dash && !p.dash) ev('movement', f.running ? 'run' : 'dash');
-  if (s.st !== p.st) ev('meta', 'stance ' + f.st.name);
-  if (!s.wp && p.wp) ev('item', 'lost ' + p.wp);
-}
-// the human's inputs: presses as points, held directions and guard as spans, macros
-function inputEvents(frames, id) {
-  if (id < 0) return [];
-  const out = [], open = {};
-  frames.forEach(([, inp, mq], i) => {
-    for (const k in BTN_NAMES) if (inp[k]) out.push({ f: i, type: 'input', kind: 'press', who: id, name: BTN_NAMES[k], key: k });
-    for (const k in HELD_NAMES) {
-      if (inp[k] && open[k] === undefined) open[k] = i;
-      if (!inp[k] && open[k] !== undefined) { out.push({ f: open[k], end: i, type: 'input', kind: 'held', who: id, name: HELD_NAMES[k], key: k }); delete open[k]; }
-    }
-    if (mq) out.push({ f: i, type: 'input', kind: 'macro', who: id, name: 'macro ' + mq });
-  });
-  for (const k in open) out.push({ f: open[k], end: frames.length, type: 'input', kind: 'held', who: id, name: HELD_NAMES[k], key: k });
-  return out;
 }
 const evDetail = e => [e.data?.vic !== undefined && e.data.vic !== e.who ? '→ ' + who(e.data.vic) : '', e.data?.dmg ? Math.round(e.data.dmg) + ' dmg' : '',
   e.kind === 'hit' && e.data.combo > 1 ? e.data.combo + '-hit' : '', e.data?.height || '', e.end !== undefined ? fmtT(rp.T[e.end] - rp.T[e.f]) : ''].filter(Boolean).join(' · ');
@@ -698,17 +633,10 @@ function rpCtx() {
     panelsGrp(['events'], { events: 'The events as a table: fuzzy filter, sort, click a row to go there' }),
   ];
 }
-// per fighter: damage dealt, hits, blocks and parries made, times thrown, the longest and the most damaging combo, when it went down
+// per fighter, for the side panel: fightStats as rows
 function rpStats() {
-  return Object.values(rp.lanes).map(l => {
-    const mine = e => e.who === l.id, on = e => e.data?.vic === l.id, hits = rp.base.filter(e => e.kind === 'hit' && mine(e)), combos = rp.base.filter(e => e.kind === 'combo' && mine(e));
-    const ko = rp.base.find(e => e.kind === 'say' && e.name === 'K.O.' && mine(e));
-    return { l, rows: [['dealt', Math.round(hits.reduce((s, e) => s + e.data.dmg, 0))], ['hits', hits.length],
-      ['blocked', rp.base.filter(e => e.kind === 'block' && on(e)).length], ['parried', rp.base.filter(e => e.kind === 'parry' && on(e)).length],
-      ['thrown', rp.base.filter(e => e.kind === 'say' && e.name === 'THROW' && mine(e)).length],
-      ['best combo', combos.length ? Math.max(...combos.map(e => +e.name.split('-')[0])) + ' hits' : '–'],
-      ['top combo dmg', combos.length ? Math.round(Math.max(...combos.map(e => e.data.dmg))) : '–'], ['K.O.', ko ? fmtT(rp.T[ko.f]) : '–']] };
-  });
+  return fightStats(rp.base, rp.lanes).map(st => ({ l: rp.lanes[st.id], rows: [['dealt', st.dealt], ['hits', st.hits], ['blocked', st.blocked], ['parried', st.parried],
+    ['thrown', st.thrown], ['best combo', st.bestCombo ? st.bestCombo + ' hits' : '–'], ['top combo dmg', st.topComboDmg || '–'], ['K.O.', st.koF !== null ? fmtT(rp.T[st.koF]) : '–']] }));
 }
 // a footage span in the side panel: go there, its settings (rate / zoom and who / caption), delete; the selected one is marked
 function spanRow(sp, j) {

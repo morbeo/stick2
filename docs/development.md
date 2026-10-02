@@ -9,6 +9,9 @@ How the code is laid out, and the tools that build its generated files.
 - No build step: `index.html` loads the scripts in `src/` in order.
 - Everything is drawn in code. The only asset is the icon font (see [Icons](#icons)).
 - Tests live in `tests/`, see [Testing](testing.md).
+- The scripts share one global scope, so a new top-level name must not exist in any other `src/` file (a repeated `const` stops the later script).
+- The engine runs without a page too: `tools/engine.js` loads the scripts that need no DOM (core, rig, fx, roster, fighter, world, brain, checks, events) into a Node vm context. The tests use it, and the MCP server will.
+- `src/events.js` turns a fight into events (moves, hits, falls, inputs, combos), per-fighter lanes and stats (`recordFight`, `fightStats`), for the replay tab and anything else.
 
 ## Tools
 
