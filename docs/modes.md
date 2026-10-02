@@ -385,6 +385,19 @@ Click or drag to go to a moment; it snaps to events within 6 px (Alt: no snappin
 | ⇧[ / ⇧] | previous / next bookmark |
 | \\ | add a bookmark at the playhead |
 
+**Editing your inputs** (P1 in a play fight). Every edit plays the fight again from the checkpoint before the first changed frame, so what follows changes too. ⌘Z undoes it.
+
+| Do | How |
+|---|---|
+| select | click an event, ⌘click adds or removes one, ⇧click takes every shown event between, drag from empty lane space to box-select; the table's rows select the same way |
+| retime | drag selected inputs; drag a held span's start or end to resize it; , and . nudge them a frame |
+| delete | Delete, or the bin in **edit** |
+| insert | **edit → insert**: a press at the playhead, or a direction or guard held for 12 frames |
+| change | **edit → change**: the selected presses become another button |
+| cut / duplicate | the frames the selection spans go, or play twice; bookmarks after them move along |
+
+**save** writes the edited replay with fresh checksums, so it plays back in sync, and keeps its bookmarks. A file that was already out of sync with its own recording says so in the side panel.
+
 **Side panel:** the replay (scenario, length, engine version, fighters), **stats** per fighter (damage dealt, hits, blocked, parried, thrown, best combo, top combo damage, K.O. time), **bookmarks** (go there, rename, delete; saved in the replay file), and the event count per type.
 
 **Event table:** time and frame, type, who, event, details (target, damage, combo, height, span length). The filter is fuzzy, a column heading sorts, and a click on a row goes there. The row of the last event before the playhead is marked.

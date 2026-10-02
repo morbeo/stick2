@@ -96,6 +96,7 @@ function undoRedo(from, to) {
   const e = from.pop();
   studio.lastKey = null;
   if (e.cfg) { to.push({ cfg: { ...CFG } }); Object.assign(CFG, e.cfg); saveCfg(); syncAll(); return; }
+  if (e.reel) { to.push({ reel: reelSnap() }); reelRestore(e.reel); return; } // a replay edit (replay.js)
   to.push(JSON.stringify(DEFS[CURRENT]));
   DEFS[CURRENT] = JSON.parse(e);
   recompile();

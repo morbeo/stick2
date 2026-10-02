@@ -551,6 +551,21 @@ try {
     if (rp.n !== 100 || !rp.events.some(e => e.kind === 'mark')) errs.push('replay mark ' + rp.n);
     const st = rpStats()[0].rows; if (st.find(r => r[0] === 'hits')[1] !== rp.events.filter(e => e.kind === 'hit' && e.who === rpStats()[0].l.id).length) errs.push('replay stats');
     rp.reel.rep.marks.length = 0; rebuildEvents();
+    // editing: marquee picks inputs; dragging a press retimes it (one undo step); , nudges; Delete removes; ⌘Z undoes; the saved file plays in sync
+    { rp.show = new Set(['input']); rpView(0, rpEnd()); const L = rpLayout(), row = L.rows.find(r => r.type === 'input');
+      rpMouse('down', L.tx + 2, row.y + 1, {}); rpMouse('move', L.tx + L.tw * 0.3, row.y + row.h, {}); rpMouse('up', L.tx + L.tw * 0.3, row.y + row.h, {});
+      const n = selInputs().length; if (!n || selInputs().some(e => rp.T[e.f] > xToT(L, L.tx + L.tw * 0.3) + 0.01)) errs.push('replay marquee ' + n);
+      const p = rp.events.find(e => e.kind === 'press' && e.f > 60), u0 = studio.undo.length; rp.sel = new Set([p.i]);
+      const x = tToX(L, rp.T[p.f]); rpMouse('down', x, row.y + 4 * dpr, {}); rpMouse('move', tToX(L, rp.T[p.f + 10]), row.y + 4 * dpr, {}); rpMouse('up', tToX(L, rp.T[p.f + 10]), row.y + 4 * dpr, {});
+      const moved = rp.frames[p.f + 10][1][p.key] && !rp.frames[p.f][1][p.key];
+      if (!moved || studio.undo.length !== u0 + 1 || !rp.reel.edits) errs.push('replay drag ' + [moved, studio.undo.length - u0]);
+      const kd = (code, o = {}) => document.body.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, ...o }));
+      kd('Comma'); if (!rp.frames[p.f + 9][1][p.key]) errs.push('replay nudge');
+      kd('Delete'); if (rp.frames[p.f + 9][1][p.key]) errs.push('replay delete');
+      undo(); undo(); undo(); if (!rp.frames[p.f][1][p.key] || rp.frames[p.f + 10][1][p.key]) errs.push('replay undo');
+      const r = reelFile(), w = replayWorld(r); w.loop = false; for (let i = 0; i <= r.frames.length; i++) w.advance(0, NOIN);
+      if (w.desync !== null) errs.push('replay saved file out of sync ' + w.desync);
+      rp.show = new Set(Object.keys(EVENT_TYPES)); }
     rp.show = new Set(Object.keys(EVENT_TYPES)); closeStage(); mode().render(); }
   // clips: the subject is the fight, the gallery cell under the mouse or the animate preview; the buffer keeps the last seconds;
   // ⇧X saves; Chrome decodes the GIF (a noisy frame of exact colours: the LZW table fills and restarts) to the same pixels

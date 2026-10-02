@@ -42,3 +42,37 @@ test('seeking to a frame gives the state of playing the replay up to it', () => 
   })())`));
   for (const [n, ok] of r) assert.ok(ok, `frame ${n}`);
 });
+
+// edits: the editor's UI hooks are stubs here; an edit replays from a checkpoint, which must equal playing the edited frames from the start
+run('var snapshot = () => {}, syncAll = () => {}, panels = () => {};');
+const EDIT = `const fresh = () => { const r = reelFile(), w = replayWorld(r); w.loop = false; let n = 0; for (let i = 0; i < r.frames.length && !w.done; i++) { w.advance(0, NOIN); n++; } return [w.stateHash(), n, w.desync]; };`;
+test('an input edit replays from a checkpoint the same as the edited frames from the start; the saved file plays in sync', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => { ${EDIT}
+    loadReel(JSON.parse(JSON.stringify(REPS[0])));
+    const p = rp.events.find(e => e.kind === 'press' && e.f > 200 && e.key === 'punch'), out = [];
+    rp.sel = new Set([p.i]); reelEdit(() => shiftInputs(7));
+    const moved = rp.frames[p.f + 7][1].punch && !rp.frames[p.f][1].punch;
+    out.push(['move', moved, rp.master.stateHash() === fresh()[0], rp.N === fresh()[1], fresh()[2]]);
+    rp.sel = new Set(rp.events.filter(e => e.kind === 'press' && e.f > 300 && e.f < 340).map(e => e.i)); const n0 = rp.frames.length; reelEdit(cutSpan);
+    out.push(['cut', rp.frames.length < n0, rp.master.stateHash() === fresh()[0], rp.N === fresh()[1], fresh()[2]]);
+    reelEdit(() => insertInput('kick'));
+    out.push(['insert', rp.frames[Math.min(rp.n, rp.frames.length - 1)][1].kick, rp.master.stateHash() === fresh()[0], rp.N === fresh()[1], fresh()[2]]);
+    return out;
+  })())`));
+  for (const [name, changed, same, len, desync] of r) {
+    assert.ok(changed, `${name}: nothing changed`);
+    assert.ok(same && len, `${name}: the replayed fight differs from playing the edited frames`);
+    assert.equal(desync, null, `${name}: the saved file is out of sync`);
+  }
+});
+
+test('undoing an edit brings the frames and the fight back', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => { ${EDIT}
+    loadReel(JSON.parse(JSON.stringify(REPS[0])));
+    const h0 = rp.master.stateHash(), snap = reelSnap();
+    rp.sel = new Set(rp.events.filter(e => e.kind === 'press').map(e => e.i)); reelEdit(deleteInputs);
+    const h1 = rp.master.stateHash(); reelRestore(snap);
+    return [h0 !== h1, rp.master.stateHash() === h0, reelSnap() === snap];
+  })())`));
+  assert.deepEqual(r, [true, true, true]);
+});
