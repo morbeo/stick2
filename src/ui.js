@@ -93,11 +93,14 @@ function seg(opts, get, set, tips = {}, label = optLabel) {
 // a named group is a part of the layout (data-part): the layout popup can hide it
 const grp = (label, tip, ...els) => { const g = h('span', { cls: 'grp', tip }, label && h('span', { cls: 'gl', textContent: label }), ...els.flat()); if (label) g.dataset.part = label; return g; };
 function slider(label, { min, max, step }, get, set, tip) {
-  const inp = h('input', { type: 'range', min, max, step }), val = h('span', { cls: 'v' });
-  inp.addEventListener('input', () => { set(+inp.value); val.textContent = fmt(+inp.value); });
+  // the value beside it can be typed too (Enter or leaving it sets it, kept within the range; finer than the slider's step is fine)
+  const inp = h('input', { type: 'range', min, max, step }), val = h('input', { cls: 'v', inputMode: 'decimal', tip: `Type a value (${fmt(min)} … ${fmt(max)}), Enter sets it` });
+  inp.addEventListener('input', () => { set(+inp.value); val.value = fmt(+inp.value); });
   inp.addEventListener('change', () => { inp.blur(); syncAll(); });
+  val.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter' || e.key === 'Escape') { if (e.key === 'Escape') val.value = fmt(get()); val.blur(); } });
+  val.addEventListener('change', () => { const v = parseFloat(val.value.replace(',', '.')); if (Number.isFinite(v)) set(Math.min(max, Math.max(min, v))); syncAll(); });
   const row = h('label', { cls: 'row', tip }, h('span', { textContent: label }), inp, val);
-  reg(row, () => { const v = get(); if (document.activeElement !== inp) inp.value = v; val.textContent = fmt(v); });
+  reg(row, () => { const v = get(); if (document.activeElement !== inp) inp.value = v; if (document.activeElement !== val) val.value = fmt(v); });
   return row;
 }
 // a variable row whose name starts an experiment with that variable when clicked (dotted underline, a flask on hover)

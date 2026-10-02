@@ -141,6 +141,7 @@ The **keys** button (⌨) in the top bar shows every key and lets you rebind the
 
 - The keys panel heads each group with its context and marks keys that clash within one.
 - Keys never reach the fight while a slider or text field has focus.
+- A slider's value beside it can be typed: Enter sets it (kept within the slider's range, finer steps allowed), Esc cancels.
 - A button clicked with the mouse lets go of focus, so Space doesn't press it again.
 
 ## Panels
