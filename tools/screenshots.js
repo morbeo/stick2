@@ -16,6 +16,16 @@ const SHOTS = {
   tests: [`setMode('tests'); tests.move = null; rerunTests(); panels(); for (let i = 0; i < 400 && tests.queue.length; i++) testMode.tick(); panels();
     isolate(Object.keys(tests.res).find(k => failed(tests.res[k]))); ${run(45)}`, [0, 80, 1100, 600]],
   impact: [`setMode('impact'); panels(); ${run(25)}`, [0, 80, 1100, 600]],
+  ragdoll: [`setMode('impact'); lab.impact = 'ragdoll'; build(); panels(); ${run(5)} blow(lab.cells[0].w, 'launcher'); ${run(24)}`, [0, 40, 1100, 640]],
+  hip: [`setMode('character'); panels(); creator.hover = 'hip'; ${run(30)}`, [0, 80, 1100, 600]],
+  combos: [`setMode('animate'); anim.view = 'combos'; panels(); mode().render();`, [0, 80, 1100, 600]],
+  movetable: [`setMode('animate'); anim.view = 'table'; panels(); mode().render();`, [0, 80, 1100, 600]],
+  inputs: [`setMode('animate'); anim.view = 'inputs'; panels(); mode().render();`, [0, 80, 1100, 600]],
+  bonetable: [`setMode('character'); creator.table = true; panels(); ${run(10)}`, [0, 80, 1100, 600]],
+  builder: [`setMode('play'); newScen(); ${run(30)}`, [0, 440, 1100, 360]],
+  fighters: [`lab.scen = 'ai 2v2'; setMode('play'); build(); panels(); ${run(30)} document.querySelectorAll('.fpick')[2].click();`, [0, 0, 1000, 480]],
+  menubar: [`setMode('play'); panels(); ${run(30)} [...document.querySelectorAll('#global button')].find(b => b.dataset.tip?.startsWith('Export')).click();`, [0, 0, 1400, 130]],
+  palette: [`setMode('play'); panels(); ${run(30)} openPalette(); const i = document.querySelector('#palette input'); i.value = 'table'; i.dispatchEvent(new Event('input'));`, [250, 0, 900, 520]],
 };
 fs.mkdirSync(outDir, { recursive: true });
 const page = path.join(os.tmpdir(), 'stick2-shot.html');
