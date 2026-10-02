@@ -102,6 +102,7 @@ const SCHEMA = [
   ['Throws & recovery', 'P while holding G throws (a short reach that ignores guard, not a crouching fighter). The victim is held a moment and can break free with P+G. A fighter knocked flying can recover in the air or tech the landing with G.', ''],
   { k: 'grabReach', v: 10, min: 0, max: 40, step: 1, tip: 'Extra radius of a throw\'s grab (px), on top of hitR.' },
   { k: 'techWindow', v: 0.25, min: 0, max: 0.6, step: 0.01, tip: 'Seconds a thrown fighter has to break the throw with P+G, and how early (s) before landing a G press techs the fall (a quick get-up). 0 = no breaks, no techs.' },
+  { k: 'lastFrame', v: true, tip: 'A press on the last frame of the tech window still counts: techWindow 0.25 (15 frames) gives 16 chances to break a throw or tech a landing. Off: exactly 15. Compare both in the grid (tests → window edge test).' },
   { k: 'airRecover', v: 0.3, min: 0, max: 2, step: 0.05, tip: 'Seconds into a knockdown flight after which G flips the fighter back onto its feet in the air. 0 = never.' },
   ['Specials', 'Extra defensive and movement options, each on its own switch. specialScheme picks their inputs: guard (G held with a direction, ↓↓ S) or motion (quarter circles and the dragon punch with S). They are moves (rollFwd, rollBack, teleport) edited in animate.',
     'guard scheme: G held + → / ← roll · ↓↓ S teleport · ↖ S / ↙ S high / low counter · motion scheme: ↓↘→ S / ↓↙← S roll · →↓↘ S teleport · ↓↓ S / ↙ S high / low counter · blockstun: P / → S guard cancel, K / ← S push block · ↑ S+G taunt · air ↓ S pounce · lying: P / K wake-up attack, → / ← roll, G stay down'],
@@ -210,7 +211,7 @@ const wrap180 = a => ((a + 180) % 360 + 360) % 360 - 180; // an angle difference
 const approach = (v, t, d) => v < t ? Math.min(v + d, t) : Math.max(v - d, t);
 // t seconds since an input still within a window: summed 1/60 steps carry float noise, so a press on the window's last frame always counts
 // (timers that must reach a time compare with the same 1e-9 slack)
-const within = (t, win) => t <= win + 1e-9;
+const within = (t, win, last = true) => last ? t <= win + 1e-9 : t < win - 1e-9; // last: the edge frame counts
 // seeded rng (mulberry32) so every grid cell replays the exact same fight; its state is r.seed (checkpoints copy it)
 function makeRand(seed) {
   const r = (a = 0, b = 1) => {

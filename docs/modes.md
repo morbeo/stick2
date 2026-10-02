@@ -17,7 +17,7 @@ The four tabs (play, grid, character, animate) and the views inside them.
 ![Grid: one fight, nine hit stop values](img/grid.png)
 
 - **grid**: 3x3 sweep of any tunable (or X x Y), every cell replaying the same seeded fight; **breed** gives the cells random values of the settings you pick around a parent (click the best cell to breed around it); **attacks** generates random attacks for the current character (IK-posed on any limb end), breeds them, and saves one as a move or opens it in animate: hover any cell for its own save / edit buttons (the same attack saved twice keeps one name); pick the striking limb (any / arm / leg / head / tail…) and height (any / high / mid / low) of new attacks, or a pose to strike into (**pose → animation**: a preset pose or another stance; the limb that moves most strikes, after an anticipation the other way); the character editor's pose → animation button opens the grid on a pose
-- **grid testing**: 1/3/5 seeds per cell with averaged hits / whiffs / frozen %, sort cells by a metric, **collision test** (every hitTest mode × three fights); gallery moves can hit a dummy, whiff, or face the AI
+- **grid testing**: 1/3/5 seeds per cell with averaged hits / whiffs / frozen %, sort cells by a metric, **collision test** (every hitTest mode × three fights), **window edge test** (lastFrame off / on × presses on the tech window's last frame and one frame inside: the edge break and tech only count with it on); gallery moves can hit a dummy, whiff, or face the AI
 
 ## Impact
 

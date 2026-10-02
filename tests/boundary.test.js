@@ -9,8 +9,9 @@ run(`globalThis.bplay = (scen, b, over, watch) => { const w = new World({ ...sce
   for (let i = 0; i < 150; i++) { w.advance(1 / 60, NOIN); if (r.tap === null && w.b.guardT > 0) r.tap = i; if (w.b.labelT > 0) r.said[w.b.label] ??= i; watch?.(w, i, r); }
   return r; };
   // the frame the event happens without the press, then a press at each lead around the edge: lead → the frame each label was said
+  // (each wait ends a quarter frame early, so the press lands on its frame's first substep, as a player's does, not on the second through summed-time noise)
   globalThis.around = (scen, input, over, event, edge, after = false) => { const E = bplay(scen, 'dummy', over, (w, i, r) => { if (r.E === undefined && event(w)) r.E = i; }).E, out = {};
-    for (let lead = edge - 2; lead <= edge + 2; lead++) { const r = bplay(scen, [(after ? E + lead : E - lead) / 60, input], over); out[after ? r.tap - E : E - r.tap] = r.said; }
+    for (let lead = edge - 2; lead <= edge + 2; lead++) { const r = bplay(scen, [((after ? E + lead : E - lead) - 0.25) / 60, input], over); out[after ? r.tap - E : E - r.tap] = r.said; }
     return { E, out }; };`);
 // leads N-1, N, N+1 each pressed (a script's waits can land a frame off), with whether each gave the outcome
 function edges(r, n, got) {
@@ -19,7 +20,7 @@ function edges(r, n, got) {
 }
 
 const PUNCH = { a: [0.5, 'punch'], ax: 330, bx: 375 }, connects = w => w.hits + w.blocks + w.parries > 0;
-for (const n of [4, 6, 11]) { // 11: where summed frame times once rounded the tech window short
+for (const n of [4, 6, 11, 15]) { // 11: where summed frame times once rounded the tech window short; 15: the default techWindow
   test(`parry window ${n} frames: a guard tap ${n - 1} frames before the blow parries, ${n} and ${n + 1} do not`, () => {
     const r = json(`around(${JSON.stringify(PUNCH)}, 'guard', { parryWindow: ${n} / 60, justGuard: false }, ${connects}, ${n})`);
     assert.deepEqual(edges(r, n, s => 'PARRY' in s), [true, false, false]);
@@ -35,6 +36,12 @@ for (const n of [4, 6, 11]) { // 11: where summed frame times once rounded the t
   test(`landing tech with techWindow ${n} frames: G ${n - 1} or ${n} frames before landing techs it, ${n + 1} does not`, () => {
     const r = json(`around({ a: ['down+kick'] }, 'guard', { techWindow: ${n} / 60, airRecover: 0, bounces: 0 }, w => w.b.rag?.landed, ${n})`); // one landing: a press can't tech a bounce instead
     assert.deepEqual(edges(r, n, s => 'TECH' in s), [true, true, false]);
+  });
+  test(`lastFrame off, techWindow ${n} frames: a throw break or landing tech ${n - 1} frames in counts, ${n} and ${n + 1} do not`, () => {
+    const brk = json(`around({ a: [0.2, 'punch+guard'], ax: 330, bx: 372 }, 'punch+guard', { techWindow: ${n} / 60, lastFrame: false }, w => w.b.heldBy, ${n}, true)`);
+    assert.deepEqual(edges(brk, n, s => 'BREAK' in s), [true, false, false], 'throw break');
+    const tech = json(`around({ a: ['down+kick'] }, 'guard', { techWindow: ${n} / 60, airRecover: 0, bounces: 0, lastFrame: false }, w => w.b.rag?.landed, ${n})`);
+    assert.deepEqual(edges(tech, n, s => 'TECH' in s), [true, false, false], 'landing tech');
   });
 }
 

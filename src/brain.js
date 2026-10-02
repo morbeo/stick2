@@ -208,6 +208,12 @@ const SCENARIOS = {
   'low counter': { a: [0.3, 'down+kick'], b: [0.15, 'down+back+special'], period: 2.4 },
   'tech': { a: ['down+kick'], b: [0.3, 'guard'], period: 2.4 },
   'air recover': { a: [0.1, '@roundhouse'], b: [0.58, 'guard'], period: 2.4 },
+  // the tech window's edge (window edge test in the grid): techWindow 0.25 = 15 frames; the grab lands on frame 16, the landing on frame 28
+  // P+G / G pressed on the window's 15th frame (edge) or its 14th (inside): lastFrame decides whether the edge counts
+  'break edge': { a: [0.2, 'punch+guard'], b: [0.5125, 'punch+guard'], ax: 330, bx: 372, period: 2.4, chars: ['stick'], cfg: { techWindow: 0.25, hitstop: 0, slowmo: false } },
+  'break inside': { a: [0.2, 'punch+guard'], b: [0.4958, 'punch+guard'], ax: 330, bx: 372, period: 2.4, chars: ['stick'], cfg: { techWindow: 0.25, hitstop: 0, slowmo: false } },
+  'tech edge': { a: ['down+kick'], b: [0.2125, 'guard'], period: 2.4, chars: ['stick'], cfg: { techWindow: 0.25, hitstop: 0, slowmo: false, bounces: 0, airRecover: 0 } },
+  'tech inside': { a: ['down+kick'], b: [0.2292, 'guard'], period: 2.4, chars: ['stick'], cfg: { techWindow: 0.25, hitstop: 0, slowmo: false, bounces: 0, airRecover: 0 } },
   // specials (Specials settings): rolls through a kick or away, teleport behind
   'roll through': { a: [0.1, { hold: 'guard+fwd', t: 0.1 }], b: [0.12, 'kick'], ax: 300, bx: 380, period: 2 },
   'roll back': { a: [0.2, { hold: 'guard+back', t: 0.1 }], b: 'dummy', ax: 330, bx: 400, period: 2 },

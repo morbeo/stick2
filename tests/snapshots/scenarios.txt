@@ -36,6 +36,10 @@ high counter   hits 1 blocks 0 hp 85.0 100.0 x 208 375
 low counter    hits 1 blocks 0 hp 86.3 100.0 x 239 375
 tech           hits 1 blocks 0 hp 100.0 90.0 x 330 433
 air recover    hits 1 blocks 0 hp 100.0 86.0 x 341 509
+break edge     hits 0 blocks 0 hp 100.0 100.0 x 306 379
+break inside   hits 0 blocks 0 hp 100.0 100.0 x 306 379
+tech edge      hits 1 blocks 0 hp 100.0 90.0 x 330 433
+tech inside    hits 1 blocks 0 hp 100.0 90.0 x 330 433
 roll through   hits 0 blocks 0 hp 100.0 100.0 x 444 372
 roll back      hits 0 blocks 0 hp 100.0 100.0 x 229 400
 teleport       hits 0 blocks 0 hp 100.0 100.0 x 435 375

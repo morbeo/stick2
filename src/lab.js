@@ -38,7 +38,7 @@ const COMBO_FX = { none: {}, 'longer pauses': { comboStop: 0.3 }, 'shorter pause
   'growing zoom': { comboZoom: 0.5 }, 'faster attacks': { comboSpeed: 0.2 }, 'faster game': { comboTime: 0.2 }, 'slower game': { comboTime: -0.12 },
   everything: { comboStop: 0.2, comboShake: 0.4, comboZoom: 0.4, comboSpeed: 0.12, comboTime: 0.1 } };
 const AXIS_SCENS = ['J,J,K', 'sweep', 'ai vs ai'], CANCEL_SCENS = ['J,J,K', 'air combo', 'J,K→spin'],
-  PLANE_SCENS = ['sidestep', 'ninja flip', 'dash & run', 'ai vs ai'];
+  PLANE_SCENS = ['sidestep', 'ninja flip', 'dash & run', 'ai vs ai'], EDGE_SCENS = ['break inside', 'break edge', 'tech inside', 'tech edge'];
 function axisValues(ax, n) {
   const s = SPEC[ax.k];
   if (ax.k === 'scenario') return lab.rows || AXIS_SCENS;
@@ -332,8 +332,8 @@ const SCEN_GROUPS = [
   ['you', 'keyboard', 'You on the keyboard.', s => s.a === 'human'],
   ['engine AI', 'smart_toy', 'The built-in AI walks in and throws random chains.', s => !Array.isArray(s.a) && s.a !== 'human'],
   ['chains', 'timeline', 'Scripted: normals chaining into each other and into specials.', ['jab spam', 'J,J,J', 'K,K', 'J,J,K', 'J,K,K', 'sweep', 'dash punch', 'J→rush', 'J,K→spin', 'sandwich', 'showcase']],
-  ['juggles & falls', 'trending_up', 'Scripted: launchers, air combos, knockdowns and getting up.', ['juggle', 'rising', 'chase jump', 'air combo', 'tech', 'air recover', 'wall bounce', 'OTG stomp', 'pounce', 'wake-up attack', 'wake-up roll']],
-  ['guard & counters', 'shield', 'Scripted: guards, parries, throws and counters.', ['vs guard', 'vs low guard', 'parry', 'just guard', 'push block', 'guard cancel', 'throw', 'back throw', 'throw break', 'catch', 'high counter', 'low counter']],
+  ['juggles & falls', 'trending_up', 'Scripted: launchers, air combos, knockdowns and getting up.', ['juggle', 'rising', 'chase jump', 'air combo', 'tech', 'tech edge', 'tech inside', 'air recover', 'wall bounce', 'OTG stomp', 'pounce', 'wake-up attack', 'wake-up roll']],
+  ['guard & counters', 'shield', 'Scripted: guards, parries, throws and counters.', ['vs guard', 'vs low guard', 'parry', 'just guard', 'push block', 'guard cancel', 'throw', 'back throw', 'throw break', 'break edge', 'break inside', 'catch', 'high counter', 'low counter']],
   ['specials', 'bolt', 'Scripted: specials, projectiles and the roster\'s signature moves.', ['specials (S)', 'fireball', 'fireball clash', 'flash kick', 'lightning legs', 'turnaround', 'roll through', 'roll back', 'teleport', 'taunt', 'win pose']],
   ['movement', 'directions_run', 'Scripted: walking, jumping, dashes and the 2.5D sidestep.', ['walk', 'jump', 'air kick', 'sidestep', 'ninja flip', 'dash & run']],
   ['weapons', 'swords', 'Scripted: picking up, throwing and clashing weapons.', ['pick up & slash', 'weapon throw', 'disarm', 'weapon clash', 'deflect']],
@@ -480,6 +480,9 @@ function labCtx() {
       }),
       button(':view_in_ar: 2.5D test', `Every plane (columns: 2D, lanes, belt) on depth fights (rows: ${PLANE_SCENS.join(' · ')}): sidesteps dodge, flips, dashes, AI lining up`, () => {
         Object.assign(lab.x, { k: 'plane' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = PLANE_SCENS; build();
+      }),
+      button(':timer: window edge test', `lastFrame off and on (columns) on presses one frame inside the tech window and on its last frame (rows: ${EDGE_SCENS.join(' · ')}): off, the edge press is too late (THROW, no TECH); on, it still counts (BREAK, TECH)`, () => {
+        Object.assign(lab.x, { k: 'lastFrame' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = EDGE_SCENS; build();
       }))))), adopt, back);
   }
   if (lab.mode === 'grid' && lab.kind !== 'attacks') els.push(grp('stats', 'How the cells are measured and ordered',

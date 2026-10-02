@@ -18,7 +18,7 @@ class Fighter {
       kd: null, downT: 0, wake: null, won: false, wallB: false, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0, jugUsed: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
-      guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
+      guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, heldAt: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
       airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null, layerAt: {}, away: false, turnRate: 0, turnMid: null });
     this.hp = this.c('health'); this.ch0 = ch.base || ch; // ch0: the character without its weapon
     this.target = this.basePose();
@@ -485,7 +485,7 @@ class Fighter {
         this.jolt(this.ch.chains.spine[0]?.[0], 250 * imp);
         this.w.dust(this.x, this.groundY, imp, this.z);
         if (this.action?.m.air && !this.action.m.otg) this.action = null; // an air move ends on landing, but an off-the-ground one (pounce) lands into its strike
-        if (this.kd === 'fly' && !this.gb && !this.ko && c('techWindow') && within(this.w.simT - this.guardT, c('techWindow'))) {
+        if (this.kd === 'fly' && !this.gb && !this.ko && c('techWindow') && within(this.w.simT - this.guardT, c('techWindow'), c('lastFrame'))) {
           this.kd = null; this.start('getup'); this.hurtT = 0.3; this.vx = -this.dir * 150; this.say('TECH'); // G just before landing: a quick get-up
         } else if (this.kd === 'fly') {
           const up = -imp * 800 * c('floorBounce');
@@ -756,7 +756,7 @@ class Fighter {
       r.landed = true;
       const imp = Math.min(1, land / 800);
       if (this.gb) { this.gb = false; for (const q of ps) q.vy = Math.min(q.vy, -420); r.landed = false; this.say('BOUNCE'); this.w.trauma = Math.min(1, this.w.trauma + 0.25 * imp); }
-      else if (!this.ko && c('techWindow') && within(this.w.simT - this.guardT, c('techWindow'))) {
+      else if (!this.ko && c('techWindow') && within(this.w.simT - this.guardT, c('techWindow'), c('lastFrame'))) {
         this.endRag(); this.kd = null; this.grounded = true; this.y = 0; this.start('getup'); this.hurtT = 0.3; this.vx = -this.dir * 150; this.say('TECH');
         return;
       } else if (this.bounces < c('bounces') && land * c('floorBounce') > 150) { // a floor bounce (bounces setting): the whole body pops up
@@ -886,7 +886,7 @@ class Fighter {
   }
   // a throw connected: the victim is held for the tech window, then thrown by the move named in the grab's throw
   seize(o) {
-    o.heldBy = this; o.heldT = this.c('techWindow'); o.buffer = null; o.guarding = false; o.blockT = 0; o.dir = -this.dir; o.away = false;
+    o.heldBy = this; o.heldT = this.c('techWindow'); o.heldAt = this.w.simT; o.buffer = null; o.guarding = false; o.blockT = 0; o.dir = -this.dir; o.away = false;
     o.start(makeHurt(o.ch.hurt.mid[0], 9, this.w.rand, o.st.pose)); o.hurtT = 9;
     const toss = this.ch.moves[this.action.m.throw];
     o.heldM = toss || this.action.m;
@@ -897,7 +897,7 @@ class Fighter {
     const t = this.heldBy;
     const to = t.x + t.dir * 30; // a back throw swings the victim round: it slides to the thrower's other side
     this.x = Math.abs(to - this.x) > 20 ? approach(this.x, to, 1200 * dt) : to; this.z = t.z; this.vx = 0;
-    if (inp.punch && inp.guard && this.heldT > 0) {
+    if (inp.punch && inp.guard && this.heldT > 0 && within(this.w.simT - this.heldAt, this.c('techWindow'), this.c('lastFrame'))) {
       this.heldBy = null; this.hurtT = 0; this.action = null; this.buffer = null; this.vx = t.dir * 250; this.say('BREAK');
       t.action = null; t.vx = -t.dir * 250; t.hurtT = 0.15;
     } else if ((this.heldT -= dt) <= 0) {
