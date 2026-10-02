@@ -3,7 +3,7 @@
 // usage: node tools/animations.js [name …]   (CHROME=/path/to/chrome to override; no name = every clip)
 const fs = require('fs'), os = require('os'), path = require('path'), zlib = require('zlib'), { spawn } = require('child_process');
 const root = path.join(__dirname, '..'), outDir = path.join(root, 'docs', 'img');
-const chrome = process.env.CHROME || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium'].find(p => fs.existsSync(p));
+const { findChrome, devtools } = require('./chrome'), chrome = findChrome();
 if (!chrome) { console.log('no Chrome found (set CHROME)'); process.exit(1); }
 // name: [scenario, seconds (one loop: the scenario's period), crop [x, y, w, h] in page px of a 1400 × 800 window, settings]
 const CROP = [220, 395, 500, 200];
@@ -85,19 +85,6 @@ function apng(pngs, delayMs) {
   }
   parts.push(chunk('IEND', Buffer.alloc(0)));
   return Buffer.concat(parts);
-}
-
-// the Chrome DevTools protocol over node's WebSocket: send(method, params) → result
-async function devtools(port) {
-  for (let i = 0; i < 50; i++) {
-    try { const ws = new WebSocket((await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(t => t.type === 'page').webSocketDebuggerUrl);
-      await new Promise((ok, no) => { ws.onopen = ok; ws.onerror = no; });
-      let id = 0; const wait = {};
-      ws.onmessage = e => { const m = JSON.parse(e.data); if (wait[m.id]) { wait[m.id](m); delete wait[m.id]; } };
-      return { ws, send: (method, params = {}) => new Promise((ok, no) => { wait[++id] = m => m.error ? no(new Error(method + ': ' + m.error.message)) : ok(m.result); ws.send(JSON.stringify({ id, method, params })); }) };
-    } catch { await new Promise(r => setTimeout(r, 200)); }
-  }
-  throw new Error('Chrome did not open its DevTools port');
 }
 
 (async () => {
