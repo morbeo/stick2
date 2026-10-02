@@ -89,8 +89,8 @@ The **dummy** group records your inputs and lets the dummy replay them.
 
 Both replay buttons are in the menu bar, next to undo / redo.
 
-- **:save: replay** downloads the play fight as a replay file: inputs, seed, settings, characters, and a state checksum every second.
-- **:theaters: replay** plays one back, from any tab (it switches to play).
+- **replay** (save icon) downloads the play fight as a replay file: inputs, seed, settings, characters, and a state checksum every second.
+- **replay** (film icon) plays one back, from any tab (it switches to play).
 - A file from another engine version asks first. The top line then shows the version and where the fight goes out of sync.
 
 ## Impact
