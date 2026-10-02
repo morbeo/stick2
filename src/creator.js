@@ -1,6 +1,6 @@
 'use strict';
 // ---------- character mode: drag the skeleton, tune bones, watch it fight live; body experiment grid ----------
-const creator = { preview: 'showcase', w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, tfilter: '', tsort: { k: '', dir: 1 },
+const creator = { preview: 'showcase', w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
   exp: { kind: 'body', vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
 const PREVIEWS = {
   showcase: ['showcase', 'Scripted demo: walk in, J,J,K chain, sweep, jump kick, back off.'],
@@ -358,6 +358,17 @@ function boneTable() {
     h('table', {}, h('thead', {}, head), body));
   return wrap;
 }
+// the moves from the character tab: the move table, inputs and combos over the stage (edited in place), any move opened in animate
+function movesPanel() {
+  const names = Object.keys(currentChar().moves).sort();
+  return [heading('Moves', 'The character\'s moves and combos without leaving the body editor: the table, the inputs and the combos open over the stage, edited in place; click a move to open it in the keyframe editor (animate)', ''),
+    h('div', { cls: 'bar' }, seg(['table', 'inputs', 'combos'], () => creator.view, v => { creator.view = creator.view === v ? null : v; unpeek(); panels(); },
+      { table: VIEW_TIPS.table + ' (click again: close)', inputs: VIEW_TIPS.inputs + ' (click again: close)', combos: VIEW_TIPS.combos + ' (click again: close)' },
+      v => ({ table: ':table_rows: moves', inputs: ':stadia_controller: inputs', combos: ':trending_up: combos' })[v])),
+    h('div', { cls: 'bar' }, button(':timeline: edit a move :expand_more:', 'Pick a move to open in the keyframe editor (animate)', (e, b) =>
+      popup(b, h('div', { cls: 'bar' }, names.map(n => button(n, `Open ${n} in the keyframe editor`, () => { closePop(); openMove(n); })))))),
+  ];
+}
 function bodyPanel() {
   return [...charPanel(),
     heading('Body', 'Build the skeleton. Limbs are role-based: legs walk, arms swing, tails follow through. New parts attach to the selected torso bone.',
@@ -377,6 +388,7 @@ function bodyPanel() {
       popup(b, h('div', { cls: 'bar' }, Object.entries(POSE_TARGETS(currentChar())).map(([n, t]) => button(n, t.tip, () => {
         Object.assign(breed, { pose: n, atk: null }); breed.seed++; lab.kind = 'attacks'; setMode('grid');
       })))))),
+    ...movesPanel(),
     ...radarPanel(),
     ...statsPanel(),
     ...gaitPanel(),
@@ -414,8 +426,8 @@ const creatorMode = {
   render: creatorRender,
   ctxBar: creatorCtx,
   side: () => creator.expOn ? expPanel() : bodyPanel(),
-  overlay: () => creator.table && !creator.expOn ? [boneTable()] : [],
-  open: ['character', 'body', 'bone', 'stance pose', 'random characters', 'body experiment'],
+  overlay: () => creator.expOn ? [] : creator.view ? [{ table: moveTable, inputs: inputTable, combos: comboView }[creator.view]()] : creator.table ? [boneTable()] : [],
+  open: ['character', 'body', 'bone', 'stance pose', 'moves', 'random characters', 'body experiment'],
   mouse: creatorMouse,
   key: creatorKey,
   hint: () => creator.expOn ? (creator.exp.kind === 'random' ? 'click a cell to keep it' : 'click a cell to breed around it') + ' · Esc back to the editor'

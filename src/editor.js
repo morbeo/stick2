@@ -430,6 +430,10 @@ function pickMove(name) {
   anim.move = name; anim.key = 0; anim.t = 0; anim.playing = true;
   buildPreview(); panels();
 }
+// a move clicked in the move table, inputs or combos: opened in the keyframe editor (from the character tab too)
+function openMove(n) { anim.view = 'cards'; unpeek(); if (app.mode !== 'animate') { creator.view = null; setMode('animate'); } pickMove(n); }
+// close the move table, inputs or combos over the stage, in the tab showing them
+function closeOver() { unpeek(); if (app.mode === 'character') creator.view = null; else anim.view = 'cards'; panels(); }
 
 const EASE_TIPS = {
   step: 'Snap to the pose at the end of the key (no in-between).', linear: 'Constant speed.',
@@ -662,7 +666,7 @@ function moveTable() {
     head.replaceChildren(...TABLE_COLS.map(c => h('th', { tip: `${c.tip} · click: sort`, textContent: c.k + (c.k === sk ? (dir > 0 ? ' ▲' : ' ▼') : ''),
       onclick: () => { anim.tsort = { k: c.k, dir: c.k === sk ? -dir : 1 }; fill(); } })));
     body.replaceChildren(...rows.map(({ n, v }) => {
-      const m = ch.moves[n], tr = h('tr', { cls: anim.move === n ? 'on' : '', onclick: () => { anim.tscroll = wrap.scrollTop; anim.view = 'cards'; unpeek(); pickMove(n); },
+      const m = ch.moves[n], tr = h('tr', { cls: anim.move === n ? 'on' : '', onclick: () => { anim.tscroll = wrap.scrollTop; openMove(n); },
         onmousemove: e => peekMove(n, e), onmouseleave: unpeek });
       tr.append(...TABLE_COLS.map((c, i) => {
         const td = h('td');
@@ -685,7 +689,7 @@ function moveTable() {
   fill();
   const filter = h('input', { cls: 'macro', value: anim.tfilter, placeholder: 'fuzzy filter: name, type, input, limb, height, flags', tip: 'Letters in order match (e.g. "dk" finds downKick); any column with text counts',
     oninput: e => { anim.tfilter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() });
-  wrap.append(h('div', { cls: 'bar' }, filter, button(':close: editor', 'Back to the keyframe editor (cards view)', () => { anim.view = 'cards'; unpeek(); panels(); })),
+  wrap.append(h('div', { cls: 'bar' }, filter, button(':close: editor', 'Back to the editor', closeOver)),
     h('table', {}, h('thead', {}, head), body));
   requestAnimationFrame(() => { wrap.scrollTop = anim.tscroll || 0; });
   return wrap;

@@ -106,7 +106,7 @@ function inputTable() {
           : `${c.label}: ${x.own ? slotTip(x.own) + ' · ' : ''}${STATE_TIPS[x.st]}${x.move ? ` (${x.move}${x.from !== x.own ? ' from ' + x.from : ''})` : ''}${x.own ? ' · click: pick a move' : ''}`;
         if (x.own && !seen.has(x.own)) { seen.add(x.own); rows.push({ c, x }); }
         const b = h('button', { cls: `${x.st}${x.move && x.move === anim.move ? ' cur' : ''}`, tip,
-          onclick: () => x.own ? pickBind(x.own, b, fill) : c.fixed && ch.moves[c.fixed] && (anim.view = 'cards', unpeek(), pickMove(c.fixed)), onmousemove: e => x.move && peekMove(x.move, e), onmouseleave: unpeek },
+          onclick: () => x.own ? pickBind(x.own, b, fill) : c.fixed && ch.moves[c.fixed] && openMove(c.fixed), onmousemove: e => x.move && peekMove(x.move, e), onmouseleave: unpeek },
           h('span', { cls: 'd' }, ...rich(`${DIR_ARROW[c.d] || ''} ${c.label}`)), h('span', { textContent: label(c, x) }));
         return b;
       })))));
@@ -135,7 +135,7 @@ function inputTable() {
       toggle(':filter_list: unassigned', 'Only list the inputs without a move of their own (in the table)', () => inputs.unset, v => { inputs.unset = v; fill(); }),
       button(':add: input', 'Add an input: a motion (e.g. 41236 = ←↙↓↘→) + P or K, then pick its move', (e, b) => addInput(b, fill)),
       h('span', { cls: 'fill' }),
-      button(':close: editor', 'Back to the keyframe editor', () => { anim.view = 'cards'; unpeek(); panels(); })),
+      button(':close: editor', 'Back to the editor', closeOver)),
     h('div', { cls: 'legend' }, ...Object.entries({ set: 'own move', fall: '↪ falls back', none: '— nothing', alias: '= same as' }).map(([k, l]) => h('span', { cls: 'key ' + k, tip: STATE_TIPS[k], textContent: l })), count),
     pads,
     table = h('table', { hidden: !inputs.table }, h('thead', {}, h('tr', {}, ['input', 'slot', 'move', 'plays', 'keys', 'startup', 'height', 'damage', 'power', 'stun'].map(k => h('th', { textContent: k })))), body));

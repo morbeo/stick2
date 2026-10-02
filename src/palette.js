@@ -14,7 +14,7 @@ function paletteEntries() {
     ...tools,
     ...ACTIONS.filter(([a, g]) => SHORTCUTS[a] && g !== 'modes').map(([a, , , tip]) => ({ kind: 'action', name: a, tip, key: keyOf(a), run: SHORTCUTS[a] })),
     ...Object.keys(DEFS).map(c => ({ kind: 'character', name: c, tip: 'Use this character', run: () => pickChar(c) })),
-    ...Object.keys(currentChar().moves).map(n => ({ kind: 'move', name: n, tip: 'Open it in the animate editor', run: () => { if (app.mode !== 'animate') setMode('animate'); anim.view = 'cards'; pickMove(n); } })),
+    ...Object.keys(currentChar().moves).map(n => ({ kind: 'move', name: n, tip: 'Open it in the animate editor', run: () => openMove(n) })),
     ...SCHEMA.filter(s => !Array.isArray(s)).map(s => ({ kind: 'setting', name: s.k, tip: s.tip, run: () => {
       if (mode() !== labMode) setMode('play');
       lab.q = s.k; panels();

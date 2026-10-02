@@ -139,6 +139,15 @@ try {
     if (DEFS.stick.moves.uppercut.next || rows().length !== n0) errs.push('combo cut ' + rows().length);
     combos.view = 'tree'; panels(); if (document.querySelectorAll('.ctable .croot').length !== comboRoots(currentChar(), new Set(Object.values(curBinds(currentChar())))).length) errs.push('combo tree');
     anim.view = 'cards'; panels(); }
+  // the character tab shows the move table, inputs and combos over its stage too; a move in them opens in the animate editor, close goes back
+  { setMode('character'); const sb = t => [...document.querySelectorAll('#side button')].find(b => b.textContent.trim().endsWith(t));
+    sb('combos').click(); const chip = document.querySelector('.ctable .chip');
+    if (!chip || anim.view !== 'cards') errs.push('character combos ' + !!chip + anim.view);
+    const n = chip?.textContent; chip?.click(); if (app.mode !== 'animate' || anim.move !== n) errs.push('combo chip opens ' + app.mode + anim.move);
+    setMode('character'); if (document.querySelector('.ctable')) errs.push('character combos stay open');
+    sb('moves').click(); if (document.querySelectorAll('.mtable tbody tr').length !== Object.keys(currentChar().moves).length) errs.push('character move table');
+    [...document.querySelectorAll('.mtable .bar button')].find(b => b.textContent.includes('editor')).click(); if (document.querySelector('.mtable') || app.mode !== 'character') errs.push('character move table close');
+    sb('inputs').click(); if (!document.querySelector('.mtable')) errs.push('character inputs'); creator.view = null; panels(); }
   // the gallery: every move, then every movement (with a hover tip); all run without errors
   { setMode('gallery'); const n = Object.keys(currentChar().moves).length, mv = lab.cells.filter(c => c.motion);
     if (lab.cells.length !== n + Object.keys(MOVEMENTS).length || mv.length !== Object.keys(MOVEMENTS).length || !mv.every(c => c.tip)) errs.push('gallery cells ' + lab.cells.length);

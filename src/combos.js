@@ -32,7 +32,7 @@ const addLinks = (from, done) => Object.keys(LINK_BTNS).filter(b => !currentChar
   .map(b => button(`:add: ${LINK_BTNS[b]}`, `Chain ${from} into a move on ${LINK_BTNS[b]}`, (e, el) => { e.stopPropagation(); pickLink(el, from, b, done); }, 'mini'));
 // a move as a chip: click opens it in the editor, hover plays it
 const moveChip = (n, tip = 'Click: open it in the editor · hover: play it') => h('button', { cls: 'chip', tip: `${n} · ${tip}`, textContent: n,
-  onclick: () => { anim.view = 'cards'; unpeek(); pickMove(n); }, onmousemove: e => peekMove(n, e), onmouseleave: unpeek });
+  onclick: () => openMove(n), onmousemove: e => peekMove(n, e), onmouseleave: unpeek });
 function comboView() {
   const wrap = h('div', { cls: 'mtable ctable' }), body = h('div'), count = h('span', { cls: 'note' });
   const fill = () => {
@@ -63,7 +63,7 @@ function comboView() {
   wrap.append(h('div', { cls: 'bar' },
     seg(Object.keys(COMBO_TIPS), () => combos.view, v => { combos.view = v; fill(); }, COMBO_TIPS, v => v === 'tree' ? ':view_stream: tree' : ':table_rows: table'),
     count, h('span', { cls: 'fill' }),
-    button(':close: editor', 'Back to the keyframe editor', () => { anim.view = 'cards'; unpeek(); panels(); })), body);
+    button(':close: editor', 'Back to the editor', closeOver)), body);
   fill();
   reg(wrap, fill); // undo and stance changes refresh it
   return wrap;
