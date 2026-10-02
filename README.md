@@ -37,3 +37,7 @@ A 2D stick-figure fighting engine and motion lab for the browser: procedural ske
 `npm test` runs the engine tests in Node; `npm run test:browser` runs the headless Chrome smoke test. → [Testing](docs/testing.md)
 
 The only asset is `fonts/icons.woff2`, a subset of [Material Symbols](https://github.com/google/material-design-icons) (Apache 2.0); everything else, sound included, is generated in code.
+
+## License
+
+[MIT](LICENSE) © 2026 Vladimir Kirov. The icon font `fonts/icons.woff2` is a subset of [Material Symbols](https://github.com/google/material-design-icons) by Google, under the Apache License 2.0 ([fonts/LICENSE](fonts/LICENSE)).
