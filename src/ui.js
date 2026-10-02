@@ -177,8 +177,12 @@ function showTip(e) {
   if (!t) return;
   setRich(tipEl, t);
   const w = tipEl.offsetWidth, ht = tipEl.offsetHeight;
-  tipEl.style.left = Math.min(e.clientX + 14, innerWidth - w - 6) + 'px';
-  tipEl.style.top = (e.clientY + 18 + ht > innerHeight ? e.clientY - ht - 10 : e.clientY + 18) + 'px';
+  const left = Math.min(e.clientX + 14, innerWidth - w - 6), p = document.querySelector('.peek')?.getBoundingClientRect();
+  let top = e.clientY + 18 + ht > innerHeight ? e.clientY - ht - 10 : e.clientY + 18;
+  // a hover preview next to the cursor: the tip goes under it (or above it)
+  if (p && left < p.right && p.left < left + w && top < p.bottom && p.top < top + ht) top = p.bottom + 4 + ht <= innerHeight ? p.bottom + 4 : Math.max(0, p.top - ht - 4);
+  tipEl.style.left = left + 'px';
+  tipEl.style.top = top + 'px';
 }
 addEventListener('mousemove', showTip);
 addEventListener('mousedown', () => { tipEl.style.display = 'none'; });

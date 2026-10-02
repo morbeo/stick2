@@ -141,6 +141,11 @@ try {
     { const st = [...row('jab›cross›uppercut').querySelectorAll('button')].find(b => b.textContent === 'uppercut'), mm = new MouseEvent('mousemove', { clientX: 50, clientY: 50, bubbles: true });
       st.dispatchEvent(mm); const pk = document.querySelector('.peek span')?.textContent;
       if (pk !== 'jab › cross › uppercut' || peek.d.toFixed(3) !== (['jab', 'cross'].reduce((s, n) => s + keyStart(currentChar().moves[n], currentChar().moves[n].cancel), 0) + total(currentChar().moves.uppercut)).toFixed(3)) errs.push('combo peek ' + pk + ' ' + peek?.d);
+      // the step's tooltip keeps clear of the preview, wherever the cursor is
+      document.body.append(tipEl); // the probe runs before DOMContentLoaded adds it
+      for (const [x, y] of [[50, 50], [400, 300], [innerWidth - 60, innerHeight - 40]]) { st.dispatchEvent(new MouseEvent('mousemove', { clientX: x, clientY: y, bubbles: true }));
+        const p = document.querySelector('.peek').getBoundingClientRect(), t = tipEl.getBoundingClientRect();
+        if (!t.width) errs.push('no tip at ' + [x, y]); else if (t.left < p.right && p.left < t.right && t.top < p.bottom && p.top < t.bottom) errs.push('tip over the peek at ' + [x, y]); }
       st.dispatchEvent(new MouseEvent('mouseleave')); if (document.querySelector('.peek')) errs.push('combo peek stays'); }
     combos.view = 'tree'; panels(); if (document.querySelectorAll('.ctable .croot').length !== comboRoots(currentChar(), new Set(Object.values(curBinds(currentChar())))).length) errs.push('combo tree');
     anim.view = 'cards'; panels(); }
