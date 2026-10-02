@@ -226,8 +226,9 @@ class World {
     const dt = raw * this.cfg.timeScale * (slow ? 0.3 : 1) * clamp(1 + this.cfg.comboTime * (this.combo - 1), 0.2, 3);
     if (dt <= 0) return;
     // fixed-size substeps (<= 1/120 s) keep springs and physics identical at any refresh rate
-    const n = Math.ceil(dt * 120);
-    for (let i = 0; i < n && !this.done; i++) this.step(dt / n, i ? { ...inp, hop: false, punch: false, kick: false, special: false } : inp);
+    const n = Math.ceil(dt * 120), log = this.log;
+    // a round that restarts (loop) ends the frame there: the new round's log starts clean, so a replay saved from it starts where it did
+    for (let i = 0; i < n && !this.done && this.log === log; i++) this.step(dt / n, i ? { ...inp, hop: false, punch: false, kick: false, special: false } : inp);
     for (const f of this.fighters) if (f.freeze <= 0) f.recordTrail();
     const h = this.hist, j = this.cfg.scope;
     h.tgt.push(this.a.target[j] ?? 0); h.disp.push(this.a.disp[j] ?? 0); h.vx.push(this.a.vx); h.y.push(this.a.y);

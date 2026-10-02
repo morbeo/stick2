@@ -48,3 +48,14 @@ test('a fight saved as a replay (through JSON) plays back with the same end stat
   assert.equal(r.r.end, r.end), assert.equal(r.r.frames.length, 200), assert.ok(!('boxes' in r.r.cfg), 'display settings stay out');
   assert.equal(play(r.r), null);
 });
+
+test('a replay saved after a round restarts (K.O., loop) plays back in sync', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => {
+    const w = new World(SCENARIOS['you vs ai'], {}, 1, [CHARS.stick, CHARS.stick]); let resets = 0;
+    for (let i = 0; i < 6000 && !(resets && w.log.length > 120); i++) { const n = w.log.length; w.advance(1 / 60, { ...NOIN, right: i % 120 < 40, punch: i % 23 === 0, kick: i % 37 === 0 }); if (w.log.length < n) resets++; }
+    return [resets, makeReplay(w, 'you vs ai')];
+  })())`));
+  assert.ok(r[0] > 0, 'no round restart happened');
+  assert.equal(play(r[1]), null);
+});
+
