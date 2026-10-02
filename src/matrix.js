@@ -36,6 +36,7 @@ function isolate(k) {
   tests.sel = k; tests.w = null;
   if (k) {
     const [mv, opp, ci] = k.split('|');
+    followMove(mv);
     if (mv === 'scenario') tests.w = newWorld(SCENARIOS[opp], {}, 7, playChars());
     else { const s = targetScen(mv, currentChar().moves[mv], CHECK_COLS[ci]); s.period = Math.max(2.4, (tests.res[k]?.t || 2) + 0.4); tests.w = newWorld(s, {}, 7, [currentChar(), CHARS[opp]]); }
   }
@@ -89,7 +90,7 @@ const testProgress = h('span', { cls: 'note', tip: 'Cells run so far, and how ma
 const showProgress = () => { const n = tests.total - tests.queue.length, f = nFailing(); testProgress.textContent = `${n}/${tests.total}${f ? ` · ${f} failing` : ''}`; };
 function testCtx() {
   const mb = button('', 'The move under test: one, or every move of the character', (e, b) => popup(b, h('div', { cls: 'bar' },
-    seg([null, ...Object.keys(currentChar().moves)], () => tests.move, v => { tests.move = v; closePop(); rerunTests(); panels(); }, { null: 'Every move of the character (one row per move and opponent)' }, v => v ?? 'all moves'))), 'mini');
+    seg([null, ...Object.keys(currentChar().moves)], () => tests.move, v => { tests.move = v; closePop(); followMove(v); rerunTests(); panels(); }, { null: 'Every move of the character (one row per move and opponent)' }, v => v ?? 'all moves'))), 'mini');
   reg(mb, () => setRich(mb, `:sports_martial_arts: ${tests.move ?? 'all moves'}`));
   showProgress();
   return [grp('move', 'What is tested', mb),
@@ -117,8 +118,8 @@ const testMode = {
     if (tests.w) drawCell({ w: tests.w, label: tests.sel.split('|').slice(0, 2).join(' vs ') }, { x: 0, y: 0, w: canvas.width, h: Math.round(canvas.height * 0.5) }, { plot: false });
   },
   ctxBar: testCtx,
-  side: () => configPanel(),
-  open: ['presets'],
+  side: moveSide,
+  open: ['move', 'key'],
   mouse() {},
   key(e) { if (e.code === 'Escape' && tests.sel) { isolate(null); return true; } },
   hint: () => 'H hit · B blocked · · whiff · red: not what should happen (hover for why) · click a cell: watch it, then open it in animate to fix · Esc back',

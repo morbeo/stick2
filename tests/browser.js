@@ -157,6 +157,12 @@ try {
     if (nx === 'roundhouse' || anim.move !== 'roundhouse') errs.push('move step ' + nx + anim.move);
     if ([...document.querySelectorAll('#side h3')].map(x => x.textContent).join().indexOf('Character') < 0 || document.querySelector('#side .movepop')) errs.push('animate side');
     delete lay('animate').movesView; saveLay(); anim.move = 'jab'; panels(); }
+  // the gallery and tests views show the move panel too, following the move clicked there
+  { const sideMove = () => [...document.querySelectorAll('#side h3')].some(x => x.textContent.startsWith('Move')) && !document.querySelector('#side input[placeholder="search variables"]');
+    setMode('gallery'); const i = lab.cells.findIndex(c => c.move === 'sweep'), r = labRects()[i];
+    labClick(r.x + r.w / 2, r.y + r.h / 2, {}); if (!sideMove() || anim.move !== 'sweep') errs.push('gallery move panel ' + anim.move);
+    lab.zoom = false; setMode('tests'); isolate('kick|' + CURRENT + '|0'); if (!sideMove() || anim.move !== 'kick') errs.push('tests move panel ' + anim.move);
+    isolate(null); anim.move = 'jab'; setMode('animate'); }
   // four tabs: impact is a view of play, gallery of animate, picked in the toolbar's view group
   { setMode('impact'); const tabs = [...document.querySelectorAll('#modes button')], on = tabs.find(b => b.classList.contains('on'));
     if (tabs.length !== 4 || !on?.textContent.includes('play')) errs.push('tabs ' + tabs.length + ' ' + on?.textContent);

@@ -423,6 +423,9 @@ function pickMove(name) {
   anim.move = name; anim.key = 0; anim.t = 0; anim.playing = true;
   buildPreview(); panels();
 }
+// the gallery and tests views show the move panel too: it edits the move last picked there (or in the editor)
+function moveSide() { if (!curMove()) anim.move = Object.keys(currentChar().moves)[0]; anim.key = Math.min(anim.key, curMove().keys.length - 1); return movePanel(); }
+function followMove(n) { if (anim.move === n || !currentChar().moves[n]) return; anim.move = n; anim.key = 0; anim.t = 0; panels(); }
 // a move clicked in the move table, inputs or combos: opened in the keyframe editor (from the character tab too)
 function openMove(n) { unpeek(); lay('animate').panel = null; saveLay(); if (app.mode !== 'animate') setMode('animate'); else panels(); pickMove(n); }
 

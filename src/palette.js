@@ -34,7 +34,7 @@ function paletteEntries() {
     ...Object.keys(DEFS).map(c => ({ kind: 'character', name: c, tip: 'Use this character', run: () => pickChar(c) })),
     ...Object.keys(currentChar().moves).map(n => ({ kind: 'move', name: n, tip: 'Open it in the animate editor', run: () => openMove(n) })),
     ...SCHEMA.filter(s => !Array.isArray(s)).map(s => ({ kind: 'setting', name: s.k, tip: s.tip, run: DISPLAY.includes(s.k) ? () => debugPanel(null, debugBtn()) : () => {
-      if (mode() !== labMode) setMode('play');
+      if (mode() !== labMode || lab.mode === 'gallery') setMode('play'); // the gallery shows the move panel instead
       lab.q = s.k; panels();
     } })),
   ];

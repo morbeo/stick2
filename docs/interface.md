@@ -100,7 +100,7 @@ Links:
 - a mode, a tool on the current toolbar, or a key action;
 - a table: the move table, input table and combos (over the character tab there, else in animate), the bone table (in the character tab);
 - a layout by name, reset layout, reset settings, factory reset;
-- a character, a move (opens it in animate) or a setting (searches the panel for it).
+- a character, a move (opens it in animate) or a setting (searches the settings panel for it; from the gallery it goes to play).
 
 ↑ ↓ pick, Enter runs, Esc closes.
 
@@ -133,7 +133,7 @@ Every heading carries its buttons on the right, in the same place:
 
 - **Things** (character, bones, stance, moves) get their actions always in the same order, with the same icons: new · random · copy · rename · revert · delete · import · export.
 - **Groups of variables** get the group buttons (below).
-- Panels go from the list to the selected item: character → bones → selected bone → stance → stats → walk; moves → selected move → selected key.
+- Panels go from the list to the selected item: character → bones → selected bone → stance → stats → walk; selected move → selected key → character (animate, gallery and tests).
 - The settings panel starts with the search, then the presets.
 - Settings are saved in the browser as you change them; **reset settings** in the debug popup (or the juicy preset) brings back the defaults.
 

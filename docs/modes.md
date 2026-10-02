@@ -252,7 +252,7 @@ The toolbar's **move** group holds the move being edited:
 - **copy** and **delete** (copies only), and **+** for a keyframed idle or walk loop or a movement layer of the stance.
 - **The stance**, when the character has more than one (stances are made in the character tab).
 
-The side panel holds the move's settings, then the key's, then the character (folded).
+The side panel holds the move's settings, then the key's, then the character (folded). The gallery and tests views show the same panel; the fight settings are in play, grid and impact.
 
 ![The move picker](img/movepicker.png)
 
@@ -280,6 +280,7 @@ The move table, input table and combos are on the [Editing](editing.md) page.
 
 - **Moves:** attacks first, then specials, rolls, taunts, weapon moves… Each with its keyframe timeline and frame data (startup, active, recovery, advantage on hit).
 - **Movements**, each played by a short script with its speed and height plot: idle, walk, back walk, run, dash, back dash, crouch, jump, jump forward, flip, air dash, air dodge, guard, low guard, turn, hit reaction, blockstun, knockdown & getup, launched, dizzy. Hover a cell for what it shows.
+- Click a move's cell to focus it; the side panel then edits that move.
 - Cells keep a readable size and scroll with the mouse wheel.
 - Only the cells on screen are built, run and drawn. A cell scrolled away drops its fight and starts afresh when it comes back, so a long move list stays light.
 
@@ -301,6 +302,6 @@ Each cell shows **H** hit, **B** blocked or **·** whiff, and is checked:
 Using it:
 
 - Red cells fail; hover for why. **failing only** (in the **rows** group) hides the rest.
-- Click a cell to watch it looping over the table. **open in animate** edits the move with that exact target (the preview target has near / far too).
+- Click a cell to watch it looping over the table; the side panel then edits its move. **open in animate** edits the move with that exact target (the preview target has near / far too).
 - My scenarios are played through as cases too (NaN, stage, stuck 5 s).
 - Cells run in the background, a few per frame, and rerun when the character or a setting changes.

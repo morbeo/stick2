@@ -619,7 +619,7 @@ function gridLink(row, s) {
   return expLink(row, `test ${s.k} in a grid, one value per cell`,
     () => { lab.kind = 'sweep'; Object.assign(lab.x, { k: s.k, lo: s.min, hi: s.max }); lab.y.k = ''; setMode('grid'); });
 }
-const labSide = () => configPanel();
+const labSide = () => lab.mode === 'gallery' ? moveSide() : configPanel();
 // the debug popup (menu bar): the Debug settings, the debug information, copy and factory reset, the monitor
 function debugPanel(e, b) {
   const row = k => h('div', { cls: 'row', tip: SPEC[k].tip }, h('span', { textContent: k }), toggle(CFG[k] ? 'on' : 'off', SPEC[k].tip, () => CFG[k], v => setCfg({ [k]: v }, 'cfg.' + k)));
@@ -662,6 +662,7 @@ function labClick(x, y, e) {
   const b = lab.cells[i].btns?.find(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
   if (b) return saveAttack(b.open, lab.cells[i]);
   lab.focus = lab.cells[i];
+  if (lab.mode === 'gallery') followMove(lab.focus.move);
   // a pick in a settings experiment also sets those settings (⌘Z undoes it); Shift+click only looks
   if (lab.mode === 'grid' && !e.shiftKey && lab.focus.over) setCfg(lab.focus.over);
   if (lab.mode === 'grid' && lab.kind !== 'sweep' && !e.shiftKey) breedFrom(lab.cells[i]); else lab.zoom = true;
@@ -697,7 +698,7 @@ const labMode = {
   render: labRender,
   ctxBar: labCtx,
   side: labSide,
-  open: ['presets'],
+  get open() { return lab.mode === 'gallery' ? ['move', 'key'] : ['presets']; },
   mouse(type, x, y, e) {
     if (lab.mode === 'impact' && !e.shiftKey && impactMouse(type, x, y)) return;
     if (type === 'down') labClick(x, y, e);
