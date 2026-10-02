@@ -474,6 +474,21 @@ const MOVE_FLAGS = {
   launcher: 'Launcher: on hit, ↑ jumps after the launched victim (chaseJump setting), up to its height and steering to it, for an air combo.',
   roll: 'Roll: invincible and passing through fighters for rollInv from its start; the body turns over once, the way its lunge goes (rollFwd, rollBack).',
 };
+// throw (m.throw, a move name): on connect this move holds the foe for techWindow, then the named move plays on the FOE, its
+// damage landing on the thrower (see grab / toss, bound to P+G by default). Any move can be a throw: bind it like any other.
+function throwRow() {
+  const m = () => curMove(), names = () => Object.keys(currentChar().moves).filter(n => n !== anim.move);
+  const pick = (e, b) => popup(b, h('b', { textContent: 'throw: the move the foe plays' }),
+    seg(['', ...names()], () => m().throw || '', v => { setMove('throw', v || undefined); closePop(); },
+      { '': 'Off: this move strikes normally', ...Object.fromEntries(names().map(n => [n, `The held foe plays ${n}; its damage lands on the thrower, not the foe`])) }));
+  const moveBtn = button('', 'The move the foe plays when this throw connects · click: pick another', pick, 'mini');
+  reg(moveBtn, () => setRich(moveBtn, `:sports_handball: ${m().throw || 'not a throw'}`));
+  const mk = () => { let n = anim.move + 'Toss', i = 2; while (DEFS[CURRENT].moves[n]) n = anim.move + 'Toss' + i++;
+    edit(def => { def.moves[n] = clone(CHAR_DEFS.stick.moves.toss); def.moves[anim.move].throw = n; }); openMove(n); };
+  return h('div', { cls: 'row', tip: 'A throw: no need for active keys of its own — on connect it holds the foe for techWindow, then the move picked here plays on the FOE, its damage landing back on the thrower. Make a teleport with the warp key flag, a fireball with the shoot key flag.' },
+    h('span', { textContent: 'throw' }), h('span', { cls: 'bar' }, moveBtn,
+      button(':add: new toss move', 'Make a new move for the foe to play (starts as a copy of the built-in toss) and set it here', mk, 'mini')));
+}
 
 // what normalize returns to: the built-in move of the same name (copies like jab2: the move they were copied from)
 const builtInMove = () => (CHAR_DEFS[CURRENT] || CHAR_DEFS.stick).moves[anim.move.replace(/\d+$/, '')];
@@ -763,7 +778,7 @@ function fxRows(tip, get, set, ons, inherit) {
   reg(add, () => { add.hidden = own().length >= FX_MAX; });
   const none = h('span', { cls: 'note', textContent: 'none' });
   reg(none, () => { none.hidden = own().length > 0; });
-  const head = h('div', { cls: 'row', tip }, h('span', { textContent: 'effect' }), h('span', { cls: 'bar' },
+  const head = h('div', { cls: 'row', tip }, h('span', {}, ...rich(':auto_awesome: effect')), h('span', { cls: 'bar' },
     inherit ? seg(['same', 'none', 'own'], () => get() === undefined ? 'same' : own().length ? 'own' : 'none',
       v => v === 'same' ? set(undefined) : v === 'none' ? set(false) : !own().length && put(inherit().length ? inherit() : [fresh([])]),
       { same: 'As the keys before (or the move) say', none: 'No effect from this key on', own: 'Its own effects from this key on (starting from the ones playing)' }) : none, add));
@@ -815,6 +830,7 @@ function movePanel() {
         v => { const next = HIT_STATES.filter(x => x === s ? v : (m().hits || HIT_STATES).includes(x)); setMove('hits', next.length === HIT_STATES.length ? undefined : next); }))))),
     ...MOVE_PROPS.map(p => { const r = slider(p.k, p, () => m()[p.k] ?? p.def ?? 0, v => setMove(p.k, v === (p.def ?? 0) ? undefined : v, 'm.' + p.k), p.tip); return MOVE_BASIC.includes(p.k) ? r : adv(r); }),
     h('div', { cls: 'bar' }, Object.entries(MOVE_FLAGS).map(([f, tip]) => toggle(f, tip, () => !!m()[f], v => setMove(f, v || undefined)))),
+    throwRow(),
     ...keyPanel(),
     ...charPanel(),
   ];

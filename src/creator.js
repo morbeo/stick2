@@ -225,7 +225,7 @@ function bonePanel() {
     'drag joint: length + angle · Shift+drag: angle only · drag the hip (square): move the waist over the feet · Del delete bone');
   reg(title, () => { const n = selIds().length; title.firstChild.textContent = `Bone · ${studio.sel}${n > 1 ? ` + ${n - 1}` : ''}${stanceOnly() ? ` · ${curStance().name} only` : ''}`; });
   title.dataset.fold = 'bone';
-  const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', { textContent: label }), ...c);
+  const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', {}, ...rich(label)), ...c);
   const lim = on => edit(def => {
     for (const b of selDefs(def)) if (on) { b.min = -90; b.max = 90; } else { delete b.min; delete b.max; }
   });
@@ -239,8 +239,8 @@ function bonePanel() {
   }),
     ['Experiment: nine bodies varying these properties; click the best to breed around it', () => { BONE_PROPS.forEach(p => creator.exp.vars.add(p.k)); setExp(true); }]));
   return [title,
-    row('role', 'What the bone does in procedural motion', seg(Object.keys(ROLE_TIPS), () => prop('role'), v => edit(d => { for (const b of selDefs(d)) b.role = v; }), ROLE_TIPS)),
-    row('side', 'Draw order and colour', seg(['f', '', 'b'], () => prop('side'), v => edit(d => { for (const b of selDefs(d)) b.side = v; }), SIDE_TIPS,
+    row(':category: role', 'What the bone does in procedural motion', seg(Object.keys(ROLE_TIPS), () => prop('role'), v => edit(d => { for (const b of selDefs(d)) b.role = v; }), ROLE_TIPS)),
+    row(':flip: side', 'Draw order and colour', seg(['f', '', 'b'], () => prop('side'), v => edit(d => { for (const b of selDefs(d)) b.side = v; }), SIDE_TIPS,
       o => ({ f: 'front', '': 'centre', b: 'back' })[o])),
     row('shape', 'How the bone is drawn', seg(['line', 'circle'], () => prop('shape'), v => edit(d => { for (const b of selDefs(d)) b.shape = v; }), SHAPE_TIPS)),
     ...fxRows('Effects always drawn on this bone (select several bones for a flaming arm, a glowing body); drawing only, the fight is the same',
@@ -345,7 +345,7 @@ function shadowPanel() {
   return [title,
     h('div', { cls: 'row', tip: 'The shadow\'s shape' }, h('span', { textContent: 'shape' }),
       seg(Object.keys(SHADOW_SHAPES), () => get('shape'), v => set({ shape: v }), SHADOW_SHAPES, o => o === 'none' ? ':block: off' : optLabel(o))),
-    off(h('div', { cls: 'row', tip: 'The shadow\'s colour' }, h('span', { textContent: 'colour' }),
+    off(h('div', { cls: 'row', tip: 'The shadow\'s colour' }, h('span', {}, ...rich(':palette: colour')),
       seg(['black', ...Object.keys(FX_COLS)], () => get('col'), v => set({ col: v }), { black: 'A plain dark shadow', ...mapVals(FX_COLS, () => 'This colour (a glow under a ghost, coloured light)') }))),
     ...SHADOW_VARS.map(s => off(slider(s.k, s, () => get(s.k), v => set({ [s.k]: v }), s.tip), s.only))];
 }
@@ -428,7 +428,7 @@ function bodyPanel() {
     heading('Body', 'Build the skeleton. Limbs are role-based: legs walk, arms swing, tails follow through. New parts attach to the selected torso bone.',
       '⌘Z undo · ⇧⌘Z redo · Del delete · drag joints in the editor'),
     h('div', { cls: 'bar' }, ...Object.keys(LIMBS).map(k => button(`:add: :${OPT_ICONS[k]}: ${k}`, LIMB_TIPS[k], () => addLimb(k)))),
-    h('h4', { textContent: 'bones', tip: 'Click to select · ▾ ▸ fold a branch' }, crud({
+    h('h4', { tip: 'Click to select · ▾ ▸ fold a branch' }, ...rich(':straighten: bones'), crud({
       new: ['Add one bone at the end of the selected bone (same role and side)', addBone],
       copy: ['Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb],
       delete: ['Delete the selected bone and everything below it (Del)', deleteBone] })),
@@ -461,7 +461,7 @@ function expPanel() {
       button(':lock: keep parent', 'Make the parent body your character (undoable)', () => edit(def => Object.assign(def, clone(ex.parent)))),
       button(':casino: reroll', 'New random variations around the same parent', () => { ex.seed++; buildExp(); }),
       button(':restart_alt: restart', 'Start again from your current character', () => { ex.parent = null; buildExp(); })),
-    h('h4', { textContent: 'vary', tip: 'Which bone properties and stats the variations change' }),
+    h('h4', { tip: 'Which bone properties and stats the variations change' }, ...rich(':tune: vary')),
     h('div', { cls: 'bar' }, [...BONE_PROPS, ...CHAR_STATS, ...GAIT_VARS.filter(s => !s.opts)].map(p => toggle(p.k, p.tip, () => ex.vars.has(p.k), on => { ex.vars[on ? 'add' : 'delete'](p.k); buildExp(); })),
       toggle(':add: limbs', 'Experimental limbs: each variation also adds a random limb, drops one, or grows an extra joint', () => ex.limbs, v => { ex.limbs = v; buildExp(); })),
     slider('spread', { min: 0.02, max: 0.5, step: 0.01 }, () => ex.spread, v => { ex.spread = v; },
