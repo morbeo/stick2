@@ -139,6 +139,13 @@ A 3 × 3 sweep of any setting (or X × Y). Every cell replays the same seeded fi
 - Pick the striking **limb** (any, arm, leg, head, tail…) and **height** (any, high, mid, low) of new attacks.
 - **pose → animation:** pick a preset pose or another stance to strike into. The limb that moves most strikes, after an anticipation the other way. The character editor's pose → animation button opens the grid on a pose.
 
+### Compare A and B
+
+**compare** shows two cells, the same seeded fight with the settings **A** and **B**. Each is the current settings, a preset or a file, picked in the **sides** group (the same A and B as the [compare settings](interface.md#compare-settings) panel).
+
+- **compare** in the **panels** group opens the list of what differs over the cells, so you can read and watch together.
+- Click a cell to use its settings (⌘Z undoes); Shift+click only focuses it.
+
 ### Testing in the grid
 
 - 1, 3 or 5 seeds per cell, with averaged hits, whiffs and frozen %; sort cells by a metric.

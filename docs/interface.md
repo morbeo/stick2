@@ -41,6 +41,7 @@ The **compare** stage panel (the **panels** group in play and grid, **import →
 - Each row is a setting that differs: its group, name (hover for what it does), A, B, B − A for numbers, and the default. **all** lists every setting; the filter finds settings by name or group.
 - **use A** / **use B** on a row sets that value, and **use all A** / **use all B** takes a whole side. ⌘Z undoes.
 - **copy** puts the differences on the clipboard as text: `- key: A` and `+ key: B` lines.
+- To watch the difference, the grid's **compare** kind plays the same fight with A and with B side by side ([modes](modes.md#compare-a-and-b)).
 
 ### Layouts
 

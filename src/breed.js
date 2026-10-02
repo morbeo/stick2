@@ -17,6 +17,7 @@ const BREED_TIPS = {
   sweep: 'Each cell gets one value of the X (and Y) variable across its range.',
   breed: 'Cells get random values of the variables you pick, around a parent. Click the best cell to breed around it.',
   attacks: 'Nine random attacks for the current character. Click one to breed variations of it, then save it or open it in animate.',
+  compare: 'Two cells: the same fight with the settings A and with B (the current ones, a preset or a file); the compare panel lists what differs. Click a cell to use its settings.',
 };
 
 // numbers move by their level (see levels) × spread × their range; options and switches change with probability 2 × spread

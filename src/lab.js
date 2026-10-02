@@ -85,6 +85,7 @@ function blow(w, k) {
   w.strike(vic, bone, mid(bone), m, side);
 }
 
+const bred = () => lab.kind === 'breed' || lab.kind === 'attacks'; // the grid kinds that breed cells (sweep and compare set settings)
 // a gallery cell builds its fight when it is needed (scrolled into view) and drops it off screen, so it never runs a stale character
 const lazyCell = (mk, c) => Object.defineProperty(c, 'w', { get() { return this._w ??= mk(); }, enumerable: true });
 function build() {
@@ -102,7 +103,11 @@ function build() {
     for (const m of galleryMoves()) lab.cells.push(lazyCell(() => newWorld({ ...galleryScen(m, undefined, currentChar().moves[m]), ...GALLERY_TARGETS[lab.target][1] }), { move: m, label: m }));
     for (const [k, [tip, s]] of Object.entries(MOVEMENTS)) lab.cells.push(lazyCell(() => newWorld({ period: 2.4, ...s }), { motion: true, label: k, tip: `${k}: ${tip}` }));
   }
-  else if (lab.kind !== 'sweep') lab.cells = lab.kind === 'breed' ? breedCells() : attackCells();
+  else if (bred()) lab.cells = lab.kind === 'breed' ? breedCells() : attackCells();
+  else if (lab.kind === 'compare') { // the same seed in both: only the settings differ
+    lab.cols = 2;
+    for (const s of ['a', 'b']) { const over = cmpCfg(cmp[s]); lab.cells.push({ w: newWorld(scen, over, 7), over, label: `${s.toUpperCase()} · ${cmp[s].name}` }); }
+  }
   else {
     const xs = axisValues(lab.x, lab.y.k ? 3 : 9), ys = lab.y.k ? axisValues(lab.y, 3) : [null];
     if (lab.y.k) lab.cols = xs.length;
@@ -210,7 +215,7 @@ function labRender() {
   lab.scroll = clamp(lab.scroll, 0, maxScroll()); // the canvas or the column count may have changed
   const cells = shown(), play = lab.mode === 'play', rag = lab.mode === 'impact' && lab.impact === 'ragdoll', rects = labRects(cells.length);
   cells.forEach((c, i) => !(rects[i].y + rects[i].h > 0 && rects[i].y < canvas.height) ? delete c._w : drawCell(c, rects[i], { full: play || rag, plot: !play && lab.mode !== 'impact', meter: lab.meter,
-    selected: !play && !rag && !lab.zoom && (lab.mode === 'grid' && lab.kind !== 'sweep' ? c.parent && 'parent'
+    selected: !play && !rag && !lab.zoom && (lab.mode === 'grid' && bred() ? c.parent && 'parent'
       : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) && 'current settings' : c === lab.focus && 'focused') }));
   if (lab.mode === 'grid' && lab.kind === 'attacks' && !lab.zoom) cells.forEach((c, i) => { c.btns = null; if (i === lab.hover) drawCellButtons(c, rects[i]); });
   if (play && lab.inputs && cells[0].w.ctl[0] === 'human') drawInputs(cells[0].w, 10 * dpr, 60 * dpr);
@@ -504,7 +509,8 @@ function labCtx() {
   if (lab.mode === 'play' && SCENARIOS[lab.scen]?.waves) els.push(grp('waves', SPEC.waves.tip + ' Changing it starts over at wave 1',
     seg(SPEC.waves.opts, () => CFG.waves, v => { setCfg({ waves: v }); mode().restart(); }, SPEC.waves.optTips),
     toggle(':casino: mixed', SPEC.waveMix.tip, () => CFG.waveMix, v => { setCfg({ waveMix: v }); mode().restart(); })));
-  if (lab.mode === 'grid' && lab.kind !== 'sweep') els.push(...breedCtx());
+  if (lab.mode === 'grid' && bred()) els.push(...breedCtx());
+  else if (lab.mode === 'grid' && lab.kind === 'compare') els.push(grp('sides', 'The settings of the two cells (the compare panel lists what differs)', cmpSource('a'), cmpSource('b')), zoomBack());
   else if (lab.mode === 'grid') {
     const adopt = button(':check: use these values', 'Copy the focused cell\'s values into the settings (side panel)', () => setCfg(lab.focus.over));
     const back = zoomBack();
@@ -665,7 +671,7 @@ function labClick(x, y, e) {
   if (lab.mode === 'gallery') followMove(lab.focus.move);
   // a pick in a settings experiment also sets those settings (⌘Z undoes it); Shift+click only looks
   if (lab.mode === 'grid' && !e.shiftKey && lab.focus.over) setCfg(lab.focus.over);
-  if (lab.mode === 'grid' && lab.kind !== 'sweep' && !e.shiftKey) breedFrom(lab.cells[i]); else lab.zoom = true;
+  if (lab.mode === 'grid' && bred() && !e.shiftKey) breedFrom(lab.cells[i]); else lab.zoom = true;
 }
 
 // impact: drag from a point on a body to strike it there; a plain click is a medium blow from the front
@@ -711,5 +717,5 @@ const labMode = {
   key(e) { if (e.code === 'Escape' && lab.zoom) { lab.zoom = false; return true; } },
   hint: () => lab.mode === 'play' ? fightHint()
     : lab.mode === 'impact' ? 'drag on a body: strike it there (direction and length = the blow, long = knockdown) · click a body: a medium blow · click beside: focus / back · Esc back'
-    : lab.mode === 'grid' && lab.kind !== 'sweep' ? (lab.kind === 'attacks' ? 'click a cell: breed around it · its save / edit buttons: keep that attack · Shift+click: focus · Esc back' : 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back') : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',
+    : lab.mode === 'grid' && bred() ? (lab.kind === 'attacks' ? 'click a cell: breed around it · its save / edit buttons: keep that attack · Shift+click: focus · Esc back' : 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back') : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',
 };

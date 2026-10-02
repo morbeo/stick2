@@ -1,6 +1,6 @@
 'use strict';
 // ---------- compare settings: two sets side by side (A and B: the current ones, a preset or a file), the differences listed, either side taken per setting or all at once ----------
-// a stage panel of the play and grid tabs; a source is { name, cfg } with cfg only for a file (the current settings and presets are read when shown)
+// a stage panel of the play and grid tabs, and the grid's compare kind (two cells, A and B); a source is { name, cfg } with cfg only for a file (the current settings and presets are read when shown)
 const cmp = { a: { name: 'current' }, b: { name: 'juicy' }, all: false, q: '' };
 const CMP_PANEL_TIP = 'Compare settings: the current ones, a preset or a file, side by side; take either side per setting or all at once';
 // a source's settings, without the debug views
@@ -30,6 +30,16 @@ function cmpFile(side, then) {
 // compare… in the import menu and ⌘K: the current settings against a file, over the play tab (or grid)
 function compareFile() { cmpFile('b', () => { cmp.a = { name: 'current' }; openCompare(); }); }
 function openCompare() { if (mode() !== labMode || lab.mode === 'gallery') setMode('play'); openStage('compare'); }
+// the A or B button: the current settings, a preset or a file; the grid's compare cells follow
+function cmpSource(side) {
+  const S = side.toUpperCase(), set = s => { cmp[side] = s; if (lab.mode === 'grid' && lab.kind === 'compare') build(); panels(); };
+  const b = button('', `${S}: the current settings, a preset or a file`, (e, b) => popup(b, h('div', { cls: 'bar' },
+    seg(['current', ...Object.keys(PRESETS)], () => cmp[side].cfg ? null : cmp[side].name, n => { closePop(); set({ name: n }); },
+      { current: 'The settings in use now', ...PRESET_TIPS }),
+    button(':upload: file…', 'A settings or everything file (only its settings are read)', () => { closePop(); cmpFile(side, () => set(cmp[side])); }))));
+  reg(b, () => setRich(b, `${S}: ${cmp[side].name} :expand_more:`));
+  return b;
+}
 function compareView() {
   const wrap = h('div', { cls: 'mtable cmptable' }), body = h('tbody');
   const fill = () => {
@@ -43,18 +53,10 @@ function compareView() {
     if (!rows.length) body.replaceChildren(h('tr', {}, h('td', { colSpan: 7, cls: 'note', textContent: cmp.q ? 'no setting matches the filter' : 'A and B are the same' })));
     syncAll();
   };
-  const src = side => {
-    const b = button('', `${side.toUpperCase()}: the current settings, a preset or a file`, (e, b) => popup(b, h('div', { cls: 'bar' },
-      seg(['current', ...Object.keys(PRESETS)], () => cmp[side].cfg ? null : cmp[side].name, n => { cmp[side] = { name: n }; closePop(); fill(); },
-        { current: 'The settings in use now', ...PRESET_TIPS }),
-      button(':upload: file…', 'A settings or everything file (only its settings are read)', () => { closePop(); cmpFile(side, fill); }))));
-    reg(b, () => setRich(b, `${side.toUpperCase()}: ${cmp[side].name} :expand_more:`));
-    return b;
-  };
   const all = side => button(`use all ${side.toUpperCase()}`, `Take every setting of ${side.toUpperCase()} (⌘Z undoes)`, () => { setCfg(cmpCfg(cmp[side])); fill(); });
   const filter = h('input', { cls: 'macro', value: cmp.q, placeholder: 'fuzzy filter: setting or group', tip: 'Letters in order match (e.g. "hs" finds hitstop)',
     oninput: e => { cmp.q = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() });
-  wrap.append(stageHead('compare settings', CMP_PANEL_TIP, src('a'), src('b'),
+  wrap.append(stageHead('compare settings', CMP_PANEL_TIP, cmpSource('a'), cmpSource('b'),
     seg(['changed', 'all'], () => cmp.all ? 'all' : 'changed', v => { cmp.all = v === 'all'; fill(); }, { changed: 'Only the settings that differ', all: 'Every setting' }),
     filter, all('a'), all('b'),
     button(':content_copy: copy', 'Copy the differences as text (- A / + B per setting)', () => navigator.clipboard?.writeText(cmpText()))),

@@ -325,6 +325,14 @@ try {
     [...document.querySelectorAll('.cmptable button')].find(b => b.textContent === 'use all B').click(); if (rows().length !== 1 || rows()[0].textContent !== 'A and B are the same') errs.push('compare use all ' + rows().length);
     undo(); cmp.a = { name: 'raw' }; cmp.b = { name: 'juicy' }; panels(); if (!rows().some(r => cell(r, 1) === 'easing')) errs.push('compare presets');
     setMode('grid'); if (document.querySelector('.cmptable')) errs.push('compare per tab'); setMode('play'); closeStage(); if (document.querySelector('.cmptable')) errs.push('compare close'); }
+  // the grid's compare kind: two cells with A's and B's settings, the same seed; a click on B takes its settings (undoable); the panels seg opens the diff over it
+  { const keep = { ...CFG }; cmp.a = { name: 'current' }; cmp.b = { name: 'juicy' }; lab.kind = 'compare'; setMode('grid');
+    const [A, B] = lab.cells, J = cmpCfg({ name: 'juicy' });
+    if (lab.cells.length !== 2 || lab.cols !== 2 || B.label !== 'B · juicy' || A.over.hitstop !== keep.hitstop || B.over.hitstop !== J.hitstop || A.w.seed !== B.w.seed) errs.push('grid compare cells ' + lab.cells.map(c => c.label));
+    const r = labRects()[1]; labClick(r.x + r.w / 2, r.y + r.h / 2, {});
+    if (CFG.hitstop !== J.hitstop || !lab.zoom) errs.push('grid compare adopt ' + CFG.hitstop); undo(); if (CFG.hitstop !== keep.hitstop) errs.push('grid compare undo');
+    [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith(CMP_PANEL_TIP)).click(); if (!document.querySelector('#over > .cmptable')) errs.push('grid compare diff');
+    closeStage(); lab.kind = 'sweep'; setMode('play'); }
   // settings persist: a change is stored (only what differs from the defaults), comes back on load, bad values are dropped; reset settings brings back the defaults
   { setCfg({ hitstop: 0.2, easing: 'step' }); setDisplay('boxes', true); const st = JSON.parse(localStorage.getItem('stick2.settings'));
     if (st.hitstop !== 0.2 || st.easing !== 'step' || st.boxes !== true || 'gravity' in st) errs.push('settings stored ' + JSON.stringify(st));
