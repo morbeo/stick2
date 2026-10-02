@@ -198,7 +198,7 @@ const STICK_MOVES = {
     { d: 0.16, p: { torso: 18, afU: 90, afL: 5, abU: 80, abL: 10, lfU: 40, lfL: -35, lbU: -30, lbL: 0 } },
     { d: 0.22, e: 'inOutCubic', p: null }] },
   // the rest of the direction table (see BINDS): 4K steps back as it kicks, 1P a quick crouching poke, 3P a lunging body blow,
-  // 1K a sweep with the back leg; 2.5D only (2D diagonals up are jumps): 7P backfist, 7K crescent (overhead), 9K flying knee
+  // 1K a sweep with the back leg; ↑ diagonals: 7P backfist, 7K crescent (overhead), 9K flying knee
   fadeKick: attack({ power: 1.2, damage: 8, hit: 'ff', height: 'mid', knock: 300, stun: 0.36, lunge: -180 },
     [0.08, { torso: -10, lfU: 70, lfL: -110, lbU: -5, lbL: -30, afU: 30, afL: 110, abU: 40, abL: 100 }],
     [0.06, { torso: -32, lfU: 95, lfL: -3, lbU: -20, lbL: -15, afU: -10, afL: 70, abU: 60, abL: 60 }], 0.07, 0.24),
