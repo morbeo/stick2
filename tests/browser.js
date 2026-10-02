@@ -608,6 +608,9 @@ try {
       rpMouse('down', xm, row.y + 3 * dpr, {}); rpMouse('move', xm + tToX(L, rp.T[a0 + 20]) - tToX(L, rp.T[a0]), row.y + 3 * dpr, {}); rpMouse('up', 0, 0, {});
       if (sp.a !== a0 + 20 || studio.undo.length !== u0 + 1) errs.push('footage drag ' + [sp.a - a0, studio.undo.length - u0]);
       undo(); if (foot().spans[0].a !== a0) errs.push('footage undo');
+      panels(); const secs = [...document.querySelectorAll('#side input.sec')], set = (el, v) => { el.value = v; el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); };
+      set(secs[2], '2.5'); set(document.querySelectorAll('#side input.sec')[3], '0.5'); const sp2 = foot().spans[0];
+      if (sp2.a !== nearFrame(2.5) || Math.abs(rp.T[sp2.b] - rp.T[sp2.a] - 0.5) > 0.02) errs.push('footage typed ' + [sp2.a, sp2.b]);
       afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
         ui.clip = { ...clipSet(), fps: 30, aspect: '9:16', fit: 'crop' }; ui.rexp = { size: 320, hud: true, labels: true, inputs: false, meter: false };
         setMode('replay'); await exportReel(); saveClip = sc;
@@ -629,6 +632,12 @@ try {
       rp.cmpView = 'overlay'; mode().render(); rp.cmpView = 'side'; mode().render();
       rpSeek(150); if (rp.cmp.n !== 150) errs.push('compare sync ' + rp.cmp.n);
       rpSeek(100); branchFrom(1); dropBranch(); if (lab.branch) errs.push('branch drop'); setMode('replay'); loadCmp(null); }
+    // highlights: moments are listed and picked; exporting them renders the picked windows back to back
+    { panels(); if (!rp.moments.length || !rp.hl.picked.size) errs.push('highlights ' + rp.moments.length);
+      afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; }; setMode('replay');
+        ui.clip = { ...clipSet(), fps: 15, aspect: 'view' }; rp.hl.slow = false; const segs = hlSegs(); await exportHighlights(); saveClip = sc;
+        let t = 0; for (const sg of segs) for (let f = sg.a; f < sg.b; f++) t += rp.frames[f][0];
+        if (!got || Math.abs(got.length - t * 15) > 2) errs.push('highlights export ' + (got && got.length) + ' vs ' + Math.round(t * 15)); }); }
     // clips: the 1:1 aspect crops the subject to a square
     { ui.clip = { ...clipSet(), aspect: '1:1', fit: 'crop', size: 200 }; clip.key = null; clip.frames.length = 0; clip.last = 0; clipCapture(5e6, true);
       const f = clip.frames[0]?.c; if (!f || f.width !== 200 || f.height !== 200) errs.push('clip aspect ' + (f && [f.width, f.height]));
@@ -656,7 +665,8 @@ try {
       if (bm.width !== W || worst > 4) errs.push('clip gif decode ' + worst);
     }, e => errs.push('clip gif ' + e.message))); }
 } catch (e) { errs.push(e.message + ' ' + e.stack.split('\\n')[1]); }
-Promise.all(later).then(() => Promise.all(afterSync.map(f => f()))).then(() => { document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK'; });
+// the async checks one after another (an export waits for the last one)
+Promise.all(later).then(() => afterSync.reduce((p, f) => p.then(f), Promise.resolve())).then(() => { document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK'; }, e => { document.title = 'ERR ' + e.message; });
 </script></body>`;
 fs.writeFileSync(out, fs.readFileSync(path.join(root, 'index.html'), 'utf8')
   .replace(/(src|fonts)\//g, `file://${root}/$1/`).replace('</body>', probe));

@@ -99,3 +99,13 @@ test('a branch (P2 taken over at the playhead) saves as a replay that plays in s
   })())`));
   assert.deepEqual(r, ['human2', null, true, 0, true]);
 });
+
+test('highlights: moments found from the events (combos, K.O.s, parries…), windows that overlap merge, best first', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => {
+    const w = replayWorld(REPS[0]); w.loop = false; const rec = recordFight(w), ms = findMoments(rec.events, rec.T);
+    const sorted = ms.every((m, i) => !i || ms[i - 1].score >= m.score), apart = [...ms].sort((p, q) => p.a - q.a).every((m, i, a) => !i || a[i - 1].b < m.a);
+    return [ms.length, sorted, apart, ms.every(m => m.a < m.fin && m.fin < m.b && m.b <= rec.N)];
+  })())`));
+  assert.ok(r[0] > 0, 'no moments');
+  assert.deepEqual(r.slice(1), [true, true, true]);
+});

@@ -4,7 +4,7 @@
 // checkpoints; the shown world seeks by restoring the last checkpoint before a frame and playing the frames after it.
 
 const rp = { reel: null, master: null, view: null, frames: [], T: [0], N: 0, events: [], n: 0, t: 0, show: new Set(Object.keys(EVENT_TYPES)), sel: new Set(),
-  footOn: true, fsel: null, reels: [], cmp: null, cmpView: null, filter: '', sort: { k: 't', dir: 1 }, hover: null, drag: null, scrollTo: null, lanes: {}, v: [0, 1], fold: new Set(), base: [], mx: -1, my: -1 };
+  footOn: true, fsel: null, reels: [], cmp: null, cmpView: null, moments: [], hl: { picked: new Set(), slow: true, titles: true }, expWhat: 'footage', filter: '', sort: { k: 't', dir: 1 }, hover: null, drag: null, scrollTo: null, lanes: {}, v: [0, 1], fold: new Set(), base: [], mx: -1, my: -1 };
 const fmtT = t => t.toFixed(2) + 's';
 const who = id => id < 0 ? '' : 'P' + (id + 1);
 
@@ -60,6 +60,8 @@ function rebuildEvents() {
   }
   rp.events = evs.sort((a, b) => a.f - b.f).map((e, i) => ({ ...e, i }));
   rp.sel.clear();
+  rp.moments = findMoments(rp.base, rp.T); // the highlights: the best five picked at first
+  rp.hl.picked = new Set(rp.moments.slice(0, 5).map(m => m.a));
 }
 const evDetail = e => [e.cmp ? 'only in B' : e.aOnly ? 'only in A' : '', e.data?.vic !== undefined && e.data.vic !== e.who ? '→ ' + who(e.data.vic) : '', e.data?.dmg ? Math.round(e.data.dmg) + ' dmg' : '',
   e.kind === 'hit' && e.data.combo > 1 ? e.data.combo + '-hit' : '', e.data?.height || '', e.end !== undefined ? fmtT(rp.T[e.end] - rp.T[e.f]) : ''].filter(Boolean).join(' · ');
@@ -575,10 +577,9 @@ function shotAt(w, f, on = rp.footOn) {
   const fs = w.fighters.filter(x => !x.hidden), pick = s.follow === 'P1' ? [fs[0]] : s.follow === 'P2' ? [fs[1] || fs[0]] : fs;
   return { zoom: s.zoom, x: pick.reduce((a, x) => a + x.x, 0) / pick.length };
 }
-function drawCaption(c, f, r, on = rp.footOn) {
-  const s = on && spanAt('label', f);
-  if (!s?.text) return;
-  const size = Math.max(12, Math.round(r.h / 18 / dpr));
+function drawCaption(c, f, r, on = rp.footOn) { const s = on && spanAt('label', f); if (s?.text) drawTitle(c, s.text, r); }
+function drawTitle(c, txt, r) {
+  const s = { text: txt }, size = Math.max(12, Math.round(r.h / 18 / dpr));
   c.font = `bold ${size * dpr}px ui-monospace, Menlo, monospace`;
   const w = c.measureText(s.text).width + 16 * dpr, y = r.y + r.h - size * dpr * 1.8;
   c.fillStyle = 'rgba(20,20,20,0.7)'; c.fillRect(r.x + (r.w - w) / 2, y - size * dpr * 1.1, w, size * dpr * 1.6);
@@ -644,40 +645,51 @@ function footDrag(L, x) {
 const EXP_SIZES = [320, 480, 720, 1080, 1920];
 const expSet = () => ui.rexp ??= { size: 720, hud: true, labels: true, inputs: false, meter: false };
 function expSize(view) { const a = CLIP_ASPECTS[clipSet().aspect] ?? view, w = expSet().size; return [Math.round(w / 2) * 2, Math.round(w / a / 2) * 2]; }
-async function exportReel() {
+// the clip of segments [{ a, b, rate(f), shot(w, f), title(f) }] rendered offline one after another at the export size, then saved
+async function renderSegments(segs) {
   if (clip.busy) return;
-  const [a, b] = footRange(), o = expSet(), set = clipSet(), fps = set.fps, [W2, H2] = expSize(W / H), fill = set.fit !== 'letterbox';
-  const w = rp.view, hud = CFG.hud, frames = [], at = rp.n;
+  const o = expSet(), set = clipSet(), fps = set.fps, [W2, H2] = expSize(W / H), fill = set.fit !== 'letterbox';
+  const w = rp.view, hud = CFG.hud, frames = [], at = rp.n, total = segs.reduce((n, s) => n + s.b - s.a, 0);
+  let t = 0, next = 0, done = 0;
   clip.busy = 'render 0%'; syncAll();
   CFG.hud = o.hud;
   try {
-    rpSeek(a);
-    let t = 0, next = 0;
-    for (let f = a; f < b; f++) {
-      if (t >= next - 1e-9) { // a frame of the clip (slowed, one fight frame lasts several: the same picture, which the GIF merges)
-        const c = h2canvas(W2, H2), g = c.getContext('2d'), r = { x: 0, y: 0, w: W2, h: H2 };
-        g.fillStyle = '#f3f0e8'; g.fillRect(0, 0, W2, H2);
-        w.render(g, r, true, { ...shotAt(w, f, true), fill });
-        if (o.labels) drawCaption(g, f, r, true);
-        if (o.inputs && w.ctl[0] === 'human') drawInputs(w, 10 * dpr, 30 * dpr, g);
-        if (o.meter) drawMeter(w, { x: 6 * dpr, y: H2 - 24 * dpr, w: W2 - 12 * dpr, h: 18 * dpr }, true, g);
-        const t1 = t + rp.frames[f][0] / rateAt(f, true);
-        for (; next <= t1 - 1e-9 || next <= t + 1e-9; next += 1 / fps) frames.push({ c, t: next * 1000 });
+    for (const sg of segs) {
+      rpSeek(sg.a);
+      for (let f = sg.a; f < sg.b; f++) {
+        const t1 = t + rp.frames[f][0] / sg.rate(f);
+        if (next <= t1 - 1e-9) { // frames of the clip (slowed, one fight frame lasts several: the same picture, which the GIF merges)
+          const c = h2canvas(W2, H2), g = c.getContext('2d'), r = { x: 0, y: 0, w: W2, h: H2 };
+          g.fillStyle = '#f3f0e8'; g.fillRect(0, 0, W2, H2);
+          w.render(g, r, true, { ...sg.shot(w, f), fill });
+          const tt = o.labels && sg.title(f); if (tt) drawTitle(g, tt, r);
+          if (o.inputs && w.ctl[0] === 'human') drawInputs(w, 10 * dpr, 30 * dpr, g);
+          if (o.meter) drawMeter(w, { x: 6 * dpr, y: H2 - 24 * dpr, w: W2 - 12 * dpr, h: 18 * dpr }, true, g);
+          for (; next <= t1 - 1e-9; next += 1 / fps) frames.push({ c, t: next * 1000 });
+        }
+        t = t1; rpStep();
+        if (++done % 30 === 0) { clip.busy = `render ${Math.round(100 * done / total)}%`; syncAll(); await new Promise(r => setTimeout(r)); }
       }
-      t += rp.frames[f][0] / rateAt(f, true);
-      rpStep();
-      if ((f - a) % 30 === 0) { clip.busy = `render ${Math.round(100 * (f - a) / (b - a))}%`; syncAll(); await new Promise(r => setTimeout(r)); }
     }
   } finally { CFG.hud = hud; clip.busy = ''; rpSeek(at); }
   await saveClip(frames);
 }
+// the highlights: the picked moments in fight order, each with its title for its first second and its finishing blow slowed
+const hlSegs = () => rp.moments.filter(m => rp.hl.picked.has(m.a)).sort((p, q) => p.a - q.a).map(m => ({ a: m.a, b: m.b,
+  rate: f => rp.hl.slow && f >= m.fin - 4 && f < m.fin + 20 ? 0.25 : 1, shot: () => null, title: f => rp.hl.titles && rp.T[f] - rp.T[m.a] < 1 ? m.name : null }));
+const exportHighlights = () => hlSegs().length ? renderSegments(hlSegs()) : notice('No highlights picked', 'Pick some moments in the side panel\'s highlights first.');
+// the footage: the in–out range with its slow motion, camera and labels
+const exportReel = () => { const [a, b] = footRange(); return renderSegments([{ a, b, rate: f => rateAt(f, true), shot: (w, f) => shotAt(w, f, true), title: f => spanAt('label', f)?.text }]); };
 function exportPop(e, b) {
   const o = expSet(), set = clipSet(), row = (label, tip, ...els) => h('div', { cls: 'row', tip }, h('span', { textContent: label }), ...els);
   const info = h('p', { cls: 'note' });
-  reg(info, () => { const [a, z] = footRange(), [w, ht] = expSize(W / H); let t = 0; for (let f = a; f < z; f++) t += rp.frames[f][0] / rateAt(f, true);
-    info.textContent = `${fmtT(rp.T[a])} – ${fmtT(rp.T[z])} · ${t.toFixed(1)}s out · ${w}×${ht} · about ${Math.ceil(t * set.fps)} frames`; });
+  reg(info, () => { const [w, ht] = expSize(W / H), segs = rp.expWhat === 'highlights' ? hlSegs() : [{ a: footRange()[0], b: footRange()[1], rate: f => rateAt(f, true) }];
+    let t = 0; for (const sg of segs) for (let f = sg.a; f < sg.b; f++) t += rp.frames[f][0] / sg.rate(f);
+    info.textContent = `${rp.expWhat === 'highlights' ? `${segs.length} moments` : `${fmtT(rp.T[segs[0].a])} – ${fmtT(rp.T[segs[0].b])}`} · ${t.toFixed(1)}s out · ${w}×${ht} · about ${Math.ceil(t * set.fps)} frames`; });
   const pick = (obj, k, opts, tips, lbl) => seg(opts, () => obj()[k], v => { obj()[k] = v; saveUi(); }, tips, lbl);
-  popup(b, h('b', { textContent: 'export the footage' }), info,
+  popup(b, h('b', { textContent: 'export' }), info,
+    row('what', 'The footage (in–out, with its slow motion, camera and labels) or the highlights (the moments picked in the side panel)',
+      seg(['footage', 'highlights'], () => rp.expWhat, v => { rp.expWhat = v; }, { footage: 'The in–out range with its footage edits', highlights: 'The picked highlights, one after another, in fight order' })),
     row('format', 'GIF or WebM video', pick(clipSet, 'fmt', CLIP_FMTS, CLIP_TIPS, v => v.toUpperCase())),
     row('fps', 'Frames a second of the clip', pick(clipSet, 'fps', CLIP_FPS, CLIP_TIPS, String)),
     row('aspect', 'The clip\'s shape: the arena\'s own, or a fixed one (16:9 video, 1:1 square, 9:16 phone)', pick(clipSet, 'aspect', Object.keys(CLIP_ASPECTS), CLIP_TIPS, String)),
@@ -685,7 +697,7 @@ function exportPop(e, b) {
     row('fit', 'Another shape than the arena\'s: crop to fill it, or fit inside it with bars', pick(clipSet, 'fit', ['crop', 'letterbox'], CLIP_TIPS, String)),
     row('show', 'What is drawn over the fight', ...[['hud', 'Health bars and callouts'], ['labels', 'The label spans\' captions'], ['inputs', 'The input display (your presses)'], ['meter', 'The frame meter']]
       .map(([k, tip]) => toggle(k, tip, () => expSet()[k], v => { expSet()[k] = v; saveUi(); }))),
-    h('div', { cls: 'bar' }, button(':download: export', 'Render the in–out range with its slow motion, camera and labels, and save it', () => { closePop(); exportReel(); })));
+    h('div', { cls: 'bar' }, button(':download: export', 'Render it at this size and save it as a file', () => { closePop(); rp.expWhat === 'highlights' ? exportHighlights() : exportReel(); })));
 }
 
 // ---------- toolbar, side panel ----------
@@ -730,13 +742,29 @@ function rpStats() {
   return fightStats(rp.base, rp.lanes).map(st => ({ l: rp.lanes[st.id], rows: [['dealt', st.dealt], ['hits', st.hits], ['blocked', st.blocked], ['parried', st.parried],
     ['thrown', st.thrown], ['best combo', st.bestCombo ? st.bestCombo + ' hits' : '–'], ['top combo dmg', st.topComboDmg || '–'], ['K.O.', st.koF !== null ? fmtT(rp.T[st.koF]) : '–']] }));
 }
+// a time typed in seconds (Enter or leaving it sets it, on the nearest frame; Esc puts it back); get / set in frames
+function secField(get, set, tip) {
+  const inp = h('input', { cls: 'v sec', inputMode: 'decimal', tip: tip + ' · type seconds, Enter sets it' });
+  const show = () => { inp.value = rp.T[get()]?.toFixed(2) ?? ''; };
+  reg(inp, () => { if (document.activeElement !== inp) show(); });
+  const put = () => { const t = parseFloat(inp.value.replace(',', '.')); if (isFinite(t)) set(nearFrame(clamp(t, 0, rpEnd()))); show(); };
+  inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { put(); inp.blur(); } if (e.key === 'Escape') { show(); inp.blur(); } });
+  inp.addEventListener('change', put);
+  return inp;
+}
 // a footage span in the side panel: go there, its settings (rate / zoom and who / caption), delete; the selected one is marked
 function spanRow(sp, j) {
   const set = (k, v) => footEdit(() => { sp[k] = v; }, 'span' + j + k), seg2 = (k, opts, lbl = String) => seg(opts, () => sp[k], v => set(k, v), {}, lbl);
   const cap = sp.kind === 'label' && h('input', { cls: 'macro', value: sp.text || '', tip: 'The caption' });
   if (cap) { cap.addEventListener('input', () => set('text', cap.value)); cap.addEventListener('keydown', e => e.stopPropagation()); }
   return h('div', { cls: 'bar' + (rp.fsel === j ? ' on' : '') }, h('span', { cls: 'chip', style: `background:${FOOT_KINDS[sp.kind][0]}`, tip: FOOT_KINDS[sp.kind][1] }, sp.kind),
-    button(`${fmtT(rp.T[sp.a])}–${fmtT(rp.T[sp.b])}`, 'Go to the span and select it', () => { rp.fsel = j; rpSeek(sp.a); app.paused = true; panels(); }, 'mini'),
+    button(':my_location:', 'Go to the span and select it', () => { rp.fsel = j; rpSeek(sp.a); app.paused = true; panels(); }, 'mini'),
+    secField(() => sp.a, f => footEdit(() => { const len = sp.b - sp.a; sp.a = Math.min(f, rp.N - 1); sp.b = Math.min(rp.N, sp.a + len); }), 'Where the span starts (it keeps its length)'),
+    h('span', { cls: 'note', textContent: 'for' }),
+    (() => { const len = h('input', { cls: 'v sec', inputMode: 'decimal', tip: 'How long the span lasts · type seconds, Enter sets it' }); const show = () => { len.value = (rp.T[sp.b] - rp.T[sp.a]).toFixed(2); };
+      reg(len, () => { if (document.activeElement !== len) show(); });
+      const put = () => { const t = parseFloat(len.value.replace(',', '.')); if (t > 0) footEdit(() => { sp.b = Math.max(sp.a + 1, Math.min(rp.N, nearFrame(rp.T[sp.a] + t))); }); show(); };
+      len.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { put(); len.blur(); } if (e.key === 'Escape') { show(); len.blur(); } }); len.addEventListener('change', put); return len; })(),
     sp.kind === 'slow' ? seg2('rate', RATES, v => '×' + v) : sp.kind === 'cam' ? [seg2('zoom', ZOOMS, v => v + '×'), seg2('follow', FOLLOW)] : cap,
     button('[', 'Start the span at the playhead', () => footEdit(() => { sp.a = Math.min(rp.n, sp.b - 1); }), 'mini'),
     button(']', 'End the span at the playhead', () => footEdit(() => { sp.b = Math.max(rp.n, sp.a + 1); }), 'mini'),
@@ -796,6 +824,17 @@ function selPanel() {
   });
   return [heading('selection', 'The events you picked: what they are and when; zoom to them, put slow motion, a camera, a label or a bookmark over them, delete selected inputs.'), box];
 }
+// the highlights: the best moments found (best first), pick the ones for the reel; slowed finishers and titles; export
+function hlPanel() {
+  return [heading('highlights', 'The best moments, found from the events (combos of three hits or more, K.O.s, parries, counters, wall hits, throws), best first. Pick the ones for a highlights reel; export joins them in fight order.'),
+    h('div', { cls: 'bar' }, toggle(':speed: slow finish', 'Slow each moment\'s finishing blow to a quarter speed', () => rp.hl.slow, v => { rp.hl.slow = v; }),
+      toggle('titles', 'Show each moment\'s name over its first second', () => rp.hl.titles, v => { rp.hl.titles = v; }),
+      button(':download: export', 'Export the picked moments as one clip (size and format as in footage → export)', () => exportHighlights())),
+    ...rp.moments.length ? rp.moments.slice(0, 12).map(m => h('div', { cls: 'bar trow' },
+      toggle(String(m.score), `Score ${m.score}: put it in the highlights reel`, () => rp.hl.picked.has(m.a), v => { rp.hl.picked[v ? 'add' : 'delete'](m.a); }),
+      button(`${fmtT(rp.T[m.a])} ${m.name}`, 'Go there and select the span', () => { rpSeek(m.a); rp.v = [rp.T[m.a] - 0.2, rp.T[m.b] + 0.2]; rpView(...rp.v); app.paused = true; }, 'mini')))
+      : [h('p', { cls: 'note', textContent: 'No moments yet: combos of three hits, K.O.s, parries, counters, wall hits and throws show here.' })]];
+}
 // the types: show / hide, how many, where in the fight (a strip: click it to go there), previous / next of that type
 function typesPanel() {
   const has = Object.keys(EVENT_TYPES).map(t => [t, rp.events.filter(e => e.type === t)]).filter(([, es]) => es.length);
@@ -817,7 +856,8 @@ function typesPanel() {
 function footSide() {
   return [
     heading('footage', 'The footage edits: in and out, and the spans (slow motion, camera, label) in the timeline\'s footage row; drag a span to move it, its ends to resize it. Saved in the replay file; the export uses them.'),
-    h('p', { cls: 'note', textContent: `in ${fmtT(rp.T[footRange()[0]])} · out ${fmtT(rp.T[footRange()[1]])}` }),
+    h('div', { cls: 'bar' }, h('span', { cls: 'note', textContent: 'in' }), secField(() => footRange()[0], f => footEdit(F => { F.in = Math.min(f, footRange()[1] - 1); }), 'Where the footage starts'),
+      h('span', { cls: 'note', textContent: 'out' }), secField(() => footRange()[1], f => footEdit(F => { F.out = Math.max(f, footRange()[0] + 1); }), 'Where the footage ends')),
     ...foot().spans.map((sp, j) => spanRow(sp, j)),
   ];
 }
@@ -840,7 +880,7 @@ function rpSide() {
     old ? h('p', { cls: 'note warn', textContent: `Recorded with engine v${r.version}, this is v${ENGINE_VERSION}: it may play out differently.` }) : null,
     rp.reel.desync !== null ? h('p', { cls: 'note warn', textContent: `The file goes out of sync with its recording from ${fmtT(rp.T[rp.reel.desync] ?? 0)}.` }) : null,
     h('p', { cls: 'note', textContent: w.fighters.map(f => `${who(f.id)} ${f.ch.name}`).join(' · ') }),
-    ...nowPanel(), ...selPanel(), ...typesPanel(),
+    ...nowPanel(), ...selPanel(), ...typesPanel(), ...hlPanel(),
     ...footSide(), ...markSide(),
     heading('reels', 'This reel and its branches (play on from the playhead as P1 or P2, then keep it). Edit one, or compare it with the one you edit: side by side or as a ghost; the events only one has are marked (B: amber outline, only in A: amber underline).'),
     ...rp.reels.map(r => h('div', { cls: 'bar' + (r === rp.reel ? ' on' : '') },
@@ -875,7 +915,7 @@ const replayMode = {
   render: rpRender,
   ctxBar: rpCtx,
   side: rpSide,
-  open: ['replay', 'now', 'selection', 'types', 'footage', 'bookmarks', 'reels', 'stats'],
+  open: ['replay', 'now', 'selection', 'types', 'highlights', 'footage', 'bookmarks', 'reels', 'stats'],
   overlay: () => rp.reel && stageOpen() === 'events' ? [eventTable()] : [],
   mouse: rpMouse,
   wheel: rpWheel,

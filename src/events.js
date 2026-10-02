@@ -103,3 +103,24 @@ function fightStats(events, lanes) {
       koF: ko ? ko.f : null, hpLeft: l.hp[l.hp.length - 1] };
   });
 }
+// the best moments of a fight, for a highlights reel: combos of 3 hits or more, K.O.s, parries, counter hits, wall hits, throws, clashes.
+// Each is a window (from a little before to a little after, in frames) with a score; windows that overlap merge. Best first
+const MOMENT_SCORES = { 'K.O.': 100, parry: 25, COUNTER: 20, WALL: 15, 'WALL BOUNCE': 15, THROW: 15, CLASH: 10 };
+function findMoments(events, T, before = 0.6, after = 0.8) {
+  const N = T.length - 1, at = t => { let f = 0; while (f < N && T[f + 1] <= t) f++; return f; }, raw = [];
+  for (const e of events) {
+    if (e.cmp) continue;
+    const n = e.kind === 'combo' ? +e.name.split('-')[0] : 0, sc = n >= 3 ? n * 8 + (e.data.dmg || 0) * 0.5 : MOMENT_SCORES[e.kind === 'say' ? e.name : e.kind];
+    if (!sc) continue;
+    const by = e.kind === 'say' && e.name === 'K.O.' ? `K.O. on P${e.who + 1}` : n ? `${n}-hit combo by P${e.who + 1}` : `${e.kind === 'say' ? e.name.toLowerCase() : e.kind} · P${e.who + 1}`;
+    raw.push({ a: at(T[e.f] - before), b: Math.min(N, at(T[e.end ?? e.f] + after) + 1), fin: e.end ?? e.f, score: sc, names: [by] });
+  }
+  raw.sort((p, q) => p.a - q.a);
+  const out = [];
+  for (const m of raw) {
+    const last = out[out.length - 1];
+    if (last && m.a <= last.b) Object.assign(last, { b: Math.max(last.b, m.b), fin: Math.max(last.fin, m.fin), score: last.score + m.score, names: [...last.names, ...m.names] });
+    else out.push({ ...m });
+  }
+  return out.map(m => ({ ...m, score: Math.round(m.score), name: m.names.sort((p, q) => (q.startsWith('K.O.') - p.startsWith('K.O.'))).slice(0, 2).join(' + ') })).sort((p, q) => q.score - p.score);
+}

@@ -408,7 +408,7 @@ Click or drag to go to a moment; it snaps to events within 6 px (Alt: no snappin
 | slow motion | **+ slow** over the selection, at least a second (else a second from the playhead): ×0.5, ×0.25 or ×0.1 |
 | camera | **+ cam**: zoom 1.25× to 3× on P1, P2 or both |
 | label | **+ label**: a caption over the picture |
-| change a span | drag it in the timeline's footage row, its ends to resize (hover tells which); in the side panel's footage section: its settings, **[** / **]** start or end it at the playhead, − / + a quarter second shorter or longer, delete (Delete removes the selected one) |
+| change a span | drag it in the timeline's footage row, its ends to resize (hover tells which); in the side panel's footage section: type its start and length in seconds (in and out too), its settings, **[** / **]** start or end it at the playhead, − / + a quarter second shorter or longer, delete (Delete removes the selected one) |
 | preview | the eye toggle shows the footage in the view, or the plain fight |
 
 **export** renders the in–out range with its slow motion, camera and labels, drawn at the size you pick so it stays sharp: GIF or WebM, 15 / 30 / 50 fps, aspect (the arena's, 16:9, 4:3, 1:1, 9:16), width 320 to 1920 px, crop or letterbox, and what to show over it (health bars, labels, input display, frame meter). The popup shows the range, the length out and the size.
@@ -419,6 +419,8 @@ Click or drag to go to a moment; it snaps to events within 6 px (Alt: no snappin
 - **side** shows A (the edited reel) and B side by side, on the same frame. **overlay** draws B as a see-through ghost over A.
 - Events only B has are amber outlines in the timeline; A's own get an amber underline. The table says "only in A / B", and the stats get a B table.
 - A branch's replay file plays back in sync. Taking over a side the AI played is saved in it, so the switch happens at the same frame.
+
+**Highlights.** The side panel's **highlights** lists the best moments, best first: combos of three hits or more, K.O.s, parries, counter hits, wall hits, throws, clashes. Each is a window from a little before to a little after; windows that overlap merge. The five best are picked; pick others with their score toggle, go to one with its button. **slow finish** slows each finishing blow to a quarter speed, **titles** shows each moment's name over its first second. **export** (or export → what: highlights) joins the picked moments in fight order, at the footage export's size and format.
 
 **Side panel**, from the top:
 
