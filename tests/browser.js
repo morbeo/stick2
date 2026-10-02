@@ -78,7 +78,7 @@ try {
   { pickChar('stick'); studio.stance = 0; setCfg({ plane: '2d' }); setMode('animate'); anim.move = 'jab'; lay('animate').panel = 'inputs'; panels();
     const cell = l => [...document.querySelectorAll('.pad button')].find(b => b.querySelector('.d').textContent.trim().endsWith(l));
     const unset = [...document.querySelectorAll('.pad button')].filter(b => !b.classList.contains('set') && !b.classList.contains('alias'));
-    if (unset.length || !cell('7P').classList.contains('alias')) errs.push('input pads unset ' + unset.map(b => b.textContent));
+    if (unset.length || !cell('7P').classList.contains('set') || !cell('j.7P').classList.contains('alias')) errs.push('input pads unset ' + unset.map(b => b.textContent));
     const pick = (l, t) => { cell(l).click(); [...document.querySelectorAll('.pop button')].find(b => b.textContent.trim() === t || t === 'none' && b.textContent.includes('none')).click(); };
     pick('4K', 'none'); pick('623K', 'none');
     if (!cell('4K').classList.contains('fall') || !cell('623K').classList.contains('none')) errs.push('input none ' + ['4K', '623K'].map(l => cell(l).className));

@@ -410,7 +410,7 @@ The **plane** setting (lanes and belt are 2.5D):
 
 - Fighters are drawn lower and bigger toward the camera.
 - Flat figures only hit within **zReach** of each other's depth, and attacks home in on the target's depth (**zAssist**).
-- **Separate movesets.** In 2.5D (VF style) ↑ is a direction with its own moves (9P headbutt) and Space jumps. The animate panel's input row edits the binds of either (2D / 2.5D).
+- **Separate movesets.** In 2.5D (VF style) ↑ is a direction with its own moves (9P headbutt) and Space jumps. In 2D, ↑, ↗ or ↖ pressed with J or K is an up attack (8P hammer, 9P headbutt, 7P backfist). The animate panel's input row edits the binds of either (2D / 2.5D).
 - **Space** jumps in every plane; with ← / → it's a ninja flip.
 - **Dash:** double tap → / ←. A dash passes through opponents for the first **dashPass** seconds, and on through a body it's already inside while the dash lasts, so it crosses a foe backed against the wall. Two fighters level at a wall are pushed apart by which way they move or face, and never into it.
 - **Run:** hold on after a dash.

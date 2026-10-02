@@ -467,7 +467,7 @@ const LAYERS = {
   turn: ['Turning around, by how far through the turn', f => 1 - Math.abs(f.face)],
 };
 const BINDS = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: 'palms', backKick: 'fadeKick',
-  upPunch: 'hammer', upKick: 'turnKick',
+  upPunch: 'hammer', upKick: 'turnKick', upFwdPunch: 'headbutt', upFwdKick: 'flyingKnee', upBackPunch: 'backfist', upBackKick: 'crescent',
   downPunch: 'launcher', downKick: 'sweep', downFwdPunch: 'bodyBlow', downFwdKick: 'lowKick', downBackPunch: 'crouchJab', downBackKick: 'backSweep',
   dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab', throw2: 'clinch', backThrow: 'backGrab',
   qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: 'charge', dpKick: 'risingKick',

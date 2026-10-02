@@ -97,7 +97,7 @@ test('2D: ↑ jumps and ↑ with an attack is an up attack; 2.5D: ↑ is a direc
     let up = false; for (let i = 0; i < 40; i++) { w.advance(1/60, NOIN); up ||= !w.a.grounded; } return up; })()`);
   assert.ok(air('up', '2d'), '2D ↑ jumps'), assert.ok(!air('up', 'lanes'), 'lanes ↑ does not jump');
   const seen = (inp, plane) => run(`fight({ a: [0.1, '${inp}'], b: 'dummy', ax: 330, bx: 372, period: 9, cfg: { plane: '${plane}' } }, [CHARS.stick, CHARS.stick], 40).seen`).join(' ');
-  assert.match(seen('up+fwd+punch', '2d'), /a:hammer/), assert.match(seen('up+fwd+punch', 'lanes'), /a:headbutt/);
+  assert.match(seen('up+punch', '2d'), /a:hammer/), assert.match(seen('up+fwd+punch', '2d'), /a:headbutt/), assert.match(seen('up+fwd+punch', 'lanes'), /a:headbutt/);
 });
 
 test('character stats: max jumps, jump height under any gravity, air dash, air dodge, fast fall, grab range', () => {
