@@ -2,7 +2,7 @@
 
 [← docs index](README.md)
 
-No build step: `index.html` loads the scripts in `src/` in order. `tools/build-info.js` writes `src/build.js` (run by `npm test`); `tools/screenshots.js` regenerates the images in `docs/img/`.
+No build step: `index.html` loads the scripts in `src/` in order. `tools/build-info.js` writes `src/build.js` (run by `npm test`); `tools/screenshots.js` regenerates the images in `docs/img/`, and `tools/animations.js` the short animations (`anim-*.png`: each loops one scenario, saved as an animated PNG; `node tools/animations.js [name …]`).
 
 ## Icons
 

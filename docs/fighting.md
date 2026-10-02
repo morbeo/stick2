@@ -8,14 +8,30 @@ The engine: how fights play, every system behind a setting group.
 
 - **buttons, guard & damage**: P / K / S (special) / G (guard), U = S and L = G by default; S with a direction is a different special (S spin, → S rush, ↑ S rising, ↓ S stomp; slots in the editor); holding G guards against the front only (not from behind), ↓ + G is a low guard; tapping G just before a hit parries it (parryWindow) and staggers the attacker; heights high / special high / mid / special mid / low decide what each guard stops, highs pass over a crouching fighter; a move's **hits** (toggles in the move panel: stand / crouch / air, all by default; a lying foe is the otg flag's) leaves the other states alone, it passes through; **air guard** (airGuard setting, off by default): a jumping fighter holding G blocks every height, unless the move is flagged noAirGuard; **juggle points** (jugglePoints setting, 0 = no limit): each hit on a foe in the air or lying spends the move's juggle cost (1 unset) from the foe's pool, refilled when it is back on its feet, and a hit it can't pay for passes through (alongside juggleDecay); the move table shows hits, juggle and the flags; moves have damage, keys can be unblockable (the striking limb glows red while unblockable frames are coming), health bars over the heads, chip damage (per move or the chip setting), blockstun (light blue on the frame meter); per move hit stop (stop), blockstun (bstun) and block push (bpush) override the settings when set; KO and round reset; a heavy blow staggers (the fighter reels), damage fills a stun meter (yellow bar) and a full one makes the fighter dizzy (stars, orange on the meter) until the time runs out or a hit wakes it; scenarios vs guard / vs low guard / parry / specials (S)
 
+| Parry: G tapped just before the blow | Just guard: G a little earlier, no chip |
+| --- | --- |
+| ![Parry: G tapped just before the blow](img/anim-parry.png) | ![Just guard: G a little earlier, no chip](img/anim-just-guard.png) |
+
 ## Combos and cancels
 
 - **combos & cancels**: chains (authored routes, or a free 2-button magic series), specials by motion (↓↘→ J rush, →↓↘ J rising, ↓↙← K spin, ↓↘→ K stomp) that cancel normals on hit, jump cancels into air combos with juggle decay, a Capcom-style **chase jump** after a launcher (move flag launcher, the stick's 2P; chaseJump setting: press = ↑ held as it hits or after, auto = by itself, off): a jump at once up to the victim's height that steers to it for the air combo (scenario chase jump), OTG hits on a fighter lying down (the lie pose rests flat on the floor; with falls = pose it rolls to the angle it lies flattest at); cancel windows show purple on the frame meter and timeline (a key can open the window or be invincible); **cancel test** in the grid compares chain rules on combo fights
 - **combo escalation**: hit stop, shake and zoom that grow per combo hit, attacks or the whole game speeding up (or slowing) along a combo; **combo fx test** in the grid shows each effect on the same air combo
 
+| A chain: J, J, K |
+| --- |
+| ![A chain: J, J, K](img/anim-chain.png) |
+
 ## Throws, counters and recovery
 
 - **throws, counters & recovery**: J while holding guard (P+G) is a throw, K while holding guard (K+G) the second throw (throw2: clinch, into a suplex that lands the victim behind), ← held then P+G the back throw (backThrow: backGrab into backToss, whose key marked turn swings the held victim round, sliding, to land behind the thrower): a short reach that goes through guard but misses a crouching or airborne fighter; the victim is held for techWindow (the pair is not pushed apart while held, so neither slides) and breaks free with P+G (BREAK), else it is thrown down (the grab names its throw animation, toss); ← S is catch, a counter stance whose catch key answers a mid strike from the front with reversal (the key's catchH lists the heights it catches); a fighter knocked flying recovers in the air with G after airRecover, and G just before landing techs the fall into a quick get-up; lastFrame (on by default) lets a press on the tech window's last frame still break or tech (techWindow 0.25 = 15 frames gives 16 chances; off, exactly 15), compared side by side by **window edge test** in the grid; scenarios throw / back throw / throw break / catch / tech / air recover, and break / tech edge and inside (a press on the window's last frame, or one frame before); the AI throws standing guards, tries to break throws and sometimes techs
+
+| Throw: P+G close | Throw break: P+G while held |
+| --- | --- |
+| ![Throw: P+G close](img/anim-throw.png) | ![Throw break: P+G while held](img/anim-throw-break.png) |
+
+| Tech: G just before landing | Air recover: G in flight |
+| --- | --- |
+| ![Tech: G just before landing](img/anim-tech.png) | ![Air recover: G in flight](img/anim-air-recover.png) |
 
 ## Specials
 
@@ -27,6 +43,10 @@ The engine: how fights play, every system behind a setting group.
 - **turning moves** (key flag turn, animate's turn / spin toggles): turn = the fighter turns around during that key, its face sweeping through the profile in the key's time; spin (turn: 2) = a whole turn in the key, back showing halfway, so spinning moves (spin, turnKick, spinElbow, armada and the new spinKick, a spinning heel kick) wind up through their back and strike facing; one turn leaves the back to the foe (turnaround), and with a throw victim held it swings the victim to the other side (back throw)
 - **projectiles** (shots setting; key flag shoot, animate's shoot toggle and shot row: look ki / fire / dark / wave / star, speed, size, life): as the shoot key is reached the move's shot leaves from between its striking limbs and flies straight; it hits with the move's own power, damage, height and stun, is blocked from the side it comes from (a counter can't catch it, the shooter gets no hit stop), meets a foe's shot and both cancel, and fizzles at the walls or when its life runs out; one shot per fighter at a time; the boxes view rings its hitbox; the stick's library has fireball (both palms pushed out); scenarios fireball / fireball clash
 - **rising and multi-hit keys** (key panel: rise slider, rehit toggle): a key with rise lifts the fighter off the floor as it starts (rise = upward speed), so a ground move plays on through the air and lands (hadoo's shoryu, sarj's flash kick, zippa's bird kick, lumpo's torpedo); a key with rehit lets the move hit again whoever it already hit, for multi-hits (zippa's lightning legs, lumpo's hundred slap); scenarios flash kick / lightning legs (a scenario's chars names the characters it plays with)
+
+| A projectile: the fireball |
+| --- |
+| ![A projectile: the fireball](img/anim-fireball.png) |
 
 ## Weapons
 
@@ -40,6 +60,10 @@ The engine: how fights play, every system behind a setting group.
 ## Falls
 
 - **falls**: knocked-down fighters become a **ragdoll** (falls setting): the joints are point masses joined by the bones, with gravity, floor friction (floorGrip), wall splats and bounces, joint limits and a little muscle **tone** pulling toward the fall pose (on its back, arms by its sides), which lets go within a few tenths of a second once the body is on the floor (at once for a K.O.), so it lies limp; even a fully limp body (tone 0) keeps some slack in its knees and elbows, so it lies bent rather than straight; the hit's push lands mostly near the point of impact (topple), so a kick to the head tips the body over and a sweep takes the legs. falls: pose keeps the older keyframed fall, which bounces off the floor (restitution, bounce count) and off the arena walls. ceiling makes the top of the screen bounce a body back down (0 = none); the ragdoll bounces off the floor as a whole bounces times
+
+| Wall bounce |
+| --- |
+| ![Wall bounce](img/anim-wall-bounce.png) |
 
 ## Body and movement
 
