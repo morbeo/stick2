@@ -80,7 +80,7 @@ Pick **survival** in the fight picker (or **ai survival** to watch). Enemies kee
 |---|---|
 | **survMax** | the most enemies standing at once (3) |
 | **survEvery** | seconds between arrivals while fewer stand (2.5) |
-| **survHp** | a new enemy's health, as a share of the health setting (0.5) |
+| **survHp** | a new enemy's health, as a share of the health setting (0.5); 0 is 1 health, one hit each |
 | **survHpTime** | enemy health added per minute survived, as a share of survHp (0.25: +25% a minute) |
 | **survHpKill** | enemy health added per enemy down (0.03: +3% each) |
 | **survHeal** | your health back per enemy down (0.05) |
