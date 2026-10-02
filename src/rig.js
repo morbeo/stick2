@@ -700,7 +700,7 @@ function frameData(m, speed = 1) {
   return mapVals(f, Math.round);
 }
 const moveDamage = m => m.power ? m.damage ?? m.power * 8 : 0;
-// combos (the chains setting authored): a move's next links { punch: 'cross', kick: 'kick' } chain it into another in its cancel window.
+// combos (the chains setting authored): a move's next links { punch: 'cross', kick: 'kick', '6P': 'elbow' } chain it into another in its cancel window (6P: P with → held).
 // starters: moves with links that are bound to an input (bound: a Set of names) or that no move links to
 const linksOf = (ch, n) => Object.entries(ch.moves[n]?.next || {}).filter(([, t]) => ch.moves[t]);
 function comboRoots(ch, bound) {

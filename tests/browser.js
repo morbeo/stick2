@@ -137,6 +137,11 @@ try {
     [...row('jab›cross›uppercut›sweep').querySelectorAll('button')].find(b => b.textContent === 'sweep').click();
     [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('cut')).click();
     if (DEFS.stick.moves.uppercut.next || rows().length !== n0) errs.push('combo cut ' + rows().length);
+    // a direction in the link popup puts the link on it (→: 6P)
+    [...row('jab›cross›uppercut').querySelectorAll('button')].find(b => b.textContent.includes('P')).click(); document.querySelectorAll('.pop .seg button')[5].click();
+    [...document.querySelectorAll('.pop button')].find(b => /(^| )sweep$/.test(b.textContent)).click();
+    if (DEFS.stick.moves.uppercut.next?.['6P'] !== 'sweep' || !rows().some(r => r.cells[1].textContent.endsWith(' 6P'))) errs.push('combo 6P ' + JSON.stringify(DEFS.stick.moves.uppercut.next));
+    setLink('uppercut', '6P', '');
     // hovering a step plays the route up to it next to the cursor: each move until its cancel window, then the next
     { const st = [...row('jab›cross›uppercut').querySelectorAll('button')].find(b => b.textContent === 'uppercut'), mm = new MouseEvent('mousemove', { clientX: 50, clientY: 50, bubbles: true });
       st.dispatchEvent(mm); const pk = document.querySelector('.peek span')?.textContent;

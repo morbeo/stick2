@@ -613,7 +613,7 @@ function moveCard(n, tip) {
 const VIEW_TIPS = { cards: 'A drawing of each move (hover to play it)', list: 'Compact: names only',
   table: 'Every move in a table over the stage: sort by any column, fuzzy filter, edit the values in place, hover a row to see it play',
   inputs: 'Every input over the stage: direction pads per button show which directions have no move of their own, and a table of all inputs; click one to give it a move',
-  combos: 'The combos over the stage: the chain links (P / K after a move chains into the next, chains setting authored) as a tree per starter or a table of routes with damage and frames; add, change and cut links in place' };
+  combos: 'The combos over the stage: the chain links (P / K, or a direction with it like 6P, after a move chains into the next, chains setting authored) as a tree per starter or a table of routes with damage and frames; add, change and cut links in place' };
 // ---------- move table: every move of the character, sortable, fuzzy-filtered, values edited in place ----------
 // startup / active / recovery edits retime that phase's keys; height opens its options; hovering a row plays the move by the cursor
 const PHASE_TIPS = { startup: 'Startup frames (60 fps) before the first active key. Edit to retime the startup keys.',
