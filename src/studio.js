@@ -13,7 +13,8 @@ const edited = () => Object.fromEntries(Object.entries(DEFS).filter(([k, d]) => 
 const save = () => { try { localStorage.setItem(STORE, JSON.stringify({ defs: edited(), current: CURRENT })); } catch {} };
 // settings persist too: the ones changed from the defaults, checked on the way in (known, the right type, in range)
 const CFG_STORE = 'stick2.settings';
-const cfgOk = (k, v) => k in DEFAULTS && typeof v === typeof DEFAULTS[k] && (SPEC[k].opts ? SPEC[k].opts.includes(v) : typeof v !== 'number' || v >= SPEC[k].min && v <= SPEC[k].max);
+// a value a setting can take: known, its type, one of its options; numbers any finite value (outside the usual range is only flagged, riskOf)
+const cfgOk = (k, v) => k in DEFAULTS && typeof v === typeof DEFAULTS[k] && (SPEC[k].opts ? SPEC[k].opts.includes(v) : typeof v !== 'number' || Number.isFinite(v));
 const saveCfg = () => { try { localStorage.setItem(CFG_STORE, JSON.stringify(Object.fromEntries(Object.keys(DEFAULTS).filter(k => CFG[k] !== DEFAULTS[k]).map(k => [k, CFG[k]])))); } catch {} };
 const loadCfg = () => { try { for (const [k, v] of Object.entries(JSON.parse(localStorage.getItem(CFG_STORE)) || {})) if (cfgOk(k, v)) CFG[k] = v; } catch {}
   if (!currentChar().by[CFG.scope]) CFG.scope = currentChar().ids[0]; };

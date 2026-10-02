@@ -56,11 +56,13 @@ test('characters and moves: the built-ins, a definition, frame data; a broken ed
   assert.equal((await s.call('edit_move', { char: 'longlegs', name: 'jab', move: { damage: 9 }, merge: true })).json.damage, 9);
 });
 
-test('settings: checked against their spec (type, range, options), set, read back and reset', async () => {
-  const bad = await s.call('set_settings', { values: { hitstop: 5, plane: 'cube', nope: 1, maxSpeed: 'fast' } });
+test('settings: checked against their spec (type, options; numbers unlimited, warned outside the usual range), set, read back and reset', async () => {
+  const bad = await s.call('set_settings', { values: { hitstop: 0.1, plane: 'cube', nope: 1, maxSpeed: 'fast' } });
   assert.ok(bad.isError);
-  for (const w of ['hitstop', 'plane', 'nope', 'maxSpeed']) assert.ok(bad.content[0].text.includes(w), w);
+  for (const w of ['plane', 'nope', 'maxSpeed']) assert.ok(bad.content[0].text.includes(w), w);
   assert.equal((await s.call('get_settings')).json.all.hitstop, (await s.call('list_settings', { group: 'hit stop' })).json[0].settings.find(x => x.key === 'hitstop').default, 'a rejected call changes nothing');
+  const far = await s.call('set_settings', { values: { hitstop: 50 } });
+  assert.ok(!far.isError && far.json.warnings?.[0].startsWith('hitstop'), 'an unusual number is set, with a warning');
   await s.call('set_settings', { values: { hitstop: 0.1, plane: 'belt' } });
   assert.deepEqual((await s.call('get_settings')).json.changed, { hitstop: 0.1, plane: 'belt' });
   assert.deepEqual((await s.call('reset_settings')).json.changed, {});
@@ -136,7 +138,7 @@ test('the live bridge: the app opened from the server takes fixed commands', { s
     for (let i = 0; i < 100 && !st; i++) { const r = await s.call('browser_state'); if (!r.isError) st = r.json; else await new Promise(ok => setTimeout(ok, 100)); }
     assert.ok(st && st.mode && st.character && st.def.bones, 'the page connects and answers state');
     assert.equal((await s.call('browser_command', { name: 'set_scenario', args: { name: 'ai vs ai' } })).json.scenario, 'ai vs ai');
-    assert.ok((await s.call('browser_command', { name: 'set_settings', args: { values: { hitstop: 9 } } })).isError, 'checked in the page too');
+    assert.ok((await s.call('browser_command', { name: 'set_settings', args: { values: { plane: 'cube' } } })).isError, 'checked in the page too');
     assert.deepEqual((await s.call('browser_command', { name: 'set_settings', args: { values: { hitstop: 0.12 } } })).json.changed, { hitstop: 0.12 });
     const sim = (await s.call('simulate', { scenario: 'ai vs ai', seed: 5, frames: 300, events: false })).json;
     const open = (await s.call('browser_command', { name: 'open_replay', args: { simulation: sim.id } })).json;

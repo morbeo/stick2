@@ -114,7 +114,7 @@ try {
     download = (n, d) => got.push(JSON.parse(JSON.stringify(d))); let feed; openFile = f => f(feed);
     setCfg({ hitstop: 0.12 }); exportFile('settings'); setCfg({ hitstop: DEFAULTS.hitstop }); feed = got[0]; importFile('settings');
     if (CFG.hitstop !== 0.12) errs.push('settings import ' + CFG.hitstop);
-    feed = { format: 'stick2.settings', cfg: { hitstop: 99 } }; importFile('settings'); if (CFG.hitstop !== DEFAULTS.hitstop) errs.push('settings range ' + CFG.hitstop);
+    feed = { format: 'stick2.settings', cfg: { hitstop: 99 } }; importFile('settings'); if (CFG.hitstop !== 99) errs.push('settings any number ' + CFG.hitstop); CFG.hitstop = DEFAULTS.hitstop;
     exportFile('everything'); if (got[1]?.format !== 'stick2.everything' || got[1].current !== CURRENT) errs.push('everything export');
     download = dl; openFile = of; }
   // side panel: headings fold their section (remembered), advanced rows wait behind "more", a search shows everything
@@ -356,11 +356,11 @@ try {
   // survival: the side panel has the Survival settings, the fight draws with its time counter
   { setMode('play'); lab.scen = 'survival'; build(); panels(); const w = lab.cells[0].w; for (let i = 0; i < 200; i++) w.advance(1/60, NOIN); labRender();
     if (!w.scen.survival || w.survT < 3 || ![...document.querySelectorAll('#side h3')].some(e => e.textContent.includes('Survival'))) errs.push('survival ' + w.survT);
-    // a slider's value typed: survHp 0 (kept within the range: -1 gives 0, undoable) brings 1-health enemies
+    // a slider's value typed: any number is kept (-1 for survHp, flagged red: below a range that never goes negative), undoable; enemies get 1 health
     const hpRow = [...document.querySelectorAll('#side .row')].find(r => r.firstChild.textContent === 'survHp'), hpv = hpRow?.querySelector('input.v');
     if (hpv) { hpv.value = '-1'; hpv.dispatchEvent(new Event('change')); }
     const w2 = new World(SCENARIOS.survival);
-    if (CFG.survHp !== 0 || hpv.value !== '0' || w2.b.c('health') !== 1) errs.push('survHp typed ' + CFG.survHp + ' ' + w2.fighters.map(f => f.c('health')));
+    syncAll(); if (CFG.survHp !== -1 || hpv.value !== '-1' || !hpv.classList.contains('danger') || w2.b.c('health') !== 1) errs.push('survHp typed ' + CFG.survHp + ' ' + w2.fighters.map(f => f.c('health')));
     undo(); if (CFG.survHp !== 0.5) errs.push('survHp typed undo ' + CFG.survHp);
     lab.scen = 'you vs dummy'; build(); panels(); }
   // the grid's compare kind: two cells with A's and B's settings, the same seed; a click on B takes its settings (undoable); the panels seg opens the diff over it
@@ -621,6 +621,13 @@ try {
         if (!got || got[0].c.width !== 320 || got[0].c.height !== 568) errs.push('export size ' + (got && [got[0].c.width, got[0].c.height]));
         else if (Math.abs(got.length - span * 30) > 3) errs.push('export frames ' + [got.length, Math.round(span * 30)]);
       }); }
+    // 'all' shows every type, and hides them all when all are shown; a toolbar group dragged onto another moves before it
+    { const all = [...document.querySelectorAll('#ctx button')].find(b => b.textContent.endsWith('all')); rp.show = new Set(Object.keys(EVENT_TYPES)); all.click();
+      const off = rp.show.size; all.click(); if (off !== 0 || rp.show.size !== Object.keys(EVENT_TYPES).length) errs.push('types all toggle ' + off);
+      const gs = () => [...document.querySelectorAll('#ctx .grp[data-part]')].map(g => g.dataset.part), before = gs(), dt = new DataTransfer();
+      document.querySelector('#ctx .grp[data-part="' + before[2] + '"] .gl').dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true }));
+      document.querySelector('#ctx .grp[data-part="' + before[0] + '"]').dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true }));
+      if (gs()[0] !== before[2]) errs.push('toolbar drag ' + gs().slice(0, 3)); layReset('replay'); }
     // side panel: 'now' follows the playhead; the selection lists what is picked; a type row's strip seeks
     { panels(); rpSeek(200); mode().render(); const now = [...document.querySelectorAll('#side .nowf')];
       if (now.length < 2 || !$('side').textContent.includes('frame 200 of')) errs.push('side now ' + now.length);

@@ -257,6 +257,10 @@ function makeRand(seed) {
 // ---------- simulation state: checkpoints and replays ----------
 // Replays store inputs, not results: a replay recorded with another ENGINE_VERSION plays out differently.
 // Bump it whenever the simulation changes (the replay test fails until you do).
+// how risky a number is for a setting or property: '' inside its usual range, 'warn' outside it, 'danger' far outside (more than ten
+// ranges away), of the other sign than a range that never goes below zero, or not a number. Values are never limited, only flagged
+const riskOf = (v, min, max) => !Number.isFinite(v) ? 'danger' : min === undefined || v >= min && v <= max ? '' : min >= 0 && v < 0 || v < min - 10 * (max - min) || v > max + 10 * (max - min) ? 'danger' : 'warn';
+const RISK_TIPS = { warn: 'outside the usual range: it may look or play oddly', danger: 'far outside the usual range: the fight may become unstable (bodies flying off, jitter)' };
 const ENGINE_VERSION = 37;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();

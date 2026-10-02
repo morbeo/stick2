@@ -718,7 +718,8 @@ function rpCtx() {
     grp('types', 'The event types shown in the timeline and the table', Object.entries(EVENT_TYPES).map(([k, [col, icon, tip]]) => {
       const t = toggle(`:${icon}:`, `${k}: ${tip}`, () => rp.show.has(k), v => { rp.show[v ? 'add' : 'delete'](k); });
       t.style.color = col; return t;
-    }), button('all', 'Show every type', () => { rp.show = new Set(Object.keys(EVENT_TYPES)); }, 'mini')),
+    }), (() => { const all = toggle('all', 'Show every type, or hide them all when all are shown', () => rp.show.size === Object.keys(EVENT_TYPES).length,
+      v => { rp.show = new Set(v ? Object.keys(EVENT_TYPES) : []); }); return all; })()),
     editGrp(),
     grp('footage', 'How the replay is shown and exported: in / out, slow motion, camera, labels (the fight stays the same)',
       button('[ in', 'Start the footage at the playhead (I)', () => footEdit(F => { F.in = rp.n; })), button('out ]', 'End the footage at the playhead (O)', () => footEdit(F => { F.out = rp.n; })),

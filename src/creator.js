@@ -394,9 +394,9 @@ function boneTable() {
         else if (c.k === 'parent') td.append(button(v[i] || 'hip', tip + ' · click: hang it from another bone', (e, el) => { stop(e);
           popup(el, h('b', { textContent: `${b.id} hangs from` }), seg(['hip', ...parentChoices(def, b.id)], () => b.parent || 'hip', x => { closePop(); setParent(b.id, x === 'hip' ? null : x); fill(); },
             Object.fromEntries(['hip', ...parentChoices(def, b.id)].map(x => [x, x === 'hip' ? 'The hip: a root, like the legs and the waist' : `Hang ${b.id} (and what hangs from it) from ${x}`])))); }, 'mini'));
-        else if (c.num) td.append(h('input', { type: 'number', min: c.num.min, max: c.num.max, step: c.num.step, value: v[i], tip, onclick: stop, onkeydown: stop,
+        else if (c.num) td.append(h('input', { type: 'number', step: c.num.step, value: v[i], tip, onclick: stop, onkeydown: stop,
           onchange: e => { const x = parseFloat(e.target.value), blank = e.target.value === '';
-            setBoneCol(b.id, c.k, c.k === 'min' || c.k === 'max' ? (blank ? null : clamp(x, c.num.min, c.num.max)) : blank ? (c.k === 'stance' ? 0 : undefined) : clamp(x, c.num.min, c.num.max)); fill(); } }));
+            setBoneCol(b.id, c.k, c.k === 'min' || c.k === 'max' ? (blank ? null : x) : blank ? (c.k === 'stance' ? 0 : undefined) : x); fill(); } }));
         else if (c.opts) td.append(button(c.k === 'side' ? SIDE_NAMES[v[i]] : v[i], tip, (e, el) => { stop(e);
           popup(el, seg(Object.keys(c.opts), () => b[c.k] ?? BONE[c.k], x => { setBoneCol(b.id, c.k, x); closePop(); fill(); }, c.opts, c.k === 'side' ? o => SIDE_NAMES[o] : optLabel)); }, 'mini'));
         else if (c.k === 'lock') td.append(button(b.lock ? ':lock:' : '—', tip, e => { stop(e); setBoneCol(b.id, 'lock', b.lock ? undefined : true); fill(); }, 'mini'));

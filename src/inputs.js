@@ -88,10 +88,10 @@ function moveCell(n, m, k, fill) {
   if (!DEFS[CURRENT].moves[n]) return h('td', { textContent: k === 'height' ? m.height || 'mid' : fmt(v ?? '') }); // a weapon class's built-in move: read only
   if (k === 'height') return h('td', {}, button(m.height || 'mid', `${n}: ${HEIGHT_TIPS[m.height || 'mid']} · click to change (every input playing ${n})`, (e, b) => { e.stopPropagation();
     popup(b, seg(Object.keys(HEIGHT_TIPS), () => m.height || 'mid', x => { edit(def => { def.moves[n].height = x; }); closePop(); fill(); }, HEIGHT_TIPS)); }, 'mini'));
-  return h('td', {}, h('input', { type: 'number', min: p.min, max: p.max, step: p.step, value: k === 'damage' ? m.damage ?? '' : v ?? '', placeholder: k === 'damage' ? fmt(moveDamage(m)) : '',
+  return h('td', {}, h('input', { type: 'number', step: p.step, value: k === 'damage' ? m.damage ?? '' : v ?? '', placeholder: k === 'damage' ? fmt(moveDamage(m)) : '',
     tip: `${n} · ${k === 'startup' ? PHASE_TIPS.startup : p.tip} (every input playing ${n})`, onclick: e => e.stopPropagation(), onkeydown: e => e.stopPropagation(),
     onchange: e => { const x = parseFloat(e.target.value);
-      if (k === 'startup') setPhase(n, k, x); else edit(def => { if (x || x === 0 && k === 'damage') def.moves[n][k] = clamp(x, p.min, p.max); else delete def.moves[n][k]; });
+      if (k === 'startup') setPhase(n, k, x); else edit(def => { if (x || x === 0 && k === 'damage') def.moves[n][k] = x; else delete def.moves[n][k]; });
       fill(); } }));
 }
 function inputTable() {

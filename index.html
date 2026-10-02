@@ -13,7 +13,11 @@
   input, button { font: inherit; }
   @font-face { font-family: Icons; src: url(fonts/icons.woff2) format('woff2'); font-display: block; }
   .ic { font-family: Icons; font-size: 1.25em; line-height: 1; vertical-align: -.25em; font-weight: normal; font-style: normal; }
-  button { background: #fbfaf6; border: 1px solid #cfc8bb; border-radius: 3px; padding: 2px 7px; cursor: pointer; color: #333; }
+  button { background: #fbfaf6; border: 1px solid #cfc8bb; border-radius: 3px; padding: 0 6px; height: 22px; line-height: 20px; box-sizing: border-box; cursor: pointer; color: #333; white-space: nowrap; vertical-align: middle; }
+  button .ic { font-size: 15px; vertical-align: -3px; }
+  button.ico { padding: 0; width: 22px; text-align: center; } /* icon only: a small square */
+  button.wide, button:has(canvas), button:has(.d), .card, .movepop button { height: auto; min-height: 22px; line-height: 1.3; white-space: normal; } /* cards, pickers: as tall as they need */
+  button.ico.tog { width: auto; padding: 0 4px; }
   button:hover { border-color: #999; }
   button.on { background: #222; border-color: #222; color: #f3f0e8; }
   button.tog::before { content: '○ '; color: #aaa; }
@@ -28,7 +32,7 @@
   #side .fold > h3 .gops { flex-wrap: nowrap; flex-shrink: 0; } .fold.shut > h3:not(:hover) .gops { display: none; }
   #side h3 .hidebtn { margin-left: auto; color: #999; } #side h3 .gops + .hidebtn { margin-left: 2px; } #side h3:not(:hover) .hidebtn { visibility: hidden; }
   .stagehead > b { margin-right: 6px; }
-  button.mini { padding: 0 2px; font-size: 11px; line-height: 16px; }
+  button.mini { padding: 0 3px; font-size: 11px; height: 18px; line-height: 16px; } button.mini.ico { width: 18px; padding: 0; } button.mini .ic { font-size: 13px; vertical-align: -2px; }
   .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 3px 0; } .bar.col { flex-direction: column; align-items: stretch; }
   #top { grid-area: top; padding: 4px 10px; border-bottom: 1px solid #ddd7cb; }
   .trow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin: 2px 0; }
@@ -37,6 +41,7 @@
   .grp { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px; padding: 0 9px; border-left: 1px solid #ddd7cb; }
   #transport > .grp:first-child { border-left: 0; padding-left: 0; } #global > .grp:last-child { padding-right: 0; }
   .grp .gl { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #aaa; margin-right: 2px; }
+  .grp .gl[draggable] { cursor: grab; } .grp.dragging { opacity: .4; } .grp.dropto { box-shadow: inset 3px 0 0 #c0392b; }
   #top input[type=number] { width: 56px; }
   #stage { grid-area: stage; position: relative; min-width: 0; min-height: 0; }
   #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -87,6 +92,7 @@
   .hpbar { height: 5px; background: #e3ded2; border-radius: 2px; overflow: hidden; } .hpbar i { display: block; height: 100%; }
   .trow { flex-wrap: nowrap; align-items: center; } .trow { gap: 3px; } .trow .tog { width: 100px; flex: none; justify-content: flex-start; white-space: nowrap; overflow: hidden; } .trow .note { width: 22px; text-align: right; margin: 0; } canvas.spark { flex: 1; min-width: 40px; width: 80px; height: 16px; cursor: pointer; background: #efeae0; border-radius: 2px; }
   input.sec { width: 46px; text-align: right; }
+  input.v.warn { background: #fbecc8; border-color: #d4a017; } input.v.danger { background: #f6d5d0; border-color: #c0392b; color: #c0392b; }
   table.stats { font-size: 11px; border-collapse: collapse; width: 100%; } table.stats td, table.stats th { padding: 1px 4px; text-align: right; } table.stats td:first-child { text-align: left; color: #777; }
   .chip .ic { font-size: 13px; } .etable tr { cursor: pointer; } .etable tr.cur td:first-child { box-shadow: inset 3px 0 0 #c0392b; } .note.warn { color: #c0392b; }
   .mtable .bar { margin-bottom: 6px; } .mtable .bar input { flex: 1; }

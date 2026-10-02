@@ -46,7 +46,7 @@ const TOOLS = {
   list_settings: { d: 'The settings (every tunable of the engine), by group. Without group: the groups and their keys. With group: each setting\'s default, current value, range or options and what it does.',
     p: { group: str('a group title, e.g. Movement, Air, Hits, Combos, Guard, Throws, Specials, Power, Plane, Weapons, Juice') }, run: a => S.call('listSettings', a.group) },
   get_settings: { d: 'The current settings: those changed from the defaults, and all of them.', run: () => S.call('getSettings') },
-  set_settings: { d: 'Change settings for this session (simulate, run_checks, rendering use them). Each value is checked against its spec (type, range, options); one bad value rejects the whole call.',
+  set_settings: { d: 'Change settings for this session (simulate, run_checks, rendering use them). Each value is checked against its spec (type, options; numbers any finite value, with a warning outside the usual range); one bad value rejects the whole call.',
     p: { values: obj('{ key: value }, e.g. { "hitstop": 0.1, "plane": "belt" }') }, req: ['values'], run: a => S.call('setSettings', a.values) },
   reset_settings: { d: 'Every setting back to its default.', run: () => S.call('resetSettings') },
 

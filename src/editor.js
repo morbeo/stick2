@@ -682,10 +682,10 @@ function moveTable() {
         const td = h('td');
         if (c.prop || c.phase) {
           const p = c.prop || { min: 1, max: 120, step: 1 };
-          td.append(h('input', { type: 'number', min: p.min, max: p.max, step: p.step, value: v[i], placeholder: c.k === 'damage' && m.power ? fmt(moveDamage(m)) : '',
+          td.append(h('input', { type: 'number', step: p.step, value: v[i], placeholder: c.k === 'damage' && m.power ? fmt(moveDamage(m)) : '',
             tip: `${n} · ${c.tip}`, onclick: e => e.stopPropagation(), onkeydown: e => e.stopPropagation(),
             onchange: e => { const x = parseFloat(e.target.value);
-              if (c.phase) setPhase(n, c.k, x); else edit(def => { if (x) def.moves[n][c.k] = clamp(x, p.min, p.max); else delete def.moves[n][c.k]; });
+              if (c.phase) setPhase(n, c.k, x); else edit(def => { if (x) def.moves[n][c.k] = x; else delete def.moves[n][c.k]; });
               fill(); } }));
         } else if (c.height && v[i]) td.append(button(v[i], `${n}: ${HEIGHT_TIPS[v[i]]} · click to change`, (e, b) => { e.stopPropagation();
           popup(b, seg(Object.keys(HEIGHT_TIPS), () => m.height || 'mid', x => { edit(def => { def.moves[n].height = x; }); closePop(); fill(); }, HEIGHT_TIPS)); }, 'mini'));

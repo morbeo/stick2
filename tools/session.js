@@ -17,7 +17,7 @@ function inside() {
     if (!s) { const near = Object.keys(SPEC).filter(n => n.toLowerCase().includes(k.toLowerCase().slice(0, 4))).slice(0, 5); return `unknown setting "${k}"${near.length ? ` (did you mean ${near.join(', ')}?)` : ''}`; }
     if (typeof v !== typeof s.v) return `${k} takes a ${typeof s.v}, not ${JSON.stringify(v)}`;
     if (s.opts && !s.opts.includes(v)) return `${k} is one of ${s.opts.join(', ')}, not ${JSON.stringify(v)}`;
-    if (typeof v === 'number' && !s.opts && (v < s.min || v > s.max || !Number.isFinite(v))) return `${k} goes from ${s.min} to ${s.max}, not ${v}`;
+    if (typeof v === 'number' && !s.opts && !Number.isFinite(v)) return `${k} takes a finite number, not ${v}`; // any number: outside the usual range is only warned about
     return null;
   };
   const checkCfg = (o = {}) => { const bad = Object.entries(o).map(([k, v]) => cfgProblem(k, v)).filter(Boolean); if (bad.length) fail(bad.join('; ')); return o; };
@@ -105,7 +105,8 @@ function inside() {
       return hit.length ? hit : fail(`no group "${group}": ${out.map(g => g.group).join(', ')}`);
     },
     getSettings: () => ({ changed: changed(), all: { ...CFG } }),
-    setSettings(vals) { checkCfg(vals); Object.assign(CFG, vals); return { set: vals, changed: changed() }; },
+    setSettings(vals) { checkCfg(vals); Object.assign(CFG, vals); const warnings = Object.entries(vals).filter(([k, v]) => typeof v === 'number' && riskOf(v, SPEC[k].min, SPEC[k].max)).map(([k, v]) => `${k} = ${v}: ${RISK_TIPS[riskOf(v, SPEC[k].min, SPEC[k].max)]} (usually ${SPEC[k].min} … ${SPEC[k].max})`);
+      return { set: vals, changed: changed(), ...warnings.length ? { warnings } : {} }; },
     resetSettings() { Object.assign(CFG, DEFAULTS); return { changed: changed() }; },
     changed,
 

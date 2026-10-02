@@ -28,7 +28,7 @@ Three rows, the same in every tab:
 
 - Importing **everything** asks first.
 - A broken character in the file loads nothing.
-- Settings out of range fall back to their default.
+- Settings take any number. Outside a setting's usual range the value box turns amber, far outside it red: the fight may get unstable.
 - **import → compare…** compares a settings or everything file with the current settings, without loading it (below).
 
 ### Compare settings

@@ -32,6 +32,16 @@ function panels() {
   const side = layOrder('side', folds(mode().side().filter(Boolean), app.mode, mode().open || []), s => s.fname);
   app.parts = { ctx: [...new Set(ctx.map(el => el.dataset.part).filter(Boolean))], side: side.map(s => s.fname).filter(Boolean) };
   $('ctx').replaceChildren(...ctx.filter(el => !el.dataset.part || layShown('ctx:' + el.dataset.part)));
+  // a toolbar group moves by dragging its name onto another group (it goes before that one); the order is kept in the tab's layout
+  for (const g of $('ctx').querySelectorAll('.grp[data-part]')) {
+    const gl = g.querySelector('.gl');
+    gl.draggable = true; gl.dataset.tip = `${g.dataset.tip || g.dataset.part} · drag the name onto another group to move this one there`;
+    gl.ondragstart = e => { e.dataTransfer.setData('text/plain', g.dataset.part); g.classList.add('dragging'); };
+    gl.ondragend = () => g.classList.remove('dragging');
+    g.ondragover = e => { e.preventDefault(); g.classList.add('dropto'); };
+    g.ondragleave = () => g.classList.remove('dropto');
+    g.ondrop = e => { e.preventDefault(); const p = e.dataTransfer.getData('text/plain'); if (p && p !== g.dataset.part) layMove('ctx', p, g.dataset.part); };
+  }
   $('side').replaceChildren(...side.filter(s => !s.fname || layShown('side:' + s.fname)));
   $('over').replaceChildren(...mode().overlay?.() || []); // controls placed over the canvas
   syncAll();
