@@ -9,6 +9,8 @@ const run = n => `for (let i = 0; i < ${n}; i++) { mode().tick?.(1 / 60); for (c
 // crop: [x, y, w, h] in page px of a 1400 × 800 window
 const SHOTS = {
   play: [`lab.scen = 'ai vs ai'; setMode('play'); lab.meter = true; build(); panels(); ${run(150)}`, [0, 400, 1100, 370]],
+  // the itch.io cover image (630 × 500)
+  cover: [`lab.scen = 'ai vs ai'; setMode('play'); lab.meter = true; build(); panels(); ${run(150)}`, [440, 268, 630, 500]],
   animate: [`setMode('animate'); anim.move = 'roundhouse'; animMode.enter(); panels(); anim.t = 0.35; anim.playing = false; previewAt(anim.t); mode().render();`, [0, 80, 1100, 720]],
   character: [`setMode('character'); panels(); ${run(30)}`, [0, 80, 1400, 720]],
   gallery: [`setMode('gallery'); panels(); ${run(40)}`, [0, 80, 1100, 600]],
