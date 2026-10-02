@@ -1,5 +1,5 @@
 'use strict';
-// ---------- command palette (⌘K): every mode, toolbar tool, key action, character, move and setting, found by typing ----------
+// ---------- command palette (⌘K): every mode, toolbar tool, key action, the combo editor, character, move and setting, found by typing ----------
 // entries are gathered when it opens, so they follow the current mode's toolbar; ↑ ↓ pick, Enter runs, Esc closes
 function paletteEntries() {
   const tipName = t => (t || '').split(/[:·(]/)[0].trim();
@@ -13,6 +13,10 @@ function paletteEntries() {
     ...Object.keys(MODES).map(m => ({ kind: 'mode', name: m, tip: MODES[m], key: keyOf(m), run: () => setMode(m) })),
     ...tools,
     ...ACTIONS.filter(([a, g]) => SHORTCUTS[a] && g !== 'modes').map(([a, , , tip]) => ({ kind: 'action', name: a, tip, key: keyOf(a), run: SHORTCUTS[a] })),
+    { kind: 'editor', name: 'combos', tip: VIEW_TIPS.combos + ' (in the character tab there, else in animate)', run: () => {
+      if (app.mode === 'character') creator.view = 'combos'; else { anim.view = 'combos'; if (app.mode !== 'animate') setMode('animate'); }
+      panels();
+    } },
     ...Object.keys(DEFS).map(c => ({ kind: 'character', name: c, tip: 'Use this character', run: () => pickChar(c) })),
     ...Object.keys(currentChar().moves).map(n => ({ kind: 'move', name: n, tip: 'Open it in the animate editor', run: () => openMove(n) })),
     ...SCHEMA.filter(s => !Array.isArray(s)).map(s => ({ kind: 'setting', name: s.k, tip: s.tip, run: () => {
@@ -40,7 +44,7 @@ function openPalette() {
       h('span', { cls: 'pk', textContent: e.kind }), h('b', { textContent: e.name }), h('span', { cls: 'pt' }, ...rich(e.tip || '')), e.key && h('kbd', { textContent: e.key }))));
     if (!shown.length) list.append(h('div', { cls: 'note', textContent: 'nothing matches' }));
   };
-  const inp = h('input', { placeholder: 'type a mode, tool, move, character or setting…', oninput: () => { sel = 0; fill(); },
+  const inp = h('input', { placeholder: 'type a mode, tool, combos, move, character or setting…', oninput: () => { sel = 0; fill(); },
     onkeydown: e => {
       e.stopPropagation();
       if (e.key === 'Escape') closePalette();

@@ -153,6 +153,11 @@ try {
     sb('moves').click(); if (document.querySelectorAll('.mtable tbody tr').length !== Object.keys(currentChar().moves).length) errs.push('character move table');
     [...document.querySelectorAll('.mtable .bar button')].find(b => b.textContent.includes('editor')).click(); if (document.querySelector('.mtable') || app.mode !== 'character') errs.push('character move table close');
     sb('inputs').click(); if (!document.querySelector('.mtable')) errs.push('character inputs'); creator.view = null; panels(); }
+  // ⌘K: combos opens the combo editor over the stage (character tab: there, else animate)
+  { setMode('play'); const e = paletteEntries().find(e => e.name === 'combos' && e.kind === 'editor'); e?.run(); panels();
+    if (app.mode !== 'animate' || anim.view !== 'combos' || !document.querySelector('.ctable')) errs.push('palette combos ' + app.mode + anim.view);
+    setMode('character'); e?.run(); panels(); if (app.mode !== 'character' || creator.view !== 'combos' || !document.querySelector('.ctable')) errs.push('palette combos in character');
+    creator.view = null; anim.view = 'cards'; panels(); }
   // the gallery: every move, then every movement (with a hover tip); all run without errors
   { setMode('gallery'); const n = Object.keys(currentChar().moves).length, mv = lab.cells.filter(c => c.motion);
     if (lab.cells.length !== n + Object.keys(MOVEMENTS).length || mv.length !== Object.keys(MOVEMENTS).length || !mv.every(c => c.tip)) errs.push('gallery cells ' + lab.cells.length);
