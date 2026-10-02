@@ -2,7 +2,44 @@
 
 [← docs index](README.md)
 
-**Tests**: `npm test` runs the engine unit tests and the scenario / character regression snapshots in Node (no dependencies; `npm run test:update` rewrites the snapshots after an intended change); `tests/fixtures/replays.json` holds recorded fights that must still play out identically: a change to the simulation fails it, then bump `ENGINE_VERSION` in core.js (old replay files are then flagged as from another version) and re-record with `npm run test:update`; `npm test` also runs `tools/build-info.js` (or `npm run build-info`), which writes `src/build.js` (git commit, branch, date, uncommitted changes; ignored by git) shown in the **debug** popup (:ssid_chart: in the menu bar), next to the engine version, frame rate and the focused fight's seed, frame, state hash and fighters (copy button for bug reports); `npm run test:browser` loads the page in headless Chrome and goes through every mode, character and stance checking for errors. `npm run coverage` runs the Node tests with V8 coverage of the engine (src: core, rig, fighter, world, brain, loaded into a vm context by `tests/load.js` under their real paths) and prints line / branch / function coverage per file; the UI modules need the DOM and are covered by the browser test instead.
+The engine tests run in Node with no dependencies. A headless Chrome test covers the UI.
+
+## Running the tests
+
+| Command | What it does |
+|---|---|
+| `npm test` | engine unit tests and the scenario / character regression snapshots, in Node (also writes the build info first) |
+| `npm run test:update` | rewrites the snapshots after an intended change |
+| `npm run test:browser` | loads the page in headless Chrome and goes through every mode, character and stance, checking for errors |
+| `npm run test:all` | `npm test`, then the browser test |
+| `npm run test:matrix` | every move of every character in the full move matrix (`MATRIX=full`), before a release |
+| `npm run coverage` | the Node tests with V8 coverage of the engine |
+| `npm run build-info` | writes `src/build.js` only |
+
+## Snapshots and replays
+
+- `tests/snapshots/` holds the scenario and character regression snapshots. After an intended change, `npm run test:update` rewrites them.
+- `tests/fixtures/replays.json` holds recorded fights that must still play out identically. Any change to the simulation fails it.
+
+After a change to the simulation:
+
+1. Bump `ENGINE_VERSION` in core.js. Old replay files are then flagged as from another version.
+2. Re-record with `npm run test:update`.
+
+## Build info and the debug popup
+
+![The debug popup](img/debug.png)
+
+`npm test` also runs `tools/build-info.js` (or `npm run build-info`). It writes `src/build.js`: git commit, branch, date and uncommitted changes. The file is ignored by git.
+
+The build info is shown in the debug popup (the chart button in the menu bar), next to the engine version, frame rate and the focused fight's seed, frame, state hash and fighters. Its copy button copies all of it for bug reports.
+
+## Coverage
+
+`npm run coverage` runs the Node tests with V8 coverage of the engine and prints line / branch / function coverage per file.
+
+- Covered: the engine in `src/` (core, rig, fighter, world, brain), loaded into a vm context by `tests/load.js` under their real paths.
+- The UI modules need the DOM, so the browser test covers them instead.
 
 ## The suites
 
@@ -25,7 +62,11 @@ A data check lists every problem it finds, one line each (`stick.jab: punch chai
 
 ## Seeds
 
-The engine takes no clock and no hidden randomness: time comes in as each frame's `dt`, and all chance (the AI, sparks, random weapons) comes from the world's seeded generator (`new World(scenario, settings, seed, chars)`). The snapshot, replay and unit tests use fixed seeds.
+The engine has no clock and no hidden randomness:
+
+- Time comes in as each frame's `dt`.
+- All chance (the AI, sparks, random weapons) comes from the world's seeded generator: `new World(scenario, settings, seed, chars)`.
+- The snapshot, replay and unit tests use fixed seeds.
 
 The randomized tests share one seed from `tests/seed.js`, printed on every run (`# seed 1`):
 
@@ -38,13 +79,46 @@ The randomized tests share one seed from `tests/seed.js`, printed on every run (
 
 ## The move matrix
 
-`npm test` plays each move in 2 cells of the matrix (about 340 cells, 5 s), the cells picked by the seed: `SEED=random npm test` tries others. `npm run test:matrix` (`MATRIX=full`) plays every move of every character in all 28 columns against itself, about 36,000 cells in 8 minutes, before a release. A failure lists each bad cell (`stick.jab vs sneeko, target guard back turned near: a position became NaN`) with the command that reruns it; the Tests view (animate tab) shows the same cell playing.
+![The move test matrix](img/tests.png)
 
-Against its own character a cell must also hit, be blocked or whiff as the Tests view expects (its own setup, standing and facing at the move's range, must connect). Against other characters only the invariants are checked: some moves still miss a target of another size there, as known bugs (Tests view, against: all): grumbo's overhand misses almost everyone; highs from grumbo, noodo and gloomo (backfist, hook, chainPunch, guardCancel, headbutt, palms) pass over the short gogili; hadoo's tatsu, jabbo's buffaloHead, zippa's birdKick, sarj's kneeBazooka and gogili's stomp miss one to three of the others.
+The same matrix as the [Tests view](modes.md#tests), run in Node.
+
+| Run | Cells | Time |
+|---|---|---|
+| `npm test` | each move in 2 cells picked by the seed, about 340 | 5 s |
+| `npm run test:matrix` (`MATRIX=full`) | every move of every character in all 28 columns against itself, about 36,000 | 8 minutes |
+
+- `SEED=random npm test` tries other cells.
+- Run the full matrix before a release.
+- A failure lists each bad cell (`stick.jab vs sneeko, target guard back turned near: a position became NaN`) with the command that reruns it. The Tests view (animate tab) shows the same cell playing.
+
+### What is checked
+
+- **Against its own character:** a cell must also hit, be blocked or whiff as the Tests view expects. Its own setup (standing and facing at the move's range) must connect.
+- **Against other characters:** only the invariants. Some moves still miss a target of another size there.
+
+### Known misses
+
+Known bugs, visible in the Tests view with against: all:
+
+- grumbo's overhand misses almost everyone.
+- Highs from grumbo, noodo and gloomo (backfist, hook, chainPunch, guardCancel, headbutt, palms) pass over the short gogili.
+- hadoo's tatsu, jabbo's buffaloHead, zippa's birdKick, sarj's kneeBazooka and gogili's stomp miss one to three of the others.
 
 ## Fuzzing
 
-Fuzz case *i* plays with seed `SEED + i` and is made from that seed alone (characters, scenario, settings), so one case replays by itself: `SEED=10 FUZZ=1 node --test tests/fuzz.test.js`. A failing case is shrunk before it is reported: each setting is dropped while the fight still fails, and it plays only up to the failing frame. The report shows the seed, what broke and on which frame, the few settings that cause it, the replay command and the engine call that rebuilds the fight (this one from a fault planted to try the shrinker):
+Fuzz case *i* plays with seed `SEED + i` and is made from that seed alone (characters, scenario, settings). So one case replays by itself:
+
+```
+SEED=10 FUZZ=1 node --test tests/fuzz.test.js
+```
+
+A failing case is shrunk before it is reported:
+
+- Each setting is dropped while the fight still fails.
+- It plays only up to the failing frame.
+
+The report shows the seed, what broke and on which frame, the few settings that cause it, the replay command and the engine call that rebuilds the fight. This one comes from a fault planted to try the shrinker:
 
 ```
 seed 10: frame 75, gogili: a position, speed or health became NaN
