@@ -12,11 +12,12 @@ test('every built-in character compiles with poses, moves and a main stance', ()
   }
 });
 
-test('samplePose hits the first key at t=0 and the last key at the end', () => {
+test('samplePose hits the first key at t=0, the last key at the end, and holds it after', () => {
   const r = run(`(() => { const ch = CHARS.stick, m = ch.moves.jab;
-    return { t: total(m), a: samplePose(ch, m, 0), z: samplePose(ch, m, total(m)), k: m.keys[m.keys.length - 1].p, s: ch.poses.stance }; })()`);
+    return { t: total(m), a: samplePose(ch, m, 0), z: samplePose(ch, m, total(m)), after: samplePose(ch, m, total(m) + 1), k: m.keys[m.keys.length - 1].p, s: ch.poses.stance }; })()`);
   assert.ok(r.t > 0);
   for (const b in r.k) assert.ok(Math.abs(r.z[b] - r.k[b]) < 1e-6, b);
+  assert.deepEqual(r.after, r.z);
 });
 
 test('stats scale the fight settings per character', () => {
@@ -850,4 +851,11 @@ test('move checks: each target column says what may happen (guard blocks from th
   for (const [i, r] of res.entries()) assert.equal(r.issues.length, 0, `column ${i}: ${JSON.stringify(r)}`);
   assert.equal(res[0].out, 'hit'); assert.equal(res.find((r, i) => run(`CHECK_COLS[${i}].s`) === 'guard' && i % 4 === 0).out, 'block');
   assert.ok(res.every(r => r.t < 4), 'each settles inside its limit (a knockdown included)');
+});
+
+test('move checks: a move whose hits leave out a state must whiff it, and a jab that cannot reach its own setup is flagged', () => {
+  const r = JSON.parse(run(`(() => { const j = CHARS.stick.moves.jab, ch = { ...CHARS.stick, moves: { ...CHARS.stick.moves, dud: { ...j, hit: [] } } };
+    return JSON.stringify({ air: allowed({ ...j, hits: ['air'] }, CHECK_COLS[0]), dud: runCheck(ch, CHARS.stick, 'dud', CHECK_COLS[0]) }); })()`));
+  assert.deepEqual(r.air.ok, ['whiff']), assert.match(r.air.why, /leave out stand/);
+  assert.equal(r.dud.out, 'whiff'), assert.deepEqual(r.dud.issues, ['whiffs its own setup: a standing target in reach']);
 });

@@ -32,3 +32,18 @@ test('flying and lying weapons, sparks, rings and dust draw; a flying weapon sho
   assert.ok(r.kinds.length >= 2, 'particles: ' + r.kinds);
   assert.deepEqual(r.bad, []);
 });
+
+test('every projectile look, styled spark and glow draws without NaN', () => {
+  const r = JSON.parse(run(`(() => { const w = new World(SCENARIOS['you vs ai'], { boxes: true, weapon: 'dagger', weaponStart: 'held' }, 7), { ctx, st } = stubCtx();
+    w.loop = false; w.advance(1/60, NOIN);
+    const looks = ['ki', 'fire', 'dark', 'wave', 'star'];
+    looks.forEach((look, i) => w.shots.push({ x: 200 + i * 80, y: 300, z: 0, r: 12, t: 0.1, dir: i % 2 ? 1 : -1, look }));
+    w.drawShots(ctx);
+    for (const s of ['heavy', 'slash', 'blunt']) w.spark(s, [400, 300], 0, 1);
+    const kinds = [...new Set(w.parts.map(p => p.t))]; w.drawParticles(ctx);
+    w.a.force('charge'); w.a.draw(ctx); // unblockable frames ahead: the striking limbs glow
+    w.b.action = { m: w.b.ch.moves.stance || Object.values(w.b.ch.moves)[0], i: 0, t: 0, hits: [], charge: 0.2 }; w.b.draw(ctx); // a throw charging
+    return JSON.stringify({ kinds, calls: st.calls, bad: [...new Set(st.bad)] }); })()`));
+  for (const k of ['flash', 'ring', 'slash', 'spark']) assert.ok(r.kinds.includes(k), 'particle ' + k);
+  assert.ok(r.calls > 100), assert.deepEqual(r.bad, []);
+});

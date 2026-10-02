@@ -40,3 +40,11 @@ test('a replay file holds what the fight needs, and a changed one is caught as a
   const tail = { ...r, frames: r.frames.map((f, i) => i === r.frames.length - 5 ? [f[0] * 1.5, f[1]] : f) };
   assert.equal(play(tail), r.frames.length, 'a change after the last checkpoint: caught by the end checksum');
 });
+
+test('a fight saved as a replay (through JSON) plays back with the same end state', () => {
+  const r = JSON.parse(run(`(() => { const w = new World(SCENARIOS['you vs ai'], {}, 3, [CHARS.stick, CHARS.hadoo]); w.loop = false;
+    for (let i = 0; i < 200; i++) w.advance(1 / 60, { ...NOIN, right: i % 50 < 30, punch: i % 17 === 0 });
+    return JSON.stringify({ r: makeReplay(w, 'you vs ai'), end: w.stateHash() }); })()`));
+  assert.equal(r.r.end, r.end), assert.equal(r.r.frames.length, 200), assert.ok(!('boxes' in r.r.cfg), 'display settings stay out');
+  assert.equal(play(r.r), null);
+});
