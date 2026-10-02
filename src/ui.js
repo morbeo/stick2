@@ -160,6 +160,16 @@ function folds(els, scope, open) {
   return out;
 }
 const adv = el => { el.classList.add('adv'); return el; };
+// a smaller fold for a handful of rows that are a unit within a bigger section (e.g. the fx stack on a bone, a move or a key):
+// an <h4> toggles a nested .fbody, the same way a heading does; folded state persists under its own name, per mode
+function subFold(name, els) {
+  const k = app.mode + ':sub:' + name.replace(/:[a-z_]+:/g, '').trim().toLowerCase();
+  const hd = h('h4', { tip: 'Click to fold or unfold this group' }, ...rich(name));
+  const sec = h('div', { cls: 'fold sub' }, hd, h('div', { cls: 'fbody' }, els));
+  sec.classList.toggle('shut', !!lay().fold[k]);
+  hd.onclick = () => { lay().fold[k] = sec.classList.toggle('shut'); saveLay(); };
+  return sec;
+}
 
 // ---------- popup: a floating panel under a button; click elsewhere (or the button again) to close ----------
 let pop = null;

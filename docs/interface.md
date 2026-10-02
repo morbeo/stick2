@@ -159,6 +159,7 @@ Every heading carries its buttons on the right, in the same place:
 ### Less at once
 
 - Click a heading to fold its section. Folded ones hide their group buttons until hovered.
+- A few tight groups of rows that belong together (a bone's, a move's or a key's effect stack) fold on their own smaller heading inside the section, the same way.
 - Only the section you work in starts open; each one is remembered per mode in the tab's [layout](#layouts).
 - Groups show their main variables and keep the rest behind a **more** button (moves: power, knock, launch, stun, damage; bones: len, thick, hurt, lag, stretch; settings: a few per group). A search shows every match, folded or not.
 - The character is one button with its drawing, which opens the grid of characters.

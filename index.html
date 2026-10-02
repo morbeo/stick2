@@ -56,9 +56,10 @@
   #side h3 { display: flex; align-items: center; margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
   .row { display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 4px; margin: 2px 0; }
   .row input[type=range] { width: 100%; }
-  .fold > h3 { cursor: pointer; }
-  .fold > h3::before { content: '\e5cf'; font-family: Icons; font-size: 16px; margin: 0 2px 0 -4px; transition: transform .1s; }
-  .fold.shut > h3::before { transform: rotate(-90deg); }
+  #side .row + .row { border-top: 1px solid #e3ded2; }
+  .fold > h3, .fold > h4 { cursor: pointer; }
+  .fold > h3::before, .fold > h4::before { content: '\e5cf'; font-family: Icons; font-size: 16px; margin: 0 2px 0 -4px; transition: transform .1s; }
+  .fold.shut > h3::before, .fold.shut > h4::before { transform: rotate(-90deg); }
   #side:not(.searching) .fold.shut > .fbody, #side:not(.searching) .fold:not(.more) .adv, #side.searching .morebtn { display: none; }
   .morebtn { margin: 2px 0 4px; color: #888; }
   .charpick { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 2px 6px; }
