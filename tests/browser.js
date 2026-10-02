@@ -538,9 +538,19 @@ try {
     q.value = ''; q.dispatchEvent(new Event('input'));
     const lanes = rpLanes().length; [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('input:')).click();
     if (rpLanes().length !== lanes - 1 || rows().some(r => /input/.test(r.cells[1].textContent))) errs.push('replay types');
-    const L = rpLayout(); rpMouse('down', L.tx + L.tw / 2, L.tl.y + 8 * dpr, {}); rpMouse('up', 0, 0, {});
+    const L = rpLayout(); rpMouse('down', L.tx + L.tw / 2, L.ruler + 5 * dpr, { altKey: true }); rpMouse('up', 0, 0, {});
     if (Math.abs(rp.n - frameAt(rp.T[rp.N] / 2)) > 1) errs.push('replay seek ' + rp.n);
     const n1 = rp.n; rewind(1); if (rp.n !== n1 - 1) errs.push('replay rewind ' + [n1, rp.n]);
+    // zoom around a time, fit; fold a fighter's curves; jump to the next event and bookmark; a bookmark goes into the replay file; stats
+    rpZoom(0.25, rp.T[rp.N] / 2); const span = rp.v[1] - rp.v[0]; if (Math.abs(span - rp.T[rp.N] / 4) > 0.01) errs.push('replay zoom ' + span);
+    rpView(0, rpEnd()); if (rp.v[0] !== 0 || rp.v[1] !== rpEnd()) errs.push('replay fit');
+    const rows0 = rpLayout().rows.length, hp = rpLayout().rows.find(r => r.kind === 'hp'); rpMouse('down', rpLayout().tl.x + 5, hp.y + 3, {});
+    if (rpLayout().rows.length !== rows0 - 1 || !rp.fold.size) errs.push('replay fold'); rp.fold.clear();
+    rpSeek(0); rp.show = new Set(['hit']); rpJump(1); const h1 = rp.events.find(e => e.type === 'hit'); if (rp.n !== h1.f) errs.push('replay jump ' + [rp.n, h1.f]);
+    rp.reel.rep.marks.push({ f: 100, name: 'm' }); rebuildEvents(); rpSeek(0); rpJump(1, true);
+    if (rp.n !== 100 || !rp.events.some(e => e.kind === 'mark')) errs.push('replay mark ' + rp.n);
+    const st = rpStats()[0].rows; if (st.find(r => r[0] === 'hits')[1] !== rp.events.filter(e => e.kind === 'hit' && e.who === rpStats()[0].l.id).length) errs.push('replay stats');
+    rp.reel.rep.marks.length = 0; rebuildEvents();
     rp.show = new Set(Object.keys(EVENT_TYPES)); closeStage(); mode().render(); }
   // clips: the subject is the fight, the gallery cell under the mouse or the animate preview; the buffer keeps the last seconds;
   // ⇧X saves; Chrome decodes the GIF (a noisy frame of exact colours: the LZW table fills and restarts) to the same pixels

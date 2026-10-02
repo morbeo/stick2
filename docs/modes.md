@@ -370,7 +370,22 @@ The events are found by playing the replay once. Recording them changes nothing 
 | item | weapons picked up and lost, shots fired |
 | meta | stance switches, waves |
 
-**Timeline:** one lane per shown type, each in its colour. Click or drag to go to a moment, click an event to select it, hover one to see what happened. The red playhead shows the time and the frame.
+**Timeline**, from the top:
+
+- **whole fight:** a minimap with every shown event and the window you see as a box. Click or drag it to move the window.
+- **ruler:** seconds, or frames when zoomed in far. Bookmarks are flags on it.
+- **one block per fighter:** its health (its colour) and stun (dashed orange) curves, red bands where it took a combo, and a frame-meter strip (green startup, red active, blue recovery…). Click its name to fold the curves.
+- **one lane per shown type:** ticks in the type's colour, spans as bars. Ticks closer than 6 px merge into a count. In the input lane presses sit on top (P red, K blue, S purple, jump green, with their letter when zoomed in) and held keys run under them.
+
+Click or drag to go to a moment; it snaps to events within 6 px (Alt: no snapping). Click an event to select it, hover anything to see what it is. The wheel zooms around the mouse, Shift+wheel pans, and the window follows the playhead while it plays. **view** in the toolbar zooms in and out, fits the whole fight, and steps to the previous or next event.
+
+| Key | What it does |
+|---|---|
+| [ / ] | previous / next shown event |
+| ⇧[ / ⇧] | previous / next bookmark |
+| \\ | add a bookmark at the playhead |
+
+**Side panel:** the replay (scenario, length, engine version, fighters), **stats** per fighter (damage dealt, hits, blocked, parried, thrown, best combo, top combo damage, K.O. time), **bookmarks** (go there, rename, delete; saved in the replay file), and the event count per type.
 
 **Event table:** time and frame, type, who, event, details (target, damage, combo, height, span length). The filter is fuzzy, a column heading sorts, and a click on a row goes there. The row of the last event before the playhead is marked.
 

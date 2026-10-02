@@ -20,6 +20,9 @@ const ACTIONS = [
   ['prevKey', 'animate', ['Shift+ArrowLeft'], 'Previous key'], ['nextKey', 'animate', ['Shift+ArrowRight'], 'Next key'],
   ['frameBack', 'animate', ['Comma'], 'Step the move back a frame'], ['frameFwd', 'animate', ['Period'], 'Step the move forward a frame'],
   ['playMove', 'animate', ['Enter'], 'Play / pause the move'], ['onion', 'animate', ['KeyO'], 'Onion skin'], ['aim', 'animate', ['KeyI'], 'Aim the striking limb at the cursor'],
+  ['prevEvent', 'replay', ['BracketLeft'], 'Go to the previous shown event'], ['nextEvent', 'replay', ['BracketRight'], 'Go to the next shown event'],
+  ['prevMark', 'replay', ['Shift+BracketLeft'], 'Go to the previous bookmark'], ['nextMark', 'replay', ['Shift+BracketRight'], 'Go to the next bookmark'],
+  ['mark', 'replay', ['Backslash'], 'Add a bookmark at the playhead'],
   ['deleteBone', 'character', ['Delete', 'Backspace'], 'Delete the selected bone (character mode) or key (animate mode)'],
 ];
 const KEY_STORE = 'stick2.keys';
@@ -36,7 +39,7 @@ const combo = e => (e.altKey ? 'Alt+' : '') + (e.shiftKey ? 'Shift+' : '') + e.c
 // animate and character shortcuts in the editor only, transport, view and mode keys in both
 const FIGHT_MODES = ['play', 'grid'];
 const inFight = () => FIGHT_MODES.includes(app.mode);
-const CTX_OF = { fight: ['fight'], macro: ['fight'], animate: ['editor'], character: ['editor'] };
+const CTX_OF = { fight: ['fight'], macro: ['fight'], animate: ['editor'], character: ['editor'], replay: ['editor'] };
 const ctxOf = g => CTX_OF[g] || ['fight', 'editor'];
 const groupOf = a => ACTIONS.find(x => x[0] === a)?.[1];
 // the combination a key of a group is pressed with in a context
