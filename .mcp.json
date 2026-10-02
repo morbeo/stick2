@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "stick2": { "command": "node", "args": ["tools/mcp.js"] }
+  }
+}

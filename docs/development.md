@@ -10,7 +10,7 @@ How the code is laid out, and the tools that build its generated files.
 - Everything is drawn in code. The only asset is the icon font (see [Icons](#icons)).
 - Tests live in `tests/`, see [Testing](testing.md).
 - The scripts share one global scope, so a new top-level name must not exist in any other `src/` file (a repeated `const` stops the later script).
-- The engine runs without a page too: `tools/engine.js` loads the scripts that need no DOM (core, rig, fx, roster, fighter, world, brain, checks, events) into a Node vm context. The tests use it, and the MCP server will.
+- The engine runs without a page too: `tools/engine.js` loads the scripts that need no DOM (core, rig, fx, roster, fighter, world, brain, checks, events) into a Node vm context. The tests and the MCP server use it.
 - `src/events.js` turns a fight into events (moves, hits, falls, inputs, combos), per-fighter lanes and stats (`recordFight`, `fightStats`), for the replay tab and anything else.
 
 ## Tools
@@ -20,6 +20,7 @@ How the code is laid out, and the tools that build its generated files.
 | `node tools/build-info.js` | writes `src/build.js`: git commit, branch, date, uncommitted changes (`npm test` runs it) |
 | `node tools/screenshots.js [name …]` | regenerates the screenshots in `docs/img/` (headless Chrome; no name = every shot) |
 | `node tools/animations.js [name …]` | regenerates the short animations (`anim-*.png`): each loops one scenario, saved as an animated PNG (no name = every clip) |
+| `node tools/mcp.js [--serve PORT]` | the MCP server (`npm run mcp`): fights, settings, characters, replays and pictures over MCP; `--serve` also serves the app for the live bridge (see [MCP server](mcp.md)) |
 | `npm run itch` | packs `dist/stick2-itch.zip` for itch.io: `index.html`, `docs.html`, `src/`, `fonts/` and `LICENSE` (see [Publishing on itch.io](#publishing-on-itchio)) |
 | `npm run itch:push` | runs the tests, packs the zip and uploads it with butler to `morbeo/stick2:html`, versioned by the commit (refuses uncommitted changes) |
 | `python tools/icons.py MaterialSymbolsOutlined.ttf` | rebuilds the icon font subset (needs fonttools + brotli) |
