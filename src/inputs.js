@@ -49,14 +49,15 @@ const assign = (s, v) => edit(def => {
 });
 const STATE_TIPS = { set: 'has its own move', fall: 'no move of its own: plays the one shown after ↪', none: 'no move: nothing happens', alias: 'no slot of its own here: plays the one shown after =' };
 function pickBind(s, anchor, done) {
-  const ch = handChar(), cur = curBinds(ch)[s], groups = new Map();
+  const ch = handChar(), cur = curBinds(ch)[s], groups = new Map(), customKey = /^(m\d+)(Punch|Kick)$/.exec(s)?.[1];
   for (const n of Object.keys(ch.moves)) { const g = MOVE_GROUPS.type(ch.moves[n], ch, n); groups.set(g, [...groups.get(g) || [], n]); }
   const set = v => { assign(s, v); closePop(); done(); };
   popup(anchor, h('b', { textContent: s }), h('p', {}, ...rich(slotTip(s))),
     h('div', { cls: 'bar' },
       ch.moves[anim.move] && button(`:check: ${anim.move}`, `Bind ${anim.move}, the move open in the editor, to ${s}`, () => set(anim.move)),
       button(`:history: default: ${defaultBind(s) || 'none'}`, 'Drop this bind: the default plays again', () => set(undefined)),
-      button(':block: none', inputs.hand ? 'No weapon move: the unarmed bind plays' : 'No move on this input', () => set(''))),
+      button(':block: none', inputs.hand ? 'No weapon move: the unarmed bind plays' : 'No move on this input', () => set('')),
+      customKey && button(':delete: remove input', `Remove this whole custom input (its P and K binds) from the pads`, () => { removeInput(customKey); closePop(); done(); })),
     ...[...groups].sort((a, b) => (GROUP_ORDER.indexOf(a[0]) + 1 || 99) - (GROUP_ORDER.indexOf(b[0]) + 1 || 99))
       .flatMap(([g, ns]) => [h('h4', { textContent: g }), h('div', { cls: 'bar' }, seg(ns, () => cur, set, Object.fromEntries(ns.map(n => [n, `Bind ${n} to ${s}`]))))]));
 }
@@ -124,19 +125,20 @@ function inputTable() {
     }));
   };
   const ch = currentChar(), names = ch.stances.map(s => s.name);
-  let table;
+  // the pads on the left, the details table (toggled by "details") on the right: a split, not a scroll down to reach it
+  const left = h('div', { cls: 'icol' }, h('div', { cls: 'legend' }, ...Object.entries({ set: 'own move', fall: '↪ falls back', none: '— nothing', alias: '= same as' }).map(([k, l]) => h('span', { cls: 'key ' + k, tip: STATE_TIPS[k], textContent: l })), count), pads);
+  const table = h('table', {}, h('thead', {}, h('tr', {}, ['input', 'slot', 'move', 'plays', 'keys', 'startup', 'height', 'damage', 'power', 'stun'].map(k => h('th', { textContent: k })))), body);
+  const right = h('div', { cls: 'icol detail', hidden: !inputs.table }, table);
   wrap.append(
     stageHead('inputs', VIEW_TIPS.inputs,
       seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); }, Object.fromEntries(names.map((n, i) => [i, i ? `Show and edit the binds of the stance ${n}` : 'Show and edit the binds of the main stance'])), i => names[i]),
       seg(['2d', '25'], () => CFG.plane === '2d' ? '2d' : '25', v => { setCfg({ plane: v === '2d' ? '2d' : 'lanes' }); panels(); mode().restart(); },
         { '2d': '2D moveset: ↑ jumps (↑ with P / K together is an up attack), air moves by direction', '25': '2.5D moveset (VF-style): every direction × button is a ground move' }, v => v === '2d' ? '2D' : '2.5D'),
       seg(Object.keys(HAND_TIPS), () => inputs.hand, v => { inputs.hand = v; fill(); }, HAND_TIPS, v => v ? ':swords: ' + v : ':back_hand: unarmed'),
-      toggle(':table_rows: details', 'The table of every input under the pads: its slot, move and keys, and the move\'s startup, height, damage, power and stun (edit them in place)', () => inputs.table, v => { inputs.table = v; table.hidden = !v; }),
+      toggle(':table_rows: details', 'A table of every input beside the pads: its slot, move and keys, and the move\'s startup, height, damage, power and stun (edit them in place)', () => inputs.table, v => { inputs.table = v; right.hidden = !v; }),
       toggle(':filter_list: unassigned', 'Only list the inputs without a move of their own (in the table)', () => inputs.unset, v => { inputs.unset = v; fill(); }),
       button(':add: input', 'Add an input: a motion (e.g. 41236 = ←↙↓↘→) + P or K, then pick its move', (e, b) => addInput(b, fill))),
-    h('div', { cls: 'legend' }, ...Object.entries({ set: 'own move', fall: '↪ falls back', none: '— nothing', alias: '= same as' }).map(([k, l]) => h('span', { cls: 'key ' + k, tip: STATE_TIPS[k], textContent: l })), count),
-    pads,
-    table = h('table', { hidden: !inputs.table }, h('thead', {}, h('tr', {}, ['input', 'slot', 'move', 'plays', 'keys', 'startup', 'height', 'damage', 'power', 'stun'].map(k => h('th', { textContent: k })))), body));
+    h('div', { cls: 'isplit' }, left, right));
   reg(wrap, fill); // undo, plane and stance changes refresh it
   return wrap;
 }
