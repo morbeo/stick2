@@ -54,7 +54,7 @@ const KEYS = [
   ['2.5D', 'plane setting: 2D (↑ jumps) / lanes / belt · 2D and 2.5D have separate movesets (input in animate) · 2.5D: ↑ ↓ move in depth (lanes: double tap = sidestep), 9P headbutt · 7P backfist · 7K crescent (overhead) · 9K flying knee · Space jumps in every plane, with ← / → a ninja flip'],
   ['fixed', '⌘K find anything · ⌘Z undo · ⇧⌘Z redo (character and moves) · Esc back / close · click a panel heading: fold it · ? hints · in a fight (play, grid) a shortcut letter takes ⇧ (⇧P pause, ⇧R restart, ⇧H panel); in the editor modes the plain letter, and the fight keys do nothing'],
   ['grid', 'click a cell: focus it and use its settings, ⌘Z undoes (breed / attacks: breed around it) · Shift+click: only focus'],
-  ['character', 'drag a joint: length + angle · Shift+drag: angle only'],
+  ['character', 'drag a joint: length + angle · Shift+drag: angle only · drag the hip (square): move the waist over the feet'],
   ['animate', 'drag a joint: IK · Alt+drag: rotate one bone · timeline: drag a key to reorder, its edge to retime, double-click to split · Delete removes the key'],
 ];
 function buildTop() {

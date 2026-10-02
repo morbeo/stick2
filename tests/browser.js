@@ -163,6 +163,14 @@ try {
     sb('table').click(); if (document.querySelectorAll('.mtable tbody tr').length !== Object.keys(currentChar().moves).length) errs.push('character move table');
     [...document.querySelectorAll('.mtable .bar button')].find(b => b.textContent.includes('editor')).click(); if (document.querySelector('.mtable') || app.mode !== 'character') errs.push('character move table close');
     sb('inputs').click(); if (!document.querySelector('.mtable')) errs.push('character inputs'); creator.view = null; panels(); }
+  // the character editor's hip handle moves the waist over the feet: the legs bend, the ankles stay; one undo step
+  { setMode('character'); pickChar('stick'); studio.stance = 0; panels();
+    const f0 = edFrame(), hp = f0.P.hip, ids = f0.ch.chains.leg.map(c => ankleOf(c).id), p0 = JSON.stringify(curStance().pose);
+    creatorMouse('down', hp[0], hp[1], {}); creatorMouse('move', hp[0] + 6, hp[1] + 20, {});
+    const f1 = edFrame(), off = Math.max(...ids.map(id => Math.hypot(f1.P[id][0] - f0.P[id][0], f1.P[id][1] - f0.P[id][1])));
+    creatorMouse('up', 0, 0, {});
+    if (Math.abs(f1.P.hip[1] - hp[1] - 20) > 1 || off > 3 || JSON.stringify(curStance().pose) === p0) errs.push('hip drag ' + [f1.P.hip[1] - hp[1], off]);
+    undo(); if (JSON.stringify(curStance().pose) !== p0) errs.push('hip drag undo'); }
   // the bone table rearranges bones: drag a row's id onto another to move it before it (the draw order), click parent to hang it from another bone
   { setMode('character'); pickChar('stick'); creator.table = true; creator.tsort = { k: '', dir: 1 }; creator.tfilter = ''; panels();
     const idCell = id => [...document.querySelectorAll('.btable tbody td:first-child')].find(td => td.textContent === id), ids = () => currentChar().ids;

@@ -53,7 +53,12 @@ function drawEditor() {
     ctx.fillStyle = hov ? '#ffd' : '#fff'; ctx.fill();
     ctx.strokeStyle = on ? RED[0] : '#555'; ctx.lineWidth = (on ? 2 : 1.5) * dpr; ctx.stroke();
   }
-  const hv = ch.by[creator.hover] || sel;
+  { const p = P.hip, on = creator.drag === 'hip', hov = creator.hover === 'hip'; // the hip: a square handle, the waist and legs start there
+    const r2 = (on ? 6 : hov ? 5.5 : 4.5) * dpr;
+    ctx.fillStyle = hov || on ? '#ffd' : '#fff'; ctx.fillRect(p[0] - r2, p[1] - r2, r2 * 2, r2 * 2);
+    ctx.strokeStyle = on ? RED[0] : '#555'; ctx.lineWidth = 1.5 * dpr; ctx.strokeRect(p[0] - r2, p[1] - r2, r2 * 2, r2 * 2); }
+  if (creator.hover === 'hip') text('hip · drag: move the waist over the feet (the legs bend, the feet stay)', Math.min(P.hip[0] + 10 * dpr, r.x + r.w - 380 * dpr), P.hip[1] - 8 * dpr, '#666', 11);
+  const hv = ch.by[creator.hover] || (creator.hover !== 'hip' && sel);
   if (hv) text(`${hv.id} · ${hv.role}${hv.side ? ' · ' + (hv.side === 'f' ? 'front' : 'back') : ''} · ${hv.len}px`,
     Math.min(P[hv.id][0] + 10 * dpr, r.x + r.w - 230 * dpr), P[hv.id][1] - 8 * dpr, '#666', 11);
   text(`${ch.name} · ${ch.bones.length} bones`, r.x + 10 * dpr, r.y + 18 * dpr, '#444', 12, 'bold');
@@ -62,7 +67,7 @@ function drawEditor() {
 function pickBone(x, y) {
   const { ch, P } = edFrame();
   let best = null, bd = 12 * dpr;
-  for (const b of ch.bones) { const d = Math.hypot(P[b.id][0] - x, P[b.id][1] - y); if (d < bd) { bd = d; best = b.id; } }
+  for (const id of [...ch.ids, 'hip']) { const d = Math.hypot(P[id][0] - x, P[id][1] - y); if (d < bd) { bd = d; best = id; } }
   if (best) return best;
   bd = 6 * dpr;
   for (const b of ch.bones) { const d = distSeg([x, y], P[b.parent || 'hip'], P[b.id]); if (d < bd) { bd = d; best = b.id; } }
@@ -84,6 +89,17 @@ function dragTo(x, y, shift) {
     editPose(def)[b.id] = Math.round(local);
     if (!shift && b.shape !== 'circle') def.bones.find(d => d.id === b.id).len = Math.max(2, Math.round(Math.hypot(dx, dy)));
   }, 'drag:' + b.id);
+}
+// dragging the hip moves the body over the feet in the stance: every leg bends so its ankle stays (as in animate, see hipTo)
+function hipDrag(x, y) {
+  const f = edFrame(), h0 = creator.hip0, dx = (x - h0.x) / f.s, dy = (y - h0.y) / f.s, pose = { ...h0.pose }, chain = [];
+  creator.anchor = [h0.a[0] + x - h0.x, h0.a[1] + y - h0.y];
+  for (const c of f.ch.chains.leg) {
+    const a = ankleOf(c), legs = c.slice(0, c.indexOf(a) + 1).filter(b => !b.lock).reverse();
+    ik(f.ch, pose, a.id, [h0.L[a.id][0] - dx, h0.L[a.id][1] - dy], legs, 40);
+    chain.push(...legs);
+  }
+  edit(def => { for (const b of chain) editPose(def)[b.id] = Math.round(pose[b.id]); }, 'drag:hip');
 }
 
 // ---------- body experiment: 9 mutants of a parent body; click one to breed around it ----------
@@ -174,9 +190,11 @@ function creatorMouse(type, x, y, e) {
   if (type === 'down') {
     const id = pickBone(x, y);
     if (id && (e.metaKey || e.ctrlKey)) { pickBoneSel(id, true); syncAll(); } // ⌘/Ctrl+click: add to / take out of the selection
+    else if (id === 'hip') { const f = edFrame(); creator.hip0 = { x, y, a: [...f.o], pose: { ...curStance(f.ch).pose }, L: f.L }; creator.drag = 'hip'; }
     else if (id) { pickBoneSel(id, false); creator.drag = id; syncAll(); }
   } else if (type === 'move') {
-    if (creator.drag) dragTo(x, y, e.shiftKey);
+    if (creator.drag === 'hip') hipDrag(x, y);
+    else if (creator.drag) dragTo(x, y, e.shiftKey);
     else creator.hover = x < edLayout().ed.w ? pickBone(x, y) : null;
     cursor(creator.drag ? 'grabbing' : creator.hover ? 'grab' : 'default');
   } else { creator.drag = null; studio.lastKey = null; }
@@ -200,7 +218,7 @@ const prop = k => selBone()?.[k] ?? BONE[k];
 const BONE_BASIC = ['len', 'thick', 'hurt', 'lag', 'stretch']; // the rest wait behind "more"
 function bonePanel() {
   const title = heading('', 'Properties of the selected bone. Click a joint in the editor or a name above to select; ⌘/Ctrl+click (Shift+click in the tree) adds bones to the selection: the values shown are the last one\'s, a change goes to every selected bone.',
-    'drag joint: length + angle · Shift+drag: angle only · Del delete bone');
+    'drag joint: length + angle · Shift+drag: angle only · drag the hip (square): move the waist over the feet · Del delete bone');
   reg(title, () => { const n = selIds().length; title.firstChild.textContent = `Bone · ${studio.sel}${n > 1 ? ` + ${n - 1}` : ''}`; });
   title.dataset.fold = 'bone';
   const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', { textContent: label }), ...c);
@@ -425,5 +443,5 @@ const creatorMode = {
   mouse: creatorMouse,
   key: creatorKey,
   hint: () => creator.expOn ? (creator.exp.kind === 'random' ? 'click a cell to keep it' : 'click a cell to breed around it') + ' · Esc back to the editor'
-    : 'drag a joint: length + angle · Shift+drag: angle only · click: select · ⌘click: add to the selection · Del delete · ⌘Z undo',
+    : 'drag a joint: length + angle · Shift+drag: angle only · drag the hip (square): move the waist over the feet · click: select · ⌘click: add to the selection · Del delete · ⌘Z undo',
 };
