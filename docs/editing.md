@@ -2,24 +2,176 @@
 
 [← docs index](README.md)
 
-Building fighters and their movesets.
+Building fighters and their movesets. The editors themselves (dragging joints, the timeline) are on the [Modes](modes.md#character) page; this page is about what you build with them.
+
+| Section | Where it is |
+|---|---|
+| [Characters](#characters) | side panel in character and animate |
+| [Moves and inputs](#moves-and-inputs) | the move table over the stage |
+| [Movement layers](#movement-layers) | animate → + layer |
+| [Input table](#input-table) | the **moves** group → inputs |
+| [Combos](#combos) | the **moves** group → combos |
 
 ## Characters
 
-- **characters** (side panel in character / animate, a grid of drawings at one scale): built-in stick (the plain base) and a dozen stereotypes, each with signature moves bound to every input, motions, a second stance, stats and a gait: hadoo (the shoto: ki blast on S, rising uppercut, whirlwind kick on the floor and in the air), grumbo (the grappler: huge and slow, a spinning piledriver on a half circle, bear hug, spinning lariat), jabbo (the boxer: punches on K too, dash straight and upper, rush flurry, a bounce), sneeko (the ninja: double jump, shuriken on the floor and in the air, slide, vanishing kick, a scarf), zippa (the kicker: lightning legs, bird kick, head stomp, crane kick), hicco (the drunken master: sways and slides, a tipsy roll, a sway that catches a blow and strikes back), lumpo (the sumo: hundred slap, flying torpedo, belt throw, sumo splash), sarj (the soldier: sonic boom, flash kick, spinning knuckle, knee bazooka), noodo (the yogi: long limbs, yoga fire, drill kick, a warp, floaty), gogili (the beast: long arms, hunched, rolling ball, electricity, a bite), pollo (the luchador: giant swing, german suplex, dropkick, plancha, high jumps) and gloomo (the boss demon: horns, wings, tail, four arms, dark orb, psycho dash, warp claw, skull dive); **random** generates one (proportions, thickness, extra limbs, stance, stats) from tunable generator variables (the sliders button), with a grid of nine random characters to keep from; copy to make your own, rename, revert, export / import JSON; **stats** in three groups scale the fight settings for that character, with group buttons and the body experiment: ground (walk speed, dash speed, traction, turnaround, weight), air (jump height whatever its gravity, max jumps, gravity, air speed, air acceleration, fall speed, air dodge, air dash) and fight (health, toughness, tempo, springs, grab range); a **radar** above the stats draws the chosen stats (each axis from the stat's minimum to its maximum, dashed ring = 1) with other characters overlaid to compare; the air settings give every fighter air drift, a top fall speed with ↓ fast fall, an air dodge (G in the air: intangible, with a direction a burst) and an air dash (double tap in the air), once per jump; ↓ then jump is a **super jump** (superJump × the launch speed, within superJumpWindow, from a longer squat) and a jump in the air next to a wall a **triangle jump** off it, up and away (wallJump, wallJumpPush, wallJumpReach; it gives back the air dodge and dash); a fighter cannot start a move until it has turned halfway (turnSpeed); while turning the body is never thinner than turnWidth (0 = the old paper-thin flip through a profile, 1 = mirrored at once) and gathers in (turnTuck: knees bend, arms pull in, the back hunches); a four-legged character kicks with its forelegs (knees forward) and its hind legs bend like hocks; fighters collide by their bodies' extent (torso and legs in the stance, behind and in front), so two four-legged characters keep their horse bodies apart and the AI measures range from the body's front; edits are saved in the browser automatically (only changed built-ins are stored, so a stored copy of an old built-in needs revert to get the new version). Any move can be bound to an input (J, K with any direction, running, air, motions), so copied moves are playable
+The character panel shows a grid of drawings, all at one scale.
 
-## Move table and properties
+### The roster
 
-- **move table & properties**: every direction × P / K can be a different move, VF style (6P elbow, 6K push kick, 8P hammer overhead, 8K turn kick, 4K fade kick (steps back as it kicks), 2P launcher, 2K sweep, 1P crouch jab, 3P body blow, 1K back sweep, 3K low kick; 2.5D adds 7P backfist, 7K crescent (overhead), 9K flying knee; in the air ↑ / ↓ have their own moves (j.8P upper and j.8K flip kick launch, j.2P hammer spikes into a bounce, j.2K dives forward), 623K is an invincible rising kick and S in the air a spinning kick; every input of the stick has a move; a diagonal without a move falls back to its vertical, then to neutral); the ninja adds 3K slide and 9K axe kick; ↓↙← J is charge, an unblockable palm strike with a long wind-up; keys can have **armor** (the hit does damage but the move goes on), a hit during the opponent's startup or active frames is a **counter hit** (counterHit: more damage and stun); moves can **crumple** the victim, **wall** splat it or **bounce** it off the floor; the AI uses the new moves and mixes overheads and lows against a guard
+**stick** is the plain base. The dozen others are stereotypes, each with signature moves bound to every input, motions, a second stance, stats and a gait:
+
+| Character | Type | Signature moves |
+|---|---|---|
+| hadoo | the shoto | ki blast on S, rising uppercut, whirlwind kick on the floor and in the air |
+| grumbo | the grappler | huge and slow: a spinning piledriver on a half circle, bear hug, spinning lariat |
+| jabbo | the boxer | punches on K too, dash straight and upper, rush flurry, a bounce |
+| sneeko | the ninja | double jump, shuriken on the floor and in the air, slide, vanishing kick, a scarf |
+| zippa | the kicker | lightning legs, bird kick, head stomp, crane kick |
+| hicco | the drunken master | sways and slides, a tipsy roll, a sway that catches a blow and strikes back |
+| lumpo | the sumo | hundred slap, flying torpedo, belt throw, sumo splash |
+| sarj | the soldier | sonic boom, flash kick, spinning knuckle, knee bazooka |
+| noodo | the yogi | long limbs, yoga fire, drill kick, a warp, floaty |
+| gogili | the beast | long arms, hunched, rolling ball, electricity, a bite |
+| pollo | the luchador | giant swing, german suplex, dropkick, plancha, high jumps |
+| gloomo | the boss demon | horns, wings, tail, four arms, dark orb, psycho dash, warp claw, skull dive |
+
+### Your own
+
+- **random** generates one: proportions, thickness, extra limbs, stance, stats. The sliders button tunes the generator; a grid of nine random characters lets you pick one to keep.
+- **copy** to make your own; **rename**, **revert**, **export / import** as JSON.
+- Edits are saved in the browser automatically. Only changed built-ins are stored, so a stored copy of an old built-in needs **revert** to get the new version.
+- Any move can be bound to an input (J, K with any direction, running, air, motions), so copied moves are playable.
+
+### Stats
+
+Stats scale the fight settings for that character. Three groups, with group buttons and the body experiment:
+
+| Group | Stats |
+|---|---|
+| ground | walk speed, dash speed, traction, turnaround, weight |
+| air | jump height (whatever its gravity), max jumps, gravity, air speed, air acceleration, fall speed, air dodge, air dash |
+| fight | health, toughness, tempo, springs, grab range |
+
+The **radar** above the stats draws the chosen stats: each axis runs from the stat's minimum to its maximum, the dashed ring is 1. Other characters can be overlaid to compare.
+
+### In the air
+
+- Every fighter gets air drift, a top fall speed with ↓ fast fall, an **air dodge** (G in the air: intangible; with a direction, a burst) and an **air dash** (double tap in the air), once per jump.
+- **Super jump:** ↓ then jump. superJump × the launch speed, within superJumpWindow, from a longer squat.
+- **Triangle jump:** a jump in the air next to a wall springs off it, up and away (wallJump, wallJumpPush, wallJumpReach). It gives back the air dodge and dash.
+
+### Turning
+
+- A fighter can't start a move until it has turned halfway (**turnSpeed**).
+- While turning, the body is never thinner than **turnWidth** (0 = the old paper-thin flip through a profile, 1 = mirrored at once).
+- **turnTuck:** the body gathers in as it turns: knees bend, arms pull in, the back hunches.
+
+### Bodies
+
+- A four-legged character kicks with its forelegs (knees forward); its hind legs bend like hocks.
+- Fighters collide by their bodies' extent (torso and legs in the stance, behind and in front). Two four-legged characters keep their horse bodies apart, and the AI measures range from the body's front.
+
+## Moves and inputs
+
+![The move table](img/movetable.png)
+
+Every direction × P / K can be a different move, Virtua Fighter style. The stick's set:
+
+| Input | Move | Input | Move |
+|---|---|---|---|
+| 6P | elbow | 6K | push kick |
+| 8P | hammer overhead | 8K | turn kick |
+| 2P | launcher | 2K | sweep |
+| 1P | crouch jab | 1K | back sweep |
+| 3P | body blow | 3K | low kick |
+| | | 4K | fade kick (steps back as it kicks) |
+| 7P | backfist (2.5D) | 7K | crescent, an overhead (2.5D) |
+| | | 9K | flying knee (2.5D) |
+
+- **In the air**, ↑ and ↓ have their own moves: j.8P upper and j.8K flip kick launch, j.2P hammer spikes into a bounce, j.2K dives forward.
+- **623K** is an invincible rising kick; **S in the air** a spinning kick.
+- **↓↙← J** is charge: an unblockable palm strike with a long wind-up.
+- Every input of the stick has a move. A diagonal without a move falls back to its vertical, then to neutral.
+- The ninja adds 3K slide and 9K axe kick.
+- The AI uses all of these, and mixes overheads and lows against a guard.
+
+### Move properties
+
+- **armor** (per key): the hit does damage but the move goes on.
+- **counter hit:** a hit during the opponent's startup or active frames (counterHit: more damage and stun).
+- **crumple** the victim, **wall** splat it, or **bounce** it off the floor.
+
+### The move table
+
+The **moves** group → **table** puts every move in a table over the stage: type, input, stance, limb, height, startup / active / recovery, power, knock, launch, stun, damage, chip, flags.
+
+- Click a header to sort. The fuzzy filter matches any text column.
+- Edit values in place. Editing frames retimes that phase's keys.
+- Click a row to open the move in the keyframe editor; hover it to play the move next to the cursor.
 
 ## Movement layers
 
-- **movement layers** (animate → **+ layer**): every movement state can get a keyframed layer on top of its procedural / IK motion: crouch, rise, fall, flip, run, dash, backDash, backWalk, airDash, guard, hurt, tumble, lying, dizzy, turn; the layer is a move named crouchLayer (craneCrouchLayer in a stance named crane) whose keys start at the procedural pose of the state (its ref); in a fight its keys play (looping) from the moment the state begins and their offsets from the ref are added to the procedural pose, times the **mix** slider (0 = off, 1 = as keyed; back walk and turn fade in by speed / how far through the turn); layers group as layer in the move list; delete it to go back
+**animate → + layer.** Every movement state can get a keyframed layer on top of its procedural / IK motion.
+
+**States:** crouch, rise, fall, flip, run, dash, backDash, backWalk, airDash, guard, hurt, tumble, lying, dizzy, turn.
+
+- The layer is a move named after the state: **crouchLayer** (or **craneCrouchLayer** in a stance named crane).
+- Its keys start at the state's procedural pose (its ref).
+- In a fight, its keys play (looping) from the moment the state begins, and their offsets from the ref are added to the procedural pose.
+- **mix** sets how much: 0 = off, 1 = as keyed. Back walk and turn fade in by speed, or by how far through the turn.
+- Layers group as **layer** in the move list. Delete one to go back.
 
 ## Input table
 
-- **input table** (animate → view inputs, or the :stadia_controller: button by a move's inputs): a direction pad per button (P, K, S, air P, air K, numpad layout, 6 = toward the opponent) plus the motions and the other inputs, in the moveset of the plane (2D / 2.5D), the stance and the hand (unarmed or a weapon class) picked above it; a direction with its own move is plain, one without falls back to another (amber, ↪ the move it plays), one that does nothing is red, one with no slot of its own plays another (dotted, =); the move being edited is outlined; under the pads a table of every input, the unassigned only on request; click a pad or row to give it a move (the open one, the default, none, or any move), ⌘Z undoes; in the details table the move an input plays has its startup, height, damage, power and stun edited in place (the move changes, so every input playing it); **+ input** adds an input of your own: a motion in numpad notation (e.g. 41236 = ←↙↓↘→, ↑ directions count too) + P or K, kept with the character (motions) and tried before the built-in motions, longest first; its row has a delete button
+![The input table](img/inputs.png)
 
-## Combos view
+The **moves** group → **inputs**, or the controller button by a move's inputs.
 
-- **combos** (the moves group in the toolbar → combos): the chain links (with the chains setting authored, P or K in a move's cancel window chains into its next move; a link can also be on a direction held with the button, like 6P or 2K, → toward the foe, and a direction without its own link falls back to the plain P / K one) as a **tree** (every starter, a move bound to an input with links or one no move links to, with its input in numpad notation and its branches: ✕ cuts a link, P › changes it, + P / + K adds one, ↺ marks a link back into the route) or a **table** (one row per route from a starter to its end, its inputs, damage before combo scaling and frames until the last move ends; click a step to change or cut it, + P / + K extends the route); hovering a move (a step in the table, a node in the tree) plays the combo up to it next to the cursor, each move until its cancel window opens and the last one to its end (tooltips step aside under or above it); + starter starts a chain from a bound move without links; a link offers the normals of the same kind (air with air, weapon with weapon) and a direction row (· none, or an arrow: picking one moves the link there); a warning with a button shows when the chains setting is not authored; ⌘Z undoes
+A direction pad per button (P, K, S, air P, air K; numpad layout, 6 = toward the opponent), plus the motions and the other inputs. Above it, pick the moveset: the plane (2D / 2.5D), the stance, and the hand (unarmed or a weapon class).
+
+| Pad looks | Meaning |
+|---|---|
+| plain | a move of its own |
+| amber, ↪ | falls back to another move (shown) |
+| red | does nothing |
+| dotted, = | no slot of its own: plays another input |
+| outlined | the move being edited |
+
+- Click a pad or row to give it a move: the open one, the default, none, or any move. ⌘Z undoes.
+- Under the pads: a table of every input (the unassigned ones on request).
+- **details:** the move an input plays has its startup, height, damage, power and stun edited in place. The move itself changes, so every input playing it changes too.
+- **+ input** adds an input of your own: a motion in numpad notation plus P or K, e.g. `41236` = ←↙↓↘→ (↑ directions count too). It's kept with the character (motions) and tried before the built-in motions, longest first. Its row has a delete button.
+
+## Combos
+
+![The combos tree](img/combos.png)
+
+The **moves** group → **combos**. The chain links, editable.
+
+With the **chains** setting on authored, P or K in a move's cancel window chains into its next move. A link can also be on a direction held with the button, like 6P or 2K (→ is toward the foe). A direction without its own link falls back to the plain P / K one.
+
+### Tree
+
+Every starter (a move bound to an input that has links, or one no move links to) with its input in numpad notation and its branches.
+
+| Button | Does |
+|---|---|
+| ✕ | cuts a link |
+| P › | changes it |
+| + P / + K | adds one |
+| ↺ | marks a link back into the route |
+| + starter | starts a chain from a bound move without links |
+
+### Table
+
+One row per route from a starter to its end: its inputs, damage before combo scaling, and frames until the last move ends.
+
+- Click a step to change or cut it.
+- **+ P / + K** extends the route.
+
+### Both views
+
+- Hovering a move (a step in the table, a node in the tree) plays the combo up to it next to the cursor: each move until its cancel window opens, the last one to its end. Tooltips step aside, under or above it.
+- A link offers the normals of the same kind (air with air, weapon with weapon), and a direction row: **·** for none, or an arrow. Picking one moves the link there.
+- A warning with a button shows when the chains setting isn't authored.
+- ⌘Z undoes.
