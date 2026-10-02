@@ -59,7 +59,7 @@ function drawEditor() {
     const r2 = (on ? 6 : hov ? 5.5 : 4.5) * dpr;
     ctx.fillStyle = hov || on ? '#ffd' : '#fff'; ctx.fillRect(p[0] - r2, p[1] - r2, r2 * 2, r2 * 2);
     ctx.strokeStyle = on ? RED[0] : '#555'; ctx.lineWidth = 1.5 * dpr; ctx.strokeRect(p[0] - r2, p[1] - r2, r2 * 2, r2 * 2); }
-  if (creator.hover === 'hip') text('hip · drag: move the waist over the feet (the legs bend, the feet stay)', Math.min(P.hip[0] + 10 * dpr, r.x + r.w - 380 * dpr), P.hip[1] - 8 * dpr, '#666', 11);
+  if (creator.hover === 'hip') text('hip · drag: the waist moves, the feet stay', Math.min(P.hip[0] + 10 * dpr, r.x + r.w - 300 * dpr), P.hip[1] - 8 * dpr, '#666', 11);
   const hv = ch.by[creator.hover] || (creator.hover !== 'hip' && sel);
   if (hv) text(`${hv.id} · ${hv.role}${hv.side ? ' · ' + (hv.side === 'f' ? 'front' : 'back') : ''} · ${hv.len}px`,
     Math.min(P[hv.id][0] + 10 * dpr, r.x + r.w - 230 * dpr), P[hv.id][1] - 8 * dpr, '#666', 11);
