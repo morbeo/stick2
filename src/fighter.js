@@ -266,9 +266,18 @@ class Fighter {
       for (const j of this.ch.ids) a.from[j] ??= this.target[j]; // the weapon's bones join the tween where they are
     }
     if (k.warp) this.warp();
+    if (k.shoot) this.shoot(a);
     if (k.shake) this.w.trauma = Math.min(1, this.w.trauma + k.shake); // key events: screen shake, a sound
     if (k.sound) this.w.sound(k.sound, this.x);
     if (this.ch.weapon && a.toss && (k.release || first && !a.m.keys.some(x => x.release))) { this.letGo(true, a.charge); this.action = a; }
+  }
+  // a shoot key: the move's projectile leaves from between its striking limbs (one at a time per fighter; shots setting)
+  shoot(a) {
+    if (!this.c('shots') || this.w.shots.some(s => s.owner === this)) return;
+    const m = a.m, o = m.shot || {}, P = this.body(), ps = hitIds(m).map(id => P[id]).filter(Boolean);
+    const pt = ps.length ? [ps.reduce((s, p) => s + p[0], 0) / ps.length, ps.reduce((s, p) => s + p[1], 0) / ps.length] : [this.x + this.dir * 30, this.groundY + this.y - 60];
+    this.w.shots.push({ x: pt[0], y: pt[1], z: this.z, vx: this.dir * (o.speed ?? 360), dir: this.dir, r: o.size ?? 12, life: o.life ?? 2, t: 0, look: o.look || 'ki', owner: this, m });
+    a.hit = true; // fired: not a whiff
   }
   // reaching for a weapon: it slides and turns on the floor so its handle meets the hand at the grip key; let go if the reach is cut short
   reach(dt) {

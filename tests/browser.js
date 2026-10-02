@@ -36,6 +36,12 @@ try {
     if (currentChar().moves.spin.keys[0].turn !== 2) errs.push('spin has no whole turn');
     tg('spin').click(); const t2 = curMove().keys[0].turn; tg('turn').click(); const t1 = curMove().keys[0].turn; tg('turn').click();
     if (t2 !== 2 || t1 !== true || curMove().keys[0].turn) errs.push('turn toggles ' + [t2, t1, curMove().keys[0].turn]); }
+  // a shoot key: the toggle marks it and the shot row (look, speed, size, life) appears; the built-in fireball shoots
+  { anim.move = 'jab'; selectKey(1); panels(); const tg = l => [...document.querySelectorAll('#side button')].find(b => b.textContent.endsWith(l));
+    if (!currentChar().moves.fireball.keys.some(k => k.shoot)) errs.push('fireball does not shoot');
+    tg('shoot').click(); panels(); const on = curMove().keys[1].shoot, row = [...document.querySelectorAll('#side .row > span:first-child')].some(e => e.textContent === 'shot');
+    tg('wave')?.click(); const look = curMove().shot?.look; undo(); undo(); panels();
+    if (!on || !row || look !== 'wave' || curMove().keys[1].shoot) errs.push('shoot toggle ' + [on, row, look, curMove().keys[1].shoot]); }
   // posing: body reach bends the spine as well, limb reach only the arm; mirror swaps the front and back limbs
   anim.move = 'jab'; selectKey(1);
   for (const r of ['limb', 'body']) {

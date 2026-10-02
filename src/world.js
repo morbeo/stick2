@@ -56,7 +56,7 @@ class World {
       { team: sp.team ?? i }));
     [this.a, this.b] = this.fighters;
     // weapons: one per fighter from the settings (on the floor in front, or in hand), plus the scenario's (items, aw / bw / more[].w = held)
-    this.items = [];
+    this.items = []; this.shots = [];
     const wt = this.cfg.weapon, pickW = () => wt === 'random' ? Object.keys(WEAPONS)[Math.floor(this.rand() * 7)] : wt;
     this.fighters.forEach((f, i) => {
       const held = [s.aw, s.bw][i] ?? specs[i].w;
@@ -131,6 +131,45 @@ class World {
         it.live = false; it.vx *= -0.2; it.vy = -250; it.spin = 10;
         break;
       }
+    }
+  }
+  // ---------- projectiles (Fighter.shoot): fly straight until they hit, meet a foe's shot, leave the arena or run out of life ----------
+  updateShots(h) {
+    const cfg = this.cfg, gone = new Set(), pop = (s, col) => { gone.add(s); this.parts.push({ t: 'ring', x: s.x, y: s.y, z: s.z, life: 0.2, max: 0.2, col, big: true }); };
+    for (const s of this.shots) { s.x += s.vx * h; s.t += h; if (s.t > s.life || s.x < 20 || s.x > W - 20) pop(s, '#aaa'); }
+    for (const s of this.shots) for (const o of this.shots) if (s !== o && !gone.has(s) && !gone.has(o) && s.owner.team !== o.owner.team
+      && Math.abs(s.x - o.x) < s.r + o.r && Math.abs(s.y - o.y) < s.r + o.r && Math.abs(s.z - o.z) <= cfg.zReach) { pop(s, '#d68c14'); pop(o, '#d68c14'); this.clashes++; }
+    for (const s of this.shots) if (!gone.has(s)) for (const o of this.foes(s.owner)) if (Math.abs(o.z - s.z) <= cfg.zReach) {
+      const hit = o.hurtAt([[s.x - s.vx * h, s.y], [s.x, s.y], s.r], false, false);
+      if (!hit) continue;
+      const def = o.defend(s, s.m, null), fr = s.owner.freeze; // blocked from the side it comes from; a counter can't catch it
+      this.onHit(s.owner, o, hit, s.m, def === 'catch' ? 'block' : def);
+      s.owner.freeze = fr; // the shooter is far away: no hit stop for it
+      gone.add(s); break;
+    }
+    if (gone.size) this.shots = this.shots.filter(s => !gone.has(s));
+  }
+  // looks: ki (a blue ball), fire (flickering orange), dark (purple), wave (a crescent, sonic boom), star (a spinning shuriken)
+  drawShots(ctx) {
+    const COL = { ki: ['80,160,255', '#2c6fb0'], fire: ['240,140,30', '#c0392b'], dark: ['142,68,173', '#2c1338'], wave: ['230,200,60', '#b07a2c'], star: ['120,120,130', '#444'] };
+    for (const s of this.shots) {
+      const [rgb, edge] = COL[s.look] || COL.ki, r = s.r * (s.look === 'fire' ? 1 + 0.12 * Math.sin(s.t * 45) : 1);
+      ctx.save(); ctx.translate(s.x, s.y + s.z * ZS);
+      if (s.look === 'star') {
+        ctx.rotate(s.t * 25 * s.dir); ctx.fillStyle = edge; ctx.beginPath();
+        for (let k = 0; k < 8; k++) { const q = k * Math.PI / 4, l = k % 2 ? r * 0.35 : r; ctx.lineTo(Math.cos(q) * l, Math.sin(q) * l); }
+        ctx.fill();
+      } else if (s.look === 'wave') {
+        ctx.scale(s.dir, 1); ctx.lineCap = 'round';
+        for (let k = 0; k < 3; k++) { ctx.strokeStyle = `rgba(${rgb},${0.9 - k * 0.3})`; ctx.lineWidth = 4 - k; ctx.beginPath(); ctx.arc(-k * 9, 0, r * 1.4, -1.1, 1.1); ctx.stroke(); }
+      } else {
+        for (let k = 3; k > 0; k--) { ctx.fillStyle = `rgba(${rgb},${0.12 * (4 - k)})`; ctx.beginPath(); ctx.arc(-s.dir * k * r * 0.6, 0, r * (1 - k * 0.15), 0, 7); ctx.fill(); } // trail
+        ctx.fillStyle = `rgba(${rgb},.45)`; ctx.beginPath(); ctx.arc(0, 0, r * 1.5, 0, 7); ctx.fill();
+        ctx.fillStyle = `rgba(${rgb},.9)`; ctx.strokeStyle = edge; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, r * 0.45, 0, 7); ctx.fill();
+      }
+      if (this.cfg.boxes) { ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, s.r, 0, 7); ctx.stroke(); }
+      ctx.restore();
     }
   }
   drawItems(ctx) {
@@ -208,7 +247,7 @@ class World {
     for (const k of Object.keys(s)) this[k] = cloneState(s[k], memo);
   }
   stateHash() {
-    return hashNums([this.rand.seed, this.hits, this.blocks, this.clashes, this.simT, ...this.items.flatMap(it => [it.x, it.y]),
+    return hashNums([this.rand.seed, this.hits, this.blocks, this.clashes, this.simT, ...this.items.flatMap(it => [it.x, it.y]), ...this.shots.flatMap(s => [s.x, s.t]),
       ...this.fighters.flatMap(f => [f.x, f.y, f.z, f.vx, f.vy, f.hp, f.dir, f.action?.i ?? -1, f.action?.t ?? 0])]);
   }
   // a running key macro (keys.js) presses its steps on top of the keys held
@@ -234,7 +273,7 @@ class World {
     this.zoom *= Math.exp(-h * 10);
     this.bank = Math.min(cfg.hitstopBudget, this.bank + h * cfg.hitstopBudget);
     if (this.frozen) this.frozenT += h;
-    this.updateParticles(h); this.updateItems(h);
+    this.updateParticles(h); this.updateItems(h); this.updateShots(h);
 
     const fs = this.fighters, tg = fs.map(f => this.nearestFoe(f));
     const ins = this.koT ? fs.map(() => NOIN) : this.ctl.map((c, i) => c === 'human' ? this.withMacro(inp, fs[i], tg[i], h) : !c || !tg[i] ? NOIN : c.input(fs[i], tg[i], h));
@@ -447,6 +486,7 @@ class World {
     for (const f of this.fighters.filter(f => !f.hidden).sort((a, b) => a.z - b.z)) // far ones first
       f.draw(ctx, f.freeze > 0 && f === this.victim ? Math.sin(T * 170) * cfg.hitShake : 0);
     this.drawItems(ctx);
+    this.drawShots(ctx);
     this.drawParticles(ctx);
     ctx.restore();
     if (this.scen.waves) { // wave counter

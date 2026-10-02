@@ -786,3 +786,19 @@ test('frameData counts startup / active / recovery in 60 fps frames, attacks sca
   assert.deepEqual(r.fast, { startup: 3, active: 2, recovery: 6 });
   assert.deepEqual(r.still, { startup: 30, active: 0, recovery: 0 }, 'a non-attack ignores the speed');
 });
+
+test('projectiles: a shoot key fires the move\'s shot from its striking limb; it hits from range, is blocked, cancels another and is one at a time', () => {
+  const go = (a, b, cfg = {}, n = 120) => JSON.parse(run(`(() => { const w = new World({ a: ${JSON.stringify(a)}, b: ${JSON.stringify(b)}, ax: 250, bx: 560, cfg: ${JSON.stringify(cfg)} }, {}, 7); w.loop = false;
+    let most = 0, gap = 0, seen = 0; const hp0 = w.b.hp;
+    for (let i = 0; i < ${n}; i++) { w.advance(1/60, NOIN); most = Math.max(most, w.shots.filter(s => s.owner === w.a).length); seen ||= w.shots.length;
+      for (const s of w.shots) gap = Math.max(gap, Math.abs(s.x - s.owner.x)); }
+    return JSON.stringify({ hit: hp0 - w.b.hp, ahp: w.a.hp, most, gap, seen, clashes: w.clashes, blocks: w.blocks, hits: w.hits, ax: w.a.x }); })()`));
+  const r = go(['@fireball'], 'dummy');
+  assert.equal(r.most, 1), assert.ok(r.gap > 200, 'it flies across: ' + r.gap), assert.ok(r.hit >= 6, 'and hits: ' + r.hit), assert.ok(Math.abs(r.ax - 250) < 30, 'the shooter stays put');
+  assert.equal(go(['@fireball', 0.05, '@fireball'], 'dummy').most, 1, 'one shot at a time');
+  const bl = go(['@fireball'], [{ hold: 'guard', t: 2 }]);
+  assert.equal(bl.blocks, 1), assert.ok(bl.hit < 3, 'blocked: chip only ' + bl.hit);
+  const cl = go(['@fireball'], ['@fireball']);
+  assert.ok(cl.clashes >= 1, 'two shots meet and cancel'), assert.equal(cl.hit, 0), assert.equal(cl.ahp, 100);
+  assert.equal(go(['@fireball'], 'dummy', { shots: false }).seen, 0, 'shots off: no projectile');
+});

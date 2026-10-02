@@ -194,6 +194,8 @@ const SCENARIOS = {
   'throw': { a: [0.2, 'punch+guard'], b: [{ hold: 'guard', t: 2 }], ax: 330, bx: 372, period: 2.4 },
   'back throw': { a: [0.1, { hold: 'back', t: 0.1 }, 'back+punch+guard'], b: [{ hold: 'guard', t: 2 }], ax: 330, bx: 372, period: 2.4 },
   // ↗ S turns the back: G held does not guard it (the foe's jab lands from behind), then K faces the foe again for the kick
+  'fireball': { a: [0.2, '@fireball'], b: 'dummy', ax: 220, bx: 560, period: 2 },
+  'fireball clash': { a: [0.2, '@fireball', 0.9, '@fireball'], b: [0.2, '@fireball', 0.7, { hold: 'guard', t: 0.8 }], ax: 220, bx: 580, period: 2.6 },
   'turnaround': { a: [0.2, 'up+fwd+special', 0.6, { hold: 'guard', t: 0.6 }, 'kick'], b: [0.7, '!punch'], ax: 330, bx: 400, period: 3 },
   'throw break': { a: [0.2, 'punch+guard'], b: [0.38, 'punch+guard'], ax: 330, bx: 372, period: 2.4 },
   'catch': { a: [0.3, 'kick'], b: [0.15, 'back+special'], period: 2.4 },

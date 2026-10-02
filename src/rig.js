@@ -189,6 +189,13 @@ const STICK_MOVES = {
   palms: attack({ power: 1.3, damage: 9, hit: ['fh', 'bh'], height: 'mid', knock: 420, stun: 0.36, lunge: 140 },
     [0.08, { torso: -5, afU: 20, afL: 140, abU: 25, abL: 140 }],
     [0.05, { torso: 20, afU: 100, afL: 5, abU: 72, abL: 15, lfU: 40, lfL: -30, lbU: -25, lbL: 0 }], 0.06, 0.24),
+  // a projectile (shoot key): both palms drawn back to the hip, then pushed out; the shot leaves as the push is reached and hits
+  // with the move's own power, damage and height (move field shot: speed, size, life, look)
+  fireball: { power: 1.2, damage: 9, hit: ['fh', 'bh'], height: 'mid', knock: 220, stun: 0.42, special: true, shot: { speed: 360, size: 12, look: 'ki' }, keys: [
+    { d: 0.13, e: 'outQuad', p: { torso: -10, afU: -40, afL: 120, abU: -50, abL: 120, lfU: 35, lfL: -40, lbU: -25, lbL: -10 } },
+    { d: 0.06, e: 'outExpo', shoot: true, p: { torso: 18, afU: 90, afL: 5, abU: 80, abL: 10, lfU: 40, lfL: -35, lbU: -30, lbL: 0 } },
+    { d: 0.16, p: { torso: 18, afU: 90, afL: 5, abU: 80, abL: 10, lfU: 40, lfL: -35, lbU: -30, lbL: 0 } },
+    { d: 0.22, e: 'inOutCubic', p: null }] },
   // the rest of the direction table (see BINDS): 4K steps back as it kicks, 1P a quick crouching poke, 3P a lunging body blow,
   // 1K a sweep with the back leg; 2.5D only (2D diagonals up are jumps): 7P backfist, 7K crescent (overhead), 9K flying knee
   fadeKick: attack({ power: 1.2, damage: 8, hit: 'ff', height: 'mid', knock: 300, stun: 0.36, lunge: -180 },
