@@ -28,6 +28,20 @@ function layApply() {
 // hide or show a part: a toolbar group (ctx:<its label>) or a side section (side:<its heading>)
 const layShown = id => !lay().hide[id];
 function layShow(id, v) { if (v) delete lay().hide[id]; else lay().hide[id] = true; saveLay(); panels(); }
+// the order of the toolbar groups or side sections (kind ctx / side): the named parts take their places in the saved order, the rest stay put
+function layOrder(kind, els, name) {
+  const order = lay().order?.[kind];
+  if (!order) return els;
+  const rank = el => { const i = order.indexOf(name(el)); return i < 0 ? order.length : i; };
+  const named = els.filter(el => name(el)).sort((a, b) => rank(a) - rank(b));
+  return els.map(el => name(el) ? named.shift() : el);
+}
+// move part p of a kind to just before part q (or to the end)
+function layMove(kind, p, q) {
+  const o = app.parts[kind].filter(x => x !== p);
+  o.splice(q && q !== p ? o.indexOf(q) : o.length, 0, p);
+  (lay().order ??= {})[kind] = o; saveLay(); panels();
+}
 // a tab's own display choice (meter, inputs, colours) as a property of obj, kept in the tab's layout
 const layFlag = (obj, k, id = k) => Object.defineProperty(obj, k, { get: () => !!lay().show[id], set: v => { lay().show[id] = !!v; saveLay(); }, enumerable: true });
 // the overlay toggles, in this order on every tab; a tab picks the ones it has, its own extras go after them
@@ -74,13 +88,18 @@ function panelsGrp(names, tips) {
   return grp('panels', 'Tables over the stage, edited in place (click again, × or Esc: close)',
     seg(names, stageOpen, v => openStage(v === stageOpen() ? null : v), mapVals(tips, t => t + ' (click again: close)'), v => STAGE_LABELS[v]));
 }
-const LAY_TIP = 'Layout: what each tab shows, remembered per tab as you go (toolbar groups, side sections, overlays, folds, "more", the side panel); save it under a name, switch between layouts, reset a tab or all';
+const LAY_TIP = 'Layout: what each tab shows, remembered per tab as you go (toolbar groups and side sections and their order, overlays, folds, "more", the side panel); save it under a name, switch between layouts, reset a tab or all';
 // the layout popup (menu bar): what this tab shows, then the named layouts, save as, reset, delete
 function layoutPanel(e, b) {
   const tab = tabOf(app.mode), names = Object.keys(layouts.sets);
   const re = () => { closePop(); layoutPanel(null, b); };
-  const parts = (kind, title, tip, ...first) => h('div', { cls: 'row', tip }, h('span', { textContent: title }), h('div', { cls: 'bar' }, ...first,
-    ...app.parts[kind].map(p => toggle(p, `Show "${p}" (${title}) on this tab`, () => layShown(kind + ':' + p), v => layShow(kind + ':' + p, v)))));
+  // each part a toggle; drag one onto another to put it before that one (onto the row's label: last)
+  let drag = null;
+  const drop = (el, kind, q) => { el.ondragover = e => { if (drag?.kind === kind) e.preventDefault(); }; el.ondrop = e => { e.preventDefault(); layMove(kind, drag.p, q); re(); }; return el; };
+  const part = (kind, title, p) => { const t = toggle(p, `Show "${p}" (${title}) on this tab · drag: move it before another`, () => layShown(kind + ':' + p), v => layShow(kind + ':' + p, v));
+    t.draggable = true; t.ondragstart = e => { drag = { kind, p }; e.dataTransfer.setData('text/plain', p); }; return drop(t, kind, p); };
+  const parts = (kind, title, tip, ...first) => h('div', { cls: 'row', tip: tip + ' · drag a part to reorder' }, drop(h('span', { textContent: title }), kind, null), h('div', { cls: 'bar' }, ...first,
+    ...app.parts[kind].map(p => part(kind, title, p))));
   popup(b, h('b', { textContent: 'layout · ' + tab }),
     parts('ctx', 'toolbar', 'The toolbar groups this tab shows'),
     parts('side', 'side panel', 'The side panel and its sections (hover a heading: × hides it too)',

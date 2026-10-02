@@ -34,12 +34,12 @@ Three rows, the same in every tab:
 
 ![The layout popup](img/layout.png)
 
-The layout button (four squares) in the menu bar. Each tab remembers its own layout as you go: which toolbar groups and side sections are shown, which overlays are on, which side sections are folded, which show **more**, and whether the side panel is shown.
+The layout button (four squares) in the menu bar. Each tab remembers its own layout as you go: which toolbar groups and side sections are shown and in what order, which overlays are on, which side sections are folded, which show **more**, and whether the side panel is shown.
 
 | Row or button | Does |
 |---|---|
-| toolbar | shows or hides each toolbar group of this tab |
-| side panel | shows or hides the whole side panel, and each of its sections; hovering a section heading shows a **×** that hides it too |
+| toolbar | shows or hides each toolbar group of this tab; drag one onto another to put it before that one, or onto **toolbar** to put it last |
+| side panel | shows or hides the whole side panel, and each of its sections; hovering a section heading shows a **×** that hides it too; drag to reorder, as for the toolbar |
 | overlays | the same overlay toggles as the toolbar's **show** group |
 | use | switches to another named layout; changes are kept in the one in use |
 | save as… | copies this layout (every tab) under a new name and uses it |

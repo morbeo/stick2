@@ -289,6 +289,17 @@ try {
     if (!lab.meter || !JSON.parse(localStorage.getItem('stick2.layouts')).sets.default.tabs.play.show.meter) errs.push('meter saved');
     setDisplay('hud', false); setDisplay('labels', false); labRender(); setDisplay('hud', true); setDisplay('labels', true);
     layReset(); if (lab.meter) errs.push('reset clears overlays'); }
+  // order: dragging a part in the layout popup onto another puts it before that one (onto the row's label: last); kept per tab, reset clears it
+  { setMode('play'); const ids = k => [...$(k).children].map(el => k === 'ctx' ? el.dataset.part : el.fname).filter(Boolean);
+    const c0 = app.parts.ctx, s0 = app.parts.side;
+    layoutPanel(null, $('global').querySelector('button[data-tip^="Layout:"]'));
+    const tg = t => [...pop.querySelectorAll('button')].find(b => b.textContent.trim() === t), dt = new DataTransfer();
+    const dnd = (from, to) => { from.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true })); to.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true })); };
+    dnd(tg(c0.at(-1)), tg(c0[0])); dnd(tg(s0[0]), [...pop.querySelectorAll('.row > span')].find(x => x.textContent === 'side panel'));
+    const c1 = ids('ctx'), s1 = ids('side');
+    if (c1[0] !== c0.at(-1) || c1.slice(1).join() !== c0.slice(0, -1).join() || s1.at(-1) !== s0[0] || app.parts.side.join() !== s1.join()) errs.push('reorder ' + c1 + ' / ' + s1);
+    setMode('grid'); if (lay().order) errs.push('order per tab'); setMode('play'); if (ids('ctx')[0] !== c0.at(-1)) errs.push('order kept');
+    closePop(); layReset('play'); if (ids('ctx').join() !== c0.join() || ids('side').join() !== s0.join()) errs.push('reset order'); }
   // settings persist: a change is stored (only what differs from the defaults), comes back on load, bad values are dropped; reset settings brings back the defaults
   { setCfg({ hitstop: 0.2, easing: 'step' }); setDisplay('boxes', true); const st = JSON.parse(localStorage.getItem('stick2.settings'));
     if (st.hitstop !== 0.2 || st.easing !== 'step' || st.boxes !== true || 'gravity' in st) errs.push('settings stored ' + JSON.stringify(st));

@@ -26,9 +26,9 @@ function setMode(m) {
 function panels() {
   const views = VIEWS[tabOf(app.mode)];
   app.shows = [];
-  const ctx = [...views ? [grp('view', 'What this tab shows', seg(views, () => app.mode, setMode, MODES, m => `:${MODE_ICONS[m]}: ${{ play: 'fight', animate: 'editor' }[m] || m}`))] : [], ...mode().ctxBar()];
+  const ctx = layOrder('ctx', [...views ? [grp('view', 'What this tab shows', seg(views, () => app.mode, setMode, MODES, m => `:${MODE_ICONS[m]}: ${{ play: 'fight', animate: 'editor' }[m] || m}`))] : [], ...mode().ctxBar()], el => el.dataset.part);
   $('side').classList.remove('searching');
-  const side = folds(mode().side().filter(Boolean), app.mode, mode().open || []);
+  const side = layOrder('side', folds(mode().side().filter(Boolean), app.mode, mode().open || []), s => s.fname);
   app.parts = { ctx: [...new Set(ctx.map(el => el.dataset.part).filter(Boolean))], side: side.map(s => s.fname).filter(Boolean) };
   $('ctx').replaceChildren(...ctx.filter(el => !el.dataset.part || layShown('ctx:' + el.dataset.part)));
   $('side').replaceChildren(...side.filter(s => !s.fname || layShown('side:' + s.fname)));
