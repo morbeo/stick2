@@ -26,7 +26,7 @@ function frameState(f) {
 }
 
 // checkpoint interval (frames); what a checkpoint leaves out: the logs, settings and UI state, kept as they are on restore
-const CHECK = 60, KEEP = ['log', 'checkpoints', 'sums', 'playback', 'desync', 'replaying', 'tape', 'loop', 'scrubN', 'scen', 'over', 'chars', 'cfg'];
+const CHECK = 60, KEEP = ['log', 'checkpoints', 'sums', 'playback', 'desync', 'replaying', 'tape', 'loop', 'scrubN', 'scen', 'over', 'chars', 'cfg', 'rec'];
 
 // a flying weapon's hit segment [end, end, radius]: its whole drawn length, the part behind the grip too (a staff is held along it)
 function itemSeg(it, r = 0) {
@@ -46,7 +46,7 @@ class World {
     const s = this.scen, scripted = Array.isArray(s.a);
     Object.assign(this, { rand: makeRand(this.seed), fx: makeRand(this.seed + 99), parts: [], trauma: 0, zoom: 0, slowT: 0, T: 0, simT: 0,
       frozenT: 0, hits: 0, blocks: 0, parries: 0, clashes: 0, koT: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
-      pend: null, adv: null, macro: null, combo: 1, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
+      pend: null, adv: null, macro: null, combo: 1, nid: 0, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
     if (!this.replaying) { this.log = []; this.checkpoints = []; this.sums = {}; this.desync = null; } // every frame since the start: [dt, input, macro], for rewind and replays
     // a vs b, plus any extra fighters: { c: controller, x, team }
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0 }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1 }, ...(s.more || [])];
@@ -350,19 +350,21 @@ class World {
 
   // ---------- juice ----------
   onHit(att, vic, hit, m, def) {
-    const cfg = this.cfg, pt = hit.pt;
+    const cfg = this.cfg, pt = hit.pt, hp0 = vic.hp;
+    const note = () => this.ev(att, def || 'hit', att.action?.name || m.name || '', { vic: vic.id, dmg: hp0 - vic.hp, combo: vic.combo, height: m.height });
     this.pend = { att, vic, at: null, vt: null };
     if (def) { // blocked or parried: a shorter freeze and a ring, no combo
-      if (def === 'catch') { vic.catchHit(att, hit); return; }
+      if (def === 'catch') { vic.catchHit(att, hit); return note(); }
       if (def === 'parry') { vic.parryHit(att); this.parries++; } else { vic.blockHit(att, m); this.blocks++; }
       this.sound('block', pt[0]);
       const hs = (m.stop || cfg.hitstop * m.power) * cfg.powerScale * (def === 'parry' ? 1.2 : 0.5);
       vic.freeze = hs; att.freeze = Math.max(att.freeze, hs); // (max: in a trade the attacker was just struck too)
       this.trauma = Math.min(1, this.trauma + 0.1 * m.power * cfg.powerScale);
       this.parts.push({ t: 'ring', x: pt[0], y: pt[1], z: vic.z, life: 0.16, max: 0.16, col: def === 'parry' ? '#2c6fb0' : '#888' });
-      return;
+      return note();
     }
     vic.takeHit(att, m, hit);
+    note();
     const fin = vic.kd === 'fly', power = m.power * cfg.powerScale * (fin ? cfg.hitstopFin : 1);
     // freeze shrinks along a combo, and a budget caps total frozen time so long strings don't turn to stop-motion
     const n = vic.combo - 1, want = (m.stop || cfg.hitstop * m.power) * cfg.powerScale * (fin ? cfg.hitstopFin : 1) * cfg.hitstopDecay ** n * Math.max(0, 1 + cfg.comboStop * n);
@@ -401,6 +403,8 @@ class World {
       P.push({ t: 'spark', x: pt[0], y: pt[1], z, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life, w: 2.5 });
     }
   }
+  // an event for the replay editor (rec is set by it, outside the fight): never read back, so the fight plays the same with or without it
+  ev(f, type, name, data) { if (this.rec && !this.replaying) this.rec({ f: this.log.length - 1, type, who: f.id, name, data }); }
   // a sound (sound.js) for the live fight only: rewinds, replays and the other cells stay silent
   sound(n, x) { if (this.sfx && !this.replaying) this.sfx(n, x / W); }
   // two active strikes met (see Fighter.clashWith): both moves stop, both recoil apart in a short stun, sparks

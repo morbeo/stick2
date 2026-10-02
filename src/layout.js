@@ -95,7 +95,7 @@ const stageOpen = () => lay().panel;
 // the head row of every stage panel: its name, its own tools, then × (Esc)
 const stageHead = (title, tip, ...tools) => h('div', { cls: 'bar stagehead' }, h('b', { textContent: title, tip }), ...tools, h('span', { cls: 'fill' }),
   button(':close:', `Close the ${title} (Esc)`, closeStage, 'mini'));
-const STAGE_LABELS = { table: ':table_rows: table', inputs: ':stadia_controller: inputs', combos: ':trending_up: combos', bones: ':accessibility_new: bones', builder: ':edit: scenario', compare: ':sync_alt: compare' };
+const STAGE_LABELS = { table: ':table_rows: table', inputs: ':stadia_controller: inputs', combos: ':trending_up: combos', bones: ':accessibility_new: bones', builder: ':edit: scenario', compare: ':sync_alt: compare', events: ':list: events' };
 function panelsGrp(names, tips) {
   return grp('panels', 'Tables over the stage, edited in place (click again, × or Esc: close)',
     seg(names, stageOpen, v => openStage(v === stageOpen() ? null : v), mapVals(tips, t => t + ' (click again: close)'), v => STAGE_LABELS[v]));

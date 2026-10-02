@@ -9,11 +9,12 @@ const MODES = {
   character: 'Build the fighter: drag joints, add limbs, tune bones. The preview fights with it live.',
   tests: 'Every move tried against every target: standing, crouching, guarding high and low, in the air, on the floor, dizzy; facing it or turned away; near and far; against the character itself or every one. Red cells did not do what they should (hover for why); click one to watch it and open it in animate to fix it. Your scenarios are played through too.',
   animate: 'Pose keyframes by dragging joints, retime them on the timeline, and watch the move with springs and hit stop.',
+  replay: 'A recorded fight (the play fight or a replay file) as a timeline of colour-coded events and an event table: filter by type, find a moment, go there.',
 };
-const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode })[app.mode] || labMode;
+const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode, replay: replayMode })[app.mode] || labMode;
 // the top bar's tabs: impact is a view of play, gallery and tests views of animate, picked first in their toolbar
 const VIEWS = { play: ['play', 'impact'], animate: ['animate', 'gallery', 'tests'] };
-const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', gallery: 'animation', impact: 'crisis_alert', tests: 'science', character: 'accessibility_new', animate: 'timeline' };
+const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', gallery: 'animation', impact: 'crisis_alert', tests: 'science', character: 'accessibility_new', animate: 'timeline', replay: 'history' };
 const tabOf = m => Object.keys(VIEWS).find(t => VIEWS[t].includes(m)) || m;
 
 function setMode(m) {
@@ -37,7 +38,7 @@ function panels() {
 }
 function restart() { mode().restart(); }
 // rewind every fight n frames and pause there
-function rewind(n) { app.paused = true; app.scrub = false; for (const w of mode().worlds()) w.rewind(n); }
+function rewind(n) { app.paused = true; app.scrub = false; if (mode().rewind) return mode().rewind(n); for (const w of mode().worlds()) w.rewind(n); }
 function toggleHints() { ui.hints = !ui.hints; saveUi(); }
 // factory reset: asks, then deletes everything this app keeps in the browser (characters, settings, keys and macros, layout) and reloads as on a first visit
 function reload() { location.reload(); }
@@ -61,6 +62,7 @@ const KEYS = [
   ['grid', 'click a cell: focus it and use its settings, ⌘Z undoes (breed / attacks: breed around it) · Shift+click: only focus'],
   ['character', 'drag a joint: length + angle · Shift+drag: angle only · drag the hip (square): move the waist over the feet'],
   ['animate', 'drag a joint: IK · Alt+drag: rotate one bone · timeline: drag a key to reorder, its edge to retime, double-click to split · Delete removes the key'],
+  ['replay', 'timeline: click or drag to go to a moment · click an event to select it · events table (panels): fuzzy filter, sort, click a row to go there · the types in the toolbar show and hide lanes and rows'],
 ];
 function buildTop() {
   const tabs = Object.keys(MODES).filter(m => tabOf(m) === m);
@@ -71,7 +73,8 @@ function buildTop() {
   $('global').replaceChildren(
     grp('', 'Edit history', button(':undo:', 'Undo the last edit: character, moves or settings (⌘Z)', undo), button(':redo:', 'Redo (⇧⌘Z)', redo)),
     clipGroup(),
-    grp('', 'Replay files: a whole play fight (inputs, settings, characters), pinned to the engine version', replaySave(), replayFile()),
+    grp('', 'Replay files: a whole play fight (inputs, settings, characters), pinned to the engine version', replaySave(), replayFile(),
+      button(':history:', 'Edit the play fight in the replay tab: its events on a timeline and in a table', reelFromPlay)),
     grp('', 'Files: the character, the settings or everything, as JSON', button(':download: export :expand_more:', 'Export to a file: the character, the settings or everything', fileMenu('export', exportFile)),
       button(':upload: import :expand_more:', 'Import from a file: a character, settings or everything', fileMenu('import', importFile,
         button('compare…', 'Compare settings: the current ones against a settings or everything file, setting by setting (play tab)', compareFile)))),

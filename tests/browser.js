@@ -166,7 +166,7 @@ try {
     isolate(null); anim.move = 'jab'; setMode('animate'); }
   // four tabs: impact is a view of play, gallery of animate, picked in the toolbar's view group
   { setMode('impact'); const tabs = [...document.querySelectorAll('#modes button')], on = tabs.find(b => b.classList.contains('on'));
-    if (tabs.length !== 4 || !on?.textContent.includes('play')) errs.push('tabs ' + tabs.length + ' ' + on?.textContent);
+    if (tabs.length !== 5 || !on?.textContent.includes('play')) errs.push('tabs ' + tabs.length + ' ' + on?.textContent);
     [...document.querySelectorAll('#ctx button')].find(b => b.textContent.includes('fight')).click(); if (app.mode !== 'play') errs.push('view fight ' + app.mode);
     setMode('gallery'); tabs.find(b => b.textContent.includes('animate')).click(); if (app.mode !== 'gallery') errs.push('tab keeps its view ' + app.mode); }
   // combos: the table lists routes; + P on a route's end adds a link (the route gets longer), clicking that step and cut removes it; the tree shows starters
@@ -524,6 +524,24 @@ try {
     if (!paletteEntries().some(e => e.kind === 'docs' && e.name === 'Key events')) errs.push('docs palette');
     location.hash = 'docs=weapons'; readHash(); if (!document.body.classList.contains('docspage') || docs.topic !== 'weapons') errs.push('docs page'); closeDocs();
     if (document.body.classList.contains('docspage')) errs.push('docs page close'); }
+  // replay tab: the play fight comes in with its events; the table filters (fuzzy) and a row goes to its frame; types hide lanes;
+  // the timeline seeks; rewind steps back from a checkpoint
+  { lab.scen = 'you vs ai'; setMode('play'); const w = lab.cells[0].w;
+    for (let i = 0; i < 600; i++) w.advance(1/60, { ...NOIN, right: i % 120 < 40, punch: i % 23 === 0, kick: i % 37 === 0 });
+    rp.reel = null; setMode('replay'); openStage('events');
+    if (!rp.reel || rp.N !== 600 || !rp.events.some(e => e.type === 'hit') || !rp.events.some(e => e.type === 'input')) errs.push('replay load ' + [rp.N, rp.events.length]);
+    const rows = () => [...document.querySelectorAll('.etable tbody tr')].filter(r => r.cells.length), q = document.querySelector('.etable input');
+    q.value = 'hit'; q.dispatchEvent(new Event('input'));
+    if (!rows().length || rows().some(r => !/hit/.test(r.textContent))) errs.push('replay filter ' + rows().length);
+    const r0 = rows()[0], f0 = +r0.cells[0].textContent.split(' f')[1]; r0.click();
+    if (rp.n !== f0 || !rp.sel.size) errs.push('replay row ' + [rp.n, f0]);
+    q.value = ''; q.dispatchEvent(new Event('input'));
+    const lanes = rpLanes().length; [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('input:')).click();
+    if (rpLanes().length !== lanes - 1 || rows().some(r => /input/.test(r.cells[1].textContent))) errs.push('replay types');
+    const L = rpLayout(); rpMouse('down', L.tx + L.tw / 2, L.tl.y + 8 * dpr, {}); rpMouse('up', 0, 0, {});
+    if (Math.abs(rp.n - frameAt(rp.T[rp.N] / 2)) > 1) errs.push('replay seek ' + rp.n);
+    const n1 = rp.n; rewind(1); if (rp.n !== n1 - 1) errs.push('replay rewind ' + [n1, rp.n]);
+    rp.show = new Set(Object.keys(EVENT_TYPES)); closeStage(); mode().render(); }
   // clips: the subject is the fight, the gallery cell under the mouse or the animate preview; the buffer keeps the last seconds;
   // ⇧X saves; Chrome decodes the GIF (a noisy frame of exact colours: the LZW table fills and restarts) to the same pixels
   { const snap = n => { for (let i = 0; i < n; i++) { mode().render(); clipCapture(1e6 + clip.t++ * 40, true); } };

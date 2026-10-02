@@ -464,14 +464,16 @@ function saveReplay() {
     download: `${name.replace(/\W+/g, '-')}-${new Date().toISOString().slice(0, 19).replace(/\D/g, '')}.replay.json` });
   a.click(); URL.revokeObjectURL(a.href);
 }
-function loadReplay() {
+function loadReplay() { pickReplay(r => { lab.playback = r; app.paused = false; if (app.mode === 'play') build(); else setMode('play'); syncAll(); }); }
+// a replay file from disk, checked (format, engine version: asks), handed to then
+function pickReplay(then) {
   const inp = h('input', { type: 'file', accept: '.json,application/json' });
   inp.onchange = async () => {
     let r;
     try { r = JSON.parse(await inp.files[0].text()); } catch (err) { return alert('Not a replay file: ' + err.message); }
     if (r.format !== REPLAY_FORMAT) return alert('Not a replay file');
-    if (r.version !== ENGINE_VERSION && !confirm(`This replay was recorded with engine v${r.version}; this is v${ENGINE_VERSION}. The simulation changed since, so it will play out differently. Play it anyway?`)) return;
-    lab.playback = r; app.paused = false; if (app.mode === 'play') build(); else setMode('play'); syncAll();
+    if (r.version !== ENGINE_VERSION && !confirm(`This replay was recorded with engine v${r.version}; this is v${ENGINE_VERSION}. The simulation changed since, so it will play out differently. Open it anyway?`)) return;
+    then(r);
   };
   inp.click();
 }
@@ -639,7 +641,7 @@ function debugPanel(e, b) {
 }
 const debugBtn = () => [...$('global').querySelectorAll('button')].find(b => b.dataset.tip?.startsWith('Debug:'));
 // the fight the debug popup reports on: the focused cell in play / grid, else the mode's first world
-const dbgWorld = () => mode() === labMode ? lab.focus?.w || lab.cells[0]?.w : mode().worlds()[0];
+const dbgWorld = () => mode() === labMode ? lab.focus?.w || lab.cells[0]?.w : mode().debugWorld?.() || mode().worlds()[0];
 // the debug information: build, engine and runtime numbers and the shown fight's state, refreshed twice a second
 const dbgInfo = h('pre', { cls: 'note dbg', tip: 'Debug information: the build (npm run build-info writes it), engine version, frame rate, and the focused fight: seed, frame, state hash, each fighter' });
 let dbgT = 0;

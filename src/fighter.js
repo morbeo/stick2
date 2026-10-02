@@ -12,7 +12,7 @@ function settle(ch, L) {
 }
 class Fighter {
   constructor(w, x, dir, col, ch, over = {}) {
-    Object.assign(this, { w, x, groundY: w.groundY, dir, face: dir, col, ch, over, y: 0, vx: 0, vy: 0, grounded: true,
+    Object.assign(this, { id: w.nid++, w, x, groundY: w.groundY, dir, face: dir, col, ch, over, y: 0, vx: 0, vy: 0, grounded: true,
       time: 0, seed: w.rand(0, 100), walkPh: 0, lean: 0, inp: NOIN,
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
       kd: null, downT: 0, wake: null, won: false, wallB: false, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
@@ -218,7 +218,10 @@ class Fighter {
     return null;
   }
   start(m) {
-    this.action = { m: typeof m === 'string' ? this.ch.moves[m] : m, i: 0, t: 0, from: { ...this.target }, hit: false, hits: [] };
+    const mv = typeof m === 'string' ? this.ch.moves[m] : m, ms = this.ch.moves;
+    const name = typeof m === 'string' ? m : Object.keys(ms).find(k => ms[k] === m) || Object.keys(WEAPON_MOVES).find(k => WEAPON_MOVES[k] === m) || '';
+    this.action = { m: mv, name, i: 0, t: 0, from: { ...this.target }, hit: false, hits: [] };
+    if (!mv.hurt) this.w.ev(this, 'move', name);
     if (this.action.m.roll) this.passT = this.invT = this.c('rollInv'); // a roll: through fighters and untouchable a moment
     const keys = this.action.m.keys;
     if (this.away && !this.action.m.hurt && !keys.some(k => k.turn)) { this.away = false; this.dir = -this.dir; } // back turned: a move without turns faces the foe first
@@ -915,7 +918,7 @@ class Fighter {
     }
   }
   damageOf(m, combo) { return (m.damage ?? m.power * 8) * this.c('damage') * this.c('comboDamage') ** (combo - 1); }
-  say(text) { this.label = text; this.labelT = 0.9; }
+  say(text) { this.label = text; this.labelT = 0.9; this.w.ev(this, 'say', text); }
   takeHit(att, m, hit) {
     const a = this.action, own = a && !a.m.hurt;
     if (own && a.m.keys[a.i]?.armor && (this.c('health') <= 0 || this.hp > this.damageOf(m, 1))) { // armor: the damage lands, the move goes on

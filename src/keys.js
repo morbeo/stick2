@@ -16,7 +16,7 @@ const ACTIONS = [
   ['clip', 'view', ['KeyX'], 'Save a clip: the last seconds of the fight, the preview or the cell under the mouse'], ['record', 'view', ['KeyE'], 'Record a clip / stop and save it'],
   ['play', 'modes', ['Digit1'], 'Play mode'], ['grid', 'modes', ['Digit2'], 'Grid mode'], ['gallery', 'modes', ['Digit3'], 'Gallery mode'],
   ['character', 'modes', ['Digit4'], 'Character mode'], ['animate', 'modes', ['Digit5'], 'Animate mode'],
-  ['impact', 'modes', ['Digit6'], 'Impact mode'],
+  ['impact', 'modes', ['Digit6'], 'Impact mode'], ['replay', 'modes', ['Digit7'], 'Replay mode'],
   ['prevKey', 'animate', ['Shift+ArrowLeft'], 'Previous key'], ['nextKey', 'animate', ['Shift+ArrowRight'], 'Next key'],
   ['frameBack', 'animate', ['Comma'], 'Step the move back a frame'], ['frameFwd', 'animate', ['Period'], 'Step the move forward a frame'],
   ['playMove', 'animate', ['Enter'], 'Play / pause the move'], ['onion', 'animate', ['KeyO'], 'Onion skin'], ['aim', 'animate', ['KeyI'], 'Aim the striking limb at the cursor'],

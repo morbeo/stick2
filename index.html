@@ -81,6 +81,9 @@
   .tmat td.on { outline: 2px solid #c33; outline-offset: -2px; }
   #over > .sbuild, #over > .cmptable { inset: auto 0 0 0; max-height: 50%; border-top: 1px solid #ccc; }
   #over > .btable { inset: auto 0 0 0; max-height: 45%; border-top: 1px solid #ccc; }
+  #over > .etable { top: 0; right: 0; left: auto; width: 45%; padding-top: 0; border-left: 1px solid #ccc; }
+  .chip { display: inline-flex; align-items: center; gap: 2px; padding: 0 5px; border-radius: 8px; color: #fff; font-size: 11px; line-height: 16px; }
+  .chip .ic { font-size: 13px; } .etable tr { cursor: pointer; } .etable tr.cur td:first-child { box-shadow: inset 3px 0 0 #c0392b; } .note.warn { color: #c0392b; }
   .mtable .bar { margin-bottom: 6px; } .mtable .bar input { flex: 1; }
   .mtable table { border-collapse: collapse; font-size: 12px; width: 100%; }
   .mtable th { position: sticky; top: -8px; background: #e8e3d8; text-align: left; padding: 4px 4px; cursor: pointer; white-space: nowrap; font-weight: bold; }
@@ -183,6 +186,7 @@
 <script src="src/compare.js"></script>
 <script src="src/docs.js"></script>
 <script src="src/clip.js"></script>
+<script src="src/replay.js"></script>
 <script src="src/app.js"></script>
 </body>
 </html>

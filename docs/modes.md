@@ -2,7 +2,7 @@
 
 [← docs index](README.md)
 
-The top bar has four tabs: **play**, **grid**, **character** and **animate**. Some of them have more views inside (impact, gallery, tests), picked under **view** in the toolbar.
+The top bar has five tabs: **play**, **grid**, **character**, **animate** and **replay**. Some of them have more views inside (impact, gallery, tests), picked under **view** in the toolbar.
 
 | Tab | Views | What it's for |
 |---|---|---|
@@ -10,6 +10,7 @@ The top bar has four tabs: **play**, **grid**, **character** and **animate**. So
 | [grid](#grid) | | compare one fight across many settings |
 | [character](#character) | | build a body |
 | [animate](#animate) | [gallery](#gallery) · [tests](#tests) | build moves, check them all |
+| [replay](#replay) | | go through a recorded fight event by event |
 
 ## Play
 
@@ -109,6 +110,7 @@ Both replay buttons are in the menu bar, next to undo / redo.
 - **replay** (save icon) downloads the play fight as a replay file: inputs, seed, settings, characters, and a state checksum every second.
 - **replay** (film icon) plays one back, from any tab (it switches to play).
 - A file from another engine version asks first. The top line then shows the version and where the fight goes out of sync.
+- The history button beside them opens the play fight in the [replay](#replay) tab.
 
 ## Impact
 
@@ -342,3 +344,35 @@ Using it:
 - Click a cell to watch it looping over the table; the side panel then edits its move. **open in animate** edits the move with that exact target (the preview target has near / far too).
 - My scenarios are played through as cases too (NaN, stage, stuck 5 s).
 - Cells run in the background, a few per frame, and rerun when the character or a setting changes.
+
+## Replay
+
+A recorded fight as a timeline of events and an event table. It opens the play fight (everything since its last restart) when you come to the tab, or a replay file.
+
+| Toolbar group | What it does |
+|---|---|
+| reel | **from play** takes the play fight again · **open** a replay file · **save** it |
+| types | show or hide each event type, in the timeline and the table · **all** |
+| panels | **events**: the table |
+
+The events are found by playing the replay once. Recording them changes nothing in the fight.
+
+| Type | Events |
+|---|---|
+| input | your presses (P, K, S, jump), held directions and guard as spans, macros |
+| move | moves started |
+| hit | hits, combos (spans from the first hit to the last), clashes |
+| defence | blocks, parries, catches, just guards, guard cancels, push blocks |
+| throw | throws landed and broken |
+| fall | launches, knockdowns, bounces, wall hits, techs, air recoveries, wake-ups |
+| state | K.O., counter hits, dizzy, stagger, armor, crumple, disarm |
+| movement | jumps, dashes, runs, super and wall jumps |
+| item | weapons picked up and lost, shots fired |
+| meta | stance switches, waves |
+
+**Timeline:** one lane per shown type, each in its colour. Click or drag to go to a moment, click an event to select it, hover one to see what happened. The red playhead shows the time and the frame.
+
+**Event table:** time and frame, type, who, event, details (target, damage, combo, height, span length). The filter is fuzzy, a column heading sorts, and a click on a row goes there. The row of the last event before the playhead is marked.
+
+The transport works as in the other tabs: pause, step, rewind one second or one frame (from the nearest checkpoint, so it's instant), scrub, loop.
+
