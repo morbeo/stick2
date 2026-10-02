@@ -195,7 +195,7 @@ Save what you watch as an animated GIF or a WebM video.
 |---|---|
 | clip (⇧X in a fight, X in the editors) | saves the last seconds |
 | record (⇧E / E) | films until you press it again (at most 20 s), then saves |
-| ▾ | format (GIF / WebM), length (3, 5, 10 s), width (320, 480, 720 px), frame rate (15, 30) |
+| ▾ | format (GIF / WebM), length (3, 5, 10 s), width (320, 480, 720 px), frame rate (15, 30, 50), aspect (the view's, 16:9, 4:3, 1:1, 9:16) and fit (crop or letterbox) |
 
 - It films the part of the view you watch: the fight in play, the cell under the mouse in the grid, gallery, impact and the body experiment, the preview in animate and character, the watched fight in tests.
 - Moving the mouse to another cell starts the buffer again. A recording stays on the cell it started on.

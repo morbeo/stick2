@@ -398,6 +398,19 @@ Click or drag to go to a moment; it snaps to events within 6 px (Alt: no snappin
 
 **save** writes the edited replay with fresh checksums, so it plays back in sync, and keeps its bookmarks. A file that was already out of sync with its own recording says so in the side panel.
 
+**Footage** changes how the replay is shown and exported, never the fight. It is saved in the replay file and undone with ⌘Z like the rest.
+
+| Do | How |
+|---|---|
+| in / out | **[ in** / **out ]** (I / O) at the playhead; the parts outside are greyed, playback loops between them |
+| slow motion | **+ slow** over the selection (else a second from the playhead): ×0.5, ×0.25 or ×0.1 |
+| camera | **+ cam**: zoom 1.25× to 3× on P1, P2 or both |
+| label | **+ label**: a caption over the picture |
+| change a span | drag it in the timeline's footage row, its ends to resize; its settings and delete in the side panel's footage section (Delete removes the selected one) |
+| preview | the eye toggle shows the footage in the view, or the plain fight |
+
+**export** renders the in–out range with its slow motion, camera and labels, drawn at the size you pick so it stays sharp: GIF or WebM, 15 / 30 / 50 fps, aspect (the arena's, 16:9, 4:3, 1:1, 9:16), width 320 to 1920 px, crop or letterbox, and what to show over it (health bars, labels, input display, frame meter). The popup shows the range, the length out and the size.
+
 **Side panel:** the replay (scenario, length, engine version, fighters), **stats** per fighter (damage dealt, hits, blocked, parried, thrown, best combo, top combo damage, K.O. time), **bookmarks** (go there, rename, delete; saved in the replay file), and the event count per type.
 
 **Event table:** time and frame, type, who, event, details (target, damage, combo, height, span length). The filter is fuzzy, a column heading sorts, and a click on a row goes there. The row of the last event before the playhead is marked.

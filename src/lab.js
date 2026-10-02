@@ -149,7 +149,7 @@ function clear() {
 function drawCell(c, r, { full = false, plot = true, selected = false, meter = false } = {}) {
   const ph = plot ? Math.round(r.h * 0.24) : 0;
   ctx.fillStyle = '#f3f0e8'; ctx.fillRect(r.x, r.y, r.w, r.h);
-  c.w.render(ctx, { ...r, h: r.h - ph }, full);
+  c.w.render(ctx, { ...r, h: r.h - ph }, full, c.shot);
   if (plot) {
     const pr = { x: r.x + 6 * dpr, y: r.y + r.h - ph, w: r.w - 12 * dpr, h: ph - 5 * dpr };
     ctx.fillStyle = '#fbfaf6'; ctx.fillRect(pr.x, pr.y, pr.w, pr.h);
@@ -195,20 +195,21 @@ function cellStats(c) {
 // frame meter: one column per frame, newest on the right; top row = left fighter, bottom = right fighter
 const METER_COLS = { idle: null, air: '#cfd8e0', move: '#b3a79a', startup: '#3a9d5d', active: '#c0392b', recovery: '#2c6fb0', cancel: '#8e44ad', hit: '#e6b422', block: '#7fb3d5', dizzy: '#e67e22', down: '#e8dcb5', stop: '#fff' };
 const METER_TIPS = 'frame meter: green startup · red active · blue recovery · purple cancel window · yellow hitstun · light blue blockstun · orange dizzy · pale knocked down · white hit stop · grey air / other';
-function drawMeter(w, r, full) {
+// c: the canvas context (another one: the replay editor's export)
+function drawMeter(w, r, full, c = ctx) {
   const fs = w.hist.fs, n = full ? 120 : 60, cw = r.w / n, rh = r.h / 2 - dpr;
-  ctx.fillStyle = '#0000000d'; ctx.fillRect(r.x, r.y, r.w, r.h);
+  c.fillStyle = '#0000000d'; c.fillRect(r.x, r.y, r.w, r.h);
   fs.slice(-n).forEach((st, i) => st.forEach((s, j) => {
     if (!METER_COLS[s]) return;
-    ctx.fillStyle = METER_COLS[s];
-    ctx.fillRect(r.x + (n - Math.min(n, fs.length) + i) * cw, r.y + j * (rh + 2 * dpr), Math.max(dpr, cw - (full ? dpr : 0)), rh);
+    c.fillStyle = METER_COLS[s];
+    c.fillRect(r.x + (n - Math.min(n, fs.length) + i) * cw, r.y + j * (rh + 2 * dpr), Math.max(dpr, cw - (full ? dpr : 0)), rh);
   }));
-  if (full && ui.hints) text(METER_TIPS, r.x, r.y - 4 * dpr, '#aaa', 10);
+  if (full && ui.hints && c === ctx) text(METER_TIPS, r.x, r.y - 4 * dpr, '#aaa', 10);
 }
 // input display: the human's last inputs in numpad notation, newest on top, with how many frames each was held
-function drawInputs(w, x, y) {
+function drawInputs(w, x, y, c = ctx) {
   [...w.inputs].reverse().slice(0, 16).forEach((e, i) =>
-    text(`${e.n}${e.b ? ' ' + e.b : ''}`.padEnd(6) + String(e.f).padStart(3), x, y + i * 14 * dpr, e.b ? '#c0392b' : '#888', 11, e.b ? 'bold' : ''));
+    text(`${e.n}${e.b ? ' ' + e.b : ''}`.padEnd(6) + String(e.f).padStart(3), x, y + i * 14 * dpr, e.b ? '#c0392b' : '#888', 11, e.b ? 'bold' : '', 'left', c));
 }
 function labRender() {
   clear();
@@ -233,11 +234,11 @@ function labRender() {
   }
 }
 
-function text(s, x, y, col, size, weight = '', align = 'left') {
-  ctx.fillStyle = col; ctx.textAlign = align;
-  ctx.font = `${weight} ${size * dpr}px ui-monospace, Menlo, monospace`;
-  ctx.fillText(s, x, y);
-  ctx.textAlign = 'left';
+function text(s, x, y, col, size, weight = '', align = 'left', c = ctx) {
+  c.fillStyle = col; c.textAlign = align;
+  c.font = `${weight} ${size * dpr}px ui-monospace, Menlo, monospace`;
+  c.fillText(s, x, y);
+  c.textAlign = 'left';
 }
 function series(c, arr, r, lo, hi, col, len = arr.length) {
   c.strokeStyle = col; c.lineWidth = 1.5 * dpr; c.beginPath();

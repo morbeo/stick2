@@ -489,15 +489,16 @@ class World {
     }
   }
 
-  // draw into rect r (device px). full = whole arena, otherwise a closer camera following the fight
-  render(ctx, r, full) {
+  // draw into rect r (device px). full = whole arena, otherwise a closer camera following the fight. shot (the replay editor's
+  // camera, drawing only): { zoom, x } looks at x with the arena zoomed, fill = cover the rect (cropping) instead of fitting inside it
+  render(ctx, r, full, shot) {
     // the camera widens to keep every fighter in view (hidden ones aside: the impact tool's unseen attacker)
     const xs = this.fighters.filter(f => !f.hidden).map(f => f.x), lo = Math.min(...xs), hi = Math.max(...xs), mid = (lo + hi) / 2;
     this.camW += (clamp(hi - lo + 260, 420, W) - this.camW) * 0.15;
-    const cfg = this.cfg, vw = full ? W : this.camW, vh = vw * H / W;
+    const cfg = this.cfg, vw = shot?.zoom ? W / shot.zoom : full ? W : this.camW, vh = vw * H / W;
     this.cam += (clamp(mid, vw / 2 - 20, W - vw / 2 + 20) - this.cam) * 0.15;
-    const cx = full ? W / 2 : this.cam, cy = full ? H / 2 : this.groundY - vh * 0.3;
-    const s = Math.min(r.w / vw, r.h / vh) * (1 + this.zoom), tr = this.trauma ** 2 * cfg.shake * this.shakeK;
+    const cx = shot?.zoom ? clamp(shot.x ?? mid, vw / 2 - 20, W - vw / 2 + 20) : full ? W / 2 : this.cam, cy = full && !shot?.zoom ? H / 2 : this.groundY - vh * 0.3;
+    const s = (shot?.fill ? Math.max : Math.min)(r.w / vw, r.h / vh) * (1 + this.zoom), tr = this.trauma ** 2 * cfg.shake * this.shakeK;
     const T = this.T, sx = tr * (Math.sin(T * 71) + Math.sin(T * 113 + 1)) * 0.5;
     const sy = tr * (Math.sin(T * 89 + 2) + Math.sin(T * 127 + 3)) * 0.5;
     ctx.save();

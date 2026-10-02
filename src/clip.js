@@ -108,9 +108,10 @@ function gifDelays(ts) {
 }
 
 // ---------- capture: a rolling buffer of the subject's pixels, and recordings ----------
-const CLIP_SECS = [3, 5, 10], CLIP_SIZES = [320, 480, 720], CLIP_FPS = [15, 30], CLIP_FMTS = ['gif', 'webm'], REC_MAX = 20;
+const CLIP_SECS = [3, 5, 10], CLIP_SIZES = [320, 480, 720], CLIP_FPS = [15, 30, 50], CLIP_FMTS = ['gif', 'webm'], REC_MAX = 20;
 const clip = { frames: [], pool: [], key: null, last: 0, rec: null, busy: '', mx: -1, my: -1, el: null };
-const clipSet = () => ui.clip ??= { fmt: 'gif', secs: 5, size: 480, fps: 30 };
+const clipSet = () => ui.clip ??= { fmt: 'gif', secs: 5, size: 480, fps: 30, aspect: 'view', fit: 'crop' };
+const CLIP_ASPECTS = { view: null, '16:9': 16 / 9, '4:3': 4 / 3, '1:1': 1, '9:16': 9 / 16 };
 // what gets filmed: the rect (of the mode's clipRects) under the mouse, else the first; the whole view in modes without any
 function clipSubject() {
   const rs = mode().clipRects?.() ?? [{ key: 'view', r: { x: 0, y: 0, w: canvas.width, h: canvas.height } }];
@@ -126,14 +127,18 @@ function clipCapture(now, ran) {
   if (now - clip.last < 1000 / set.fps - 4) return;
   const s = clipSubject();
   if (!s) return;
-  const { r } = s, w = Math.round(Math.min(set.size, r.w / dpr) / 2) * 2, ht = Math.round(w * r.h / r.w / 2) * 2;
+  // another shape than the subject's: crop its middle, or fit all of it inside with bars
+  const { r } = s, a = CLIP_ASPECTS[set.aspect] ?? r.w / r.h, box = set.fit === 'letterbox' ? r : r.w / r.h > a ? { ...r, x: r.x + (r.w - r.h * a) / 2, w: r.h * a } : { ...r, y: r.y + (r.h - r.w / a) / 2, h: r.w / a };
+  const w = Math.round(Math.min(set.size, r.w / dpr) / 2) * 2, ht = Math.round(w / a / 2) * 2;
   if (w < 2 || ht < 2) return;
   const key = [s.key, w, ht];
   if (clip.key?.some((k, i) => k !== key[i])) dropFrames(clip.frames.length); // another subject or size: start over
   clip.key = key; clip.last = now;
   const c = clip.pool.pop() || document.createElement('canvas');
   c.width = w; c.height = ht;
-  c.getContext('2d').drawImage(canvas, r.x, r.y, r.w, r.h, 0, 0, w, ht);
+  const g = c.getContext('2d'), k = Math.min(w / box.w, ht / box.h);
+  if (set.fit === 'letterbox') { g.fillStyle = '#f3f0e8'; g.fillRect(0, 0, w, ht); }
+  g.drawImage(canvas, box.x, box.y, box.w, box.h, (w - box.w * k) / 2, (ht - box.h * k) / 2, box.w * k, box.h * k);
   clip.frames.push({ c, t: now });
   if (clip.rec) { if (now - clip.rec.t0 > REC_MAX * 1000) toggleRecord(); }
   else { let n = 0; while (clip.frames[n] && clip.frames[n].t < now - set.secs * 1000) n++; dropFrames(n); }
@@ -186,7 +191,9 @@ const CLIP_TIPS = {
   webm: 'WebM video: small files, every colour; saving takes as long as the clip (the browser encodes it in real time)',
   3: 'Keep the last 3 seconds', 5: 'Keep the last 5 seconds', 10: 'Keep the last 10 seconds',
   320: '320 px wide (smaller files)', 480: '480 px wide', 720: '720 px wide (never wider than the view itself)',
-  15: '15 frames a second (smaller files)', 30: '30 frames a second (smooth)',
+  15: '15 frames a second (smaller files)', 30: '30 frames a second (smooth)', 50: '50 frames a second (the most a GIF plays)',
+  crop: 'Crop: fill the shape, cutting off the sides (or top and bottom)', letterbox: 'Letterbox: all of the picture, with bars',
+  view: 'The shape of what you watch', '16:9': 'Wide video', '4:3': 'Old TV', '1:1': 'Square', '9:16': 'Tall (phone)',
 };
 function clipGroup() {
   const save = button('', `Save a clip: the last seconds of the fight, the preview or the cell under the mouse, as a GIF or a WebM (settings in ▾)${keyTip('clip')}`, saveLast);
@@ -200,6 +207,8 @@ function clipGroup() {
     row('format', 'GIF or WebM video', pick('fmt', CLIP_FMTS, v => v.toUpperCase())),
     row('length', 'How many seconds the clip button saves', pick('secs', CLIP_SECS, v => v + 's')),
     row('width', 'The clip\'s width in pixels', pick('size', CLIP_SIZES, String)),
-    row('fps', 'Frames a second', pick('fps', CLIP_FPS, String))));
+    row('fps', 'Frames a second', pick('fps', CLIP_FPS, String)),
+    row('aspect', 'The clip\'s shape: the watched view\'s own, or a fixed one (16:9 video, 1:1 square, 9:16 phone)', pick('aspect', Object.keys(CLIP_ASPECTS), String)),
+    row('fit', 'Another shape than the view\'s: crop its middle, or fit all of it with bars', pick('fit', ['crop', 'letterbox'], String))));
   return grp('', 'Clips: save the last seconds of what you watch, or record it, as a GIF or a WebM', save, rec, opts);
 }

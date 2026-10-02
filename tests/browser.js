@@ -7,7 +7,7 @@ const chrome = process.env.CHROME || ['/Applications/Google Chrome.app/Contents/
 if (!chrome) { console.log('skip: no Chrome found (set CHROME)'); process.exit(0); }
 const probe = `<script>
 let errs = [];
-const later = []; // async checks; the title waits for them
+const later = [], afterSync = []; // async checks (afterSync: started once the synchronous ones are done); the title waits for them
 window.onerror = (m, s, l) => { errs.push(m + ' @' + (s || '').split('/').pop() + ':' + l); };
 try {
   localStorage.clear(); app.paused = true;
@@ -566,6 +566,26 @@ try {
       const r = reelFile(), w = replayWorld(r); w.loop = false; for (let i = 0; i <= r.frames.length; i++) w.advance(0, NOIN);
       if (w.desync !== null) errs.push('replay saved file out of sync ' + w.desync);
       rp.show = new Set(Object.keys(EVENT_TYPES)); }
+    // footage: I / O set in and out; a span drags (one undo step); export renders the in–out range at the chosen shape, slowed spans longer
+    { const kd = code => document.body.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true }));
+      rpSeek(60); kd('KeyI'); rpSeek(240); kd('KeyO'); const F = foot();
+      if (F.in !== 60 || F.out !== 240) errs.push('footage in/out ' + [F.in, F.out]);
+      rpSeek(100); rp.sel.clear(); addSpan('slow'); const sp = F.spans[0], L = rpLayout(), row = L.rows.find(r => r.kind === 'foot'), a0 = sp.a, u0 = studio.undo.length;
+      const xm = (tToX(L, rp.T[sp.a]) + tToX(L, rp.T[sp.b])) / 2;
+      rpMouse('down', xm, row.y + 3 * dpr, {}); rpMouse('move', xm + tToX(L, rp.T[a0 + 20]) - tToX(L, rp.T[a0]), row.y + 3 * dpr, {}); rpMouse('up', 0, 0, {});
+      if (sp.a !== a0 + 20 || studio.undo.length !== u0 + 1) errs.push('footage drag ' + [sp.a - a0, studio.undo.length - u0]);
+      undo(); if (foot().spans[0].a !== a0) errs.push('footage undo');
+      afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
+        ui.clip = { ...clipSet(), fps: 30, aspect: '9:16', fit: 'crop' }; ui.rexp = { size: 320, hud: true, labels: true, inputs: false, meter: false };
+        setMode('replay'); await exportReel(); saveClip = sc;
+        const s0 = foot().spans[0], slow = Math.max(0, Math.min(s0.b, 240) - Math.max(s0.a, 60)), span = (rp.T[240] - rp.T[60]) + slow / 60 * 3; // the ×0.25 span lasts 4× as long
+        if (!got || got[0].c.width !== 320 || got[0].c.height !== 568) errs.push('export size ' + (got && [got[0].c.width, got[0].c.height]));
+        else if (Math.abs(got.length - span * 30) > 3) errs.push('export frames ' + [got.length, Math.round(span * 30)]);
+      }); }
+    // clips: the 1:1 aspect crops the subject to a square
+    { ui.clip = { ...clipSet(), aspect: '1:1', fit: 'crop', size: 200 }; clip.key = null; clip.frames.length = 0; clip.last = 0; clipCapture(5e6, true);
+      const f = clip.frames[0]?.c; if (!f || f.width !== 200 || f.height !== 200) errs.push('clip aspect ' + (f && [f.width, f.height]));
+      ui.clip = { ...clipSet(), aspect: 'view', size: 480 }; clip.last = 0; clip.frames.length = 0; }
     rp.show = new Set(Object.keys(EVENT_TYPES)); closeStage(); mode().render(); }
   // clips: the subject is the fight, the gallery cell under the mouse or the animate preview; the buffer keeps the last seconds;
   // ⇧X saves; Chrome decodes the GIF (a noisy frame of exact colours: the LZW table fills and restarts) to the same pixels
@@ -589,7 +609,7 @@ try {
       if (bm.width !== W || worst > 4) errs.push('clip gif decode ' + worst);
     }, e => errs.push('clip gif ' + e.message))); }
 } catch (e) { errs.push(e.message + ' ' + e.stack.split('\\n')[1]); }
-Promise.all(later).then(() => { document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK'; });
+Promise.all(later).then(() => Promise.all(afterSync.map(f => f()))).then(() => { document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK'; });
 </script></body>`;
 fs.writeFileSync(out, fs.readFileSync(path.join(root, 'index.html'), 'utf8')
   .replace(/(src|fonts)\//g, `file://${root}/$1/`).replace('</body>', probe));
