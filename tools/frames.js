@@ -1,6 +1,6 @@
 'use strict';
 // frames of a replay drawn the way the app draws a fight (lab.js drawCell: the paper background, then World.render).
-// Loaded by tools/render.html (headless Chrome, a real canvas).
+// Shared by tools/render.html (headless Chrome, a real canvas) and the MCP server's SVG renderer (loaded into the engine's vm).
 // r: a replay file · frames: frame numbers, ascending (0 = the start, N = after the last frame) · ctxFor(f): the 2D context to draw frame f in
 // opts: { full (whole arena; else the camera follows the fight), hud, boxes, zoom, x }
 function drawFrames(r, frames, w, h, opts, ctxFor) {

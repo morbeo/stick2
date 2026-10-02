@@ -203,11 +203,19 @@ function inside() {
     },
     saveProfile: () => ({ format: 'stick2.everything', chars: MCP.defs, current: CURRENT,
       cfg: Object.fromEntries(Object.entries(changed()).filter(([k]) => !DISPLAY.includes(k))), scenarios: myStore }),
+
+    // ---------- drawing without a browser: frames of a replay as SVG text (svg = tools/svg.js) ----------
+    renderSvg(r, frames, w, h, opts, svg) {
+      const out = [];
+      drawFrames(r, frames, w, h, opts, () => { const s = svg(w, h); out.push(s); return s.ctx; });
+      return out.map(s => s.toString());
+    },
   };
 }
 
 function session() {
   const { ctx, run } = engine(FILES);
+  run(fs.readFileSync(path.join(__dirname, 'frames.js'), 'utf8'));
   run(`(${inside})()`);
   // calls MCP[name](...args) in the engine: arguments and result cross as JSON
   const call = (name, ...args) => {
@@ -224,6 +232,7 @@ function session() {
   };
   const sim = id => sims.get(id) || (() => { throw new Error(`no simulation "${id}" (the last ${KEEP_SIMS} are kept: ${[...sims.keys()].join(', ') || 'none yet'})`); })();
   const file = p => path.resolve(ROOT, p);
+  const svg = require('./svg');
   return {
     ctx, run, call, sims, sim, file, ROOT,
     version: run('ENGINE_VERSION'),
@@ -235,6 +244,12 @@ function session() {
       const r = o.json !== undefined ? (typeof o.json === 'string' ? JSON.parse(o.json) : o.json) : JSON.parse(fs.readFileSync(file(o.path), 'utf8'));
       const res = call('importReplay', r, o), id = keep(r, res.summary, 'import');
       return { id, desync: res.desync, inSync: res.desync === null, version: res.version, engine: res.engine, ...(res.warning ? { warning: res.warning } : {}), ...res.summary };
+    },
+    // the frames as SVG text: the engine draws into a recording context (tools/svg.js)
+    svgFrames(replay, frames, w, h, opts) {
+      ctx.__svg = svg;
+      ctx.__in = JSON.stringify([replay, frames, w, h, opts]);
+      return JSON.parse(run('JSON.stringify(MCP.renderSvg(...JSON.parse(__in), __svg))'));
     },
     // the move matrix move by move until a time budget runs out: what is left is listed, to check in another call
     runChecks(o) {

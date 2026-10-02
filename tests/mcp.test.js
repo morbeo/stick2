@@ -108,6 +108,14 @@ test('resources: the docs and the schemas', async () => {
   assert.ok((await s.rpc('resources/read', { uri: 'stick2://docs/../package.json' })).error);
 });
 
+test('render_frame with the SVG renderer: the engine draws into SVG', async () => {
+  const sim = (await s.call('simulate', { scenario: 'ai vs ai', seed: 3, frames: 200, events: false })).json;
+  const r = await s.call('render_frame', { simulation: sim.id, frames: [0, 150], renderer: 'svg', w: 320, h: 180 });
+  assert.ok(!r.isError, r.content[0].text);
+  assert.equal(r.content.length, 2);
+  for (const c of r.content) { assert.match(c.text, /^<svg [^>]*width="320"/); assert.ok(c.text.length > 3000 && (c.text.match(/<path/g) || []).length > 20, 'a fighter is drawn'); }
+});
+
 test('render_frame and render_gif with Chrome: a PNG and a GIF file', { skip: !findChrome() && 'no Chrome found (set CHROME)' }, async () => {
   const sim = (await s.call('simulate', { scenario: 'ai vs ai', seed: 3, frames: 200, events: false })).json;
   const r = await s.call('render_frame', { simulation: sim.id, frame: 100, w: 320, h: 180 });
