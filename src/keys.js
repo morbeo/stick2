@@ -75,6 +75,8 @@ const NUMPAD = { 1: 'down+back', 2: 'down', 3: 'down+fwd', 4: 'back', 5: '', 6: 
 const BUTTONS = { P: 'punch', K: 'kick', S: 'special', G: 'guard' };
 function parseMacro(seq) {
   return seq.split(',').map(s => s.trim()).filter(Boolean).map(s => {
+    const hold = s.match(/^hold (\S+) ([\d.]+)$/); // 'hold up 0.2': a direction held that long
+    if (hold) return { hold: hold[1], t: +hold[2] };
     if (s.includes('.')) return +s || 0;
     const m = s.match(/^([1-9]?)([PKSG]*)$/i);
     if (!m) return s; // word form: 'down+fwd+punch'

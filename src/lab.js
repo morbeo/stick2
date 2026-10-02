@@ -3,7 +3,7 @@
 const canvas = $('c'), ctx = canvas.getContext('2d');
 const cursor = c => { if (canvas.style.cursor !== c) canvas.style.cursor = c; }; // the mouse cursor follows what is under it
 let dpr = 1;
-const lab = { mode: 'play', scen: 'you vs dummy', rows: null, x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
+const lab = { mode: 'play', scen: 'you vs dummy', builder: false, rows: null, x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
   seeds: 1, meter: false, inputs: false, tape: null, rec: false, replay: false, target: 'dummy', playback: null, chars: [null, null] };
 const newWorld = (...a) => Object.assign(new World(...a), { loop: app.loop });
 
@@ -328,6 +328,7 @@ function scenTip(s) {
 }
 // who fights, then the scripted tests by topic ([name, icon, tip, test]); a scenario goes in the first group that takes it
 const SCEN_GROUPS = [
+  ['my scenarios', 'person', 'Built by you in this browser (new scenario, or copy in the builder)', s => s.user],
   ['you', 'keyboard', 'You on the keyboard.', s => s.a === 'human'],
   ['engine AI', 'smart_toy', 'The built-in AI walks in and throws random chains.', s => !Array.isArray(s.a) && s.a !== 'human'],
   ['chains', 'timeline', 'Scripted: normals chaining into each other and into specials.', ['jab spam', 'J,J,J', 'K,K', 'J,J,K', 'J,K,K', 'sweep', 'dash punch', 'J→rush', 'J,K→spin', 'sandwich', 'showcase']],
@@ -345,7 +346,8 @@ function scenButton(onPick) {
     const q = h('input', { cls: 'macro', placeholder: 'filter scenarios…', tip: 'Letters of a scenario or group name narrow the list · Enter picks the first one left',
       oninput: () => { const t = q.value.toLowerCase(); for (const [hd, bar, os] of rows) { let any = false; for (const o of os) any = !(o.hidden = !(o.textContent.toLowerCase().includes(t) || hd.textContent.toLowerCase().includes(t))) || any; hd.hidden = bar.hidden = !any; } },
       onkeydown: e => { e.stopPropagation(); if (e.key === 'Enter') { const o = rows.flatMap(r => r[2]).find(o => !o.hidden); if (o) pick(o.textContent); } else if (e.key === 'Escape') closePop(); } });
-    popup(b, q, ...SCEN_GROUPS.flatMap(([g, ic, info]) => {
+    popup(b, h('div', { cls: 'bar' }, q, button(':add: new scenario', 'A scenario of your own, starting from this one: pick the characters, who controls them (or a script), where they stand and the settings it brings', () => { closePop(); newScen(); })),
+      ...SCEN_GROUPS.flatMap(([g, ic, info]) => {
       const os = Object.entries(SCENARIOS).filter(([k]) => scenGroup(k) === g).map(([k, s]) => {
         const o = button(k, scenTip(s), () => pick(k));
         reg(o, () => o.classList.toggle('on', lab.scen === k));
@@ -455,8 +457,9 @@ function labCtx() {
       meterToggle(), boxesToggle()), zoomBack()];
   const els = [];
   if (lab.mode === 'grid') els.push(grp('grid', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
-  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('fight', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = null; build(); })));
-  if (lab.mode === 'play') els.push(grp('fighters', 'Who fights: P1 (you) and P2, each any character; unset = the one being edited', fighterPick(0), swapFighters(), fighterPick(1)));
+  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('fight', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = null; build(); }),
+    SCENARIOS[lab.scen]?.user ? button(':edit:', 'Edit this scenario of yours: characters, controllers, script, positions, settings', () => { lab.builder = !lab.builder; panels(); }, lab.builder ? 'mini on' : 'mini') : null));
+  if (lab.mode === 'play' && !SCENARIOS[lab.scen]?.user) els.push(grp('fighters', 'Who fights: P1 (you) and P2, each any character; unset = the one being edited', fighterPick(0), swapFighters(), fighterPick(1)));
   if (lab.mode === 'play' && SCENARIOS[lab.scen]?.waves) els.push(grp('waves', SPEC.waves.tip + ' Changing it starts over at wave 1',
     seg(SPEC.waves.opts, () => CFG.waves, v => { setCfg({ waves: v }); mode().restart(); }, SPEC.waves.optTips),
     toggle(':casino: mixed', SPEC.waveMix.tip, () => CFG.waveMix, v => { setCfg({ waveMix: v }); mode().restart(); })));
@@ -632,6 +635,7 @@ function impactMouse(type, x, y) {
 const labMode = {
   enter(m) { lab.mode = m; build(); },
   restart: build,
+  overlay: () => lab.builder && lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? [scenBuilder()] : [],
   worlds: () => (lab.mode === 'gallery' ? onScreen() : lab.cells).flatMap(c => [c.w, ...(c.extra || [])]),
   render: labRender,
   ctxBar: labCtx,

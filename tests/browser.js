@@ -187,11 +187,11 @@ try {
   // the scenario picker: groups by who fights, scripted tests by topic, every scenario in one; the filter narrows them
   { setMode('play'); const sb = () => [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('Choose who fights'));
     sb().click(); if ([...document.querySelectorAll('.pop h4')].some(e => !e.querySelector('.ic'))) errs.push('scenario group icons');
-    const heads = [...document.querySelectorAll('.pop h4')].map(e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim()), names = [...document.querySelectorAll('.pop .bar button')].map(b => b.textContent);
+    const heads = [...document.querySelectorAll('.pop h4')].map(e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim()), names = [...document.querySelectorAll('.pop .bar button')].filter(b => !b.parentNode.querySelector('input')).map(b => b.textContent);
     for (const g of ['you', 'engine AI', 'chains', 'juggles & falls', 'guard & counters', 'specials', 'movement', 'weapons']) if (!heads.includes(g)) errs.push('scenario group ' + g);
     if (names.length !== Object.keys(SCENARIOS).length || new Set(names).size !== names.length) errs.push('scenario picker lists ' + names.length);
     const q = document.querySelector('.pop input'); q.value = 'fireb'; q.dispatchEvent(new Event('input'));
-    const shown = [...document.querySelectorAll('.pop .bar button')].filter(b => !b.hidden).map(b => b.textContent);
+    const shown = [...document.querySelectorAll('.pop .bar button')].filter(b => !b.hidden && !b.parentNode.querySelector('input')).map(b => b.textContent);
     if (shown.join() !== 'fireball,fireball clash' || [...document.querySelectorAll('.pop h4')].filter(e => !e.hidden).length !== 1) errs.push('scenario filter ' + shown);
     q.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); if (lab.scen !== 'fireball' || document.querySelector('.pop')) errs.push('scenario filter enter ' + lab.scen);
     lab.scen = 'you vs dummy'; build(); }
@@ -207,6 +207,27 @@ try {
     [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('delete everything'))?.click();
     if (Object.keys(localStorage).some(k => k.startsWith('stick2.')) || localStorage.getItem('other.app') !== '1' || reloaded !== 1) errs.push('factory reset ' + Object.keys(localStorage) + reloaded);
     localStorage.removeItem('other.app'); for (const k in keep) localStorage.setItem(k, keep[k]); }
+  // the scenario builder: new from the current scenario, characters, controllers, a script, settings; saved in the browser as you go, listed under my scenarios
+  { const keep = localStorage.getItem('stick2.scenarios'); setMode('play'); lab.scen = 'J,J,K'; build(); panels();
+    const sb = () => [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('Choose who fights')), pb = t => [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes(t));
+    const bb = (t, root = document.querySelector('.sbuild')) => [...root.querySelectorAll('button')].find(b => b.textContent.trim() === t), row = i => document.querySelector('.sbuild [data-p="' + i + '"]');
+    sb().click(); pb('new scenario').click(); panels();
+    const name = lab.scen, u = () => myScens()[lab.scen], w = () => lab.cells[0].w;
+    if (!document.querySelector('.sbuild') || !u() || !/^my scenario/.test(name) || u().p[0].ctl !== 'script' || u().p[0].script !== 'punch, 0.13, punch, 0.13, kick') errs.push('builder new ' + name + JSON.stringify(u()));
+    bb('jabbo', row(0)).click(); bb('lumpo', row(1)).click(); bb('AI', row(1)).click();
+    const sc = row(0).querySelector('input.script'); sc.value = '0.2, 2P'; sc.dispatchEvent(new Event('change'));
+    const nm = document.querySelector('.sbuild input.sname'); nm.value = 'jab vs sumo'; nm.dispatchEvent(new Event('change'));
+    if (lab.scen !== 'jab vs sumo' || !SCENARIOS['jab vs sumo'] || SCENARIOS[name] || w().a.ch !== CHARS.jabbo || w().b.ch !== CHARS.lumpo || !(w().ctl[1] instanceof Brain) || JSON.stringify(w().scen.a) !== JSON.stringify([0.2, 'down+punch'])) errs.push('builder edit ' + lab.scen + ' ' + JSON.stringify(w().scen.a));
+    const f = document.querySelector('.sbuild input.sfind'); f.value = 'gravit'; f.dispatchEvent(new Event('input')); bb('gravity').click();
+    if (u().cfg.gravity !== CFG.gravity) errs.push('builder add setting ' + JSON.stringify(u().cfg));
+    setCfg({ hitstop: 0.2 }); bb(Object.values(document.querySelectorAll('.sbuild button')).find(b => b.textContent.includes('take my settings')).textContent.trim()).click();
+    if (u().cfg.hitstop !== 0.2 || w().cfg.hitstop !== 0.2) errs.push('builder take settings ' + JSON.stringify(u().cfg)); applyPreset('juicy');
+    if (!JSON.parse(localStorage.getItem('stick2.scenarios'))['jab vs sumo']) errs.push('builder saved');
+    sb().click(); const g = [...document.querySelectorAll('.pop h4')].find(e => e.textContent.includes('my scenarios'));
+    if (!g || g.nextSibling.textContent !== 'jab vs sumo') errs.push('builder group'); closePop();
+    const json = exportScens(); importScens(json.replace('jab vs sumo', 'copy of it')); if (!SCENARIOS['copy of it']) errs.push('builder import');
+    if (!document.querySelector('.sbuild')) errs.push('builder gone ' + lab.scen + lab.builder + lab.mode); [...document.querySelectorAll('.sbuild button')].find(b => b.dataset.tip === 'Delete this scenario').click(); if (SCENARIOS['jab vs sumo'] || myScens()['jab vs sumo'] || lab.scen === 'jab vs sumo') errs.push('builder delete ' + lab.scen);
+    delete myScens()['copy of it']; delete SCENARIOS['copy of it']; lab.builder = false; keep === null ? localStorage.removeItem('stick2.scenarios') : localStorage.setItem('stick2.scenarios', keep); lab.scen = 'you vs dummy'; build(); panels(); }
   // ⌘K reaches every table: the move table, the input table, the combos (character tab: over its stage, else animate) and the bone table (character tab)
   { const run = n => { closePop(); paletteEntries().find(e => e.name === n)?.run(); panels(); };
     setMode('play'); run('move table'); if (app.mode !== 'animate' || anim.view !== 'table' || !document.querySelector('.mtable tbody tr')) errs.push('palette move table ' + app.mode + anim.view);
