@@ -95,7 +95,7 @@ function testCtx() {
   return [grp('move', 'What is tested', mb),
     grp('against', 'Who the move is tried on', seg(['same', 'all'], () => tests.opps, v => { tests.opps = v; rerunTests(); panels(); },
       { same: 'The character being edited, as its own target', all: 'Every character as the target (bodies differ, so does reach)' })),
-    grp('show', 'Which rows show', toggle(':filter_list: failing only', 'Show only the rows with a failing cell (red), to work through them', () => tests.failing, v => { tests.failing = v; panels(); })),
+    grp('rows', 'Which rows show', toggle(':filter_list: failing only', 'Show only the rows with a failing cell (red), to work through them', () => tests.failing, v => { tests.failing = v; panels(); })),
     grp('run', 'The tests rerun by themselves when the character or a setting changes', button(':replay: rerun', 'Run every cell again', () => { rerunTests(); panels(); }), testProgress)];
 }
 const testMode = {

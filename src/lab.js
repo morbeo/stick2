@@ -447,7 +447,7 @@ const replayFile = () => toggle(':theaters: replay', 'Play a saved replay file i
 const blowGrps = (w, reset) => [
   grp('blow', 'Strike the body: a blow from nobody, on the bone at that height (no damage)',
     Object.entries(BLOWS).map(([k, [, , tip]]) => button(k, tip, () => blow(w(), k)))),
-  grp('', 'How hard and from where the blows come', seg(Object.keys(BLOW_POWER), () => lab.blowPower, v => { lab.blowPower = v; },
+  grp('power', 'How hard and from where the blows come', seg(Object.keys(BLOW_POWER), () => lab.blowPower, v => { lab.blowPower = v; },
     { light: 'Light blows: power × 0.6', normal: 'The move\'s own power', heavy: 'Heavy blows: power × 1.7' }),
     seg(['front', 'back'], () => lab.blowSide, v => { lab.blowSide = v; }, { front: 'Blows from in front of the body', back: 'Blows from behind it' }),
     button(':restart_alt: stand up', 'Put the body back on its feet', reset))];
@@ -490,7 +490,7 @@ function labCtx() {
   if (lab.mode === 'gallery') return [grp('target', 'What the moves play against', seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0]))),
     showGrp(['meter', 'boxes', 'ghost', 'hud', 'labels'])];
   if (lab.mode === 'impact') return [
-    grp('view', 'The nine scripted hits, or one body alone to strike', seg(['hits', 'ragdoll'], () => lab.impact, v => { lab.impact = v; build(); panels(); },
+    grp('kind', 'The nine scripted hits, or one body alone to strike', seg(['hits', 'ragdoll'], () => lab.impact, v => { lab.impact = v; build(); panels(); },
       { hits: 'Nine scripted hits on the character, struck by the stick fighter', ragdoll: 'One body alone, no attacker: strike it low, mid, high… with the buttons, or drag on it' },
       v => v === 'hits' ? ':grid_view: hits' : ':accessibility_new: ragdoll')),
     ...lab.impact === 'ragdoll' ? blowGrps(() => lab.cells[0].w, build) : [],
@@ -510,7 +510,7 @@ function labCtx() {
     const back = zoomBack();
     reg(adopt, () => { adopt.hidden = !lab.zoom; });
     els.push(grp('axes', 'The variables swept across the grid', axisButton(lab.x, 'X'), axisButton(lab.y, 'Y')),
-      grp('', 'Ready-made comparisons', button(':science: tests :expand_more:', 'Ready-made comparisons: collision modes, chain rules, combo effects, planes', (e, tb) => popup(tb, h('div', { cls: 'bar col', onclick: closePop }, button(':target: collision test', 'Every hitTest mode (columns) on three fights (rows): compare hits and whiffs of the collision modes', () => {
+      grp('tests', 'Ready-made comparisons', button(':science: tests :expand_more:', 'Ready-made comparisons: collision modes, chain rules, combo effects, planes', (e, tb) => popup(tb, h('div', { cls: 'bar col', onclick: closePop }, button(':target: collision test', 'Every hitTest mode (columns) on three fights (rows): compare hits and whiffs of the collision modes', () => {
         Object.assign(lab.x, { k: 'hitTest' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = null; build();
       }),
       button(':sync_alt: cancel test', `Every chain rule (columns) on combo fights (rows: ${CANCEL_SCENS.join(' · ')}): what each rule lets through; the meter shows cancel windows in purple`, () => {

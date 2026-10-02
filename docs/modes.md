@@ -112,7 +112,7 @@ Nine bodies, each struck by the stick fighter: jab, kick, sweep, roundhouse, lau
 
 ![One body alone, launched by the launcher button](img/ragdoll.png)
 
-**ragdoll** (next to **hits**) is one big body alone.
+**ragdoll** (next to **hits**, in the **kind** group) is one big body alone.
 
 - The **blow** buttons strike it: high, mid, low, sweep, launcher, overhead, knockdown, crumple, K.O. Each is a stick move's hit without damage, on the bone at that height.
 - **light / normal / heavy** set how hard; **front / back** where from.
@@ -287,7 +287,7 @@ Each cell shows **H** hit, **B** blocked or **·** whiff, and is checked:
 
 Using it:
 
-- Red cells fail; hover for why. **failing only** hides the rest.
+- Red cells fail; hover for why. **failing only** (in the **rows** group) hides the rest.
 - Click a cell to watch it looping over the table. **open in animate** edits the move with that exact target (the preview target has near / far too).
 - My scenarios are played through as cases too (NaN, stage, stuck 5 s).
 - Cells run in the background, a few per frame, and rerun when the character or a setting changes.
