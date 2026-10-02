@@ -444,6 +444,7 @@ const MOVE_PROPS = [
   { k: 'bstun', min: 0, max: 1, step: 0.02, tip: 'Blockstun (s): how long a blocking defender is stuck in guard. 0 = stun × the blockStun setting.' },
   { k: 'bpush', min: 0, max: 600, step: 10, tip: 'Pushback on block (px/s). 0 = knock × the blockPush setting.' },
   { k: 'juggle', min: 0, max: 10, step: 1, tip: 'Juggle cost: points it spends from the victim\'s juggle pool when it hits a foe in the air or lying (jugglePoints setting; 0 there = no limit). Unset = 1.', def: 1 },
+  { k: 'range', min: 10, max: 300, step: 5, tip: 'Setup distance (px between the two fighters) where the gallery, the animate preview and the Tests view put the target: where the move is meant to land. Unset = 45 (dashPunch 100).', def: 45 },
 ];
 // what each height is blocked by (guard and parry are front only)
 const HEIGHT_TIPS = {

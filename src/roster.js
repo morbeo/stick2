@@ -453,7 +453,7 @@ CHAR_DEFS.noodo = { ...stick, name: 'noodo', speed: 0.8, jump: 0.85, gravity: 0.
       { d: 0.2, p: { torso: 30, head: 10, afU: 40, afL: 150, abU: 30, abL: 150, lfU: 35, lfL: -30, lbU: -25, lbL: 0 } },
       { d: 0.24, e: 'inOutCubic', p: null }] },
     // P: the long jab: the arm stretches out its whole length
-    longJab: attack({ power: 1, damage: 6, hit: 'fh', height: 'high', knock: 140, stun: 0.34, next: { punch: 'cross' } },
+    longJab: attack({ power: 1, damage: 6, hit: 'fh', height: 'high', knock: 140, stun: 0.34, range: 70, next: { punch: 'cross' } },
       [0.08, { torso: 0, afU: 70, afL: 130, abU: 20, abL: 130 }],
       [0.07, { torso: 12, afU: 92, afL: 0, abU: 20, abL: 130 }], 0.08, 0.2),
     // ↓ K in the air: the yoga drill, feet first and spinning down at an angle
@@ -490,6 +490,8 @@ CHAR_DEFS.noodo = { ...stick, name: 'noodo', speed: 0.8, jump: 0.85, gravity: 0.
   stances: [{ name: 'tree', pose: { ...stylePose([180, 0], [0, 0], [-5, 20], [-10, 25]), thighF: 50, shinF: -150, footF: 90, thighB: 0, shinB: 0, footB: 90 },
     ...bind({ punch: 'longJab', kick: 'crescent', special: 'yogaFire', fwdPunch: 'yogaGrab' }) }] };
 CHAR_DEFS.noodo.moves.drillKick.keys[1].turn = 2;
+// the long legs and arms reach past a foe standing close: their setup distance (see range)
+for (const [m, r] of Object.entries({ spin: 75, turnKick: 70, armada: 65, lariat: 100, risingKick: 35 })) CHAR_DEFS.noodo.moves[m].range = r;
 
 // gogili: the wild beast: long heavy arms, hunched, rolls into a ball, electrifies itself, bites, leaps off the wall
 CHAR_DEFS.gogili = { ...stick, name: 'gogili', speed: 1.05, jump: 1.15, grabRange: 1.6, airAccel: 1.2, dash: 1.3, weight: 1.05, springs: 1.2, health: 1.05,

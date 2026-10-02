@@ -250,11 +250,11 @@ const SCENARIOS = {
   'jump': { a: ['hop', 0.7, 'fwd+hop', 0.1, { hold: 'fwd', t: 0.5 }], b: 'dummy', ax: 250, bx: 550, period: 2 },
 };
 
-// gallery: one looping cell per attack, forced with '@' so no input logic gets in the way
+// gallery: one looping cell per attack, forced with '@' so no input logic gets in the way, the target at the move's range (mv: the move)
 const GALLERY = ['jab', 'cross', 'uppercut', 'kick', 'roundhouse', 'sweep', 'dashPunch', 'airKick', 'airPunch', 'rush', 'rising', 'spin', 'stomp'];
-const galleryScen = (m, air = m.startsWith('air')) => ({
+const galleryScen = (m, air = m.startsWith('air'), mv) => ({
   a: air ? ['hop', m === 'airPunch' ? 0.4 : 0.15, '@' + m] : [0.1, '@' + m], b: 'dummy',
-  ax: 330, bx: m === 'dashPunch' ? 430 : 375, period: 2.4,
+  ax: 330, bx: 330 + (mv?.range ?? (m === 'dashPunch' ? 100 : 45)), period: 2.4,
 });
 // every move: the attacks above in order, then the rest (specials, rolls, weapon moves, taunts…)
 const galleryMoves = (ms = currentChar().moves) => [...GALLERY.filter(m => ms[m]), ...Object.keys(ms).filter(m => !GALLERY.includes(m))];

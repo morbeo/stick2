@@ -4,7 +4,7 @@
 const STANCES = { stand: 'dummy', crouch: [{ hold: 'down', t: 99 }], guard: [{ hold: 'guard', t: 99 }], low: [{ hold: 'down+guard', t: 99 }] };
 const FAR = 60; // a far target stands this much further than the move's usual distance
 function targetScen(name, m, tg) {
-  const s = galleryScen(name, !!m.air);
+  const s = galleryScen(name, !!m.air, m);
   s.b = tg.state === 'air' ? [Math.max(0, 0.1 + frameData(m, CFG.attackSpeed).startup / 60 - 0.25), 'hop'] : STANCES[tg.stance];
   if (tg.dist === 'far') s.bx += FAR;
   s.init = w => {

@@ -75,7 +75,7 @@ function build() {
   else if (lab.mode === 'impact') for (const [k, [tip, s]] of Object.entries(IMPACTS))
     lab.cells.push({ w: newWorld({ b: 'dummy', period: 3, ...s, init: w => { s.init?.(w); w.a.hidden = lab.solo; } }, {}, 7, [CHARS.stick, currentChar()]), label: k, tip });
   else if (lab.mode === 'gallery') {
-    for (const m of galleryMoves()) lab.cells.push(lazyCell(() => newWorld({ ...galleryScen(m), ...GALLERY_TARGETS[lab.target][1] }), { move: m, label: m }));
+    for (const m of galleryMoves()) lab.cells.push(lazyCell(() => newWorld({ ...galleryScen(m, undefined, currentChar().moves[m]), ...GALLERY_TARGETS[lab.target][1] }), { move: m, label: m }));
     for (const [k, [tip, s]] of Object.entries(MOVEMENTS)) lab.cells.push(lazyCell(() => newWorld({ period: 2.4, ...s }), { motion: true, label: k, tip: `${k}: ${tip}` }));
   }
   else if (lab.kind !== 'sweep') lab.cells = lab.kind === 'breed' ? breedCells() : attackCells();

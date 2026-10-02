@@ -57,6 +57,7 @@ test('moves: valid heights and hits, striking bones that exist, poses of real bo
       for (const b of [m.hit].flat()) if (b && !ids.has(b)) bad.push(at + ': strikes with ' + b + ', a bone it does not have');
       for (const f of ['power', 'damage', 'stun']) if (m[f] != null && !(Number.isFinite(m[f]) && m[f] >= 0)) bad.push(at + ': ' + f + ' = ' + m[f]);
       for (const f of ['knock', 'lunge', 'launch']) if (m[f] != null && !Number.isFinite(m[f])) bad.push(at + ': ' + f + ' = ' + m[f]); // negative: backward (a fade kick, a suplex)
+      if (m.range != null && !(Number.isFinite(m.range) && m.range > 0)) bad.push(at + ': range ' + m.range + ' (the setup distance must be positive)');
       if (!m.keys.length) bad.push(at + ': no keys');
       m.keys.forEach((key, i) => {
         if (!(key.d >= 0 && Number.isFinite(key.d))) bad.push(at + ' key ' + i + ': duration ' + key.d);
