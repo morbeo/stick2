@@ -123,6 +123,17 @@ try {
   // impact without an attacker: it is not drawn or framed, its blows land as before
   { lab.solo = true; setMode('impact'); const w = lab.cells[0].w; for (let i = 0; i < 60; i++) w.advance(1/60, NOIN);
     if (!w.a.hidden || !w.hits) errs.push('impact solo ' + [w.a.hidden, w.hits]); lab.solo = false; }
+  // impact's ragdoll view: one body alone; a blow button strikes it (a sweep knocks it down), stand up resets it
+  { setMode('impact'); const btn = t => [...document.querySelectorAll('#ctx button')].find(b => b.textContent.trim().endsWith(t));
+    btn('ragdoll').click(); btn('sweep').click(); const w = lab.cells[0].w; let down = false; for (let i = 0; i < 40; i++) { w.advance(1/60, NOIN); down ||= !!w.b.rag || w.b.downT > 0; }
+    if (lab.cells.length !== 1 || !w.a.hidden || w.hits !== 1 || !down) errs.push('ragdoll blow ' + [lab.cells.length, w.a.hidden, w.hits, down]);
+    btn('stand up').click(); if (lab.cells[0].w === w || lab.cells[0].w.hits) errs.push('ragdoll stand up');
+    btn('hits').click(); if (lab.cells.length !== Object.keys(IMPACTS).length) errs.push('impact hits ' + lab.cells.length); }
+  // the character tab's impact preview: the same lone body and blow buttons, on the character being built
+  { setMode('character'); const btn = t => [...document.querySelectorAll('#ctx button')].find(b => b.textContent.trim().endsWith(t));
+    btn('impact').click(); btn('launcher').click(); const w = creator.w; for (let i = 0; i < 20; i++) w.advance(1/60, NOIN);
+    if (!w.a.hidden || w.b.ch !== currentChar() || w.hits !== 1) errs.push('creator impact ' + [w.a.hidden, w.b.ch.name, w.hits]);
+    btn('showcase').click(); if (btn('crumple')) errs.push('creator blow buttons stay'); }
   // four tabs: impact is a view of play, gallery of animate, picked in the toolbar's view group
   { setMode('impact'); const tabs = [...document.querySelectorAll('#modes button')], on = tabs.find(b => b.classList.contains('on'));
     if (tabs.length !== 4 || !on?.textContent.includes('play')) errs.push('tabs ' + tabs.length + ' ' + on?.textContent);

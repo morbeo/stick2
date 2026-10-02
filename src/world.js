@@ -412,11 +412,14 @@ class World {
     }
     if (!best) return false;
     const [vic, bone] = best, len = Math.hypot(dx, dy), p = clamp(len / 60, 0.2, 3);
-    const att = Object.assign(Object.create(this.fighters.find(f => f !== vic)), { dir: Math.sign(dx) || -vic.dir }); // the other fighter, struck from dx's side
-    const m = { power: p, knock: Math.abs(dx) * 6, launch: Math.max(0, -dy) * 6, kd: p >= 1, stun: 0.25 + 0.1 * p, damage: 0, height: dy > len / 2 ? 'low' : 'mid' };
-    this.onHit(att, vic, { pt: [x, y], bone }, m, null);
-    this.pend = null;
+    this.strike(vic, bone, [x, y], { power: p, knock: Math.abs(dx) * 6, launch: Math.max(0, -dy) * 6, kd: p >= 1, stun: 0.25 + 0.1 * p, damage: 0, height: dy > len / 2 ? 'low' : 'mid' }, Math.sign(dx) || -vic.dir);
     return true;
+  }
+  // a blow m (a move's hit properties) on a fighter's bone at pt from dir's side (1: travelling right), by nobody: the other fighter stands in as the attacker
+  strike(vic, bone, pt, m, dir) {
+    const att = Object.assign(Object.create(this.fighters.find(f => f !== vic)), { dir });
+    this.onHit(att, vic, { pt, bone }, m, null);
+    this.pend = null;
   }
   dust(x, y, imp, z = 0) {
     if (this.cfg.squash <= 0) return;

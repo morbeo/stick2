@@ -4,7 +4,7 @@ const canvas = $('c'), ctx = canvas.getContext('2d');
 const cursor = c => { if (canvas.style.cursor !== c) canvas.style.cursor = c; }; // the mouse cursor follows what is under it
 let dpr = 1;
 const lab = { mode: 'play', scen: 'you vs dummy', builder: false, rows: null, x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
-  seeds: 1, meter: false, inputs: false, tape: null, rec: false, replay: false, target: 'dummy', playback: null, chars: [null, null] };
+  seeds: 1, meter: false, inputs: false, tape: null, rec: false, replay: false, target: 'dummy', playback: null, chars: [null, null], impact: 'hits', blowPower: 'normal', blowSide: 'front' };
 const newWorld = (...a) => Object.assign(new World(...a), { loop: app.loop });
 
 // what the little plot under a grid cell shows, by the swept variable
@@ -62,6 +62,28 @@ const IMPACTS = {
   'K.O.': ['The fight\'s last hit: the body goes limp', { a: [0.1, '@roundhouse'], bx: 385, cfg: { health: 100 }, init: w => { w.b.hp = 1; } }],
 };
 
+// impact's ragdoll view: one body alone, struck by blows from nobody (buttons) or drags. A blow: a stick move's hit (no damage) on the bone
+// at a share of the body's height ([move, height share, tip]); K.O. takes the last health first
+const BLOWS = {
+  high: ['jab', 0.9, 'A light high hit to the head: a short reaction'], mid: ['kick', 0.6, 'A mid kick to the body'],
+  low: [{ power: 1, knock: 140, stun: 0.35, height: 'low' }, 0.15, 'A low kick to the shin: a stagger, no fall'],
+  sweep: ['sweep', 0.1, 'Takes the legs: a fall from the feet'], launcher: ['launcher', 0.6, 'Launched up into the air, then the fall'],
+  overhead: ['hammer', 0.9, 'An overhead that bounces it off the floor'], knockdown: ['roundhouse', 0.9, 'A high knockdown: the body tips over its feet'],
+  crumple: ['charge', 0.6, 'Folds where it stands'], 'K.O.': ['roundhouse', 0.9, 'The last hit: the body goes limp (the fight restarts after it)'],
+};
+const BLOW_POWER = { light: 0.6, normal: 1, heavy: 1.7 };
+const ragdollWorld = (ch = currentChar()) => newWorld({ a: 'dummy', b: 'dummy', ax: 330, bx: 400, period: 0, init: w => { w.a.hidden = true; } }, {}, 7, [CHARS.stick, ch]);
+function blow(w, k) {
+  const [mv, share] = BLOWS[k], vic = w.b, P = vic.body(), sc = BLOW_POWER[lab.blowPower], side = lab.blowSide === 'front' ? -vic.dir : vic.dir;
+  const { keys, next, lunge, hit, style, cancel, ...m0 } = typeof mv === 'string' ? CHARS.stick.moves[mv] : mv;
+  const m = { ...m0, damage: 0, power: m0.power * sc, knock: (m0.knock || 0) * sc, launch: (m0.launch || 0) * sc };
+  const bones = vic.ch.bones.filter(b => b.role !== 'weapon'), ys = bones.flatMap(b => [P[b.id][1], P[b.parent || 'hip'][1]]);
+  const top = Math.min(...ys), y = vic.y - share * (vic.y - top), mid = b => b.shape === 'circle' ? P[b.id] : P[b.parent || 'hip'].map((v, i) => (v + P[b.id][i]) / 2);
+  const bone = bones.reduce((a, b) => Math.abs(mid(b)[1] - y) < Math.abs(mid(a)[1] - y) ? b : a);
+  if (k === 'K.O.') vic.hp = 1, m.damage = 1;
+  w.strike(vic, bone, mid(bone), m, side);
+}
+
 // a gallery cell builds its fight when it is needed (scrolled into view) and drops it off screen, so it never runs a stale character
 const lazyCell = (mk, c) => Object.defineProperty(c, 'w', { get() { return this._w ??= mk(); }, enumerable: true });
 function build() {
@@ -72,6 +94,7 @@ function build() {
     lab.cells.push({ w: lab.playback ? Object.assign(replayWorld(lab.playback), { loop: app.loop }) : newWorld(replay ? { ...scen, b: { tape: lab.tape } } : scen, {}, 1, playChars()) });
     lab.cells[0].w.sfx = playSound; lab.cols = 1;
   }
+  else if (lab.mode === 'impact' && lab.impact === 'ragdoll') { lab.cells.push({ w: ragdollWorld() }); lab.cols = 1; }
   else if (lab.mode === 'impact') for (const [k, [tip, s]] of Object.entries(IMPACTS))
     lab.cells.push({ w: newWorld({ b: 'dummy', period: 3, ...s, init: w => { s.init?.(w); w.a.hidden = lab.solo; } }, {}, 7, [CHARS.stick, currentChar()]), label: k, tip });
   else if (lab.mode === 'gallery') {
@@ -184,9 +207,9 @@ function drawInputs(w, x, y) {
 function labRender() {
   clear();
   lab.scroll = clamp(lab.scroll, 0, maxScroll()); // the canvas or the column count may have changed
-  const cells = shown(), play = lab.mode === 'play', rects = labRects(cells.length);
-  cells.forEach((c, i) => !(rects[i].y + rects[i].h > 0 && rects[i].y < canvas.height) ? delete c._w : drawCell(c, rects[i], { full: play, plot: !play && lab.mode !== 'impact', meter: lab.meter,
-    selected: !play && !lab.zoom && (lab.mode === 'grid' && lab.kind !== 'sweep' ? c.parent && 'parent'
+  const cells = shown(), play = lab.mode === 'play', rag = lab.mode === 'impact' && lab.impact === 'ragdoll', rects = labRects(cells.length);
+  cells.forEach((c, i) => !(rects[i].y + rects[i].h > 0 && rects[i].y < canvas.height) ? delete c._w : drawCell(c, rects[i], { full: play || rag, plot: !play && lab.mode !== 'impact', meter: lab.meter,
+    selected: !play && !rag && !lab.zoom && (lab.mode === 'grid' && lab.kind !== 'sweep' ? c.parent && 'parent'
       : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) && 'current settings' : c === lab.focus && 'focused') }));
   if (lab.mode === 'grid' && lab.kind === 'attacks' && !lab.zoom) cells.forEach((c, i) => { c.btns = null; if (i === lab.hover) drawCellButtons(c, rects[i]); });
   if (play && lab.inputs && cells[0].w.ctl[0] === 'human') drawInputs(cells[0].w, 10 * dpr, 60 * dpr);
@@ -417,6 +440,14 @@ function trainingCtl() {
   return [grp('show', 'Training overlays', meterToggle(), toggle(':stadia_controller:', 'Input display: your inputs in numpad notation (6 forward, 2 down, 8 up) and frames held', () => lab.inputs, v => { lab.inputs = v; }), boxesToggle()),
     grp('dummy', 'Record your inputs for the dummy to play back', rec, rep), grp('replay', 'Replay files: the whole fight, pinned to the engine version', save, file)];
 }
+// the blow buttons (impact's ragdoll, the creator's impact preview): what, how hard, from which side, and stand it up again
+const blowGrps = (w, reset) => [
+  grp('blow', 'Strike the body: a blow from nobody, on the bone at that height (no damage)',
+    Object.entries(BLOWS).map(([k, [, , tip]]) => button(k, tip, () => blow(w(), k)))),
+  grp('', 'How hard and from where the blows come', seg(Object.keys(BLOW_POWER), () => lab.blowPower, v => { lab.blowPower = v; },
+    { light: 'Light blows: power × 0.6', normal: 'The move\'s own power', heavy: 'Heavy blows: power × 1.7' }),
+    seg(['front', 'back'], () => lab.blowSide, v => { lab.blowSide = v; }, { front: 'Blows from in front of the body', back: 'Blows from behind it' }),
+    button(':restart_alt: stand up', 'Put the body back on its feet', reset))];
 // replay files (see makeReplay): download the play fight, or load one and play it in place of the scenario
 function saveReplay() {
   const w = lab.cells[0].w, name = lab.playback?.scenario || lab.scen;
@@ -456,8 +487,12 @@ function labCtx() {
   if (lab.mode === 'gallery') return [grp('target', 'What the moves play against', seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0]))),
     grp('show', 'Overlays', meterToggle(), boxesToggle(), toggle(':visibility:', 'Ghost: ' + SPEC.ghost.tip + keyTip('ghost'), () => CFG.ghost, v => { CFG.ghost = v; }))];
   if (lab.mode === 'impact') return [
+    grp('view', 'The nine scripted hits, or one body alone to strike', seg(['hits', 'ragdoll'], () => lab.impact, v => { lab.impact = v; build(); panels(); },
+      { hits: 'Nine scripted hits on the character, struck by the stick fighter', ragdoll: 'One body alone, no attacker: strike it low, mid, high… with the buttons, or drag on it' },
+      v => v === 'hits' ? ':grid_view: hits' : ':accessibility_new: ragdoll')),
+    ...lab.impact === 'ragdoll' ? blowGrps(() => lab.cells[0].w, build) : [],
     grp('falls', SPEC.falls.tip, seg(SPEC.falls.opts, () => CFG.falls, v => setCfg({ falls: v }), SPEC.falls.optTips)),
-    grp('show', 'Overlays', toggle(':person_off: no attacker', 'Hide the attacker: only the struck body, its blows still land the same way (and drags strike it unobstructed)', () => lab.solo, v => { lab.solo = v; build(); }),
+    grp('show', 'Overlays', lab.impact === 'ragdoll' ? null : toggle(':person_off: no attacker', 'Hide the attacker: only the struck body, its blows still land the same way (and drags strike it unobstructed)', () => lab.solo, v => { lab.solo = v; build(); }),
       meterToggle(), boxesToggle()), zoomBack()];
   const els = [];
   if (lab.mode === 'grid') els.push(grp('grid', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));

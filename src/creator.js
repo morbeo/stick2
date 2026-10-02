@@ -6,8 +6,10 @@ const PREVIEWS = {
   showcase: ['showcase', 'Scripted demo: walk in, J,J,K chain, sweep, jump kick, back off.'],
   walk: ['walk', 'Walk forward and back: check the walk cycle and arm swing.'],
   'vs ai': ['ai vs ai', 'Two copies fight each other with the engine AI.'],
+  impact: [null, 'The body alone, no attacker: strike it low, mid, high… with the blow buttons and watch it fall (the ragdoll).'],
 };
-const previewScen = () => { const s = SCENARIOS[PREVIEWS[creator.preview][0]]; return { ...s, init: w => { s.init?.(w); w.a.stanceI = studio.stance; } }; };
+// the preview's scenario (impact: the experiment grid plays the showcase)
+const previewScen = () => { const s = SCENARIOS[PREVIEWS[creator.preview][0] || 'showcase']; return { ...s, init: w => { s.init?.(w); w.a.stanceI = studio.stance; } }; };
 
 // ---------- editor view: the stance pose, big, with a handle on every joint ----------
 function edLayout() {
@@ -207,7 +209,8 @@ function creatorKey(e, a) {
 // ---------- panels ----------
 function creatorCtx() {
   return [movesGrp(),
-    grp('preview', 'What the preview on the right plays', seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); }, mapVals(PREVIEWS, p => p[1]))),
+    grp('preview', 'What the preview on the right plays', seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); panels(); }, mapVals(PREVIEWS, p => p[1]))),
+    ...creator.preview === 'impact' && !creator.expOn ? blowGrps(() => creator.w, () => creatorMode.restart()) : [],
     grp('', 'Experiment', toggle(':science: experiment', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
       () => creator.expOn && creator.exp.kind === 'body', on => setExp(on))),
     grp('show', 'Overlays', toggle(':check_box_outline_blank: boxes', SPEC.boxes.tip, () => CFG.boxes, v => { CFG.boxes = v; }), colorsToggle()),
@@ -432,7 +435,7 @@ function expPanel() {
 
 const creatorMode = {
   preview: () => creator.expOn ? null : edLayout().pv,
-  enter() { creator.w = newWorld(previewScen()); if (creator.expOn) buildExp(); },
+  enter() { creator.w = creator.preview === 'impact' ? ragdollWorld() : newWorld(previewScen()); if (creator.expOn) buildExp(); },
   restart() { creatorMode.enter(); },
   worlds: () => creator.expOn ? creator.exp.cells.map(c => c.w) : [creator.w],
   render: creatorRender,
