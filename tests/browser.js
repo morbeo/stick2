@@ -106,6 +106,16 @@ try {
     lab.playback = r; build(); const w = lab.cells[0].w; for (let i = 0; i < 70; i++) w.advance(1/60, NOIN); labRender();
     if (!w.playback || w.desync !== null || !w.playback.over) errs.push('replay playback ' + [w.desync, w.playback?.over]);
     lab.playback = null; build(); if (lab.cells[0].w.playback) errs.push('replay stop'); }
+  // the menu bar's files: export / import character, settings or everything; settings round-trip, out-of-range values fall back to the default
+  { setMode('play'); const top = t => [...document.querySelectorAll('#global button')].find(b => b.textContent.includes(t)), got = [], dl = download, of = openFile;
+    top('export').click(); const menu = [...document.querySelectorAll('.pop button')].map(b => b.textContent).join(); closePop();
+    if (menu !== 'character,settings,everything' || !top('import')) errs.push('file menu ' + menu);
+    download = (n, d) => got.push(JSON.parse(JSON.stringify(d))); let feed; openFile = f => f(feed);
+    setCfg({ hitstop: 0.12 }); exportFile('settings'); setCfg({ hitstop: DEFAULTS.hitstop }); feed = got[0]; importFile('settings');
+    if (CFG.hitstop !== 0.12) errs.push('settings import ' + CFG.hitstop);
+    feed = { format: 'stick2.settings', cfg: { hitstop: 99 } }; importFile('settings'); if (CFG.hitstop !== DEFAULTS.hitstop) errs.push('settings range ' + CFG.hitstop);
+    exportFile('everything'); if (got[1]?.format !== 'stick2.everything' || got[1].current !== CURRENT) errs.push('everything export');
+    download = dl; openFile = of; }
   // side panel: headings fold their section (remembered), advanced rows wait behind "more", a search shows everything
   { setMode('play'); const sec = name => [...document.querySelectorAll('#side .fold')].find(f => f.querySelector('h3').textContent.toLowerCase().startsWith(name));
     const vis = el => !!el.offsetParent, row = k => [...document.querySelectorAll('#side .row')].find(r => r.firstChild.textContent === k);

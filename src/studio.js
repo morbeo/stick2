@@ -158,6 +158,48 @@ function importChar() {
   };
   inp.click();
 }
+// ---------- files (the menu bar): export / import the character, the settings, or everything (edited characters, settings, my scenarios, keys) ----------
+const FILE_TIPS = { character: 'The character being edited: skeleton, poses, moves, binds',
+  settings: 'Every setting changed from its default (debug views left out)',
+  everything: 'Your edited and new characters, the settings, your scenarios and your keys and macros' };
+function download(name, data) {
+  const a = h('a', { href: URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' })), download: name });
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function openFile(f) {
+  const inp = h('input', { type: 'file', accept: '.json,application/json' });
+  inp.onchange = async () => { let d; try { d = JSON.parse(await inp.files[0].text()); } catch (err) { return alert('Not a JSON file: ' + err.message); } f(d); syncAll(); };
+  inp.click();
+}
+const cfgData = () => Object.fromEntries(changedCfg().map(k => [k, CFG[k]]));
+// settings from a file over the defaults: known ones of the right type and in range only (the debug views stay)
+function cfgFrom(o = {}) {
+  const ok = (k, v) => k in DEFAULTS && typeof v === typeof DEFAULTS[k] && (SPEC[k].opts ? SPEC[k].opts.includes(v) : typeof v !== 'number' || v >= SPEC[k].min && v <= SPEC[k].max);
+  const base = Object.keys(DEFAULTS).filter(k => !['ghost', 'boxes', 'scope'].includes(k)).map(k => [k, DEFAULTS[k]]);
+  return Object.fromEntries([...base, ...Object.entries(o).filter(([k, v]) => ok(k, v))]);
+}
+function exportFile(kind) {
+  if (kind === 'character') return exportChar();
+  if (kind === 'settings') return download('stick2-settings.json', { format: 'stick2.settings', cfg: cfgData() });
+  download('stick2-everything.json', { format: 'stick2.everything', chars: edited(), current: CURRENT, cfg: cfgData(), scenarios: myStore, keys: { map: keymap, macros } });
+}
+function importFile(kind) {
+  if (kind === 'character') return importChar();
+  openFile(d => {
+    if (d.format !== 'stick2.' + kind) return alert(`Not a${kind === 'everything' ? 'n everything' : ' settings'} file`);
+    if (kind === 'settings') { setCfg(cfgFrom(d.cfg)); return mode().restart(); }
+    if (!confirm('Load everything in this file? Characters with the same names, the settings, scenarios with the same names and your keys are replaced (⌘Z undoes only the settings).')) return;
+    try { for (const def of Object.values(d.chars || {})) makeCharacter(def); } catch (err) { return alert('A character in the file is broken, nothing was loaded: ' + err.message); }
+    for (const [n, def] of Object.entries(d.chars || {})) { DEFS[n] = { ...clone(def), name: n }; CHARS[n] = makeCharacter(DEFS[n]); }
+    if (d.scenarios) importScens(JSON.stringify(d.scenarios));
+    if (d.keys?.map) { Object.assign(keymap, d.keys.map); macros.splice(0, macros.length, ...(d.keys.macros || [])); saveKeys(); }
+    setCfg(cfgFrom(d.cfg));
+    pickChar(DEFS[d.current] ? d.current : CURRENT); // saves the characters, rebuilds every fight
+  });
+}
+const fileMenu = (verb, f) => (e, b) => popup(b, h('b', { textContent: verb }),
+  h('div', { cls: 'bar col', onclick: closePop }, Object.entries(FILE_TIPS).map(([k, tip]) => button(k, `${verb} ${k}: ${tip}`, () => f(k)))));
+
 // a random character: the stick's skeleton with random proportions and thickness, maybe extra limbs, a stance preset;
 // its moves are retimed to its size (bigger = slower and harder)
 const SYLLABLES = ['ka', 'ro', 'zu', 'mi', 'gor', 'ta', 'ven', 'shi', 'bo', 'rak', 'lu', 'dra', 'ni', 'vex', 'ul', 'ash'];

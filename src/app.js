@@ -65,6 +65,9 @@ function buildTop() {
   reg(pause, () => { setRich(pause, app.paused ? ':play_arrow: play' : ':pause: pause'); pause.classList.toggle('on', app.paused); });
   $('global').replaceChildren(
     grp('', 'Edit history', button(':undo:', 'Undo the last edit: character, moves or settings (⌘Z)', undo), button(':redo:', 'Redo (⇧⌘Z)', redo)),
+    grp('', 'Replay files: a whole play fight (inputs, settings, characters), pinned to the engine version', replaySave(), replayFile()),
+    grp('', 'Files: the character, the settings or everything, as JSON', button(':download: export :expand_more:', 'Export to a file: the character, the settings or everything', fileMenu('export', exportFile)),
+      button(':upload: import :expand_more:', 'Import from a file: a character, settings or everything', fileMenu('import', importFile))),
     grp('', 'Layout and keys', button(':search:', 'Find anything (⌘K): a mode, a toolbar tool, an action, a table (moves, inputs, combos, bones), a character, a move or a setting', openPalette),
       button(':view_sidebar:', 'Panel: show / hide the side panel' + keyTip('panel'), togglePanel),
       button(':keyboard:', 'Keys: rebind any action, set up macros, and help', keysPanel),

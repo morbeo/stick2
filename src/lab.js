@@ -434,12 +434,17 @@ function trainingCtl() {
   const rep = toggle(':replay: replay', 'The dummy plays your recording in a loop: practise against your own combo or pressure', () => lab.replay, v => { lab.replay = v; build(); });
   reg(rec, () => { rec.disabled = !human(); });
   reg(rep, () => { rep.disabled = !human() || lab.rec || !lab.tape?.length; });
-  const file = toggle(':upload: replay file', 'Play a saved replay file (inputs, settings and characters of a recorded fight); click again to stop. A file from another engine version plays out differently: it asks first, and the top line shows where it goes out of sync',
-    () => !!lab.playback, v => v ? loadReplay() : (lab.playback = null, build()));
-  const save = button(':download: save replay', `Download this fight so far as a replay file: its inputs, settings and characters, pinned to engine v${ENGINE_VERSION} (other versions play it out differently)`, saveReplay);
   return [grp('show', 'Training overlays', meterToggle(), toggle(':stadia_controller:', 'Input display: your inputs in numpad notation (6 forward, 2 down, 8 up) and frames held', () => lab.inputs, v => { lab.inputs = v; }), boxesToggle()),
-    grp('dummy', 'Record your inputs for the dummy to play back', rec, rep), grp('replay', 'Replay files: the whole fight, pinned to the engine version', save, file)];
+    grp('dummy', 'Record your inputs for the dummy to play back', rec, rep)];
 }
+// the menu bar's replay buttons: save the play fight (play only), play a replay file (switches to play)
+function replaySave() {
+  const b = button(':save: replay', `Save the play fight so far as a replay file: its inputs, settings and characters, pinned to engine v${ENGINE_VERSION} (other versions play it out differently)`, saveReplay);
+  reg(b, () => { b.disabled = app.mode !== 'play' || !lab.cells[0]?.w.log.length; });
+  return b;
+}
+const replayFile = () => toggle(':theaters: replay', 'Play a saved replay file in play (inputs, settings and characters of a recorded fight); click again to stop. A file from another engine version plays out differently: it asks first, and the top line shows where it goes out of sync',
+  () => !!lab.playback, v => v ? loadReplay() : (lab.playback = null, build()));
 // the blow buttons (impact's ragdoll, the creator's impact preview): what, how hard, from which side, and stand it up again
 const blowGrps = (w, reset) => [
   grp('blow', 'Strike the body: a blow from nobody, on the bone at that height (no damage)',
@@ -463,7 +468,7 @@ function loadReplay() {
     try { r = JSON.parse(await inp.files[0].text()); } catch (err) { return alert('Not a replay file: ' + err.message); }
     if (r.format !== REPLAY_FORMAT) return alert('Not a replay file');
     if (r.version !== ENGINE_VERSION && !confirm(`This replay was recorded with engine v${r.version}; this is v${ENGINE_VERSION}. The simulation changed since, so it will play out differently. Play it anyway?`)) return;
-    lab.playback = r; app.paused = false; build(); syncAll();
+    lab.playback = r; app.paused = false; if (app.mode === 'play') build(); else setMode('play'); syncAll();
   };
   inp.click();
 }
