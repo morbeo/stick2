@@ -283,11 +283,14 @@ try {
     q.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); if (lab.scen !== 'fireball' || document.querySelector('.pop')) errs.push('scenario filter enter ' + lab.scen);
     lab.scen = 'you vs dummy'; build(); }
   // layouts: folds and the side panel are kept per tab in the current layout; save as copies it, switching swaps them, reset clears a tab or all
-  { setMode('play'); const fold = () => document.querySelector('#side .fold:not(.shut)'), k0 = fold().k; fold().querySelector('h3').click();
+  // (after the synchronous checks: save as asks for the name in the app's own dialog; its first button answers it)
+  afterSync.push(async () => { setMode('play'); const fold = () => document.querySelector('#side .fold:not(.shut)'), k0 = fold().k; fold().querySelector('h3').click();
     if (lay().fold[k0] !== true || !JSON.parse(localStorage.getItem('stick2.layouts')).sets.default.tabs.play.fold[k0]) errs.push('layout fold saved');
     togglePanel(); if (!document.body.classList.contains('noside') || !lay().hide.side) errs.push('layout panel off');
     setMode('character'); if (document.body.classList.contains('noside')) errs.push('layout panel is per tab'); setMode('play');
-    const pr = window.prompt; window.prompt = () => 'mine'; laySaveAs(); window.prompt = pr;
+    const asked = laySaveAs(), modal = document.querySelector('.modal');
+    if (!modal?.querySelector('input')) errs.push('layout save as dialog'); else { modal.querySelector('input').value = 'mine'; modal.querySelector('button').click(); }
+    await asked; if (document.querySelector('.modal')) errs.push('layout dialog stays open');
     if (layouts.current !== 'mine' || !lay().hide.side) errs.push('layout save as');
     layReset('play'); if (document.body.classList.contains('noside') || lay().fold[k0] !== undefined) errs.push('layout reset tab');
     layUse('default'); if (!document.body.classList.contains('noside')) errs.push('layout switch');
@@ -297,7 +300,7 @@ try {
     layUse('mine'); layDelete(); if (layouts.current !== 'default' || layouts.sets.mine) errs.push('layout delete'); closePop();
     paletteEntries().find(e => e.name === 'layout: default')?.run(); if (layouts.current !== 'default') errs.push('layout in ⌘K');
     layouts.fresh = true; ui.fold = { 'impact:presets': true, 'gallery:power': true }; layInit(); // folds saved before layouts move to their tab
-    if (lay('play').fold['impact:presets'] !== true || lay('animate').fold['gallery:power'] !== true || ui.fold) errs.push('layout migration'); layReset(); }
+    if (lay('play').fold['impact:presets'] !== true || lay('animate').fold['gallery:power'] !== true || ui.fold) errs.push('layout migration'); layReset(); });
   // visibility: toolbar groups and side sections hide per tab (popup, heading ×, ⌘K); the overlays sit in one order, meter / inputs / colours kept per tab
   { setMode('play'); const part = (k, p) => $(k).querySelector('[data-part="' + p + '"]');
     layShow('ctx:fight', false); if (part('ctx', 'fight') || !app.parts.ctx.includes('fight')) errs.push('hide toolbar group');
@@ -483,10 +486,10 @@ try {
     if (Math.abs(anim.t - 2 * step) > 1e-6) errs.push('strip click ' + anim.t);
     anim.cmpView = 'overlay'; mode().render(); anim.cmpView = 'off'; anim.cmp = null; }
   // random characters: keeping a cell twice asks to update the kept character instead of adding a copy
-  { setMode('character'); randomExp(); const n0 = Object.keys(DEFS).length; keepRandom(0); const name = CURRENT, n1 = Object.keys(DEFS).length;
-    const conf = window.confirm; let asked = 0; window.confirm = () => (asked++, true); keepRandom(0); window.confirm = conf;
-    if (n1 !== n0 + 1 || Object.keys(DEFS).length !== n1 || !asked || CURRENT !== name) errs.push('keep random ' + [n0, n1, Object.keys(DEFS).length, asked]);
-    delete DEFS[name]; delete CHARS[name]; creator.expOn = false; pickChar('stick'); }
+  afterSync.push(async () => { setMode('character'); randomExp(); const n0 = Object.keys(DEFS).length; await keepRandom(0); const name = CURRENT, n1 = Object.keys(DEFS).length;
+    const again = keepRandom(0), yes = document.querySelector('.modal button'); yes?.click(); await again;
+    if (n1 !== n0 + 1 || Object.keys(DEFS).length !== n1 || !yes || CURRENT !== name) errs.push('keep random ' + [n0, n1, Object.keys(DEFS).length, !!yes]);
+    delete DEFS[name]; delete CHARS[name]; creator.expOn = false; pickChar('stick'); });
   // character editor: Shift/⌘+click in the bone tree selects several bones, a value change goes to all of them; a plain click selects one
   { setMode('character'); pickChar('stick'); panels();
     const tb = id => [...document.querySelectorAll('.tree button')].find(b => b.textContent.trim().startsWith(id + ' ') || b.textContent.trim() === id);

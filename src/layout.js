@@ -76,10 +76,10 @@ function layReset(tab) {
   saveLay(); layApply();
 }
 function layUse(name) { layouts.current = name; saveLay(); layApply(); }
-function laySaveAs() {
-  const name = prompt('Name of the new layout (it starts as a copy of this one)', 'layout' + Object.keys(layouts.sets).length)?.trim();
+async function laySaveAs() {
+  const name = (await askText('Name of the new layout', 'layout' + Object.keys(layouts.sets).length, 'It starts as a copy of this one.'))?.trim();
   if (!name) return;
-  if (layouts.sets[name] && !confirm(`Replace the layout "${name}"?`)) return;
+  if (layouts.sets[name] && !await askYes(`Replace the layout "${name}"?`, 'It becomes a copy of the current one.', ':restart_alt: replace')) return;
   layouts.sets[name] = JSON.parse(JSON.stringify(laySet()));
   layUse(name);
 }
@@ -120,7 +120,7 @@ function layoutPanel(e, b) {
     h('div', { cls: 'row', tip: 'The layout in use; changes are kept in it as you go' }, h('span', { textContent: 'use' }),
       seg(names, () => layouts.current, n => { layUse(n); re(); }, Object.fromEntries(names.map(n => [n, n === LAY_DEFAULT ? 'The default layout' : `The layout "${n}"`])))),
     h('div', { cls: 'bar' },
-      button(':save: save as…', 'Save this layout (every tab) under a new name and use it', () => { laySaveAs(); re(); }),
+      button(':save: save as…', 'Save this layout (every tab) under a new name and use it', async () => { await laySaveAs(); re(); }),
       button(':restart_alt: reset tab', `The ${tab} tab back to how it starts, in this layout`, () => { layReset(tab); re(); }),
       button(':restart_alt: reset all', 'Every tab back to how it starts, in this layout', () => { layReset(); re(); }),
       layouts.current !== LAY_DEFAULT && button(':delete: delete', `Delete the layout "${layouts.current}" and go back to the default`, () => { layDelete(); re(); })));

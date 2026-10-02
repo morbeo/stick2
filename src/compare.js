@@ -23,7 +23,7 @@ const cmpText = () => [`--- A: ${cmp.a.name}`, `+++ B: ${cmp.b.name}`, ...cmpRow
 // a settings or everything file as a source
 function cmpFile(side, then) {
   openFile((d, name) => {
-    if (d.format !== 'stick2.settings' && d.format !== 'stick2.everything') return alert('Not a settings or everything file');
+    if (d.format !== 'stick2.settings' && d.format !== 'stick2.everything') return notice('Not a settings file', 'Not a settings or everything file');
     cmp[side] = { name: name.replace(/\.json$/, ''), cfg: cfgFrom(d.cfg) }; then?.();
   });
 }

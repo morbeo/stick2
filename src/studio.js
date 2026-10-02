@@ -140,17 +140,18 @@ const revertChar = () => CHAR_DEFS[CURRENT] && edit(def => {
   Object.assign(def, clone(CHAR_DEFS[CURRENT]));
 });
 // built-ins keep their name (revert needs it), so renaming one makes a renamed copy
-function renameChar() {
-  const name = prompt('Rename the character', CURRENT)?.trim(), old = CURRENT;
-  if (!name || name === old) return;
-  if (DEFS[name]) return alert(`"${name}" already exists`);
+async function renameChar() {
+  const old = CURRENT, name = (await askText('Rename the character', old))?.trim();
+  if (!name || name === old || old !== CURRENT) return;
+  if (DEFS[name]) return notice('Name taken', `"${name}" already exists`);
   if (CHAR_DEFS[old]) return addChar(DEFS[old], name);
   DEFS[name] = { ...DEFS[old], name }; CHARS[name] = makeCharacter(DEFS[name]);
   delete DEFS[old]; delete CHARS[old];
   pickChar(name);
 }
-function deleteChar() {
-  if (CHAR_DEFS[CURRENT] || !confirm(`Delete the character "${CURRENT}"?`)) return;
+async function deleteChar() {
+  const name = CURRENT;
+  if (CHAR_DEFS[name] || !await askYes(`Delete the character "${name}"?`, 'This cannot be undone.', ':delete: delete') || name !== CURRENT) return;
   delete DEFS[CURRENT]; delete CHARS[CURRENT];
   pickChar('stick');
 }
@@ -165,7 +166,7 @@ function importChar() {
       const def = JSON.parse(await inp.files[0].text());
       makeCharacter(def); // throws on a broken file before it touches anything
       addChar(def, inp.files[0].name.replace(/\.json$/, ''));
-    } catch (err) { alert('Not a character file: ' + err.message); }
+    } catch (err) { notice('Not a character file', err.message); }
   };
   inp.click();
 }
@@ -179,7 +180,7 @@ function download(name, data) {
 }
 function openFile(f) {
   const inp = h('input', { type: 'file', accept: '.json,application/json' });
-  inp.onchange = async () => { let d; try { d = JSON.parse(await inp.files[0].text()); } catch (err) { return alert('Not a JSON file: ' + err.message); } f(d, inp.files[0].name); syncAll(); };
+  inp.onchange = async () => { let d; try { d = JSON.parse(await inp.files[0].text()); } catch (err) { return notice('Not a JSON file', err.message); } f(d, inp.files[0].name); syncAll(); };
   inp.click();
 }
 const cfgData = () => Object.fromEntries(changedCfg().map(k => [k, CFG[k]]));
@@ -195,16 +196,17 @@ function exportFile(kind) {
 }
 function importFile(kind) {
   if (kind === 'character') return importChar();
-  openFile(d => {
-    if (d.format !== 'stick2.' + kind) return alert(`Not a${kind === 'everything' ? 'n everything' : ' settings'} file`);
+  openFile(async d => {
+    if (d.format !== 'stick2.' + kind) return notice('Wrong file', `Not a${kind === 'everything' ? 'n everything' : ' settings'} file`);
     if (kind === 'settings') { setCfg(cfgFrom(d.cfg)); return mode().restart(); }
-    if (!confirm('Load everything in this file? Characters with the same names, the settings, scenarios with the same names and your keys are replaced (⌘Z undoes only the settings).')) return;
-    try { for (const def of Object.values(d.chars || {})) makeCharacter(def); } catch (err) { return alert('A character in the file is broken, nothing was loaded: ' + err.message); }
+    if (!await askYes('Load everything in this file?', 'Characters with the same names, the settings, scenarios with the same names and your keys are replaced (⌘Z undoes only the settings).', ':restart_alt: replace')) return;
+    try { for (const def of Object.values(d.chars || {})) makeCharacter(def); } catch (err) { return notice('Nothing was loaded', 'A character in the file is broken: ' + err.message); }
     for (const [n, def] of Object.entries(d.chars || {})) { DEFS[n] = { ...clone(def), name: n }; CHARS[n] = makeCharacter(DEFS[n]); }
     if (d.scenarios) importScens(JSON.stringify(d.scenarios));
     if (d.keys?.map) { Object.assign(keymap, d.keys.map); macros.splice(0, macros.length, ...(d.keys.macros || [])); saveKeys(); }
     setCfg(cfgFrom(d.cfg));
     pickChar(DEFS[d.current] ? d.current : CURRENT); // saves the characters, rebuilds every fight
+    syncAll(); // openFile's own syncAll ran before the question was answered
   });
 }
 const fileMenu = (verb, f, ...extra) => (e, b) => popup(b, h('b', { textContent: verb }),
@@ -266,8 +268,8 @@ function charCard(k, pick = pickChar, on = k => CURRENT === k) {
 }
 // the character's stances: each has its own pose, binds (unset slots use the main ones), key and idle / walk loops
 function stanceRow() {
-  const add = () => {
-    const name = prompt('Name of the new stance (it starts as a copy of the current one)', 'stance' + currentChar().stances.length)?.trim();
+  const add = async () => {
+    const name = (await askText('Name of the new stance', 'stance' + currentChar().stances.length, 'It starts as a copy of the current one.'))?.trim();
     if (!name) return;
     edit(def => { (def.stances ??= []).push({ name, pose: { ...curStance().pose }, binds: {} }); });
     studio.stance = currentChar().stances.length - 1; panels();

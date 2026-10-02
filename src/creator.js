@@ -176,10 +176,10 @@ function creatorRender() {
   drawCell({ w: creator.w, label: 'preview' }, pv, { plot: false });
 }
 // keeping a random cell adds it once; clicking it again offers to update that character instead of adding a copy
-function keepRandom(i) {
+async function keepRandom(i) {
   const ex = creator.exp, id = ex.seed + ':' + i, name = (ex.kept ||= {})[id], def = ex.cells[i].def;
   if (!name || !DEFS[name]) { addChar(def); ex.kept[id] = CURRENT; return; }
-  if (!confirm(`This character is already kept as "${name}". Update "${name}" with it (your edits to it are replaced)?`)) return;
+  if (!await askYes('Update the kept character?', `This character is already kept as "${name}". Update "${name}" with it (your edits to it are replaced)?`, ':restart_alt: update')) return;
   DEFS[name] = { ...clone(def), name }; CHARS[name] = makeCharacter(DEFS[name]); pickChar(name);
 }
 function creatorMouse(type, x, y, e) {
