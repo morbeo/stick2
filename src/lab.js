@@ -701,6 +701,7 @@ const labMode = {
   restart: build,
   overlay: () => stageOpen() === 'compare' ? [compareView()] : stageOpen() === 'builder' && lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? [scenBuilder()] : [],
   worlds: () => (lab.mode === 'gallery' ? onScreen() : lab.cells).flatMap(c => [c.w, ...(c.extra || [])]),
+  clipRects: () => { const r = labRects(); return shown().map((c, i) => ({ key: c, r: r[i] })); },
   render: labRender,
   ctxBar: labCtx,
   side: labSide,

@@ -27,7 +27,7 @@ const ICONS = {
   smart_toy: 0xf06c, air: 0xefd8, directions_walk: 0xe536, theaters: 0xe8da, cloud: 0xf15c, grain: 0xe3ea, horizontal_rule: 0xf108,
   circle: 0xef4a, man: 0xe4eb, airline_seat_flat: 0xe630, cyclone: 0xebd5, pets: 0xe91d, face: 0xf008, footprint: 0xf87d,
   keyboard_double_arrow_down: 0xead0, view_stream: 0xe8f2, crop_landscape: 0xe3c3, accessibility: 0xe84e,
-  check: 0xe668, save: 0xe161, history: 0xe8b3, view_in_ar: 0xefc9, content_cut: 0xe14e, more_horiz: 0xe5d3, search: 0xe8b6,
+  check: 0xe668, save: 0xe161, videocam: 0xe04b, radio_button_checked: 0xe837, history: 0xe8b3, view_in_ar: 0xefc9, content_cut: 0xe14e, more_horiz: 0xe5d3, search: 0xe8b6,
   person_off: 0xe510
 };
 const ARROWS = { '←': 'arrow_back', '→': 'arrow_forward', '↑': 'arrow_upward', '↓': 'arrow_downward', '↖': 'north_west', '↗': 'north_east', '↙': 'south_west', '↘': 'south_east' };

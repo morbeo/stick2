@@ -105,6 +105,7 @@ const testMode = {
   changed() { rerunTests(); panels(); },
   overlay: () => [testTable()],
   worlds: () => tests.w ? [tests.w] : [],
+  clipRects: () => tests.w ? [{ key: tests.w, r: { x: 0, y: 0, w: canvas.width, h: Math.round(canvas.height * 0.5) } }] : [],
   // a few cells per frame, about 8 ms of them, so the page stays smooth
   tick() {
     if (JSON.stringify(CFG) !== tests.cfgKey) { rerunTests(); panels(); }

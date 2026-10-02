@@ -12,7 +12,7 @@ Three rows, the same in every tab:
 
 | Row | What's on it |
 |---|---|
-| menu bar | the tabs · undo / redo · replay save / play · export / import · search, panel, layout, keys, debug, docs, hints, sound |
+| menu bar | the tabs · undo / redo · clip / record · replay save / play · export / import · search, panel, layout, keys, debug, docs, hints, sound |
 | transport | pause, rewind, step back, step, restart, speed, scrub, loop (the same in every mode) |
 | toolbar | the mode's own tools in labelled groups, in the same order on every tab: view, what you work on (fight, fighters, moves…), the tab's tools, **show** (overlays), **panels** (tables over the stage: click again, × or Esc closes; each tab keeps its own) |
 
@@ -186,6 +186,21 @@ Every group of variables (settings, the selected bone, the move, the selected ke
 - **Pause** shows a large PAUSED sign over the preview.
 - **Scrub** (transport, M): move the mouse left / right to set the time in any view. The seeded fights are re-simulated to that moment.
 - **Undo** (⌘Z, ⇧⌘Z redo): sliders, presets, group buttons and grid picks, on the same stack as character edits. Clicking a sweep or breed cell also applies its values (Shift+click only focuses).
+
+## Clips
+
+Save what you watch as an animated GIF or a WebM video.
+
+| Control | What it does |
+|---|---|
+| clip (⇧X in a fight, X in the editors) | saves the last seconds |
+| record (⇧E / E) | films until you press it again (at most 20 s), then saves |
+| ▾ | format (GIF / WebM), length (3, 5, 10 s), width (320, 480, 720 px), frame rate (15, 30) |
+
+- It films the part of the view you watch: the fight in play, the cell under the mouse in the grid, gallery, impact and the body experiment, the preview in animate and character, the watched fight in tests.
+- Moving the mouse to another cell starts the buffer again. A recording stays on the cell it started on.
+- Paused time is left out. Slow motion stays slow.
+- A GIF loops by itself and has 255 colours. A WebM is smaller and keeps every colour, but saving it takes as long as the clip.
 
 ## Sound
 

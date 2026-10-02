@@ -439,6 +439,7 @@ function expPanel() {
 
 const creatorMode = {
   preview: () => creator.expOn ? null : edLayout().pv,
+  clipRects: () => creator.expOn ? cellRects(9, 3, fullArea()).map((r, i) => ({ key: creator.exp.cells[i], r })) : [{ key: 'preview', r: edLayout().pv }],
   split: () => !creator.expOn,
   enter() { creator.w = creator.preview === 'impact' ? ragdollWorld() : newWorld(previewScen()); if (creator.expOn) buildExp(); },
   restart() { creatorMode.enter(); },

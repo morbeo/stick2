@@ -877,6 +877,7 @@ function targetBar() {
 
 const animMode = {
   preview: () => anLayout().pv,
+  clipRects: () => [{ key: 'preview', r: anLayout().pv }],
   enter() { if (!curMove()) anim.move = Object.keys(currentChar().moves)[0]; selectKey(Math.min(anim.key, curMove().keys.length - 1)); anim.playing = true; buildPreview(); },
   restart() { anim.t = 0; buildPreview(); },
   worlds: () => anim.hold ? [] : [anim.pv],

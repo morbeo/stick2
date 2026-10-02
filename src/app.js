@@ -70,6 +70,7 @@ function buildTop() {
   reg(pause, () => { setRich(pause, app.paused ? ':play_arrow: play' : ':pause: pause'); pause.classList.toggle('on', app.paused); });
   $('global').replaceChildren(
     grp('', 'Edit history', button(':undo:', 'Undo the last edit: character, moves or settings (⌘Z)', undo), button(':redo:', 'Redo (⇧⌘Z)', redo)),
+    clipGroup(),
     grp('', 'Replay files: a whole play fight (inputs, settings, characters), pinned to the engine version', replaySave(), replayFile()),
     grp('', 'Files: the character, the settings or everything, as JSON', button(':download: export :expand_more:', 'Export to a file: the character, the settings or everything', fileMenu('export', exportFile)),
       button(':upload: import :expand_more:', 'Import from a file: a character, settings or everything', fileMenu('import', importFile,
@@ -117,15 +118,15 @@ function frame(now) {
   perf.frames++; perf.worst = Math.max(perf.worst, now - last);
   if (now - perf.t0 >= 1000) { Object.assign(app, { fps: perf.frames, worstMs: perf.worst, frameMs: (now - perf.t0) / perf.frames }); Object.assign(perf, { t0: now, frames: 0, worst: 0 }); }
   last = now;
-  const inp = readInput();
+  const inp = readInput(), ran = !app.scrub && (!app.paused || app.stepOnce);
   if (app.scrub) { if (app.scrubF !== null) scrub(app.scrubF); }
-  else if (!app.paused || app.stepOnce) {
+  else if (ran) {
     const dt = app.stepOnce ? 1 / 60 : raw * app.speed;
     mode().tick?.(dt);
     for (const w of mode().worlds()) { w.advance(dt, inp); w.scrubN = undefined; }
     app.stepOnce = false;
   }
-  mode().render(); drawScope(); drawDebug();
+  mode().render(); clipCapture(now, ran); drawScope(); drawDebug();
   if (app.paused && !app.scrub) drawPaused(mode().preview?.() || { x: 0, y: 0, w: canvas.width, h: canvas.height });
   const help = $('help');
   help.hidden = !ui.hints && now > app.hintUntil;
@@ -158,6 +159,7 @@ const SHORTCUTS = {
   ghost: () => setDisplay('ghost', !CFG.ghost),
   boxes: () => setDisplay('boxes', !CFG.boxes),
   scrub: () => { app.scrub = !app.scrub; app.scrubF = null; },
+  clip: saveLast, record: toggleRecord,
   ...Object.fromEntries(Object.keys(MODES).map(m => [m, () => setMode(m)])),
 };
 addEventListener('keydown', e => { if (captureKey(e)) e.stopImmediatePropagation(); }, true); // rebinding a key
@@ -197,6 +199,7 @@ const nearSplit = x => mode().split?.() && Math.abs(x - splitX()) < 5 * dpr;
 canvas.addEventListener('mousedown', e => { if (nearSplit(at(e)[0])) { splitting = true; return; } down = true; mode().mouse?.('down', ...at(e), e); syncAll(); });
 addEventListener('mousemove', e => {
   if (splitting) { (lay().size ??= {}).split = clamp(at(e)[0] / canvas.width, SPLIT[0], SPLIT[2]); return; }
+  if (e.target === canvas) [clip.mx, clip.my] = at(e); // the clip films the cell under the mouse
   if (app.scrub && e.target === canvas) app.scrubF = clamp(at(e)[0] / canvas.width, 0, 1);
   else if (down || e.target === canvas) mode().mouse?.('move', ...at(e), e);
   if (!down && e.target === canvas && nearSplit(at(e)[0])) cursor('col-resize');

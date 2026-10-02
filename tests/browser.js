@@ -7,6 +7,7 @@ const chrome = process.env.CHROME || ['/Applications/Google Chrome.app/Contents/
 if (!chrome) { console.log('skip: no Chrome found (set CHROME)'); process.exit(0); }
 const probe = `<script>
 let errs = [];
+const later = []; // async checks; the title waits for them
 window.onerror = (m, s, l) => { errs.push(m + ' @' + (s || '').split('/').pop() + ':' + l); };
 try {
   localStorage.clear(); app.paused = true;
@@ -523,8 +524,29 @@ try {
     if (!paletteEntries().some(e => e.kind === 'docs' && e.name === 'Key events')) errs.push('docs palette');
     location.hash = 'docs=weapons'; readHash(); if (!document.body.classList.contains('docspage') || docs.topic !== 'weapons') errs.push('docs page'); closeDocs();
     if (document.body.classList.contains('docspage')) errs.push('docs page close'); }
+  // clips: the subject is the fight, the gallery cell under the mouse or the animate preview; the buffer keeps the last seconds;
+  // ⇧X saves; Chrome decodes the GIF (a noisy frame of exact colours: the LZW table fills and restarts) to the same pixels
+  { const snap = n => { for (let i = 0; i < n; i++) { mode().render(); clipCapture(1e6 + clip.t++ * 40, true); } };
+    clip.t = 0; clip.frames.length = 0; clip.key = null; ui.clip = { fmt: 'gif', secs: 1, size: 480, fps: 30 };
+    setMode('play'); snap(30);
+    if (clip.frames.length !== 26 || clip.key[0] !== lab.cells[0] || clip.key[1] !== Math.min(480, Math.round(canvas.width / dpr / 2) * 2)) errs.push('clip play ' + [clip.frames.length, clip.key]);
+    setMode('gallery'); const r = labRects()[1]; [clip.mx, clip.my] = [r.x + 5, r.y + 5]; snap(3);
+    if (clip.key[0] !== shown()[1] || clip.frames.length !== 3) errs.push('clip gallery cell ' + clip.frames.length);
+    setMode('animate'); snap(2); if (clip.key[0] !== 'preview' || clip.frames.length !== 2) errs.push('clip animate');
+    let saved = null; const sv = saveClip; saveClip = f => { saved = f; };
+    setMode('play'); document.body.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX', shiftKey: true, bubbles: true })); saveClip = sv;
+    if (!saved) errs.push('clip key');
+    const W = 120, H = 90, cols = Array.from({ length: 200 }, (_, i) => [i * 37 % 32, i * 11 % 32, i * 5 % 32].map(v => Math.round(v * 255 / 31)));
+    const px = new Uint8ClampedArray(W * H * 4); let sd = 7;
+    for (let i = 0; i < W * H; i++) px.set([...cols[(sd = sd * 16807 % 2147483647) % 200], 255], i * 4);
+    later.push(createImageBitmap(new Blob([gifEncode([px], W, H, [4])], { type: 'image/gif' })).then(bm => {
+      const c = Object.assign(document.createElement('canvas'), { width: W, height: H }), g = c.getContext('2d'); g.drawImage(bm, 0, 0);
+      const got = g.getImageData(0, 0, W, H).data; let worst = 0;
+      for (let i = 0; i < px.length; i++) worst = Math.max(worst, Math.abs(got[i] - px[i]));
+      if (bm.width !== W || worst > 4) errs.push('clip gif decode ' + worst);
+    }, e => errs.push('clip gif ' + e.message))); }
 } catch (e) { errs.push(e.message + ' ' + e.stack.split('\\n')[1]); }
-document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK';
+Promise.all(later).then(() => { document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK'; });
 </script></body>`;
 fs.writeFileSync(out, fs.readFileSync(path.join(root, 'index.html'), 'utf8')
   .replace(/(src|fonts)\//g, `file://${root}/$1/`).replace('</body>', probe));
