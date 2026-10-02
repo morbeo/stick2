@@ -188,7 +188,12 @@ try {
     if (w().a.ch !== CHARS.lumpo || w().b.ch !== CHARS.jabbo) errs.push('fighter swap');
     fb(1).click(); [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('editor')).click();
     if (w().a.ch !== CHARS.stick || lab.chars[0] !== null) errs.push('fighter follows the editor');
-    lab.chars = [null, null]; build(); }
+    lab.chars = [null, null]; build();
+    // a scenario with more fighters has a pick for each: P3 unset fights as P2, P4 picked fights as that one
+    lab.scen = 'ai free-for-all'; lab.chars = [null, 'lumpo']; build(); panels();
+    const fp = [...document.querySelectorAll('#ctx .fpick')]; fp[3]?.click(); [...document.querySelectorAll('.pop .cards > *')].find(c => c.textContent.includes('jabbo'))?.click();
+    if (fp.length !== 4 || w().fighters.map(f => f.ch.name).join() !== 'stick,lumpo,lumpo,jabbo') errs.push('fighter picks ' + fp.length + ' ' + w().fighters.map(f => f.ch.name));
+    lab.scen = 'you vs dummy'; lab.chars = [null, null]; build(); panels(); }
   // the scenario picker: groups by who fights, scripted tests by topic, every scenario in one; the filter narrows them
   { setMode('play'); const sb = () => [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('Choose who fights'));
     sb().click(); if ([...document.querySelectorAll('.pop h4')].some(e => !e.querySelector('.ic'))) errs.push('scenario group icons');

@@ -303,13 +303,17 @@ function drawScope() {
     (w.adv === null ? '' : ` · last hit ${w.adv >= 0 ? '+' : ''}${w.adv}f`);
 }
 
-// play's fighters: P1 and P2 by name, null = the character being edited (extra fighters take P2's); a scenario's own chars win
-const playChars = () => lab.chars.some(Boolean) ? lab.chars.map(n => CHARS[n] || currentChar()) : null;
+// play's fighters: P1, P2, P3… by name, null = the character being edited (P3 on: the same as P2); a scenario's own chars win
+const pickName = i => CHARS[lab.chars[i]] ? lab.chars[i] : i >= 2 ? pickName(1) : CURRENT;
+const playChars = () => lab.chars.some(Boolean) ? Array.from({ length: Math.max(2, lab.chars.length) }, (_, i) => CHARS[pickName(i)]) : null;
+// how many fighters the scenario starts with (waves: you and the wave fighter, P2)
+const fighterCount = s => s.waves ? 2 : 2 + (s.more?.length || 0);
 function fighterPick(i) {
-  const set = v => { lab.chars[i] = v; build(); }, cv = h('canvas'), name = () => lab.chars[i] && CHARS[lab.chars[i]] ? lab.chars[i] : CURRENT;
-  const b = button('', `P${i + 1}: the ${i ? 'opponent' : 'fighter you play (the left one)'} · click: pick from every character`, (e, el) => popup(el,
+  const set = v => { lab.chars[i] = v; build(); }, cv = h('canvas'), name = () => pickName(i);
+  const who = i === 0 ? 'the fighter you play (the left one)' : i === 1 ? 'the opponent' : 'an extra fighter (unset: the same as P2)';
+  const b = button('', `P${i + 1}: ${who} · click: pick from every character`, (e, el) => popup(el,
     h('b', { textContent: `P${i + 1}` }), h('p', { textContent: SCENARIOS[lab.scen].chars ? 'This scenario brings its own fighters; the pick applies to the others.' : `Who fights as P${i + 1}` }),
-    h('div', { cls: 'bar' }, toggle(':edit: editor', `Follow the character being edited (now ${CURRENT})`, () => !lab.chars[i], () => { closePop(); set(null); }),
+    h('div', { cls: 'bar' }, toggle(i >= 2 ? ':content_copy: as P2' : ':edit: editor', i >= 2 ? 'The same character as P2' : `Follow the character being edited (now ${CURRENT})`, () => !lab.chars[i], () => { closePop(); set(null); }),
       button(':casino: random', 'A random character from the roster', () => { closePop(); const ks = Object.keys(DEFS); set(ks[Math.floor(Math.random() * ks.length)]); }),
       i ? button(':content_copy: mirror', 'The same character as P1', () => { closePop(); set(lab.chars[0]); }) : null),
     h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k, set, k => name() === k && !!lab.chars[i])))));
@@ -317,7 +321,7 @@ function fighterPick(i) {
   reg(b, () => { b.replaceChildren(cv, h('span', { textContent: `P${i + 1} ${name()}` })); drawThumb(cv, CHARS[name()], undefined, 20, 22); });
   return b;
 }
-const swapFighters = () => button(':swap_horiz:', 'Swap P1 and P2', () => { lab.chars.reverse(); build(); });
+const swapFighters = () => button(':swap_horiz:', 'Swap P1 and P2', () => { [lab.chars[0], lab.chars[1]] = [lab.chars[1] ?? null, lab.chars[0] ?? null]; build(); });
 
 // ---------- context bar: scenario, grid axes, focus ----------
 const ctlName = c => c === 'human' ? 'you' : c === 'ai' ? 'AI' : Array.isArray(c) ? 'script' : 'dummy';
@@ -457,9 +461,10 @@ function labCtx() {
       meterToggle(), boxesToggle()), zoomBack()];
   const els = [];
   if (lab.mode === 'grid') els.push(grp('grid', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
-  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('fight', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = null; build(); }),
+  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('fight', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = null; build(); panels(); }),
     SCENARIOS[lab.scen]?.user ? button(':edit:', 'Edit this scenario of yours: characters, controllers, script, positions, settings', () => { lab.builder = !lab.builder; panels(); }, lab.builder ? 'mini on' : 'mini') : null));
-  if (lab.mode === 'play' && !SCENARIOS[lab.scen]?.user) els.push(grp('fighters', 'Who fights: P1 (you) and P2, each any character; unset = the one being edited', fighterPick(0), swapFighters(), fighterPick(1)));
+  if (lab.mode === 'play' && !SCENARIOS[lab.scen]?.user) els.push(grp('fighters', 'Who fights: P1 (you), P2 and any extra fighters of the scenario, each any character; unset = the one being edited (P3 on: as P2)',
+    fighterPick(0), swapFighters(), fighterPick(1), Array.from({ length: fighterCount(SCENARIOS[lab.scen]) - 2 }, (_, i) => fighterPick(i + 2))));
   if (lab.mode === 'play' && SCENARIOS[lab.scen]?.waves) els.push(grp('waves', SPEC.waves.tip + ' Changing it starts over at wave 1',
     seg(SPEC.waves.opts, () => CFG.waves, v => { setCfg({ waves: v }); mode().restart(); }, SPEC.waves.optTips),
     toggle(':casino: mixed', SPEC.waveMix.tip, () => CFG.waveMix, v => { setCfg({ waveMix: v }); mode().restart(); })));
