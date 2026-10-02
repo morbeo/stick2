@@ -19,13 +19,13 @@ const INPUT_PADS = [
   { name: 'air K', tip: 'Kick in the air, as air P', cells: PAD.map(d => ({ d, label: 'j.' + d + 'K', ...airCell(d, 'Kick') })) },
   { name: 'motions', tip: 'Special motions (numpad notation): if the motion has no move, the button plays its normal', cols: 2,
     cells: [['236', 'qcf'], ['214', 'qcb'], ['623', 'dp']].flatMap(([n, k]) => ['Punch', 'Kick'].map(B => ({ label: n + B[0], chain: [k + B], own: true }))) },
-  { name: 'other', tip: 'Run + P, the throws P + G, ← P + G (back throw) and K + G, and S in the air', cols: 1,
-    cells: [['66P', 'dashPunch'], ['P+G', 'throw'], ['4P+G', 'backThrow'], ['K+G', 'throw2'], ['j.S', 'airSpecial']].map(([label, s]) => ({ label, chain: [s], own: true })) },
+  { name: 'other', tip: 'Run + P, S in the air, and the throws: P + G, ← P + G (back throw) and K + G', cols: 2,
+    cells: [['66P', 'dashPunch'], ['j.S', 'airSpecial'], ['P+G', 'throw'], ['4P+G', 'backThrow'], ['K+G', 'throw2']].map(([label, s]) => ({ label, chain: [s], own: true })) },
 ];
 // the specials of the scheme in use (SPECIAL_SCHEMES): fixed moves by name, set while switched on; click opens the move
 const SCHEME_LABELS = { G6: 'G+6', G4: 'G+4', dd: '22S', qcf: '236S', qcb: '214S', dp: '623S', bP: 'guard: P', bK: 'guard: K', b6S: 'guard: 6S', b4S: 'guard: 4S', '7S': '7S', '1S': '1S', '9S': '9S' };
 const specialsPad = () => { const s = SPECIAL_SCHEMES[CFG.specialScheme] || {};
-  return { name: 'specials', tip: `Rolls, teleport, guard cancel, push block (guard: = in blockstun), the high / low counters, the turnaround, the taunt and the pounce (j. = in the air)… in the ${CFG.specialScheme} scheme (Specials settings: specialScheme and a switch each). They are moves by name: click to edit one`, cols: 1,
+  return { name: 'specials', tip: `Movement (rolls, teleport, turnaround), defence (guard cancel, push block = in blockstun, the high / low counters), the taunt and the pounce (j. = in the air)… in the ${CFG.specialScheme} scheme (Specials settings: specialScheme and a switch each). They are moves by name: click to edit one`, cols: 2,
     cells: [...Object.keys(s).map(n => ({ label: SCHEME_LABELS[s[n]] || s[n], chain: [], fixed: n })), { label: '8S+G', chain: [], fixed: 'taunt' }, { label: 'j.2S', chain: [], fixed: 'pounce' }] }; };
 const inputs = { hand: '', unset: false, table: false };
 // the character's own motions (def.motions, see customMotions): two cells each, P and K, after the built-in motions

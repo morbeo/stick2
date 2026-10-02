@@ -519,8 +519,8 @@ const bindsKey = plane => plane === '2d' ? 'binds' : 'binds25';
 // b… = pressed in blockstun (bP, bK, b6S = → S, b4S = ← S); taunt is on ↑ S+G and pounce on ↓ S in the air in both
 const SPECIALS = { rollFwd: 'rolls', rollBack: 'rolls', teleport: 'teleport', guardCancel: 'guardCancel', pushBlock: 'pushBlock', catchHigh: 'counters', catchLow: 'counters', taunt: 'taunt', pounce: 'pounce', turnBack: 'turnBack' };
 const SPECIAL_SCHEMES = {
-  guard: { rollFwd: 'G6', rollBack: 'G4', teleport: 'dd', guardCancel: 'bP', pushBlock: 'bK', catchHigh: '7S', catchLow: '1S', turnBack: '9S' },
-  motion: { rollFwd: 'qcf', rollBack: 'qcb', teleport: 'dp', guardCancel: 'b6S', pushBlock: 'b4S', catchHigh: 'dd', catchLow: '1S', turnBack: '9S' },
+  guard: { rollFwd: 'G6', rollBack: 'G4', teleport: 'dd', turnBack: '9S', guardCancel: 'bP', pushBlock: 'bK', catchHigh: '7S', catchLow: '1S' },
+  motion: { rollFwd: 'qcf', rollBack: 'qcb', teleport: 'dp', turnBack: '9S', guardCancel: 'b6S', pushBlock: 'b4S', catchHigh: 'dd', catchLow: '1S' },
 };
 // special motions in numpad notation (6 = towards the opponent), matched in order against the recent directions
 const MOTIONS = { dp: /6.*2.*3/, qcf: /2.*3.*6/, qcb: /2.*1.*4/, dd: /252/ };

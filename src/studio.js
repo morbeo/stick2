@@ -308,10 +308,10 @@ function stanceRow() {
   const names = currentChar().stances.map(s => s.name), i = studio.stance;
   const keyTips = Object.fromEntries(Object.entries(STANCE_KEYS).map(([k, l]) => [k, `${l} switches to ${names[i]}; pressed again in it, back to main (stances sharing a key take turns)`]));
   return [h('div', { cls: 'row', tip: 'Stances: their key switches to them in a fight. The stance picked here is the one the pose, input and idle / walk loop edits change, and the one previews start in.' },
-    h('span', { textContent: 'stance' }), h('span', { cls: 'bar' },
+    h('span', {}, ...rich(':sports_martial_arts: stance')), h('span', { cls: 'bar' },
       seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); }, Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance: the base pose, binds and loops'])), i => names[i]),
       crud({ new: ['New stance: a copy of the current one with no binds of its own', add], delete: ['Delete this stance (not the main one)', del] }))),
-    i ? h('div', { cls: 'row', tip: `The input that switches to ${names[i]} in a fight (→ = toward the opponent)` }, h('span', { textContent: 'key' }), h('span', { cls: 'bar' },
+    i ? h('div', { cls: 'row', tip: `The input that switches to ${names[i]} in a fight (→ = toward the opponent)` }, h('span', {}, ...rich(':keyboard: key')), h('span', { cls: 'bar' },
       seg(Object.keys(STANCE_KEYS), () => stanceKey(DEFS[CURRENT].stances?.[i - 1]?.key), v => edit(def => { def.stances[i - 1].key = v; }), keyTips, k => STANCE_KEYS[k]),
       toggle(':air: fly', `${names[i]} hovers instead of falling: ↑ / ↓ fly up / down, gravity and the ground are suspended while in it`,
         () => !!DEFS[CURRENT].stances?.[i - 1]?.fly, v => edit(def => { if (v) def.stances[i - 1].fly = true; else delete def.stances[i - 1].fly; })))) : null,
@@ -346,7 +346,7 @@ function stanceMorph(i, name) {
       { '': `The move named ${morphName('main', name)}`, ...Object.fromEntries(ns.map(n => [n, `Play ${n} when switching to ${name}`])) }, v => v || morphName('main', name))); };
   const moveBtn = button(':animation: move', `The move played switching to ${name} · click: pick another`, pick, 'mini');
   reg(moveBtn, () => setRich(moveBtn, `:animation: ${inName()}${currentChar().moves[inName()] ? '' : ' (none yet)'}`));
-  return [h('h4', { textContent: 'transition', tip: `How the body changes switching to ${name} (and back to main from it)` }),
+  return [h('h4', { tip: `How the body changes switching to ${name} (and back to main from it)` }, ...rich(':sync_alt: transition')),
     h('div', { cls: 'row', tip: 'The switch transition' }, h('span', { textContent: 'morph' }), seg(['springs', 'auto', 'move'], () => mo('mode'), v => set({ mode: v }),
       { springs: 'The springs chase the new pose (the default)', auto: 'The stance pose and the bone lengths blend over the frames below, with the ease (new bones grow from nothing)',
         move: `A keyframed transition move plays: ${morphName('main', name)} (or the one picked) switching in, ${outName} back to main` })),
@@ -365,7 +365,7 @@ function stanceReq(i, name) {
     for (const k in r) if (JSON.stringify(r[k]) === JSON.stringify(STANCE_REQ[k])) delete r[k];
     if (Object.keys(r).length) st.req = r; else delete st.req;
   }, key);
-  const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', { textContent: label }), h('span', { cls: 'bar' }, ...c));
+  const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', {}, ...rich(label)), h('span', { cls: 'bar' }, ...c));
   const sl = (k, label, max, step, tip) => slider(label, { min: 0, max, step }, () => req(k), v => set({ [k]: v }, 'req:' + k), tip);
   const where = () => req('grounded') && req('air') ? 'both' : req('air') ? 'air' : 'ground';
   const EXITS = { hit: 'Hit (a blow that lands)', knockdown: 'Knocked down', block: 'Blocking a blow', grab: 'Grabbed by a throw' };
@@ -375,9 +375,9 @@ function stanceReq(i, name) {
       on => set({ moves: on ? [...req('moves'), n] : req('moves').filter(x => x !== n) })))));
   const listBtn = button(':tune: moves', `Pick the moves ${name} allows`, pick, 'mini');
   reg(listBtn, () => { listBtn.hidden = moves() !== 'list'; if (moves() === 'list') setRich(listBtn, `:tune: ${req('moves').length} moves`); });
-  const title = h('h4', { textContent: 'requirements', tip: `When ${name} can be switched to, how long it lasts and what sends it back to main. Unset: as today (on the ground, any time)` });
+  const title = h('h4', { tip: `When ${name} can be switched to, how long it lasts and what sends it back to main. Unset: as today (on the ground, any time)` }, ...rich(':gavel: requirements'));
   return [title,
-    row('where', `Where ${name} can be switched to`, seg(['ground', 'air', 'both'], where, v => set({ grounded: v !== 'air', air: v !== 'ground' }),
+    row(':my_location: where', `Where ${name} can be switched to`, seg(['ground', 'air', 'both'], where, v => set({ grounded: v !== 'air', air: v !== 'ground' }),
       { ground: 'Only standing on the floor (the default)', air: 'Only in the air', both: 'On the floor or in the air' }, v => optLabel(v === 'ground' ? 'stand' : v))),
     sl('hpBelow', 'hp below', 1, 0.05, `Only with at most this much health left (1 = any): a desperation stance at 0.3`),
     sl('hpAbove', 'hp above', 1, 0.05, `Only with at least this much health left (0 = any)`),
@@ -395,7 +395,7 @@ function stanceReq(i, name) {
 // the generator's variables; the random characters experiment shows nine of them
 function randomPanel(changed = () => {}) {
   const set = vals => { Object.assign(studio.rnd, vals); changed(); syncAll(); };
-  const title = h('h4', { textContent: 'generator', tip: 'What the random button draws from' });
+  const title = h('h4', { tip: 'What the random button draws from' }, ...rich(':casino: generator'));
   title.append(groupOps(RANDOM_VARS, k => studio.rnd[k], k => RANDOM_VARS.find(s => s.k === k).v, set,
     ['Experiment: a grid of nine random characters; click one to keep it', () => randomExp()]));
   return [title, ...RANDOM_VARS.map(s => slider(s.k, s, () => studio.rnd[s.k], v => set({ [s.k]: v }), s.tip))];
