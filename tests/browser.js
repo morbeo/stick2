@@ -186,7 +186,8 @@ try {
     lab.chars = [null, null]; build(); }
   // the scenario picker: groups by who fights, scripted tests by topic, every scenario in one; the filter narrows them
   { setMode('play'); const sb = () => [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('Choose who fights'));
-    sb().click(); const heads = [...document.querySelectorAll('.pop h4')].map(e => e.textContent), names = [...document.querySelectorAll('.pop .bar button')].map(b => b.textContent);
+    sb().click(); if ([...document.querySelectorAll('.pop h4')].some(e => !e.querySelector('.ic'))) errs.push('scenario group icons');
+    const heads = [...document.querySelectorAll('.pop h4')].map(e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim()), names = [...document.querySelectorAll('.pop .bar button')].map(b => b.textContent);
     for (const g of ['you', 'engine AI', 'chains', 'juggles & falls', 'guard & counters', 'specials', 'movement', 'weapons']) if (!heads.includes(g)) errs.push('scenario group ' + g);
     if (names.length !== Object.keys(SCENARIOS).length || new Set(names).size !== names.length) errs.push('scenario picker lists ' + names.length);
     const q = document.querySelector('.pop input'); q.value = 'fireb'; q.dispatchEvent(new Event('input'));

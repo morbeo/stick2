@@ -326,33 +326,33 @@ function scenTip(s) {
   const script = Array.isArray(s.a) ? `\nscript: ${s.a.map(i => typeof i === 'number' ? i + 's' : i.hold ? `hold ${i.hold} ${i.t}s` : i).join(', ')}` : '';
   return `${who[0]} vs ${who.slice(1).join(' + ')}${s.period ? ` · restarts every ${s.period}s` : ''}${script}`;
 }
-// who fights, then the scripted tests by topic; a scenario goes in the first group that takes it
+// who fights, then the scripted tests by topic ([name, icon, tip, test]); a scenario goes in the first group that takes it
 const SCEN_GROUPS = [
-  ['you', 'You on the keyboard.', s => s.a === 'human'],
-  ['engine AI', 'The built-in AI walks in and throws random chains.', s => !Array.isArray(s.a) && s.a !== 'human'],
-  ['chains', 'Scripted: normals chaining into each other and into specials.', ['jab spam', 'J,J,J', 'K,K', 'J,J,K', 'J,K,K', 'sweep', 'dash punch', 'J→rush', 'J,K→spin', 'sandwich', 'showcase']],
-  ['juggles & falls', 'Scripted: launchers, air combos, knockdowns and getting up.', ['juggle', 'rising', 'chase jump', 'air combo', 'tech', 'air recover', 'wall bounce', 'OTG stomp', 'pounce', 'wake-up attack', 'wake-up roll']],
-  ['guard & counters', 'Scripted: guards, parries, throws and counters.', ['vs guard', 'vs low guard', 'parry', 'just guard', 'push block', 'guard cancel', 'throw', 'back throw', 'throw break', 'catch', 'high counter', 'low counter']],
-  ['specials', 'Scripted: specials, projectiles and the roster\'s signature moves.', ['specials (S)', 'fireball', 'fireball clash', 'flash kick', 'lightning legs', 'turnaround', 'roll through', 'roll back', 'teleport', 'taunt', 'win pose']],
-  ['movement', 'Scripted: walking, jumping, dashes and the 2.5D sidestep.', ['walk', 'jump', 'air kick', 'sidestep', 'ninja flip', 'dash & run']],
-  ['weapons', 'Scripted: picking up, throwing and clashing weapons.', ['pick up & slash', 'weapon throw', 'disarm', 'weapon clash', 'deflect']],
-  ['other tests', 'Scripted: repeatable inputs, the same fight every loop, ideal for the grid.', s => Array.isArray(s.a)],
+  ['you', 'keyboard', 'You on the keyboard.', s => s.a === 'human'],
+  ['engine AI', 'smart_toy', 'The built-in AI walks in and throws random chains.', s => !Array.isArray(s.a) && s.a !== 'human'],
+  ['chains', 'timeline', 'Scripted: normals chaining into each other and into specials.', ['jab spam', 'J,J,J', 'K,K', 'J,J,K', 'J,K,K', 'sweep', 'dash punch', 'J→rush', 'J,K→spin', 'sandwich', 'showcase']],
+  ['juggles & falls', 'trending_up', 'Scripted: launchers, air combos, knockdowns and getting up.', ['juggle', 'rising', 'chase jump', 'air combo', 'tech', 'air recover', 'wall bounce', 'OTG stomp', 'pounce', 'wake-up attack', 'wake-up roll']],
+  ['guard & counters', 'shield', 'Scripted: guards, parries, throws and counters.', ['vs guard', 'vs low guard', 'parry', 'just guard', 'push block', 'guard cancel', 'throw', 'back throw', 'throw break', 'catch', 'high counter', 'low counter']],
+  ['specials', 'bolt', 'Scripted: specials, projectiles and the roster\'s signature moves.', ['specials (S)', 'fireball', 'fireball clash', 'flash kick', 'lightning legs', 'turnaround', 'roll through', 'roll back', 'teleport', 'taunt', 'win pose']],
+  ['movement', 'directions_run', 'Scripted: walking, jumping, dashes and the 2.5D sidestep.', ['walk', 'jump', 'air kick', 'sidestep', 'ninja flip', 'dash & run']],
+  ['weapons', 'swords', 'Scripted: picking up, throwing and clashing weapons.', ['pick up & slash', 'weapon throw', 'disarm', 'weapon clash', 'deflect']],
+  ['other tests', 'science', 'Scripted: repeatable inputs, the same fight every loop, ideal for the grid.', s => Array.isArray(s.a)],
 ];
-const scenGroup = k => SCEN_GROUPS.find(([, , f]) => Array.isArray(f) ? f.includes(k) : f(SCENARIOS[k]))?.[0];
+const scenGroup = k => SCEN_GROUPS.find(([, , , f]) => Array.isArray(f) ? f.includes(k) : f(SCENARIOS[k]))?.[0];
 function scenButton(onPick) {
   const b = button('', 'Choose who fights · scenarios grouped by who fights, scripted tests by topic', (e, b) => {
     const pick = k => { closePop(); onPick(k); }, rows = [];
     const q = h('input', { cls: 'macro', placeholder: 'filter scenarios…', tip: 'Letters of a scenario or group name narrow the list · Enter picks the first one left',
-      oninput: () => { const t = q.value.toLowerCase(); for (const [hd, bar, os] of rows) { let any = false; for (const o of os) any = !(o.hidden = !(o.textContent.toLowerCase().includes(t) || hd.textContent.includes(t))) || any; hd.hidden = bar.hidden = !any; } },
+      oninput: () => { const t = q.value.toLowerCase(); for (const [hd, bar, os] of rows) { let any = false; for (const o of os) any = !(o.hidden = !(o.textContent.toLowerCase().includes(t) || hd.textContent.toLowerCase().includes(t))) || any; hd.hidden = bar.hidden = !any; } },
       onkeydown: e => { e.stopPropagation(); if (e.key === 'Enter') { const o = rows.flatMap(r => r[2]).find(o => !o.hidden); if (o) pick(o.textContent); } else if (e.key === 'Escape') closePop(); } });
-    popup(b, q, ...SCEN_GROUPS.flatMap(([g, info]) => {
+    popup(b, q, ...SCEN_GROUPS.flatMap(([g, ic, info]) => {
       const os = Object.entries(SCENARIOS).filter(([k]) => scenGroup(k) === g).map(([k, s]) => {
         const o = button(k, scenTip(s), () => pick(k));
         reg(o, () => o.classList.toggle('on', lab.scen === k));
         return o;
       });
       if (!os.length) return [];
-      const hd = h('h4', { textContent: g, tip: info }), bar = h('div', { cls: 'bar' }, os);
+      const hd = h('h4', { tip: info }, ...rich(`:${ic}: ${g}`)), bar = h('div', { cls: 'bar' }, os);
       rows.push([hd, bar, os]);
       return [hd, bar];
     }));
