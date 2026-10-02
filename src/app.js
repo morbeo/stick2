@@ -33,6 +33,17 @@ function restart() { mode().restart(); }
 // rewind every fight n frames and pause there
 function rewind(n) { app.paused = true; app.scrub = false; for (const w of mode().worlds()) w.rewind(n); }
 function toggleHints() { ui.hints = !ui.hints; saveUi(); }
+// factory reset: asks, then deletes everything this app keeps in the browser (characters, keys and macros, layout) and reloads as on a first visit
+function reload() { location.reload(); }
+function factoryReset(anchor = $('global')) {
+  const n = Object.keys(edited()).length;
+  popup(anchor, h('b', { textContent: 'factory reset' }),
+    h('p', { textContent: `Delete all local data: ${n ? `${n} edited or custom character${n > 1 ? 's' : ''} (export them first to keep them), ` : ''}keys and macros, layout and hints. The page reloads as on a first visit. This cannot be undone.` }),
+    h('div', { cls: 'bar' }, button(':delete: delete everything', 'Delete every saved stick2 setting in this browser and reload', () => {
+      for (const k of Object.keys(localStorage)) if (k.startsWith('stick2.')) localStorage.removeItem(k);
+      reload();
+    }), button(':close: cancel', 'Keep everything', closePop)));
+}
 function togglePanel() { document.body.classList.toggle('noside'); resize(); }
 
 // help under the rebindable keys (P = punch, K = kick, directions as on the numpad: 2 down, 3 down-forward, 6 forward…)

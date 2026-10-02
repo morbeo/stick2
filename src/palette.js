@@ -17,6 +17,7 @@ function paletteEntries() {
       if (app.mode === 'character') creator.view = 'combos'; else { anim.view = 'combos'; if (app.mode !== 'animate') setMode('animate'); }
       panels();
     } },
+    { kind: 'action', name: 'factory reset', tip: 'Delete all local data (characters, keys, macros, layout) and reload; asks first', run: () => factoryReset() },
     ...Object.keys(DEFS).map(c => ({ kind: 'character', name: c, tip: 'Use this character', run: () => pickChar(c) })),
     ...Object.keys(currentChar().moves).map(n => ({ kind: 'move', name: n, tip: 'Open it in the animate editor', run: () => openMove(n) })),
     ...SCHEMA.filter(s => !Array.isArray(s)).map(s => ({ kind: 'setting', name: s.k, tip: s.tip, run: () => {

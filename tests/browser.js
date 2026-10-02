@@ -180,6 +180,18 @@ try {
     if (shown.join() !== 'fireball,fireball clash' || [...document.querySelectorAll('.pop h4')].filter(e => !e.hidden).length !== 1) errs.push('scenario filter ' + shown);
     q.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); if (lab.scen !== 'fireball' || document.querySelector('.pop')) errs.push('scenario filter enter ' + lab.scen);
     lab.scen = 'you vs dummy'; build(); }
+  // factory reset (⌘K or the Debug panel): asks first, then deletes every stick2 key in localStorage (nothing else) and reloads
+  { const keep = Object.fromEntries(Object.keys(localStorage).filter(k => k.startsWith('stick2.')).map(k => [k, localStorage[k]]));
+    localStorage.setItem('stick2.chars', '{}'); localStorage.setItem('stick2.ui', '{}'); localStorage.setItem('other.app', '1');
+    let reloaded = 0; reload = () => { reloaded++; };
+    const e = paletteEntries().find(e => e.name === 'factory reset'); e?.run();
+    if (!document.querySelector('.pop') || localStorage.getItem('stick2.chars') === null) errs.push('factory reset asks first');
+    [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('cancel'))?.click();
+    if (document.querySelector('.pop') || localStorage.getItem('stick2.chars') === null || reloaded) errs.push('factory reset cancel');
+    setMode('play'); [...document.querySelectorAll('#side button')].find(b => b.textContent.includes('factory reset'))?.click();
+    [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('delete everything'))?.click();
+    if (Object.keys(localStorage).some(k => k.startsWith('stick2.')) || localStorage.getItem('other.app') !== '1' || reloaded !== 1) errs.push('factory reset ' + Object.keys(localStorage) + reloaded);
+    localStorage.removeItem('other.app'); for (const k in keep) localStorage.setItem(k, keep[k]); }
   // ⌘K: combos opens the combo editor over the stage (character tab: there, else animate)
   { setMode('play'); const e = paletteEntries().find(e => e.name === 'combos' && e.kind === 'editor'); e?.run(); panels();
     if (app.mode !== 'animate' || anim.view !== 'combos' || !document.querySelector('.ctable')) errs.push('palette combos ' + app.mode + anim.view);
