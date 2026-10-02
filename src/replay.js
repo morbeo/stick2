@@ -492,11 +492,11 @@ function rpJump(dir, marks) {
   const e = rp.events.find(e => e.f === f && (marks ? e.kind === 'mark' : rp.show.has(e.type)));
   if (e) { rp.sel = new Set([e.i]); rp.scrollTo = e.i; }
 }
-function addMark() {
+async function addMark() {
   if (!rp.reel) return;
-  const marks = rp.reel.rep.marks, name = prompt('Bookmark name', `mark ${marks.length + 1}`);
+  const marks = rp.reel.rep.marks, f = rp.n, name = await askText(`Bookmark at ${fmtT(rp.T[f])}`, `mark ${marks.length + 1}`);
   if (name === null) return;
-  marks.push({ f: rp.n, name: name || `mark ${marks.length + 1}` }); marks.sort((a, b) => a.f - b.f);
+  marks.push({ f, name: name || `mark ${marks.length + 1}` }); marks.sort((a, b) => a.f - b.f);
   rebuildEvents(); panels();
 }
 
@@ -674,7 +674,7 @@ function exportPop(e, b) {
 // ---------- toolbar, side panel ----------
 function reelFromPlay() {
   const w = lab.mode === 'play' && lab.cells[0]?.w;
-  if (!w?.log.length) return alert('No play fight to take: fight a while in play first.');
+  if (!w?.log.length) return notice('No play fight yet', 'Fight a while in play first, then take it here.');
   loadReel(makeReplay(w, lab.playback?.scenario || lab.scen)); app.paused = true;
   if (app.mode !== 'replay') setMode('replay'); else panels();
 }
@@ -763,7 +763,7 @@ function rpSide() {
     heading('bookmarks', 'Named moments, saved in the replay file. \\ adds one at the playhead, ⇧[ ⇧] go to the previous / next.'),
     ...rp.reel.rep.marks.map((m, j) => h('div', { cls: 'bar' }, button(`⚑ ${m.name}`, `Go to ${fmtT(rp.T[m.f])} (f${m.f})`, () => { rpSeek(m.f); rpFollow(); app.paused = true; }),
       h('span', { cls: 'note', textContent: fmtT(rp.T[m.f]) }),
-      crud({ rename: ['Rename the bookmark', () => { const n = prompt('Bookmark name', m.name); if (n) { m.name = n; rebuildEvents(); panels(); } }], delete: ['Delete the bookmark', () => { rp.reel.rep.marks.splice(j, 1); rebuildEvents(); panels(); }] }))),
+      crud({ rename: ['Rename the bookmark', async () => { const n = await askText('Rename the bookmark', m.name); if (n) { m.name = n; rebuildEvents(); panels(); } }], delete: ['Delete the bookmark', () => { rp.reel.rep.marks.splice(j, 1); rebuildEvents(); panels(); }] }))),
     h('div', { cls: 'bar' }, button(':add: bookmark', 'Add a bookmark at the playhead' + keyTip('mark'), addMark)),
     heading('events', 'How many events of each type the replay has (the toolbar\'s types show and hide them).'),
     h('div', { cls: 'bar' }, counts.map(([t, n]) => { const s = h('span', { cls: 'chip', style: `background:${EVENT_TYPES[t][0]}`, tip: EVENT_TYPES[t][2] }, ...rich(`:${EVENT_TYPES[t][1]}: ${t} ${n}`)); return s; })),

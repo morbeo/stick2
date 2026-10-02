@@ -174,6 +174,27 @@ function closePop() { pop?.remove(); pop = null; }
 addEventListener('mousedown', e => { if (pop && !pop.contains(e.target) && !pop.anchor.contains(e.target)) closePop(); });
 addEventListener('keydown', e => { if (e.code === 'Escape' && pop) { closePop(); e.stopImmediatePropagation(); } }); // one Esc closes one thing
 
+// ---------- dialogs: the app's own in place of the browser's prompt / confirm / alert, centred over the page ----------
+// buttons: [[label, value, tip]], the first is the default (Enter); Esc or a click beside it gives null. input: a text field's start value
+function dialog(title, text, buttons, input = null) {
+  return new Promise(done => {
+    const field = input !== null && h('input', { cls: 'macro', value: input, tip: 'Type, then Enter' });
+    const box = h('div', { cls: 'pop modal' }, h('b', { textContent: title }), text && h('p', { textContent: text }), field || null,
+      h('div', { cls: 'bar' }, buttons.map(([label, v, tip]) => button(label, tip || label, () => end(field && v !== null ? field.value : v)))));
+    const back = h('div', { cls: 'modalback' }, box);
+    const end = v => { back.remove(); removeEventListener('keydown', key, true); done(v); };
+    const key = e => { if (e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); end(null); }
+      else if (e.code === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); end(field ? field.value : buttons[0][1]); } else if (field) e.stopPropagation(); };
+    back.addEventListener('mousedown', e => { if (e.target === back) end(null); });
+    addEventListener('keydown', key, true);
+    document.body.append(back);
+    (field || box.querySelector('button'))?.focus(); if (field) field.select();
+  });
+}
+const askText = (title, value = '', text = '') => dialog(title, text, [[':check: ok', true], [':close: cancel', null]], value); // → the text, or null
+const askYes = (title, text, yes = ':check: ok', no = ':close: cancel') => dialog(title, text, [[yes, true], [no, false]]).then(Boolean);
+const notice = (title, text) => dialog(title, text, [[':check: ok', true]]);
+
 // ---------- tooltips: any element with data-tip, shown instantly next to the cursor ----------
 const tipEl = h('div', { cls: 'tip' });
 addEventListener('DOMContentLoaded', () => document.body.append(tipEl));
