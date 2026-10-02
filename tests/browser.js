@@ -615,6 +615,12 @@ try {
         if (!got || got[0].c.width !== 320 || got[0].c.height !== 568) errs.push('export size ' + (got && [got[0].c.width, got[0].c.height]));
         else if (Math.abs(got.length - span * 30) > 3) errs.push('export frames ' + [got.length, Math.round(span * 30)]);
       }); }
+    // side panel: 'now' follows the playhead; the selection lists what is picked; a type row's strip seeks
+    { panels(); rpSeek(200); mode().render(); const now = [...document.querySelectorAll('#side .nowf')];
+      if (now.length < 2 || !$('side').textContent.includes('frame 200 of')) errs.push('side now ' + now.length);
+      rp.sel = new Set(rp.events.slice(0, 2).map(e => e.i)); syncAll(); if (![...document.querySelectorAll('#side p.note')].some(p => /^2 events/.test(p.textContent))) errs.push('side selection');
+      const sp = document.querySelector('#side canvas.spark'); sp.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: sp.getBoundingClientRect().left + 1 })); if (rp.n > 30) errs.push('side spark seek ' + rp.n);
+      rp.sel.clear(); }
     // branches: play on as P2 from the playhead (in play), keep it: two reels, compared side by side and as a ghost; drop goes back
     { rpSeek(120); branchFrom(2); const bw = lab.cells[0].w;
       if (app.mode !== 'play' || !lab.branch || bw.ctl[1] !== 'human2' || bw.fi !== 120) errs.push('branch start ' + [app.mode, bw.ctl[1], bw.fi]);

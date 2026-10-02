@@ -405,10 +405,10 @@ Click or drag to go to a moment; it snaps to events within 6 px (Alt: no snappin
 | Do | How |
 |---|---|
 | in / out | **[ in** / **out ]** (I / O) at the playhead; the parts outside are greyed, playback loops between them |
-| slow motion | **+ slow** over the selection (else a second from the playhead): ×0.5, ×0.25 or ×0.1 |
+| slow motion | **+ slow** over the selection, at least a second (else a second from the playhead): ×0.5, ×0.25 or ×0.1 |
 | camera | **+ cam**: zoom 1.25× to 3× on P1, P2 or both |
 | label | **+ label**: a caption over the picture |
-| change a span | drag it in the timeline's footage row, its ends to resize; its settings and delete in the side panel's footage section (Delete removes the selected one) |
+| change a span | drag it in the timeline's footage row, its ends to resize (hover tells which); in the side panel's footage section: its settings, **[** / **]** start or end it at the playhead, − / + a quarter second shorter or longer, delete (Delete removes the selected one) |
 | preview | the eye toggle shows the footage in the view, or the plain fight |
 
 **export** renders the in–out range with its slow motion, camera and labels, drawn at the size you pick so it stays sharp: GIF or WebM, 15 / 30 / 50 fps, aspect (the arena's, 16:9, 4:3, 1:1, 9:16), width 320 to 1920 px, crop or letterbox, and what to show over it (health bars, labels, input display, frame meter). The popup shows the range, the length out and the size.
@@ -420,7 +420,15 @@ Click or drag to go to a moment; it snaps to events within 6 px (Alt: no snappin
 - Events only B has are amber outlines in the timeline; A's own get an amber underline. The table says "only in A / B", and the stats get a B table.
 - A branch's replay file plays back in sync. Taking over a side the AI played is saved in it, so the switch happens at the same frame.
 
-**Side panel:** the replay (scenario, length, engine version, fighters), **stats** per fighter (damage dealt, hits, blocked, parried, thrown, best combo, top combo damage, K.O. time), **bookmarks** (go there, rename, delete; saved in the replay file), and the event count per type.
+**Side panel**, from the top:
+
+| Section | What it shows |
+|---|---|
+| replay | the reel: scenario, length, engine version, fighters; whether it is edited or out of sync |
+| now | the playhead: each fighter's health bar, stun, move and its phase, combo; the latest events (click one to select it) |
+| selection | what you picked and when; zoom to it, slow motion / camera / label / bookmark over it, delete selected inputs |
+| types | per event type: show or hide, how many, a strip of where they fall in the fight (click it to go there), previous / next |
+| footage, bookmarks, reels, stats | the footage spans, the bookmarks, the reel and its branches, the stats per fighter |
 
 **Event table:** time and frame, type, who, event, details (target, damage, combo, height, span length). The filter is fuzzy, a column heading sorts, and a click on a row goes there. The row of the last event before the playhead is marked.
 

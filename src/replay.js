@@ -417,6 +417,7 @@ function rpRender() {
     text(`ghost: B · ${c.reel.name}`, a.x + a.w - 8 * dpr, a.y + 16 * dpr, '#b9770e', 11, 'bold', 'right');
   }
   drawCaption(ctx, rp.n, a);
+  if (rp.sideNow && rp.sideN !== rp.n) { rp.sideN = rp.n; rp.sideNow(); }
   drawRpTimeline();
 }
 function rpTip(L, x, y) {
@@ -471,6 +472,8 @@ function rpMouse(type, x, y, e) {
   if (d?.ev) { if (d.move) d.d = nearFrame(xToT(L, x)) - d.f0; return; }
   if (d?.box) { Object.assign(d.box, { x, y }); return; }
   rp.hover = inTl ? eventAt(L, x, y) : null;
+  const fr = inTl && rowAt(L, y)?.kind === 'foot' && x >= L.tx && footHover(L, x);
+  if (fr) { canvas.dataset.tip = fr.tip; cursor(fr.cursor); return; }
   const tip = inTl && rpTip(L, x, y);
   if (tip) canvas.dataset.tip = tip; else delete canvas.dataset.tip;
   const r = inTl && rowAt(L, y), edge = rp.hover?.kind === 'held' && rp.sel.has(rp.hover.i) && [rp.hover.f, rp.hover.end].some(f => Math.abs(x - tToX(L, rp.T[f])) < 4 * dpr);
@@ -583,9 +586,9 @@ function drawCaption(c, f, r, on = rp.footOn) {
 }
 // footage edits are undoable like input edits (they share the snapshot), but play nothing again
 function footEdit(fn, key = null) { const snap = reelSnap(); snapshot(() => ({ reel: snap }), key); fn(foot()); syncAll(); }
-// a new span over the selection, else a second from the playhead
+// a new span over the selection (at least a second), else a second from the playhead
 function addSpan(kind) {
-  const s = selSpan(), a = s ? s[0] : rp.n, b = s ? Math.max(s[1], a + 6) : Math.min(rp.N, frameAt(rp.T[rp.n] + 1));
+  const s = selSpan(), a = s ? s[0] : rp.n, b = Math.min(rp.N, Math.max(s ? s[1] : 0, frameAt(rp.T[a] + 1)));
   footEdit(F => { F.spans.push({ kind, a, b, rate: 0.25, zoom: 2, follow: 'both', text: kind === 'label' ? 'caption' : undefined }); rp.fsel = F.spans.length - 1; });
   panels();
 }
@@ -594,7 +597,7 @@ function drawFootRow(L, r) {
   ctx.save(); ctx.beginPath(); ctx.rect(L.tx, r.y, L.tw, r.h); ctx.clip();
   foot().spans.forEach((s, j) => {
     const x0 = tToX(L, rp.T[s.a]), x1 = tToX(L, rp.T[s.b]), [col] = FOOT_KINDS[s.kind], row = s.kind === 'label' ? 2 : s.kind === 'cam' ? 1 : 0, y = r.y + 1 * dpr + row * 6 * dpr;
-    ctx.fillStyle = col; ctx.globalAlpha = rp.fsel === j ? 1 : 0.7; ctx.fillRect(x0, y, Math.max(2 * dpr, x1 - x0), 5 * dpr); ctx.globalAlpha = 1;
+    ctx.fillStyle = col; ctx.globalAlpha = rp.fsel === j ? 1 : 0.7; ctx.fillRect(x0, y, Math.max(6 * dpr, x1 - x0), 5 * dpr); ctx.globalAlpha = 1;
     if (rp.fsel === j) { ctx.strokeStyle = '#222'; ctx.lineWidth = dpr; ctx.strokeRect(x0, y - 0.5 * dpr, x1 - x0, 6 * dpr); }
   });
   ctx.restore();
@@ -613,7 +616,7 @@ function drawTrim(L) {
 function footMouse(L, r, x, e) {
   const fr = () => nearFrame(xToT(L, x));
   for (let j = foot().spans.length - 1; j >= 0; j--) {
-    const s = foot().spans[j], x0 = tToX(L, rp.T[s.a]), x1 = tToX(L, rp.T[s.b]);
+    const s = foot().spans[j], x0 = tToX(L, rp.T[s.a]), x1 = Math.max(x0 + 6 * dpr, tToX(L, rp.T[s.b]));
     if (x < x0 - 4 * dpr || x > x1 + 4 * dpr) continue;
     const part = Math.abs(x - x0) < 4 * dpr ? 'a' : Math.abs(x - x1) < 4 * dpr ? 'b' : 'move';
     rp.fsel = j; rp.drag = { span: s, part, f0: fr(), a: s.a, b: s.b, snap: reelSnap() }; panels();
@@ -621,6 +624,16 @@ function footMouse(L, r, x, e) {
   }
   rp.fsel = null;
   return false;
+}
+// the footage span under the mouse: what dragging there does
+function footHover(L, x) {
+  for (let j = foot().spans.length - 1; j >= 0; j--) {
+    const s = foot().spans[j], x0 = tToX(L, rp.T[s.a]), x1 = Math.max(x0 + 6 * dpr, tToX(L, rp.T[s.b]));
+    if (x < x0 - 4 * dpr || x > x1 + 4 * dpr) continue;
+    const end = Math.abs(x - x0) < 4 * dpr || Math.abs(x - x1) < 4 * dpr;
+    return { cursor: end ? 'ew-resize' : 'grab', tip: `${spanName(s)} · ${fmtT(rp.T[s.a])}–${fmtT(rp.T[s.b])} · ${end ? 'drag to resize' : 'drag to move, its ends to resize'}; its settings are in the side panel (footage)` };
+  }
+  return { cursor: 'col-resize', tip: 'Footage: + slow, + cam, + label in the toolbar add spans here; click or drag to go to a moment' };
 }
 function footDrag(L, x) {
   const d = rp.drag, df = nearFrame(xToT(L, x)) - d.f0, s = d.span;
@@ -725,6 +738,10 @@ function spanRow(sp, j) {
   return h('div', { cls: 'bar' + (rp.fsel === j ? ' on' : '') }, h('span', { cls: 'chip', style: `background:${FOOT_KINDS[sp.kind][0]}`, tip: FOOT_KINDS[sp.kind][1] }, sp.kind),
     button(`${fmtT(rp.T[sp.a])}–${fmtT(rp.T[sp.b])}`, 'Go to the span and select it', () => { rp.fsel = j; rpSeek(sp.a); app.paused = true; panels(); }, 'mini'),
     sp.kind === 'slow' ? seg2('rate', RATES, v => '×' + v) : sp.kind === 'cam' ? [seg2('zoom', ZOOMS, v => v + '×'), seg2('follow', FOLLOW)] : cap,
+    button('[', 'Start the span at the playhead', () => footEdit(() => { sp.a = Math.min(rp.n, sp.b - 1); }), 'mini'),
+    button(']', 'End the span at the playhead', () => footEdit(() => { sp.b = Math.max(rp.n, sp.a + 1); }), 'mini'),
+    button(':remove:', 'A quarter second shorter (from its end)', () => footEdit(() => { sp.b = Math.max(sp.a + 1, frameAt(rp.T[sp.b] - 0.25)); }), 'mini'),
+    button(':add:', 'A quarter second longer (at its end)', () => footEdit(() => { sp.b = Math.min(rp.N, frameAt(rp.T[sp.b] + 0.25) + 1); }), 'mini'),
     crud({ delete: ['Delete the span', () => { footEdit(F => { F.spans.splice(j, 1); rp.fsel = null; }); panels(); }] }));
 }
 // the toolbar's edit group: insert at the playhead, change the selected presses, delete, cut or duplicate the selection's frames
@@ -740,10 +757,82 @@ function editGrp() {
   reg(ins, () => { ins.disabled = !human(); chg.disabled = !selInputs().some(e => e.kind === 'press'); del.disabled = !selInputs().length; cut.disabled = dup.disabled = !rp.sel.size; });
   return grp('edit', 'Edit your inputs (P1 in a play fight): the fight plays again from the first changed frame. Drag selected inputs in the timeline to retime them, , and . nudge them a frame; ⌘Z undoes', ins, chg, del, cut, dup);
 }
+// ---------- side panel: the reel, what happens at the playhead, the selection, the types (how many, where), footage, bookmarks, reels, stats ----------
+// now: refreshed as the playhead moves (rpRender calls rp.sideNow when the frame changed)
+function nowPanel() {
+  const at = h('div', { cls: 'note' }), list = h('div', { cls: 'bar col' }), fs = h('div');
+  rp.sideN = null; // the next frame drawn fills it in
+  rp.sideNow = () => {
+    if (!at.isConnected) return at.seen && (rp.sideNow = null); // a newer panel took over
+    at.seen = true;
+    at.textContent = `${fmtT(rp.T[rp.n])} · frame ${rp.n} of ${rp.N}`;
+    fs.replaceChildren(...rp.view.fighters.filter(f => !f.hidden).map(f => {
+      const max = f.c('health'), act = f.action && !f.action.m.hurt ? f.action.name : '', st = frameState(f);
+      return h('div', { cls: 'nowf', tip: `${who(f.id)}: health ${Math.round(f.hp)}${max > 0 ? ' / ' + max : ''}, stun ${Math.round(100 * f.stunM / (f.c('dizzyAt') || 1))}%, frame state ${st}` },
+        h('b', { textContent: `${who(f.id)} ${f.ch.name}`, style: `color:${f.col[0]}` }),
+        max > 0 ? h('span', { cls: 'hpbar' }, h('i', { style: `width:${100 * clamp(f.hp / max, 0, 1)}%;background:${f.col[0]}` })) : null,
+        h('span', { cls: 'note', textContent: [act && `${act} (${st})`, !act && st !== 'idle' && st, f.combo > 1 && `${f.combo}-hit combo`, f.kd, f.dizzyT > 0 && 'dizzy'].filter(Boolean).join(' · ') || 'idle' }));
+    }));
+    const recent = rp.events.filter(e => e.f <= rp.n && e.f > rp.n - 20 && rp.show.has(e.type) && e.type !== 'input').slice(-5);
+    list.replaceChildren(...recent.map(e => button(`:${EVENT_TYPES[e.type][1]}: ${who(e.who)} ${e.name}`, `${evText(e)} · click: select it`, () => { rp.sel = new Set([e.i]); rp.scrollTo = e.i; syncAll(); }, 'mini')));
+  };
+  return [heading('now', 'What happens at the playhead: each fighter\'s health, stun, move and its phase, combo; the events of the last third of a second (click one to select it).'), at, fs, list];
+}
+// the selection: what it holds and what to do with it
+function selPanel() {
+  const box = h('div', { cls: 'bar col' });
+  reg(box, () => {
+    const es = rp.events.filter(e => rp.sel.has(e.i)), s = selSpan();
+    if (!es.length) return box.replaceChildren(h('p', { cls: 'note', textContent: 'Nothing selected: click events in the timeline or the table (⌘ / ⇧ for more), or drag a box over them in the lanes.' }));
+    const ins = selInputs().length, by = Object.keys(EVENT_TYPES).map(t => [t, es.filter(e => e.type === t).length]).filter(([, n]) => n);
+    box.replaceChildren(...[h('p', { cls: 'note', textContent: `${es.length} event${es.length > 1 ? 's' : ''} · ${fmtT(rp.T[s[0]])}–${fmtT(rp.T[Math.min(s[1], rp.N)])} · ${by.map(([t, n]) => `${n} ${t}`).join(', ')}` }),
+      ...es.slice(0, 4).map(e => button(`:${EVENT_TYPES[e.type][1]}: ${who(e.who)} ${e.name}`, evText(e) + ' · click: go there', () => { rpSeek(e.f); rpFollow(); app.paused = true; }, 'mini')),
+      es.length > 4 ? h('span', { cls: 'note', textContent: `… and ${es.length - 4} more (the events table lists them)` }) : null,
+      h('div', { cls: 'bar' }, button(':select_all: zoom', 'Fit the timeline to the selection', zoomToSel, 'mini'),
+        ...Object.keys(FOOT_KINDS).map(k => button(`:add: ${k}`, `${FOOT_KINDS[k][1]}, over the selection`, () => addSpan(k), 'mini')),
+        button(':add: bookmark', 'A bookmark at the selection\'s start', async () => { rpSeek(s[0]); await addMark(); }, 'mini'),
+        ...ins ? [button(':delete:', `Delete the ${ins} selected input${ins > 1 ? 's' : ''} (the fight plays again from there)`, () => reelEdit(deleteInputs), 'mini')] : [],
+        button(':close:', 'Select nothing (Esc)', () => rp.sel.clear(), 'mini'))].filter(Boolean));
+  });
+  return [heading('selection', 'The events you picked: what they are and when; zoom to them, put slow motion, a camera, a label or a bookmark over them, delete selected inputs.'), box];
+}
+// the types: show / hide, how many, where in the fight (a strip: click it to go there), previous / next of that type
+function typesPanel() {
+  const has = Object.keys(EVENT_TYPES).map(t => [t, rp.events.filter(e => e.type === t)]).filter(([, es]) => es.length);
+  return [heading('types', 'Each kind of event: show or hide it (timeline and table), how many there are, where they fall in the fight (click the strip to go there), and the previous / next one from the playhead.'),
+    ...has.map(([t, es]) => {
+      const [col, icon, tip] = EVENT_TYPES[t], cv = h('canvas', { cls: 'spark', width: 120, height: 16, tip: `Where the ${t} events fall over the fight (darker: more); click to go there` });
+      const g = cv.getContext('2d'), bins = new Array(40).fill(0), end = rpEnd();
+      for (const e of es) bins[Math.min(39, Math.floor(rp.T[e.f] / end * 40))]++;
+      const top = Math.max(...bins); g.fillStyle = col;
+      bins.forEach((n, i) => { if (n) { const hh = Math.max(2, 14 * n / top); g.fillRect(i * 3, 16 - hh, 2, hh); } });
+      cv.onclick = e => { rpSeek(frameAt(e.offsetX / cv.clientWidth * end)); rpFollow(); app.paused = true; };
+      const tg = toggle(`:${icon}: ${t}`, `${tip} · click: ${rp.show.has(t) ? 'hide' : 'show'} them`, () => rp.show.has(t), v => { rp.show[v ? 'add' : 'delete'](t); });
+      tg.style.color = col;
+      const jump = d => () => { const fs = es.map(e => e.f), f = d > 0 ? Math.min(...fs.filter(f => f > rp.n)) : Math.max(...fs.filter(f => f < rp.n)); if (isFinite(f)) { rpSeek(f); rpFollow(); app.paused = true; } };
+      return h('div', { cls: 'bar trow' }, tg, h('span', { cls: 'note', textContent: String(es.length) }), cv,
+        button(':chevron_left:', `The previous ${t} event`, jump(-1), 'mini'), button(':chevron_right:', `The next ${t} event`, jump(1), 'mini'));
+    })];
+}
+function footSide() {
+  return [
+    heading('footage', 'The footage edits: in and out, and the spans (slow motion, camera, label) in the timeline\'s footage row; drag a span to move it, its ends to resize it. Saved in the replay file; the export uses them.'),
+    h('p', { cls: 'note', textContent: `in ${fmtT(rp.T[footRange()[0]])} · out ${fmtT(rp.T[footRange()[1]])}` }),
+    ...foot().spans.map((sp, j) => spanRow(sp, j)),
+  ];
+}
+function markSide() {
+  return [
+    heading('bookmarks', 'Named moments, saved in the replay file. \\ adds one at the playhead, ⇧[ ⇧] go to the previous / next.'),
+    ...rp.reel.rep.marks.map((m, j) => h('div', { cls: 'bar' }, button(`⚑ ${m.name}`, `Go to ${fmtT(rp.T[m.f])} (f${m.f})`, () => { rpSeek(m.f); rpFollow(); app.paused = true; }),
+      h('span', { cls: 'note', textContent: fmtT(rp.T[m.f]) }),
+      crud({ rename: ['Rename the bookmark', async () => { const n = await askText('Rename the bookmark', m.name); if (n) { m.name = n; rebuildEvents(); panels(); } }], delete: ['Delete the bookmark', () => { rp.reel.rep.marks.splice(j, 1); rebuildEvents(); panels(); }] }))),
+    h('div', { cls: 'bar' }, button(':add: bookmark', 'Add a bookmark at the playhead' + keyTip('mark'), addMark)),
+  ];
+}
 function rpSide() {
   if (!rp.reel) return [heading('replay', 'Edit a recorded fight: its events on a timeline and in a table.')];
   const r = rp.reel.rep, w = rp.master, old = r.version !== ENGINE_VERSION;
-  const counts = Object.keys(EVENT_TYPES).map(t => [t, rp.events.filter(e => e.type === t).length]).filter(([, n]) => n);
   return [
     heading('replay', 'The recorded fight: its scenario, length, fighters and engine version. The events are found by playing it once.'),
     h('p', { cls: 'note', textContent: `${rp.reel.name} · ${fmtT(rp.T[rp.N])} · ${rp.N} frames · engine v${r.version}` }),
@@ -751,6 +840,8 @@ function rpSide() {
     old ? h('p', { cls: 'note warn', textContent: `Recorded with engine v${r.version}, this is v${ENGINE_VERSION}: it may play out differently.` }) : null,
     rp.reel.desync !== null ? h('p', { cls: 'note warn', textContent: `The file goes out of sync with its recording from ${fmtT(rp.T[rp.reel.desync] ?? 0)}.` }) : null,
     h('p', { cls: 'note', textContent: w.fighters.map(f => `${who(f.id)} ${f.ch.name}`).join(' · ') }),
+    ...nowPanel(), ...selPanel(), ...typesPanel(),
+    ...footSide(), ...markSide(),
     heading('reels', 'This reel and its branches (play on from the playhead as P1 or P2, then keep it). Edit one, or compare it with the one you edit: side by side or as a ghost; the events only one has are marked (B: amber outline, only in A: amber underline).'),
     ...rp.reels.map(r => h('div', { cls: 'bar' + (r === rp.reel ? ' on' : '') },
       button(r === rp.reel ? `:edit: ${r.name}` : r.name, r === rp.reel ? 'The reel being edited' : `Edit this reel${r.from !== undefined ? ` (branched at ${fmtT(rp.T[Math.min(r.from, rp.N)])})` : ''}`, () => { if (r !== rp.reel) { loadReel(r.rep, r.name, r); app.paused = true; panels(); } }, 'mini'),
@@ -761,16 +852,6 @@ function rpSide() {
       ...rpStats()[0]?.rows.map((r, i) => h('tr', {}, h('td', { textContent: r[0] }), ...rpStats().map(st => h('td', { textContent: st.rows[i][1] })))) || []),
     rp.cmp && h('table', { cls: 'stats' }, h('tr', {}, h('th', { textContent: 'B' }), ...fightStats(rp.cmp.events, rp.cmp.lanes).map(st => h('th', { textContent: `${who(st.id)} ${st.name}`, style: `color:${st.col}` }))),
       ...[['dealt', 'dealt'], ['hits', 'hits'], ['blocked', 'blocked'], ['best combo', 'bestCombo']].map(([lbl, k]) => h('tr', {}, h('td', { textContent: lbl }), ...fightStats(rp.cmp.events, rp.cmp.lanes).map(st => h('td', { textContent: st[k] }))))),
-    heading('footage', 'The footage edits: in and out, and the spans (slow motion, camera, label) in the timeline\'s footage row; drag a span to move it, its ends to resize it. Saved in the replay file; the export uses them.'),
-    h('p', { cls: 'note', textContent: `in ${fmtT(rp.T[footRange()[0]])} · out ${fmtT(rp.T[footRange()[1]])}` }),
-    ...foot().spans.map((sp, j) => spanRow(sp, j)),
-    heading('bookmarks', 'Named moments, saved in the replay file. \\ adds one at the playhead, ⇧[ ⇧] go to the previous / next.'),
-    ...rp.reel.rep.marks.map((m, j) => h('div', { cls: 'bar' }, button(`⚑ ${m.name}`, `Go to ${fmtT(rp.T[m.f])} (f${m.f})`, () => { rpSeek(m.f); rpFollow(); app.paused = true; }),
-      h('span', { cls: 'note', textContent: fmtT(rp.T[m.f]) }),
-      crud({ rename: ['Rename the bookmark', async () => { const n = await askText('Rename the bookmark', m.name); if (n) { m.name = n; rebuildEvents(); panels(); } }], delete: ['Delete the bookmark', () => { rp.reel.rep.marks.splice(j, 1); rebuildEvents(); panels(); }] }))),
-    h('div', { cls: 'bar' }, button(':add: bookmark', 'Add a bookmark at the playhead' + keyTip('mark'), addMark)),
-    heading('events', 'How many events of each type the replay has (the toolbar\'s types show and hide them).'),
-    h('div', { cls: 'bar' }, counts.map(([t, n]) => { const s = h('span', { cls: 'chip', style: `background:${EVENT_TYPES[t][0]}`, tip: EVENT_TYPES[t][2] }, ...rich(`:${EVENT_TYPES[t][1]}: ${t} ${n}`)); return s; })),
   ];
 }
 
@@ -794,7 +875,7 @@ const replayMode = {
   render: rpRender,
   ctxBar: rpCtx,
   side: rpSide,
-  open: ['replay', 'reels', 'footage', 'stats', 'bookmarks', 'events'],
+  open: ['replay', 'now', 'selection', 'types', 'footage', 'bookmarks', 'reels', 'stats'],
   overlay: () => rp.reel && stageOpen() === 'events' ? [eventTable()] : [],
   mouse: rpMouse,
   wheel: rpWheel,
