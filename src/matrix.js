@@ -90,7 +90,7 @@ const testProgress = h('span', { cls: 'note', tip: 'Cells run so far, and how ma
 const showProgress = () => { const n = tests.total - tests.queue.length, f = nFailing(); testProgress.textContent = `${n}/${tests.total}${f ? ` · ${f} failing` : ''}`; };
 function testCtx() {
   const mb = button('', 'The move under test: one, or every move of the character', (e, b) => popup(b, h('div', { cls: 'bar' },
-    seg([null, ...Object.keys(currentChar().moves)], () => tests.move, v => { tests.move = v; closePop(); followMove(v); rerunTests(); panels(); }, { null: 'Every move of the character (one row per move and opponent)' }, v => v ?? 'all moves'))), 'mini');
+    seg([null, ...Object.keys(currentChar().moves)], () => tests.move, v => { tests.move = v; closePop(); followMove(v); rerunTests(); panels(); }, { null: 'Every move of the character (one row per move and opponent)', ...Object.fromEntries(Object.keys(currentChar().moves).map(m => [m, `Test only ${m}`])) }, v => v ?? 'all moves'))), 'mini');
   reg(mb, () => setRich(mb, `:sports_martial_arts: ${tests.move ?? 'all moves'}`));
   showProgress();
   return [grp('move', 'What is tested', mb),

@@ -498,11 +498,11 @@ function keyPanel() {
       button(':pause: hold', 'Copy the previous key\'s pose (hold still)', () => setKey('p', clone(keyPose(edChar(), curMove(), Math.max(0, anim.key - 1))))),
       button(':accessibility_new: pose', 'Start this key from a preset pose', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.entries(POSES).map(([n, p]) =>
         button(n, p.tip, () => setKey('p', { ...keyPose(edChar(), curMove(), anim.key), ...presetPose(edChar(), p) }))))))),
-    h('div', { cls: 'row', tip: 'Easing curve into this key\'s pose' }, h('span', { textContent: 'easing' }),
+    h('div', { cls: 'row', tip: 'Easing: how the motion into this key\'s pose speeds up and slows down' }, h('span', { textContent: 'easing' }),
       seg(Object.keys(EASE), () => k().e || 'linear', v => setKey('e', v), EASE_TIPS)),
-    h('div', { cls: 'row', tip: 'Active frames can hit' }, h('span', { textContent: 'active' }),
+    h('div', { cls: 'row', tip: 'Active: the keys during which the strike can hit (red on the frame meter)' }, h('span', { textContent: 'active' }),
       toggle(':my_location: hits', 'Active: the strike can connect during this key', () => !!k().active, v => setKey('active', v || undefined))),
-    h('div', { cls: 'row', tip: 'Cancel window and invincibility' }, h('span', { textContent: 'flags' }), h('span', { cls: 'bar' },
+    h('div', { cls: 'row', tip: 'Key flags: what happens in a fight from this key (cancel, invincible, unblockable, armor, catch, warp, turn, shoot, rehit, spin)' }, h('span', { textContent: 'flags' }), h('span', { cls: 'bar' },
       toggle(':sync_alt: cancel', 'The cancel window opens at this key (chains, specials, jump). Unmarked: after the last active key.', () => !!k().cancel,
         v => edit(def => { def.moves[anim.move].keys.forEach((x, i) => { if (i === anim.key && v) x.cancel = true; else delete x.cancel; }); })),
       toggle(':block: inv', 'Invincible during this key (reversals like rising)', () => !!k().inv, v => setKey('inv', v || undefined)),
@@ -627,7 +627,7 @@ const TABLE_COLS = [
   { k: 'type', tip: GROUP_TIPS.type, get: (m, n, ch) => MOVE_GROUPS.type(m, ch, n) },
   { k: 'input', tip: 'Inputs that start it (in the moveset of the plane setting: 2D or 2.5D)', get: (m, n, ch) => moveInputs(ch, n).join(' ') },
   { k: 'stance', tip: GROUP_TIPS.stance, get: (m, n, ch) => MOVE_GROUPS.stance(m, ch, n) },
-  { k: 'limb', tip: 'Striking bones', get: m => m.power ? hitIds(m).join('+') : '' },
+  { k: 'limb', tip: 'Striking bones: the bones that land the hit (set in the move panel)', get: m => m.power ? hitIds(m).join('+') : '' },
   { k: 'height', tip: 'Height: what blocks it (click a value to change it)', get: m => m.power ? m.height || 'mid' : '', height: true },
   ...Object.keys(PHASE_TIPS).map(k => ({ k, tip: PHASE_TIPS[k], get: m => frameData(m)[k], phase: true })),
   ...MOVE_PROPS.map(p => ({ k: p.k, tip: p.tip, get: m => m[p.k] ?? '', prop: p })),
@@ -723,9 +723,9 @@ function moveList() {
   };
   fill();
   return [
-    h('div', { cls: 'row', tip: 'How the moves are shown' }, h('span', { textContent: 'view' }), seg(['cards', 'list'], view, v => { lay('animate').movesView = v; saveLay(); unpeek(); fill(); }, VIEW_TIPS)),
-    adv(h('div', { cls: 'row', tip: 'How the moves are grouped' }, h('span', { textContent: 'group' }), seg(Object.keys(MOVE_GROUPS), () => anim.group, v => { anim.group = v; fill(); }, GROUP_TIPS))),
-    adv(h('div', { cls: 'row', tip: 'Order within a group' }, h('span', { textContent: 'sort' }), seg(Object.keys(SORT_TIPS), () => anim.sort, v => { anim.sort = v; fill(); }, SORT_TIPS))),
+    h('div', { cls: 'row', tip: 'Show the moves as drawn cards or as a compact list of names' }, h('span', { textContent: 'view' }), seg(['cards', 'list'], view, v => { lay('animate').movesView = v; saveLay(); unpeek(); fill(); }, VIEW_TIPS)),
+    adv(h('div', { cls: 'row', tip: 'Split the moves into headed groups: by type, limb, height, stance or style' }, h('span', { textContent: 'group' }), seg(Object.keys(MOVE_GROUPS), () => anim.group, v => { anim.group = v; fill(); }, GROUP_TIPS))),
+    adv(h('div', { cls: 'row', tip: 'The order of the moves inside each group' }, h('span', { textContent: 'sort' }), seg(Object.keys(SORT_TIPS), () => anim.sort, v => { anim.sort = v; fill(); }, SORT_TIPS))),
     h('div', { cls: 'row', tip: 'Show only moves whose name, group or input contains this text (e.g. kick, air, qcf)' }, h('span', { textContent: 'filter' }),
       h('input', { cls: 'macro filter', value: anim.filter, placeholder: 'name, group or input', oninput: e => { anim.filter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() })),
     list];
@@ -837,14 +837,14 @@ function moveGrp() {
   const st = ch.stances.map(s => s.name);
   return grp('move', 'The move being edited. Copies can be tuned freely; the built-in names are the ones the controls trigger. Enter play/pause · O onion · I aim',
     button(':chevron_left:', 'Previous move', () => step(-1), 'mini'), cur, button(':chevron_right:', 'Next move', () => step(1), 'mini'),
-    crud({ copy: ['New move copied from this one, under a new name', copyMove], delete: ['Delete this move (only copies)', deleteMove] }, addButton()),
+    crud({ copy: ['New move copied from this one, named with a number (jab → jab2); undoable', copyMove], delete: ['Delete this move and its binds (only copies; built-ins stay); undoable', deleteMove] }, addButton()),
     st.length > 1 ? seg(st.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); },
       Object.fromEntries(st.map((n, i) => [i, `Stance ${n}: the one the input and loop edits change and previews start in (stances are made in the character tab)`])), i => st[i]) : null);
 }
 function animCtx() {
   return [moveGrp(), compareGrp(), showGrp(['boxes', 'ghost', 'colours']), panelsGrp(MOVE_PANELS, VIEW_TIPS)];
 }
-const CMP_TIPS = { off: 'No comparison', overlay: 'The compared move drawn over this one in amber, at the same moment',
+const CMP_TIPS = { off: 'Off: show only the move being edited', overlay: 'The compared move drawn over this one in amber, at the same moment',
   strip: 'Filmstrip: this move and the compared one frame by frame on one time scale, tinted by phase (click a frame to go there)' };
 function compareGrp() {
   const pick = button('', 'The move to compare with', () => pickCompare(pick));
@@ -857,12 +857,12 @@ function pickCompare(anchor) {
   for (const n of Object.keys(ch.moves)) { const g = MOVE_GROUPS[anim.group](ch.moves[n], ch, n); groups.set(g, [...groups.get(g) || [], n]); }
   const set = v => { anim.cmp = v; if (anim.cmpView === 'off') anim.cmpView = 'overlay'; closePop(); };
   popup(anchor, h('b', { textContent: 'compare with' }), ...[...groups].sort((a, b) => rank(a[0]) - rank(b[0]))
-    .flatMap(([g, ns]) => [g && h('h4', { textContent: g }), h('div', { cls: 'bar' }, seg(ns, () => anim.cmp, set))]));
+    .flatMap(([g, ns]) => [g && h('h4', { textContent: g }), h('div', { cls: 'bar' }, seg(ns, () => anim.cmp, set, Object.fromEntries(ns.map(n => [n, `Compare with ${n}: overlay or filmstrip, as picked in the toolbar`]))))]));
 }
 
 // controls over the canvas: transport and key edits above the timeline, the preview's target under the preview
 function timelineBar() {
-  const play = button('', 'Play / pause the move (Enter)', () => { anim.playing = !anim.playing; }, 'mini');
+  const play = button('', 'Play / pause the move in the preview' + keyTip('playMove'), () => { anim.playing = !anim.playing; }, 'mini');
   reg(play, () => { setRich(play, anim.playing ? ':pause:' : ':play_arrow:'); });
   const frames = h('span', { cls: 'v', tip: 'Length of the selected key in 60 fps frames' }), fd = h('span', { cls: 'fd' });
   reg(frames, () => { frames.textContent = `${Math.round(curMove().keys[anim.key].d * 60)}f`; });
@@ -870,28 +870,28 @@ function timelineBar() {
     fd.dataset.tip = `Frame data (60 fps): ${d.startup} startup · ${d.active} active · ${d.recovery} recovery`; });
   const b = (l, tip, f) => button(l, tip, f, 'mini');
   return h('div', { cls: 'over tlbar' },
-    b(':skip_previous:', 'First key', () => selectKey(0)), b(':chevron_left:', 'Previous key (Shift+←)', () => selectKey(anim.key - 1)),
-    b(':fast_rewind:', 'Back one frame (,)', () => stepFrame(-1)), play, b(':fast_forward:', 'Forward one frame (.)', () => stepFrame(1)),
-    b(':chevron_right:', 'Next key (Shift+→)', () => selectKey(anim.key + 1)), b(':skip_next:', 'Last key', () => selectKey(curMove().keys.length - 1)),
+    b(':skip_previous:', 'Select the first key', () => selectKey(0)), b(':chevron_left:', 'Select the previous key' + keyTip('prevKey'), () => selectKey(anim.key - 1)),
+    b(':fast_rewind:', 'Step the preview back one 60 fps frame' + keyTip('frameBack'), () => stepFrame(-1)), play, b(':fast_forward:', 'Step the preview forward one 60 fps frame' + keyTip('frameFwd'), () => stepFrame(1)),
+    b(':chevron_right:', 'Select the next key' + keyTip('nextKey'), () => selectKey(anim.key + 1)), b(':skip_next:', 'Select the last key', () => selectKey(curMove().keys.length - 1)),
     h('span', { cls: 'sep' }),
     b(':add: key', 'Insert a key after the selected one, starting from its pose', addKey),
     b(':content_cut: split', 'Split the selected key in two at its middle (double-click a key: split it there)', () => splitKey(keyStart(curMove(), anim.key) + curMove().keys[anim.key].d / 2)),
-    b(':delete:', 'Delete the selected key (Delete)', deleteKey),
+    b(':delete:', 'Delete the selected key (undoable)' + keyTip('deleteBone'), deleteKey),
     h('span', { cls: 'sep' }),
-    b(':remove:', 'One frame shorter', () => keyFrames(-1)), frames, b(':add:', 'One frame longer', () => keyFrames(1)),
+    b(':remove:', 'Make the selected key one frame shorter: the move gets quicker', () => keyFrames(-1)), frames, b(':add:', 'Make the selected key one frame longer: the move gets slower', () => keyFrames(1)),
     h('span', { cls: 'sep' }),
-    toggle(':layers:', 'Onion skin: ghosts of the previous (blue) and next (green) keys (O)', () => anim.onion, v => { anim.onion = v; }),
-    toggle(':my_location:', 'Aim: the striking limb follows the cursor through IK; click to set the pose (I). Double-click any joint to make that one follow', () => anim.aim, v => { anim.aim = v; anim.aimId = null; }),
+    toggle(':layers:', 'Onion skin: ghosts of the previous (blue) and next (green) keys' + keyTip('onion'), () => anim.onion, v => { anim.onion = v; }),
+    toggle(':my_location:', 'Aim: the striking limb follows the cursor through IK; click to set the pose. Double-click any joint to make that one follow' + keyTip('aim'), () => anim.aim, v => { anim.aim = v; anim.aimId = null; }),
     seg(Object.keys(REACH_TIPS), () => anim.reach, v => { anim.reach = v; }, REACH_TIPS),
     fd);
 }
 function targetBar() {
   const tg = anim.target, set = (k, v) => { tg[k] = v; anim.t = 0; anim.playing = true; buildPreview(); };
-  const who = button('', 'The target character in the preview', (e, b) =>
+  const who = button('', 'The character the preview\'s move is played against (same: the one being edited)', (e, b) =>
     popup(b, h('div', { cls: 'bar' }, seg([null, ...Object.keys(DEFS)], () => tg.char, v => { set('char', v); closePop(); }, { null: 'The character being edited' }, v => v ?? 'same'))), 'mini');
   reg(who, () => { setRich(who, ':person: ' + (tg.char && DEFS[tg.char] ? tg.char : 'same')); });
   const sg = (k, opts) => seg(opts, () => tg[k], v => set(k, v), TARGET_TIPS);
-  return h('div', { cls: 'over tgt', tip: 'The target of the preview' }, who, sg('stance', Object.keys(STANCES)), sg('state', ['idle', 'air', 'down', 'dizzy']), sg('facing', ['toward', 'away']), sg('dist', ['near', 'far']));
+  return h('div', { cls: 'over tgt', tip: 'The preview\'s target: who, how it stands, its state, facing and distance; changing it restarts the preview' }, who, sg('stance', Object.keys(STANCES)), sg('state', ['idle', 'air', 'down', 'dizzy']), sg('facing', ['toward', 'away']), sg('dist', ['near', 'far']));
 }
 
 const animMode = {

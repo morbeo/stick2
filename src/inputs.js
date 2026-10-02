@@ -54,11 +54,11 @@ function pickBind(s, anchor, done) {
   const set = v => { assign(s, v); closePop(); done(); };
   popup(anchor, h('b', { textContent: s }), h('p', {}, ...rich(slotTip(s))),
     h('div', { cls: 'bar' },
-      ch.moves[anim.move] && button(`:check: ${anim.move}`, 'The move open in the editor', () => set(anim.move)),
-      button(`:history: default: ${defaultBind(s) || 'none'}`, 'Back to the default', () => set(undefined)),
+      ch.moves[anim.move] && button(`:check: ${anim.move}`, `Bind ${anim.move}, the move open in the editor, to ${s}`, () => set(anim.move)),
+      button(`:history: default: ${defaultBind(s) || 'none'}`, 'Drop this bind: the default plays again', () => set(undefined)),
       button(':block: none', inputs.hand ? 'No weapon move: the unarmed bind plays' : 'No move on this input', () => set(''))),
     ...[...groups].sort((a, b) => (GROUP_ORDER.indexOf(a[0]) + 1 || 99) - (GROUP_ORDER.indexOf(b[0]) + 1 || 99))
-      .flatMap(([g, ns]) => [h('h4', { textContent: g }), h('div', { cls: 'bar' }, seg(ns, () => cur, set))]));
+      .flatMap(([g, ns]) => [h('h4', { textContent: g }), h('div', { cls: 'bar' }, seg(ns, () => cur, set, Object.fromEntries(ns.map(n => [n, `Bind ${n} to ${s}`]))))]));
 }
 // a new input: a motion in numpad notation (6 = toward the opponent) + P or K; it is added and its move picked
 function addInput(anchor, done) {
@@ -71,9 +71,9 @@ function addInput(anchor, done) {
   const show = () => { setRich(shown, d ? `${motionArrows(d)} ${d}${B[0]}` : 'press directions'); add.disabled = d.length < 2; };
   popup(anchor, h('b', { textContent: 'New input' }), h('p', {}, ...rich('A motion: the directions in order (numpad notation, 6 = toward the opponent, held within motionWindow), then the button. E.g. 41236 is ←↙↓↘→.')),
     h('div', { cls: 'grid', style: 'display: grid; grid-template-columns: repeat(3, 34px); gap: 2px; margin: 6px 0' },
-      PAD.map(n => button(n === 5 ? '·' : DIR_ARROW[n], `${n}`, () => { if (n !== 5 && d.slice(-1) !== String(n)) { d += n; show(); } }))),
+      PAD.map(n => button(n === 5 ? '·' : DIR_ARROW[n], n === 5 ? 'Neutral: not part of a motion' : `Add direction ${n} to the motion (6 = toward the opponent)`, () => { if (n !== 5 && d.slice(-1) !== String(n)) { d += n; show(); } }))),
     h('div', { cls: 'bar' }, shown, button(':undo:', 'Remove the last direction', () => { d = d.slice(0, -1); show(); }),
-      seg(['Punch', 'Kick'], () => B, v => { B = v; show(); }, { Punch: 'J', Kick: 'K' }, v => v[0]), add));
+      seg(['Punch', 'Kick'], () => B, v => { B = v; show(); }, { Punch: 'The motion ends with punch (P)', Kick: 'The motion ends with kick (K)' }, v => v[0]), add));
   show();
 }
 const removeInput = k => edit(def => {
@@ -114,7 +114,7 @@ function inputTable() {
     const unset = rows.filter(r => r.x.st !== 'set');
     count.textContent = `${unset.length} of ${rows.length} inputs without a move of their own (${rows.filter(r => r.x.st === 'none').length} do nothing)`;
     body.replaceChildren(...rows.filter(r => !inputs.unset || r.x.st !== 'set').map(({ c, x }) => {
-      const m = x.move && ch.moves[x.move], mv = button(x.st === 'set' ? x.move : '—', 'Pick a move', (e, b) => { e.stopPropagation(); pickBind(x.own, b, fill); }, 'mini');
+      const m = x.move && ch.moves[x.move], mv = button(x.st === 'set' ? x.move : '—', 'Pick the move this input plays', (e, b) => { e.stopPropagation(); pickBind(x.own, b, fill); }, 'mini');
       return h('tr', { cls: x.st, onclick: () => pickBind(x.own, mv, fill), onmousemove: e => m && peekMove(x.move, e), onmouseleave: unpeek },
         h('td', {}, ...rich(`${DIR_ARROW[c.d] || ''} ${c.custom ? motionArrows(DEFS[CURRENT].motions[c.custom]) + ' ' : ''}${c.label}`),
           c.custom && button(':delete:', `Remove the input ${c.custom.slice(1)} (P and K) and its binds`, e => { e.stopPropagation(); removeInput(c.custom); fill(); }, 'mini')),
@@ -127,7 +127,7 @@ function inputTable() {
   let table;
   wrap.append(
     stageHead('inputs', VIEW_TIPS.inputs,
-      seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); }, { 0: 'The main stance' }, i => names[i]),
+      seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); }, Object.fromEntries(names.map((n, i) => [i, i ? `Show and edit the binds of the stance ${n}` : 'Show and edit the binds of the main stance'])), i => names[i]),
       seg(['2d', '25'], () => CFG.plane === '2d' ? '2d' : '25', v => { setCfg({ plane: v === '2d' ? '2d' : 'lanes' }); panels(); mode().restart(); },
         { '2d': '2D moveset: ↑ jumps (↑ with P / K together is an up attack), air moves by direction', '25': '2.5D moveset (VF-style): every direction × button is a ground move' }, v => v === '2d' ? '2D' : '2.5D'),
       seg(Object.keys(HAND_TIPS), () => inputs.hand, v => { inputs.hand = v; fill(); }, HAND_TIPS, v => v ? ':swords: ' + v : ':back_hand: unarmed'),

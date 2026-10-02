@@ -544,7 +544,8 @@ const GAIT_VARS = [
   { k: 'lift', v: 1, min: 0, max: 2.5, step: 0.05, tip: 'How high the knees come up on each step.' },
   { k: 'armSwing', v: 1, min: 0, max: 2.5, step: 0.05, tip: 'How much the arms counter-swing the legs.' },
   { k: 'lean', v: 1, min: -2, max: 3, step: 0.1, tip: 'Torso lean into the walking direction.' },
-  { k: 'idle', v: 'auto', opts: ['auto', 'shift', 'bounce', 'sway', 'still'], tip: 'Idle style: weight shift, boxer bounce, sway or still; auto picks one per fighter.' },
+  { k: 'idle', v: 'auto', opts: ['auto', 'shift', 'bounce', 'sway', 'still'], tip: 'Idle style: weight shift, boxer bounce, sway or still; auto picks one per fighter.',
+    optTips: { auto: 'Each fighter picks one of the styles', shift: 'Shifts its weight from foot to foot', bounce: 'Bounces on its toes like a boxer', sway: 'Sways side to side', still: 'Stands still' } },
   { k: 'idleAmt', v: 1, min: 0, max: 3, step: 0.05, tip: 'Strength of the idle motion.' },
   { k: 'breath', v: 1, min: 0, max: 3, step: 0.1, tip: 'Breathing: the chest and arms rise and fall.' },
 ];

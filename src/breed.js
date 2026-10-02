@@ -149,7 +149,7 @@ function breedFrom(c) {
 
 // ---------- context bar parts ----------
 function varsButton() {
-  const b = button('', 'Which settings the cells vary', (e, b) => popup(b, ...SCHEMA.flatMap(s => Array.isArray(s)
+  const b = button('', 'Pick the settings the cells vary', (e, b) => popup(b, ...SCHEMA.flatMap(s => Array.isArray(s)
     ? [h('h4', { textContent: s[0] })]
     : s.k === 'scope' ? [] : [toggle(s.k, s.tip, () => breed.vars.has(s.k), on => { breed.vars[on ? 'add' : 'delete'](s.k); build(); })])));
   reg(b, () => { setRich(b, `vary: ${[...breed.vars].join(' ') || 'nothing'}`); });
@@ -180,7 +180,7 @@ function breedCtx() {
     grp('new', 'What new attacks are like', seg(['any', ...strikeRoles(ch)], () => breed.limb, v => { breed.limb = v; fresh(); },
       { any: 'New attacks strike with any limb', ...Object.fromEntries(strikeRoles(ch).map(r => [r, `New attacks strike with the end of a ${r}`])) }, v => v === 'any' ? 'any limb' : optLabel(v)),
     seg(['any', ...Object.keys(HEIGHTS)], () => breed.height, v => { breed.height = v; fresh(); },
-      { any: 'New attacks at any height', high: 'High attacks (crouching ducks them)', mid: 'Mid attacks', low: 'Low attacks (guard crouching)' }, v => v === 'any' ? 'any height' : optLabel(v)),
+      { any: 'New attacks at any height', high: 'High attacks (crouching ducks them)', mid: 'Mid attacks: at body height', low: 'Low attacks (guard crouching)' }, v => v === 'any' ? 'any height' : optLabel(v)),
     poseB,
     button(':casino: new', 'Throw the parent away: nine new random attacks', () => { breed.atk = null; breed.seed++; build(); })),
     grp('keep', 'Keep the parent or focused attack', noFocus(button(':save: save move', 'Add the parent (or the focused cell) to the character\'s moves as genN. Hovering a cell also shows its own save / edit buttons', () => saveAttack(false))),

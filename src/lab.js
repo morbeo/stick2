@@ -363,7 +363,7 @@ function shieldButton(i) {
     b.dataset.tip = `P${i + 1}'s shield, now ${v === 'nodamage' ? 'no damage: hit reactions, but no health lost' : v ? 'untouchable: nothing hits it' : 'off'} · click: off → no damage → untouchable`; });
   return b;
 }
-const swapFighters = () => button(':swap_horiz:', 'Swap P1 and P2', () => { [lab.chars[0], lab.chars[1]] = [lab.chars[1] ?? null, lab.chars[0] ?? null]; build(); });
+const swapFighters = () => button(':swap_horiz:', 'Swap the characters of P1 and P2 (the fight restarts)', () => { [lab.chars[0], lab.chars[1]] = [lab.chars[1] ?? null, lab.chars[0] ?? null]; build(); });
 
 // ---------- context bar: scenario, grid axes, focus ----------
 const ctlName = c => c === 'human' ? 'you' : c === 'ai' ? 'AI' : Array.isArray(c) ? 'script' : 'dummy';
@@ -562,7 +562,7 @@ function labCtx() {
 function cfgControl(s) {
   const name = h('span', { textContent: s.k });
   if (s.k === 'scope') {
-    const b = button('', 'Pick the bone to plot', (e, b) => popup(b, h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v)))));
+    const b = button('', 'The bone whose angle the scope plots · click: pick another', (e, b) => popup(b, h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v), Object.fromEntries(currentChar().ids.map(id => [id, `Plot the angle of ${id}`]))))));
     reg(b, () => { setRich(b, CFG.scope); });
     return h('div', { cls: 'row', tip: s.tip }, name, b);
   }
@@ -604,7 +604,7 @@ function configPanel() {
   const first = rows.findIndex((r, i) => i && r.head);
   return [search, heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes, hud, labels) stay.', ''),
     h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(optLabel(n), PRESET_TIPS[n], () => applyPreset(n))),
-      button(':restart_alt: reset', 'All settings back to their defaults', () => applyPreset('juicy'))),
+      button(':restart_alt: reset', 'All settings back to their defaults (same as juicy); the view settings stay, ⌘Z undoes', () => applyPreset('juicy'))),
     heading('Power', 'How hard blows land and how far bodies fly and bounce (off the floor, the walls and the ceiling). Only those settings change.', ''),
     h('div', { cls: 'bar' }, seg(Object.keys(POWER), () => Object.keys(POWER).find(n => Object.entries(POWER[n]).every(([k, v]) => CFG[k] === v)),
       n => setCfg({ ...POWER[n] }), POWER_TIPS, n => `:${POWER_ICONS[n]}: ${n}`)),
@@ -647,7 +647,7 @@ const labSide = () => lab.mode === 'gallery' ? moveSide() : configPanel();
 function debugPanel(e, b) {
   const row = k => h('div', { cls: 'row', tip: SPEC[k].tip }, h('span', { textContent: k }), toggle(CFG[k] ? 'on' : 'off', SPEC[k].tip, () => CFG[k], v => setCfg({ [k]: v }, 'cfg.' + k)));
   popup(b, h('b', { textContent: 'debug' }), row('ghost'), row('boxes'), row('hud'), row('labels'),
-    h('div', { cls: 'row', tip: SPEC.scope.tip }, h('span', { textContent: 'scope' }), h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v)))),
+    h('div', { cls: 'row', tip: SPEC.scope.tip }, h('span', { textContent: 'scope' }), h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v), Object.fromEntries(currentChar().ids.map(id => [id, `Plot the angle of ${id}`]))))),
     dbgInfo, h('div', { cls: 'bar' }, button(':content_copy: copy', 'Copy the debug information (for a bug report)', () => navigator.clipboard?.writeText(dbgInfo.textContent)),
       button(':restart_alt: reset settings', 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels) stay (⌘Z undoes)', () => { applyPreset('juicy'); mode().restart(); }),
       button(':delete: factory reset', 'Delete all local data: edited characters, settings, keys and macros, layout; then reload as new (asks first)', () => factoryReset())),

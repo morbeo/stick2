@@ -118,7 +118,7 @@ function crud(ops, ...extra) {
 }
 // a group heading with an ⓘ button that pops up what the group does and its keys
 function heading(title, info, keys) {
-  return h('h3', {}, title, info && button(':info:', 'about this group', (e, b) => popup(b, h('b', { textContent: title }),
+  return h('h3', {}, title, info && button(':info:', `About ${title}: what it does and its keys`, (e, b) => popup(b, h('b', { textContent: title }),
     h('p', {}, ...rich(info)), keys && h('p', { cls: 'keys' }, ...rich(keys)),
     docFor(title) && h('div', { cls: 'bar' }, button(':chevron_right: docs', 'Read more in the docs, with live demos', () => openDocs(docFor(title).id)))), 'info'));
 }
@@ -178,7 +178,7 @@ addEventListener('keydown', e => { if (e.code === 'Escape' && pop) { closePop();
 // buttons: [[label, value, tip]], the first is the default (Enter); Esc or a click beside it gives null. input: a text field's start value
 function dialog(title, text, buttons, input = null) {
   return new Promise(done => {
-    const field = input !== null && h('input', { cls: 'macro', value: input, tip: 'Type, then Enter' });
+    const field = input !== null && h('input', { cls: 'macro', value: input, tip: 'Type here; Enter confirms, Esc cancels' });
     const box = h('div', { cls: 'pop modal' }, h('b', { textContent: title }), text && h('p', { textContent: text }), field || null,
       h('div', { cls: 'bar' }, buttons.map(([label, v, tip]) => button(label, tip || label, () => end(field && v !== null ? field.value : v)))));
     const back = h('div', { cls: 'modalback' }, box);
@@ -191,9 +191,9 @@ function dialog(title, text, buttons, input = null) {
     (field || box.querySelector('button'))?.focus(); if (field) field.select();
   });
 }
-const askText = (title, value = '', text = '') => dialog(title, text, [[':check: ok', true], [':close: cancel', null]], value); // → the text, or null
-const askYes = (title, text, yes = ':check: ok', no = ':close: cancel') => dialog(title, text, [[yes, true], [no, false]]).then(Boolean);
-const notice = (title, text) => dialog(title, text, [[':check: ok', true]]);
+const askText = (title, value = '', text = '') => dialog(title, text, [[':check: ok', true, 'Use this text (Enter)'], [':close: cancel', null, 'Close without changing anything (Esc)']], value); // → the text, or null
+const askYes = (title, text, yes = ':check: ok', no = ':close: cancel') => dialog(title, text, [[yes, true, 'Go ahead (Enter)'], [no, false, 'Leave things as they are (Esc)']]).then(Boolean);
+const notice = (title, text) => dialog(title, text, [[':check: ok', true, 'Close this message (Enter)']]);
 
 // ---------- tooltips: any element with data-tip, shown instantly next to the cursor ----------
 const tipEl = h('div', { cls: 'tip' });

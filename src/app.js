@@ -49,7 +49,7 @@ function factoryReset(anchor = $('global')) {
     h('div', { cls: 'bar' }, button(':delete: delete everything', 'Delete every saved stick2 setting in this browser and reload', () => {
       for (const k of Object.keys(localStorage)) if (k.startsWith('stick2.')) localStorage.removeItem(k);
       reload();
-    }), button(':close: cancel', 'Keep everything', closePop)));
+    }), button(':close: cancel', 'Close this without deleting anything', closePop)));
 }
 function togglePanel() { lay().hide.side = !lay().hide.side; saveLay(); layApply(); }
 
@@ -68,10 +68,10 @@ function buildTop() {
   const tabs = Object.keys(MODES).filter(m => tabOf(m) === m);
   $('modes').replaceChildren(seg(tabs, () => tabOf(app.mode), m => tabOf(app.mode) !== m && setMode(m),
     Object.fromEntries(tabs.map(m => [m, MODES[m] + (VIEWS[m] ? ` Also: ${VIEWS[m].slice(1).map(v => v + ': ' + MODES[v]).join(' ')}` : '')])), m => `:${MODE_ICONS[m]}: ${m}`));
-  const pause = button('', 'Pause / play' + keyTip('pause'), () => { app.paused = !app.paused; });
+  const pause = button('', 'Pause or resume the fight(s)' + keyTip('pause'), () => { app.paused = !app.paused; });
   reg(pause, () => { setRich(pause, app.paused ? ':play_arrow: play' : ':pause: pause'); pause.classList.toggle('on', app.paused); });
   $('global').replaceChildren(
-    grp('', 'Edit history', button(':undo:', 'Undo the last edit: character, moves or settings (⌘Z)', undo), button(':redo:', 'Redo (⇧⌘Z)', redo)),
+    grp('', 'Edit history', button(':undo:', 'Undo the last edit: character, moves or settings (⌘Z)', undo), button(':redo:', 'Redo the last undone edit (⇧⌘Z)', redo)),
     clipGroup(),
     grp('', 'Replay files: a whole play fight (inputs, settings, characters), pinned to the engine version', replaySave(), replayFile(),
       button(':history:', 'Edit the play fight in the replay tab: its events on a timeline and in a table', reelFromPlay)),
@@ -88,9 +88,9 @@ function buildTop() {
       toggle(':waves:', 'Sound: whooshes, hits and blocks in play and in the animate preview, synthesized live (no sound files); off by default in automated browsers', () => !muted(), toggleMute)));
   $('transport').replaceChildren(grp('', 'Playback', pause,
     button(':fast_rewind:', 'Rewind one second: every fight is restored from its last checkpoint and replayed with the same inputs, so your own and the AI\'s fights rewind too; play on from there to try something else' + keyTip('rewind'), () => rewind(60)),
-    button(':skip_previous:', 'Back one frame' + keyTip('stepBack'), () => rewind(1)),
+    button(':skip_previous:', 'Back one frame and pause there' + keyTip('stepBack'), () => rewind(1)),
     button(':skip_next:', 'Step: advance one 60 fps frame' + keyTip('step'), () => { app.paused = app.stepOnce = true; }),
-    button(':restart_alt:', 'Restart the fight(s)' + keyTip('restart'), restart)),
+    button(':restart_alt:', 'Restart the fight(s) from the beginning' + keyTip('restart'), restart)),
     grp('', 'Speed and time', seg([1, 0.5, 0.25, 0.1], () => app.speed, v => { app.speed = v; },
       { 1: 'Real time', 0.5: 'Half speed', 0.25: 'Quarter speed', 0.1: 'One tenth: study single frames' }, v => ({ 1: '1×', 0.5: '½', 0.25: '¼', 0.1: '⅒' })[v]),
     toggle(':mouse:', 'Scrub: mouse left/right over the view sets the time: every fight is re-simulated to that moment' + keyTip('scrub'), () => app.scrub, v => { app.scrub = v; app.scrubF = null; }),

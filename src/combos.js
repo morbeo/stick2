@@ -33,7 +33,7 @@ function pickLink(anchor, from, b, done) {
   popup(anchor, h('b', { textContent: `${from} › ${linkName(b)}` }), h('p', { textContent: `The move ${linkName(b)} chains ${from} into, in its cancel window (chains setting authored)` }),
     h('div', { cls: 'bar' }, h('span', { cls: 'note', textContent: 'direction' }), seg(dirs, () => linkDir(b), setDir, dirTips, d => DIR_ARROW[d] || '·')),
     cur ? h('div', { cls: 'bar' }, button(':content_cut: cut', `Remove the link: ${linkName(b)} after ${from} does not chain`, () => set(''))) : null,
-    ...[...groups].flatMap(([g, ns]) => [h('h4', { textContent: g }), h('div', { cls: 'bar' }, seg(ns, () => cur, set))]));
+    ...[...groups].flatMap(([g, ns]) => [h('h4', { textContent: g }), h('div', { cls: 'bar' }, seg(ns, () => cur, set, Object.fromEntries(ns.map(n => [n, `${from} chains into ${n} on ${linkName(b)}`]))))]));
 }
 // + P / + K while the button has a direction without a link: a new link on it (no direction if that is free; the popup picks another)
 const addLinks = (from, done) => ['P', 'K'].flatMap(L => {

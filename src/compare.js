@@ -57,7 +57,7 @@ function compareView() {
   const filter = h('input', { cls: 'macro', value: cmp.q, placeholder: 'fuzzy filter: setting or group', tip: 'Letters in order match (e.g. "hs" finds hitstop)',
     oninput: e => { cmp.q = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() });
   wrap.append(stageHead('compare settings', CMP_PANEL_TIP, cmpSource('a'), cmpSource('b'),
-    seg(['changed', 'all'], () => cmp.all ? 'all' : 'changed', v => { cmp.all = v === 'all'; fill(); }, { changed: 'Only the settings that differ', all: 'Every setting' }),
+    seg(['changed', 'all'], () => cmp.all ? 'all' : 'changed', v => { cmp.all = v === 'all'; fill(); }, { changed: 'List only the settings where A and B differ', all: 'List every setting, the same ones too' }),
     filter, all('a'), all('b'),
     button(':content_copy: copy', 'Copy the differences as text (- A / + B per setting)', () => navigator.clipboard?.writeText(cmpText()))),
     h('table', {}, h('thead', {}, h('tr', {}, ...[['group', 'The settings group'], ['setting', 'Hover a row for what it does'], ['A', 'A\'s value'], ['B', 'B\'s value'],

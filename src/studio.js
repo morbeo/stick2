@@ -261,7 +261,7 @@ function drawThumb(cv, ch, pose = ch.poses.stance, cw = 60, chh = 64) {
 }
 // a character as a card; by default clicking it makes it the one every mode edits
 function charCard(k, pick = pickChar, on = k => CURRENT === k) {
-  const cv = h('canvas'), b = h('button', { cls: 'card', tip: `${CHAR_DEFS[k] ? 'Built-in' : 'Your character'}: ${k} · ${CHARS[k].bones.length} bones · speed ${CHARS[k].stats.speed}`,
+  const cv = h('canvas'), b = h('button', { cls: 'card', tip: `${CHAR_DEFS[k] ? 'Built-in' : 'Your character'}: ${k} · ${CHARS[k].bones.length} bones · speed ${CHARS[k].stats.speed} · click: use it in every mode`,
     onclick: () => { closePop(); pick(k); syncAll(); } }, cv, h('span', { textContent: k }));
   reg(b, () => { b.classList.toggle('on', on(k)); drawThumb(cv, CHARS[k]); });
   return b;
@@ -279,7 +279,7 @@ function stanceRow() {
   const keyTips = Object.fromEntries(Object.entries(STANCE_KEYS).map(([k, l]) => [k, `${l} switches to ${names[i]}; pressed again in it, back to main (stances sharing a key take turns)`]));
   return [h('div', { cls: 'row', tip: 'Stances: their key switches to them in a fight. The stance picked here is the one the pose, input and idle / walk loop edits change, and the one previews start in.' },
     h('span', { textContent: 'stance' }), h('span', { cls: 'bar' },
-      seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); }, Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance'])), i => names[i]),
+      seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); }, Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance: the base pose, binds and loops'])), i => names[i]),
       crud({ new: ['New stance: a copy of the current one with no binds of its own', add], delete: ['Delete this stance (not the main one)', del] }))),
     i ? h('div', { cls: 'row', tip: `The input that switches to ${names[i]} in a fight (→ = toward the opponent)` }, h('span', { textContent: 'key' }),
       seg(Object.keys(STANCE_KEYS), () => stanceKey(DEFS[CURRENT].stances?.[i - 1]?.key), v => edit(def => { def.stances[i - 1].key = v; }), keyTips, k => STANCE_KEYS[k])) : null];
@@ -300,7 +300,7 @@ function charPanel() {
     copy: ['New character copied from this one', () => addChar(DEFS[CURRENT], CURRENT)],
     rename: ['Rename this character (a built-in one is copied under the new name)', renameChar],
     revert: ['Throw away the edits of this built-in character (undoable)', revertChar],
-    delete: ['Delete this character (only your own ones)', deleteChar],
+    delete: ['Delete this character (only your own ones; asks first, cannot be undone)', deleteChar],
     import: ['Load a character JSON file as a new character', importChar],
     export: ['Download this character as a JSON file', exportChar],
   }, button(':tune:', 'What the random characters are drawn from, and an experiment grid of them', (e, b) => popup(b, ...randomPanel()), 'mini')));
@@ -347,9 +347,9 @@ function boneTree() {
   const ch = currentChar(), rows = [];
   const walk = (b, depth) => {
     const fold = studio.fold.has(b.id);
-    const tw = b.kids.length ? button(fold ? '▸' : '▾', fold ? 'Expand' : 'Collapse', () => { studio.fold[fold ? 'delete' : 'add'](b.id); panels(); }, 'twist')
+    const tw = b.kids.length ? button(fold ? '▸' : '▾', fold ? `Show the bones under ${b.id}` : `Hide the bones under ${b.id} in this list`, () => { studio.fold[fold ? 'delete' : 'add'](b.id); panels(); }, 'twist')
       : h('span', { cls: 'twist' });
-    const nb = button(b.id + (b.lock ? ' 🔒' : ''), `${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''} · ${b.len}px${fold ? ` · ${subtree(DEFS[CURRENT], b.id).length - 1} hidden` : ''}`,
+    const nb = button(b.id + (b.lock ? ' 🔒' : ''), `${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''} · ${b.len}px${fold ? ` · ${subtree(DEFS[CURRENT], b.id).length - 1} hidden` : ''} · click: select it (Shift / ⌘: add to the selection)`,
       e => pickBoneSel(b.id, e.shiftKey || e.metaKey || e.ctrlKey));
     nb.style.borderLeft = `4px solid ${ROLE_COLS[b.role][b.side === 'b' ? 1 : 0]}`;
     reg(nb, () => nb.classList.toggle('on', selIds().includes(b.id)));

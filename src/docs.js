@@ -97,7 +97,7 @@ function renderDocs(root) {
     onkeydown: e => { if (e.key === 'Enter') { const f = toc.querySelector('.pitem'); if (f) f.click(); } } });
   root.replaceChildren(h('div', { cls: 'dbox' },
     h('div', { cls: 'dside' }, h('div', { cls: 'bar' }, search,
-      docs.page ? button(':sports_kabaddi: app', 'Open the app', closeDocs) : button(':close:', 'Close the docs (Esc)', closeDocs)), toc), body));
+      docs.page ? button(':sports_kabaddi: app', 'Leave the docs and open the app', closeDocs) : button(':close:', 'Close the docs (Esc)', closeDocs)), toc), body));
   fill();
 }
 // a demo shows the engine as shipped: default settings and the built-in stick, whatever the editors have changed
@@ -107,11 +107,11 @@ function showTopic(el, t, q) {
   docs.curves = [];
   docs.demos = (t.demos || []).filter(s => SCENARIOS[s]).map(s => {
     const cv = h('canvas', { width: 360, height: 200 }), d = { s, cv, paused: false, w: demoWorld(s) };
-    const pause = button('', 'Pause / play this demo', () => { d.paused = !d.paused; }, 'mini');
+    const pause = button('', 'Pause or resume this demo', () => { d.paused = !d.paused; }, 'mini');
     reg(pause, () => setRich(pause, d.paused ? ':play_arrow:' : ':pause:'));
     d.el = h('div', { cls: 'demo' }, cv, h('div', { cls: 'bar' }, h('b', { textContent: s }), pause,
-      button(':skip_next:', 'Step one frame', () => { d.paused = true; d.w.advance(1 / 60, NOIN); }, 'mini'),
-      button(':restart_alt:', 'Restart this demo', () => d.w.reset(), 'mini'),
+      button(':skip_next:', 'Advance this demo one frame (pauses it)', () => { d.paused = true; d.w.advance(1 / 60, NOIN); }, 'mini'),
+      button(':restart_alt:', 'Restart this demo from the beginning', () => d.w.reset(), 'mini'),
       button(':play_arrow: try', 'Run this fight in play mode, with your settings and character', () => { closeDocs(); playScen(s); }, 'mini')));
     return d;
   });

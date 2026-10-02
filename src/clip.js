@@ -204,10 +204,10 @@ function clipGroup() {
   const pick = (k, opts, lbl) => seg(opts, () => clipSet()[k], v => { clipSet()[k] = v; saveUi(); }, CLIP_TIPS, lbl);
   const opts = button(':expand_more:', 'Clip settings: format, length, size and frame rate', (e, b) => popup(b, h('b', { textContent: 'clips' }),
     h('p', { cls: 'note', textContent: 'Paused time is left out; slow motion stays slow.' }),
-    row('format', 'GIF or WebM video', pick('fmt', CLIP_FMTS, v => v.toUpperCase())),
+    row('format', 'The file type: GIF loops anywhere, WebM is smaller and has every colour', pick('fmt', CLIP_FMTS, v => v.toUpperCase())),
     row('length', 'How many seconds the clip button saves', pick('secs', CLIP_SECS, v => v + 's')),
     row('width', 'The clip\'s width in pixels', pick('size', CLIP_SIZES, String)),
-    row('fps', 'Frames a second', pick('fps', CLIP_FPS, String)),
+    row('fps', 'Frames a second: more is smoother, fewer gives smaller files', pick('fps', CLIP_FPS, String)),
     row('aspect', 'The clip\'s shape: the watched view\'s own, or a fixed one (16:9 video, 1:1 square, 9:16 phone)', pick('aspect', Object.keys(CLIP_ASPECTS), String)),
     row('fit', 'Another shape than the view\'s: crop its middle, or fit all of it with bars', pick('fit', ['crop', 'letterbox'], String))));
   return grp('', 'Clips: save the last seconds of what you watch, or record it, as a GIF or a WebM', save, rec, opts);

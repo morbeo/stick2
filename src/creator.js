@@ -212,7 +212,7 @@ function creatorCtx() {
   return [movesGrp(),
     grp('preview', 'What the preview on the right plays', seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); panels(); }, mapVals(PREVIEWS, p => p[1]))),
     ...creator.preview === 'impact' && !creator.expOn ? blowGrps(() => creator.w, () => creatorMode.restart()) : [],
-    grp('experiment', 'Experiment', toggle(':science: experiment', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
+    grp('experiment', 'Breed body variations: nine bodies at once, keep the best', toggle(':science: experiment', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
       () => creator.expOn && creator.exp.kind === 'body', on => setExp(on))),
     showGrp(['boxes', 'colours']), panelsGrp([...MOVE_PANELS, 'bones'], { ...VIEW_TIPS, bones: BONES_TIP }),
   ];
@@ -249,7 +249,7 @@ function bonePanel() {
       v => edit(def => { for (const id of selIds()) editPose(def)[id] = v; }, 'stance:' + selIds()),
       'Angle in the stance pose, relative to the parent (0 = straight on, root bones: 0 = down, 180 = up). Moves are layered on top.'),
     ...BONE_PROPS.map(p => { const r = bodyExpLink(slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip), p.k); return BONE_BASIC.includes(p.k) ? r : adv(r); }),
-    row('limits', 'Clamp how far this joint can bend', toggle(':straighten: limits', 'Clamp how far this joint can bend', () => prop('min') !== undefined, lim)),
+    row('limits', 'Clamp how far this joint can bend', toggle(':straighten: limits', 'On: the joint bends only between min and max (starts at ±90° from the parent); off removes them (undoable)', () => prop('min') !== undefined, lim)),
     ...limRows,
     row('lock', 'Lock to the parent', toggle(':lock: lock', 'Locked: the joint keeps its angle to its parent while posing. Dragging it (or IK through it) turns the first unlocked bone above, so locked bones move as one group.',
       () => !!prop('lock'), v => setProp('lock', v || undefined)))];
@@ -287,10 +287,10 @@ function radarPanel() {
   reg(cv, draw);
   const head = h('h3', { textContent: 'radar', tip: 'Stats on a radar: each axis runs from the stat\'s minimum (centre) to its maximum (rim); the dashed ring is 1 (as the settings say). Pick the axes and the characters to compare.' });
   head.append(h('span', { cls: 'gops' },
-    button(':tune:', 'Which stats are the axes', (e, b) => popup(b, h('div', { cls: 'bar' }, CHAR_STATS.map(st =>
+    button(':tune:', 'Pick the stats the radar shows as axes', (e, b) => popup(b, h('div', { cls: 'bar' }, CHAR_STATS.map(st =>
       toggle(st.k, `${st.g} · ${st.tip}`, () => radar.vars.has(st.k), on => radar.vars[on ? 'add' : 'delete'](st.k))))), 'mini'),
     button(':person:', 'Characters to compare with this one', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.keys(DEFS).filter(k => k !== CURRENT).map(k =>
-      toggle(k, `Overlay ${k}`, () => radar.chars.has(k), on => radar.chars[on ? 'add' : 'delete'](k))))), 'mini')));
+      toggle(k, `Overlay ${k}'s stats on the radar to compare`, () => radar.chars.has(k), on => radar.chars[on ? 'add' : 'delete'](k))))), 'mini')));
   return [head, cv, legend];
 }
 // the character's stats; defaults are the built-in's values (custom characters: 1)
@@ -314,7 +314,7 @@ function gaitPanel() {
     ['Experiment: nine bodies varying the walk and idle; click the best to breed around it', () => { creator.exp.vars = new Set(GAIT_VARS.filter(s => !s.opts).map(s => s.k)); creator.preview = 'walk'; setExp(true); }]));
   const loops = ['idle', 'walk'].map(n => loopName(currentChar(), studio.stance, n)).filter(n => currentChar().moves[n]);
   return [title, loops.length ? h('div', { cls: 'note', textContent: `keyframed ${loops.join(' and ')} loop replaces the procedural one` }) : null,
-    ...GAIT_VARS.map(s => s.opts ? h('div', { cls: 'row', tip: s.tip }, h('span', { textContent: s.k }), seg(s.opts, () => get(s.k), v => set({ [s.k]: v })))
+    ...GAIT_VARS.map(s => s.opts ? h('div', { cls: 'row', tip: s.tip }, h('span', { textContent: s.k }), seg(s.opts, () => get(s.k), v => set({ [s.k]: v }), s.optTips))
       : bodyExpLink(slider(s.k, s, () => get(s.k), v => set({ [s.k]: v }), s.tip), s.k, 'walk'))];
 }
 // the shadow under the fighter (def.shadow, only what differs from SHADOW is saved); drawing only
