@@ -169,7 +169,7 @@ function popup(anchor, ...content) {
 }
 function closePop() { pop?.remove(); pop = null; }
 addEventListener('mousedown', e => { if (pop && !pop.contains(e.target) && !pop.anchor.contains(e.target)) closePop(); });
-addEventListener('keydown', e => { if (e.code === 'Escape') closePop(); });
+addEventListener('keydown', e => { if (e.code === 'Escape' && pop) { closePop(); e.stopImmediatePropagation(); } }); // one Esc closes one thing
 
 // ---------- tooltips: any element with data-tip, shown instantly next to the cursor ----------
 const tipEl = h('div', { cls: 'tip' });

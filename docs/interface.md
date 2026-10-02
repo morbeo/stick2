@@ -14,7 +14,7 @@ Three rows, the same in every tab:
 |---|---|
 | menu bar | the tabs · undo / redo · replay save / play · export / import · search, panel, layout, keys, debug, docs, hints, sound |
 | transport | pause, rewind, step back, step, restart, speed, scrub, loop (the same in every mode) |
-| toolbar | the mode's own tools in labelled groups: fight · fighters · show · dummy, grid · axes · tests · stats… |
+| toolbar | the mode's own tools in labelled groups, in the same order on every tab: view, what you work on (fight, fighters, moves…), the tab's tools, **show** (overlays), **panels** (tables over the stage: click again, × or Esc closes; each tab keeps its own) |
 
 ### Export and import
 

@@ -3,7 +3,7 @@
 const canvas = $('c'), ctx = canvas.getContext('2d');
 const cursor = c => { if (canvas.style.cursor !== c) canvas.style.cursor = c; }; // the mouse cursor follows what is under it
 let dpr = 1;
-const lab = { mode: 'play', scen: 'you vs dummy', builder: false, rows: null, x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
+const lab = { mode: 'play', scen: 'you vs dummy', rows: null, x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
   seeds: 1, tape: null, rec: false, replay: false, target: 'dummy', playback: null, chars: [null, null], impact: 'hits', blowPower: 'normal', blowSide: 'front' };
 layFlag(lab, 'meter'); layFlag(lab, 'inputs'); // per tab, in the layout
 const newWorld = (...a) => Object.assign(new World(...a), { loop: app.loop });
@@ -498,8 +498,7 @@ function labCtx() {
     showGrp(['meter', 'boxes', 'hud', 'labels'], lab.impact === 'ragdoll' ? null : toggle(':person_off: no attacker', 'Hide the attacker: only the struck body, its blows still land the same way (and drags strike it unobstructed)', () => lab.solo, v => { lab.solo = v; build(); })), zoomBack()];
   const els = [];
   if (lab.mode === 'grid') els.push(grp('grid', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
-  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('fight', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = null; build(); panels(); }),
-    SCENARIOS[lab.scen]?.user ? button(':edit:', 'Edit this scenario of yours: characters, controllers, script, positions, settings', () => { lab.builder = !lab.builder; panels(); }, lab.builder ? 'mini on' : 'mini') : null));
+  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('fight', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = null; build(); panels(); })));
   if (lab.mode === 'play' && !SCENARIOS[lab.scen]?.user) els.push(grp('fighters', 'Who fights: P1 (you), P2 and any extra fighters of the scenario, each any character; unset = the one being edited (P3 on: as P2)',
     fighterPick(0), swapFighters(), fighterPick(1), Array.from({ length: fighterCount(SCENARIOS[lab.scen]) - 2 }, (_, i) => fighterPick(i + 2))));
   if (lab.mode === 'play' && SCENARIOS[lab.scen]?.waves) els.push(grp('waves', SPEC.waves.tip + ' Changing it starts over at wave 1',
@@ -531,6 +530,7 @@ function labCtx() {
     seg([1, 3, 5], () => lab.seeds, v => { lab.seeds = v; build(); }, { 1: 'One fight per cell', 3: 'Each cell fought with 3 seeds; stats averaged (AI fights differ per seed)', 5: '5 seeds per cell, averaged' }, v => `${v} seed${v > 1 ? 's' : ''}`),
     sortButton()));
   els.push(showGrp(['meter', ...lab.mode === 'play' ? ['inputs'] : [], 'boxes', 'ghost', 'hud', 'labels']));
+  if (lab.mode === 'play' && SCENARIOS[lab.scen]?.user) els.push(panelsGrp(['builder'], { builder: BUILDER_TIP }));
   if (lab.mode === 'play') els.push(...trainingCtl());
   return els;
 }
@@ -692,7 +692,7 @@ function impactMouse(type, x, y) {
 const labMode = {
   enter(m) { lab.mode = m; build(); },
   restart: build,
-  overlay: () => lab.builder && lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? [scenBuilder()] : [],
+  overlay: () => stageOpen() === 'builder' && lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? [scenBuilder()] : [],
   worlds: () => (lab.mode === 'gallery' ? onScreen() : lab.cells).flatMap(c => [c.w, ...(c.extra || [])]),
   render: labRender,
   ctxBar: labCtx,

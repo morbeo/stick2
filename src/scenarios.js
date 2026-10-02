@@ -31,7 +31,7 @@ function newScen() {
   while (SCENARIOS[`my scenario ${n}`]) n++;
   const name = `my scenario ${n}`;
   myStore[name] = fromScen(SCENARIOS[lab.scen], lab.chars.some(Boolean) ? lab.chars : null);
-  saveScens(); lab.scen = name; lab.builder = true; build(); panels();
+  saveScens(); lab.scen = name; build(); openStage('builder');
 }
 // every change saves and rebuilds the fight behind the builder
 const scenChanged = () => { saveScens(); build(); };
@@ -39,11 +39,12 @@ const exportScens = () => JSON.stringify(myStore, null, 1);
 function importScens(json) { Object.assign(myStore, JSON.parse(json)); saveScens(); panels(); }
 const withData = (d, el) => { Object.assign(el.dataset, d); return el; };
 const changedCfg = () => Object.keys(DEFAULTS).filter(k => CFG[k] !== DEFAULTS[k] && !DISPLAY.includes(k));
+const BUILDER_TIP = 'Edit this scenario of yours: characters, controllers, script, positions, settings';
 function scenBuilder() {
   const wrap = h('div', { cls: 'mtable sbuild' }), body = h('div');
   const fill = () => {
     const name = lab.scen, u = myStore[name];
-    if (!u) { lab.builder = false; return panels(); }
+    if (!u) return closeStage();
     const nm = h('input', { cls: 'macro sname', value: name, tip: 'The scenario\'s name (any name the built-ins do not use)', onkeydown: e => e.stopPropagation(),
       onchange: () => { const v = nm.value.trim(); if (!v || v === name || SCENARIOS[v]) { nm.value = name; return; } myStore[v] = u; delete myStore[name]; lab.scen = v; scenChanged(); panels(); } });
     const fighter = (f, i) => withData({ p: i }, h('div', { cls: 'bar' }, h('b', { textContent: `P${i + 1}` }),
@@ -68,12 +69,11 @@ function scenBuilder() {
       h('div', { cls: 'bar' }, find, button(':tune: take my settings', 'Bring every setting you changed from the defaults, at its current value',
         () => { for (const k of changedCfg()) u.cfg[k] = CFG[k]; scenChanged(); fill(); }, 'mini')), found);
   };
-  wrap.append(h('div', { cls: 'bar' }, h('b', { textContent: 'scenario' }), h('span', { cls: 'note', textContent: 'saved in this browser as you edit' }), h('span', { cls: 'fill' }),
+  wrap.append(stageHead('scenario', BUILDER_TIP, h('span', { cls: 'note', textContent: 'saved in this browser as you edit' }),
     button(':content_copy: copy', 'A new scenario starting from this one', newScen),
     button(':download: export', 'Download all my scenarios as a JSON file', () => { const a = h('a', { href: URL.createObjectURL(new Blob([exportScens()], { type: 'application/json' })), download: 'stick2-scenarios.json' }); a.click(); }),
     button(':upload: import', 'Add scenarios from a JSON file (same names are replaced)', () => { const i = h('input', { type: 'file', accept: '.json', onchange: async () => importScens(await i.files[0].text()) }); i.click(); }),
-    button(':delete: delete', 'Delete this scenario', () => { delete myStore[lab.scen]; saveScens(); lab.scen = 'you vs dummy'; lab.builder = false; build(); panels(); }),
-    button(':close:', 'Close the builder', () => { lab.builder = false; panels(); }, 'mini')), body);
+    button(':delete: delete', 'Delete this scenario', () => { delete myStore[lab.scen]; saveScens(); lab.scen = 'you vs dummy'; build(); closeStage(); })), body);
   fill();
   return wrap;
 }

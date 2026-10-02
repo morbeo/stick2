@@ -62,6 +62,18 @@ function layDelete() {
   delete layouts.sets[layouts.current];
   layUse(LAY_DEFAULT);
 }
+// ---------- stage panels: the tables over the stage, one open per tab (kept in its layout), opened from the toolbar's panels group; Esc or × closes ----------
+function openStage(name) { unpeek(); lay().panel = name || null; saveLay(); panels(); }
+const closeStage = () => openStage(null);
+const stageOpen = () => lay().panel;
+// the head row of every stage panel: its name, its own tools, then × (Esc)
+const stageHead = (title, tip, ...tools) => h('div', { cls: 'bar stagehead' }, h('b', { textContent: title, tip }), ...tools, h('span', { cls: 'fill' }),
+  button(':close:', `Close the ${title} (Esc)`, closeStage, 'mini'));
+const STAGE_LABELS = { table: ':table_rows: table', inputs: ':stadia_controller: inputs', combos: ':trending_up: combos', bones: ':accessibility_new: bones', builder: ':edit: scenario' };
+function panelsGrp(names, tips) {
+  return grp('panels', 'Tables over the stage, edited in place (click again, × or Esc: close)',
+    seg(names, stageOpen, v => openStage(v === stageOpen() ? null : v), mapVals(tips, t => t + ' (click again: close)'), v => STAGE_LABELS[v]));
+}
 const LAY_TIP = 'Layout: what each tab shows, remembered per tab as you go (toolbar groups, side sections, overlays, folds, "more", the side panel); save it under a name, switch between layouts, reset a tab or all';
 // the layout popup (menu bar): what this tab shows, then the named layouts, save as, reset, delete
 function layoutPanel(e, b) {

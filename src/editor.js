@@ -424,9 +424,7 @@ function pickMove(name) {
   buildPreview(); panels();
 }
 // a move clicked in the move table, inputs or combos: opened in the keyframe editor (from the character tab too)
-function openMove(n) { anim.view = 'cards'; unpeek(); if (app.mode !== 'animate') { creator.view = null; setMode('animate'); } pickMove(n); }
-// close the move table, inputs or combos over the stage, in the tab showing them
-function closeOver() { unpeek(); if (app.mode === 'character') creator.view = null; else anim.view = 'cards'; panels(); }
+function openMove(n) { unpeek(); lay('animate').panel = null; saveLay(); if (app.mode !== 'animate') setMode('animate'); else panels(); pickMove(n); }
 
 const EASE_TIPS = {
   step: 'Snap to the pose at the end of the key (no in-between).', linear: 'Constant speed.',
@@ -695,7 +693,7 @@ function moveTable() {
   fill();
   const filter = h('input', { cls: 'macro', value: anim.tfilter, placeholder: 'fuzzy filter: name, type, input, limb, height, flags', tip: 'Letters in order match (e.g. "dk" finds downKick); any column with text counts',
     oninput: e => { anim.tfilter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() });
-  wrap.append(h('div', { cls: 'bar' }, filter, button(':close: editor', 'Back to the editor', closeOver)),
+  wrap.append(stageHead('move table', VIEW_TIPS.table, filter),
     h('table', {}, h('thead', {}, head), body));
   requestAnimationFrame(() => { wrap.scrollTop = anim.tscroll || 0; });
   return wrap;
@@ -714,7 +712,7 @@ function moveList() {
       [g && h('h4', { textContent: g }), anim.view !== 'list' ? h('div', { cls: 'cards' }, ns.map(n => moveCard(n, tips[n])))
         : h('div', { cls: 'bar' }, seg(ns, () => anim.move, pickMove, tips))]));
     if (!names.length) list.replaceChildren(h('div', { cls: 'note', textContent: 'no move matches the filter' }));
-    if (anim.view === 'table' || anim.view === 'combos') list.replaceChildren(h('div', { cls: 'note', textContent: `the ${anim.view === 'table' ? 'move table' : 'combos'} are over the stage` }));
+    if (stageOpen() === 'table' || stageOpen() === 'combos') list.replaceChildren(h('div', { cls: 'note', textContent: `the ${stageOpen() === 'table' ? 'move table' : 'combos'} are over the stage` }));
     syncAll();
   };
   fill();
@@ -767,7 +765,7 @@ function movePanel() {
     h('div', { cls: 'row', tip: 'Striking bones: each end is a strike (in limb mode the whole bone); with several, the one that lands counts, one hit per target. Shift+click a joint in the editor to pick it, ⌘/Ctrl+Shift+click to add or remove it.' },
       h('span', { textContent: 'hit' }), h('span', { cls: 'bar' }, tipSeg, hitB)),
     h('div', { cls: 'row', tip: 'Which inputs start this move in a fight' }, h('span', { textContent: 'input' }), h('span', { cls: 'bar' }, bindB,
-      button(':stadia_controller:', 'All inputs: which directions and buttons have no move, and what each one starts', () => { anim.view = 'inputs'; panels(); }, 'mini')),
+      button(':stadia_controller:', 'All inputs: which directions and buttons have no move, and what each one starts', () => openStage('inputs'), 'mini')),
       seg(['2d', '25'], () => CFG.plane === '2d' ? '2d' : '25', v => { setCfg({ plane: v === '2d' ? '2d' : 'lanes' }); panels(); mode().restart(); },
         { '2d': '2D moveset: ↑ jumps, air moves by direction (also sets the plane setting)', '25': '2.5D moveset (VF-style): every direction × button is a ground move, Space jumps (also sets the plane to lanes)' },
         v => v === '2d' ? '2D' : '2.5D')),
@@ -782,17 +780,15 @@ function movePanel() {
   ];
 }
 
-// the moves toolbar (character and animate tabs): the move table, the inputs and the combos over the stage (click again: close), any move opened in animate
+// the moves toolbar (character and animate tabs): any move opened in animate; the move table, inputs and combos are stage panels (panels group)
 function movesGrp() {
-  const cur = () => app.mode === 'character' ? creator.view : anim.view;
-  const set = v => { if (cur() === v) return closeOver(); if (app.mode === 'character') creator.view = v; else anim.view = v; unpeek(); panels(); };
   const pick = button(':timeline: edit :expand_more:', 'Pick a move to open in the keyframe editor (animate)', (e, b) =>
     popup(b, h('div', { cls: 'bar' }, Object.keys(currentChar().moves).sort().map(n => button(n, `Open ${n} in the keyframe editor`, () => { closePop(); openMove(n); })))));
-  return grp('moves', 'The character\'s moves: the table, the inputs and the combos open over the stage, edited in place; click a move in them (or pick one from edit) to open it in the keyframe editor',
-    seg(['table', 'inputs', 'combos'], cur, set, mapVals(VIEW_TIPS, t => t + ' (click again: close)'), v => ({ table: ':table_rows: table', inputs: ':stadia_controller: inputs', combos: ':trending_up: combos' })[v]), pick);
+  return grp('moves', 'The character\'s moves: pick one to open in the keyframe editor (or click a move in the table, inputs or combos)', pick);
 }
+const MOVE_PANELS = ['table', 'inputs', 'combos'], moveStage = () => ({ table: moveTable, inputs: inputTable, combos: comboView })[stageOpen()];
 function animCtx() {
-  return [movesGrp(), showGrp(['boxes', 'ghost', 'colours']), compareGrp()];
+  return [movesGrp(), compareGrp(), showGrp(['boxes', 'ghost', 'colours']), panelsGrp(MOVE_PANELS, VIEW_TIPS)];
 }
 const CMP_TIPS = { off: 'No comparison', overlay: 'The compared move drawn over this one in amber, at the same moment',
   strip: 'Filmstrip: this move and the compared one frame by frame on one time scale, tinted by phase (click a frame to go there)' };
@@ -862,7 +858,7 @@ const animMode = {
   ctxBar: animCtx,
   side: movePanel,
   open: ['character', 'moves', 'move', 'key'],
-  overlay: () => anim.view === 'table' ? [moveTable()] : anim.view === 'inputs' ? [inputTable()] : anim.view === 'combos' ? [comboView()] : [timelineBar(), targetBar()],
+  overlay: () => moveStage() ? [moveStage()()] : [timelineBar(), targetBar()],
   mouse: animMouse,
   key: animKey,
   hint: () => 'drag a joint: IK · Alt+drag: one bone · timeline: click a key to select, drag it to reorder, drag its edge to retime, double-click to split, drag the ruler to scrub · , . frame step · Delete key',

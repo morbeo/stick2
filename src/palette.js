@@ -10,8 +10,8 @@ function paletteEntries() {
   const keyOf = a => keymap[a]?.[0] ? shortcutLabel(a) : '';
   // the tables over the stage: in the character tab over its stage, else in animate
   const over = ' (in the character tab there, else in animate)', overView = v => () => {
-    if (app.mode === 'character') creator.view = v; else { anim.view = v; if (app.mode !== 'animate') setMode('animate'); }
-    panels();
+    if (app.mode !== 'character' && app.mode !== 'animate') setMode('animate');
+    openStage(v);
   };
   return [
     ...docTopics().map(t => ({ kind: 'docs', name: t.title, tip: t.body, run: () => openDocs(t.id) })),
@@ -23,7 +23,7 @@ function paletteEntries() {
     { kind: 'editor', name: 'combos', tip: VIEW_TIPS.combos + over, run: overView('combos') },
     { kind: 'table', name: 'bone table', tip: 'Every bone of the character in a table over its stage: sort, filter, edit in place, drag to reorder, change parents (in the character tab)', run: () => {
       if (app.mode !== 'character') setMode('character');
-      creator.view = null; creator.table = true; panels();
+      openStage('bones');
     } },
     ...Object.keys(layouts.sets).map(n => ({ kind: 'layout', name: 'layout: ' + n, tip: 'Use this layout (what each tab shows)', run: () => layUse(n) })),
     ...['ctx', 'side'].flatMap(kind => app.parts[kind].map(p => { const id = kind + ':' + p, on = layShown(id), what = kind === 'ctx' ? 'toolbar group' : 'side section';

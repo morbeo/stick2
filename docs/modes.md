@@ -29,7 +29,7 @@ One fight on the full stage.
 
 ![The scenario builder](img/builder.png)
 
-**new scenario** in the picker copies the current scenario into a builder over the stage. ✎ next to the picker reopens it.
+**new scenario** in the picker copies the current scenario into a builder over the stage. **scenario** in the **panels** group (shown for your own scenarios) opens and closes it.
 
 - **P1 and P2** each get a character (or the one being edited), a controller, a start x and back turned.
 - **Controllers:** you, AI, dummy, or a script like `0.2, 2P, hold up 0.2, K`.
@@ -177,7 +177,7 @@ A live fight next to the editor: **showcase**, **walk**, **vs ai**, or **impact*
 
 ![The bone table](img/bonetable.png)
 
-The **table** button on the bones heading puts every bone in a table over the stage: id, parent, role, side, shape, stance angle, every bone property, limits, lock.
+The **panels** group → **bones** puts every bone in a table over the stage: id, parent, role, side, shape, stance angle, every bone property, limits, lock.
 
 - Click a header to sort; a third click goes back to the bone order.
 - Drag a bone's id onto another to move it before that one. Inside front, centre and back, earlier bones draw underneath.
@@ -192,7 +192,7 @@ The **table** button on the bones heading puts every bone in a table over the st
 
 ### Moves
 
-The **moves** group in the toolbar (here and in animate) opens the move table, the inputs and the combos over the stage. Click it again to close. A move clicked in them (or picked from **edit**) opens in animate. See [Editing](editing.md).
+The **panels** group in the toolbar (here and in animate) opens the move table, the inputs and the combos over the stage; here also the **bones** table. Click it again, × or Esc to close; each tab keeps its own open panel. A move clicked in them (or picked from **edit** in the **moves** group) opens in animate. See [Editing](editing.md).
 
 ## Animate
 

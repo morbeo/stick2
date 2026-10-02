@@ -59,7 +59,7 @@ try {
     if (!(keyPose(currentChar(), curMove(), 0).head > currentChar().by.head.max)) errs.push('past the limit ' + keyPose(currentChar(), curMove(), 0).head);
     undo(); anim.reach = 'limb'; }
   // the move table: one row per move, fuzzy filter, sorting, editing a value and retiming a phase in place
-  anim.view = 'table'; panels();
+  lay('animate').panel = 'table'; panels();
   const rows = () => [...document.querySelectorAll('.mtable tbody tr')];
   if (rows().length !== Object.keys(currentChar().moves).length) errs.push('table rows');
   const fi = document.querySelector('.mtable .bar input'); fi.value = 'dk'; fi.dispatchEvent(new Event('input'));
@@ -71,11 +71,11 @@ try {
   edit1('kick', TABLE_COLS.findIndex(c => c.k === 'knock'), 333); if (currentChar().moves.kick.knock !== 333) errs.push('table edit');
   edit1('kick', SU, 12); if (frameData(currentChar().moves.kick).startup !== 12) errs.push('table retime ' + frameData(currentChar().moves.kick).startup);
   if (rows().find(r => r.firstChild.textContent === 'kick').children[TABLE_COLS.findIndex(c => c.k === 'stance')].textContent !== 'main') errs.push('table stance');
-  rows().find(r => r.firstChild.textContent === 'sweep').click(); if (anim.move !== 'sweep' || anim.view !== 'cards') errs.push('table click opens the editor');
+  rows().find(r => r.firstChild.textContent === 'sweep').click(); if (anim.move !== 'sweep' || lay('animate').panel) errs.push('table click opens the editor');
   pickMove('slash'); if (edChar().weapon !== 'sword' || MOVE_GROUPS.type(curMove()) !== 'weapon' || boundSlots().join() !== 'punch') errs.push('weapon move ' + [edChar().weapon, boundSlots()]);
   toggleBind('backPunch'); if (DEFS[CURRENT].wbinds?.slash?.backPunch !== 'slash' || !boundSlots().includes('backPunch')) errs.push('weapon bind');
   // the input table: pads show unassigned directions; clicking one and a move in its popup binds it (undoable), none blanks it
-  { pickChar('stick'); studio.stance = 0; setCfg({ plane: '2d' }); setMode('animate'); anim.move = 'jab'; anim.view = 'inputs'; panels();
+  { pickChar('stick'); studio.stance = 0; setCfg({ plane: '2d' }); setMode('animate'); anim.move = 'jab'; lay('animate').panel = 'inputs'; panels();
     const cell = l => [...document.querySelectorAll('.pad button')].find(b => b.querySelector('.d').textContent.trim().endsWith(l));
     const unset = [...document.querySelectorAll('.pad button')].filter(b => !b.classList.contains('set') && !b.classList.contains('alias'));
     if (unset.length || !cell('7P').classList.contains('alias')) errs.push('input pads unset ' + unset.map(b => b.textContent));
@@ -86,7 +86,7 @@ try {
     if (DEFS[CURRENT].binds.backKick !== 'roundhouse' || !cell('4K').classList.contains('set')) errs.push('input assign ' + DEFS[CURRENT].binds.backKick);
     undo(); if (DEFS[CURRENT].binds.backKick !== '' || !cell('4K').classList.contains('fall')) errs.push('input undo');
     undo(); undo();
-    undo(); anim.view = 'cards'; panels(); }
+    undo(); lay('animate').panel = null; panels(); }
   // the attack grid: a hovered cell's own save button keeps that attack (once, however often it is pressed), without breeding
   lab.kind = 'attacks'; setMode('grid'); lab.hover = 4; labRender();
   const cell = lab.cells[4], sb = cell.btns.find(b => !b.open), seed = breed.seed, nMoves = Object.keys(DEFS[CURRENT].moves).length;
@@ -150,7 +150,7 @@ try {
     [...document.querySelectorAll('#ctx button')].find(b => b.textContent.includes('fight')).click(); if (app.mode !== 'play') errs.push('view fight ' + app.mode);
     setMode('gallery'); tabs.find(b => b.textContent.includes('animate')).click(); if (app.mode !== 'gallery') errs.push('tab keeps its view ' + app.mode); }
   // combos: the table lists routes; + P on a route's end adds a link (the route gets longer), clicking that step and cut removes it; the tree shows starters
-  { setMode('animate'); pickChar('stick'); studio.stance = 0; anim.view = 'combos'; combos.view = 'table'; panels();
+  { setMode('animate'); pickChar('stick'); studio.stance = 0; lay('animate').panel = 'combos'; combos.view = 'table'; panels();
     const rows = () => [...document.querySelectorAll('.ctable tbody tr')], row = t => rows().find(r => [...r.cells[0].querySelectorAll('button')].map(b => b.textContent).filter(x => !/ [PK]$/.test(x)).join('›') === t), n0 = rows().length;
     [...row('jab›cross›uppercut').querySelectorAll('button')].find(b => b.textContent.includes('P')).click();
     [...document.querySelectorAll('.pop button')].find(b => /(^| )sweep$/.test(b.textContent)).click();
@@ -174,16 +174,20 @@ try {
         if (!t.width) errs.push('no tip at ' + [x, y]); else if (t.left < p.right && p.left < t.right && t.top < p.bottom && p.top < t.bottom) errs.push('tip over the peek at ' + [x, y]); }
       st.dispatchEvent(new MouseEvent('mouseleave')); if (document.querySelector('.peek')) errs.push('combo peek stays'); }
     combos.view = 'tree'; panels(); if (document.querySelectorAll('.ctable .croot').length !== comboRoots(currentChar(), new Set(Object.values(curBinds(currentChar())))).length) errs.push('combo tree');
-    anim.view = 'cards'; panels(); }
-  // the moves toolbar group (character and animate) shows the move table, inputs and combos over the stage; a move in them opens in the animate editor, close goes back
+    lay('animate').panel = null; panels(); }
+  // the panels group (character and animate) shows the move table, inputs and combos over the stage; a move in them opens in the animate editor; each tab keeps its own open panel
   { setMode('character'); const sb = t => [...document.querySelectorAll('#ctx button')].find(b => b.textContent.trim().endsWith(t));
     sb('combos').click(); const chip = document.querySelector('.ctable .chip');
-    if (!chip || anim.view !== 'cards') errs.push('character combos ' + !!chip + anim.view);
+    if (!chip || lay('animate').panel) errs.push('character combos ' + !!chip + lay('animate').panel);
     const n = chip?.textContent; chip?.click(); if (app.mode !== 'animate' || anim.move !== n) errs.push('combo chip opens ' + app.mode + anim.move);
-    setMode('character'); if (document.querySelector('.ctable')) errs.push('character combos stay open');
+    setMode('character'); if (!document.querySelector('.ctable')) errs.push('character combos stay open (kept per tab)');
     sb('table').click(); if (document.querySelectorAll('.mtable tbody tr').length !== Object.keys(currentChar().moves).length) errs.push('character move table');
-    [...document.querySelectorAll('.mtable .bar button')].find(b => b.textContent.includes('editor')).click(); if (document.querySelector('.mtable') || app.mode !== 'character') errs.push('character move table close');
-    sb('inputs').click(); if (!document.querySelector('.mtable')) errs.push('character inputs'); creator.view = null; panels(); }
+    document.querySelector('.mtable .stagehead button[data-tip^="Close"]').click(); if (document.querySelector('.mtable') || app.mode !== 'character') errs.push('character move table close');
+    sb('inputs').click(); if (!document.querySelector('.mtable')) errs.push('character inputs');
+    const esc = () => dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape' }));
+    popup($('ctx').querySelector('button'), 'x'); esc(); if (pop || !document.querySelector('.mtable')) errs.push('Esc closes the popup only');
+    esc(); if (document.querySelector('.mtable') || lay().panel) errs.push('Esc closes the stage panel');
+    sb('bones').click(); if (!document.querySelector('.btable') || !document.querySelector('.btable .stagehead')) errs.push('bone table in the panels group'); lay('character').panel = null; panels(); }
   // the character editor's hip handle moves the waist over the feet: the legs bend, the ankles stay; one undo step
   { setMode('character'); pickChar('stick'); studio.stance = 0; panels();
     const f0 = edFrame(), hp = f0.P.hip, ids = f0.ch.chains.leg.map(c => ankleOf(c).id), p0 = JSON.stringify(curStance().pose);
@@ -193,7 +197,7 @@ try {
     if (Math.abs(f1.P.hip[1] - hp[1] - 20) > 1 || off > 3 || JSON.stringify(curStance().pose) === p0) errs.push('hip drag ' + [f1.P.hip[1] - hp[1], off]);
     undo(); if (JSON.stringify(curStance().pose) !== p0) errs.push('hip drag undo'); }
   // the bone table rearranges bones: drag a row's id onto another to move it before it (the draw order), click parent to hang it from another bone
-  { setMode('character'); pickChar('stick'); creator.table = true; creator.tsort = { k: '', dir: 1 }; creator.tfilter = ''; panels();
+  { setMode('character'); pickChar('stick'); lay('character').panel = 'bones'; creator.tsort = { k: '', dir: 1 }; creator.tfilter = ''; panels();
     const idCell = id => [...document.querySelectorAll('.btable tbody td:first-child')].find(td => td.textContent === id), ids = () => currentChar().ids;
     const dt = new DataTransfer(); idCell('uarmF').dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true }));
     idCell('thighF').dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true })); idCell('thighF').dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true }));
@@ -205,7 +209,7 @@ try {
     pc('uarmF').click(); pc('handF').click(); [...document.querySelectorAll('.pop button')].find(b => b.textContent === 'chest').click();
     if (DEFS.stick.bones.find(b => b.id === 'handF').parent !== 'chest' || currentChar().by.handF.parent !== 'chest') errs.push('bone reparent');
     undo(); undo(); if (DEFS.stick.bones.find(b => b.id === 'handF').parent !== 'farmF' || !(ids().indexOf('thighF') < ids().indexOf('uarmF'))) errs.push('bone rearrange undo');
-    creator.table = false; panels(); }
+    lay('character').panel = null; panels(); }
   // play's fighter select: P1 and P2 each pick from a grid of cards (or follow the editor), swap trades them; the fight is rebuilt with them
   { setMode('play'); pickChar('stick'); lab.scen = 'you vs dummy'; lab.chars = [null, null]; setMode('play');
     const fb = i => [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('P' + i + ':')), card = k => [...document.querySelectorAll('.pop .card')].find(c => c.textContent === k);
@@ -306,8 +310,12 @@ try {
     sb().click(); const g = [...document.querySelectorAll('.pop h4')].find(e => e.textContent.includes('my scenarios'));
     if (!g || g.nextSibling.textContent !== 'jab vs sumo') errs.push('builder group'); closePop();
     const json = exportScens(); importScens(json.replace('jab vs sumo', 'copy of it')); if (!SCENARIOS['copy of it']) errs.push('builder import');
-    if (!document.querySelector('.sbuild')) errs.push('builder gone ' + lab.scen + lab.builder + lab.mode); [...document.querySelectorAll('.sbuild button')].find(b => b.dataset.tip === 'Delete this scenario').click(); if (SCENARIOS['jab vs sumo'] || myScens()['jab vs sumo'] || lab.scen === 'jab vs sumo') errs.push('builder delete ' + lab.scen);
-    delete myScens()['copy of it']; delete SCENARIOS['copy of it']; lab.builder = false; keep === null ? localStorage.removeItem('stick2.scenarios') : localStorage.setItem('stick2.scenarios', keep); lab.scen = 'you vs dummy'; build(); panels(); }
+    if (!document.querySelector('.sbuild')) errs.push('builder gone ' + lab.scen + lay('play').panel + lab.mode);
+    if (!$('ctx').querySelector('[data-part="panels"]')) errs.push('builder in the panels group');
+    $('ctx').querySelector('[data-part="panels"] button').click(); if (document.querySelector('.sbuild')) errs.push('panels seg closes the builder');
+    $('ctx').querySelector('[data-part="panels"] button').click(); if (!document.querySelector('.sbuild')) errs.push('panels seg opens the builder');
+    [...document.querySelectorAll('.sbuild button')].find(b => b.dataset.tip === 'Delete this scenario').click(); if (SCENARIOS['jab vs sumo'] || myScens()['jab vs sumo'] || lab.scen === 'jab vs sumo') errs.push('builder delete ' + lab.scen);
+    delete myScens()['copy of it']; delete SCENARIOS['copy of it']; lay('play').panel = null; keep === null ? localStorage.removeItem('stick2.scenarios') : localStorage.setItem('stick2.scenarios', keep); lab.scen = 'you vs dummy'; build(); panels(); }
   // the tests view: a move against every target column (and opponent), checked; failing only; a cell isolated plays over the table and opens in animate with its setup
   { setMode('tests'); tests.move = 'jab'; rerunTests(); panels();
     for (let i = 0; i < 200 && tests.queue.length; i++) testMode.tick();
@@ -325,17 +333,17 @@ try {
     tests.failing = false; tests.move = null; anim.target = { char: null, stance: 'stand', state: 'idle', facing: 'toward', dist: 'near' }; setMode('play'); }
   // ⌘K reaches every table: the move table, the input table, the combos (character tab: over its stage, else animate) and the bone table (character tab)
   { const run = n => { closePop(); paletteEntries().find(e => e.name === n)?.run(); panels(); };
-    setMode('play'); run('move table'); if (app.mode !== 'animate' || anim.view !== 'table' || !document.querySelector('.mtable tbody tr')) errs.push('palette move table ' + app.mode + anim.view);
-    run('input table'); if (anim.view !== 'inputs' || !inputs.table || !document.querySelector('.mtable table:not([hidden])')) errs.push('palette input table ' + anim.view);
-    setMode('character'); run('move table'); if (app.mode !== 'character' || creator.view !== 'table') errs.push('palette move table in character ' + creator.view);
-    run('bone table'); if (app.mode !== 'character' || creator.view || !creator.table || !document.querySelector('.btable')) errs.push('palette bone table');
+    setMode('play'); run('move table'); if (app.mode !== 'animate' || lay('animate').panel !== 'table' || !document.querySelector('.mtable tbody tr')) errs.push('palette move table ' + app.mode + lay('animate').panel);
+    run('input table'); if (lay('animate').panel !== 'inputs' || !inputs.table || !document.querySelector('.mtable table:not([hidden])')) errs.push('palette input table ' + lay('animate').panel);
+    setMode('character'); run('move table'); if (app.mode !== 'character' || lay('character').panel !== 'table') errs.push('palette move table in character ' + lay('character').panel);
+    run('bone table'); if (app.mode !== 'character' || lay('character').panel !== 'bones' || !document.querySelector('.btable')) errs.push('palette bone table');
     setMode('play'); run('bone table'); if (app.mode !== 'character' || !document.querySelector('.btable')) errs.push('palette bone table from play ' + app.mode);
-    creator.table = false; creator.view = null; anim.view = 'cards'; inputs.table = false; panels(); }
+    lay('character').panel = null; lay('character').panel = null; lay('animate').panel = null; inputs.table = false; panels(); }
   // ⌘K: combos opens the combo editor over the stage (character tab: there, else animate)
   { setMode('play'); const e = paletteEntries().find(e => e.name === 'combos' && e.kind === 'editor'); e?.run(); panels();
-    if (app.mode !== 'animate' || anim.view !== 'combos' || !document.querySelector('.ctable')) errs.push('palette combos ' + app.mode + anim.view);
-    setMode('character'); e?.run(); panels(); if (app.mode !== 'character' || creator.view !== 'combos' || !document.querySelector('.ctable')) errs.push('palette combos in character');
-    creator.view = null; anim.view = 'cards'; panels(); }
+    if (app.mode !== 'animate' || lay('animate').panel !== 'combos' || !document.querySelector('.ctable')) errs.push('palette combos ' + app.mode + lay('animate').panel);
+    setMode('character'); e?.run(); panels(); if (app.mode !== 'character' || lay('character').panel !== 'combos' || !document.querySelector('.ctable')) errs.push('palette combos in character');
+    lay('character').panel = null; lay('animate').panel = null; panels(); }
   // the gallery only builds and runs the cells on screen: the rest wait until scrolled into view
   { setMode('gallery'); const n = lab.cells.length, built = () => lab.cells.filter(c => c._w).length;
     if (mode().worlds().length >= n || built() > mode().worlds().length) errs.push('gallery lazy ' + [mode().worlds().length, built(), n]);
@@ -356,14 +364,14 @@ try {
   { setMode('play'); const b = [...document.querySelectorAll('#side button')].find(b => b.textContent.includes('pinball')); b.click(); syncAll();
     if (CFG.powerScale !== 3 || CFG.ceiling !== 0.9 || !b.classList.contains('on')) errs.push('power preset ' + [CFG.powerScale, CFG.ceiling]); applyPreset('juicy'); }
   // input table: a new motion input gets a row and a move; the damage of the move an input plays is edited in place
-  { setMode('animate'); pickChar('stick'); anim.view = 'inputs'; inputs.table = true; panels();
+  { setMode('animate'); pickChar('stick'); lay('animate').panel = 'inputs'; inputs.table = true; panels();
     edit(def => { (def.motions ??= {}).m41236 = '41236'; editBinds(def).m41236Punch = 'launcher'; }); syncAll();
     const row = [...document.querySelectorAll('.itable tbody tr')].find(r => r.textContent.includes('m41236Punch'));
     if (!row || !row.textContent.includes('launcher')) errs.push('custom input row ' + !!row);
     const dmg = row?.querySelectorAll('input[type=number]')[1]; if (dmg) { dmg.value = 17; dmg.dispatchEvent(new Event('change')); }
     if (DEFS.stick.moves.launcher.damage !== 17) errs.push('input table damage ' + DEFS.stick.moves.launcher.damage);
     removeInput('m41236'); if (DEFS.stick.motions.m41236 || editBinds(DEFS.stick).m41236Punch) errs.push('remove input');
-    undo(); undo(); undo(); anim.view = 'cards'; inputs.table = false; panels(); }
+    undo(); undo(); undo(); lay('animate').panel = null; inputs.table = false; panels(); }
   // compare: the strip button picks a move to compare with; the filmstrip draws both, a click on a frame goes there
   { setMode('animate'); pickChar('stick'); anim.move = 'roundhouse'; anim.cmp = null; anim.cmpView = 'off'; panels();
     [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('Filmstrip')).click();
@@ -391,7 +399,7 @@ try {
     tb('farmF').click(); if (selIds().join() !== 'farmF') errs.push('plain click ' + selIds());
     undo(); }
   // bone table: rows select (⌘+click adds), an edit in a selected row goes to every selected bone, in another row to that bone only
-  { setMode('character'); pickChar('stick'); creator.table = true; panels();
+  { setMode('character'); pickChar('stick'); lay('character').panel = 'bones'; panels();
     const row = id => [...document.querySelectorAll('.btable tbody tr')].find(r => r.firstChild.textContent === id);
     const cell = (id, k) => row(id).children[BONE_COLS.findIndex(c => c.k === k)].querySelector('input');
     const lag = id => DEFS.stick.bones.find(b => b.id === id).lag;
@@ -402,7 +410,7 @@ try {
     if (on !== 2 || lag('shinF') !== 2.3 || lag('shinB') !== 2.3 || lag('footF') !== 0.4 || lag('footB') === 0.4 || selIds().sort().join() !== 'shinB,shinF')
       errs.push('bone table ' + [on, lag('shinF'), lag('shinB'), lag('footF'), selIds()]);
     undo(); undo(); syncAll(); if (cell('shinF', 'lag').value === '2.3') errs.push('bone table after undo');
-    creator.table = false; panels(); }
+    lay('character').panel = null; panels(); }
   // debug: a popup from the menu bar (not in the side panel), with the engine version and the fighters of the shown fight, in any mode
   { setMode('play'); panels(); if (dbgInfo.isConnected || [...$('side').querySelectorAll('h3')].some(e => e.textContent.startsWith('Debug'))) errs.push('debug still in the side panel');
     debugBtn().click(); dbgT = 0; drawDebug();

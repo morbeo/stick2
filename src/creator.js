@@ -213,7 +213,7 @@ function creatorCtx() {
     ...creator.preview === 'impact' && !creator.expOn ? blowGrps(() => creator.w, () => creatorMode.restart()) : [],
     grp('', 'Experiment', toggle(':science: experiment', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
       () => creator.expOn && creator.exp.kind === 'body', on => setExp(on))),
-    showGrp(['boxes', 'colours']),
+    showGrp(['boxes', 'colours']), panelsGrp([...MOVE_PANELS, 'bones'], { ...VIEW_TIPS, bones: BONES_TIP }),
   ];
 }
 const setProp = (k, v) => edit(def => { for (const b of selDefs(def)) b[k] = v; }, selIds() + '.' + k);
@@ -338,6 +338,7 @@ function setBoneCol(id, k, v) {
     }
   });
 }
+const BONES_TIP = 'Bone table: every bone and its properties in a table over the stage; edit values in place, click rows to select (⌘/Ctrl/Shift+click adds), an edit in a selected row goes to every selected bone';
 function boneTable() {
   const body = h('tbody'), head = h('tr'), wrap = h('div', { cls: 'mtable btable' });
   let sig = '';
@@ -381,7 +382,7 @@ function boneTable() {
   reg(wrap, () => { if (!wrap.contains(document.activeElement) && JSON.stringify([DEFS[CURRENT].bones, curStance().pose]) !== sig) fill(); });
   const filter = h('input', { cls: 'macro', value: creator.tfilter, placeholder: 'fuzzy filter: id, parent, role, side, shape', tip: 'Letters in order match (e.g. "shf" finds shinF); any column with text counts',
     oninput: e => { creator.tfilter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() });
-  wrap.append(h('div', { cls: 'bar' }, filter, button(':close:', 'Close the bone table', () => { creator.table = false; panels(); }, 'mini')),
+  wrap.append(stageHead('bone table', BONES_TIP, filter),
     h('table', {}, h('thead', {}, head), body));
   return wrap;
 }
@@ -393,8 +394,7 @@ function bodyPanel() {
     h('h4', { textContent: 'bones', tip: 'Click to select · ▾ ▸ fold a branch' }, crud({
       new: ['Add one bone at the end of the selected bone (same role and side)', addBone],
       copy: ['Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb],
-      delete: ['Delete the selected bone and everything below it (Del)', deleteBone] },
-      toggle(':table_rows:', 'Bone table: every bone and its properties in a table under the editor; edit values in place, click rows to select (⌘/Ctrl/Shift+click adds), an edit in a selected row goes to every selected bone', () => creator.table, v => { creator.table = v; panels(); }))),
+      delete: ['Delete the selected bone and everything below it (Del)', deleteBone] })),
     boneTree(),
     ...bonePanel(),
     heading('Stance pose', 'Set the whole stance from a preset (per limb, so it works for any body), or turn a pose into attacks', ''),
@@ -441,7 +441,7 @@ const creatorMode = {
   render: creatorRender,
   ctxBar: creatorCtx,
   side: () => creator.expOn ? expPanel() : bodyPanel(),
-  overlay: () => creator.expOn ? [] : creator.view ? [{ table: moveTable, inputs: inputTable, combos: comboView }[creator.view]()] : creator.table ? [boneTable()] : [],
+  overlay: () => creator.expOn ? [] : stageOpen() === 'bones' ? [boneTable()] : moveStage() ? [moveStage()()] : [],
   open: ['character', 'body', 'bone', 'stance pose', 'random characters', 'body experiment'],
   mouse: creatorMouse,
   key: creatorKey,

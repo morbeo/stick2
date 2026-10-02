@@ -71,10 +71,8 @@ function comboView() {
     wrap.querySelector('.warn')?.remove();
     if (warn) body.before(warn);
   };
-  wrap.append(h('div', { cls: 'bar' },
-    seg(Object.keys(COMBO_TIPS), () => combos.view, v => { combos.view = v; fill(); }, COMBO_TIPS, v => v === 'tree' ? ':view_stream: tree' : ':table_rows: table'),
-    count, h('span', { cls: 'fill' }),
-    button(':close: editor', 'Back to the editor', closeOver)), body);
+  wrap.append(stageHead('combos', VIEW_TIPS.combos,
+    seg(Object.keys(COMBO_TIPS), () => combos.view, v => { combos.view = v; fill(); }, COMBO_TIPS, v => v === 'tree' ? ':view_stream: tree' : ':table_rows: table'), count), body);
   fill();
   reg(wrap, fill); // undo and stance changes refresh it
   return wrap;

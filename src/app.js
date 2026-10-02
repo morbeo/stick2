@@ -166,6 +166,7 @@ addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyZ' || e.code === 'KeyY')) { e.preventDefault(); e.shiftKey || e.code === 'KeyY' ? redo() : undo(); return; }
   const a = act(e), mod = e.metaKey || e.ctrlKey;
   if (mode().key?.(e, a)) { e.preventDefault(); syncAll(); return; }
+  if (e.code === 'Escape' && !mod && stageOpen()) { closeStage(); return; }
   if (!mod && SHORTCUTS[a]) { SHORTCUTS[a](); syncAll(); return; }
   if (!inFight()) return; // the editor modes: no fighter is yours, the fight keys and macros do nothing
   const m = !mod && macroFor(e);

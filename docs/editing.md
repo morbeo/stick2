@@ -103,7 +103,7 @@ Every direction × P / K can be a different move, Virtua Fighter style. The stic
 
 ### The move table
 
-The **moves** group → **table** puts every move in a table over the stage: type, input, stance, limb, height, startup / active / recovery, power, knock, launch, stun, damage, chip, flags.
+The **panels** group → **table** puts every move in a table over the stage: type, input, stance, limb, height, startup / active / recovery, power, knock, launch, stun, damage, chip, flags.
 
 - Click a header to sort. The fuzzy filter matches any text column.
 - Edit values in place. Editing frames retimes that phase's keys.
@@ -125,7 +125,7 @@ The **moves** group → **table** puts every move in a table over the stage: typ
 
 ![The input table](img/inputs.png)
 
-The **moves** group → **inputs**, or the controller button by a move's inputs.
+The **panels** group → **inputs**, or the controller button by a move's inputs.
 
 A direction pad per button (P, K, S, air P, air K; numpad layout, 6 = toward the opponent), plus the motions and the other inputs. Above it, pick the moveset: the plane (2D / 2.5D), the stance, and the hand (unarmed or a weapon class).
 
@@ -146,7 +146,7 @@ A direction pad per button (P, K, S, air P, air K; numpad layout, 6 = toward the
 
 ![The combos tree](img/combos.png)
 
-The **moves** group → **combos**. The chain links, editable.
+The **panels** group → **combos**. The chain links, editable.
 
 With the **chains** setting on authored, P or K in a move's cancel window chains into its next move. A link can also be on a direction held with the button, like 6P or 2K (→ is toward the foe). A direction without its own link falls back to the plain P / K one.
 

@@ -126,16 +126,14 @@ function inputTable() {
   const ch = currentChar(), names = ch.stances.map(s => s.name);
   let table;
   wrap.append(
-    h('div', { cls: 'bar' },
+    stageHead('inputs', VIEW_TIPS.inputs,
       seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); }, { 0: 'The main stance' }, i => names[i]),
       seg(['2d', '25'], () => CFG.plane === '2d' ? '2d' : '25', v => { setCfg({ plane: v === '2d' ? '2d' : 'lanes' }); panels(); mode().restart(); },
         { '2d': '2D moveset: ↑ jumps (↑ with P / K together is an up attack), air moves by direction', '25': '2.5D moveset (VF-style): every direction × button is a ground move' }, v => v === '2d' ? '2D' : '2.5D'),
       seg(Object.keys(HAND_TIPS), () => inputs.hand, v => { inputs.hand = v; fill(); }, HAND_TIPS, v => v ? ':swords: ' + v : ':back_hand: unarmed'),
       toggle(':table_rows: details', 'The table of every input under the pads: its slot, move and keys, and the move\'s startup, height, damage, power and stun (edit them in place)', () => inputs.table, v => { inputs.table = v; table.hidden = !v; }),
       toggle(':filter_list: unassigned', 'Only list the inputs without a move of their own (in the table)', () => inputs.unset, v => { inputs.unset = v; fill(); }),
-      button(':add: input', 'Add an input: a motion (e.g. 41236 = ←↙↓↘→) + P or K, then pick its move', (e, b) => addInput(b, fill)),
-      h('span', { cls: 'fill' }),
-      button(':close: editor', 'Back to the editor', closeOver)),
+      button(':add: input', 'Add an input: a motion (e.g. 41236 = ←↙↓↘→) + P or K, then pick its move', (e, b) => addInput(b, fill))),
     h('div', { cls: 'legend' }, ...Object.entries({ set: 'own move', fall: '↪ falls back', none: '— nothing', alias: '= same as' }).map(([k, l]) => h('span', { cls: 'key ' + k, tip: STATE_TIPS[k], textContent: l })), count),
     pads,
     table = h('table', { hidden: !inputs.table }, h('thead', {}, h('tr', {}, ['input', 'slot', 'move', 'plays', 'keys', 'startup', 'height', 'damage', 'power', 'stun'].map(k => h('th', { textContent: k })))), body));
