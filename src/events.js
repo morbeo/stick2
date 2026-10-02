@@ -82,12 +82,13 @@ function recordFight(w, n = Infinity, inputs = null) {
   for (const f of w.fighters) prev[f.id] = fstate(f);
   for (let i = 0; i < n && !w.done && !(pb && i >= pb.frames.length); i++) {
     const fr = pb ? pb.frames[i] : [1 / 60, inputs?.(i) ?? NOIN, null];
-    w.advance(fr[0], fr[1]); frames.push(fr);
+    w.advance(fr[0], fr[1], fr[3]); frames.push(fr);
     recordFrame(w, i, prev, lanes, out);
   }
   w.rec = null;
   const N = frames.length, T = frames.reduce((a, f) => (a.push(a[a.length - 1] + f[0]), a), [0]);
-  const events = [...inputEvents(frames, w.ctl[0] === 'human' ? w.a.id : -1), ...out, ...comboSpans(out)].sort((a, b) => a.f - b.f);
+  const events = [...inputEvents(frames, w.ctl[0] === 'human' ? w.a.id : -1), ...inputEvents(frames.map(f => [f[0], f[3] || NOIN]), frames.some(f => f[3]) ? w.b.id : -1),
+    ...out, ...comboSpans(out)].sort((a, b) => a.f - b.f);
   return { events, lanes, N, T };
 }
 // per fighter: damage dealt, hits, blocks and parries made, times thrown, the longest and most damaging combo, the frame it went down

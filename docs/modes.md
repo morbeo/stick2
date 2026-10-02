@@ -412,6 +412,13 @@ Click or drag to go to a moment; it snaps to events within 6 px (Alt: no snappin
 
 **export** renders the in–out range with its slow motion, camera and labels, drawn at the size you pick so it stays sharp: GIF or WebM, 15 / 30 / 50 fps, aspect (the arena's, 16:9, 4:3, 1:1, 9:16), width 320 to 1920 px, crop or letterbox, and what to show over it (health bars, labels, input display, frame meter). The popup shows the range, the length out and the size.
 
+**Branches.** **branch → P1 / P2** takes you to play at the playhead's moment, playing that side live. The other side keeps its recorded inputs if it was a person, or goes on as the AI. Restart goes back to the fork. In play, **keep** brings the fight back as a branch of the reel and compares it; **drop** throws it away.
+
+- The **reels** section lists the reel and its branches: edit one, compare one with the edited reel, delete a branch.
+- **side** shows A (the edited reel) and B side by side, on the same frame. **overlay** draws B as a see-through ghost over A.
+- Events only B has are amber outlines in the timeline; A's own get an amber underline. The table says "only in A / B", and the stats get a B table.
+- A branch's replay file plays back in sync. Taking over a side the AI played is saved in it, so the switch happens at the same frame.
+
 **Side panel:** the replay (scenario, length, engine version, fighters), **stats** per fighter (damage dealt, hits, blocked, parried, thrown, best combo, top combo damage, K.O. time), **bookmarks** (go there, rename, delete; saved in the replay file), and the event count per type.
 
 **Event table:** time and frame, type, who, event, details (target, damage, combo, height, span length). The filter is fuzzy, a column heading sorts, and a click on a row goes there. The row of the last event before the playhead is marked.

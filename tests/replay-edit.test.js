@@ -86,3 +86,16 @@ test('recordFight (events.js, used without the replay tab) finds the same events
   })())`));
   assert.deepEqual(r, [true, true, true]);
 });
+
+test('a branch (P2 taken over at the playhead) saves as a replay that plays in sync; compared, nothing differs before the fork', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => {
+    loadReel(JSON.parse(JSON.stringify(REPS[0])));
+    const n = 150, b = branchWorld(reelFile(), n, 2);
+    for (let i = 0; i < 200 && !b.done; i++) b.advance(1 / 60, { ...NOIN, left: i % 50 < 25, kick: i % 17 === 0 });
+    const rep = JSON.parse(JSON.stringify(makeReplay(b, 'branch'))), p = replayWorld(rep); p.loop = false;
+    for (let i = 0; i <= rep.frames.length; i++) p.advance(0, NOIN);
+    const reel = { rep, name: 'b', from: n, parent: rp.reel, edits: 0 }; rp.reels.push(reel); loadCmp(reel);
+    return [b.ctl[1], p.desync, p.stateHash() === b.stateHash(), rp.events.filter(e => e.f < n && (e.cmp || e.aOnly)).length, rp.events.some(e => e.cmp)];
+  })())`));
+  assert.deepEqual(r, ['human2', null, true, 0, true]);
+});

@@ -595,6 +595,14 @@ try {
         if (!got || got[0].c.width !== 320 || got[0].c.height !== 568) errs.push('export size ' + (got && [got[0].c.width, got[0].c.height]));
         else if (Math.abs(got.length - span * 30) > 3) errs.push('export frames ' + [got.length, Math.round(span * 30)]);
       }); }
+    // branches: play on as P2 from the playhead (in play), keep it: two reels, compared side by side and as a ghost; drop goes back
+    { rpSeek(120); branchFrom(2); const bw = lab.cells[0].w;
+      if (app.mode !== 'play' || !lab.branch || bw.ctl[1] !== 'human2' || bw.fi !== 120) errs.push('branch start ' + [app.mode, bw.ctl[1], bw.fi]);
+      for (let i = 0; i < 90; i++) bw.advance(1/60, { ...NOIN, left: i % 30 < 15, kick: i % 11 === 0 });
+      keepBranch(); if (app.mode !== 'replay' || rp.reels.length < 2 || !rp.cmp || !rp.events.some(e => e.cmp)) errs.push('branch keep ' + rp.reels.length);
+      rp.cmpView = 'overlay'; mode().render(); rp.cmpView = 'side'; mode().render();
+      rpSeek(150); if (rp.cmp.n !== 150) errs.push('compare sync ' + rp.cmp.n);
+      rpSeek(100); branchFrom(1); dropBranch(); if (lab.branch) errs.push('branch drop'); setMode('replay'); loadCmp(null); }
     // clips: the 1:1 aspect crops the subject to a square
     { ui.clip = { ...clipSet(), aspect: '1:1', fit: 'crop', size: 200 }; clip.key = null; clip.frames.length = 0; clip.last = 0; clipCapture(5e6, true);
       const f = clip.frames[0]?.c; if (!f || f.width !== 200 || f.height !== 200) errs.push('clip aspect ' + (f && [f.width, f.height]));

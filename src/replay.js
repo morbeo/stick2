@@ -4,14 +4,16 @@
 // checkpoints; the shown world seeks by restoring the last checkpoint before a frame and playing the frames after it.
 
 const rp = { reel: null, master: null, view: null, frames: [], T: [0], N: 0, events: [], n: 0, t: 0, show: new Set(Object.keys(EVENT_TYPES)), sel: new Set(),
-  footOn: true, fsel: null, filter: '', sort: { k: 't', dir: 1 }, hover: null, drag: null, scrollTo: null, lanes: {}, v: [0, 1], fold: new Set(), base: [], mx: -1, my: -1 };
+  footOn: true, fsel: null, reels: [], cmp: null, cmpView: null, filter: '', sort: { k: 't', dir: 1 }, hover: null, drag: null, scrollTo: null, lanes: {}, v: [0, 1], fold: new Set(), base: [], mx: -1, my: -1 };
 const fmtT = t => t.toFixed(2) + 's';
 const who = id => id < 0 ? '' : 'P' + (id + 1);
 
 // ---------- the reel: the master plays it, recording events and the fighter lanes ----------
-function loadReel(rep, name) {
+// reel: one already listed (a branch) to edit; else rep starts a new list of reels
+function loadReel(rep, name, reel = null) {
   rep.marks ||= []; rep.footage ||= { in: null, out: null, spans: [] };
-  rp.reel = { rep, name: name || rep.scenario, edits: 0 };
+  rp.reel = reel ? Object.assign(reel, { rep }) : { rep, name: name || rep.scenario, edits: 0 };
+  if (!reel) { rp.reels = [rp.reel]; rp.cmp = null; } else if (rp.cmp?.reel === reel) rp.cmp = null;
   const w = rp.master = replayWorld(rep);
   w.loop = false; // the recording ends at its K.O. (a play fight's log starts at its last restart)
   rp.frames = w.playback.frames; rp.rec = []; rp.lanes = {};
@@ -43,23 +45,31 @@ function simFrom(k) {
   }
   rp.N = w.log.length;
   rp.T = rp.frames.reduce((a, f) => (a.push(a[a.length - 1] + f[0]), a), [0]);
-  rp.base = [...inputEvents(rp.frames.slice(0, rp.N), w.ctl[0] === 'human' ? w.a.id : -1), ...rp.rec, ...comboSpans(rp.rec)];
+  const fr = rp.frames.slice(0, rp.N);
+  rp.base = [...inputEvents(fr, w.ctl[0] === 'human' ? w.a.id : -1), ...inputEvents(fr.map(f => [f[0], f[3] || NOIN]), fr.some(f => f[3]) ? w.b.id : -1), ...rp.rec, ...comboSpans(rp.rec)];
   rebuildEvents();
 }
 // the recorded events plus the bookmarks (kept in the replay file as marks: [{ f, name }]), in frame order
+// compared with another reel: the events only it has come in too (cmp), and this reel's own are marked (aOnly)
 function rebuildEvents() {
   const marks = rp.reel.rep.marks.map((m, j) => ({ f: m.f, type: 'meta', kind: 'mark', who: -1, name: '⚑ ' + m.name, mark: j }));
-  rp.events = [...rp.base, ...marks].sort((a, b) => a.f - b.f).map((e, i) => ({ ...e, i }));
+  let evs = [...rp.base, ...marks];
+  if (rp.cmp) {
+    const a = new Set(rp.base.map(evKey)), b = new Set(rp.cmp.events.map(evKey));
+    evs = [...evs.map(e => e.kind !== 'mark' && !b.has(evKey(e)) ? { ...e, aOnly: true } : e), ...rp.cmp.events.filter(e => !a.has(evKey(e))).map(e => ({ ...e, cmp: true }))];
+  }
+  rp.events = evs.sort((a, b) => a.f - b.f).map((e, i) => ({ ...e, i }));
   rp.sel.clear();
 }
-const evDetail = e => [e.data?.vic !== undefined && e.data.vic !== e.who ? '→ ' + who(e.data.vic) : '', e.data?.dmg ? Math.round(e.data.dmg) + ' dmg' : '',
+const evDetail = e => [e.cmp ? 'only in B' : e.aOnly ? 'only in A' : '', e.data?.vic !== undefined && e.data.vic !== e.who ? '→ ' + who(e.data.vic) : '', e.data?.dmg ? Math.round(e.data.dmg) + ' dmg' : '',
   e.kind === 'hit' && e.data.combo > 1 ? e.data.combo + '-hit' : '', e.data?.height || '', e.end !== undefined ? fmtT(rp.T[e.end] - rp.T[e.f]) : ''].filter(Boolean).join(' · ');
 const evText = e => `${fmtT(rp.T[e.f])} · ${who(e.who)} ${e.name}${evDetail(e) ? ' · ' + evDetail(e) : ''}`;
 const shownEvents = () => rp.events.filter(e => rp.show.has(e.type));
 
 // ---------- editing inputs: every edit changes the frames, then the master plays on from the first changed frame ----------
-const selInputs = () => rp.events.filter(e => rp.sel.has(e.i) && e.type === 'input' && e.kind !== 'macro');
-const encodeFrames = () => rp.frames.map(([dt, inp, mq]) => [dt, rp.reel.rep.keys.reduce((m, k, i) => m | (inp[k] ? 1 << i : 0), 0), ...mq ? [mq] : []]);
+const selInputs = () => rp.events.filter(e => rp.sel.has(e.i) && e.type === 'input' && e.kind !== 'macro' && !e.cmp);
+const encodeFrames = () => rp.frames.map(([dt, inp, mq, inp2]) => { const mask = x => rp.reel.rep.keys.reduce((m, k, i) => m | (x[k] ? 1 << i : 0), 0); // as makeReplay
+  return [dt, mask(inp), ...mq || inp2 ? [mq || 0] : [], ...inp2 ? [mask(inp2)] : []]; });
 const reelSnap = () => JSON.stringify({ frames: encodeFrames(), marks: rp.reel.rep.marks, footage: rp.reel.rep.footage });
 // undo / redo (the shared stack in studio.js): the frames and bookmarks as they were; the master replays from the first frame that differs
 function reelRestore(snap) {
@@ -67,7 +77,8 @@ function reelRestore(snap) {
   const { frames, marks, footage } = JSON.parse(snap), keys = rp.reel.rep.keys, now = encodeFrames();
   let k = 0;
   while (k < frames.length && k < now.length && JSON.stringify(frames[k]) === JSON.stringify(now[k])) k++;
-  rp.frames.splice(0, rp.frames.length, ...frames.map(([dt, m, mq]) => [dt, Object.fromEntries(keys.map((key, i) => [key, !!(m >> i & 1)])), mq || null]));
+  const dec = m => Object.fromEntries(keys.map((key, i) => [key, !!(m >> i & 1)]));
+  rp.frames.splice(0, rp.frames.length, ...frames.map(([dt, m, mq, m2]) => [dt, dec(m), mq || null, ...m2 ? [dec(m2)] : []]));
   rp.reel.rep.marks = marks; rp.reel.rep.footage = footage;
   rp.reel.edits++; simFrom(k); rpSeek(Math.min(rp.n, rp.N)); panels();
 }
@@ -149,6 +160,54 @@ function pickEvent(e, ev, list = shownEvents()) {
   rp.anchor = e.i;
 }
 
+// ---------- branches: play on from the playhead as P1 or P2, keep the result beside the reel, compare the two ----------
+// a world at frame n of rep, live from there: you play side 1 or 2; the other side keeps its recorded inputs (a human) or its AI.
+// Taking a side the AI played is saved as scen.takeover, so the branch's own replay file switches it at the same frame
+function branchWorld(rep, n, side) {
+  const all = replayWorld(rep).playback.frames, w = replayWorld({ ...rep, frames: rep.frames.slice(0, n), sums: {}, end: null });
+  w.loop = false;
+  for (let i = 0; i < n; i++) w.advance(0, NOIN);
+  w.playback = null;
+  const was1 = w.ctl[0] === 'human', was2 = w.ctl[1] === 'human2', mine = side === 1 ? was1 : was2;
+  if (!mine) { w.scen = { ...w.scen, takeover: { at: n, side } }; w.ctl[side - 1] = side === 1 ? 'human' : 'human2'; }
+  w.feed = side === 2 ? (keys, i) => [was1 ? all[i]?.[1] ?? NOIN : NOIN, keys] : was2 ? (keys, i) => [keys, all[i]?.[3] ?? NOIN] : null;
+  return w;
+}
+function branchFrom(side) {
+  const reel = rp.reel, n = rp.n, rep = reelFile();
+  lab.branch = { reel, n, side, make: () => branchWorld(rep, n, side) };
+  lab.mode = 'play'; setMode('play'); app.paused = false;
+}
+// back from play: the branch fight becomes a reel of its own (listed under the reel), compared with it
+function keepBranch() {
+  const b = lab.branch, w = lab.cells[0].w, k = rp.reels.filter(r => r.parent === b.reel).length + 1;
+  const reel = { rep: JSON.parse(JSON.stringify(makeReplay(w, b.reel.rep.scenario))), name: `${b.reel.name} ↳ ${k} (P${b.side})`, from: b.n, parent: b.reel, edits: 0 };
+  lab.branch = null; rp.reels.push(reel);
+  setMode('replay'); loadCmp(reel); rp.cmpView ||= 'side'; app.paused = true; panels();
+}
+function dropBranch() { lab.branch = null; build(); panels(); }
+// the reel compared with the edited one: its own master (events, checkpoints) and shown world, kept on the same frame
+function loadCmp(reel) {
+  if (!reel || reel === rp.reel) { rp.cmp = null; rebuildEvents(); return; }
+  const m = replayWorld(reel.rep); m.loop = false;
+  const rec = recordFight(m), v = replayWorld(reel.rep); v.loop = false; v.replaying = true;
+  rp.cmp = { reel, master: m, view: v, frames: m.playback.frames, N: rec.N, events: rec.events, lanes: rec.lanes, n: 0 };
+  rebuildEvents(); cmpSeek(rp.n);
+}
+function cmpSeek(n) {
+  const c = rp.cmp;
+  if (!c) return;
+  n = clamp(n, 0, c.N);
+  let cp = null;
+  for (const k of c.master.checkpoints) if (k.i <= n) cp = k;
+  c.view.done = false;
+  if (cp) c.view.restore(cp.s); else c.view.reset();
+  c.n = cp ? cp.i : 0;
+  while (c.n < n) cmpStep();
+}
+function cmpStep() { const c = rp.cmp, [dt, inp, mq, inp2] = c.frames[c.n]; if (mq) c.view.macro = new Script(parseMacro(mq)); c.view.advance(dt, inp, inp2); c.n++; }
+const evKey = e => `${e.f}|${e.type}|${e.who}|${e.name}`;
+
 // ---------- seeking and playing ----------
 function rpSeek(n) {
   const w = rp.view, cps = rp.master.checkpoints;
@@ -160,12 +219,14 @@ function rpSeek(n) {
   rp.n = cp ? cp.i : 0;
   while (rp.n < n) rpStep();
   rp.t = rp.T[rp.n];
+  cmpSeek(rp.n);
 }
 function rpStep() {
   const [dt, inp, mq] = rp.frames[rp.n];
   if (mq) rp.view.macro = new Script(parseMacro(mq));
-  rp.view.advance(dt, inp);
+  rp.view.advance(dt, inp, rp.frames[rp.n][3]);
   rp.n++;
+  if (rp.cmp && rp.cmp.n === rp.n - 1 && rp.cmp.n < rp.cmp.N) cmpStep();
 }
 // the frame playing at time t; nearFrame: the frame that starts nearest to t (for dragging onto frames)
 const nearFrame = t => { const f = frameAt(t); return f < rp.N && t - rp.T[f] > (rp.T[f + 1] - rp.T[f]) / 2 ? f + 1 : f; };
@@ -291,6 +352,8 @@ function drawTypeRow(L, r) {
     }
     if (e.end !== undefined) { ctx.fillStyle = col; ctx.globalAlpha = 0.5; ctx.fillRect(x, r.y + 4 * dpr, Math.max(dpr, xe - x), r.h - 8 * dpr); ctx.globalAlpha = 1; }
     if (on) { ctx.fillStyle = col; ctx.fillRect(x - 1.5 * dpr, r.y + dpr, 3 * dpr, r.h - 2 * dpr); ctx.strokeStyle = '#222'; ctx.lineWidth = dpr; ctx.strokeRect(x - 3 * dpr, r.y + 0.5 * dpr, 6 * dpr, r.h - dpr); continue; }
+    if (e.cmp) { ctx.strokeStyle = '#b9770e'; ctx.lineWidth = 1.5 * dpr; ctx.strokeRect(x - 2 * dpr, r.y + 2 * dpr, 4 * dpr, r.h - 4 * dpr); continue; } // only in B
+    if (e.aOnly) { ctx.fillStyle = '#b9770e'; ctx.fillRect(x - 2 * dpr, r.y + r.h - 2 * dpr, 4 * dpr, 2 * dpr); } // only in A
     (near[Math.floor((x - L.tx) / (6 * dpr))] ||= []).push([x, inp ? PRESS_COLS[e.name] || col : col, e]);
   }
   for (const ticks of Object.values(near)) {
@@ -341,9 +404,17 @@ function rpRender() {
     text('No replay yet: fight in play, then come back here (or press "from play"), or open a replay file.', canvas.width / 2, canvas.height / 2, '#888', 13, '', 'center');
     return;
   }
-  const pv = rpLayout().pv;
-  drawCell({ w: rp.view, shot: shotAt(rp.view, rp.n), label: `${rp.reel.name} · engine v${rp.reel.rep.version}` }, pv, { full: true, plot: false });
-  drawCaption(ctx, rp.n, pv);
+  const pv = rpLayout().pv, c = rp.cmp, side = c && rp.cmpView === 'side', a = side ? { ...pv, w: Math.floor(pv.w / 2) - 2 * dpr } : pv;
+  drawCell({ w: rp.view, shot: shotAt(rp.view, rp.n), label: `${c ? 'A · ' : ''}${rp.reel.name} · engine v${rp.reel.rep.version}` }, a, { full: true, plot: false });
+  if (side) drawCell({ w: c.view, label: `B · ${c.reel.name}` }, { ...a, x: a.x + a.w + 4 * dpr }, { full: true, plot: false });
+  else if (c) { // overlay: B's picture over A's, see-through
+    const off = rp.ghost ??= document.createElement('canvas');
+    if (off.width !== a.w || off.height !== a.h) Object.assign(off, { width: a.w, height: a.h });
+    const g = off.getContext('2d'); g.clearRect(0, 0, a.w, a.h); c.view.render(g, { x: 0, y: 0, w: a.w, h: a.h }, true);
+    ctx.save(); ctx.globalAlpha = 0.4; ctx.drawImage(off, a.x, a.y); ctx.restore();
+    text(`ghost: B · ${c.reel.name}`, a.x + a.w - 8 * dpr, a.y + 16 * dpr, '#b9770e', 11, 'bold', 'right');
+  }
+  drawCaption(ctx, rp.n, a);
   drawRpTimeline();
 }
 function rpTip(L, x, y) {
@@ -626,6 +697,10 @@ function rpCtx() {
       ...Object.entries(FOOT_KINDS).map(([k, [, tip]]) => button(`:add: ${k}`, `${tip}. Over the selection, else a second from the playhead`, () => addSpan(k))),
       toggle(':visibility:', 'Preview the footage: slow motion, camera, labels and the in–out loop in the view (off: the plain fight)', () => rp.footOn, v => { rp.footOn = v; }),
       button(':download: export', 'Export the in–out range: format, size and shape, overlays', exportPop)),
+    grp('branch', 'Play on from the playhead as P1 or P2 (the other side keeps its recording or its AI), keep the result as a branch and compare it with the reel',
+      button(':sports_kabaddi: P1', 'Branch: play on from here as P1, in play; then keep it', () => branchFrom(1)), button(':sports_kabaddi: P2', 'Branch: play on from here as P2, in play; then keep it', () => branchFrom(2)),
+      seg(['side', 'overlay'], () => rp.cmp && rp.cmpView, v => { rp.cmpView = v; if (!rp.cmp) loadCmp(rp.reels.find(r => r !== rp.reel)); panels(); },
+        { side: 'Compare side by side: A (this reel) and B (the compared one), on the same frame', overlay: 'Compare as a ghost: B see-through over A' })),
     grp('view', 'The timeline\'s window: wheel over it zooms, Shift+wheel pans, the minimap moves it',
       button(':zoom_in:', 'Zoom in on the playhead', () => rpZoom(0.5, rp.T[rp.n])), button(':remove:', 'Zoom out', () => rpZoom(2, rp.T[rp.n])),
       button(':unfold_more: fit', 'Show the whole fight', () => rpView(0, rpEnd())), button(':select_all:', 'Zoom to the selection', zoomToSel),
@@ -672,9 +747,16 @@ function rpSide() {
     old ? h('p', { cls: 'note warn', textContent: `Recorded with engine v${r.version}, this is v${ENGINE_VERSION}: it may play out differently.` }) : null,
     rp.reel.desync !== null ? h('p', { cls: 'note warn', textContent: `The file goes out of sync with its recording from ${fmtT(rp.T[rp.reel.desync] ?? 0)}.` }) : null,
     h('p', { cls: 'note', textContent: w.fighters.map(f => `${who(f.id)} ${f.ch.name}`).join(' · ') }),
+    heading('reels', 'This reel and its branches (play on from the playhead as P1 or P2, then keep it). Edit one, or compare it with the one you edit: side by side or as a ghost; the events only one has are marked (B: amber outline, only in A: amber underline).'),
+    ...rp.reels.map(r => h('div', { cls: 'bar' + (r === rp.reel ? ' on' : '') },
+      button(r === rp.reel ? `:edit: ${r.name}` : r.name, r === rp.reel ? 'The reel being edited' : `Edit this reel${r.from !== undefined ? ` (branched at ${fmtT(rp.T[Math.min(r.from, rp.N)])})` : ''}`, () => { if (r !== rp.reel) { loadReel(r.rep, r.name, r); app.paused = true; panels(); } }, 'mini'),
+      r !== rp.reel && toggle(':sync_alt:', 'Compare it with the reel being edited', () => rp.cmp?.reel === r, v => { loadCmp(v ? r : null); rp.cmpView ||= 'side'; panels(); }),
+      r.parent && crud({ delete: ['Delete this branch', () => { rp.reels.splice(rp.reels.indexOf(r), 1); if (rp.cmp?.reel === r) loadCmp(null); if (rp.reel === r) loadReel(r.parent.rep, r.parent.name, r.parent); panels(); }] }))),
     heading('stats', 'Per fighter: damage dealt, hits landed, blocks and parries made, times thrown, its longest and most damaging combo, when it was knocked out.'),
     h('table', { cls: 'stats' }, h('tr', {}, h('th'), ...rpStats().map(({ l }) => h('th', { textContent: `${who(l.id)} ${l.name}`, style: `color:${l.col}` }))),
       ...rpStats()[0]?.rows.map((r, i) => h('tr', {}, h('td', { textContent: r[0] }), ...rpStats().map(st => h('td', { textContent: st.rows[i][1] })))) || []),
+    rp.cmp && h('table', { cls: 'stats' }, h('tr', {}, h('th', { textContent: 'B' }), ...fightStats(rp.cmp.events, rp.cmp.lanes).map(st => h('th', { textContent: `${who(st.id)} ${st.name}`, style: `color:${st.col}` }))),
+      ...[['dealt', 'dealt'], ['hits', 'hits'], ['blocked', 'blocked'], ['best combo', 'bestCombo']].map(([lbl, k]) => h('tr', {}, h('td', { textContent: lbl }), ...fightStats(rp.cmp.events, rp.cmp.lanes).map(st => h('td', { textContent: st[k] }))))),
     heading('footage', 'The footage edits: in and out, and the spans (slow motion, camera, label) in the timeline\'s footage row; drag a span to move it, its ends to resize it. Saved in the replay file; the export uses them.'),
     h('p', { cls: 'note', textContent: `in ${fmtT(rp.T[footRange()[0]])} · out ${fmtT(rp.T[footRange()[1]])}` }),
     ...foot().spans.map((sp, j) => spanRow(sp, j)),
@@ -708,7 +790,7 @@ const replayMode = {
   render: rpRender,
   ctxBar: rpCtx,
   side: rpSide,
-  open: ['replay', 'footage', 'stats', 'bookmarks', 'events'],
+  open: ['replay', 'reels', 'footage', 'stats', 'bookmarks', 'events'],
   overlay: () => rp.reel && stageOpen() === 'events' ? [eventTable()] : [],
   mouse: rpMouse,
   wheel: rpWheel,

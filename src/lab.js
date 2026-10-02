@@ -93,7 +93,7 @@ function build() {
   lab.cells = []; lab.cols = 3; lab.zoom = false; lab.scroll = 0;
   if (lab.mode === 'play') {
     const replay = lab.replay && lab.tape?.length && scen.a === 'human';
-    lab.cells.push({ w: lab.playback ? Object.assign(replayWorld(lab.playback), { loop: app.loop }) : newWorld(withInv(replay ? { ...scen, b: { tape: lab.tape } } : scen), {}, 1, playChars()) });
+    lab.cells.push({ w: lab.branch ? lab.branch.make() : lab.playback ? Object.assign(replayWorld(lab.playback), { loop: app.loop }) : newWorld(withInv(replay ? { ...scen, b: { tape: lab.tape } } : scen), {}, 1, playChars()) });
     lab.cells[0].w.sfx = playSound; lab.cols = 1;
   }
   else if (lab.mode === 'impact' && lab.impact === 'ragdoll') { lab.cells.push({ w: ragdollWorld() }); lab.cols = 1; }
@@ -221,6 +221,7 @@ function labRender() {
   if (lab.mode === 'grid' && lab.kind === 'attacks' && !lab.zoom) cells.forEach((c, i) => { c.btns = null; if (i === lab.hover) drawCellButtons(c, rects[i]); });
   if (play && lab.inputs && cells[0].w.ctl[0] === 'human') drawInputs(cells[0].w, 10 * dpr, 60 * dpr);
   if (play && cells[0].w.playback) drawPlayback(cells[0].w);
+  if (play && lab.branch) text(`branch of ${lab.branch.reel.name} · you are P${lab.branch.side} · restart: back to the fork · keep it in the toolbar`, canvas.width / 2, 20 * dpr, '#b9770e', 12, 'bold', 'center');
   const d = lab.drag;
   if (d) { // the blow being dragged: from the struck point, its direction and strength
     ctx.strokeStyle = RED[0]; ctx.lineWidth = 3 * dpr; ctx.lineCap = 'round';
@@ -476,7 +477,7 @@ function saveReplay() {
     download: `${name.replace(/\W+/g, '-')}-${new Date().toISOString().slice(0, 19).replace(/\D/g, '')}.replay.json` });
   a.click(); URL.revokeObjectURL(a.href);
 }
-function loadReplay() { pickReplay(r => { lab.playback = r; app.paused = false; if (app.mode === 'play') build(); else setMode('play'); syncAll(); }); }
+function loadReplay() { pickReplay(r => { lab.playback = r; lab.branch = null; app.paused = false; if (app.mode === 'play') build(); else setMode('play'); syncAll(); }); }
 // a replay file from disk, checked (format, engine version: asks), handed to then
 function pickReplay(then) {
   const inp = h('input', { type: 'file', accept: '.json,application/json' });
@@ -516,8 +517,10 @@ function labCtx() {
     grp('falls', SPEC.falls.tip, seg(SPEC.falls.opts, () => CFG.falls, v => setCfg({ falls: v }), SPEC.falls.optTips)),
     showGrp(['meter', 'boxes', 'hud', 'labels'], lab.impact === 'ragdoll' ? null : toggle(':person_off: no attacker', 'Hide the attacker: only the struck body, its blows still land the same way (and drags strike it unobstructed)', () => lab.solo, v => { lab.solo = v; build(); })), zoomBack()];
   const els = [];
+  if (lab.mode === 'play' && lab.branch) els.push(grp('branch', `A branch of the replay "${lab.branch.reel.name}" from ${lab.branch.n} frames in: you play P${lab.branch.side}`,
+    button(':history: keep', 'Keep this branch: back to the replay tab, compared with its reel', keepBranch), button(':close: drop', 'Drop the branch: back to the normal fight', dropBranch)));
   if (lab.mode === 'grid') els.push(grp('grid', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
-  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('fight', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = null; build(); panels(); })));
+  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('fight', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = lab.branch = null; build(); panels(); })));
   if (lab.mode === 'play' && !SCENARIOS[lab.scen]?.user) els.push(grp('fighters', 'Who fights: P1 (you), P2 and any extra fighters of the scenario, each any character; unset = the one being edited (P3 on: as P2)',
     fighterPick(0), shieldButton(0), swapFighters(), fighterPick(1), shieldButton(1), Array.from({ length: fighterCount(SCENARIOS[lab.scen]) - 2 }, (_, i) => [fighterPick(i + 2), shieldButton(i + 2)])));
   if (lab.mode === 'play' && SCENARIOS[lab.scen]?.waves) els.push(grp('waves', SPEC.waves.tip + ' Changing it starts over at wave 1',
