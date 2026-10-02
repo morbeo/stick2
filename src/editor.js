@@ -470,6 +470,7 @@ const MOVE_FLAGS = {
   wallbounce: 'Wall bounce: a victim knocked into the arena wall bounces back out at wallBounceSpeed, popped up, its juggle count reset for a follow-up (spin).',
   bounce: 'Ground bounce: a knocked-down victim bounces high off the floor once, open to a juggle.',
   noAirGuard: 'No air guard: hits a fighter guarding in the air (airGuard setting).',
+  launcher: 'Launcher: on hit, ↑ jumps after the launched victim (chaseJump setting), up to its height and steering to it, for an air combo.',
   roll: 'Roll: invincible and passing through fighters for rollInv from its start; the body turns over once, the way its lunge goes (rollFwd, rollBack).',
 };
 

@@ -178,6 +178,8 @@ const SCENARIOS = {
   'J→rush': { a: ['punch', 0.1, 'down', 'down+fwd', 'fwd+punch'], b: 'dummy', period: 2.6 },
   'J,K→spin': { a: ['punch', 0.13, 'kick', 0.1, 'down', 'down+back', 'back+kick'], b: 'dummy', period: 2.8 },
   'rising': { a: ['fwd', 'down', 'down+fwd+punch'], b: 'dummy', period: 2.4 },
+  // 2P launcher, ↑ held as it hits: the chase jump follows the victim up (chaseJump), air P, K
+  'chase jump': { a: [0.2, 'down+punch', { hold: 'up', t: 0.2 }, 'punch', 0.12, 'kick'], b: 'dummy', ax: 330, bx: 372, period: 2.4 },
   'air combo': { a: ['punch', 0.13, 'punch', 0.13, 'punch', 0.3, 'fwd+hop', { hold: 'fwd', t: 0.1 }, 'punch', 0.14, 'kick'], b: 'dummy', period: 3.2 },
   // 2.5D (the plane comes with the scenario; a grid's plane axis overrides it)
   'sidestep': { a: [0.3, 'punch', 0.5, 'punch'], b: ['up', 0.05, 'up'], cfg: { plane: 'lanes' }, period: 2 },

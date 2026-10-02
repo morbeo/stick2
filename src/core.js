@@ -70,6 +70,8 @@ const SCHEMA = [
       free: 'On hit, any move not used yet in this string, ground or air (a 2-button magic series).' } },
   { k: 'specialCancel', v: true, tip: 'A normal move that hit can be cancelled into a special (↓↘→ J …).' },
   { k: 'jumpCancel', v: true, tip: 'A move that hit can be cancelled into a jump: launch, jump, air combo.' },
+  { k: 'chaseJump', v: 'press', opts: ['off', 'press', 'auto'], tip: 'Chase jump, Capcom style: once a launcher (move flag launcher) hits, a jump that follows the launched victim up to its height and steers to it, for an air combo.',
+    optTips: { off: 'No chase: a launcher is jumped out of like any move (jumpCancel).', press: '↑ (or jump) held as the launcher hits, or pressed after: the chase jump.', auto: 'The fighter jumps after the victim by itself whenever its launcher hits.' } },
   { k: 'juggleDecay', v: 1, min: 0.5, max: 1, step: 0.05, tip: 'Launch speed × this per extra hit on an airborne fighter, so air combos end. 1 = no decay.' },
   { k: 'jugglePoints', v: 0, min: 0, max: 20, step: 1, tip: 'Juggle points: each hit on an airborne or lying fighter spends the move\'s juggle cost (1 unset) from this pool, refilled when it is back on its feet; a hit it can\'t pay for passes through. 0 = no limit.' },
   { k: 'otg', v: 'flagged', opts: ['off', 'flagged', 'all'], tip: 'Off the ground: which moves can hit a fighter lying on the floor (it pops up).',
@@ -220,7 +222,7 @@ function makeRand(seed) {
 // ---------- simulation state: checkpoints and replays ----------
 // Replays store inputs, not results: a replay recorded with another ENGINE_VERSION plays out differently.
 // Bump it whenever the simulation changes (the replay test fails until you do).
-const ENGINE_VERSION = 29;
+const ENGINE_VERSION = 30;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied

@@ -4,10 +4,10 @@ grumbo     hits 9 hp 41.1 100.0
 jabbo      hits 12 hp 62.8 61.6
 sneeko     hits 15 hp 90.0 0.0
 zippa      hits 9 hp 22.7 100.0
-hicco      hits 7 hp 59.2 76.2
+hicco      hits 11 hp 16.8 100.0
 lumpo      hits 7 hp 72.2 73.5
 sarj       hits 10 hp 29.1 100.0
 noodo      hits 12 hp 5.5 92.5
-gogili     hits 15 hp 74.8 31.4
+gogili     hits 9 hp 44.6 83.8
 pollo      hits 8 hp 53.7 79.0
 gloomo     hits 10 hp 73.1 81.2

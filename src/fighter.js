@@ -391,9 +391,11 @@ class Fighter {
     // horizontal: accelerate toward desired speed, never snap
     const locked = !this.free || (busy && this.grounded) || this.squatT > 0 || this.crouching || this.dashT > 0 || this.guarding;
     const air = !this.grounded && this.free; // drifting in the air: its own top speed and control
-    const want = locked ? 0 : (inp.right - inp.left) * (air ? c('airSpeed') : c('maxSpeed') * (this.running ? c('runSpeed') : 1));
+    if (this.chase && (this.grounded ? this.squatT <= 0 : !this.free || this.vy > 0)) this.chase = null; // a chase jump steers on the way up
+    const o = air && this.chase, steer = o && clamp((o.x - Math.sign(o.x - this.x || this.dir) * 28 - this.x) * 8, -c('airSpeed') * 1.6, c('airSpeed') * 1.6);
+    const want = o ? steer : locked ? 0 : (inp.right - inp.left) * (air ? c('airSpeed') : c('maxSpeed') * (this.running ? c('runSpeed') : 1));
     const drag = this.dashT > 0 ? 0.1 : this.kd === 'fly' ? 0.05 : !this.free ? 0.35 : busy ? 0.4 : 1; // dashes, lunges and knockback slide
-    const rate = this.airDashT > 0 || this.dodgeT > 0 ? 0 : air ? c('airAccel') : want && Math.sign(want) === Math.sign(this.vx || want) ? c('accel') : c('decel') * drag;
+    const rate = this.airDashT > 0 || this.dodgeT > 0 ? 0 : o ? c('airAccel') * 2 : air ? c('airAccel') : want && Math.sign(want) === Math.sign(this.vx || want) ? c('accel') : c('decel') * drag;
     const pvx = this.vx;
     this.vx = approach(this.vx, want, rate * dt);
     // lean toward the direction of travel while speeding up or braking
@@ -421,14 +423,17 @@ class Fighter {
 
     // vertical: jump squat (anticipation) -> launch -> land
     // jump cancel: a move that connected can be jumped out of once its active frames are over (juggles)
-    const jc = busy && this.action.hit && this.action.i >= this.action.m.cancel && c('jumpCancel');
-    const hop = inp.hop || flat && upTap; // 2D: ↑ jumps too
+    // a launcher that hit: ↑ held (chaseJump press) or nothing (auto) jumps after the victim at once
+    const chase = busy && this.action.hit && this.action.m.launcher && c('chaseJump') !== 'off' ? this.action.hits.find(o => o.kd) : null;
+    const jc = busy && this.action.hit && (this.action.i >= this.action.m.cancel && c('jumpCancel') || !!chase);
+    const hop = inp.hop || flat && upTap || chase && (c('chaseJump') === 'auto' || inp.up); // 2D: ↑ jumps too
     if (inp.down && this.grounded) this.lowAt = this.w.simT; // super jump: ↓ shortly before the jump
     const wall = this.x < 40 + c('wallJumpReach') ? 1 : this.x > W - 40 - c('wallJumpReach') ? -1 : 0;
     if (hop && this.grounded && this.free && (!busy || jc) && this.squatT <= 0) {
       this.superJ = c('superJump') > 1 && this.w.simT - this.lowAt <= c('superJumpWindow');
       this.squatT = (c('jumpSquat') || 1e-6) * (this.superJ ? 1.5 : 1);
       if (jc) this.action = null;
+      this.chase = chase;
     } else if (hop && wall && !this.grounded && this.free && !busy && c('wallJump') > 0 && this.airT > 0.1) { // triangle jump: off the wall, up and away
       this.vy = -c('jumpVel') * c('wallJump'); this.vx = wall * c('wallJumpPush'); this.sqv += c('squash') * 20; this.flip = 0; this.airT = 0;
       this.airDodged = this.airDashed = false; this.say('WALL JUMP');
@@ -439,6 +444,12 @@ class Fighter {
     if (this.squatT > 0 && (this.squatT -= dt) <= 0) {
       this.grounded = false; this.vy = -c('jumpVel') * (this.superJ ? c('superJump') : 1); this.sqv += c('squash') * (this.superJ ? 40 : 25); this.airT = 0;
       if (this.superJ) this.say('SUPER');
+      const o = this.chase;
+      if (o) { // the chase jump: up to where the victim peaks (or is, already falling)
+        const g = c('gravity'), rise = -o.y + (o.vy < 0 ? o.vy * o.vy / (2 * g) : 0);
+        this.vy = -clamp(Math.sqrt(2 * g * Math.max(0, rise)), c('jumpVel'), c('jumpVel') * Math.max(1.35, c('superJump')));
+        this.say('CHASE');
+      }
       const x = inp.right - inp.left, fl = c('flips');
       if (x && (fl === 'always' || fl === '2.5D' && !flat)) this.flip = x * this.dir; // +1 forward flip, -1 back flip
     }

@@ -803,3 +803,16 @@ test('projectiles: a shoot key fires the move\'s shot from its striking limb; it
   assert.ok(cl.clashes >= 1, 'two shots meet and cancel'), assert.equal(cl.hit, 0), assert.equal(cl.ahp, 100);
   assert.equal(go(['@fireball'], 'dummy', { shots: false }).seen, 0, 'shots off: no projectile');
 });
+
+test('chase jump: after a launcher hits, ↑ held jumps after the victim (press), on its own (auto), not at all (off)', () => {
+  const chase = (mode, a) => JSON.parse(run(`(() => { const w = new World({ a: ${JSON.stringify(a)}, b: 'dummy', ax: 330, bx: 372, period: 9 }, { chaseJump: '${mode}' }, 7, [CHARS.stick]); w.loop = false;
+    let top = 0, gap = 1e9, flew = false;
+    for (let i = 0; i < 100; i++) { w.advance(1/60, NOIN); if (!w.b.grounded) flew = true;
+      if (!w.a.grounded) { top = Math.min(top, w.a.y); gap = Math.min(gap, Math.hypot(w.a.x - w.b.x, w.a.y - w.b.y)); } }
+    return JSON.stringify({ top, gap, flew }); })()`));
+  assert.equal(run('CHARS.stick.moves.launcher.launcher'), true);
+  const press = chase('press', [0.1, '@launcher', { hold: 'up', t: 0.8 }]), auto = chase('auto', [0.1, '@launcher']), off = chase('off', [0.1, '@launcher', { hold: 'up', t: 0.8 }]);
+  for (const [k, r] of Object.entries({ press, auto })) { assert.ok(r.flew && r.top < -40, `${k} jumps: ${JSON.stringify(r)}`); assert.ok(r.gap < 45, `${k} reaches the victim: ${JSON.stringify(r)}`); }
+  assert.equal(off.top, 0, 'off: no jump');
+  assert.equal(run(`fight(SCENARIOS['chase jump'], [CHARS.stick], 150).w.hits`), 3, 'the chase jump scenario: launcher, air P, air K');
+});

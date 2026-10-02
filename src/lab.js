@@ -466,7 +466,7 @@ function applyPreset(name) {
 }
 // the settings shown in each group without "more" (the ones most worth turning first)
 const BASIC_CFG = new Set(['plant', 'plantStep', 'maxSpeed', 'jumpVel', 'gravity', 'dashSpeed', 'airSpeed', 'fallSpeed', 'easing', 'attackSpeed', 'filter', 'response',
-  'hitstop', 'hitShake', 'hitTest', 'powerScale', 'chains', 'juggleDecay', 'health', 'damage', 'chip', 'parry', 'staggerAt', 'dizzyAt',
+  'hitstop', 'hitShake', 'hitTest', 'powerScale', 'chains', 'chaseJump', 'juggleDecay', 'health', 'damage', 'chip', 'parry', 'staggerAt', 'dizzyAt',
   'grabReach', 'techWindow', 'weapon', 'weaponStart', 'disarm', 'falls', 'floorBounce', 'wallBounce', 'ceiling', 'plane', 'flips', 'dash',
   'comboStop', 'comboShake', 'comboSpeed', 'shake', 'zoomPunch', 'squash', 'sparks', 'ghost', 'boxes', 'scope']);
 // fuzzy match: every query letter appears in order (ignoring case and spaces)
