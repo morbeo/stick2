@@ -19,12 +19,24 @@ function layInit() {
   delete layouts.fresh; saveLay();
   delete ui.fold; delete ui.more; saveUi();
 }
-// show the shown tab's layout: the side panel on or off, then the panels
+// show the shown tab's layout: the side panel on or off and its width, then the panels
 function layApply() {
-  const off = !!lay().hide.side;
-  if (document.body.classList.contains('noside') !== off) { document.body.classList.toggle('noside', off); resize(); }
+  const off = !!lay().hide.side, w = sideW() + 'px', bs = document.body.style;
+  if (document.body.classList.contains('noside') !== off || bs.getPropertyValue('--side-w') !== w) { document.body.classList.toggle('noside', off); bs.setProperty('--side-w', w); resize(); }
   panels();
 }
+// sizes, kept in the tab's layout: the side panel's width (the grip on its left edge) and the editor / preview split (drag their boundary, app.js)
+const SIDE_W = [220, 300, 560], SPLIT = [0.3, 0.58, 0.8]; // min, default, max
+const sideW = () => lay().size?.side ?? SIDE_W[1];
+const splitX = () => Math.round(canvas.width * (lay().size?.split ?? SPLIT[1]));
+function laySize(k, v) { (lay().size ??= {})[k] = v; saveLay(); }
+$('grip').onpointerdown = e => {
+  e.preventDefault();
+  const w = e => clamp(Math.round(innerWidth - e.clientX), SIDE_W[0], SIDE_W[2]), move = e => { document.body.style.setProperty('--side-w', w(e) + 'px'); resize(); };
+  const up = e => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); laySize('side', w(e)); };
+  addEventListener('pointermove', move); addEventListener('pointerup', up);
+};
+$('grip').ondblclick = () => { delete lay().size.side; saveLay(); layApply(); };
 // hide or show a part: a toolbar group (ctx:<its label>) or a side section (side:<its heading>)
 const layShown = id => !lay().hide[id];
 function layShow(id, v) { if (v) delete lay().hide[id]; else lay().hide[id] = true; saveLay(); panels(); }
@@ -88,7 +100,7 @@ function panelsGrp(names, tips) {
   return grp('panels', 'Tables over the stage, edited in place (click again, × or Esc: close)',
     seg(names, stageOpen, v => openStage(v === stageOpen() ? null : v), mapVals(tips, t => t + ' (click again: close)'), v => STAGE_LABELS[v]));
 }
-const LAY_TIP = 'Layout: what each tab shows, remembered per tab as you go (toolbar groups and side sections and their order, overlays, folds, "more", the side panel); save it under a name, switch between layouts, reset a tab or all';
+const LAY_TIP = 'Layout: what each tab shows, remembered per tab as you go (toolbar groups and side sections and their order, sizes, overlays, folds, "more", the side panel); save it under a name, switch between layouts, reset a tab or all';
 // the layout popup (menu bar): what this tab shows, then the named layouts, save as, reset, delete
 function layoutPanel(e, b) {
   const tab = tabOf(app.mode), names = Object.keys(layouts.sets);

@@ -34,7 +34,7 @@ Three rows, the same in every tab:
 
 ![The layout popup](img/layout.png)
 
-The layout button (four squares) in the menu bar. Each tab remembers its own layout as you go: which toolbar groups and side sections are shown and in what order, which overlays are on, which side sections are folded, which show **more**, and whether the side panel is shown.
+The layout button (four squares) in the menu bar. Each tab remembers its own layout as you go: which toolbar groups and side sections are shown and in what order, which overlays are on, which side sections are folded, which show **more**, whether the side panel is shown, and the sizes (below).
 
 | Row or button | Does |
 |---|---|
@@ -58,6 +58,11 @@ The **show** group in the toolbar holds the overlays, always in this order; each
 | colours | bones coloured by role, in the editors (kept per tab) |
 | hud | health and stun bars, dizzy stars, callouts and the hit counter (setting `hud`) |
 | labels | each fight's label and stats line (setting `labels`) |
+
+**Sizes**, kept per tab too:
+
+- Drag the side panel's left edge to set its width (220–560 px); double-click it for the default 300.
+- In animate and character, drag the boundary between the editor and the preview to share the stage between them.
 
 ⌘K finds **hide toolbar group: …** and **hide side section: …** (or **show**) for the parts of the tab you are on.
 

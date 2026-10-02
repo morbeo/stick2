@@ -300,6 +300,17 @@ try {
     if (c1[0] !== c0.at(-1) || c1.slice(1).join() !== c0.slice(0, -1).join() || s1.at(-1) !== s0[0] || app.parts.side.join() !== s1.join()) errs.push('reorder ' + c1 + ' / ' + s1);
     setMode('grid'); if (lay().order) errs.push('order per tab'); setMode('play'); if (ids('ctx')[0] !== c0.at(-1)) errs.push('order kept');
     closePop(); layReset('play'); if (ids('ctx').join() !== c0.join() || ids('side').join() !== s0.join()) errs.push('reset order'); }
+  // sizes: the grip sets the side panel's width (220–560, per tab, double-click: default); the editor / preview boundary drags (animate, character)
+  { setMode('play'); const g = $('grip'), pe = (t, x) => (t === 'pointerdown' ? g : window).dispatchEvent(new PointerEvent(t, { clientX: x, bubbles: true }));
+    pe('pointerdown', innerWidth - 300); pe('pointermove', innerWidth - 450); pe('pointerup', innerWidth - 450);
+    if (lay().size?.side !== 450 || $('side').offsetWidth !== 450) errs.push('side width ' + lay().size?.side + ' ' + $('side').offsetWidth);
+    pe('pointerdown', innerWidth - 450); pe('pointerup', innerWidth - 100); if (lay().size.side !== 220) errs.push('side width clamped ' + lay().size.side);
+    setMode('animate'); if ($('side').offsetWidth !== 300) errs.push('side width per tab ' + $('side').offsetWidth); setMode('play');
+    g.dispatchEvent(new MouseEvent('dblclick')); if ($('side').offsetWidth !== 300 || lay().size.side) errs.push('side width reset');
+    setMode('animate'); const cv = canvas.getBoundingClientRect(), me = (t, x) => (t === 'mousedown' ? canvas : window).dispatchEvent(new MouseEvent(t, { clientX: cv.left + x, clientY: cv.top + 100, bubbles: true }));
+    const x0 = anLayout().pv.x / dpr, k0 = anim.key; me('mousedown', x0); me('mousemove', x0 - 100); me('mouseup', x0 - 100);
+    if (Math.abs(anLayout().pv.x / dpr - (x0 - 100)) > 1 || anim.key !== k0 || !JSON.parse(localStorage.getItem('stick2.layouts')).sets.default.tabs.animate.size.split) errs.push('split ' + anLayout().pv.x / dpr + ' ' + x0);
+    setMode('character'); if (Math.abs(edLayout().pv.x / dpr - x0) > 1) errs.push('split per tab'); layReset(); setMode('play'); }
   // settings persist: a change is stored (only what differs from the defaults), comes back on load, bad values are dropped; reset settings brings back the defaults
   { setCfg({ hitstop: 0.2, easing: 'step' }); setDisplay('boxes', true); const st = JSON.parse(localStorage.getItem('stick2.settings'));
     if (st.hitstop !== 0.2 || st.easing !== 'step' || st.boxes !== true || 'gravity' in st) errs.push('settings stored ' + JSON.stringify(st));

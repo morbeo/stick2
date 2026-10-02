@@ -6,9 +6,10 @@
 <style>
   html, body { margin: 0; height: 100%; background: #f3f0e8; color: #222; overflow: hidden;
     font: 12px/1.3 ui-monospace, Menlo, monospace; }
-  body { display: grid; grid-template: "top top" auto "stage side" 1fr "help side" auto / 1fr 300px; }
+  body { display: grid; grid-template: "top top" auto "stage side" 1fr "help side" auto / 1fr var(--side-w, 300px); }
   body.noside { grid-template-columns: 1fr 0; }
-  body.noside #side { display: none; }
+  body.noside #side, body.noside #grip { display: none; }
+  #grip { grid-area: side; justify-self: start; width: 6px; margin-left: -3px; cursor: col-resize; z-index: 5; }
   input, button { font: inherit; }
   @font-face { font-family: Icons; src: url(fonts/icons.woff2) format('woff2'); font-display: block; }
   .ic { font-family: Icons; font-size: 1.25em; line-height: 1; vertical-align: -.25em; font-weight: normal; font-style: normal; }
@@ -152,6 +153,7 @@
 </div>
 <div id="stage"><canvas id="c"></canvas><div id="over"></div></div>
 <div id="side"></div>
+<div id="grip" data-tip="Drag: the side panel's width, kept per tab (double-click: back to 300 px)"></div>
 <div id="help"></div>
 <script src="src/build.js"></script>
 <script src="src/core.js"></script>

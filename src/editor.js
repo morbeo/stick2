@@ -17,7 +17,7 @@ const keyPose = (ch, m, i) => resolve(ch.poses.stance, m.keys[i].p);
 
 // ---------- layout and view ----------
 function anLayout() {
-  const ew = Math.round(canvas.width * 0.58), th = 124 * dpr; // the top 34 px hold the control bar (timelineBar)
+  const ew = splitX(), th = 124 * dpr; // the top 34 px hold the control bar (timelineBar)
   return { ed: { x: 0, y: 0, w: ew, h: canvas.height - th }, tl: { x: 8 * dpr, y: canvas.height - th + 34 * dpr, w: ew - 16 * dpr, h: th - 40 * dpr },
     pv: { x: ew, y: 0, w: canvas.width - ew, h: canvas.height } };
 }
@@ -870,6 +870,7 @@ const animMode = {
   changed() { if (anim.drag) previewAt(anim.t); else buildPreview(); },
   render() { clear(); drawAnimEditor(); drawTimeline(); drawCell({ w: anim.pv, label: 'preview (springs + hit stop)' }, anLayout().pv, { plot: false }); },
   ctxBar: animCtx,
+  split: () => true,
   side: movePanel,
   open: ['move', 'key'],
   overlay: () => moveStage() ? [moveStage()()] : [timelineBar(), targetBar()],

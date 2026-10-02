@@ -190,14 +190,18 @@ function readInput() {
 }
 // canvas mouse in device px; drags keep reporting after leaving the canvas
 const at = e => { const b = canvas.getBoundingClientRect(); return [(e.clientX - b.left) * dpr, (e.clientY - b.top) * dpr]; };
-let down = false;
-canvas.addEventListener('mousedown', e => { down = true; mode().mouse?.('down', ...at(e), e); syncAll(); });
+let down = false, splitting = false;
+// the boundary between an editor and its preview (modes with split: animate, character): drag it to resize
+const nearSplit = x => mode().split?.() && Math.abs(x - splitX()) < 5 * dpr;
+canvas.addEventListener('mousedown', e => { if (nearSplit(at(e)[0])) { splitting = true; return; } down = true; mode().mouse?.('down', ...at(e), e); syncAll(); });
 addEventListener('mousemove', e => {
+  if (splitting) { (lay().size ??= {}).split = clamp(at(e)[0] / canvas.width, SPLIT[0], SPLIT[2]); return; }
   if (app.scrub && e.target === canvas) app.scrubF = clamp(at(e)[0] / canvas.width, 0, 1);
   else if (down || e.target === canvas) mode().mouse?.('move', ...at(e), e);
+  if (!down && e.target === canvas && nearSplit(at(e)[0])) cursor('col-resize');
 });
 canvas.addEventListener('wheel', e => { if (mode().wheel?.(e.deltaY, e)) e.preventDefault(); }, { passive: false });
-addEventListener('mouseup', e => { if (!down) return; down = false; mode().mouse?.('up', ...at(e), e); syncAll(); });
+addEventListener('mouseup', e => { if (splitting) { splitting = false; saveLay(); return; } if (!down) return; down = false; mode().mouse?.('up', ...at(e), e); syncAll(); });
 
 layInit();
 buildTop();

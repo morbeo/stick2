@@ -13,7 +13,7 @@ const previewScen = () => { const s = SCENARIOS[PREVIEWS[creator.preview][0] || 
 
 // ---------- editor view: the stance pose, big, with a handle on every joint ----------
 function edLayout() {
-  const ew = Math.round(canvas.width * 0.58);
+  const ew = splitX();
   return { ed: { x: 0, y: 0, w: ew, h: canvas.height }, pv: { x: ew, y: 0, w: canvas.width - ew, h: canvas.height } };
 }
 // screen transform of the figure; the hips stay put while dragging so the body doesn't jump under the cursor
@@ -435,6 +435,7 @@ function expPanel() {
 
 const creatorMode = {
   preview: () => creator.expOn ? null : edLayout().pv,
+  split: () => !creator.expOn,
   enter() { creator.w = creator.preview === 'impact' ? ragdollWorld() : newWorld(previewScen()); if (creator.expOn) buildExp(); },
   restart() { creatorMode.enter(); },
   worlds: () => creator.expOn ? creator.exp.cells.map(c => c.w) : [creator.w],
