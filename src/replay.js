@@ -236,7 +236,8 @@ const frameAt = t => { let lo = 0, hi = rp.N; while (lo < hi) { const m = (lo + 
 // the timeline: a minimap of the whole fight, the ruler, then rows: per fighter its health and stun curves (with combo bands) and its
 // frame-meter strip (folded: the strip only), then a lane per shown event type. Wheel zooms, Shift+wheel pans, the minimap moves the window
 const RP_LABEL = 92, MINI = 12, RULER = 18, PRESS_COLS = { P: '#c0392b', K: '#2c6fb0', S: '#8e44ad', jump: '#27ae60' };
-function rpLanes() { const has = new Set(rp.events.map(e => e.type)); return Object.keys(EVENT_TYPES).filter(t => rp.show.has(t) && has.has(t)); }
+// a lane for every type the replay has, shown or not, so hiding one never resizes the timeline (a hidden lane stays, greyed and empty)
+function rpLanes() { const has = new Set(rp.events.map(e => e.type)); return Object.keys(EVENT_TYPES).filter(t => has.has(t)); }
 function rpRows() {
   const rows = [];
   for (const l of Object.values(rp.lanes).slice(0, 6)) rows.push(...rp.fold.has(l.id) ? [] : [{ kind: 'hp', l, h: 26 }], { kind: 'meter', l, h: 6 });
@@ -338,8 +339,9 @@ function drawFighterRow(L, r) {
 // an event type's lane: ticks, spans as bars; ticks closer than 6 px merge into a count. Inputs: presses (by button colour) on top,
 // held directions and guard as thin bars under them, one height per key
 function drawTypeRow(L, r) {
-  const [col, icon] = EVENT_TYPES[r.type], inp = r.type === 'input', near = {};
+  const [c0, icon] = EVENT_TYPES[r.type], inp = r.type === 'input', near = {}, off = !rp.show.has(r.type), col = off ? '#bbb' : c0;
   glyph(icon, L.tl.x + 2 * dpr, r.y + 11 * dpr, col, 11); text(r.type, L.tl.x + 18 * dpr, r.y + 10 * dpr, col, 10, 'bold');
+  if (off) { text('hidden · click the name to show', L.tx + 6 * dpr, r.y + 10 * dpr, '#bbb', 9); return; }
   ctx.save(); ctx.beginPath(); ctx.rect(L.tx, r.y, L.tw, r.h); ctx.clip();
   for (const e of rp.events) {
     if (e.type !== r.type) continue;
@@ -381,7 +383,7 @@ function evFrames(e) {
 // the event under the mouse (within 5 px of its tick, or on its span) in a type lane
 function eventAt(L, x, y) {
   const r = rowAt(L, y);
-  if (r?.kind !== 'type' || x < L.tx) return null;
+  if (r?.kind !== 'type' || x < L.tx || !rp.show.has(r.type)) return null;
   let best = null, bd = 5 * dpr;
   for (const e of rp.events) {
     if (e.type !== r.type) continue;
@@ -420,7 +422,8 @@ function rpRender() {
 function rpTip(L, x, y) {
   if (rp.hover) return `${rp.hover.type}: ${evText(rp.hover)}`;
   const r = rowAt(L, y);
-  if (!r || r.kind === 'type' || x < L.tx) return r && r.kind !== 'type' ? `${who(r.l.id)} ${r.l.name}: click to ${rp.fold.has(r.l.id) ? 'unfold' : 'fold'} its curves` : '';
+  if (r?.kind === 'type' && x < L.tx) return `${r.type}: ${EVENT_TYPES[r.type][2]} · click to ${rp.show.has(r.type) ? 'hide' : 'show'} them`;
+  if (r?.kind === 'foot' || !r || r.kind === 'type' || x < L.tx) return r?.l ? `${who(r.l.id)} ${r.l.name}: click to ${rp.fold.has(r.l.id) ? 'unfold' : 'fold'} its curves` : '';
   const f = frameAt(xToT(L, x)), l = r.l, st = l.fs[f];
   return `${fmtT(rp.T[f])} · ${who(l.id)} ${l.name}: ${l.max > 0 ? `health ${Math.round(l.hp[f] ?? 0)} / ${l.max} · ` : ''}stun ${Math.round(100 * (l.stun[f] ?? 0))}% · ${st || 'idle'}`;
 }
@@ -435,7 +438,8 @@ function rpMouse(type, x, y, e) {
   if (type === 'down' && inTl) {
     const ev = eventAt(L, x, y), r = rowAt(L, y);
     if (inMini) { rp.drag = { mini: true }; toMini(); }
-    else if (r && r.kind !== 'type' && x < L.tx) rp.fold[rp.fold.has(r.l.id) ? 'delete' : 'add'](r.l.id);
+    else if (r?.l && x < L.tx) rp.fold[rp.fold.has(r.l.id) ? 'delete' : 'add'](r.l.id);
+    else if (r?.kind === 'type' && x < L.tx) { rp.show[rp.show.has(r.type) ? 'delete' : 'add'](r.type); syncAll(); } // a lane's name shows / hides its type
     else if (r?.kind === 'foot' && x >= L.tx) { if (!footMouse(L, r, x, e)) { rp.drag = { seek: true }; rpSeek(frameAt(snapT(L, x, e))); } }
     else if (r?.kind === 'type' && x >= L.tx && ev) {
       pickEvent(ev, e); rp.scrollTo = ev.i;

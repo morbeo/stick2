@@ -569,7 +569,8 @@ try {
     if (rp.n !== f0 || !rp.sel.size) errs.push('replay row ' + [rp.n, f0]);
     q.value = ''; q.dispatchEvent(new Event('input'));
     const lanes = rpLanes().length; [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('input:')).click();
-    if (rpLanes().length !== lanes - 1 || rows().some(r => /input/.test(r.cells[1].textContent))) errs.push('replay types');
+    const h0 = rpLayout().tl.h; if (rpLanes().length !== lanes || rows().some(r => /input/.test(r.cells[1].textContent))) errs.push('replay types');
+    { const L2 = rpLayout(), ir = L2.rows.find(r => r.type === 'input'); rpMouse('down', L2.tl.x + 20, ir.y + 4, {}); rpMouse('up', 0, 0, {}); if (!rp.show.has('input') || rpLayout().tl.h !== h0) errs.push('replay lane name toggles, same height'); rp.show.delete('input'); }
     const L = rpLayout(); rpMouse('down', L.tx + L.tw / 2, L.ruler + 5 * dpr, { altKey: true }); rpMouse('up', 0, 0, {});
     if (Math.abs(rp.n - frameAt(rp.T[rp.N] / 2)) > 1) errs.push('replay seek ' + rp.n);
     const n1 = rp.n; rewind(1); if (rp.n !== n1 - 1) errs.push('replay rewind ' + [n1, rp.n]);
