@@ -530,11 +530,11 @@ CHAR_DEFS.gogili = { ...stick, name: 'gogili', speed: 1.05, jump: 1.15, grabRang
       { d: 0.06, e: 'linear', p: { torso: 40, head: 20, afU: 95, afL: 90, abU: 90, abL: 100 }, shake: 0.3 },
       { d: 0.3, e: 'inOutCubic', p: null }] },
     // ↑ S: leaps back as if off a wall, then dives in claws first
-    wallDive: { power: 1.6, damage: 12, hit: ['fh', 'bh'], height: 'shigh', knock: 300, launch: 160, kd: true, special: true, keys: [
+    wallDive: { power: 1.6, damage: 12, hit: ['fh', 'bh'], height: 'shigh', knock: 300, launch: 160, kd: true, special: true, range: 115, keys: [
       { d: 0.08, e: 'outQuad', p: { ...CROUCH, afU: -40, afL: 30, abU: -50, abL: 30 } },
       { d: 0.2, e: 'inOutCubic', p: { ...TUCK, torso: -40 }, rise: 640, lunge: -260 },
-      { d: 0.16, e: 'outExpo', p: { torso: 60, head: -20, afU: 160, afL: 10, abU: 150, abL: 15, lfU: -40, lfL: -60, lbU: -60, lbL: -60 }, active: true, lunge: 520 },
-      { d: 0.12, p: { torso: 60, head: -20, afU: 160, afL: 10, abU: 150, abL: 15, lfU: -40, lfL: -60, lbU: -60, lbL: -60 }, active: true },
+      { d: 0.16, e: 'outExpo', p: { torso: 130, head: -20, afU: 160, afL: 10, abU: 150, abL: 15, lfU: -40, lfL: -60, lbU: -60, lbL: -60 }, active: true, lunge: 520 },
+      { d: 0.12, p: { torso: 130, head: -20, afU: 160, afL: 10, abU: 150, abL: 15, lfU: -40, lfL: -60, lbU: -60, lbL: -60 }, active: true },
       { d: 0.2, e: 'inOutCubic', p: null }] },
     // → P: both claws swipe across
     clawSwipe: attack({ power: 1.4, damage: 11, hit: ['fh', 'bh'], height: 'mid', knock: 260, stun: 0.45, lunge: 140, wide: true },
@@ -652,7 +652,7 @@ CHAR_DEFS.gloomo = { ...stick, name: 'gloomo', speed: 1.05, dash: 1.4, jump: 1.1
       { d: 0.12, e: 'outQuad', p: { ...CROUCH, afU: 20, afL: 120, abU: 10, abL: 130 } },
       { d: 0.05, e: 'outExpo', p: { torso: -10, afU: 175, afL: 30, abU: 170, abL: 30 }, warp: true, inv: true },
       { d: 0.1, e: 'outQuad', p: { torso: -10, afU: 175, afL: 30, abU: 170, abL: 30 } },
-      { d: 0.06, e: 'outExpo', p: { torso: 40, afU: 60, afL: 10, abU: 55, abL: 10, lfU: 45, lfL: -45, lbU: -30, lbL: 0 }, active: true, lunge: 100 },
+      { d: 0.06, e: 'outExpo', p: { torso: 40, afU: 60, afL: 10, abU: 55, abL: 10, lfU: 45, lfL: -45, lbU: -30, lbL: 0 }, active: true, lunge: 240 },
       { d: 0.08, p: { torso: 40, afU: 60, afL: 10, abU: 55, abL: 10, lfU: 45, lfL: -45, lbU: -30, lbL: 0 }, active: true },
       { d: 0.26, e: 'inOutCubic', p: null }] },
     // ↓ K in the air: the skull dive, both feet down hard
