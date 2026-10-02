@@ -188,7 +188,7 @@ function creatorKey(e, a) {
 
 // ---------- panels ----------
 function creatorCtx() {
-  return [
+  return [movesGrp(),
     grp('preview', 'What the preview on the right plays', seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); }, mapVals(PREVIEWS, p => p[1]))),
     grp('', 'Experiment', toggle(':science: experiment', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
       () => creator.expOn && creator.exp.kind === 'body', on => setExp(on))),
@@ -364,17 +364,6 @@ function boneTable() {
     h('table', {}, h('thead', {}, head), body));
   return wrap;
 }
-// the moves from the character tab: the move table, inputs and combos over the stage (edited in place), any move opened in animate
-function movesPanel() {
-  const names = Object.keys(currentChar().moves).sort();
-  return [heading('Moves', 'The character\'s moves and combos without leaving the body editor: the table, the inputs and the combos open over the stage, edited in place; click a move to open it in the keyframe editor (animate)', ''),
-    h('div', { cls: 'bar' }, seg(['table', 'inputs', 'combos'], () => creator.view, v => { creator.view = creator.view === v ? null : v; unpeek(); panels(); },
-      { table: VIEW_TIPS.table + ' (click again: close)', inputs: VIEW_TIPS.inputs + ' (click again: close)', combos: VIEW_TIPS.combos + ' (click again: close)' },
-      v => ({ table: ':table_rows: moves', inputs: ':stadia_controller: inputs', combos: ':trending_up: combos' })[v])),
-    h('div', { cls: 'bar' }, button(':timeline: edit a move :expand_more:', 'Pick a move to open in the keyframe editor (animate)', (e, b) =>
-      popup(b, h('div', { cls: 'bar' }, names.map(n => button(n, `Open ${n} in the keyframe editor`, () => { closePop(); openMove(n); })))))),
-  ];
-}
 function bodyPanel() {
   return [...charPanel(),
     heading('Body', 'Build the skeleton. Limbs are role-based: legs walk, arms swing, tails follow through. New parts attach to the selected torso bone.',
@@ -394,7 +383,6 @@ function bodyPanel() {
       popup(b, h('div', { cls: 'bar' }, Object.entries(POSE_TARGETS(currentChar())).map(([n, t]) => button(n, t.tip, () => {
         Object.assign(breed, { pose: n, atk: null }); breed.seed++; lab.kind = 'attacks'; setMode('grid');
       })))))),
-    ...movesPanel(),
     ...radarPanel(),
     ...statsPanel(),
     ...gaitPanel(),
@@ -433,7 +421,7 @@ const creatorMode = {
   ctxBar: creatorCtx,
   side: () => creator.expOn ? expPanel() : bodyPanel(),
   overlay: () => creator.expOn ? [] : creator.view ? [{ table: moveTable, inputs: inputTable, combos: comboView }[creator.view]()] : creator.table ? [boneTable()] : [],
-  open: ['character', 'body', 'bone', 'stance pose', 'moves', 'random characters', 'body experiment'],
+  open: ['character', 'body', 'bone', 'stance pose', 'random characters', 'body experiment'],
   mouse: creatorMouse,
   key: creatorKey,
   hint: () => creator.expOn ? (creator.exp.kind === 'random' ? 'click a cell to keep it' : 'click a cell to breed around it') + ' · Esc back to the editor'

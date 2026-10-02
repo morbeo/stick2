@@ -719,7 +719,7 @@ function moveList() {
   };
   fill();
   return [
-    h('div', { cls: 'row', tip: 'How the moves are shown' }, h('span', { textContent: 'view' }), seg(Object.keys(VIEW_TIPS), () => anim.view, v => { anim.view = v; unpeek(); panels(); }, VIEW_TIPS)),
+    h('div', { cls: 'row', tip: 'How the moves are shown' }, h('span', { textContent: 'view' }), seg(['cards', 'list'], () => anim.view, v => { anim.view = v; unpeek(); panels(); }, VIEW_TIPS)),
     adv(h('div', { cls: 'row', tip: 'How the moves are grouped' }, h('span', { textContent: 'group' }), seg(Object.keys(MOVE_GROUPS), () => anim.group, v => { anim.group = v; fill(); }, GROUP_TIPS))),
     adv(h('div', { cls: 'row', tip: 'Order within a group' }, h('span', { textContent: 'sort' }), seg(Object.keys(SORT_TIPS), () => anim.sort, v => { anim.sort = v; fill(); }, SORT_TIPS))),
     h('div', { cls: 'row', tip: 'Show only moves whose name, group or input contains this text (e.g. kick, air, qcf)' }, h('span', { textContent: 'filter' }),
@@ -782,8 +782,17 @@ function movePanel() {
   ];
 }
 
+// the moves toolbar (character and animate tabs): the move table, the inputs and the combos over the stage (click again: close), any move opened in animate
+function movesGrp() {
+  const cur = () => app.mode === 'character' ? creator.view : anim.view;
+  const set = v => { if (cur() === v) return closeOver(); if (app.mode === 'character') creator.view = v; else anim.view = v; unpeek(); panels(); };
+  const pick = button(':timeline: edit :expand_more:', 'Pick a move to open in the keyframe editor (animate)', (e, b) =>
+    popup(b, h('div', { cls: 'bar' }, Object.keys(currentChar().moves).sort().map(n => button(n, `Open ${n} in the keyframe editor`, () => { closePop(); openMove(n); })))));
+  return grp('moves', 'The character\'s moves: the table, the inputs and the combos open over the stage, edited in place; click a move in them (or pick one from edit) to open it in the keyframe editor',
+    seg(['table', 'inputs', 'combos'], cur, set, mapVals(VIEW_TIPS, t => t + ' (click again: close)'), v => ({ table: ':table_rows: table', inputs: ':stadia_controller: inputs', combos: ':trending_up: combos' })[v]), pick);
+}
 function animCtx() {
-  return [grp('show', 'Overlays', toggle(':visibility:', 'Ghost: ' + SPEC.ghost.tip + keyTip('ghost'), () => CFG.ghost, v => { CFG.ghost = v; }),
+  return [movesGrp(), grp('show', 'Overlays', toggle(':visibility:', 'Ghost: ' + SPEC.ghost.tip + keyTip('ghost'), () => CFG.ghost, v => { CFG.ghost = v; }),
     toggle(':check_box_outline_blank:', 'Boxes: ' + SPEC.boxes.tip + keyTip('boxes'), () => CFG.boxes, v => { CFG.boxes = v; }), colorsToggle()), compareGrp()];
 }
 const CMP_TIPS = { off: 'No comparison', overlay: 'The compared move drawn over this one in amber, at the same moment',
