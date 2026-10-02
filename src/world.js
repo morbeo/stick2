@@ -26,7 +26,7 @@ function frameState(f) {
 }
 
 // checkpoint interval (frames); what a checkpoint leaves out: the logs, settings and UI state, kept as they are on restore
-const CHECK = 60, KEEP = ['log', 'checkpoints', 'sums', 'playback', 'desync', 'replaying', 'tape', 'loop', 'scrubN', 'scen', 'over', 'chars', 'cfg', 'rec'];
+const CHECK = 60, KEEP = ['log', 'checkpoints', 'sums', 'playback', 'desync', 'replaying', 'tape', 'loop', 'scrubN', 'scen', 'over', 'chars', 'cfg', 'rec', 'feed'];
 
 // a flying weapon's hit segment [end, end, radius]: its whole drawn length, the part behind the grip too (a staff is held along it)
 function itemSeg(it, r = 0) {
@@ -46,7 +46,7 @@ class World {
     const s = this.scen, scripted = Array.isArray(s.a);
     Object.assign(this, { rand: makeRand(this.seed), fx: makeRand(this.seed + 99), parts: [], trauma: 0, zoom: 0, slowT: 0, T: 0, simT: 0,
       frozenT: 0, hits: 0, blocks: 0, parries: 0, clashes: 0, koT: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
-      pend: null, adv: null, macro: null, combo: 1, nid: 0, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
+      pend: null, adv: null, macro: null, combo: 1, nid: 0, fi: 0, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
     if (!this.replaying) { this.log = []; this.checkpoints = []; this.sums = {}; this.desync = null; } // every frame since the start: [dt, input, macro], for rewind and replays
     // a vs b, plus any extra fighters: { c: controller, x, team }
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0 }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1 }, ...(s.more || [])];
@@ -207,18 +207,22 @@ class World {
   }
   get frozen() { return this.fighters.some(f => f.freeze > 0); }
 
-  // one frame of wall time; inp = the human's input for this frame (edges included)
-  advance(raw, inp) {
+  // one frame of wall time; inp = the human's input for this frame (edges included), inp2 = a second human's ('human2': a replay branch
+  // where you took over P2). feed (the replay editor's branches): (keys, frame) → [inp, inp2], e.g. P1's recorded inputs and your keys
+  advance(raw, inp, inp2 = NOIN) {
     if (this.done) return;
     if (this.playback && !this.replaying) { // a replay file: its frames instead of the live input; at the end it stays on the last frame
       const e = this.playback.frames[this.log.length], pb = this.playback;
       if (!e) { if (!pb.over && this.desync === null && pb.end && this.stateHash() !== pb.end) this.desync = this.log.length; pb.over = true; return; }
-      [raw, inp] = e;
+      [raw, inp] = e; inp2 = e[3] || NOIN;
       if (e[2]) { this.macro = new Script(parseMacro(e[2])); this.macroSeq = e[2]; }
-    }
+    } else if (this.feed && !this.replaying) [inp, inp2] = this.feed(inp, this.fi);
+    const to = this.scen.takeover; // a branch: from frame at, you play that side (it was the AI or the recording before)
+    if (to && this.fi === to.at) this.ctl[to.side - 1] = to.side === 1 ? 'human' : 'human2';
+    this.fi++;
     if (!this.replaying) {
       if (this.log.length % CHECK === 0) this.checkpoint();
-      this.log.push([raw, inp, this.macroSeq]); this.macroSeq = null; // a macro started this frame replays too
+      this.log.push([raw, inp, this.macroSeq, ...Object.values(inp2).some(Boolean) ? [inp2] : []]); this.macroSeq = null; // a macro started this frame replays too
     }
     const slow = this.slowT > 0 && !this.frozen; // finisher slow-mo starts once the freeze is over
     if (slow) this.slowT -= raw;
@@ -228,7 +232,8 @@ class World {
     // fixed-size substeps (<= 1/120 s) keep springs and physics identical at any refresh rate
     const n = Math.ceil(dt * 120), log = this.log;
     // a round that restarts (loop) ends the frame there: the new round's log starts clean, so a replay saved from it starts where it did
-    for (let i = 0; i < n && !this.done && this.log === log; i++) this.step(dt / n, i ? { ...inp, hop: false, punch: false, kick: false, special: false } : inp);
+    const later = x => ({ ...x, hop: false, punch: false, kick: false, special: false }); // edges are the first substep's only
+    for (let i = 0; i < n && !this.done && this.log === log; i++) this.step(dt / n, i ? later(inp) : inp, i ? later(inp2) : inp2);
     for (const f of this.fighters) if (f.freeze <= 0) f.recordTrail();
     const h = this.hist, j = this.cfg.scope;
     h.tgt.push(this.a.target[j] ?? 0); h.disp.push(this.a.disp[j] ?? 0); h.vx.push(this.a.vx); h.y.push(this.a.y);
@@ -243,7 +248,7 @@ class World {
     const to = Math.max(0, this.log.length - n), log = this.log.slice(0, to), cps = this.checkpoints.filter(c => c.i <= to), cp = cps[cps.length - 1];
     this.done = false; this.replaying = true;
     if (cp) this.restore(cp.s); else this.reset();
-    for (const [dt, inp, mq] of log.slice(cp ? cp.i : 0)) { if (mq) this.macro = new Script(parseMacro(mq)); this.advance(dt, inp); }
+    for (const [dt, inp, mq, inp2] of log.slice(cp ? cp.i : 0)) { if (mq) this.macro = new Script(parseMacro(mq)); this.advance(dt, inp, inp2); }
     this.replaying = false; this.log = log; this.checkpoints = cps;
     for (const i in this.sums) if (i > to) delete this.sums[i];
   }
@@ -280,7 +285,7 @@ class World {
     else { this.inputs.push({ n, b, f: 1 }); if (this.inputs.length > 20) this.inputs.shift(); }
   }
 
-  step(h, inp) {
+  step(h, inp, inp2 = NOIN) {
     const cfg = this.cfg;
     this.T += h; this.simT += h;
     this.trauma = Math.max(0, this.trauma - h * 1.6);
@@ -290,7 +295,7 @@ class World {
     this.updateParticles(h); this.updateItems(h); this.updateShots(h);
 
     const fs = this.fighters, tg = fs.map(f => this.nearestFoe(f));
-    const ins = this.koT ? fs.map(() => NOIN) : this.ctl.map((c, i) => c === 'human' ? this.withMacro(inp, fs[i], tg[i], h) : !c || !tg[i] ? NOIN : c.input(fs[i], tg[i], h));
+    const ins = this.koT ? fs.map(() => NOIN) : this.ctl.map((c, i) => c === 'human' ? this.withMacro(inp, fs[i], tg[i], h) : c === 'human2' ? inp2 : !c || !tg[i] ? NOIN : c.input(fs[i], tg[i], h));
     fs.forEach((f, i) => f.bufferInput(ins[i]));
     // recording for the replay dummy: one entry per substep the human is not frozen, directions relative to facing
     if (this.tape && !this.replaying && this.ctl[0] === 'human' && this.a.freeze <= 0) {
@@ -534,12 +539,14 @@ function makeReplay(w, name) {
   return { format: REPLAY_FORMAT, version: ENGINE_VERSION, scenario: name, scen: JSON.parse(JSON.stringify(w.scen)), seed: w.seed,
     cfg: Object.fromEntries(Object.keys(SPEC).filter(k => !REPLAY_SKIP.includes(k)).map(k => [k, w.cfg[k]])),
     chars: (w.chars || [currentChar()]).map(c => c.def), keys,
-    frames: w.log.map(([dt, inp, mq]) => [dt, keys.reduce((m, k, i) => m | (inp[k] ? 1 << i : 0), 0), ...mq ? [mq] : []]),
+    frames: w.log.map(([dt, inp, mq, inp2]) => { const mask = x => keys.reduce((m, k, i) => m | (x[k] ? 1 << i : 0), 0); // [dt, keys, macro?, P2 keys?]
+      return [dt, mask(inp), ...mq || inp2 ? [mq || 0] : [], ...inp2 ? [mask(inp2)] : []]; }),
     sums: w.sums, end: w.stateHash() };
 }
 // a world that plays the replay (check r.version against ENGINE_VERSION first); w.desync = first frame that came out differently
 function replayWorld(r) {
   const w = new World({ ...SCENARIOS[r.scenario], ...r.scen }, r.cfg, r.seed, r.chars.map(makeCharacter));
-  w.playback = { version: r.version, sums: r.sums, end: r.end, frames: r.frames.map(([dt, m, mq]) => [dt, Object.fromEntries(r.keys.map((k, i) => [k, !!(m >> i & 1)])), mq || null]) };
+  const keys = m => Object.fromEntries(r.keys.map((k, i) => [k, !!(m >> i & 1)]));
+  w.playback = { version: r.version, sums: r.sums, end: r.end, frames: r.frames.map(([dt, m, mq, m2]) => [dt, keys(m), mq || null, ...m2 ? [keys(m2)] : []]) };
   return w;
 }

@@ -59,3 +59,16 @@ test('a replay saved after a round restarts (K.O., loop) plays back in sync', ()
   assert.equal(play(r[1]), null);
 });
 
+
+test('a branch: P2 taken over at a frame (takeover), P1 fed its recorded inputs, plays back in sync from its replay file', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => {
+    const w = new World({ ...SCENARIOS['you vs ai'], takeover: { at: 90, side: 2 } }, {}, 3, [CHARS.stick, CHARS.stick]); w.loop = false;
+    const p1 = i => ({ ...NOIN, right: i % 80 < 30, punch: i % 19 === 0 }), p2 = i => ({ ...NOIN, left: i % 60 < 20, kick: i % 29 === 0, guard: i % 50 > 40 });
+    w.feed = (keys, i) => [p1(i), keys];
+    for (let i = 0; i < 400 && !w.done; i++) w.advance(1 / 60, p2(i));
+    const rep = JSON.parse(JSON.stringify(makeReplay(w, 'you vs ai'))), p = replayWorld(rep); p.loop = false;
+    for (let i = 0; i <= rep.frames.length; i++) p.advance(0, NOIN);
+    return [w.ctl[1], rep.frames.some(f => f.length === 4), p.desync, p.stateHash() === w.stateHash()];
+  })())`));
+  assert.deepEqual(r, ['human2', true, null, true]);
+});

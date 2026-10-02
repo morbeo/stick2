@@ -167,6 +167,7 @@ class Brain {
 
 function makeCtl(spec, world) {
   if (spec === 'human') return 'human';
+  if (spec === 'human2') return 'human2'; // a second keyboard stream (replay branches)
   if (spec === 'ai') return new Brain(world.rand);
   if (Array.isArray(spec)) return new Script(spec);
   if (spec?.tape) return new Replay(spec.tape);
