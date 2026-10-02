@@ -29,6 +29,18 @@ Three rows, the same in every tab:
 - Importing **everything** asks first.
 - A broken character in the file loads nothing.
 - Settings out of range fall back to their default.
+- **import → compare…** compares a settings or everything file with the current settings, without loading it (below).
+
+### Compare settings
+
+![Compare settings](img/compare.png)
+
+The **compare** stage panel (the **panels** group in play and grid, **import → compare…**, or ⌘K **compare settings**) lists two sets of settings side by side.
+
+- **A** and **B** are each the current settings, a preset, or a settings or everything file (only its settings are read).
+- Each row is a setting that differs: its group, name (hover for what it does), A, B, B − A for numbers, and the default. **all** lists every setting; the filter finds settings by name or group.
+- **use A** / **use B** on a row sets that value, and **use all A** / **use all B** takes a whole side. ⌘Z undoes.
+- **copy** puts the differences on the clipboard as text: `- key: A` and `+ key: B` lines.
 
 ### Layouts
 
@@ -103,7 +115,7 @@ Links:
 ⌘K / Ctrl+K, or the magnifier top right. Type to find:
 
 - a mode, a tool on the current toolbar, or a key action;
-- a table: the move table, input table and combos (over the character tab there, else in animate), the bone table (in the character tab);
+- a table: the move table, input table and combos (over the character tab there, else in animate), the bone table (in the character tab), compare settings;
 - a layout by name, reset layout, reset settings, factory reset;
 - a character, a move (opens it in animate) or a setting (searches the settings panel for it; from the gallery it goes to play).
 

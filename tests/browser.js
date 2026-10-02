@@ -311,6 +311,20 @@ try {
     const x0 = anLayout().pv.x / dpr, k0 = anim.key; me('mousedown', x0); me('mousemove', x0 - 100); me('mouseup', x0 - 100);
     if (Math.abs(anLayout().pv.x / dpr - (x0 - 100)) > 1 || anim.key !== k0 || !JSON.parse(localStorage.getItem('stick2.layouts')).sets.default.tabs.animate.size.split) errs.push('split ' + anLayout().pv.x / dpr + ' ' + x0);
     setMode('character'); if (Math.abs(edLayout().pv.x / dpr - x0) > 1) errs.push('split per tab'); layReset(); setMode('play'); }
+  // compare settings: A and B (current, a preset, a file) differing in 3 settings give 3 rows; use B takes one (undoable), use all B every one; the text has - / + lines
+  { setMode('play'); applyPreset('juicy'); const keep = { ...CFG };
+    cmp.a = { name: 'current' }; cmp.b = { name: 'f', cfg: { ...cfgFrom({}), hitstop: 0.2, gravity: 999, easing: 'step' } }; cmp.all = false; cmp.q = '';
+    paletteEntries().find(e => e.name === 'compare settings').run();
+    const rows = () => [...document.querySelectorAll('.cmptable tbody tr')], cell = (r, i) => r.children[i].textContent;
+    if (stageOpen() !== 'compare' || rows().length !== 3 || rows().map(r => cell(r, 1)).join() !== cmpRows().map(r => r.k).join()) errs.push('compare rows ' + rows().length);
+    rows().find(r => cell(r, 1) === 'gravity').querySelector('button').click();
+    if (CFG.gravity !== 999 || rows().length !== 2 || rows().some(r => cell(r, 1) === 'gravity')) errs.push('compare use B ' + CFG.gravity);
+    undo(); if (CFG.gravity !== keep.gravity) errs.push('compare undo');
+    const t = cmpText(); if (!t.includes('- hitstop: ' + keep.hitstop) || !t.includes('+ easing: step') || t.split('\\n').length !== 8) errs.push('compare text ' + t);
+    cmp.all = true; panels(); if (rows().length < 50) errs.push('compare all ' + rows().length); cmp.all = false;
+    [...document.querySelectorAll('.cmptable button')].find(b => b.textContent === 'use all B').click(); if (rows().length !== 1 || rows()[0].textContent !== 'A and B are the same') errs.push('compare use all ' + rows().length);
+    undo(); cmp.a = { name: 'raw' }; cmp.b = { name: 'juicy' }; panels(); if (!rows().some(r => cell(r, 1) === 'easing')) errs.push('compare presets');
+    setMode('grid'); if (document.querySelector('.cmptable')) errs.push('compare per tab'); setMode('play'); closeStage(); if (document.querySelector('.cmptable')) errs.push('compare close'); }
   // settings persist: a change is stored (only what differs from the defaults), comes back on load, bad values are dropped; reset settings brings back the defaults
   { setCfg({ hitstop: 0.2, easing: 'step' }); setDisplay('boxes', true); const st = JSON.parse(localStorage.getItem('stick2.settings'));
     if (st.hitstop !== 0.2 || st.easing !== 'step' || st.boxes !== true || 'gravity' in st) errs.push('settings stored ' + JSON.stringify(st));
@@ -353,8 +367,8 @@ try {
     const json = exportScens(); importScens(json.replace('jab vs sumo', 'copy of it')); if (!SCENARIOS['copy of it']) errs.push('builder import');
     if (!document.querySelector('.sbuild')) errs.push('builder gone ' + lab.scen + lay('play').panel + lab.mode);
     if (!$('ctx').querySelector('[data-part="panels"]')) errs.push('builder in the panels group');
-    $('ctx').querySelector('[data-part="panels"] button').click(); if (document.querySelector('.sbuild')) errs.push('panels seg closes the builder');
-    $('ctx').querySelector('[data-part="panels"] button').click(); if (!document.querySelector('.sbuild')) errs.push('panels seg opens the builder');
+    $('ctx').querySelector('[data-part="panels"] button[data-tip^="Edit this scenario"]').click(); if (document.querySelector('.sbuild')) errs.push('panels seg closes the builder');
+    $('ctx').querySelector('[data-part="panels"] button[data-tip^="Edit this scenario"]').click(); if (!document.querySelector('.sbuild')) errs.push('panels seg opens the builder');
     [...document.querySelectorAll('.sbuild button')].find(b => b.dataset.tip === 'Delete this scenario').click(); if (SCENARIOS['jab vs sumo'] || myScens()['jab vs sumo'] || lab.scen === 'jab vs sumo') errs.push('builder delete ' + lab.scen);
     delete myScens()['copy of it']; delete SCENARIOS['copy of it']; lay('play').panel = null; keep === null ? localStorage.removeItem('stick2.scenarios') : localStorage.setItem('stick2.scenarios', keep); lab.scen = 'you vs dummy'; build(); panels(); }
   // the tests view: a move against every target column (and opponent), checked; failing only; a cell isolated plays over the table and opens in animate with its setup

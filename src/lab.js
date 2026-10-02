@@ -530,7 +530,7 @@ function labCtx() {
     seg([1, 3, 5], () => lab.seeds, v => { lab.seeds = v; build(); }, { 1: 'One fight per cell', 3: 'Each cell fought with 3 seeds; stats averaged (AI fights differ per seed)', 5: '5 seeds per cell, averaged' }, v => `${v} seed${v > 1 ? 's' : ''}`),
     sortButton()));
   els.push(showGrp(['meter', ...lab.mode === 'play' ? ['inputs'] : [], 'boxes', 'ghost', 'hud', 'labels']));
-  if (lab.mode === 'play' && SCENARIOS[lab.scen]?.user) els.push(panelsGrp(['builder'], { builder: BUILDER_TIP }));
+  if (lab.mode !== 'gallery') els.push(panelsGrp(['compare', ...lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? ['builder'] : []], { compare: CMP_PANEL_TIP, builder: BUILDER_TIP }));
   if (lab.mode === 'play') els.push(...trainingCtl());
   return els;
 }
@@ -693,7 +693,7 @@ function impactMouse(type, x, y) {
 const labMode = {
   enter(m) { lab.mode = m; build(); },
   restart: build,
-  overlay: () => stageOpen() === 'builder' && lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? [scenBuilder()] : [],
+  overlay: () => stageOpen() === 'compare' ? [compareView()] : stageOpen() === 'builder' && lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? [scenBuilder()] : [],
   worlds: () => (lab.mode === 'gallery' ? onScreen() : lab.cells).flatMap(c => [c.w, ...(c.extra || [])]),
   render: labRender,
   ctxBar: labCtx,

@@ -178,7 +178,7 @@ function download(name, data) {
 }
 function openFile(f) {
   const inp = h('input', { type: 'file', accept: '.json,application/json' });
-  inp.onchange = async () => { let d; try { d = JSON.parse(await inp.files[0].text()); } catch (err) { return alert('Not a JSON file: ' + err.message); } f(d); syncAll(); };
+  inp.onchange = async () => { let d; try { d = JSON.parse(await inp.files[0].text()); } catch (err) { return alert('Not a JSON file: ' + err.message); } f(d, inp.files[0].name); syncAll(); };
   inp.click();
 }
 const cfgData = () => Object.fromEntries(changedCfg().map(k => [k, CFG[k]]));
@@ -206,8 +206,8 @@ function importFile(kind) {
     pickChar(DEFS[d.current] ? d.current : CURRENT); // saves the characters, rebuilds every fight
   });
 }
-const fileMenu = (verb, f) => (e, b) => popup(b, h('b', { textContent: verb }),
-  h('div', { cls: 'bar col', onclick: closePop }, Object.entries(FILE_TIPS).map(([k, tip]) => button(k, `${verb} ${k}: ${tip}`, () => f(k)))));
+const fileMenu = (verb, f, ...extra) => (e, b) => popup(b, h('b', { textContent: verb }),
+  h('div', { cls: 'bar col', onclick: closePop }, Object.entries(FILE_TIPS).map(([k, tip]) => button(k, `${verb} ${k}: ${tip}`, () => f(k))), ...extra));
 
 // a random character: the stick's skeleton with random proportions and thickness, maybe extra limbs, a stance preset;
 // its moves are retimed to its size (bigger = slower and harder)
