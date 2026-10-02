@@ -127,3 +127,23 @@ test('render_frame and render_gif with Chrome: a PNG and a GIF file', { skip: !f
   const info = JSON.parse(g.content[1].text);
   try { assert.equal(fs.readFileSync(info.path).subarray(0, 6).toString(), 'GIF89a'); assert.equal(info.frames, 11); } finally { fs.rmSync(info.path, { force: true }); }
 });
+
+test('the live bridge: the app opened from the server takes fixed commands', { skip: !findChrome() && 'no Chrome found (set CHROME)' }, async () => {
+  const { launch } = require('../tools/chrome');
+  const b = (await s.call('start_bridge')).json, page = await launch(b.url, ['--window-size=1200,800']);
+  try {
+    let st = null;
+    for (let i = 0; i < 100 && !st; i++) { const r = await s.call('browser_state'); if (!r.isError) st = r.json; else await new Promise(ok => setTimeout(ok, 100)); }
+    assert.ok(st && st.mode && st.character && st.def.bones, 'the page connects and answers state');
+    assert.equal((await s.call('browser_command', { name: 'set_scenario', args: { name: 'ai vs ai' } })).json.scenario, 'ai vs ai');
+    assert.ok((await s.call('browser_command', { name: 'set_settings', args: { values: { hitstop: 9 } } })).isError, 'checked in the page too');
+    assert.deepEqual((await s.call('browser_command', { name: 'set_settings', args: { values: { hitstop: 0.12 } } })).json.changed, { hitstop: 0.12 });
+    const sim = (await s.call('simulate', { scenario: 'ai vs ai', seed: 5, frames: 300, events: false })).json;
+    const open = (await s.call('browser_command', { name: 'open_replay', args: { simulation: sim.id } })).json;
+    assert.equal(open.desync, null);
+    assert.equal((await s.call('browser_state')).json.mode, 'replay');
+    const shot = await s.call('browser_command', { name: 'screenshot' });
+    assert.equal(shot.content[0].mimeType, 'image/png');
+    assert.ok((await s.call('browser_command', { name: 'eval' })).isError, 'only the fixed commands');
+  } finally { page.close(); }
+});

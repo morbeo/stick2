@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // stick2 as an MCP server (Model Context Protocol): run fights, read and change settings and characters, check moves, replays, pictures.
 // The stdio transport, written by hand (no dependencies): JSON-RPC 2.0, one message per line on stdin / stdout; logs go to stderr only.
-// usage: node tools/mcp.js   (register: claude mcp add --scope project stick2 -- node tools/mcp.js; see docs/mcp.md)
+// usage: node tools/mcp.js [--serve PORT]   (register: claude mcp add --scope project stick2 -- node tools/mcp.js; see docs/mcp.md)
 const fs = require('fs'), path = require('path'), readline = require('readline');
 console.log = console.info = console.debug = console.error; // stdout carries the protocol: nothing else may print there (the engine shares this console)
-const S = require('./session')(), schemas = require('./schemas'), render = require('./render');
+const S = require('./session')(), schemas = require('./schemas'), render = require('./render'), serve = require('./serve');
 const VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 const OUT = path.join(S.ROOT, 'out');
 
@@ -20,6 +20,12 @@ const replayOf = a => a.replay ? (typeof a.replay === 'string' ? JSON.parse(a.re
 const size = a => ({ w: Math.max(16, Math.min(1600, a.w ?? 640)), h: Math.max(16, Math.min(900, a.h ?? 360)) });
 const look = a => Object.fromEntries(['full', 'hud', 'boxes', 'zoom', 'x', 'renderer'].filter(k => a[k] !== undefined).map(k => [k, a[k]]));
 const image = (png, extra) => ({ content: [{ type: 'image', data: png, mimeType: 'image/png' }, ...extra ? [{ type: 'text', text: JSON.stringify(extra, null, 2) }] : []] });
+let bridge = null;
+const startBridge = async port => {
+  if (!bridge) bridge = await serve(port, { version: String(S.version) });
+  return { url: bridge.url, pages: bridge.pages(), note: bridge.pages() ? 'a page is connected' : `open ${bridge.url} in a browser: the app connects on its own (src/bridge.js)` };
+};
+const needBridge = () => bridge || (() => { throw new Error('the bridge is not running: call start_bridge (or run node tools/mcp.js --serve PORT), then open the app from it'); })();
 
 const TOOLS = {
   // ---------- characters ----------
@@ -87,6 +93,19 @@ const TOOLS = {
       const name = path.basename(a.file || `${a.simulation || 'replay'}-${from}-${to}.gif`), file = path.join(OUT, name.endsWith('.gif') ? name : name + '.gif');
       const g = await render.gif(S, r, { from, to, fps: Math.max(1, Math.min(60, a.fps ?? 20)), w, h, file, ...look(a) });
       return image(g.first, { path: g.path, frames: g.frames, bytes: g.bytes });
+    } },
+
+  // ---------- the live bridge: the app open in a browser ----------
+  start_bridge: { d: 'Serve the app over HTTP on 127.0.0.1 and wait for it to be opened: the page then takes commands from browser_state / browser_command (src/bridge.js). Same as starting with --serve PORT.',
+    p: { port: int('port (default 0: a free one)') }, run: a => startBridge(a.port ?? 0) },
+  browser_state: { d: 'What the app open in the browser shows: mode (tab), play scenario, the character being edited and its definition, changed settings, my scenarios, the replay tab\'s reel.', run: () => needBridge().command('state') },
+  browser_command: { d: 'Drive the app open in the browser. Commands: set_settings { values }, set_scenario { name } (the play tab fights it), import_character { def } (added and picked), open_replay { replay } or { simulation } (opens it in the replay tab), screenshot (the canvas as PNG).',
+    p: { name: { type: 'string', enum: ['state', 'set_settings', 'set_scenario', 'import_character', 'open_replay', 'screenshot'] }, args: obj('the command\'s arguments') }, req: ['name'],
+    run: async a => {
+      const args = { ...a.args };
+      if (a.name === 'open_replay' && args.simulation) { args.replay = S.sim(args.simulation).replay; args.name ??= args.simulation; delete args.simulation; }
+      const r = await needBridge().command(a.name, args);
+      return a.name === 'screenshot' ? image(r.png.slice(r.png.indexOf(',') + 1)) : r;
     } },
 };
 
@@ -162,6 +181,8 @@ async function line(text) {
   if (r) send(r);
 }
 
+const arg = process.argv.indexOf('--serve');
+if (arg > 0) startBridge(+process.argv[arg + 1] || 0).then(b => console.error(`stick2 bridge: ${b.url}`), e => console.error('bridge: ' + e.message));
 // stdin closed: the client is gone; answer what is still running, then exit (the exit handlers kill Chrome)
 let busy = 0, closed = false;
 const done = () => { if (closed && !busy) process.exit(0); };
