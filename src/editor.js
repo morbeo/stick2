@@ -55,7 +55,8 @@ function drawAnimEditor() {
     ctx.save(); ctx.translate(0, lowest(ch, L) - lowest(c2, L2)); ctx.globalAlpha = 0.45;
     drawFigure(ctx, c2, L2, AMBER, AMBER, -1); ctx.restore();
   }
-  drawFigure(ctx, ch, L, INK[0], INK[1], 0, roleTint());
+  const fxs = fxNow(ch, { m, i: ki }), ft = performance.now() / 1000;
+  drawFx(ctx, L, fxs, ft, true); drawFigure(ctx, ch, L, INK[0], INK[1], 0, roleTint()); drawFx(ctx, L, fxs, ft, false);
   if (m.keys[ki].active) for (const id of hitIds(m)) if (L[id]) { // the strikes: red joints, radius = hitR
     const e = L[id];
     ctx.fillStyle = 'rgba(192,57,43,.35)'; ctx.beginPath(); ctx.arc(e[0], e[1], Math.max(2.5, CFG.hitR), 0, 7); ctx.fill();
@@ -530,6 +531,11 @@ function keyPanel() {
       seg(['hit', 'heavy', 'slash', 'blunt', 'none'], () => k().spark || 'hit', v => setKey('spark', v === 'hit' ? undefined : v), SPARK_TIPS, v => v === 'hit' ? ':auto_awesome: hit' : v),
       seg(['', 'whoosh', 'hit', 'thud'], () => k().sound || '', v => setKey('sound', v || undefined), SOUND_TIPS, v => v || ':block:'),
       toggle(':blur_on: after', 'After-images: the fighter leaves fading copies of itself while this key plays (fast dashes, teleports)', () => !!k().after, v => setKey('after', v || undefined))))),
+    ...fxRows(h('div', { cls: 'row', tip: 'The effect from this key on (until a later key changes it): the same as before, none, or another look' }, h('span', { textContent: 'effect' }),
+      seg(['same', 'none', ...Object.keys(FX_LOOKS)], () => k().fx === undefined ? 'same' : k().fx ? k().fx.look : 'none',
+        v => setKey('fx', v === 'same' ? undefined : v === 'none' ? false : { ...(k().fx || curMove().fx), look: v }),
+        { same: 'As the keys before (or the move) say', none: 'No effect from this key on', ...FX_LOOKS })),
+      () => k().fx || null, (e, key) => setKey('fx', e, key), fxOns(edChar())),
     ...curMove().keys.some(x => x.shoot) ? [h('div', { cls: 'row', tip: 'The projectile this move shoots (move field shot)' }, h('span', { textContent: 'shot' }), h('span', { cls: 'bar' },
       seg(Object.keys(SHOT_TIPS), () => curMove().shot?.look || 'ki', v => setMove('shot', { ...curMove().shot, look: v }), SHOT_TIPS))),
       slider('shot speed', { min: 100, max: 900, step: 20 }, () => curMove().shot?.speed ?? 360, v => setMove('shot', { ...curMove().shot, speed: v }, 'shot.speed'), 'How fast the shot flies (px/s).'),
@@ -747,6 +753,18 @@ function addButton() {
     free.length ? h('h4', { textContent: 'layer' }) : null,
     free.length ? h('div', { cls: 'bar' }, free.map(k => button(k, `${LAYERS[k][0]}: a ${k} layer. Its keys start at the procedural pose of that state and what you change is added on top of the procedural / IK motion while the fighter is in it (the mix slider sets how much; delete it to go back)`, () => makeLayer(k)))) : null)));
 }
+// an effect's rows after its look seg: the bones it wraps (ons; null: one bone), its colour and size, shown while one is set
+const FX_COL_TIPS = { auto: 'The look\'s own colour (aura blue, fire orange, lightning cyan, smoke grey)', ...mapVals(FX_COLS, () => 'This colour') };
+const fxOns = ch => ['strike', 'body', ...['arm', 'leg', 'head', 'tail', 'weapon'].filter(r => ch.chains[r].length)];
+function fxRows(lookRow, get, set, ons) {
+  const put = (k, v, key) => set({ ...get(), [k]: v }, key);
+  const rows = [ons && h('div', { cls: 'row', tip: 'The bones the effect wraps' }, h('span', { textContent: 'fx on' }), seg(ons, () => get()?.on || 'strike', v => put('on', v), FX_ON)),
+    h('div', { cls: 'row', tip: 'The effect\'s colour' }, h('span', { textContent: 'fx colour' }),
+      seg(['auto', ...Object.keys(FX_COLS)], () => get()?.col || 'auto', v => put('col', v === 'auto' ? undefined : v), FX_COL_TIPS)),
+    slider('fx size', { min: 0.3, max: 3, step: 0.1 }, () => get()?.size ?? 1, v => put('size', v === 1 ? undefined : v, 'fx.size'), 'How big the effect draws (1 = as designed)')].filter(Boolean);
+  for (const r of rows) reg(r, () => { r.hidden = !get(); });
+  return [lookRow, ...rows];
+}
 function movePanel() {
   // the striking bone: the limb ends as buttons, any other bone from the popup or by Shift+clicking its joint
   // click = strike with this bone only, Shift+click = add or remove it (several limbs strike at once)
@@ -770,6 +788,9 @@ function movePanel() {
         v => v === '2d' ? '2D' : '2.5D')),
     h('div', { cls: 'row', tip: 'Where the move is aimed; a hit reaction still follows the actual impact point' }, h('span', { textContent: 'height' }),
       seg(['high', 'shigh', 'mid', 'smid', 'low'], () => m().height, v => setMove('height', v), HEIGHT_TIPS)),
+    ...fxRows(h('div', { cls: 'row', tip: 'An effect drawn on the move\'s bones while it plays (a key can change it from there on); drawing only, the fight is the same' }, h('span', { textContent: 'effect' }),
+      seg(['none', ...Object.keys(FX_LOOKS)], () => m().fx?.look || 'none', v => setMove('fx', v === 'none' ? undefined : { ...m().fx, look: v }), { none: 'No effect on this move', ...FX_LOOKS })),
+      () => m().fx, (e, key) => setMove('fx', e, key), fxOns(edChar())),
     adv(h('div', { cls: 'row', tip: 'Hits: the states of the foe this move can hit (hits; all lit = any); a lying foe: the otg flag' }, h('span', { textContent: 'hits' }), h('span', { cls: 'bar' },
       ...Object.entries(HITS_TIPS).map(([s, tip]) => toggle(s, tip, () => (m().hits || HIT_STATES).includes(s),
         v => { const next = HIT_STATES.filter(x => x === s ? v : (m().hits || HIT_STATES).includes(x)); setMove('hits', next.length === HIT_STATES.length ? undefined : next); }))))),

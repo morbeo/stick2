@@ -41,7 +41,8 @@ function drawEditor() {
       ctx.lineWidth = b.hurt * 2; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(e[0] + 0.01, e[1]); ctx.stroke();
     }
   }
-  drawFigure(ctx, ch, L, INK[0], INK[1], 0, roleTint());
+  const fxs = fxNow(ch, null), ft = performance.now() / 1000;
+  drawFx(ctx, L, fxs, ft, true); drawFigure(ctx, ch, L, INK[0], INK[1], 0, roleTint()); drawFx(ctx, L, fxs, ft, false);
   for (const sel of selIds().map(id => ch.by[id])) { // the selected bones in red: a line, or a filled disc for circles
     const a = L[sel.parent || 'hip'], e = L[sel.id];
     ctx.strokeStyle = ctx.fillStyle = RED[0]; ctx.lineWidth = sel.thick;
@@ -242,6 +243,9 @@ function bonePanel() {
     row('side', 'Draw order and colour', seg(['f', '', 'b'], () => prop('side'), v => edit(d => { for (const b of selDefs(d)) b.side = v; }), SIDE_TIPS,
       o => ({ f: 'front', '': 'centre', b: 'back' })[o])),
     row('shape', 'How the bone is drawn', seg(['line', 'circle'], () => prop('shape'), v => edit(d => { for (const b of selDefs(d)) b.shape = v; }), SHAPE_TIPS)),
+    ...fxRows(row('effect', 'An effect always drawn on this bone (select several bones for a flaming arm, a glowing body); drawing only, the fight is the same',
+      seg(['none', ...Object.keys(FX_LOOKS)], () => prop('fx')?.look || 'none', v => setProp('fx', v === 'none' ? undefined : { ...prop('fx'), look: v }), { none: 'No effect on this bone', ...FX_LOOKS })),
+      () => prop('fx'), e => setProp('fx', e), null),
     slider('stance', { min: -270, max: 270, step: 1 }, () => curStance().pose[studio.sel] ?? 0,
       v => edit(def => { for (const id of selIds()) editPose(def)[id] = v; }, 'stance:' + selIds()),
       'Angle in the stance pose, relative to the parent (0 = straight on, root bones: 0 = down, 180 = up). Moves are layered on top.'),

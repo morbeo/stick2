@@ -1032,10 +1032,12 @@ class Fighter {
     for (const g of this.after) { ctx.globalAlpha = g.t; drawFigure(ctx, this.ch, g.P, this.col[0], this.col[1]); } // teleport after-images
     ctx.globalAlpha = 1;
     if (this.c('ghost')) { ctx.globalAlpha = 0.2; drawFigure(ctx, this.ch, this.points(this.target), '#07f', '#07f', -2); ctx.globalAlpha = 1; }
-    const P = this.body();
+    const P = this.body(), fxs = fxNow(this.ch, this.action);
+    drawFx(ctx, P, fxs, this.time, true);
     if (this.flashT > 0 && this.c('flash')) { drawFigure(ctx, this.ch, P, '#111', '#111', 4); drawFigure(ctx, this.ch, P, '#fff', '#fff'); }
     else if (this.dodgeT > 0) { ctx.globalAlpha = 0.4; drawFigure(ctx, this.ch, P, this.col[0], this.col[1]); ctx.globalAlpha = 1; } // air dodge: see-through
     else drawFigure(ctx, this.ch, P, this.col[0], this.col[1]);
+    drawFx(ctx, P, fxs, this.time, false);
     if (this.c('boxes')) this.drawBoxes(ctx);
     const a = this.action;
     if (a?.m.keys.some((k, i) => k.unblock && i >= a.i)) for (const id of hitIds(a.m)) if (P[id]) { // unblockable frames coming: the striking limbs glow

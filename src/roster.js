@@ -58,7 +58,7 @@ CHAR_DEFS.hadoo = { ...stick, name: 'hadoo', tough: 1.05, tempo: 1.05, gait: { i
       { d: 0.07, e: 'outExpo', shoot: true, p: { ...PALMS_OUT, torso: 24 } },
       { d: 0.22, p: { ...PALMS_OUT, torso: 24 } }, { d: 0.26, e: 'inOutCubic', p: null }] },
     // →↓↘ P: the rising uppercut, invincible on the way up, and up it goes
-    shoryu: { power: 1.9, damage: 15, hit: 'fh', height: 'high', knock: 120, launch: 720, kd: true, special: true, keys: [
+    shoryu: { power: 1.9, damage: 15, hit: 'fh', height: 'high', knock: 120, launch: 720, kd: true, special: true, fx: { look: 'fire' }, keys: [
       { d: 0.04, e: 'outQuad', p: { ...CROUCH, afU: -20, afL: 100, abU: 40, abL: 120 }, inv: true },
       { d: 0.06, e: 'outExpo', p: { torso: 12, head: -10, afU: 160, afL: 15, abU: 10, abL: 130, lfU: 60, lfL: -100, lbU: -15, lbL: -10 }, active: true, lunge: 140, rise: 540, inv: true },
       { d: 0.14, e: 'outQuad', p: { torso: 0, head: -15, afU: 178, afL: 5, abU: 0, abL: 130, lfU: 70, lfL: -110, lbU: -10, lbL: -20 }, active: true },
@@ -461,7 +461,7 @@ CHAR_DEFS.noodo = { ...stick, name: 'noodo', speed: 0.8, jump: 0.85, gravity: 0.
       [0.06, { torso: -20, lfU: 60, lfL: -120, lbU: 40, lbL: -120 }],
       [0.2, { torso: -40, lfU: 50, lfL: 0, lbU: 40, lbL: -10, afU: 170, afL: 0, abU: 165, abL: 0 }], 0.1, 0.12),
     // →↓↘ K: yoga teleport: sinks into a lotus and reappears behind
-    yogaWarp: { special: true, keys: [
+    yogaWarp: { special: true, fx: { look: 'smoke', on: 'body' }, keys: [
       { d: 0.18, e: 'outQuad', p: { torso: 10, head: 10, afU: 40, afL: 130, abU: 40, abL: 130, lfU: 80, lfL: -150, lbU: 70, lbL: -150 } },
       { d: 0.05, e: 'outExpo', p: { torso: 10, head: 10, afU: 40, afL: 130, abU: 40, abL: 130, lfU: 80, lfL: -150, lbU: 70, lbL: -150 }, warp: true, inv: true },
       { d: 0.24, e: 'inOutCubic', p: null }] },
@@ -513,7 +513,7 @@ CHAR_DEFS.gogili = { ...stick, name: 'gogili', speed: 1.05, jump: 1.15, grabRang
       { d: 0.2, p: TUCK },
       { d: 0.12, e: 'inOutCubic', p: null }] },
     // S: electricity: crouches and crackles, shocking anything that touches it
-    electricity: { power: 1, damage: 4, hit: ['fh', 'bh', 'head'], height: 'mid', knock: 120, stun: 0.5, special: true, wide: true, keys: [
+    electricity: { power: 1, damage: 4, hit: ['fh', 'bh', 'head'], height: 'mid', knock: 120, stun: 0.5, special: true, wide: true, fx: { look: 'lightning', on: 'body' }, keys: [
       { d: 0.08, e: 'outQuad', p: { ...CROUCH, torso: 30, head: 20, afU: 120, afL: 60, abU: 110, abL: 70 } },
       ...[0, 1, 2, 3].map(i => ({ d: 0.07, p: { ...CROUCH, torso: 30 + (i % 2) * 8, head: 20, afU: 125 + (i % 2) * 10, afL: 50, abU: 115 - (i % 2) * 10, abL: 70 },
         active: true, rehit: i > 0, shake: 0.06 })),
@@ -635,7 +635,7 @@ CHAR_DEFS.gloomo = { ...stick, name: 'gloomo', speed: 1.05, dash: 1.4, jump: 1.1
   motions: { m46: '46' },
   moves: { ...retimed(0.95, 1.15), tailWhip: TAIL_WHIP, ...sig({
     // ↓↘→ P: the dark orb, gathered in all four hands
-    darkOrb: { power: 1.4, damage: 12, hit: ['fh', 'bh'], height: 'mid', knock: 260, stun: 0.45, special: true, shot: { speed: 300, size: 16, look: 'dark' }, keys: [
+    darkOrb: { power: 1.4, damage: 12, hit: ['fh', 'bh'], height: 'mid', knock: 260, stun: 0.45, special: true, shot: { speed: 300, size: 16, look: 'dark' }, fx: { look: 'aura', on: 'arm', col: 'purple' }, keys: [
       { d: 0.16, e: 'outQuad', p: PALMS_BACK, x: { uarm2F: -230, farm2F: 100, uarm2B: -240, farm2B: 100 } },
       { d: 0.07, e: 'outExpo', shoot: true, p: PALMS_OUT, x: { uarm2F: -90, farm2F: 10, uarm2B: -100, farm2B: 15 } },
       { d: 0.18, p: PALMS_OUT, x: { uarm2F: -90, farm2F: 10, uarm2B: -100, farm2B: 15 } },
