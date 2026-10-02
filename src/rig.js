@@ -469,7 +469,8 @@ const STANCE_KEYS = { 'S+G': 'S+G', '↓S+G': '↓ S+G', '→S+G': '→ S+G', '�
 // fractions (at most / at least); cooldown: s after leaving it before it can be taken again; minT: s in it before leaving; maxT: s,
 // then back to main (0 = no limit); exitOn: back to main when hit, knocked down, blocking or grabbed; once: once a round;
 // moves: 'all' (its binds over main's), 'own' (only its own binds) or a list of the moves it allows
-const STANCE_REQ = { grounded: true, air: false, hpBelow: 1, hpAbove: 0, cooldown: 0, minT: 0, maxT: 0, exitOn: [], once: false, moves: 'all' };
+// auto: no key needed — taken the moment the other requirements allow it, and left the moment they stop holding (still bound by minT)
+const STANCE_REQ = { grounded: true, air: false, hpBelow: 1, hpAbove: 0, cooldown: 0, minT: 0, maxT: 0, exitOn: [], once: false, moves: 'all', auto: false };
 // switching into a stance (and back to main from it): springs = the springs chase the new pose; auto = the stance pose and the bone
 // lengths blend over T frames (60 fps) with the ease; move = a keyframed transition move plays (move, or one named <from>To<To>)
 const MORPH = { mode: 'springs', T: 12, ease: 'inOutCubic', move: '' };
@@ -594,11 +595,12 @@ function makeCharacter(def) {
     shadow: { ...SHADOW, ...def.shadow } };
   // stances: the main one plus any extra; each has its pose, its own binds over the main ones, the key that switches to it and
   // its requirements (STANCE_REQ; req.moves 'own': only its own binds, a list: only those moves) and its transition (MORPH)
+  // fly: the stance hovers instead of falling — ↑ / ↓ fly up / down, gravity and landing are suspended while in it
   const binds = (s, k) => { const m = s.req?.moves, b = m === 'own' ? { ...s[k] } : { ...ch[k], ...s[k] };
     return Array.isArray(m) ? Object.fromEntries(Object.entries(b).filter(([, n]) => m.includes(n))) : b; };
-  ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: ch.binds, binds25: ch.binds25, req: { ...STANCE_REQ }, morph: { ...MORPH } },
+  ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: ch.binds, binds25: ch.binds25, req: { ...STANCE_REQ }, morph: { ...MORPH }, fly: false },
     ...(def.stances || []).map(s => ({ name: s.name, key: stanceKey(s.key), pose: { ...ch.poses.stance, ...s.pose }, binds: binds(s, 'binds'), binds25: binds(s, 'binds25'),
-      req: { ...STANCE_REQ, ...s.req }, morph: { ...MORPH, ...s.morph } }))];
+      req: { ...STANCE_REQ, ...s.req }, morph: { ...MORPH, ...s.morph }, fly: !!s.fly }))];
   // armed (see armed): the weapon class's binds go over every stance's, where the move exists
   ch.def = def;
   if (def.weapon) {

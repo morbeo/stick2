@@ -10,7 +10,11 @@ for (const k in DEFS) CHARS[k] = makeCharacter(DEFS[k]);
 if (DEFS[saved.current]) CURRENT = saved.current;
 // only edited built-ins are stored, so improved built-ins reach characters nobody changed
 const edited = () => Object.fromEntries(Object.entries(DEFS).filter(([k, d]) => !CHAR_DEFS[k] || JSON.stringify(d) !== JSON.stringify(CHAR_DEFS[k])));
-const save = () => { try { localStorage.setItem(STORE, JSON.stringify({ defs: edited(), current: CURRENT })); } catch {} };
+// debounced: a drag (a joint in animate, a slider) calls save() on every event, far more often than the JSON + localStorage write needs to happen
+let saveT = null;
+const saveNow = () => { try { localStorage.setItem(STORE, JSON.stringify({ defs: edited(), current: CURRENT })); } catch {} };
+const save = () => { clearTimeout(saveT); saveT = setTimeout(saveNow, 250); };
+if (typeof addEventListener === 'function') addEventListener('beforeunload', () => { if (saveT) { clearTimeout(saveT); saveNow(); } });
 // settings persist too: the ones changed from the defaults, checked on the way in (known, the right type, in range)
 const CFG_STORE = 'stick2.settings';
 // a value a setting can take: known, its type, one of its options; numbers any finite value (outside the usual range is only flagged, riskOf)
@@ -307,8 +311,10 @@ function stanceRow() {
     h('span', { textContent: 'stance' }), h('span', { cls: 'bar' },
       seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); }, Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance: the base pose, binds and loops'])), i => names[i]),
       crud({ new: ['New stance: a copy of the current one with no binds of its own', add], delete: ['Delete this stance (not the main one)', del] }))),
-    i ? h('div', { cls: 'row', tip: `The input that switches to ${names[i]} in a fight (→ = toward the opponent)` }, h('span', { textContent: 'key' }),
-      seg(Object.keys(STANCE_KEYS), () => stanceKey(DEFS[CURRENT].stances?.[i - 1]?.key), v => edit(def => { def.stances[i - 1].key = v; }), keyTips, k => STANCE_KEYS[k])) : null,
+    i ? h('div', { cls: 'row', tip: `The input that switches to ${names[i]} in a fight (→ = toward the opponent)` }, h('span', { textContent: 'key' }), h('span', { cls: 'bar' },
+      seg(Object.keys(STANCE_KEYS), () => stanceKey(DEFS[CURRENT].stances?.[i - 1]?.key), v => edit(def => { def.stances[i - 1].key = v; }), keyTips, k => STANCE_KEYS[k]),
+      toggle(':air: fly', `${names[i]} hovers instead of falling: ↑ / ↓ fly up / down, gravity and the ground are suspended while in it`,
+        () => !!DEFS[CURRENT].stances?.[i - 1]?.fly, v => edit(def => { if (v) def.stances[i - 1].fly = true; else delete def.stances[i - 1].fly; })))) : null,
     i ? h('div', { cls: 'row', tip: `The body in ${names[i]}: the same as main, or changed for this stance only` }, h('span', { textContent: 'body' }), h('span', { cls: 'bar' },
       toggle(':accessibility_new: this stance only', `This stance only: bone edits (length, thickness, shape, effects…, new limbs, delete = hide), size, stats, walk and combo links go to ${names[i]}'s own body, not the character's. Off: they change the character in every stance`,
         () => studio.own, v => { studio.own = v; panels(); }),
@@ -380,7 +386,8 @@ function stanceReq(i, name) {
     sl('maxT', 'max time', 20, 0.1, `Seconds in ${name}, then back to main on its own (0 = no limit)`),
     row('exit on', `What sends ${name} back to main`, ...Object.entries(EXITS).map(([k, tip]) =>
       toggle(k, `${tip}: back to main`, () => req('exitOn').includes(k), on => set({ exitOn: on ? [...req('exitOn'), k] : req('exitOn').filter(x => x !== k) })))),
-    row('once', `How often ${name} can be taken`, toggle(':timer: once a round', `${name} can be taken once a round`, () => req('once'), v => set({ once: v }))),
+    row('once', `How often ${name} can be taken`, toggle(':timer: once a round', `${name} can be taken once a round`, () => req('once'), v => set({ once: v })),
+      toggle(':smart_toy: auto', `No key needed: ${name} is taken the moment the requirements above hold, and left the moment they stop holding`, () => req('auto'), v => set({ auto: v }))),
     row('moves', `The moves ${name} plays`, seg(['all', 'own', 'list'], moves, v => set({ moves: v === 'list' ? [] : v }),
       { all: `${name}'s binds over the main ones (the default)`, own: `Only ${name}'s own binds: inputs it doesn't bind play nothing`, list: `Only the moves picked: binds playing other moves are dropped` }),
       listBtn)];

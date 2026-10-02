@@ -71,14 +71,24 @@ class Fighter {
   stanceExit() { this.setStance(0, 'exit'); this.say(this.st.name.toUpperCase()); }
   // exitOn: hit | knockdown | block | grab
   exitOn(ev) { if (this.stanceI && this.st.req.exitOn.includes(ev)) this.stanceExit(); }
-  // whether stance i can be switched to now: its requirements (STANCE_REQ; grounded / air only when where is set: the switch itself
-  // checks it, a press in the air still lands into the stance) and the current stance's minT
-  stanceOk(i, where = true) {
+  // stance i's own requirements (STANCE_REQ), regardless of whether a switch away from the current one is allowed right now
+  reqMet(i, where = true) {
     const r = this.ch.stances[i]?.req, mx = this.c('health'), hp = mx > 0 ? this.hp / mx : 1;
-    if (!r || i === this.stanceI || this.stanceI && this.stanceT < this.st.req.minT - 1e-9) return false;
+    if (!r) return false;
     if (where && !(r.grounded && this.grounded || r.air && !this.grounded)) return false;
     return hp <= r.hpBelow && hp >= r.hpAbove && !(r.once && this.stanceUsed.includes(i))
       && !(r.cooldown && i in this.stanceCd && this.w.simT - this.stanceCd[i] < r.cooldown - 1e-9);
+  }
+  // whether stance i can be switched to now: its requirements (where only when where is set: the switch itself checks it, a press
+  // in the air still lands into the stance) and the current stance's minT
+  stanceOk(i, where = true) {
+    if (i === this.stanceI || this.stanceI && this.stanceT < this.st.req.minT - 1e-9) return false;
+    return this.reqMet(i, where);
+  }
+  // req.auto stances need no key: the first one whose requirements hold is taken, and left the moment they stop holding
+  checkAuto() {
+    if (this.stanceI && this.st.req.auto && this.stanceT >= this.st.req.minT - 1e-9 && !this.reqMet(this.stanceI, false)) { this.stanceExit(); return; }
+    for (let i = 1; i < this.ch.stances.length; i++) if (this.ch.stances[i].req.auto && this.stanceOk(i)) { this.say(this.ch.stances[i].name.toUpperCase()); this.setStance(i); return; }
   }
   c(k) { // character stats scale their settings
     const v = this.over[k] ?? this.w.cfg[k], s = STAT_OF[k];
@@ -117,7 +127,7 @@ class Fighter {
     turn(spine, br * 1.5); for (const c of ch.chains.arm) turn(c[0], br * 2); // breathing
     // slow idle wander, stronger on loose bones; legs excluded so planted feet don't slide
     ch.bones.forEach((b, i) => { if (b.role !== 'leg') P[b.id] += wander(t * 0.8 + this.seed + i * 13) * (1.5 + 2.2 * b.lag) * b.sway; });
-    if (!this.grounded) {
+    if (!this.grounded && !this.st.fly) {
       const k = this.flip ? 0 : clamp(this.vy / 500, 0, 1); // tuck while rising (and through a flip), reach for the ground while falling
       for (const j in ps.air) P[j] = ps.air[j] + ((ps.airFall[j] ?? ps.air[j]) - ps.air[j]) * k;
     } else if (this.crouching || this.squatT > 0) Object.assign(P, ps.crouch);
@@ -382,7 +392,7 @@ class Fighter {
     const a0 = this.action;
     if (this.buffer?.b === 'stance' && this.free && !a0 && this.stanceOk(this.buffer.to)) {
       const to = this.buffer.to; this.buffer = null; this.say(this.ch.stances[to].name.toUpperCase()); this.setStance(to);
-    }
+    } else if (this.free && !a0) this.checkAuto();
     // 2D: J / K with ↑ held in the jump squat is an up attack instead of a jump
     if (this.buffer && this.squatT > 0 && inp.up && this.buffer.b !== 'stance' && this.c('plane') === '2d') this.squatT = 0;
     if (this.buffer && this.free && this.squatT <= 0 && this.face * this.dir > 0 && this.dodgeT <= 0) { // not mid turn or air dodge
@@ -482,15 +492,15 @@ class Fighter {
     const hop = inp.hop || flat && upTap || chase && (c('chaseJump') === 'auto' || inp.up); // 2D: ↑ jumps too
     if (inp.down && this.grounded) this.lowAt = this.w.simT; // super jump: ↓ shortly before the jump
     const wall = this.x < 40 + c('wallJumpReach') ? 1 : this.x > W - 40 - c('wallJumpReach') ? -1 : 0;
-    if (hop && this.grounded && this.free && (!busy || jc) && this.squatT <= 0) {
+    if (hop && this.grounded && this.free && (!busy || jc) && this.squatT <= 0 && !this.st.fly) {
       this.superJ = c('superJump') > 1 && this.w.simT - this.lowAt <= c('superJumpWindow');
       this.squatT = (c('jumpSquat') || 1e-6) * (this.superJ ? 1.5 : 1);
       if (jc) this.action = null;
       this.chase = chase;
-    } else if (hop && wall && !this.grounded && this.free && !busy && c('wallJump') > 0 && this.airT > 0.1) { // triangle jump: off the wall, up and away
+    } else if (hop && wall && !this.grounded && this.free && !busy && c('wallJump') > 0 && this.airT > 0.1 && !this.st.fly) { // triangle jump: off the wall, up and away
       this.vy = -c('jumpVel') * c('wallJump'); this.vx = wall * c('wallJumpPush'); this.sqv += c('squash') * 20; this.flip = 0; this.airT = 0;
       this.airDodged = this.airDashed = false; this.say('WALL JUMP');
-    } else if (hop && !this.grounded && this.free && !busy && this.airJumps < this.ch.stats.jumps - 1) { // max jumps: another jump in the air
+    } else if (hop && !this.grounded && this.free && !busy && this.airJumps < this.ch.stats.jumps - 1 && !this.st.fly) { // max jumps: another jump in the air
       this.airJumps++; this.vy = -c('jumpVel') * 0.9; this.sqv += c('squash') * 20; this.flip = 0;
       this.vx = (inp.right - inp.left) * Math.max(Math.abs(this.vx), c('airSpeed') * 0.8);
     }
@@ -519,7 +529,12 @@ class Fighter {
       const ks = this.action.m.keys, all = ks.reduce((s, k) => s + k.d, 0), done = ks.slice(0, this.action.i).reduce((s, k) => s + k.d, 0) + this.action.t;
       this.spin = Math.sign(ks.find(k => k.lunge)?.lunge || 1) * 360 * Math.min(1, done / all) % 360;
     }
-    if (!this.grounded && this.splatT <= 0 && !this.rag) {
+    // a flying stance hovers: no gravity, no ground, ↑ / ↓ fly up / down instead of jumping; a hit or knockdown drops out of it
+    if (this.st.fly && this.free && !this.kd && !this.rag) {
+      this.grounded = false; this.airJumps = 0; this.airDodged = this.airDashed = false; this.dodgeT = this.airDashT = 0;
+      this.vy = approach(this.vy, (inp.down - inp.up) * c('airSpeed'), c('airAccel') * dt);
+      this.y = Math.min(0, this.y + this.vy * dt);
+    } else if (!this.grounded && this.splatT <= 0 && !this.rag) {
       if (this.airDashT > 0) this.vy = 0;
       else this.vy += c('gravity') * (this.kd && this.combo > 1 ? c('comboGravity') : 1) * dt; // comboGravity: juggles fall faster or float
       if (this.free && this.dodgeT <= 0) this.vy = Math.min(this.vy, c('fallSpeed')); // top falling speed (not when knocked flying)

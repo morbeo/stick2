@@ -66,6 +66,32 @@ test('a fight with stance bodies (auto morph, max time) replays in sync', () => 
 const stIs = (req, a, b = 'dummy', n = 150, at = []) => R(`(() => { const ch = stanced(null, { req: ${JSON.stringify(req)} }), w = new World({ a: ${JSON.stringify(a)}, b: ${JSON.stringify(b)}, ax: 330, bx: 380, period: 9 }, {}, 7, [ch, CHARS.stick]);
   w.loop = false; const out = []; for (let i = 1; i <= ${n}; i++) { w.advance(1 / 60, NOIN); if (${JSON.stringify(at)}.includes(i)) out.push(w.a.stanceI); } return out; })()`);
 
+test('req.auto switches with no key: in the moment the requirements hold, out the moment they stop (minT still applies)', () => {
+  const r = R(`(() => { const ch = stanced(null, { req: { auto: true, hpBelow: 0.5, minT: 0.2 } }), w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 400, period: 9 }, {}, 7, [ch, CHARS.stick]), f = w.a;
+    const before = f.stanceI; f.hp = f.c('health') * 0.4; w.advance(1 / 60, NOIN); const low = f.stanceI;
+    f.hp = f.c('health'); w.advance(0.1, NOIN); const tooSoon = f.stanceI;
+    w.advance(0.2, NOIN); const back = f.stanceI;
+    return { before, low, tooSoon, back }; })()`);
+  assert.deepEqual(r, { before: 0, low: 1, tooSoon: 1, back: 0 });
+});
+
+// ---------- flying (stance.fly) ----------
+test('stance.fly hovers: no gravity or landing while in it, vertical speed follows ↑ / ↓, leaving it lets gravity take over again', () => {
+  const r = R(`(() => { const ch = stanced(null, { fly: true }), w = new World({ a: 'human', b: 'dummy', ax: 300, bx: 400, period: 9 }, {}, 7, [ch, CHARS.stick]), f = w.a;
+    f.setStance(1, 'instant');
+    for (let i = 0; i < 40; i++) w.advance(1 / 60, { ...NOIN, up: true });
+    const up = { y: f.y, grounded: f.grounded };
+    for (let i = 0; i < 20; i++) w.advance(1 / 60, { ...NOIN, down: true });
+    const down = { y: f.y, grounded: f.grounded };
+    f.setStance(0); for (let i = 0; i < 5; i++) w.advance(1 / 60, NOIN);
+    return { upY: up.y, upGrounded: up.grounded, downY: down.y, downGrounded: down.grounded, falling: f.vy > 0 && !f.grounded }; })()`);
+  assert.ok(r.upY < -20, `rose while flying up: ${r.upY}`);
+  assert.equal(r.upGrounded, false, 'flying never grounds');
+  assert.ok(r.downY < 0 && r.downY > r.upY, `came back down toward the floor: ${r.downY} vs ${r.upY}`);
+  assert.equal(r.downGrounded, false, 'still hovering, not landed');
+  assert.ok(r.falling, 'leaving the stance lets gravity take over again');
+});
+
 test('requirements: health, where, once and cooldown decide whether a stance can be taken', () => {
   const r = R(`(() => { const ch = stanced(null, { req: { hpBelow: 0.5, cooldown: 1 } }), w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 400, period: 9 }, {}, 7, [ch, CHARS.stick]), f = w.a;
     const full = f.stanceOk(1); f.hp = f.c('health') * 0.4; const low = f.stanceOk(1);

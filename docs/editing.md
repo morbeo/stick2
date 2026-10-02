@@ -84,8 +84,11 @@ Under a stance's body row, **requirements** set when it can be taken and what en
 - **cooldown:** seconds after leaving it before it can be taken again. **min time:** seconds before it can be left. **max time:** seconds, then back to main on its own.
 - **exit on:** hit, knocked down, blocking, grabbed: back to main.
 - **once a round.**
+- **auto:** no key needed — it is taken the moment the requirements above hold, and left the moment they stop holding (min time still applies).
 - **moves:** all (its binds over main's), own (only its own binds), or a list of the moves it allows.
 - A stance key whose stances are all blocked does nothing. In the JSON: `stances[i].req`, only what differs.
+
+Next to the stance's key, **fly** makes it hover instead of fall: gravity and the ground are suspended while in it, and ↑ / ↓ fly up / down instead of jumping. Leaving the stance (a key, `exitOn`, `maxT`, or a hit) hands it back to normal gravity wherever it is. In the JSON: `stances[i].fly`.
 
 ### Stance transitions
 
