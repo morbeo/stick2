@@ -2,6 +2,7 @@
 // ---------- effects: aura, fire, lightning and smoke drawn over a fighter's bones ----------
 // drawing only (no random numbers of the fight: a hash of time and place), so a fight plays out the same with or without them
 // an effect is { look, on, col, size }: a move's fx (the whole move), a key's fx (from that key on; false = none), a bone's fx (always, on that bone)
+// each of them can also be a list of up to FX_MAX effects, stacked (a fire fist crackling with lightning); one effect alone stays a plain object
 const FX_LOOKS = {
   aura: 'Aura: a pulsing glow around the bones, sparkles rising (powering up, a charged strike)',
   fire: 'Fire: flames licking up from the bones (a flaming kick, a fire fist)',
@@ -10,9 +11,10 @@ const FX_LOOKS = {
 const FX_ON = { strike: 'The striking limbs (the move\'s hit bones, the whole limb)', body: 'The whole body', arm: 'The arms', leg: 'The legs', head: 'The head', tail: 'The tails', weapon: 'The weapon' };
 const FX_COLS = { blue: '60,140,240', cyan: '0,175,255', red: '220,50,35', orange: '240,110,30', gold: '230,170,30', purple: '160,80,220', green: '60,200,90', white: '235,235,240', grey: '130,125,120', dark: '45,35,55' };
 const FX_AUTO = { aura: 'blue', fire: 'orange', lightning: 'cyan', smoke: 'grey' }, FX_BACK = new Set(['aura', 'smoke']); // aura and smoke draw behind the body
+const FX_MAX = 4, fxList = e => !e ? [] : [].concat(e).filter(Boolean).slice(0, FX_MAX);
 const fxRnd = (a, b) => { const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return x - Math.floor(x); };
-// the effect playing at key i: the last key up to i that sets one, else the move's
-function fxAt(m, i) { for (let j = Math.min(i, m.keys.length - 1); j >= 0; j--) if (m.keys[j].fx !== undefined) return m.keys[j].fx || null; return m.fx || null; }
+// the effects playing at key i: the last key up to i that sets them (its list replaces the move's), else the move's
+function fxAt(m, i) { for (let j = Math.min(i, m.keys.length - 1); j >= 0; j--) if (m.keys[j].fx !== undefined) return fxList(m.keys[j].fx); return fxList(m.fx); }
 // the bones an effect wraps: whole limbs (strike: the limbs holding the move's hit bones)
 function fxBones(ch, on, m) {
   if (on === 'body') return ch.bones;
@@ -22,8 +24,8 @@ function fxBones(ch, on, m) {
 }
 // what a fighter shows now: its bones' own effects, then its move's: [[effect, bones]]
 function fxNow(ch, a) {
-  const out = ch.bones.filter(b => b.fx).map(b => [b.fx, [b]]), e = a?.m.keys && fxAt(a.m, a.i);
-  if (e) out.push([e, fxBones(ch, e.on, a.m)]);
+  const out = ch.bones.flatMap(b => fxList(b.fx).map(e => [e, [b]]));
+  if (a?.m.keys) for (const e of fxAt(a.m, a.i)) out.push([e, fxBones(ch, e.on, a.m)]);
   return out;
 }
 // the bones as segments (a circle bone as a ring) and points spaced about gap apart along them

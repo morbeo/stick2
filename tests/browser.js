@@ -208,6 +208,18 @@ try {
     popup($('ctx').querySelector('button'), 'x'); esc(); if (pop || !document.querySelector('.mtable')) errs.push('Esc closes the popup only');
     esc(); if (document.querySelector('.mtable') || lay().panel) errs.push('Esc closes the stage panel');
     sb('bones').click(); if (!document.querySelector('.btable') || !document.querySelector('.btable .stagehead')) errs.push('bone table in the panels group'); lay('character').panel = null; panels(); }
+  // effect stacks: + adds a second effect to a move (a list) and to a bone, the arrows reorder, the bin removes; a key's own stack replaces the move's
+  { pickChar('stick'); studio.stance = 0; setMode('animate'); anim.move = 'jab'; selectKey(0); panels();
+    const adds = () => [...document.querySelectorAll('#side button')].filter(b => b.dataset.tip?.startsWith('Add an effect')), fx0 = curMove().fx;
+    adds()[0].click(); adds()[0].click(); const two = curMove().fx;
+    [...document.querySelectorAll('#side button')].find(b => b.dataset.tip?.startsWith('Move this effect up') && !b.hidden).click(); const sw = curMove().fx;
+    adds()[1].click(); const key = fxAt(curMove(), 0).map(e => e.look);
+    if (!Array.isArray(two) || two.length !== 2 || sw[0].look !== two[1].look || key.length !== 3 || fxNow(edChar(), { m: curMove(), i: 0 }).length !== 3) errs.push('move effect stack ' + JSON.stringify([two, sw, key]));
+    [...document.querySelectorAll('#side button')].findLast(b => b.dataset.tip === 'Remove this effect' && !b.closest('[hidden]')).click(); if (fxAt(curMove(), 0).length !== 2) errs.push('remove an effect');
+    undo(); undo(); undo(); undo(); undo(); if (JSON.stringify(curMove().fx) !== JSON.stringify(fx0) || curMove().keys[0].fx !== undefined) errs.push('effect stack undo');
+    setMode('character'); studio.sel = 'head'; panels(); adds()[0].click(); adds()[0].click();
+    const hf = DEFS.stick.bones.find(b => b.id === 'head').fx; if (hf?.length !== 2 || fxNow(currentChar(), null).length !== 2) errs.push('bone effect stack ' + JSON.stringify(hf));
+    undo(); if (DEFS.stick.bones.find(b => b.id === 'head').fx) errs.push('bone effect undo (one step: the bone edits merge)'); }
   // the character editor's hip handle moves the waist over the feet: the legs bend, the ankles stay; one undo step
   { setMode('character'); pickChar('stick'); studio.stance = 0; panels();
     const f0 = edFrame(), hp = f0.P.hip, ids = f0.ch.chains.leg.map(c => ankleOf(c).id), p0 = JSON.stringify(curStance().pose);

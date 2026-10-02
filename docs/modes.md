@@ -195,7 +195,7 @@ Stretch, follow-through, stiffness and secondary motion:
 - **react:** how hard blows jolt the bone.
 - **sway:** idle drift.
 - **dangle:** hangs like a rope. With the dangle and dangleDrag settings, tails, sneeko's scarf, hadoo's headband and hicco's beard and gourd droop with gravity, stream back from a run and lift in a fall.
-- **effect:** an [effect](#effects) the bone always shows (a burning fist, a glowing tail), with its colour and size.
+- **effect:** [effects](#effects) the bone always shows (a burning fist, a glowing tail), up to 4 stacked, each with its colour and size.
 
 ### Preview
 
@@ -267,8 +267,9 @@ Each key block shows:
 Aura, fire, lightning and smoke drawn over the bones. Drawing only: the fight plays out the same with or without them.
 
 - **Move panel → effect:** shown for the whole move, on the striking limbs, the body, arms, legs, head, tails or weapon.
-- **Key panel → effect:** from that key on. *same* keeps the one before, *none* stops it.
+- **Key panel → effect:** from that key on. *same* keeps the ones before, *none* stops them, *own* gives the key its own stack (it replaces the move's).
 - **Bone panel → effect** (character tab): always on that bone.
+- **Stacks:** each place holds up to 4 effects drawn at once (a fire fist crackling with lightning). **+** adds one, the bin removes it, the arrows reorder them (later ones draw over earlier ones; aura and smoke always draw behind the body).
 - Each has a **colour** (auto picks the look's own) and a **size**.
 - In the roster: hadoo's shoryu burns, noodo's yoga warp smokes, gogili's electricity crackles, gloomo's dark orb glows purple.
 

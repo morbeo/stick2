@@ -58,3 +58,24 @@ test('hud and labels off draw less, leave the fight as it was, and stay out of r
   assert.equal(r.off.hash, r.on.hash);
   assert.ok(r.skip.includes('hud') && r.skip.includes('labels'));
 });
+
+test('effects: an old single effect still draws, a stack draws each, a key\'s stack replaces the move\'s, and a stacked fighter fights the same', () => {
+  const r = JSON.parse(run(`(() => { const ch = CHARS.stick, jab = ch.moves.jab, draw = list => { const { ctx, st } = stubCtx(); drawFx(ctx, fk(ch, ch.poses.stance, 1), list, 0.3, false); drawFx(ctx, fk(ch, ch.poses.stance, 1), list, 0.3, true); return st.calls; };
+    const one = { ...jab, fx: { look: 'fire' } }, two = { ...jab, fx: [{ look: 'fire' }, { look: 'lightning', on: 'body', col: 'red', size: 2 }] };
+    const keyed = { ...two, keys: jab.keys.map((k, i) => i ? { ...k, fx: i === 1 ? [{ look: 'aura' }, { look: 'smoke' }] : false } : k) };
+    const many = { ...jab, fx: Array(9).fill({ look: 'aura' }) };
+    const def = JSON.parse(JSON.stringify(CHAR_DEFS.stick)); def.bones.find(b => b.id === 'head').fx = [{ look: 'aura', col: 'gold' }, { look: 'smoke' }]; def.moves.jab.fx = two.fx;
+    const sc = { a: 'ai', b: 'ai', ax: 300, bx: 380, period: 9 }, chs = [makeCharacter(def), CHARS.stick], a = new World(sc, {}, 7, chs), b = new World(sc, {}, 7, chs), { ctx, st } = stubCtx();
+    a.loop = b.loop = false;
+    for (let i = 0; i < 240; i++) { a.advance(1/60, NOIN); b.advance(1/60, NOIN); if (i % 3 === 0) a.render(ctx, { x: 0, y: 0, w: 800, h: 450 }, false); }
+    return JSON.stringify({ one: fxNow(ch, { m: one, i: 0 }).length, oneCalls: draw(fxNow(ch, { m: one, i: 0 })), two: fxNow(ch, { m: two, i: 0 }).map(([e]) => e.look),
+      twoCalls: draw(fxNow(ch, { m: two, i: 0 })), fire: draw([fxNow(ch, { m: one, i: 0 })[0]]), light: draw([fxNow(ch, { m: two, i: 0 })[1]]),
+      keyed: [0, 1, 2].map(i => fxAt(keyed, i).map(e => e.look)), many: fxNow(ch, { m: many, i: 0 }).length, none: fxNow(ch, null).length,
+      bones: fxNow(chs[0], null).map(([e, bs]) => e.look + ':' + bs.map(b => b.id)), same: a.stateHash() === b.stateHash(), bad: st.bad }); })()`));
+  assert.equal(r.one, 1, 'an old single effect plays'); assert.ok(r.oneCalls > 10, 'and draws');
+  assert.deepEqual(r.two, ['fire', 'lightning']); assert.ok(r.fire > 0 && r.light > 0 && r.twoCalls >= r.fire + r.light - 2, `each of a stack draws: ${r.twoCalls} vs ${r.fire} + ${r.light}`);
+  assert.deepEqual(r.keyed, [['fire', 'lightning'], ['aura', 'smoke'], []], 'a key\'s stack replaces the move\'s; false: none');
+  assert.equal(r.many, 4, 'at most FX_MAX effects'); assert.equal(r.none, 0);
+  assert.deepEqual(r.bones, ['aura:head', 'smoke:head'], 'a bone\'s stack');
+  assert.ok(r.same, 'effects leave the fight as it was'); assert.deepEqual(r.bad, []);
+});
