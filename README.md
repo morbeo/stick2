@@ -14,7 +14,7 @@ A 2D stick-figure fighting engine and motion lab for the browser: procedural ske
 
 ![Grid: one fight, nine hit stop values](docs/img/grid.png)
 
-**Animate moves.** Pose keyframes by dragging joints (IK), retime them on a timeline, and watch the move with springs and hit stop against a target in any state. A gallery loops every move, and a move table edits them all at once. → [Editing](docs/editing.md)
+**Animate moves.** Pose keyframes by dragging joints (IK), retime them on a timeline, and watch the move with springs and hit stop against a target in any state. A gallery loops every move, a move table edits them all at once, and a combo tree links them into chains. → [Editing](docs/editing.md)
 
 ![The move editor: keyframes, timeline and live preview](docs/img/animate.png)
 
@@ -26,11 +26,11 @@ A 2D stick-figure fighting engine and motion lab for the browser: procedural ske
 
 ![The move test matrix](docs/img/tests.png)
 
-**See the impacts.** Hit reactions and falls side by side; drag on a body to strike it anywhere.
+**See the impacts.** Hit reactions and falls side by side; drag on a body to strike it anywhere, or strike one ragdoll alone with high, mid, low, sweep, launcher and more. → [Modes: impact](docs/modes.md#impact)
 
 ![Impact view](docs/img/impact.png)
 
-**Get around.** ⌘K finds any mode, tool, table, move or setting; every key rebinds, with macros; deterministic replays you can save, rewind and scrub; in-app docs with live demos. → [Interface](docs/interface.md)
+**Get around.** ⌘K finds any mode, tool, table, move or setting; every key rebinds, with macros; deterministic replays you can save, rewind and scrub; export and import a character, your settings or everything; in-app docs with live demos. → [Interface](docs/interface.md)
 
 ## Development
 
