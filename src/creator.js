@@ -282,7 +282,7 @@ function radarPanel() {
     axes.forEach((st, i) => { const [x, y] = pt(i, 1.18); c.fillText(st.k, x, y + 3); });
   };
   reg(cv, draw);
-  const head = h('h4', { textContent: 'radar', tip: 'Stats on a radar: each axis runs from the stat\'s minimum (centre) to its maximum (rim); the dashed ring is 1 (as the settings say). Pick the axes and the characters to compare.' });
+  const head = h('h3', { textContent: 'radar', tip: 'Stats on a radar: each axis runs from the stat\'s minimum (centre) to its maximum (rim); the dashed ring is 1 (as the settings say). Pick the axes and the characters to compare.' });
   head.append(h('span', { cls: 'gops' },
     button(':tune:', 'Which stats are the axes', (e, b) => popup(b, h('div', { cls: 'bar' }, CHAR_STATS.map(st =>
       toggle(st.k, `${st.g} · ${st.tip}`, () => radar.vars.has(st.k), on => radar.vars[on ? 'add' : 'delete'](st.k))))), 'mini'),
@@ -296,7 +296,7 @@ function statsPanel() {
   // one heading per group (ground / air / fight), each with its group buttons
   return Object.keys(STAT_GROUPS).flatMap(g => {
     const specs = CHAR_STATS.filter(s => s.g === g);
-    const title = h('h4', { textContent: `${g} stats`, tip: `${STAT_GROUPS[g]}. Multipliers on the fight settings for this character only (1 = as the settings say)` });
+    const title = h('h3', { textContent: `${g} stats`, tip: `${STAT_GROUPS[g]}. Multipliers on the fight settings for this character only (1 = as the settings say)` });
     title.append(groupOps(specs, get, dflt, vals => edit(def => Object.assign(def, vals)),
       [`Experiment: nine bodies varying the ${g} stats; click the best to breed around it`, () => { creator.exp.vars = new Set(specs.map(s => s.k)); setExp(true); }]));
     return [title, ...specs.map(s => bodyExpLink(slider(s.k, s, () => get(s.k), v => edit(def => { def[s.k] = v; }, 'stat:' + s.k), s.tip), s.k))];
@@ -306,7 +306,7 @@ function statsPanel() {
 function gaitPanel() {
   const spec = k => GAIT_VARS.find(s => s.k === k), get = k => DEFS[CURRENT].gait?.[k] ?? spec(k).v, dflt = k => CHAR_DEFS[CURRENT]?.gait?.[k] ?? spec(k).v;
   const set = vals => edit(def => { def.gait = { ...def.gait, ...vals }; }, 'gait:' + Object.keys(vals).join());
-  const title = h('h4', { textContent: 'walk & idle', tip: 'The procedural walk and idle of this character. Preview: walk shows the cycle. A keyframed idle or walk loop (animate) replaces them.' });
+  const title = h('h3', { textContent: 'walk & idle', tip: 'The procedural walk and idle of this character. Preview: walk shows the cycle. A keyframed idle or walk loop (animate) replaces them.' });
   title.append(groupOps(GAIT_VARS, get, dflt, set,
     ['Experiment: nine bodies varying the walk and idle; click the best to breed around it', () => { creator.exp.vars = new Set(GAIT_VARS.filter(s => !s.opts).map(s => s.k)); creator.preview = 'walk'; setExp(true); }]));
   const loops = ['idle', 'walk'].map(n => loopName(currentChar(), studio.stance, n)).filter(n => currentChar().moves[n]);
