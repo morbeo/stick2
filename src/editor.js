@@ -516,6 +516,8 @@ function keyPanel() {
         () => k().turn === true, v => setKey('turn', v || undefined)),
       toggle(':bolt: shoot', 'Shoot: the move\'s projectile leaves the striking limbs as this key is reached (shots setting); it hits with this move\'s power, damage and height. Its look, speed and size are under shot.',
         () => !!k().shoot, v => setKey('shoot', v || undefined)),
+      toggle(':repeat: rehit', 'Rehit: the move can hit again from this key, whoever it already hit (multi-hits: lightning legs, hundred-hand slap).',
+        () => !!k().rehit, v => setKey('rehit', v || undefined)),
       toggle(':rotate_right: spin', 'Spin: a whole turn during this key (turn: 2), its back showing halfway; spinning kicks wind up with it and strike facing the foe.',
         () => k().turn === 2, v => setKey('turn', v ? 2 : undefined)))),
     adv(h('div', { cls: 'row', tip: 'Catch keys only: the heights of strike this key catches (catchH; all lit = every height)' }, h('span', { textContent: 'catches' }), h('span', { cls: 'bar' },
@@ -542,6 +544,8 @@ function keyPanel() {
       'Forward speed given when this key starts (px/s): steps into the strike; below 0 it moves back (rollBack).'),
     slider('drop', { min: -900, max: 900, step: 10 }, () => k().drop || 0, v => setKey('drop', v || undefined, 'drop'),
       'In the air: vertical speed given when this key starts (px/s): above 0 drives down (pounce), below 0 lifts.'),
+    slider('rise', { min: 0, max: 900, step: 10 }, () => k().rise || 0, v => setKey('rise', v || undefined, 'rise'),
+      'Upward speed given when this key starts (px/s): the fighter leaves the floor and the move plays on through the air and lands (flash kick, body press).'),
   ];
 }
 // ---------- move list: grouped by type / striking limb / height, sorted, filtered by name or input ----------

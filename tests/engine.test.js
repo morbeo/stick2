@@ -1,6 +1,7 @@
 // unit tests of the rig and fighter
 const test = require('node:test'), assert = require('node:assert/strict'), load = require('./load');
 const { run } = load();
+run(require('./centaur'));
 
 test('every built-in character compiles with poses, moves and a main stance', () => {
   for (const n of run('Object.keys(CHAR_DEFS)')) {
@@ -19,14 +20,14 @@ test('samplePose hits the first key at t=0 and the last key at the end', () => {
 });
 
 test('stats scale the fight settings per character', () => {
-  const r = run(`(() => { const w = new World(SCENARIOS[Object.keys(SCENARIOS)[0]], {}, 7, [CHARS.ninja, CHARS.stick]);
+  const r = run(`(() => { const w = new World(SCENARIOS[Object.keys(SCENARIOS)[0]], {}, 7, [CHARS.sneeko, CHARS.stick]);
     return [w.a.c('maxSpeed'), w.b.c('maxSpeed'), w.a.c('jumpVel'), w.b.c('jumpVel')]; })()`);
-  assert.ok(r[0] > r[1], 'ninja faster'), assert.ok(r[2] > r[3], 'ninja jumps higher');
+  assert.ok(r[0] > r[1], 'sneeko faster'), assert.ok(r[2] > r[3], 'sneeko jumps higher');
 });
 
 test('heavier characters fly less far from the same hit', () => {
   const kb = ch => run(`(() => { const r = fight({ a: [0.1, 'punch'], b: 'dummy', ax: 330, bx: 375, period: 3 }, [CHARS.stick, CHARS.${ch}], 40); return r.w.b.x; })()`);
-  assert.ok(kb('stick') > kb('brute'));
+  assert.ok(kb('stick') > kb('grumbo'));
 });
 
 test('centaur forelegs bend forward, hind legs back', () => {
@@ -35,11 +36,11 @@ test('centaur forelegs bend forward, hind legs back', () => {
   assert.ok(p.shinF > 0, 'hind shin bends back'), assert.ok(p.foreShinF < 0, 'fore shin bends forward');
 });
 
-test('S+G switches the ninja into crane and changes the moveset', () => {
-  const r = run(`(() => { const r = fight({ a: [0.1, 'special+guard', 1, 'kick'], b: 'dummy', ax: 330, bx: 380, period: 9 }, [CHARS.ninja, CHARS.stick], 120);
+test('S+G switches zippa into crane and changes the moveset', () => {
+  const r = run(`(() => { const r = fight({ a: [0.1, 'special+guard', 1, 'kick'], b: 'dummy', ax: 330, bx: 380, period: 9 }, [CHARS.zippa, CHARS.stick], 120);
     return { st: r.w.a.stanceI, seen: r.seen }; })()`);
   assert.equal(r.st, 1);
-  assert.ok(r.seen.includes('a:axeKick'), r.seen.join(' '));
+  assert.ok(r.seen.includes('a:craneKick'), r.seen.join(' '));
 });
 
 test('K+G is the second throw (clinch into suplex), not a stance switch', () => {
@@ -53,7 +54,7 @@ test('K+G is the second throw (clinch into suplex), not a stance switch', () => 
 test('every built-in has a second stance (S+G), and an old K+G stance key still works', () => {
   const r = run(`Object.keys(CHARS).filter(k => CHARS[k].stances.length < 2 || CHARS[k].stances.slice(1).some(s => !(s.key in STANCE_KEYS)))`);
   assert.deepEqual(r, []);
-  const st = run(`(() => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.ninja)); d.stances[0].key = 'K+G'; d.stances.length = 1;
+  const st = run(`(() => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.zippa)); d.stances[0].key = 'K+G'; d.stances.length = 1;
     return fight({ a: [0.1, 'special+guard'], b: 'dummy', ax: 330, bx: 380, period: 9 }, [makeCharacter(d), CHARS.stick], 60).w.a.stanceI; })()`);
   assert.equal(st, 1);
 });
@@ -67,15 +68,15 @@ test('a keyframed idle loop replaces the procedural idle', () => {
 });
 
 test('a stance key with a direction switches to it, and back to main when pressed again', () => {
-  const ninja = d => `(() => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.ninja)); d.stances[0].key = '↓S+G'; d.stances.length = 1; return makeCharacter(d); })()`;
-  const st = inp => run(`fight({ a: ${JSON.stringify(inp)}, b: 'dummy', ax: 330, bx: 380, period: 9 }, [${ninja()}, CHARS.stick], 150).w.a.stanceI`);
+  const zippa = d => `(() => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.zippa)); d.stances[0].key = '↓S+G'; d.stances.length = 1; return makeCharacter(d); })()`;
+  const st = inp => run(`fight({ a: ${JSON.stringify(inp)}, b: 'dummy', ax: 330, bx: 380, period: 9 }, [${zippa()}, CHARS.stick], 150).w.a.stanceI`);
   assert.equal(st([0.1, 'special+guard']), 0, 'plain S+G no longer switches');
   assert.equal(st([0.1, 'down+special+guard']), 1);
   assert.equal(st([0.1, 'down+special+guard', 1, 'down+special+guard']), 0);
 });
 
 test('each stance plays its own idle loop (craneIdle), not the main one', () => {
-  const r = run(`(() => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.ninja)), ch0 = makeCharacter(d), main = { ...ch0.poses.stance, uarmF: 40 }, crane = { ...ch0.stances[1].pose, uarmF: -60 };
+  const r = run(`(() => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.zippa)), ch0 = makeCharacter(d), main = { ...ch0.poses.stance, uarmF: 40 }, crane = { ...ch0.stances[1].pose, uarmF: -60 };
     d.moves = { ...d.moves, idle: { keys: [{ d: 1, p: main }, { d: 1, p: main }] }, craneIdle: { keys: [{ d: 1, p: crane }, { d: 1, p: crane }] } };
     const w = new World(SCENARIOS[Object.keys(SCENARIOS)[0]], {}, 7, [makeCharacter(d), CHARS.stick]);
     w.a.time = 1.5; const a = w.a.basePose().uarmF; w.a.stanceI = 1; return [a, w.a.basePose().uarmF]; })()`);
@@ -83,7 +84,7 @@ test('each stance plays its own idle loop (craneIdle), not the main one', () => 
 });
 
 test('head, tail and two-handed strikes land', () => {
-  for (const [ch, inp, move, plane = '2d'] of [['stick', 'back+punch', 'palms'], ['stick', 'up+fwd+punch', 'headbutt', 'lanes'], ['demon', 'back+kick', 'tailWhip']]) {
+  for (const [ch, inp, move, plane = '2d'] of [['stick', 'back+punch', 'palms'], ['stick', 'up+fwd+punch', 'headbutt', 'lanes'], ['gloomo', 'back+kick', 'tailWhip']]) {
     const r = run(`(() => { const r = fight({ a: [0.1, '${inp}'], b: 'dummy', ax: 330, bx: 372, period: 9, cfg: { plane: '${plane}' } }, [CHARS.${ch}, CHARS.stick], 60); return { hits: r.w.hits, seen: r.seen }; })()`);
     assert.ok(r.seen.includes('a:' + move), `${ch} ${inp}: ${r.seen.join(' ')}`);
     assert.ok(r.hits > 0, `${ch} ${move} hits`);
@@ -124,8 +125,8 @@ test('mid turn the body keeps turnWidth of its width and tucks in (turnTuck)', (
   assert.ok(Math.abs(keep[1] - thin[1]) > 20, `tuck ${thin[1]} / ${keep[1]}`);
 });
 
-test('dangling bones (the ninja scarf) droop at rest, trail a run and lift in a fall, by dangle', () => {
-  const end = (over, vx, vy) => run(`(() => { const w = new World({ a: 'idle', b: 'dummy', ax: 300, bx: 600, period: 9 }, ${JSON.stringify(over)}, 7, [CHARS.ninja, CHARS.stick]);
+test('dangling bones (the sneeko scarf) droop at rest, trail a run and lift in a fall, by dangle', () => {
+  const end = (over, vx, vy) => run(`(() => { const w = new World({ a: 'idle', b: 'dummy', ax: 300, bx: 600, period: 9 }, ${JSON.stringify(over)}, 7, [CHARS.sneeko, CHARS.stick]);
     const f = w.a; for (let i = 0; i < 40; i++) { f.vx = ${vx}; f.vy = ${vy}; f.update(1 / 60, NOIN); f.x = 300; f.y = 0; }
     const P = f.points(f.disp); return [P.scarfEnd[0] - P.neck[0], P.scarfEnd[1] - P.neck[1]]; })()`);
   const still = end({}, 0, 0), runR = end({}, 400, 0), off = end({ dangle: 0 }, 0, 0), fall = end({}, 0, 700);
@@ -337,7 +338,7 @@ test('a knockdown disarms: the weapon falls to the floor', () => {
 });
 
 test('rewind replays the fight to the same state, AI and human input included', () => {
-  const r = json(`(() => { const w = new World(SCENARIOS['you vs ai'], {}, 7, [CHARS.stick, CHARS.ninja]), st = () => [w.a.x, w.b.x, w.a.hp, w.b.hp, w.hits, w.b.action?.i ?? -1].map(v => Math.round(v * 1000));
+  const r = json(`(() => { const w = new World(SCENARIOS['you vs ai'], {}, 7, [CHARS.stick, CHARS.sneeko]), st = () => [w.a.x, w.b.x, w.a.hp, w.b.hp, w.hits, w.b.action?.i ?? -1].map(v => Math.round(v * 1000));
     const inp = i => ({ ...NOIN, right: i % 90 < 40, punch: i % 23 === 0, kick: i % 37 === 0 });
     for (let i = 0; i < 400; i++) w.advance(i % 3 ? 1 / 60 : 1 / 50, inp(i));
     const at = st();
@@ -364,7 +365,7 @@ test('planted feet stay put while the body walks over them, step when left behin
 });
 
 test('rewind after a long fight starts from a checkpoint, not from the start', () => {
-  const r = json(`(() => { const w = new World(SCENARIOS['ai vs ai'], { health: 1e6 }, 3, [CHARS.stick, CHARS.ninja]); w.loop = false;
+  const r = json(`(() => { const w = new World(SCENARIOS['ai vs ai'], { health: 1e6 }, 3, [CHARS.stick, CHARS.sneeko]); w.loop = false;
     for (let i = 0; i < 7200; i++) w.advance(1 / 60, NOIN);
     const t = Date.now(); w.rewind(30); return { ms: Date.now() - t, n: w.log.length, cps: w.checkpoints.length }; })()`);
   assert.equal(r.n, 7170), assert.equal(r.cps, 66), assert.ok(r.ms < 100, r.ms + ' ms'); // the last 60 + one per 10 s before them
@@ -564,7 +565,7 @@ test('hit flags: a move\'s hits (stand / crouch / air) skips other states; airGu
 });
 
 test('a fighter lying on the floor rests on it: no joint of the lie pose hangs far above the floor (both fall modes); the OTG stomp scenario stomps', () => {
-  for (const falls of ['ragdoll', 'pose']) for (const c of ['stick', 'brute', 'dwarf']) {
+  for (const falls of ['ragdoll', 'pose']) for (const c of ['stick', 'grumbo', 'lumpo']) {
     const r = run(`(() => { const w = new World(SCENARIOS.sweep, { falls: '${falls}' }, 7, [CHARS.stick, CHARS.${c}]); w.loop = false;
       let worst = null;
       for (let i = 0; i < 200; i++) { w.advance(1/60, NOIN); const f = w.b; if (f.kd !== 'down' || f.downT > f.c('downTime') - 0.5) continue;
@@ -771,11 +772,11 @@ test('the replay dummy plays back a recorded tape, mirrored to its own facing; a
 });
 
 test('swapChar: fighters wearing an edited character switch to the new build mid-fight, others keep theirs', () => {
-  const r = JSON.parse(run(`(() => { const w = new World(SCENARIOS['you vs dummy'], {}, 7, [CHARS.stick, CHARS.ninja]); w.loop = false;
+  const r = JSON.parse(run(`(() => { const w = new World(SCENARIOS['you vs dummy'], {}, 7, [CHARS.stick, CHARS.sneeko]); w.loop = false;
     for (let i = 0; i < 70; i++) w.advance(1/60, NOIN);
     const to = makeCharacter(JSON.parse(JSON.stringify(CHAR_DEFS.stick))); w.swapChar(CHARS.stick, to); const cps = w.checkpoints.length;
     for (let i = 0; i < 30; i++) w.advance(1/60, NOIN);
-    return JSON.stringify({ a: w.a.ch0 === to, b: w.b.ch0 === CHARS.ninja, chars: w.chars[0] === to, cps, ok: Object.values(w.a.body()).every(p => isFinite(p[0] + p[1])) }); })()`));
+    return JSON.stringify({ a: w.a.ch0 === to, b: w.b.ch0 === CHARS.sneeko, chars: w.chars[0] === to, cps, ok: Object.values(w.a.body()).every(p => isFinite(p[0] + p[1])) }); })()`));
   assert.deepEqual(r, { a: true, b: true, chars: true, cps: 0, ok: true });
 });
 

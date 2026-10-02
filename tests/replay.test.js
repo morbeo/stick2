@@ -4,9 +4,9 @@ const { run } = load();
 const FILE = path.join(__dirname, 'fixtures', 'replays.json'), VER = run('ENGINE_VERSION');
 // fights that cover the engine: you (scripted keys) vs ai with weapons, ai vs ai on the belt, ai 2v2; uneven frame times
 const record = () => JSON.parse(run(`JSON.stringify([
-  ['you vs ai', { weapon: 'random', weaponStart: 'held' }, [CHARS.stick, CHARS.ninja], true],
-  ['belt ai', {}, [CHARS.brute, CHARS.demon]],
-  ['ai 2v2', {}, [CHARS.dwarf, CHARS.centaur]],
+  ['you vs ai', { weapon: 'random', weaponStart: 'held' }, [CHARS.stick, CHARS.sneeko], true],
+  ['belt ai', {}, [CHARS.grumbo, CHARS.gloomo]],
+  ['ai 2v2', {}, [CHARS.lumpo, CHARS.zippa]],
 ].map(([name, cfg, chars, human]) => {
   const w = new World(SCENARIOS[name], cfg, 5, chars), inp = i => ({ ...NOIN, right: i % 90 < 50, down: i % 70 > 60, punch: i % 23 === 0, kick: i % 37 === 0, guard: i % 140 > 125, special: i % 97 === 0 });
   w.loop = false;

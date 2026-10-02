@@ -34,9 +34,10 @@ function itemSeg(it, r = 0) {
   return [[it.x - ux, it.y - uy], [it.x + ux, it.y + uy], r];
 }
 class World {
-  // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, more?, period?, init? } (see brain.js)
-  // chars: character per fighter slot (the last one fills the rest); default = the current character
+  // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, more?, period?, init?, chars? } (see brain.js)
+  // chars: character per fighter slot (the last one fills the rest); default = the current character; a scenario's chars (names) win
   constructor(scen, over = {}, seed = 1, chars = null) {
+    if (scen.chars) chars = scen.chars.map(n => CHARS[n]);
     Object.assign(this, { scen, over, seed, chars, groundY: GROUND, loop: true, camW: 420 });
     this.cfg = Object.assign(Object.create(CFG), scen.cfg, over); // a scenario can bring its own settings (plane …)
     this.reset();

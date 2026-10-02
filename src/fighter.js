@@ -519,6 +519,8 @@ class Fighter {
         if (keys[a.i]?.turn) this.turnKey(keys[a.i]);
         if (keys[a.i]?.lunge) this.vx = this.dir * keys[a.i].lunge;
         if (keys[a.i]?.drop && !this.grounded) this.vy = keys[a.i].drop;
+        if (keys[a.i]?.rise) { this.grounded = false; this.vy = -keys[a.i].rise; } // leaves the floor: the move plays on through the air and lands
+        if (keys[a.i]?.rehit) a.hits = []; // a multi-hit: whoever it hit can be hit again from this key
       }
       if (this.turnMid?.a === a && keys[a.i] === this.turnMid.k && a.t >= this.turnMid.k.d / 2) { this.turnMid = null; this.halfTurn(); } // a whole turn's second half
       if (a.i >= keys.length) {

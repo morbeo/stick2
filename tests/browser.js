@@ -118,8 +118,8 @@ try {
     if (!vis(row('decel')) || vis(row('maxSpeed'))) errs.push('search shows folded');
     q.value = ''; q.dispatchEvent(new Event('input')); lab.q = '';
     // the character menu: the current one on a button, the rest in a popup
-    setMode('animate'); document.querySelector('.charpick').click(); [...document.querySelectorAll('.pop .card')].find(c => c.textContent === 'brute').click();
-    if (CURRENT !== 'brute' || document.querySelector('.pop')) errs.push('char menu ' + CURRENT); pickChar('stick'); }
+    setMode('animate'); document.querySelector('.charpick').click(); [...document.querySelectorAll('.pop .card')].find(c => c.textContent === 'grumbo').click();
+    if (CURRENT !== 'grumbo' || document.querySelector('.pop')) errs.push('char menu ' + CURRENT); pickChar('stick'); }
   // impact without an attacker: it is not drawn or framed, its blows land as before
   { lab.solo = true; setMode('impact'); const w = lab.cells[0].w; for (let i = 0; i < 60; i++) w.advance(1/60, NOIN);
     if (!w.a.hidden || !w.hits) errs.push('impact solo ' + [w.a.hidden, w.hits]); lab.solo = false; }

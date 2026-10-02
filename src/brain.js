@@ -159,7 +159,7 @@ function makeCtl(spec, world) {
   return null;
 }
 
-// a/b = controller specs, ax/bx = start x, period = seconds before the scenario restarts
+// a/b = controller specs, ax/bx = start x, period = seconds before the scenario restarts, chars = character names per slot (else the current one)
 const SCENARIOS = {
   'you vs dummy': { a: 'human', b: 'dummy' },
   'you vs ai': { a: 'human', b: 'ai' },
@@ -195,6 +195,9 @@ const SCENARIOS = {
   'back throw': { a: [0.1, { hold: 'back', t: 0.1 }, 'back+punch+guard'], b: [{ hold: 'guard', t: 2 }], ax: 330, bx: 372, period: 2.4 },
   // ↗ S turns the back: G held does not guard it (the foe's jab lands from behind), then K faces the foe again for the kick
   'fireball': { a: [0.2, '@fireball'], b: 'dummy', ax: 220, bx: 560, period: 2 },
+  // roster specials: a scenario's chars names the fighters (the last fills the rest)
+  'flash kick': { a: [0.2, 'up+special'], b: 'dummy', chars: ['sarj', 'stick'], ax: 330, bx: 380, period: 2 },
+  'lightning legs': { a: [0.2, 'special'], b: 'dummy', chars: ['zippa', 'stick'], ax: 330, bx: 372, period: 2 },
   'fireball clash': { a: [0.2, '@fireball', 0.9, '@fireball'], b: [0.2, '@fireball', 0.7, { hold: 'guard', t: 0.8 }], ax: 220, bx: 580, period: 2.6 },
   'turnaround': { a: [0.2, 'up+fwd+special', 0.6, { hold: 'guard', t: 0.6 }, 'kick'], b: [0.7, '!punch'], ax: 330, bx: 400, period: 3 },
   'throw break': { a: [0.2, 'punch+guard'], b: [0.38, 'punch+guard'], ax: 330, bx: 372, period: 2.4 },
