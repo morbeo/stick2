@@ -788,7 +788,7 @@ class Fighter {
   // swept = path of the drawn joint since last substep (fast strikes can't tunnel) · limb = the whole striking bone
   // (one per striking bone, each tagged with its bone id)
   strikeShapes(m) {
-    const mode = this.c('hitTest'), P = mode === 'target' ? this.points(this.target) : this.body(), r = this.c('hitR') + (m.throw ? this.c('grabReach') : 0);
+    const mode = this.c('hitTest'), P = mode === 'target' ? this.points(this.target) : this.body(), r = this.c('hitR') + (m.reach || 0) + (m.throw ? this.c('grabReach') : 0);
     // a weapon strikes along its whole length (a staff behind the hand too), nunchucks with both sticks
     const ids = hitIds(m).flatMap(id => id === 'weapon' && this.ch.by.weaponTip ? [id, 'weaponTip'] : [id]);
     return ids.map(id => this.ch.by[id]).filter(Boolean).flatMap(b => {

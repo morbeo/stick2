@@ -216,7 +216,7 @@ const STICK_MOVES = {
   crescent: attack({ power: 1.6, damage: 13, hit: 'ff', height: 'shigh', knock: 200, launch: 120, kd: true },
     [0.11, { torso: -10, lfU: 140, lfL: -40, lbU: -10, lbL: 0, afU: 40, afL: 100, abU: 50, abL: 90 }],
     [0.07, { torso: 15, lfU: 70, lfL: -5, lbU: -10, lbL: 0, afU: 20, afL: 90, abU: 70, abL: 60 }], 0.06, 0.3),
-  flyingKnee: attack({ power: 1.6, damage: 13, hit: 'thighF', height: 'high', knock: 160, launch: 420, kd: true, lunge: 260 },
+  flyingKnee: attack({ power: 1.6, damage: 13, hit: 'thighF', height: 'high', knock: 160, launch: 420, kd: true, lunge: 260, reach: 8 },
     [0.09, { ...CROUCH, afU: -30, afL: 90, abU: -20, abL: 90 }],
     [0.06, { torso: 10, lfU: 100, lfL: -140, lbU: -40, lbL: -20, afU: 120, afL: 80, abU: 110, abL: 80 }], 0.08, 0.28),
   // air ↑ / ↓ with P / K: an upward punch and flip kick that launch, a double-fist spike off the floor, a dive kick forward
