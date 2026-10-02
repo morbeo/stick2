@@ -119,6 +119,26 @@ const STICK_MOVES = {
   stomp: attack({ power: 1.1, damage: 8, hit: 'ff', height: 'low', knock: 60, launch: 240, kd: true, otg: true, special: true },
     [0.08, { torso: -5, lfU: 80, lfL: -120, afU: 50, abU: 30 }],
     [0.06, { torso: 12, lfU: 42, lfL: -4, lbU: -15, lbL: 0, afU: 20, abU: 60 }], 0.08, 0.2),
+  // the S specials (S, → S, ↑ S, ↓ S; the motions above keep rush, rising, spin and stomp): a one-palm ki shot; a shoulder charge
+  // that shrugs off a hit as it winds up and bounces the foe off a wall; a leaping flying side kick; a punch into the floor at a foe lying there
+  palmShot: { power: 1, damage: 7, hit: 'fh', height: 'mid', knock: 200, stun: 0.4, special: true, shot: { speed: 420, size: 10, life: 1.6, look: 'ki' }, keys: [
+    { d: 0.1, e: 'outQuad', p: { torso: -12, afU: -30, afL: 130, abU: 60, abL: 100, lfU: 30, lfL: -35, lbU: -25, lbL: -10 } },
+    { d: 0.05, e: 'outExpo', shoot: true, p: { torso: 20, afU: 95, afL: 0, abU: -30, abL: 110, lfU: 45, lfL: -40, lbU: -30, lbL: 0 } },
+    { d: 0.12, p: { torso: 20, afU: 95, afL: 0, abU: -30, abL: 110, lfU: 45, lfL: -40, lbU: -30, lbL: 0 } },
+    { d: 0.2, e: 'inOutCubic', p: null }] },
+  shoulderCharge: { power: 1.6, damage: 12, hit: 'chest', height: 'mid', knock: 400, launch: 150, kd: true, wallbounce: true, special: true, keys: [
+    { d: 0.16, e: 'outQuad', p: { torso: 35, head: 15, afU: 20, afL: 120, abU: -20, abL: 110, lfU: 45, lfL: -70, lbU: -20, lbL: -30 }, armor: true },
+    { d: 0.08, e: 'outExpo', p: { torso: 45, head: 20, afU: -10, afL: 110, abU: -40, abL: 100, lfU: 55, lfL: -40, lbU: -45, lbL: 0 }, active: true, lunge: 480 },
+    { d: 0.1, p: { torso: 45, head: 20, afU: -10, afL: 110, abU: -40, abL: 100, lfU: 55, lfL: -40, lbU: -45, lbL: 0 }, active: true },
+    { d: 0.3, e: 'inOutCubic', p: null }] },
+  jumpKick: { power: 1.5, damage: 12, hit: 'ff', height: 'high', knock: 300, launch: 250, kd: true, special: true, keys: [
+    { d: 0.08, e: 'outQuad', p: { ...CROUCH, afU: 50, afL: 110, abU: 30, abL: 120 } },
+    { d: 0.07, e: 'outExpo', p: { torso: -25, lfU: 100, lfL: -5, lbU: -20, lbL: -110, afU: 40, afL: 100, abU: 120, abL: 60 }, active: true, rise: 520, lunge: 240 },
+    { d: 0.16, p: { torso: -25, lfU: 100, lfL: -5, lbU: -20, lbL: -110, afU: 40, afL: 100, abU: 120, abL: 60 }, active: true },
+    { d: 0.3, e: 'inOutCubic', p: null }] },
+  groundPunch: attack({ power: 1.2, damage: 9, hit: 'fh', height: 'low', knock: 60, launch: 300, kd: true, otg: true, special: true },
+    [0.12, { torso: 20, head: -10, afU: 170, afL: 30, abU: 20, abL: 120, lfU: 70, lfL: -90, lbU: -10, lbL: -100 }],
+    [0.06, { torso: 60, head: 20, afU: 20, afL: 0, abU: -30, abL: 100, lfU: 80, lfL: -100, lbU: -5, lbL: -110 }], 0.1, 0.24),
   // directional normals (→ / ↑ / ↓ / ↘ with J or K, see BINDS); the elbow strikes with the end of the upper arm
   elbow: attack({ power: 1.3, damage: 10, hit: 'uarmF', height: 'mid', knock: 260, stun: 0.42, lunge: 200, next: { kick: 'kick' } },
     [0.07, { torso: 2, afU: 40, afL: 150, abU: 30, abL: 120 }],
@@ -473,13 +493,13 @@ const BINDS = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKic
   downPunch: 'launcher', downKick: 'sweep', downFwdPunch: 'bodyBlow', downFwdKick: 'lowKick', downBackPunch: 'crouchJab', downBackKick: 'backSweep',
   dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab', throw2: 'clinch', backThrow: 'backGrab',
   qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: 'charge', dpKick: 'risingKick',
-  special: 'spin', fwdSpecial: 'rush', backSpecial: 'catch', upSpecial: 'rising', downSpecial: 'stomp', airSpecial: 'airSpin' };
+  special: 'palmShot', fwdSpecial: 'shoulderCharge', backSpecial: 'catch', upSpecial: 'jumpKick', downSpecial: 'groundPunch', airSpecial: 'airSpin' };
 const BINDS_25 = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: 'palms', backKick: 'fadeKick',
   upPunch: 'hammer', upKick: 'turnKick', upFwdPunch: 'headbutt', upFwdKick: 'flyingKnee', upBackPunch: 'backfist', upBackKick: 'crescent',
   downPunch: 'launcher', downKick: 'sweep', downFwdPunch: 'bodyBlow', downFwdKick: 'lowKick', downBackPunch: 'crouchJab', downBackKick: 'backSweep',
   dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab', throw2: 'clinch', backThrow: 'backGrab',
   qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: 'charge', dpKick: 'risingKick',
-  special: 'spin', fwdSpecial: 'rush', backSpecial: 'catch', upSpecial: 'rising', downSpecial: 'stomp', airSpecial: 'airSpin' };
+  special: 'palmShot', fwdSpecial: 'shoulderCharge', backSpecial: 'catch', upSpecial: 'jumpKick', downSpecial: 'groundPunch', airSpecial: 'airSpin' };
 // the table of a plane and where a character keeps its own binds for it
 const slotsOf = plane => plane === '2d' ? BINDS : BINDS_25;
 const bindsKey = plane => plane === '2d' ? 'binds' : 'binds25';

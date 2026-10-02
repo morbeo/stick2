@@ -29,14 +29,14 @@ How fights play. Each system here has its own setting group in the side panel.
 | S | U | special |
 | G | L | guard |
 
-S with a direction is a different special. The slots are in the editor.
+S with a direction is a different special. The motions below play the stick's other four (rush, rising, spin, stomp). The slots are in the editor.
 
 | Input | Special |
 |---|---|
-| S | spin |
-| → S | rush |
-| ↑ S | rising |
-| ↓ S | stomp |
+| S | palm shot: a ki ball off one palm |
+| → S | shoulder charge: shrugs off a hit as it winds up (armor), bounces the foe off a wall |
+| ↑ S | jump kick: a leaping flying side kick |
+| ↓ S | ground punch: down on one knee into the floor, hits a foe lying there |
 
 ### Guard
 
@@ -218,7 +218,7 @@ A knockdown lies **downTime** (Falls) before getting up.
 ### Attacking
 
 - **Pounce** (pounce): ↓ S in the air dives onto a fighter lying on the floor. pounce hits off the ground and lands into its strike; a key's **drop** drives it down.
-- **Wall bounce** (move flag wallbounce, on spin): the victim bounces back off the wall at **wallBounceSpeed**, popped up, its juggle count reset for a follow-up.
+- **Wall bounce** (move flag wallbounce, on spin and the shoulder charge): the victim bounces back off the wall at **wallBounceSpeed**, popped up, its juggle count reset for a follow-up.
 
 ### Turnaround
 
@@ -271,7 +271,7 @@ The **shots** setting; key flag **shoot**; in animate the shoot toggle and the s
 - It fizzles at the walls, or when its life runs out.
 - One shot per fighter at a time.
 - The boxes view rings its hitbox.
-- The stick's library has **fireball** (both palms pushed out).
+- The stick's S is **palmShot** (one palm). Its library also has **fireball** (both palms pushed out).
 
 Scenarios: fireball, fireball clash.
 

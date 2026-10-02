@@ -83,7 +83,7 @@ CHAR_DEFS.hadoo = { ...stick, name: 'hadoo', tough: 1.05, tempo: 1.05, gait: { i
   }) },
   ...bind({ fwdPunch: 'collarBreak', fwdKick: 'sideKick', backPunch: 'reversePunch', backKick: 'crescent', upPunch: 'uppercut', upKick: 'axeKick',
     qcfPunch: 'kiBlast', dpPunch: 'shoryu', qcbKick: 'tatsu', qcfKick: 'tatsu', qcbPunch: 'catch', dpKick: 'risingKick',
-    special: 'kiBlast', fwdSpecial: 'tatsu', upSpecial: 'shoryu', airSpecial: 'airTatsu' }, { upFwdPunch: 'collarBreak', upFwdKick: 'flyingKnee' }),
+    special: 'kiBlast', fwdSpecial: 'tatsu', upSpecial: 'shoryu', downSpecial: 'stomp', airSpecial: 'airTatsu' }, { upFwdPunch: 'collarBreak', upFwdKick: 'flyingKnee' }),
   // S+G: the karate stance, deep and square; S burns the blast
   stances: [{ name: 'karate', pose: stylePose([168, 0], [0, 0], [-110, 40], [-185, 150], [40, -30, 90], [-30, -5, 90]),
     ...bind({ punch: 'reversePunch', fwdPunch: 'knifeHand', fwdKick: 'sideKick', special: 'fireBlast', qcfPunch: 'fireBlast' }) }] };
@@ -129,7 +129,7 @@ CHAR_DEFS.grumbo = { ...stick, name: 'grumbo', speed: 0.7, dash: 0.8, weight: 1.
   }) },
   ...bind({ fwdPunch: 'lariat', backPunch: 'headbutt', upPunch: 'headCrush', backKick: 'stomp', throw2: 'hugGrab',
     m63214Punch: 'spinGrab', m63214Kick: 'hugGrab', qcfPunch: 'lariat', qcbKick: 'spinLariat', qcfKick: 'stomp', qcbPunch: 'spinGrab', dpPunch: 'headCrush',
-    special: 'spinLariat', fwdSpecial: 'spinGrab', upSpecial: 'headCrush' }, { upFwdPunch: 'headbutt', upBackPunch: 'headCrush' }),
+    special: 'spinLariat', fwdSpecial: 'spinGrab', upSpecial: 'headCrush', downSpecial: 'stomp' }, { upFwdPunch: 'headbutt', upBackPunch: 'headCrush' }),
   stances: [{ name: 'wrestling', pose: stylePose([158, 0], [0, -15], [-130, 100], [-150, 110], [55, -80, 90], [-35, -40, 90]),
     ...bind({ punch: 'hammer', fwdPunch: 'lariat', throw: 'spinGrab', throw2: 'clinch', special: 'spinGrab' }) }] };
 CHAR_DEFS.grumbo.moves.piledriver.keys[0].turn = 2;
@@ -484,7 +484,7 @@ CHAR_DEFS.noodo = { ...stick, name: 'noodo', speed: 0.8, jump: 0.85, gravity: 0.
   }) },
   ...bind({ punch: 'longJab', fwdPunch: 'cross', backPunch: 'palms', airDownKick: 'drillKick', throw: 'yogaGrab', fwdKick: 'sideKick', upKick: 'crescent',
     qcfPunch: 'yogaFire', dpKick: 'yogaWarp', dpPunch: 'yogaWarp', qcfKick: 'sweep', qcbPunch: 'yogaGrab', qcbKick: 'drillKick',
-    special: 'yogaFire', fwdSpecial: 'yogaGrab', backSpecial: 'yogaWarp', upSpecial: 'yogaWarp', airSpecial: 'drillKick' },
+    special: 'yogaFire', fwdSpecial: 'yogaGrab', backSpecial: 'yogaWarp', upSpecial: 'yogaWarp', downSpecial: 'stomp', airSpecial: 'drillKick' },
   { upFwdPunch: 'longJab', upFwdKick: 'crescent' }),
   // S+G: the tree pose, on one leg with the palms together overhead
   stances: [{ name: 'tree', pose: { ...stylePose([180, 0], [0, 0], [-5, 20], [-10, 25]), thighF: 50, shinF: -150, footF: 90, thighB: 0, shinB: 0, footB: 90 },

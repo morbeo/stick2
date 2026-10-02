@@ -758,7 +758,7 @@ test('turning moves: a turn key turns the fighter around over that key; one turn
   // the turnaround is 9S (both schemes) while its switch is on, else 9S is the up special
   const pick = cfg => run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', ax: 330, bx: 420, cfg: ${JSON.stringify(cfg)} }, {}, 7, [CHARS.stick, CHARS.stick]);
     w.a.inp = { ...NOIN, up: true, right: true }; return w.a.pick('special'); })()`);
-  assert.equal(pick({}), 'turnBack'); assert.equal(pick({ specialScheme: 'motion' }), 'turnBack'); assert.equal(pick({ turnBack: false }), 'rising');
+  assert.equal(pick({}), 'turnBack'); assert.equal(pick({ specialScheme: 'motion' }), 'turnBack'); assert.equal(pick({ turnBack: false }), 'jumpKick');
 });
 
 test('a back throw (← P+G) swings the victim to the other side: it lands behind the thrower, and slides there instead of jumping', () => {

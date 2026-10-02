@@ -1,13 +1,13 @@
 stick      hits 12 hp 42.2 68.9
 hadoo      hits 10 hp 23.5 100.0
 grumbo     hits 8 hp 52.1 90.0
-jabbo      hits 14 hp 0.0 100.0
+jabbo      hits 12 hp 9.2 100.0
 sneeko     hits 12 hp 90.0 4.9
 zippa      hits 9 hp 64.8 55.4
-hicco      hits 9 hp 33.6 85.0
+hicco      hits 11 hp 73.2 38.3
 lumpo      hits 11 hp 89.0 63.2
 sarj       hits 10 hp 79.8 53.4
-noodo      hits 12 hp 5.5 92.5
+noodo      hits 11 hp 13.6 92.5
 gogili     hits 5 hp 72.0 73.8
 pollo      hits 9 hp 39.0 100.0
 gloomo     hits 7 hp 104.3 64.3
