@@ -6,6 +6,8 @@ const SCHEMA = [
   { k: 'ghost', v: false, tip: 'Draw the keyframe (target) pose in blue behind the sprung pose.' },
   { k: 'boxes', v: false, tip: 'Draw hurtboxes (blue), held weapons (amber: they clash but are never hurt) and active strikes and flying weapons (red).' },
   { k: 'scope', v: 'uarmF', tip: 'Bone plotted in the sidebar scope: target (grey) vs drawn (red).' }, // a bone of the current character
+  { k: 'hud', v: true, tip: 'Draw the health and stun bars, dizzy stars, callouts (PARRY, COUNTER, K.O.) and the hit counter over the fighters.' },
+  { k: 'labels', v: true, tip: 'Draw each fight\'s label and its stats line (frozen %, hits, whiffs).' },
   ['Movement', 'How the body travels: ground speed ramps up and down, jumps start with an anticipation squat.', 'A/D move · Space jump · S crouch'],
   { k: 'maxSpeed', v: 260, min: 50, max: 600, step: 10, tip: 'Top walking speed (px/s). Running near it turns J into a dash punch.' },
   { k: 'accel', v: 2400, min: 200, max: 20000, step: 100, tip: 'How fast you reach top speed (px/s²). Low = slidey start, high = instant.' },
@@ -188,6 +190,7 @@ const SCHEMA = [
 ];
 const CFG = {}, DEFAULTS = {}, SPEC = {};
 for (const s of SCHEMA) if (!Array.isArray(s)) { DEFAULTS[s.k] = CFG[s.k] = s.v; SPEC[s.k] = s; }
+const DISPLAY = ['ghost', 'boxes', 'scope', 'hud', 'labels']; // how fights are drawn, not how they play: kept out of presets, settings files and the undo stack
 
 const NOJUICE = { hitstop: 0, hitShake: 0, shake: 0, zoomPunch: 0, squash: 0, sparks: 0, trail: 0, flash: false, slowmo: false, jumpSquat: 0 };
 const PRESETS = {

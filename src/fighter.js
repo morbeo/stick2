@@ -1043,7 +1043,8 @@ class Fighter {
       ctx.strokeStyle = `rgba(230,180,34,${0.2 + 0.4 * q})`; ctx.lineWidth = 6 + 10 * q; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0], e[1]); ctx.stroke();
     }
-    // health bar and callouts (PARRY, K.O.) over the head
+    // health bar and callouts (PARRY, K.O.) over the head (setting hud)
+    if (!this.c('hud')) return ctx.restore();
     let top = this.groundY; for (const k in P) top = Math.min(top, P[k][1]);
     const hp = this.c('health');
     if (hp > 0) {

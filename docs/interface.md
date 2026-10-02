@@ -48,7 +48,7 @@ The layout button (four squares) in the menu bar. Each tab remembers its own lay
 
 The debug button (a chart icon) opens the debug popup, in any tab:
 
-- the **ghost**, **boxes** and **scope** switches;
+- the **ghost**, **boxes**, **hud** and **labels** switches, and the **scope** bone;
 - the build, engine version, frame rate, and the shown fight's seed, frame, state hash and fighters, with **copy** for bug reports;
 - **reset settings**: every setting back to its default (⌘Z undoes);
 - **factory reset**;

@@ -38,7 +38,7 @@ const scenChanged = () => { saveScens(); build(); };
 const exportScens = () => JSON.stringify(myStore, null, 1);
 function importScens(json) { Object.assign(myStore, JSON.parse(json)); saveScens(); panels(); }
 const withData = (d, el) => { Object.assign(el.dataset, d); return el; };
-const changedCfg = () => Object.keys(DEFAULTS).filter(k => CFG[k] !== DEFAULTS[k] && !['ghost', 'boxes', 'scope'].includes(k));
+const changedCfg = () => Object.keys(DEFAULTS).filter(k => CFG[k] !== DEFAULTS[k] && !DISPLAY.includes(k));
 function scenBuilder() {
   const wrap = h('div', { cls: 'mtable sbuild' }), body = h('div');
   const fill = () => {

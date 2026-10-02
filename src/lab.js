@@ -156,9 +156,9 @@ function drawCell(c, r, { full = false, plot = true, selected = false, meter = f
     ctx.fillStyle = RED[0]; ctx.fillRect(r.x + r.w - tw - 2 * dpr, r.y + 2 * dpr, tw, 16 * dpr);
     text(tag, r.x + r.w - tw / 2 - 2 * dpr, r.y + 14 * dpr, '#fff', 11, 'bold', 'center');
   }
-  const ly = c.label ? drawLabel(c.label, r, full) : r.y + 16 * dpr;
+  const ly = c.label && CFG.labels ? drawLabel(c.label, r, full) : r.y + 16 * dpr;
   if (meter) drawMeter(c.w, { x: r.x + 6 * dpr, y: r.y + r.h - ph - (full ? 40 : 16) * dpr, w: r.w - 12 * dpr, h: (full ? 30 : 10) * dpr }, full);
-  if (!full) text(cellStats(c), r.x + 8 * dpr, ly + 14 * dpr, '#999', r.w < 260 * dpr ? 9 : 11);
+  if (!full && CFG.labels) text(cellStats(c), r.x + 8 * dpr, ly + 14 * dpr, '#999', r.w < 260 * dpr ? 9 : 11);
 }
 // the label's parts (split on double spaces, e.g. k=v pairs) wrapped to the cell width, smaller in small cells; returns the last line's y
 function drawLabel(label, r, full) {
@@ -551,14 +551,14 @@ function cfgControl(s) {
   return slider(s.k, s, () => CFG[s.k], set, s.tip);
 }
 function applyPreset(name) {
-  const keep = { ghost: CFG.ghost, boxes: CFG.boxes, scope: CFG.scope, timeScale: CFG.timeScale };
+  const keep = { ...Object.fromEntries(DISPLAY.map(k => [k, CFG[k]])), timeScale: CFG.timeScale };
   setCfg({ ...DEFAULTS, ...PRESETS[name], ...keep });
 }
 // the settings shown in each group without "more" (the ones most worth turning first)
 const BASIC_CFG = new Set(['plant', 'plantStep', 'maxSpeed', 'jumpVel', 'gravity', 'dashSpeed', 'airSpeed', 'fallSpeed', 'easing', 'attackSpeed', 'filter', 'response',
   'hitstop', 'hitShake', 'hitTest', 'powerScale', 'chains', 'chaseJump', 'juggleDecay', 'health', 'damage', 'chip', 'parry', 'staggerAt', 'dizzyAt',
   'grabReach', 'techWindow', 'weapon', 'weaponStart', 'disarm', 'falls', 'floorBounce', 'wallBounce', 'ceiling', 'plane', 'flips', 'dash',
-  'comboStop', 'comboShake', 'comboSpeed', 'shake', 'zoomPunch', 'squash', 'sparks', 'ghost', 'boxes', 'scope']);
+  'comboStop', 'comboShake', 'comboSpeed', 'shake', 'zoomPunch', 'squash', 'sparks', ...DISPLAY]);
 // fuzzy match: every query letter appears in order (ignoring case and spaces)
 const fuzzy = (q, text) => { let i = 0; text = text.toLowerCase(); for (const c of q.toLowerCase().replace(/\s/g, '')) if ((i = text.indexOf(c, i) + 1) === 0) return false; return true; };
 function configPanel() {
@@ -581,7 +581,7 @@ function configPanel() {
       onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { e.target.value = lab.q = ''; filter(); } } }));
   filter();
   const first = rows.findIndex((r, i) => i && r.head);
-  return [search, heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes) stay.', ''),
+  return [search, heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes, hud, labels) stay.', ''),
     h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(optLabel(n), PRESET_TIPS[n], () => applyPreset(n))),
       button(':restart_alt: reset', 'All settings back to their defaults', () => applyPreset('juicy'))),
     heading('Power', 'How hard blows land and how far bodies fly and bounce (off the floor, the walls and the ceiling). Only those settings change.', ''),
@@ -625,10 +625,10 @@ const labSide = () => configPanel();
 // the debug popup (menu bar): the Debug settings, the debug information, copy and factory reset, the monitor
 function debugPanel(e, b) {
   const row = k => h('div', { cls: 'row', tip: SPEC[k].tip }, h('span', { textContent: k }), toggle(CFG[k] ? 'on' : 'off', SPEC[k].tip, () => CFG[k], v => setCfg({ [k]: v }, 'cfg.' + k)));
-  popup(b, h('b', { textContent: 'debug' }), row('ghost'), row('boxes'),
+  popup(b, h('b', { textContent: 'debug' }), row('ghost'), row('boxes'), row('hud'), row('labels'),
     h('div', { cls: 'row', tip: SPEC.scope.tip }, h('span', { textContent: 'scope' }), h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v)))),
     dbgInfo, h('div', { cls: 'bar' }, button(':content_copy: copy', 'Copy the debug information (for a bug report)', () => navigator.clipboard?.writeText(dbgInfo.textContent)),
-      button(':restart_alt: reset settings', 'Every setting back to its default; the display aids (ghost, boxes, scope) stay (⌘Z undoes)', () => { applyPreset('juicy'); mode().restart(); }),
+      button(':restart_alt: reset settings', 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels) stay (⌘Z undoes)', () => { applyPreset('juicy'); mode().restart(); }),
       button(':delete: factory reset', 'Delete all local data: edited characters, settings, keys and macros, layout; then reload as new (asks first)', () => factoryReset())),
     h('p', { cls: 'note', textContent: 'monitor: the scope bone\'s target angle (grey) against the drawn one (red), with the stats of the shown or focused fight' }), scopeCv, stats);
   pop.classList.add('dbgpop'); dbgT = 0; drawDebug();

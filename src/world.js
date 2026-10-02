@@ -502,7 +502,7 @@ class World {
 
 // ---------- replay files: the fight's inputs (not its results), pinned to ENGINE_VERSION ----------
 // everything the simulation reads goes in: scenario, seed, every setting, the characters' definitions; sums = checkpoint checksums
-const REPLAY_FORMAT = 'stick2-replay', REPLAY_SKIP = ['boxes']; // display settings stay live
+const REPLAY_FORMAT = 'stick2-replay', REPLAY_SKIP = ['boxes', 'hud', 'labels']; // display settings stay live
 function makeReplay(w, name) {
   const keys = Object.keys(NOIN);
   return { format: REPLAY_FORMAT, version: ENGINE_VERSION, scenario: name, scen: JSON.parse(JSON.stringify(w.scen)), seed: w.seed,

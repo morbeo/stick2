@@ -47,3 +47,14 @@ test('every projectile look, styled spark and glow draws without NaN', () => {
   for (const k of ['flash', 'ring', 'slash', 'spark']) assert.ok(r.kinds.includes(k), 'particle ' + k);
   assert.ok(r.calls > 100), assert.deepEqual(r.bad, []);
 });
+
+test('hud and labels off draw less, leave the fight as it was, and stay out of replays', () => {
+  const r = JSON.parse(run(`(() => { const calls = cfg => { const w = new World(SCENARIOS['you vs ai'], cfg, 7), { ctx, st } = stubCtx(); w.loop = false;
+      for (let i = 0; i < 60; i++) { w.advance(1/60, { ...NOIN, punch: i % 20 === 0 }); w.render(ctx, { x: 0, y: 0, w: 800, h: 450 }, true); }
+      return { calls: st.calls, hash: w.stateHash() }; };
+    const on = calls({}), off = calls({ hud: false, labels: false });
+    return JSON.stringify({ on, off, skip: REPLAY_SKIP }); })()`));
+  assert.ok(r.off.calls < r.on.calls, `hud off draws less: ${r.off.calls} < ${r.on.calls}`);
+  assert.equal(r.off.hash, r.on.hash);
+  assert.ok(r.skip.includes('hud') && r.skip.includes('labels'));
+});

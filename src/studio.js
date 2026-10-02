@@ -18,7 +18,7 @@ const saveCfg = () => { try { localStorage.setItem(CFG_STORE, JSON.stringify(Obj
 const loadCfg = () => { try { for (const [k, v] of Object.entries(JSON.parse(localStorage.getItem(CFG_STORE)) || {})) if (cfgOk(k, v)) CFG[k] = v; } catch {}
   if (!currentChar().by[CFG.scope]) CFG.scope = currentChar().ids[0]; };
 loadCfg();
-// the display aids (ghost, boxes, scope): saved, but not undo steps
+// the display aids (ghost, boxes, scope, hud, labels): saved, but not undo steps
 const setDisplay = (k, v) => { CFG[k] = v; saveCfg(); };
 const studio = { sel: 'uarmF', also: new Set(), undo: [], redo: [], lastKey: null, lastT: 0, colors: false, fold: new Set(), stance: 0 };
 // the stance being edited (0 = main): its pose as drawn, its pose and own binds in the definition (what edits change)
@@ -183,7 +183,7 @@ function openFile(f) {
 const cfgData = () => Object.fromEntries(changedCfg().map(k => [k, CFG[k]]));
 // settings from a file over the defaults: known ones of the right type and in range only (the debug views stay)
 function cfgFrom(o = {}) {
-  const base = Object.keys(DEFAULTS).filter(k => !['ghost', 'boxes', 'scope'].includes(k)).map(k => [k, DEFAULTS[k]]);
+  const base = Object.keys(DEFAULTS).filter(k => !DISPLAY.includes(k)).map(k => [k, DEFAULTS[k]]);
   return Object.fromEntries([...base, ...Object.entries(o).filter(([k, v]) => cfgOk(k, v))]);
 }
 function exportFile(kind) {
