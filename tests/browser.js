@@ -406,12 +406,15 @@ document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK';
 </script></body>`;
 fs.writeFileSync(out, fs.readFileSync(path.join(root, 'index.html'), 'utf8')
   .replace(/(src|fonts)\//g, `file://${root}/$1/`).replace('</body>', probe));
-const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
-  '--virtual-time-budget=5000', '--dump-dom', 'file://' + out], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-const title = (dom.match(/<title>([^<]*)/) || [])[1] || 'no title';
+(async () => {
+// COVERAGE=1: the same page under Chrome's coverage, printed per src file (tests/browser-coverage.js)
+const title = process.env.COVERAGE ? await require('./browser-coverage')(chrome, 'file://' + out, path.join(root, 'src'))
+  : (execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
+    '--virtual-time-budget=5000', '--dump-dom', 'file://' + out], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).match(/<title>([^<]*)/) || [])[1] || 'no title';
 // docs.html opens the app as the docs page
 const docsDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
   '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'docs.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 const docsOk = /class="docspage"/.test(docsDom) && docsDom.includes('id="docs"');
 console.log(title, docsOk ? '· docs.html OK' : '· docs.html FAILED');
 process.exit(title === 'OK' && docsOk ? 0 : 1);
+})();

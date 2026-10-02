@@ -14,6 +14,7 @@ The engine tests run in Node with no dependencies. A headless Chrome test covers
 | `npm run test:all` | `npm test`, then the browser test |
 | `npm run test:matrix` | every move of every character in the full move matrix (`MATRIX=full`), before a release |
 | `npm run coverage` | the Node tests with V8 coverage of the engine |
+| `npm run coverage:browser` | the browser test with Chrome's coverage of every file in `src/` |
 | `npm run build-info` | writes `src/build.js` only |
 
 ## Snapshots and replays
@@ -41,6 +42,11 @@ The build info is shown in the debug popup (the chart button in the menu bar), n
 - Covered: the engine in `src/` (core, rig, fighter, world, brain), loaded into a vm context by `tests/load.js` under their real paths.
 - The UI modules need the DOM, so the browser test covers them instead.
 
+`npm run coverage:browser` (`COVERAGE=1 node tests/browser.js`) runs the browser test with Chrome's own coverage, over DevTools, and prints line and function coverage for every file in `src/`, lowest first.
+
+- A line counts as run when any code on it ran, so long one-line functions look fully covered. The function column is the stricter one.
+- Engine files show less here than under `npm run coverage`: the browser test only plays a few frames of each mode.
+
 ## The suites
 
 | File | What it checks |
@@ -57,6 +63,7 @@ The build info is shown in the debug popup (the chart button in the menu bar), n
 | `tests/determinism.test.js` | the same seed plays the same AI fight frame for frame (also in a fresh engine); another seed plays another |
 | `tests/centaur.js` | a quadruped test character (not in the roster) for bones a biped never has; `run(require('./centaur'))` adds it |
 | `tests/browser.js` | headless Chrome: every mode, character and stance, no errors |
+| `tests/browser-coverage.js` | the browser test under Chrome's coverage (`npm run coverage:browser`) |
 
 A data check lists every problem it finds, one line each (`stick.jab: punch chains into nothing, not a move`), so one run shows all of them.
 
