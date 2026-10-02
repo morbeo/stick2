@@ -509,6 +509,12 @@ try {
     keymap.onion = ['KeyO']; unbind('KeyJ', 'view'); if (!keymap.punch.includes('KeyJ')) errs.push('a view key took the punch key');
     unbind('KeyP', 'animate'); if (keymap.pause.includes('KeyP')) errs.push('an editor key did not take the pause key');
     keymap.pause = ['KeyP']; }
+  // Cinema: letterbox bars over the fight view; impact frames and speed lines draw; the settings rows are in the side panel
+  { setMode('play'); lab.scen = 'you vs dummy'; build(); setCfg({ letterbox: true, impactFrames: true, speedLines: true, camLead: 0.2 }); panels();
+    const w = lab.cells[0].w, r = labRects()[0]; w.advance(1/60, NOIN); w.impactAt = w.T; Object.assign(w.b, { kd: 'fly', vx: 900, vy: -300 }); mode().render();
+    const px = ctx.getImageData(r.x + r.w / 2 | 0, r.y + 2 | 0, 1, 1).data;
+    if (px[0] > 40 || !document.querySelector('#side .row[data-tip^="Black bars"]') || !docFor('Cinema')) errs.push('cinema letterbox ' + [...px]);
+    applyPreset('juicy'); build(); panels(); }
   // docs: a topic for every settings group, search, a live demo that advances, the ⓘ "docs" link, ⌘K entries, the page form
   { setMode('play'); panels(); const g0 = CFG.gravity; CFG.gravity = g0 * 3; openDocs('specials'); CFG.gravity = g0;
     if (docs.demos[0].w.cfg.gravity !== DEFAULTS.gravity || docs.demos[0].w.a.ch.name !== 'stick') errs.push('docs demo uses your settings');

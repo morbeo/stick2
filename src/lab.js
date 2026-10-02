@@ -565,7 +565,7 @@ function applyPreset(name) {
 const BASIC_CFG = new Set(['plant', 'plantStep', 'maxSpeed', 'jumpVel', 'gravity', 'dashSpeed', 'airSpeed', 'fallSpeed', 'easing', 'attackSpeed', 'filter', 'response',
   'hitstop', 'hitShake', 'hitTest', 'powerScale', 'chains', 'chaseJump', 'juggleDecay', 'health', 'damage', 'chip', 'parry', 'staggerAt', 'dizzyAt',
   'grabReach', 'techWindow', 'weapon', 'weaponStart', 'disarm', 'falls', 'floorBounce', 'wallBounce', 'ceiling', 'plane', 'flips', 'dash',
-  'comboStop', 'comboShake', 'comboSpeed', 'shake', 'zoomPunch', 'squash', 'sparks', ...DISPLAY]);
+  'comboStop', 'comboShake', 'comboSpeed', 'shake', 'zoomPunch', 'squash', 'sparks', 'slowmoT', 'punchIn', 'knockScale', 'impactFrames', ...DISPLAY]);
 // fuzzy match: every query letter appears in order (ignoring case and spaces)
 const fuzzy = (q, text) => { let i = 0; text = text.toLowerCase(); for (const c of q.toLowerCase().replace(/\s/g, '')) if ((i = text.indexOf(c, i) + 1) === 0) return false; return true; };
 function configPanel() {

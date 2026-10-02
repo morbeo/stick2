@@ -13,6 +13,7 @@ How fights play. Each system here has its own setting group in the side panel.
 | [Strikes](#strikes) | headbutts, tails, turning moves, projectiles, rising and multi-hit keys |
 | [Weapons](#weapons) | picking up, throwing, weapon moves, clashes |
 | [Power](#power) | power presets and power scale |
+| [Cinema](#cinema) | slow motion, camera, punch-in, knockback scale, film effects |
 | [Falls](#falls) | ragdoll and pose falls |
 | [Body and movement](#body-and-movement) | foot planting, idle and walk |
 | [Planes: 2D and 2.5D](#planes-2d-and-25d) | lanes, depth, dashes |
@@ -353,6 +354,18 @@ The boxes view shows held weapons in amber and flying ones in red.
 
 - **Power presets** (settings panel, under Presets): **normal**, **heavy**, **smash** and **pinball**. They set only the hit and bounce settings (powerScale, hitstop, floorBounce, bounces, wallBounce, ceiling, floorGrip), from the defaults to blows that send bodies across the screen, bouncing off the floor, walls and ceiling. The button of the matching set shows as on.
 - **powerScale:** one setting that makes every hit more (or less) impactful: knockback, launch, hit stop and screen shake.
+
+## Cinema
+
+The **Cinema** settings film the fight. Their defaults play exactly as before, so replays stay valid.
+
+- **Slow motion:** **slowmoT** and **slowmoRate** set how long the finisher slow motion lasts (slowmo on) and how slow it runs. **slowCounter**, **slowParry** and **slowKO** add slow motion after a counter hit, a parry or the knock-out blow (0 = off).
+- **koFreeze:** every fighter freezes this long on the knock-out blow.
+- **Shake:** **traumaHit** and **traumaBlock** set how much camera trauma a hit or a block adds; **traumaDecay** sets how fast it wears off. The shake grows with the square of the trauma.
+- **Camera:** **camFollow** (how fast it follows), **camMargin** (room around the fighters), **camHeight** (where the floor sits in the view) and **camLead** (look-ahead: it aims where the fighters are heading).
+- **punchIn:** a sharp zoom into the fight on heavy blows and finishers.
+- **knockScale** and **launchScale** multiply how far and how high hits send bodies; **comboGravity** makes a body juggled in a combo fall faster (above 1) or float (below 1).
+- **Drawing only** (the fight plays the same with them on or off): **letterbox** bars, **impactFrames** (a heavy or finishing hit flashes the scene to black-and-white silhouettes for a few frames) and **speedLines** behind a body knocked flying fast.
 
 ## Falls
 

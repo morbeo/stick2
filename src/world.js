@@ -44,7 +44,7 @@ class World {
   }
   reset() {
     const s = this.scen, scripted = Array.isArray(s.a);
-    Object.assign(this, { rand: makeRand(this.seed), fx: makeRand(this.seed + 99), parts: [], trauma: 0, zoom: 0, slowT: 0, T: 0, simT: 0,
+    Object.assign(this, { rand: makeRand(this.seed), fx: makeRand(this.seed + 99), parts: [], trauma: 0, zoom: 0, slowT: 0, impactAt: -9, T: 0, simT: 0,
       frozenT: 0, hits: 0, blocks: 0, parries: 0, clashes: 0, koT: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
       pend: null, adv: null, macro: null, combo: 1, nid: 0, fi: 0, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
     if (!this.replaying) { this.log = []; this.checkpoints = []; this.sums = {}; this.desync = null; } // every frame since the start: [dt, input, macro], for rewind and replays
@@ -227,7 +227,7 @@ class World {
     const slow = this.slowT > 0 && !this.frozen; // finisher slow-mo starts once the freeze is over
     if (slow) this.slowT -= raw;
     this.combo = Math.max(1, ...this.fighters.map(f => f.combo)); // the longest running combo drives Combo escalation
-    const dt = raw * this.cfg.timeScale * (slow ? 0.3 : 1) * clamp(1 + this.cfg.comboTime * (this.combo - 1), 0.2, 3);
+    const dt = raw * this.cfg.timeScale * (slow ? this.cfg.slowmoRate : 1) * clamp(1 + this.cfg.comboTime * (this.combo - 1), 0.2, 3);
     if (dt <= 0) return;
     // fixed-size substeps (<= 1/120 s) keep springs and physics identical at any refresh rate
     const n = Math.ceil(dt * 120), log = this.log;
@@ -288,7 +288,7 @@ class World {
   step(h, inp, inp2 = NOIN) {
     const cfg = this.cfg;
     this.T += h; this.simT += h;
-    this.trauma = Math.max(0, this.trauma - h * 1.6);
+    this.trauma = Math.max(0, this.trauma - h * cfg.traumaDecay);
     this.zoom *= Math.exp(-h * 10);
     this.bank = Math.min(cfg.hitstopBudget, this.bank + h * cfg.hitstopBudget);
     if (this.frozen) this.frozenT += h;
@@ -361,15 +361,15 @@ class World {
     this.pend = { att, vic, at: null, vt: null };
     if (def) { // blocked or parried: a shorter freeze and a ring, no combo
       if (def === 'catch') { vic.catchHit(att, hit); return note(); }
-      if (def === 'parry') { vic.parryHit(att); this.parries++; } else { vic.blockHit(att, m); this.blocks++; }
+      if (def === 'parry') { vic.parryHit(att); this.parries++; if (cfg.slowParry) this.slowT = Math.max(this.slowT, cfg.slowParry); } else { vic.blockHit(att, m); this.blocks++; }
       this.sound('block', pt[0]);
       const hs = (m.stop || cfg.hitstop * m.power) * cfg.powerScale * (def === 'parry' ? 1.2 : 0.5);
       vic.freeze = hs; att.freeze = Math.max(att.freeze, hs); // (max: in a trade the attacker was just struck too)
-      this.trauma = Math.min(1, this.trauma + 0.1 * m.power * cfg.powerScale);
+      this.trauma = Math.min(1, this.trauma + cfg.traumaBlock * m.power * cfg.powerScale);
       this.parts.push({ t: 'ring', x: pt[0], y: pt[1], z: vic.z, life: 0.16, max: 0.16, col: def === 'parry' ? '#2c6fb0' : '#888' });
       return note();
     }
-    vic.takeHit(att, m, hit);
+    const ko0 = vic.ko, ck = vic.takeHit(att, m, hit), ko = vic.ko && !ko0;
     note();
     const fin = vic.kd === 'fly', power = m.power * cfg.powerScale * (fin ? cfg.hitstopFin : 1);
     // freeze shrinks along a combo, and a budget caps total frozen time so long strings don't turn to stop-motion
@@ -380,10 +380,14 @@ class World {
     this.freezes.push({ hs, want, fin });
     if (this.freezes.length > 12) this.freezes.shift();
     this.hits++;
-    this.trauma = Math.min(1, this.trauma + 0.3 * power);
+    this.trauma = Math.min(1, this.trauma + cfg.traumaHit * power);
     this.shakeK = 1 + cfg.comboShake * n;
     this.zoom += cfg.zoomPunch * power * (1 + cfg.comboZoom * n);
-    if (fin && cfg.slowmo) this.slowT = 0.35;
+    if (fin && cfg.slowmo) this.slowT = cfg.slowmoT;
+    if (ck > 1 && cfg.slowCounter) this.slowT = Math.max(this.slowT, cfg.slowCounter);
+    if (ko && cfg.slowKO) this.slowT = cfg.slowKO;
+    if (ko && cfg.koFreeze) for (const f of this.fighters) f.freeze = Math.max(f.freeze, cfg.koFreeze); // the whole fight holds its breath
+    if (fin || power > 1.5) { this.zoom += cfg.punchIn; this.impactAt = this.T; }
     this.victim = vic;
     // the striking key's spark style (key event spark); the plain sparks still draw their random numbers so a style changes no fight
     const st = att.action?.m.keys?.[att.action.i]?.spark;
@@ -494,15 +498,44 @@ class World {
     }
   }
 
+  // ---------- Cinema effects: drawing only (no random numbers, no state), so they never change the fight ----------
+  // speed lines: streaks trailing a body knocked flying fast, flickering by time and fighter
+  drawSpeedLines(ctx) {
+    for (const f of this.fighters) {
+      const v = Math.hypot(f.vx, f.vy);
+      if (f.kd !== 'fly' || v < 450 || f.hidden) continue;
+      const ux = f.vx / v, uy = f.vy / v, cx = f.x, cy = f.groundY + f.y - 50 + f.z * ZS, L = Math.min(160, v * 0.15);
+      ctx.strokeStyle = 'rgba(40,40,40,.35)'; ctx.lineWidth = 1.5; ctx.beginPath();
+      for (let i = 0; i < 7; i++) {
+        const o = wander(i * 3.1 + f.id * 7 + Math.floor(this.T * 30)) * 40, b = 25 + (i % 3) * 18; // sideways offset, gap behind the body
+        const x = cx - ux * b - uy * o, y = cy - uy * b + ux * o;
+        ctx.moveTo(x, y); ctx.lineTo(x - ux * L, y - uy * L);
+      }
+      ctx.stroke();
+    }
+  }
+  // impact frames: for a few frames after a big hit the scene turns to silhouettes, black on white, then white on black
+  drawImpact(ctx) {
+    const d = this.T - this.impactAt;
+    if (d < 0 || d >= 0.07) return;
+    const [bg, ink] = d < 0.035 ? ['#fff', '#111'] : ['#111', '#fff'];
+    ctx.fillStyle = bg; ctx.fillRect(-2000, -2000, W + 4000, 4000);
+    for (const f of this.fighters.filter(f => !f.hidden)) {
+      const zk = 1 + f.z * ZK;
+      ctx.save(); ctx.translate(f.x, f.groundY + f.z * ZS); ctx.scale(zk, zk); ctx.translate(-f.x, -f.groundY);
+      drawFigure(ctx, f.ch, f.body(), ink, ink, 2); ctx.restore();
+    }
+  }
   // draw into rect r (device px). full = whole arena, otherwise a closer camera following the fight. shot (the replay editor's
   // camera, drawing only): { zoom, x } looks at x with the arena zoomed, fill = cover the rect (cropping) instead of fitting inside it
   render(ctx, r, full, shot) {
     // the camera widens to keep every fighter in view (hidden ones aside: the impact tool's unseen attacker)
-    const xs = this.fighters.filter(f => !f.hidden).map(f => f.x), lo = Math.min(...xs), hi = Math.max(...xs), mid = (lo + hi) / 2;
-    this.camW += (clamp(hi - lo + 260, 420, W) - this.camW) * 0.15;
-    const cfg = this.cfg, vw = shot?.zoom ? W / shot.zoom : full ? W : this.camW, vh = vw * H / W;
-    this.cam += (clamp(mid, vw / 2 - 20, W - vw / 2 + 20) - this.cam) * 0.15;
-    const cx = shot?.zoom ? clamp(shot.x ?? mid, vw / 2 - 20, W - vw / 2 + 20) : full ? W / 2 : this.cam, cy = full && !shot?.zoom ? H / 2 : this.groundY - vh * 0.3;
+    const cfg = this.cfg, seen = this.fighters.filter(f => !f.hidden), xs = seen.map(f => f.x), lo = Math.min(...xs), hi = Math.max(...xs);
+    const mid = (lo + hi) / 2 + (cfg.camLead && cfg.camLead * seen.reduce((s, f) => s + f.vx, 0) / seen.length); // look-ahead: where they are heading
+    this.camW += (clamp(hi - lo + cfg.camMargin, 420, W) - this.camW) * cfg.camFollow;
+    const vw = shot?.zoom ? W / shot.zoom : full ? W : this.camW, vh = vw * H / W;
+    this.cam += (clamp(mid, vw / 2 - 20, W - vw / 2 + 20) - this.cam) * cfg.camFollow;
+    const cx = shot?.zoom ? clamp(shot.x ?? mid, vw / 2 - 20, W - vw / 2 + 20) : full ? W / 2 : this.cam, cy = full && !shot?.zoom ? H / 2 : this.groundY - vh * cfg.camHeight;
     const s = (shot?.fill ? Math.max : Math.min)(r.w / vw, r.h / vh) * (1 + this.zoom), tr = this.trauma ** 2 * cfg.shake * this.shakeK;
     const T = this.T, sx = tr * (Math.sin(T * 71) + Math.sin(T * 113 + 1)) * 0.5;
     const sy = tr * (Math.sin(T * 89 + 2) + Math.sin(T * 127 + 3)) * 0.5;
@@ -517,12 +550,15 @@ class World {
       if (plane === 'lanes') for (const l of [-1, 0, 1]) { ctx.beginPath(); ctx.moveTo(-2000, g + l * LANE * ZS); ctx.lineTo(W + 2000, g + l * LANE * ZS); ctx.stroke(); }
     } else { ctx.beginPath(); ctx.moveTo(-2000, g); ctx.lineTo(W + 2000, g); ctx.stroke(); }
     ctx.fillStyle = '#e4ded2'; ctx.fillRect(-2000, -2000, 2020, 4000); ctx.fillRect(W - 20, -2000, 2000, 4000); // walls
+    if (cfg.speedLines) this.drawSpeedLines(ctx);
     for (const f of this.fighters.filter(f => !f.hidden).sort((a, b) => a.z - b.z)) // far ones first
       f.draw(ctx, f.freeze > 0 && f === this.victim ? Math.sin(T * 170) * cfg.hitShake : 0);
     this.drawItems(ctx);
     this.drawShots(ctx);
     this.drawParticles(ctx);
+    if (cfg.impactFrames) this.drawImpact(ctx);
     ctx.restore();
+    if (cfg.letterbox) { const bh = Math.round(r.h * 0.09); ctx.fillStyle = '#111'; ctx.fillRect(r.x, r.y, r.w, bh); ctx.fillRect(r.x, r.y + r.h - bh, r.w, bh); }
     if (this.scen.waves || this.scen.survival) { // wave counter, survival time
       const t = Math.floor(this.survT), head = this.scen.waves ? `WAVE ${this.wave} · ${this.downs + this.fighters.filter(f => f.ko && f !== this.a).length}` : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')} · ${this.downs}`;
       ctx.save(); ctx.fillStyle = '#8a8580'; ctx.textAlign = 'center'; ctx.font = `bold ${Math.round(r.h / 28)}px ui-monospace, Menlo, monospace`;

@@ -474,7 +474,7 @@ class Fighter {
     }
     if (!this.grounded && this.splatT <= 0 && !this.rag) {
       if (this.airDashT > 0) this.vy = 0;
-      else this.vy += c('gravity') * dt;
+      else this.vy += c('gravity') * (this.kd && this.combo > 1 ? c('comboGravity') : 1) * dt; // comboGravity: juggles fall faster or float
       if (this.free && this.dodgeT <= 0) this.vy = Math.min(this.vy, c('fallSpeed')); // top falling speed (not when knocked flying)
       if (this.free && inp.down && this.vy > 0 && !busy) this.vy = Math.max(this.vy, c('fallSpeed')); // fast fall
       this.y += this.vy * dt;
@@ -720,7 +720,7 @@ class Fighter {
         }
       }
       const cb = c('ceiling');
-      for (const q of ps) { q.ox = q.x; q.oy = q.y; q.vy += c('gravity') * dt; q.pvx = q.vx; q.x += q.vx * dt; q.y += q.vy * dt; q.hit = 0; q.top = 0; }
+      for (const q of ps) { q.ox = q.x; q.oy = q.y; q.vy += c('gravity') * (this.combo > 1 ? c('comboGravity') : 1) * dt; q.pvx = q.vx; q.x += q.vx * dt; q.y += q.vy * dt; q.hit = 0; q.top = 0; }
       for (let it = 0; it < 4; it++) {
         // bones keep their length
         for (const b of ch.bones) {
@@ -940,11 +940,11 @@ class Fighter {
     if (juggle) this.jugUsed += m.juggle ?? 1;
     this.dir = -att.dir; this.buffer = null; this.squatT = 0; this.flashT = 0.1;
     const ps = this.c('powerScale');
-    this.vx = att.dir * m.knock * ps * (juggle ? 0.6 : 1) / this.ch.stats.weight;
+    this.vx = att.dir * m.knock * ps * (juggle ? 0.6 : 1) * this.c('knockScale') / this.ch.stats.weight;
     if (m.kd || m.crumple || juggle || combo >= 7 || this.ko) {
       this.juggles = this.kd ? this.juggles + 1 : 0;
       this.kd = 'fly'; this.bounces = otg ? 99 : 0; this.grounded = false; this.action = null; this.hurtT = 0; // hit off the ground: a small pop, no bounce
-      this.vy = -Math.max((m.launch || 300) * ps, this.ko ? 380 : 0) * this.c('juggleDecay') ** this.juggles / this.ch.stats.weight;
+      this.vy = -Math.max((m.launch || 300) * ps, this.ko ? 380 : 0) * this.c('juggleDecay') ** this.juggles * this.c('launchScale') / this.ch.stats.weight;
       this.splat = !!m.wall; this.wallB = !!m.wallbounce; this.gb = !!m.bounce && !otg; this.splatT = 0; this.flyT = 0;
       if (m.crumple && !juggle) { this.vx = att.dir * 30; this.vy = -120; this.bounces = 99; this.say('CRUMPLE'); } // folds where it stands
       if (this.c('falls') === 'ragdoll') { if (!this.rag) this.startRag(); this.rag.tone = m.crumple && !juggle ? 0.15 : 1; this.ragHit(hit); }
@@ -970,6 +970,7 @@ class Fighter {
     // plus a little noise so repeated hits never land identically
     for (const b of this.ch.bones) this.flt[b.id].yd += this.w.rand(-1, 1) * 80 * m.power * (b.lag + 0.5) * b.react;
     this.sqv -= this.c('squash') * 15 * m.power;
+    return ck; // > 1: a counter hit
   }
 
   // the drawn width while turning (face goes from -1 to 1): never thinner than turnWidth, mirrored at the halfway point
