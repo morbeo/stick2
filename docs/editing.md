@@ -8,7 +8,7 @@ Building fighters and their movesets. The editors themselves (dragging joints, t
 |---|---|
 | [Characters](#characters) | side panel in character and animate |
 | [Moves and inputs](#moves-and-inputs) | the move table over the stage |
-| [Movement layers](#movement-layers) | animate → + layer |
+| [Movement layers](#movement-layers) | animate → move group → + → layer |
 | [Input table](#input-table) | the **moves** group → inputs |
 | [Combos](#combos) | the **moves** group → combos |
 
@@ -111,7 +111,7 @@ The **panels** group → **table** puts every move in a table over the stage: ty
 
 ## Movement layers
 
-**animate → + layer.** Every movement state can get a keyframed layer on top of its procedural / IK motion.
+**animate → move group → + → layer.** Every movement state can get a keyframed layer on top of its procedural / IK motion.
 
 **States:** crouch, rise, fall, flip, run, dash, backDash, backWalk, airDash, guard, hurt, tumble, lying, dizzy, turn.
 
@@ -119,7 +119,7 @@ The **panels** group → **table** puts every move in a table over the stage: ty
 - Its keys start at the state's procedural pose (its ref).
 - In a fight, its keys play (looping) from the moment the state begins, and their offsets from the ref are added to the procedural pose.
 - **mix** sets how much: 0 = off, 1 = as keyed. Back walk and turn fade in by speed, or by how far through the turn.
-- Layers group as **layer** in the move list. Delete one to go back.
+- Layers group as **layer** in the move picker. Delete one to go back.
 
 ## Input table
 

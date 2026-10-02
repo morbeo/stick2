@@ -396,7 +396,7 @@ Feet settings: **plant**, **plantStep**, **plantStepT**, **plantLift**; off by d
 - Walking back takes shorter steps with the guard up.
 - A four-legged character trots on diagonal pairs.
 - **walk & idle** in character tunes stride, lift, arm swing, lean, the idle style and amount, and breathing (group buttons, experiment).
-- **+ idle loop / + walk loop** in animate turn the procedural cycle into keyframes to edit like a move. A move named **idle** or **walk** replaces the procedural one (**craneIdle** / **craneWalk** in a stance named crane); delete it to go back.
+- **+ → idle loop / walk loop** in animate (the move group) turn the procedural cycle into keyframes to edit like a move. A move named **idle** or **walk** replaces the procedural one (**craneIdle** / **craneWalk** in a stance named crane); delete it to go back.
 
 ## Planes: 2D and 2.5D
 
@@ -423,7 +423,7 @@ The **plane** setting (lanes and belt are 2.5D):
 
 - A stance's key switches to it: S+G, ↓ S+G, → S+G or ← S+G, picked under the stance buttons. Pressed again, it goes back to main. Stances sharing a key take turns. Saved K+G keys become S+G.
 - Each stance has its own pose, its own binds over the main ones, and its own idle / walk loops.
-- Edit one by picking the stance above the stance pose (character) or above the move list (animate). **group: stance** (and the table's stance column) shows which moves each stance adds.
+- Edit one by picking the stance above the stance pose (character) or in the move group (animate). **group: stance** (and the table's stance column) shows which moves each stance adds.
 - More preset poses: southpaw, muay thai, tiger, crane, sumo, drunken.
 
 Every built-in has a second stance in a fighting style, with that style's moves:

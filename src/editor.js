@@ -1,7 +1,7 @@
 'use strict';
 // ---------- animate mode: pose keyframes by dragging joints (IK), retime them on a frame timeline, preview with springs ----------
 const anim = { move: 'jab', key: 1, t: 0, playing: true, onion: true, aim: false, aimId: null, reach: 'limb', drag: null, hover: null, anchor: null, pv: null, hold: false,
-  target: { char: null, stance: 'stand', state: 'idle', facing: 'toward', dist: 'near' }, group: 'type', sort: 'order', filter: '', view: 'cards',
+  target: { char: null, stance: 'stand', state: 'idle', facing: 'toward', dist: 'near' }, group: 'type', sort: 'order', filter: '',
   tfilter: '', tsort: { k: null, dir: 1 }, tscroll: 0, // the move table's filter, sort column and scroll
   cmp: null, cmpView: 'off' }; // the move compared with (compare group): drawn over this one or as filmstrips
 const curMove = () => currentChar().moves[anim.move];
@@ -591,8 +591,8 @@ function makeLayer(kind) {
   pickMove(name);
 }
 // a move as a card: a drawing of its strike (the first active key); hovering plays it
-function moveCard(n, tip) {
-  const cv = h('canvas'), b = h('button', { cls: 'card', tip, onclick: () => pickMove(n) }, cv, h('span', { textContent: n }));
+function moveCard(n, tip, pick = pickMove) {
+  const cv = h('canvas'), b = h('button', { cls: 'card', tip, onclick: () => pick(n) }, cv, h('span', { textContent: n }));
   const m = currentChar().moves[n], ch = withWeapon(currentChar(), m);
   const still = () => drawThumb(cv, ch, keyPose(ch, m, Math.max(0, m.keys.findIndex(k => k.active))));
   let raf = 0;
@@ -698,8 +698,9 @@ function moveTable() {
   requestAnimationFrame(() => { wrap.scrollTop = anim.tscroll || 0; });
   return wrap;
 }
+// the move picker (the move group's popup): the moves as cards or a list, grouped, sorted and filtered
 function moveList() {
-  const list = h('div'), fill = () => {
+  const pick = n => { closePop(); pickMove(n); }, view = () => lay('animate').movesView || 'cards', list = h('div'), fill = () => {
     const ch = currentChar(), q = anim.filter.trim().toLowerCase(), fd = n => frameData(ch.moves[n], 1);
     const names = Object.keys(ch.moves).filter(n => !q || [n, MOVE_GROUPS[anim.group](ch.moves[n], ch, n), ...moveInputs(ch, n)].join(' ').toLowerCase().includes(q));
     const by = { name: (a, b) => a.localeCompare(b), startup: (a, b) => fd(a).startup - fd(b).startup, damage: (a, b) => moveDamage(ch.moves[b]) - moveDamage(ch.moves[a]) }[anim.sort];
@@ -709,19 +710,18 @@ function moveList() {
     const tips = Object.fromEntries(names.map(n => { const m = ch.moves[n], d = fd(n);
       return [n, `${d.startup}f startup · ${d.active} active · ${d.recovery} recovery${m.power ? ` · ${fmt(moveDamage(m))} damage · ${m.height || 'mid'}` : ''} · input: ${moveInputs(ch, n).join(' ') || 'none'}`]; }));
     list.replaceChildren(...[...groups].sort((a, b) => rank(a[0]) - rank(b[0])).flatMap(([g, ns]) =>
-      [g && h('h4', { textContent: g }), anim.view !== 'list' ? h('div', { cls: 'cards' }, ns.map(n => moveCard(n, tips[n])))
-        : h('div', { cls: 'bar' }, seg(ns, () => anim.move, pickMove, tips))]));
+      [g && h('h4', { textContent: g }), view() !== 'list' ? h('div', { cls: 'cards' }, ns.map(n => moveCard(n, tips[n], pick)))
+        : h('div', { cls: 'bar' }, seg(ns, () => anim.move, pick, tips))]));
     if (!names.length) list.replaceChildren(h('div', { cls: 'note', textContent: 'no move matches the filter' }));
-    if (stageOpen() === 'table' || stageOpen() === 'combos') list.replaceChildren(h('div', { cls: 'note', textContent: `the ${stageOpen() === 'table' ? 'move table' : 'combos'} are over the stage` }));
     syncAll();
   };
   fill();
   return [
-    h('div', { cls: 'row', tip: 'How the moves are shown' }, h('span', { textContent: 'view' }), seg(['cards', 'list'], () => anim.view, v => { anim.view = v; unpeek(); panels(); }, VIEW_TIPS)),
+    h('div', { cls: 'row', tip: 'How the moves are shown' }, h('span', { textContent: 'view' }), seg(['cards', 'list'], view, v => { lay('animate').movesView = v; saveLay(); unpeek(); fill(); }, VIEW_TIPS)),
     adv(h('div', { cls: 'row', tip: 'How the moves are grouped' }, h('span', { textContent: 'group' }), seg(Object.keys(MOVE_GROUPS), () => anim.group, v => { anim.group = v; fill(); }, GROUP_TIPS))),
     adv(h('div', { cls: 'row', tip: 'Order within a group' }, h('span', { textContent: 'sort' }), seg(Object.keys(SORT_TIPS), () => anim.sort, v => { anim.sort = v; fill(); }, SORT_TIPS))),
     h('div', { cls: 'row', tip: 'Show only moves whose name, group or input contains this text (e.g. kick, air, qcf)' }, h('span', { textContent: 'filter' }),
-      h('input', { cls: 'macro', value: anim.filter, placeholder: 'name, group or input', oninput: e => { anim.filter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() })),
+      h('input', { cls: 'macro filter', value: anim.filter, placeholder: 'name, group or input', oninput: e => { anim.filter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() })),
     list];
 }
 const MOVE_BASIC = ['power', 'knock', 'launch', 'stun', 'damage']; // the rest wait behind "more"
@@ -732,11 +732,17 @@ function moveHeading() {
     vals => edit(def => { const m = def.moves[anim.move]; for (const k in vals) if (vals[k]) m[k] = vals[k]; else delete m[k]; })));
   return el;
 }
-// + layer: a keyframed movement layer for a state of this stance that has none yet
-function layerButton() {
-  const ch = currentChar(), free = Object.keys(LAYERS).filter(k => !ch.moves[loopName(ch, studio.stance, k + 'Layer')]);
-  return free.length ? h('div', { cls: 'bar' }, button(':add: layer :expand_more:', `A keyframed movement layer for the ${ch.stances[studio.stance].name} stance: pick a state; its keys start at the procedural pose of that state and what you change is added on top of the procedural / IK motion while the fighter is in it (the mix slider sets how much; delete it to go back)`,
-    (e, b) => popup(b, h('div', { cls: 'bar', onclick: closePop }, free.map(k => button(k, `${LAYERS[k][0]}: add a ${k} layer`, () => makeLayer(k))))))) : null;
+// + loop / layer: a keyframed idle or walk loop, or a movement layer for a state, for this stance where it has none yet
+function addButton() {
+  const ch = currentChar(), st = ch.stances[studio.stance].name;
+  const loops = ['idle', 'walk'].filter(k => !ch.moves[loopName(ch, studio.stance, k)]), free = Object.keys(LAYERS).filter(k => !ch.moves[loopName(ch, studio.stance, k + 'Layer')]);
+  if (!loops.length && !free.length) return null;
+  return button(':add: :expand_more:', `A keyframed loop or movement layer for the ${st} stance`, (e, b) => popup(b, h('div', { onclick: closePop },
+    loops.length ? h('h4', { textContent: 'loop' }) : null,
+    loops.length ? h('div', { cls: 'bar' }, loops.map(k => button(`${loopName(ch, studio.stance, k)} loop`,
+      `A keyframed ${k} loop for the ${st} stance, made from the procedural ${k}, to edit like a move; it replaces the procedural ${k} in this stance (delete it to go back)`, () => makeLoop(k)))) : null,
+    free.length ? h('h4', { textContent: 'layer' }) : null,
+    free.length ? h('div', { cls: 'bar' }, free.map(k => button(k, `${LAYERS[k][0]}: a ${k} layer. Its keys start at the procedural pose of that state and what you change is added on top of the procedural / IK motion while the fighter is in it (the mix slider sets how much; delete it to go back)`, () => makeLayer(k)))) : null)));
 }
 function movePanel() {
   // the striking bone: the limb ends as buttons, any other bone from the popup or by Shift+clicking its joint
@@ -749,17 +755,7 @@ function movePanel() {
   const bindB = button('', 'Inputs that trigger this move. Click to bind it to other inputs (copies of moves become playable this way).', (e, b) =>
     popup(b, h('div', { cls: 'bar' }, Object.keys(slotsOf(CFG.plane)).map(s => toggle(s, `${SLOT_TIPS[s]} · now: ${curBinds(edChar())[s] || 'none'}`, () => curBinds(edChar())[s] === anim.move, () => toggleBind(s))))));
   reg(bindB, () => { setRich(bindB, boundSlots().join(' ') || 'none (combo only)'); });
-  const head = heading('Moves', 'Pick a move to edit. Copies can be tuned freely; the built-in names are the ones the controls trigger.', 'Enter play/pause · O onion · I aim');
-  head.append(crud({ copy: ['New move copied from this one, under a new name', copyMove], delete: ['Delete this move (only copies)', deleteMove] }));
-  const loops = ['idle', 'walk'].filter(k => !currentChar().moves[loopName(currentChar(), studio.stance, k)]);
-  return [...charPanel(),
-    head,
-    ...stanceRow(),
-    ...moveList(),
-    loops.length ? h('div', { cls: 'bar' }, loops.map(k => button(`:add: ${loopName(currentChar(), studio.stance, k)} loop`,
-      `A keyframed ${k} loop for the ${currentChar().stances[studio.stance].name} stance, made from the procedural ${k}, to edit like a move; it replaces the procedural ${k} in this stance (delete it to go back)`, () => makeLoop(k)))) : null,
-    layerButton(),
-    moveHeading(),
+  return [moveHeading(),
     m().ref ? slider('mix', { min: 0, max: 1, step: 0.05 }, () => m().mix ?? 1, v => setMove('mix', v === 1 ? undefined : v, 'm.mix'),
       'Layer strength: how much of this layer\'s offsets (its keys minus the procedural pose it was made from) is added on top of the procedural / IK motion in a fight. 0 = off, 1 = as keyed') : null,
     h('div', { cls: 'row', tip: 'Striking bones: each end is a strike (in limb mode the whole bone); with several, the one that lands counts, one hit per target. Shift+click a joint in the editor to pick it, ⌘/Ctrl+Shift+click to add or remove it.' },
@@ -777,6 +773,7 @@ function movePanel() {
     ...MOVE_PROPS.map(p => { const r = slider(p.k, p, () => m()[p.k] ?? p.def ?? 0, v => setMove(p.k, v === (p.def ?? 0) ? undefined : v, 'm.' + p.k), p.tip); return MOVE_BASIC.includes(p.k) ? r : adv(r); }),
     h('div', { cls: 'bar' }, Object.entries(MOVE_FLAGS).map(([f, tip]) => toggle(f, tip, () => !!m()[f], v => setMove(f, v || undefined)))),
     ...keyPanel(),
+    ...charPanel(),
   ];
 }
 
@@ -787,8 +784,22 @@ function movesGrp() {
   return grp('moves', 'The character\'s moves: pick one to open in the keyframe editor (or click a move in the table, inputs or combos)', pick);
 }
 const MOVE_PANELS = ['table', 'inputs', 'combos'], moveStage = () => ({ table: moveTable, inputs: inputTable, combos: comboView })[stageOpen()];
+// the move toolbar (animate): previous / next, the move being edited with the picker, its actions and the stance
+function moveGrp() {
+  const ch = currentChar(), names = Object.keys(ch.moves), step = d => pickMove(names[(names.indexOf(anim.move) + d + names.length) % names.length]);
+  const cur = button('', 'The move being edited: click to pick another (cards or a list, grouped, sorted, filtered)', (e, b) => {
+    popup(b, h('div', { cls: 'movepop' }, ...moveList())); pop?.querySelector('.filter').focus();
+  });
+  reg(cur, () => setRich(cur, `${anim.move} :expand_more:`));
+  const st = ch.stances.map(s => s.name);
+  return grp('move', 'The move being edited. Copies can be tuned freely; the built-in names are the ones the controls trigger. Enter play/pause · O onion · I aim',
+    button(':chevron_left:', 'Previous move', () => step(-1), 'mini'), cur, button(':chevron_right:', 'Next move', () => step(1), 'mini'),
+    crud({ copy: ['New move copied from this one, under a new name', copyMove], delete: ['Delete this move (only copies)', deleteMove] }, addButton()),
+    st.length > 1 ? seg(st.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); },
+      Object.fromEntries(st.map((n, i) => [i, `Stance ${n}: the one the input and loop edits change and previews start in (stances are made in the character tab)`])), i => st[i]) : null);
+}
 function animCtx() {
-  return [movesGrp(), compareGrp(), showGrp(['boxes', 'ghost', 'colours']), panelsGrp(MOVE_PANELS, VIEW_TIPS)];
+  return [moveGrp(), compareGrp(), showGrp(['boxes', 'ghost', 'colours']), panelsGrp(MOVE_PANELS, VIEW_TIPS)];
 }
 const CMP_TIPS = { off: 'No comparison', overlay: 'The compared move drawn over this one in amber, at the same moment',
   strip: 'Filmstrip: this move and the compared one frame by frame on one time scale, tinted by phase (click a frame to go there)' };
@@ -857,7 +868,7 @@ const animMode = {
   render() { clear(); drawAnimEditor(); drawTimeline(); drawCell({ w: anim.pv, label: 'preview (springs + hit stop)' }, anLayout().pv, { plot: false }); },
   ctxBar: animCtx,
   side: movePanel,
-  open: ['character', 'moves', 'move', 'key'],
+  open: ['move', 'key'],
   overlay: () => moveStage() ? [moveStage()()] : [timelineBar(), targetBar()],
   mouse: animMouse,
   key: animKey,

@@ -20,6 +20,7 @@ const SHOTS = {
   impact: [`setMode('impact'); panels(); ${run(25)}`, [0, 80, 1100, 600]],
   ragdoll: [`setMode('impact'); lab.impact = 'ragdoll'; build(); panels(); ${run(5)} blow(lab.cells[0].w, 'launcher'); ${run(24)}`, [0, 40, 1100, 640]],
   hip: [`setMode('character'); panels(); creator.hover = 'hip'; ${run(30)}`, [0, 80, 1100, 600]],
+  movepicker: [`setMode('animate'); anim.move = 'roundhouse'; animMode.enter(); panels(); ${run(10)} [...document.querySelectorAll('#ctx [data-part="move"] button')].find(b => b.textContent.includes('roundhouse')).click(); Object.assign(pop.style, { left: '368px', top: '83px', maxHeight: 'none' }); pop.firstChild.style.maxHeight = '570px';`, [340, 40, 660, 630]],
   combos: [`setMode('animate'); lay('animate').panel = 'combos'; panels(); mode().render();`, [0, 80, 1100, 600]],
   movetable: [`setMode('animate'); lay('animate').panel = 'table'; panels(); mode().render();`, [0, 80, 1100, 600]],
   inputs: [`setMode('animate'); lay('animate').panel = 'inputs'; panels(); mode().render();`, [0, 80, 1100, 600]],

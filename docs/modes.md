@@ -9,7 +9,7 @@ The top bar has four tabs: **play**, **grid**, **character** and **animate**. So
 | [play](#play) | fight · [impact](#impact) | fight, train, watch hit reactions |
 | [grid](#grid) | | compare one fight across many settings |
 | [character](#character) | | build a body |
-| [animate](#animate) | cards · list · [gallery](#gallery) · [tests](#tests) | build moves, check them all |
+| [animate](#animate) | [gallery](#gallery) · [tests](#tests) | build moves, check them all |
 
 ## Play
 
@@ -192,7 +192,7 @@ The **panels** group → **bones** puts every bone in a table over the stage: id
 
 ### Moves
 
-The **panels** group in the toolbar (here and in animate) opens the move table, the inputs and the combos over the stage; here also the **bones** table. Click it again, × or Esc to close; each tab keeps its own open panel. A move clicked in them (or picked from **edit** in the **moves** group) opens in animate. See [Editing](editing.md).
+The **panels** group in the toolbar (here and in animate) opens the move table, the inputs and the combos over the stage; here also the **bones** table. Click it again, × or Esc to close; each tab keeps its own open panel. A move clicked in them (or picked from **edit** in the **moves** group; in animate, from the **move** group) opens in animate. See [Editing](editing.md).
 
 ## Animate
 
@@ -243,9 +243,22 @@ A live preview with springs and hit stop, against a **target**:
 - idle, in the air, lying or dizzy
 - facing toward or away
 
-### The move list
+### The move group
 
-- **cards** (a drawing of each move's strike; hover plays it) or **list** (just names).
+The toolbar's **move** group holds the move being edited:
+
+- **‹ ›** step to the previous or next move.
+- **The move's name** opens the picker (below), with the filter ready to type in.
+- **copy** and **delete** (copies only), and **+** for a keyframed idle or walk loop or a movement layer of the stance.
+- **The stance**, when the character has more than one (stances are made in the character tab).
+
+The side panel holds the move's settings, then the key's, then the character (folded).
+
+![The move picker](img/movepicker.png)
+
+The picker shows the moves as:
+
+- **cards** (a drawing of each move's strike; hover plays it) or **list** (just names); the choice is kept in the layout.
 - **group** by type, striking limb, height, stance or **fighting style**: boxing, karate, muay thai, capoeira, kung fu, taekwondo, wrestling; the rest are basic.
 - **sort** by order, name, startup or damage.
 - **filter** by name, group or input.

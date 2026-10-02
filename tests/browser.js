@@ -24,7 +24,7 @@ try {
   pickChar('stick'); studio.stance = 0; setMode('animate'); makeLoop('idle'); makeLoop('walk');
   if (!currentChar().moves.idle || currentChar().moves.walk.keys.length !== 8) errs.push('makeLoop');
   // movement layers: + layer makes one at the state's procedural pose (its ref); it groups as layer, has a mix slider, and the + layer list drops it
-  { const lb = () => [...document.querySelectorAll('#side button')].find(b => b.textContent.includes('layer')); lb().click();
+  { const lb = () => document.querySelector('#ctx [data-tip^="A keyframed loop"]'); lb().click();
     [...document.querySelectorAll('.pop button')].find(x => x.textContent === 'crouch').click();
     const m = currentChar().moves.crouchLayer, sl = [...document.querySelectorAll('#side .row')].some(r => r.textContent.startsWith('mix'));
     if (!m || anim.move !== 'crouchLayer' || JSON.stringify(m.keys[0].p) !== JSON.stringify(m.ref) || m.ref.handF === undefined && !Object.keys(m.ref).length || !sl) errs.push('makeLayer ' + [!!m, anim.move, sl]);
@@ -144,6 +144,19 @@ try {
     btn('impact').click(); btn('launcher').click(); const w = creator.w; for (let i = 0; i < 20; i++) w.advance(1/60, NOIN);
     if (!w.a.hidden || w.b.ch !== currentChar() || w.hits !== 1) errs.push('creator impact ' + [w.a.hidden, w.b.ch.name, w.hits]);
     btn('showcase').click(); if (btn('crumple')) errs.push('creator blow buttons stay'); }
+  // animate's move group: the current move opens the picker (filter focused), a card picks and closes it; cards / list is kept in the layout, apart from the stage panels; ‹ › step
+  { setMode('animate'); pickChar('stick'); studio.stance = 0; anim.move = 'jab'; anim.filter = ''; panels();
+    const cur = () => [...document.querySelectorAll('#ctx [data-part="move"] button')].find(b => b.textContent.includes('jab'));
+    cur().click(); const fo = document.activeElement?.classList.contains('filter'), cards = document.querySelectorAll('.pop .movepop .card');
+    [...cards].find(c => c.textContent === 'roundhouse')?.click();
+    if (!fo || !cards.length || anim.move !== 'roundhouse' || document.querySelector('.pop')) errs.push('move picker ' + [fo, cards.length, anim.move]);
+    lay('animate').movesView = 'list'; lay('animate').panel = 'table'; panels(); lay('animate').panel = null; panels();
+    if (lay('animate').movesView !== 'list') errs.push('panel resets the list view');
+    document.querySelector('#ctx [data-part="move"] [data-tip="Next move"]').click(); const nx = anim.move;
+    document.querySelector('#ctx [data-part="move"] [data-tip="Previous move"]').click();
+    if (nx === 'roundhouse' || anim.move !== 'roundhouse') errs.push('move step ' + nx + anim.move);
+    if ([...document.querySelectorAll('#side h3')].map(x => x.textContent).join().indexOf('Character') < 0 || document.querySelector('#side .movepop')) errs.push('animate side');
+    delete lay('animate').movesView; saveLay(); anim.move = 'jab'; panels(); }
   // four tabs: impact is a view of play, gallery of animate, picked in the toolbar's view group
   { setMode('impact'); const tabs = [...document.querySelectorAll('#modes button')], on = tabs.find(b => b.classList.contains('on'));
     if (tabs.length !== 4 || !on?.textContent.includes('play')) errs.push('tabs ' + tabs.length + ' ' + on?.textContent);
