@@ -653,7 +653,7 @@ function peekSeq(ns, e) {
     document.body.append(el);
     const loop = now => {
       if (peek?.el !== el) return; if (!document.querySelector('.mtable')) return unpeek();
-      const t = (now - t0) / 1000 % (d + 0.3), s = segs.findLast(s => s.t0 <= t);
+      const t = Math.max(0, now - t0) / 1000 % (d + 0.3), s = segs.findLast(s => s.t0 <= t); // (the first frame's time can be before t0)
       drawThumb(cv, s.ch, samplePose(s.ch, s.m, t - s.t0), 120, 128); requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
