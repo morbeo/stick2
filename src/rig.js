@@ -604,20 +604,32 @@ const WEAPONS = {
 const weaponPower = w => 0.8 + 0.4 * w.weight, weaponSpeed = w => 1.15 - 0.2 * w.weight;
 // a weapon move built on a stick move's key pose (move, key index), with the weapon's grip angle (undefined: the rest grip)
 const wPose = (n, i, w, more) => ({ ...CHAR_DEFS.stick.moves[n].keys[i].p, ...more, ...(w === undefined ? {} : { weapon: w }) });
+// a weapon move's own pose, written as the stick's moves are (torso, afU, …), with the weapon's grip angle
+const wOwn = (o, w) => ({ ...fromOld(o), ...(w === undefined ? {} : { weapon: w }) });
 const wAtk = (cls, o, wind, strike, hd, rd) => attack({ ...o, hit: 'weapon', weapon: cls }, wind, strike, hd, rd);
 const WEAPON_MOVES = {
-  stab: wAtk('pierce', { power: 0.9, damage: 7, height: 'high', knock: 100, stun: 0.3 }, [0.05, wPose('jab', 0)], [0.04, wPose('jab', 1)], 0.05, 0.14),
-  lungeStab: wAtk('pierce', { power: 1.2, damage: 10, height: 'mid', knock: 160, stun: 0.4, lunge: 300 }, [0.08, wPose('dashPunch', 0)], [0.05, wPose('dashPunch', 1)], 0.07, 0.2),
-  riseStab: wAtk('pierce', { power: 1.3, damage: 9, height: 'high', knock: 80, launch: 480, kd: true }, [0.08, wPose('launcher', 0)], [0.05, wPose('launcher', 1)], 0.06, 0.24),
+  // pierce: a fencer's thrust from the hip, the free hand up on guard; a deep lunge, the back arm flung behind; a rising stab up out of a crouch
+  stab: wAtk('pierce', { power: 0.9, damage: 7, height: 'high', knock: 100, stun: 0.3 }, [0.05, wOwn({ torso: -6, afU: -30, afL: 100, abU: 60, abL: 110 })],
+    [0.04, wOwn({ torso: 22, afU: 92, afL: 0, abU: 45, abL: 120, lfU: 30, lfL: -20, lbU: -20 })], 0.05, 0.14),
+  lungeStab: wAtk('pierce', { power: 1.2, damage: 10, height: 'mid', knock: 160, stun: 0.4, lunge: 300 }, [0.08, wOwn({ torso: -5, afU: 50, afL: 60, abU: 150, abL: 60, lfU: 20, lbU: -10 })],
+    [0.05, wOwn({ torso: 20, afU: 90, afL: 0, abU: -60, abL: 20, lfU: 70, lfL: -70, lbU: -50, lbL: 0 })], 0.07, 0.2),
+  riseStab: wAtk('pierce', { power: 1.3, damage: 9, height: 'high', knock: 80, launch: 480, kd: true }, [0.08, wOwn({ ...CROUCH, torso: 30, afU: -20, afL: 60, abU: 40, abL: 120 })],
+    [0.05, wOwn({ torso: -10, afU: 135, afL: 45, abU: -30, abL: 60, lfU: 10, lfL: -5, lbU: -20, lbL: -10 })], 0.06, 0.24),
   slash: wAtk('slash', { power: 1.1, damage: 10, height: 'high', knock: 150, stun: 0.38 }, [0.08, wPose('jab', 0, 110)], [0.05, wPose('jab', 1, 0)], 0.06, 0.2),
   chop: wAtk('slash', { power: 1.4, damage: 13, height: 'mid', knock: 120, stun: 0.45 }, [0.1, wPose('hammer', 0, 30)], [0.06, wPose('hammer', 1, 10)], 0.07, 0.26),
   lowSlash: wAtk('slash', { power: 1, damage: 8, height: 'low', knock: 110, stun: 0.35, lunge: 80 }, [0.08, wPose('launcher', 0, 120)], [0.06, wPose('launcher', 0, 20)], 0.06, 0.22),
   swing: wAtk('blunt', { power: 1.2, damage: 9, height: 'high', knock: 200, stun: 0.4 }, [0.09, wPose('jab', 0, 100)], [0.06, wPose('jab', 1, -10)], 0.06, 0.22),
   smash: wAtk('blunt', { power: 1.5, damage: 12, height: 'mid', knock: 150, stun: 0.5, crumple: true }, [0.11, wPose('hammer', 0, 30)], [0.06, wPose('hammer', 1, 0)], 0.07, 0.28),
-  lowSwing: wAtk('blunt', { power: 1.1, damage: 8, height: 'low', knock: 150, kd: true, launch: 150 }, [0.09, wPose('launcher', 0, 120)], [0.06, wPose('launcher', 0, 20)], 0.06, 0.24),
-  heavySwing: wAtk('2h', { power: 1.8, damage: 15, height: 'high', knock: 280, stun: 0.5 }, [0.16, wPose('jab', 0, 110)], [0.08, wPose('jab', 1, 0)], 0.08, 0.32),
-  slam: wAtk('2h', { power: 2, damage: 18, height: 'mid', knock: 100, launch: 200, kd: true, bounce: true }, [0.18, wPose('hammer', 0, 30)], [0.08, wPose('hammer', 1, 0)], 0.1, 0.36),
-  groundSwing: wAtk('2h', { power: 1.6, damage: 12, height: 'low', knock: 250, kd: true, launch: 150 }, [0.15, wPose('launcher', 0, 120)], [0.08, wPose('launcher', 0, 20)], 0.08, 0.3),
+  // a low backhand swing at the shins, from high over the front shoulder
+  lowSwing: wAtk('blunt', { power: 1.1, damage: 8, height: 'low', knock: 150, kd: true, launch: 150 }, [0.09, wOwn({ ...CROUCH, afU: 120, afL: 60, abU: 20, abL: 100 }, 140)],
+    [0.06, wOwn({ ...CROUCH, torso: 30, afU: 20, afL: 0, abU: -20, abL: 90 }, 0)], 0.06, 0.24),
+  // two-handed: a level swing from far back over the shoulder; an overhead slam from behind the head into a deep bow; a low sweep along the floor
+  heavySwing: wAtk('2h', { power: 1.8, damage: 15, height: 'high', knock: 280, stun: 0.5 }, [0.16, wOwn({ torso: -15, afU: 120, afL: 100, abU: 110, abL: 110, lfU: 10, lbU: -20 }, 150)],
+    [0.08, wOwn({ torso: 25, afU: 95, afL: 10, abU: 90, abL: 20, lfU: 35, lfL: -25, lbU: -30 }, -20)], 0.08, 0.32),
+  slam: wAtk('2h', { power: 2, damage: 18, height: 'mid', knock: 100, launch: 200, kd: true, bounce: true }, [0.18, wOwn({ torso: -18, head: -10, afU: 185, afL: 40, abU: 180, abL: 45, lfU: 5, lbU: -5 }, 60)],
+    [0.08, wOwn({ torso: 45, afU: 55, afL: 10, abU: 50, abL: 15, lfU: 55, lfL: -60, lbU: -35, lbL: -10 }, 10)], 0.1, 0.36),
+  groundSwing: wAtk('2h', { power: 1.6, damage: 12, height: 'low', knock: 250, kd: true, launch: 150 }, [0.15, wOwn({ ...CROUCH, torso: 30, afU: -40, afL: 30, abU: -35, abL: 35 }, 160)],
+    [0.08, wOwn({ ...CROUCH, torso: 35, afU: 60, afL: 5, abU: 55, abL: 10 }, 45)], 0.08, 0.3),
   // the staff in both hands (grip2): poke thrusts it level, whirl turns it a full circle (down behind, up and over into the strike), trip sweeps it low
   poke: wAtk('pole', { power: 1, damage: 7, height: 'mid', knock: 180, stun: 0.35, lunge: 120 }, [0.07, wPose('jab', 0, -52)], [0.05, wPose('jab', 1, 9)], 0.06, 0.18),
   whirl: wAtk('pole', { power: 1.3, damage: 10, height: 'high', knock: 200, stun: 0.4, wide: true }, [0.12, wPose('hammer', 0, -404)], [0.07, wPose('uppercut', 1, -394)], 0.07, 0.26),
