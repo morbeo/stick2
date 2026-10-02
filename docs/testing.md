@@ -15,6 +15,7 @@
 | `tests/render.test.js` | every scenario renders into a stub canvas with every overlay on, and drawing never changes the fight |
 | `tests/data.test.js` | data validation: settings defaults within their range / options, presets, power presets and scenario settings use real settings with fitting values, scenario characters exist; bones (unique, parents exist, limits); moves (heights, hits, striking bones, posed bones, durations, chains, throws and counters name real moves); every bound input and stance key |
 | `tests/boundary.test.js` | every timing window one frame inside its edge, on it and one past it (N-1, N, N+1) at a few sizes: parry (N frames before the blow), just guard, throw break and landing tech (N+1: the press on the edge frame counts), air recover (only once airRecover has passed), and the juggle pool (a hit costing 2 passes with 1, lands with 2 and 3) |
+| `tests/matrix.test.js` | the Tests view's move matrix (`src/checks.js`) with only what must hold in every cell: the move starts, nothing becomes NaN, both fighters return to neutral, nobody leaves the stage; each move (the stick's library and every fighter's own) gets 2 cells, column and opponent picked by the seed |
 | `tests/determinism.test.js` | the same seed plays the same AI fight frame for frame (also in a fresh engine); another seed plays another |
 | `tests/centaur.js` | a quadruped test character (not in the roster) for bones a biped never has; `run(require('./centaur'))` adds it |
 | `tests/browser.js` | headless Chrome: every mode, character and stance, no errors |
@@ -32,3 +33,9 @@ The randomized tests share one seed from `tests/seed.js`, printed on every run (
 | `npm test` | 1, the same every run |
 | `SEED=42 npm test` | 42: rerun a failure with the seed it names |
 | `SEED=random npm test` | a fresh one each run, to explore; it is printed, so a failure can be replayed |
+
+## The move matrix
+
+`npm test` plays each move in 2 cells of the matrix (about 340 cells, 5 s), the cells picked by the seed: `SEED=random npm test` tries others. `npm run test:matrix` (`MATRIX=full`) plays every move of every character in all 28 columns against itself, about 36,000 cells in 8 minutes, before a release. A failure lists each bad cell (`stick.jab vs sneeko, target guard back turned near: a position became NaN`) with the command that reruns it; the Tests view (animate tab) shows the same cell playing.
+
+The matrix tests invariants only. Whether a move hits, is blocked or whiffs where it should is checked in the Tests view, where some cells still fail on purpose, as known bugs: projectiles fired point-blank spawn behind the target (a guard faces the wrong way), the shuriken (a high) hits crouching targets, and flyingKnee, backfist, overhand and some of noodo's moves whiff their own setup.
