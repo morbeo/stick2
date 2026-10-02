@@ -156,7 +156,7 @@ class Fighter {
 
   // runs every substep, hit stop included: directions are remembered for special motions, buttons are buffered
   bufferInput(inp) {
-    if (this.away && this.free && !this.action && (inp.left || inp.right || inp.up || inp.down)) { this.away = false; this.dir = -this.dir; } // back turned: a direction turns it back
+    if (this.away && this.free && !this.action && (inp.left || inp.right || inp.up)) { this.away = false; this.dir = -this.dir; } // back turned: ←, → or ↑ turns it back (↓ crouches with the back turned)
     const n = 5 + (inp.right - inp.left) * this.dir - (inp.down ? 3 : inp.up ? -3 : 0), t = this.w.simT, d = this.dirs;
     if (d[d.length - 1]?.n !== n) d.push({ n, t });
     while (d.length > 1 && t - d[1].t > this.c('motionWindow')) d.shift();

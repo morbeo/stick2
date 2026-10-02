@@ -252,7 +252,7 @@ const TARGET_TIPS = {
   low: 'The target holds a low guard: blocks lows and special mids from the front',
   idle: 'The target is on the ground and free', air: 'The target jumps so it is near the top of its jump when the move becomes active',
   down: 'The target lies on the floor: only off-the-ground (otg) moves hit it', dizzy: 'The target is dizzy: the next hit wakes it',
-  toward: 'The target faces the attacker', away: 'The target turns its back: guard and parry only work from the front',
+  toward: 'The target faces the attacker', away: 'The target turns its back: guard and parry only work from the front (it stays turned while crouching or holding a low guard)',
 };
 function pvScen() {
   const m = curMove(), tg = anim.target, s = galleryScen(anim.move, !!m.air);
@@ -517,7 +517,7 @@ function keyPanel() {
         () => !!k().catch, v => setKey('catch', v || undefined)),
       toggle(':blur_on: warp', 'Warp: as this key is reached the fighter reappears teleportDist behind the foe, turned to face it, leaving after-images (teleport).',
         () => !!k().warp, v => setKey('warp', v || undefined)),
-      toggle(':swap_horiz: turn', 'Turn: the fighter turns around during this key. Once leaves its back to the foe (turnaround: no guard until a direction or a move faces it again); holding a throw victim it swings the victim round behind (back throw).',
+      toggle(':swap_horiz: turn', 'Turn: the fighter turns around during this key. Once leaves its back to the foe (turnaround: no guard until ←, → or ↑ or a move faces it again; ↓ crouches still turned); holding a throw victim it swings the victim round behind (back throw).',
         () => k().turn === true, v => setKey('turn', v || undefined)),
       toggle(':bolt: shoot', 'Shoot: the move\'s projectile leaves the striking limbs as this key is reached (shots setting); it hits with this move\'s power, damage and height. Its look, speed and size are under shot.',
         () => !!k().shoot, v => setKey('shoot', v || undefined)),

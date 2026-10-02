@@ -688,6 +688,14 @@ test('combo routes: every chain from a starter (a bound move with links, or one 
   assert.deepEqual(r.loop, ['jab', 'cross', 'uppercut']);
 });
 
+test('back turned, ↓ crouches without turning around: a low guard held with the back to the foe stays turned, so a low hits it', () => {
+  const go = hold => JSON.parse(run(`(() => { const w = new World({ a: [0.5, 'down+kick'], b: [{ hold: '${hold}', t: 99 }], ax: 330, bx: 380, period: 9, init: w => { w.b.away = true; w.b.dir = -w.b.dir; } }, {}, 1, [CHARS.stick, CHARS.stick]);
+    w.loop = false; let crouched = false; for (let i = 0; i < 60; i++) { w.advance(1/60, NOIN); crouched ||= w.b.crouching; }
+    return JSON.stringify({ away: w.b.away, crouched, hits: w.hits, blocks: w.blocks }); })()`));
+  for (const hold of ['down', 'down+guard']) assert.deepEqual(go(hold), { away: true, crouched: true, hits: 1, blocks: 0 }, hold);
+  assert.equal(go('back').away, false, '← still turns it back');
+});
+
 test('turning moves: a turn key turns the fighter around over that key; one turn leaves its back to the foe until a direction or a move, two make a full spin', () => {
   const go = (a, n = 70, cfg = {}) => JSON.parse(run(`(() => { const w = new World({ a: ${a}, b: 'dummy', ax: 330, bx: 385, cfg: ${JSON.stringify(cfg)} }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
     let minFace = 1; const seen = new Set();
@@ -696,7 +704,7 @@ test('turning moves: a turn key turns the fighter around over that key; one turn
   // the turnaround: back turned (facing away from the foe) once it ends, and it stays so while idle
   const t = go("[0.1, '@turnBack']");
   assert.equal(t.away, true); assert.equal(t.dir, -1); assert.ok(t.face < -0.99, 'turned: ' + t.face);
-  // a direction held turns it back; so does starting a move without turn keys (it faces the foe for it)
+  // ←/→/↑ held turns it back; so does starting a move without turn keys (it faces the foe for it)
   assert.deepEqual([go("[0.1, '@turnBack', 0.8, { hold: 'back', t: 0.1 }]").away, go("[0.1, '@turnBack', 0.8, { hold: 'back', t: 0.1 }]").dir], [false, 1]);
   const j = go("[0.1, '@turnBack', 0.8, 'punch']", 100);
   assert.match(j.seen, /jab/); assert.equal(j.away, false); assert.equal(j.dir, 1);

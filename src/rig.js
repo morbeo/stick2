@@ -379,7 +379,7 @@ const STICK_MOVES = {
     { d: 0.05, e: 'outExpo', p: { torso: 5, head: -10, afU: 150, afL: 10, abU: 140, abL: 15 }, warp: true, inv: true },
     { d: 0.22, e: 'inOutCubic', p: null },
   ] },
-  // 9S (turnBack setting): turn your back to the foe (key flag turn); a direction or a move without turns faces it again
+  // 9S (turnBack setting): turn your back to the foe (key flag turn); ←, → or ↑ or a move without turns faces it again (↓ crouches still turned)
   turnBack: { special: true, keys: [
     { d: 0.16, e: 'inOutCubic', p: { torso: -8, afU: 70, afL: 110, abU: 60, abL: 110, lfU: 25, lfL: -30, lbU: -20, lbL: -20 }, turn: true },
     { d: 0.12, e: 'inOutCubic', p: null },
