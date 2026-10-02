@@ -335,8 +335,8 @@ function drawScope() {
 // play's fighters: P1, P2, P3… by name, null = the character being edited (P3 on: the same as P2); a scenario's own chars win
 const pickName = i => CHARS[lab.chars[i]] ? lab.chars[i] : i >= 2 ? pickName(1) : CURRENT;
 const playChars = () => lab.chars.some(Boolean) ? Array.from({ length: Math.max(2, lab.chars.length) }, (_, i) => CHARS[pickName(i)]) : null;
-// how many fighters the scenario starts with (waves: you and the wave fighter, P2)
-const fighterCount = s => s.waves ? 2 : 2 + (s.more?.length || 0);
+// how many fighters the scenario starts with (waves, survival: you and the first enemy, P2)
+const fighterCount = s => s.waves || s.survival ? 2 : 2 + (s.more?.length || 0);
 function fighterPick(i) {
   const set = v => { lab.chars[i] = v; build(); }, cv = h('canvas'), name = () => pickName(i);
   const who = i === 0 ? 'the fighter you play (the left one)' : i === 1 ? 'the opponent' : 'an extra fighter (unset: the same as P2)';

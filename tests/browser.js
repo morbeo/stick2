@@ -325,6 +325,10 @@ try {
     [...document.querySelectorAll('.cmptable button')].find(b => b.textContent === 'use all B').click(); if (rows().length !== 1 || rows()[0].textContent !== 'A and B are the same') errs.push('compare use all ' + rows().length);
     undo(); cmp.a = { name: 'raw' }; cmp.b = { name: 'juicy' }; panels(); if (!rows().some(r => cell(r, 1) === 'easing')) errs.push('compare presets');
     setMode('grid'); if (document.querySelector('.cmptable')) errs.push('compare per tab'); setMode('play'); closeStage(); if (document.querySelector('.cmptable')) errs.push('compare close'); }
+  // survival: the side panel has the Survival settings, the fight draws with its time counter
+  { setMode('play'); lab.scen = 'survival'; build(); panels(); const w = lab.cells[0].w; for (let i = 0; i < 200; i++) w.advance(1/60, NOIN); labRender();
+    if (!w.scen.survival || w.survT < 3 || ![...document.querySelectorAll('#side h3')].some(e => e.textContent.includes('Survival'))) errs.push('survival ' + w.survT);
+    lab.scen = 'you vs dummy'; build(); panels(); }
   // the grid's compare kind: two cells with A's and B's settings, the same seed; a click on B takes its settings (undoable); the panels seg opens the diff over it
   { const keep = { ...CFG }; cmp.a = { name: 'current' }; cmp.b = { name: 'juicy' }; lab.kind = 'compare'; setMode('grid');
     const [A, B] = lab.cells, J = cmpCfg({ name: 'juicy' });

@@ -50,7 +50,7 @@ class World {
     if (!this.replaying) { this.log = []; this.checkpoints = []; this.sums = {}; this.desync = null; } // every frame since the start: [dt, input, macro], for rewind and replays
     // a vs b, plus any extra fighters: { c: controller, x, team }
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0 }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1 }, ...(s.more || [])];
-    if (s.waves) specs.length = 1; // the enemies come in waves (nextWave)
+    if (s.waves || s.survival) specs.length = 1; // the enemies come in waves (nextWave) or one by one (spawn)
     const chars = this.chars || [currentChar()];
     this.fighters = specs.map((sp, i) => Object.assign(
       new Fighter(this, sp.x, i < 2 ? 1 - 2 * i : sp.x < W / 2 ? 1 : -1, COLS[i % COLS.length], chars[Math.min(i, chars.length - 1)]),
@@ -70,20 +70,32 @@ class World {
     for (const it of s.items || []) this.drop(it.type, it.x);
     this.ctl = specs.map(sp => makeCtl(sp.c, this));
     if (s.waves) { Object.assign(this, { wave: 0, waveT: 0, spawned: 0, downs: 0 }); this.nextWave(); }
+    if (s.survival) { Object.assign(this, { survT: 0, spawnT: 0, spawned: 0, downs: 0 }); this.spawn(); }
     this.cam = (this.a.x + this.b.x) / 2;
     s.init?.(this); // a scenario can set up a state (the animate preview's target: lying, dizzy, facing away)
+  }
+  // an enemy (a random built-in or the opponent's character) runs in from an edge, every other one from the left
+  addFoe(x, left, over) {
+    const names = Object.keys(CHARS), opp = (this.chars || [currentChar()])[Math.min(1, (this.chars || [0]).length - 1)];
+    const ch = this.cfg.waveMix ? CHARS[names[Math.floor(this.rand() * names.length)]] : opp;
+    this.fighters.push(Object.assign(new Fighter(this, x, left ? 1 : -1, COLS[1 + this.spawned++ % (COLS.length - 1)], ch, over), { team: 1 }));
+    this.ctl.push(makeCtl('ai', this));
+  }
+  // survival: the enemies down a while leave, a new one runs in with health grown by the minutes survived and the enemies down
+  spawn() {
+    const keep = this.fighters.map((f, i) => !i || !f.ko || this.survT - f.downAt < 1);
+    for (const k of ['fighters', 'ctl', 'acts']) this[k] = this[k].filter((_, i) => keep[i]);
+    const c = this.cfg, left = this.spawned % 2 === 1;
+    this.addFoe(left ? 50 : W - 50, left, { health: Math.max(1, Math.round(c.health * c.survHp * (1 + c.survHpTime * this.survT / 60 + c.survHpKill * this.downs))) });
+    this.b = this.fighters[1];
   }
   // the next wave: the knocked-out enemies leave, new ones run in from both edges (a random built-in or the opponent's character)
   nextWave() {
     const keep = this.fighters.map((f, i) => !i || !f.ko);
     this.downs += keep.filter(k => !k).length;
     for (const k of ['fighters', 'ctl', 'acts']) this[k] = this[k].filter((_, i) => keep[i]);
-    const n = WAVES[this.cfg.waves](++this.wave), names = Object.keys(CHARS), opp = (this.chars || [currentChar()])[Math.min(1, (this.chars || [0]).length - 1)];
-    for (let i = 0; i < n; i++) {
-      const left = i % 2 === 1, x = left ? 50 + i * 12 : W - 50 - i * 12, ch = this.cfg.waveMix ? CHARS[names[Math.floor(this.rand() * names.length)]] : opp;
-      this.fighters.push(Object.assign(new Fighter(this, x, left ? 1 : -1, COLS[1 + this.spawned++ % (COLS.length - 1)], ch), { team: 1 }));
-      this.ctl.push(makeCtl('ai', this));
-    }
+    const n = WAVES[this.cfg.waves](++this.wave);
+    for (let i = 0; i < n; i++) { const left = i % 2 === 1; this.addFoe(left ? 50 + i * 12 : W - 50 - i * 12, left); }
     this.b = this.fighters[1];
     if (this.wave > 1) this.a.hp = Math.min(this.cfg.health, this.a.hp + this.cfg.health * this.cfg.waveHeal);
     this.a.say(`WAVE ${this.wave}`);
@@ -321,6 +333,13 @@ class World {
 
     // endless waves: a moment after the last enemy falls the next wave comes; only your K.O. ends the round
     if (this.scen.waves && !this.a.ko) { if (this.foes(this.a).length) this.waveT = 0; else if ((this.waveT += h) > 1.2) this.nextWave(); }
+    // survival: each enemy down counts (and heals) once; a new one comes every survEvery s while fewer than survMax stand, soon when none do
+    else if (this.scen.survival && !this.a.ko) {
+      this.survT += h;
+      for (const f of fs) if (f.ko && f !== this.a && f.downAt === undefined) { f.downAt = this.survT; this.downs++; this.a.hp = Math.min(this.cfg.health, this.a.hp + this.cfg.health * this.cfg.survHeal); }
+      const up = this.foes(this.a).length;
+      if (up >= this.cfg.survMax) this.spawnT = 0; else if ((this.spawnT += h) >= (up ? this.cfg.survEvery : Math.min(1, this.cfg.survEvery))) { this.spawnT = 0; this.spawn(); }
+    }
     // a round ends once only one team is still standing
     else if (!this.koT && fs.some(f => f.ko) && new Set(fs.filter(f => !f.ko).map(f => f.team)).size <= 1) this.koT = 2.5;
     // the round is over: the controllers pause, each survivor plays its win move once it is free on the floor (winPose)
@@ -493,9 +512,10 @@ class World {
     this.drawShots(ctx);
     this.drawParticles(ctx);
     ctx.restore();
-    if (this.scen.waves) { // wave counter
+    if (this.scen.waves || this.scen.survival) { // wave counter, survival time
+      const t = Math.floor(this.survT), head = this.scen.waves ? `WAVE ${this.wave} · ${this.downs + this.fighters.filter(f => f.ko && f !== this.a).length}` : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')} · ${this.downs}`;
       ctx.save(); ctx.fillStyle = '#8a8580'; ctx.textAlign = 'center'; ctx.font = `bold ${Math.round(r.h / 28)}px ui-monospace, Menlo, monospace`;
-      ctx.fillText(`WAVE ${this.wave} · ${this.downs + this.fighters.filter(f => f.ko && f !== this.a).length} down`, r.x + r.w / 2, r.y + r.h / 14); ctx.restore();
+      ctx.fillText(`${head} down`, r.x + r.w / 2, r.y + r.h / 14); ctx.restore();
     }
   }
 }

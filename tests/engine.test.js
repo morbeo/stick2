@@ -260,6 +260,17 @@ test('endless waves: the next wave comes once every enemy is down, knocked-out o
   assert.equal(same[0], same[1]); assert.ok(same[2] >= 2);
 });
 
+test('survival: enemies keep coming up to survMax, tougher with time and enemies down, the downed leave, rewinding plays the same', () => {
+  const sim = `const w = new World(SCENARIOS['ai survival'], { health: 60, survMax: 2, survEvery: 1, survHp: 0.2, survHpTime: 1, survHpKill: 0.5 }, 3, [CHARS.stick]); w.loop = false;`;
+  const r = run(`(() => { ${sim} const first = w.b.c('health'); let most = 0, at = 0;
+    for (let i = 0; i < 60 * 90 && w.downs < 3 && !w.done; i++) { w.advance(1/60, NOIN); most = Math.max(most, w.foes(w.a).length); if (w.downs && !at) at = i; }
+    return { first, downs: w.downs, most, at, last: w.fighters[w.fighters.length - 1].c('health'), n: w.fighters.length, spawned: w.spawned }; })()`);
+  assert.equal(r.first, 12); assert.ok(r.downs >= 3 && r.most === 2 && r.n <= 5, JSON.stringify(r));
+  assert.ok(r.last > 12 * 1.5, JSON.stringify(r)); // grown by the downs (and the minutes)
+  const same = run(`(() => { ${sim} for (let i = 0; i < ${r.at} + 90; i++) w.advance(1/60, NOIN); const h = w.stateHash(); w.rewind(120); for (let i = 0; i < 120; i++) w.advance(1/60, NOIN); return [h, w.stateHash()]; })()`);
+  assert.equal(same[0], same[1]);
+});
+
 test('a character\'s own motion (def.motions) is a new input, tried before the built-in motions', () => {
   const r = run(`(() => { const d = { ...CHAR_DEFS.stick, motions: { m41236: '41236' }, binds: { ...CHAR_DEFS.stick.binds, m41236Punch: 'launcher' } };
     const go = seq => { const w = new World({ a: seq, b: 'dummy', ax: 330, bx: 385, period: 9 }, {}, 7, [makeCharacter(d), CHARS.stick]); w.loop = false; const seen = new Set();

@@ -72,6 +72,23 @@ Pick **endless waves** in the fight picker (or **ai vs waves** to watch).
 - Clearing a wave gives back **waveHeal** of your health. If you're K.O.'d, you start over at wave 1.
 - The wave and the enemies down are shown at the top.
 
+### Survival
+
+Pick **survival** in the fight picker (or **ai survival** to watch). Enemies keep coming, one at a time, until you fall. The Survival settings tune it:
+
+| Setting | What it does |
+|---|---|
+| **survMax** | the most enemies standing at once (3) |
+| **survEvery** | seconds between arrivals while fewer stand (2.5) |
+| **survHp** | a new enemy's health, as a share of the health setting (0.5) |
+| **survHpTime** | enemy health added per minute survived, as a share of survHp (0.25: +25% a minute) |
+| **survHpKill** | enemy health added per enemy down (0.03: +3% each) |
+| **survHeal** | your health back per enemy down (0.05) |
+
+- Enemies run in from alternating edges; the knocked-out ones leave when the next one comes.
+- **waveMix** (Waves settings) sends random built-in characters instead of copies of the opponent.
+- The time survived and the enemies down are shown at the top. A K.O. starts over.
+
 ### Training
 
 Turn these on under **show**:
