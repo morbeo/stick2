@@ -33,7 +33,7 @@ The randomized tests share one seed from `tests/seed.js`, printed on every run (
 |---|---|
 | `npm test` | 1, the same every run |
 | `SEED=42 npm test` | 42: rerun a failure with the seed it names |
-| `SEED=random npm test` | a fresh one each run, to explore; it is printed, so a failure can be replayed |
+| `SEED=random npm test` | a fresh one each run (and each test file: `# seed 1460372106 for fuzz.test.js`), to explore; it is printed, so a failure can be replayed |
 | `FUZZ=500 node --test tests/fuzz.test.js` | 500 fuzz fights instead of 25 (seeds SEED … SEED + 499) |
 
 ## The move matrix
