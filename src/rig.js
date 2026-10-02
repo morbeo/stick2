@@ -159,9 +159,10 @@ const STICK_MOVES = {
     { d: 0.3, e: 'inOutCubic', p: null },
   ] },
   // ← P+G: the back throw; its throw turns round with the victim held (key flag turn), so the victim lands on the other side
+  // (a clinch: the front arm hooks the neck, the back one the waist, stepping in on the back leg to swing round)
   backGrab: { power: 1, damage: 0, hit: 'fh', height: 'high', knock: 0, throw: 'backToss', keys: [
-    { d: 0.06, e: 'outQuad', p: { torso: 15, afU: 70, afL: 40, abU: 60, abL: 50 } },
-    { d: 0.06, e: 'outExpo', p: { torso: 22, afU: 92, afL: 5, abU: 88, abL: 10, lfU: 40, lfL: -35 }, active: true, lunge: 120 },
+    { d: 0.06, e: 'outQuad', p: { torso: 6, afU: 105, afL: 70, abU: 35, abL: 85, lbU: -20, lbL: -15 } },
+    { d: 0.06, e: 'outExpo', p: { torso: 18, afU: 108, afL: 22, abU: 80, abL: 20, lfU: 22, lfL: -20, lbU: -38, lbL: -12 }, active: true, lunge: 120 },
     { d: 0.32, e: 'inOutCubic', p: null },
   ] },
   backToss: { power: 1.5, damage: 14, hit: 'fh', height: 'mid', knock: 300, launch: 380, kd: true, keys: [
@@ -369,9 +370,10 @@ const STICK_MOVES = {
     { d: 0.3, p: TUCK, lunge: 560 },
     { d: 0.12, e: 'inOutCubic', p: null },
   ] },
+  // (a backward somersault: sitting back, hands by the ears to push off the floor as it goes over)
   rollBack: { roll: true, keys: [
-    { d: 0.05, e: 'outQuad', p: TUCK },
-    { d: 0.3, p: TUCK, lunge: -480 },
+    { d: 0.05, e: 'outQuad', p: { torso: -20, head: 25, lfU: 100, lfL: -135, lbU: 90, lbL: -135, afU: 165, afL: 120, abU: 155, abL: 130 } },
+    { d: 0.3, p: { ...TUCK, head: 35, afU: 170, afL: 140, abU: 160, abL: 145 }, lunge: -480 },
     { d: 0.12, e: 'inOutCubic', p: null },
   ] },
   teleport: { special: true, keys: [
