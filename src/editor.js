@@ -642,14 +642,25 @@ function setPhase(n, phase, frames) {
     if (cur > 0 && frames > 0) for (const k of ks) k.d = +(k.d * frames / 60 / cur).toFixed(4);
   });
 }
-let peek = null; // the hover preview: the move playing next to the cursor
-function peekMove(n, e) {
-  if (!peek || peek.n !== n) {
+let peek = null; // the hover preview: the move (or a combo route: several in a row) playing next to the cursor
+const peekMove = (n, e) => peekSeq([n], e);
+// a route plays each move until its cancel window opens, where the next one starts, and the last one to its end
+function peekSeq(ns, e) {
+  const label = ns.join(' › ');
+  if (!peek || peek.n !== label) {
     peek?.el.remove();
-    const cv = h('canvas'), el = h('div', { cls: 'peek' }, cv, h('span', { textContent: n })), m = currentChar().moves[n], ch = withWeapon(currentChar(), m), t0 = performance.now();
-    peek = { n, el };
+    const segs = [];
+    let d = 0;
+    ns.forEach((n, i) => { const m = currentChar().moves[n], len = i < ns.length - 1 ? Math.min(total(m), keyStart(m, m.cancel)) : total(m);
+      segs.push({ m, ch: withWeapon(currentChar(), m), t0: d }); d += len; });
+    const cv = h('canvas'), el = h('div', { cls: 'peek' }, cv, h('span', { textContent: label })), t0 = performance.now();
+    peek = { n: label, el, d };
     document.body.append(el);
-    const loop = now => { if (peek?.el !== el) return; if (!document.querySelector('.mtable')) return unpeek(); drawThumb(cv, ch, samplePose(ch, m, (now - t0) / 1000 % (total(m) + 0.3)), 120, 128); requestAnimationFrame(loop); };
+    const loop = now => {
+      if (peek?.el !== el) return; if (!document.querySelector('.mtable')) return unpeek();
+      const t = (now - t0) / 1000 % (d + 0.3), s = segs.findLast(s => s.t0 <= t);
+      drawThumb(cv, s.ch, samplePose(s.ch, s.m, t - s.t0), 120, 128); requestAnimationFrame(loop);
+    };
     requestAnimationFrame(loop);
   }
   peek.el.style.left = Math.min(e.clientX + 16, innerWidth - 140) + 'px'; peek.el.style.top = Math.max(4, Math.min(e.clientY - 70, innerHeight - 160)) + 'px';

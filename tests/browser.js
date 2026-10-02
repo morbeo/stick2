@@ -137,6 +137,11 @@ try {
     [...row('jab›cross›uppercut›sweep').querySelectorAll('button')].find(b => b.textContent === 'sweep').click();
     [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('cut')).click();
     if (DEFS.stick.moves.uppercut.next || rows().length !== n0) errs.push('combo cut ' + rows().length);
+    // hovering a step plays the route up to it next to the cursor: each move until its cancel window, then the next
+    { const st = [...row('jab›cross›uppercut').querySelectorAll('button')].find(b => b.textContent === 'uppercut'), mm = new MouseEvent('mousemove', { clientX: 50, clientY: 50, bubbles: true });
+      st.dispatchEvent(mm); const pk = document.querySelector('.peek span')?.textContent;
+      if (pk !== 'jab › cross › uppercut' || peek.d.toFixed(3) !== (['jab', 'cross'].reduce((s, n) => s + keyStart(currentChar().moves[n], currentChar().moves[n].cancel), 0) + total(currentChar().moves.uppercut)).toFixed(3)) errs.push('combo peek ' + pk + ' ' + peek?.d);
+      st.dispatchEvent(new MouseEvent('mouseleave')); if (document.querySelector('.peek')) errs.push('combo peek stays'); }
     combos.view = 'tree'; panels(); if (document.querySelectorAll('.ctable .croot').length !== comboRoots(currentChar(), new Set(Object.values(curBinds(currentChar())))).length) errs.push('combo tree');
     anim.view = 'cards'; panels(); }
   // the character tab shows the move table, inputs and combos over its stage too; a move in them opens in the animate editor, close goes back

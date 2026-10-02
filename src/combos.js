@@ -5,7 +5,7 @@ const LINK_BTNS = { punch: 'P', kick: 'K' };
 // an input slot in numpad notation (5P, 6K, j.2P…), from the input pads
 const SLOT_NOTE = Object.fromEntries(INPUT_PADS.flatMap(p => p.cells.filter(c => c.own).map(c => [c.chain[0], c.label])));
 const COMBO_TIPS = { tree: 'Every starter with its branches: the button that chains into each next move; ✕ cuts a link, + P / + K adds one',
-  table: 'One row per route from a starter to its end: inputs, damage (before combo scaling) and frames; click a step to change or cut it, + P / + K extends the route' };
+  table: 'One row per route from a starter to its end: inputs, damage (before combo scaling) and frames; click a step to change or cut it, hover one to play the combo up to it, + P / + K extends the route' };
 // set (or with '' remove) the link from a move on a button
 function setLink(from, b, to) {
   edit(def => {
@@ -30,9 +30,9 @@ function pickLink(anchor, from, b, done) {
 // + P / + K for the buttons a move has no link on yet
 const addLinks = (from, done) => Object.keys(LINK_BTNS).filter(b => !currentChar().moves[from].next?.[b])
   .map(b => button(`:add: ${LINK_BTNS[b]}`, `Chain ${from} into a move on ${LINK_BTNS[b]}`, (e, el) => { e.stopPropagation(); pickLink(el, from, b, done); }, 'mini'));
-// a move as a chip: click opens it in the editor, hover plays it
-const moveChip = (n, tip = 'Click: open it in the editor · hover: play it') => h('button', { cls: 'chip', tip: `${n} · ${tip}`, textContent: n,
-  onclick: () => openMove(n), onmousemove: e => peekMove(n, e), onmouseleave: unpeek });
+// a move as a chip: click opens it in the editor, hover plays it (with a route: the route up to it)
+const moveChip = (n, route = [n]) => h('button', { cls: 'chip', tip: `${n} · Click: open it in the editor · hover: play ${route.length > 1 ? 'the combo up to it' : 'it'}`, textContent: n,
+  onclick: () => openMove(n), onmousemove: e => peekSeq(route, e), onmouseleave: unpeek });
 function comboView() {
   const wrap = h('div', { cls: 'mtable ctable' }), body = h('div'), count = h('span', { cls: 'note' });
   const fill = () => {
@@ -41,7 +41,7 @@ function comboView() {
     count.textContent = `${roots.length} starters · ${routes.length} routes`;
     const warn = CFG.chains !== 'authored' && h('div', { cls: 'note warn' }, `The chains setting is ${CFG.chains}: these links only chain with it authored `,
       button('use authored', SPEC.chains.tip, () => { setCfg({ chains: 'authored' }); fill(); }, 'mini'));
-    const node = (n, path) => h('div', { cls: 'cnode' }, moveChip(n), ...addLinks(n, fill),
+    const node = (n, path) => h('div', { cls: 'cnode' }, moveChip(n, path), ...addLinks(n, fill),
       ...linksOf(ch, n).map(([b, t]) => h('div', { cls: 'clink' },
         button(':close:', `Cut the link ${n} › ${LINK_BTNS[b]} › ${t}`, () => { setLink(n, b, ''); fill(); }, 'mini'),
         button(`${LINK_BTNS[b]} ›`, `${LINK_BTNS[b]} after ${n} chains into ${t} · click: change it`, (e, el) => pickLink(el, n, b, fill), 'mini'),
@@ -53,7 +53,8 @@ function comboView() {
     else body.replaceChildren(h('table', {}, h('thead', {}, h('tr', {}, ['route', 'inputs', 'damage', 'frames'].map(k => h('th', { textContent: k })))),
       h('tbody', {}, routes.map(r => h('tr', {},
         h('td', {}, ...r.moves.flatMap((n, i) => i ? [h('span', { cls: 'note', textContent: ' › ' }),
-          button(n, `${LINK_BTNS[r.inputs[i]]} after ${r.moves[i - 1]} chains into ${n} · click: change or cut it`, (e, el) => pickLink(el, r.moves[i - 1], r.inputs[i], fill), 'mini')] : [moveChip(n)]),
+          Object.assign(button(n, `${LINK_BTNS[r.inputs[i]]} after ${r.moves[i - 1]} chains into ${n} · click: change or cut it · hover: play the combo up to it`, (e, el) => pickLink(el, r.moves[i - 1], r.inputs[i], fill), 'mini'),
+            { onmousemove: e => peekSeq(r.moves.slice(0, i + 1), e), onmouseleave: unpeek })] : [moveChip(n)]),
           ...addLinks(r.moves.at(-1), fill)),
         h('td', { textContent: [slot(r.moves[0]) || '—', ...r.inputs.slice(1).map(b => LINK_BTNS[b])].join(' ') }),
         h('td', { textContent: r.damage }), h('td', { textContent: r.frames + 'f' }))))), addStarter);
