@@ -1,5 +1,6 @@
 // the MCP server (tools/mcp.js) over its stdio transport: the protocol, the tools, the resources, rendering
 const test = require('node:test'), assert = require('node:assert/strict'), path = require('path'), fs = require('fs'), { spawn } = require('child_process');
+const { findChrome } = require('../tools/chrome');
 
 // the server as a child process; rpc(method, params) → the answer's result (or error), call(tool, args) → parsed text / content
 function server() {
@@ -34,7 +35,7 @@ test('initialize answers with a supported protocol version, the capabilities and
 
 test('tools/list: each tool has a description and an object input schema', async () => {
   const { tools } = (await s.rpc('tools/list')).result, names = tools.map(t => t.name);
-  for (const n of ['list_characters', 'get_character', 'list_moves', 'list_scenarios', 'list_settings', 'set_settings', 'simulate', 'run_checks', 'replay_export', 'replay_import'])
+  for (const n of ['list_characters', 'get_character', 'list_moves', 'list_scenarios', 'list_settings', 'set_settings', 'simulate', 'run_checks', 'replay_export', 'replay_import', 'render_frame'])
     assert.ok(names.includes(n), n);
   for (const t of tools) assert.ok(t.description.length > 20 && t.inputSchema.type === 'object', t.name);
 });
@@ -105,4 +106,16 @@ test('resources: the docs and the schemas', async () => {
   assert.ok(doc.text.startsWith('# stick2 docs'));
   assert.ok(JSON.parse((await s.rpc('resources/read', { uri: 'stick2://schema/settings' })).result.contents[0].text).length > 100);
   assert.ok((await s.rpc('resources/read', { uri: 'stick2://docs/../package.json' })).error);
+});
+
+test('render_frame and render_gif with Chrome: a PNG and a GIF file', { skip: !findChrome() && 'no Chrome found (set CHROME)' }, async () => {
+  const sim = (await s.call('simulate', { scenario: 'ai vs ai', seed: 3, frames: 200, events: false })).json;
+  const r = await s.call('render_frame', { simulation: sim.id, frame: 100, w: 320, h: 180 });
+  assert.ok(!r.isError, r.content[0].text);
+  assert.equal(r.content[0].mimeType, 'image/png');
+  assert.equal(Buffer.from(r.content[0].data, 'base64').subarray(1, 4).toString(), 'PNG');
+  const file = `test-${process.pid}.gif`, g = await s.call('render_gif', { simulation: sim.id, from: 0, to: 60, fps: 10, w: 160, h: 90, file });
+  assert.ok(!g.isError, g.content[0].text);
+  const info = JSON.parse(g.content[1].text);
+  try { assert.equal(fs.readFileSync(info.path).subarray(0, 6).toString(), 'GIF89a'); assert.equal(info.frames, 11); } finally { fs.rmSync(info.path, { force: true }); }
 });

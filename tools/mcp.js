@@ -4,14 +4,22 @@
 // usage: node tools/mcp.js   (register: claude mcp add --scope project stick2 -- node tools/mcp.js; see docs/mcp.md)
 const fs = require('fs'), path = require('path'), readline = require('readline');
 console.log = console.info = console.debug = console.error; // stdout carries the protocol: nothing else may print there (the engine shares this console)
-const S = require('./session')(), schemas = require('./schemas');
+const S = require('./session')(), schemas = require('./schemas'), render = require('./render');
 const VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
+const OUT = path.join(S.ROOT, 'out');
 
 // ---------- tools: name → { d: description, p: properties (JSON Schema), req: required, run(args) → value | { content } } ----------
 const str = d => ({ type: 'string', description: d }), num = d => ({ type: 'number', description: d }), int = d => ({ type: 'integer', description: d });
 const bool = d => ({ type: 'boolean', description: d }), obj = d => ({ type: 'object', description: d }), arr = (d, items = {}) => ({ type: 'array', description: d, items });
 const EVENTS = { type: ['object', 'boolean'], description: 'Which events to list (false: none). { types: ["hit", "move", …] (types or kinds: input, move, hit, defence, throw, fall, state, movement, item, meta, combo, say …), who: fighter id, from / to: frames, limit (default 40) }. eventCounts always has the totals.',
   properties: { types: arr('event types or kinds', { type: 'string' }), who: int('fighter id'), from: int('first frame'), to: int('last frame'), limit: int('at most this many (default 40)') } };
+const SIZE = { w: int('width px (default 640, at most 1600)'), h: int('height px (default 360, at most 900)') };
+const LOOK = { full: bool('the whole arena (default false: the camera follows the fighters, as in play)'), hud: bool('health bars, callouts and hit counters (default true)'),
+  boxes: bool('hurtboxes and active hitboxes'), zoom: num('camera zoom on the arena (1 = whole arena width; 2 = twice as close), with x'), x: num('world x the zoomed camera looks at (the stage is 800 wide)') };
+const replayOf = a => a.replay ? (typeof a.replay === 'string' ? JSON.parse(a.replay) : a.replay) : a.simulation ? S.sim(a.simulation).replay : (() => { throw new Error('give a simulation id (from simulate or replay_import) or a replay'); })();
+const size = a => ({ w: Math.max(16, Math.min(1600, a.w ?? 640)), h: Math.max(16, Math.min(900, a.h ?? 360)) });
+const look = a => Object.fromEntries(['full', 'hud', 'boxes', 'zoom', 'x'].filter(k => a[k] !== undefined).map(k => [k, a[k]]));
+const image = (png, extra) => ({ content: [{ type: 'image', data: png, mimeType: 'image/png' }, ...extra ? [{ type: 'text', text: JSON.stringify(extra, null, 2) }] : []] });
 
 const TOOLS = {
   // ---------- characters ----------
@@ -61,6 +69,24 @@ const TOOLS = {
     p: { path: str('the file (relative to the repo)') }, req: ['path'], run: a => S.loadProfile(a.path) },
   save_profile: { d: 'Save the session as an app "everything" file (characters made or edited here, changed settings, scenarios): the app loads it with import → everything.',
     p: { path: str('the file (relative to the repo), e.g. out/profile.json') }, req: ['path'], run: a => S.saveProfile(a.path) },
+
+  // ---------- pictures ----------
+  render_frame: { d: 'A picture of a fight at a frame (0 = the start), as the app draws it. PNG from headless Chrome (found on its own, CHROME overrides).',
+    p: { simulation: str('simulation id'), replay: { type: ['object', 'string'], description: 'or a replay' }, frame: int('frame number (default 0)'), frames: arr('several frames at once (at most 12)', { type: 'integer' }),
+      ...SIZE, ...LOOK },
+    run: async a => {
+      const list = (a.frames || [a.frame ?? 0]).slice(0, 12), { w, h } = size(a), shots = await render.frames(S, replayOf(a), list, w, h, look(a));
+      return { content: shots.map(s => ({ type: 'image', data: s.png, mimeType: 'image/png' })) };
+    } },
+  render_gif: { d: 'A looping GIF of a fight from frame to frame, written to out/ (needs Chrome). Returns its path and a PNG of the first frame.',
+    p: { simulation: str('simulation id'), replay: { type: ['object', 'string'], description: 'or a replay' }, from: int('first frame (default 0)'), to: int('last frame (default: the end, at most from + 1200)'),
+      fps: num('frames per second (default 20; the engine runs at 60)'), ...SIZE, ...LOOK, file: str('file name in out/ (default <simulation>-<from>-<to>.gif)') },
+    run: async a => {
+      const r = replayOf(a), from = Math.max(0, a.from ?? 0), to = Math.min(a.to ?? r.frames.length, r.frames.length, from + 1200), { w, h } = size({ w: a.w ?? 480, h: a.h ?? 270 });
+      const name = path.basename(a.file || `${a.simulation || 'replay'}-${from}-${to}.gif`), file = path.join(OUT, name.endsWith('.gif') ? name : name + '.gif');
+      const g = await render.gif(S, r, { from, to, fps: Math.max(1, Math.min(60, a.fps ?? 20)), w, h, file, ...look(a) });
+      return image(g.first, { path: g.path, frames: g.frames, bytes: g.bytes });
+    } },
 };
 
 // ---------- resources: the docs and the data shapes ----------

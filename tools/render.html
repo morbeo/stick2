@@ -1,0 +1,35 @@
+<!doctype html>
+<!-- the MCP server's renderer: headless Chrome opens this page and calls renderAt / renderGif (tools/render.js). The engine scripts as tools/engine.js loads them, plus the GIF encoder -->
+<meta charset="utf-8">
+<title>stick2 renderer</title>
+<script src="../src/core.js"></script>
+<script src="../src/rig.js"></script>
+<script src="../src/fx.js"></script>
+<script src="../src/roster.js"></script>
+<script src="../src/fighter.js"></script>
+<script src="../src/world.js"></script>
+<script src="../src/brain.js"></script>
+<script src="../src/checks.js"></script>
+<script src="../src/events.js"></script>
+<script src="../src/clip.js"></script>
+<script src="frames.js"></script>
+<script>
+// frames of a replay → PNG data URLs (frames ascending)
+window.renderAt = (r, frames, w, h, opts = {}) => {
+  const cvs = [];
+  drawFrames(r, frames, w, h, opts, () => { const c = document.createElement('canvas'); c.width = w; c.height = h; cvs.push(c); return c.getContext('2d'); });
+  return cvs.map(c => c.toDataURL('image/png'));
+};
+// frames as a looping GIF (gifEncode, src/clip.js), delay in 1/100 s → { gif: base64, first: PNG data URL of the first frame }
+window.renderGif = (r, frames, w, h, delay, opts = {}) => {
+  const c = document.createElement('canvas'), g = c.getContext('2d'), px = [], grab = () => px.push(g.getImageData(0, 0, w, h).data);
+  c.width = w; c.height = h;
+  let first = null, n = 0;
+  // the callback comes before each frame draws: the one before is done, so it is read back then (the last one after the loop)
+  drawFrames(r, frames, w, h, opts, () => { if (n++) { grab(); first ??= c.toDataURL('image/png'); } return g; });
+  grab(); first ??= c.toDataURL('image/png');
+  const gif = gifEncode(px, w, h, px.map(() => delay));
+  let bin = ''; for (let i = 0; i < gif.length; i += 0x8000) bin += String.fromCharCode(...gif.subarray(i, i + 0x8000));
+  return { gif: btoa(bin), first, frames: px.length };
+};
+</script>
