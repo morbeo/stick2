@@ -54,6 +54,16 @@ Stats scale the fight settings for that character. Three groups, with group butt
 
 The **radar** above the stats draws the chosen stats: each axis runs from the stat's minimum to its maximum, the dashed ring is 1. Other characters can be overlaid to compare.
 
+### Shadow
+
+The **shadow** section (character tab, under walk & idle) sets the shadow drawn under the character in a fight. Drawing only: the fight plays out the same.
+
+- **shape:** ellipse (the default oval), circle (a round blob, w is its radius), body (the figure itself squashed and sheared onto the floor) or **off**.
+- **w, h:** the oval's half-width and half-height. For body, w / 22 and h / 22 scale the figure's width and height on the floor.
+- **alpha** (darkness) and **colour** (black or an effect colour: a purple glow under a ghost).
+- **dx, dy:** moves it from the feet. **lift:** how fast it shrinks as the fighter rises (0 = never). **skew** (body only): how far it leans.
+- Only what differs from the default is saved (`shadow` in the character JSON), with group buttons to randomize or reset.
+
 ### In the air
 
 - Every fighter gets air drift, a top fall speed with ↓ fast fall, an **air dodge** (G in the air: intangible; with a direction, a burst) and an **air dash** (double tap in the air), once per jump.

@@ -220,6 +220,13 @@ try {
     setMode('character'); studio.sel = 'head'; panels(); adds()[0].click(); adds()[0].click();
     const hf = DEFS.stick.bones.find(b => b.id === 'head').fx; if (hf?.length !== 2 || fxNow(currentChar(), null).length !== 2) errs.push('bone effect stack ' + JSON.stringify(hf));
     undo(); if (DEFS.stick.bones.find(b => b.id === 'head').fx) errs.push('bone effect undo (one step: the bone edits merge)'); }
+  // the shadow section: the shape buttons set def.shadow (only what differs from the default), body draws a frame, off draws none, back to ellipse saves none
+  { setMode('character'); pickChar('stick'); panels(); const shp = t => [...document.querySelectorAll('#side button')].find(b => b.dataset.tip === SHADOW_SHAPES[t]);
+    shp('circle').click(); const c = JSON.stringify(DEFS.stick.shadow); shp('body').click(); for (let i = 0; i < 5; i++) for (const w of mode().worlds()) w.advance(1/60, NOIN); mode().render?.();
+    const skew = [...document.querySelectorAll('#side .row')].find(r => r.dataset.tip?.startsWith('Body only'));
+    shp('none').click(); const off = currentChar().shadow.shape, hid = skew.hidden; shp('ellipse').click();
+    if (c !== '{"shape":"circle"}' || off !== 'none' || !hid || DEFS.stick.shadow) errs.push('shadow shapes ' + [c, off, hid, JSON.stringify(DEFS.stick.shadow)]);
+    undo(); if (DEFS.stick.shadow) errs.push('shadow undo (one step: the shape clicks merge)'); }
   // the character editor's hip handle moves the waist over the feet: the legs bend, the ankles stay; one undo step
   { setMode('character'); pickChar('stick'); studio.stance = 0; panels();
     const f0 = edFrame(), hp = f0.P.hip, ids = f0.ch.chains.leg.map(c => ankleOf(c).id), p0 = JSON.stringify(curStance().pose);

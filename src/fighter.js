@@ -1023,9 +1023,7 @@ class Fighter {
     ctx.save(); ctx.translate(jitter, 0);
     const zk = 1 + this.z * ZK; // depth: lower on screen and bigger toward the camera
     ctx.translate(this.x, this.groundY + this.z * ZS); ctx.scale(zk, zk); ctx.translate(-this.x, -this.groundY);
-    const s = Math.max(0.3, 1 + this.y / 200);
-    ctx.fillStyle = 'rgba(0,0,0,.08)';
-    ctx.beginPath(); ctx.ellipse(this.x, this.groundY + 1, 22 * s, 4 * s, 0, 0, 7); ctx.fill();
+    drawShadow(ctx, this);
 
     const n = Math.min(this.c('trail'), this.trail.length - 1), tr = this.trail;
     for (let li = 0; li < this.ch.tips.length; li++) for (let i = 1; i <= n; i++) {

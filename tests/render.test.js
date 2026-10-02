@@ -79,3 +79,28 @@ test('effects: an old single effect still draws, a stack draws each, a key\'s st
   assert.deepEqual(r.bones, ['aura:head', 'smoke:head'], 'a bone\'s stack');
   assert.ok(r.same, 'effects leave the fight as it was'); assert.deepEqual(r.bad, []);
 });
+
+test('shadow: the default draws today\'s oval, every shape draws, none draws nothing, and a shadow leaves the fight as it was', () => {
+  const r = JSON.parse(run(`(() => { const log = () => { const L = []; return { L, ctx: new Proxy({}, { get: (t, k) => k in t ? t[k] : (...a) => L.push([k, ...a]), set: (t, k, v) => (L.push([k, v]), t[k] = v, true) }) }; };
+    const w = new World(SCENARIOS['you vs ai'], {}, 7); w.loop = false; for (let i = 0; i < 30; i++) w.advance(1/60, { ...NOIN, up: i < 3 });
+    const f = w.a, was = log(), now = log(), s = Math.max(0.3, 1 + f.y / 200);
+    was.ctx.fillStyle = 'rgba(0,0,0,0.08)'; was.ctx.beginPath(); was.ctx.ellipse(f.x, f.groundY + 1, 22 * s, 4 * s, 0, 0, 7); was.ctx.fill(); // the shadow before def.shadow
+    drawShadow(now.ctx, f);
+    const shapes = {}, ch0 = f.ch;
+    for (const shape of ['ellipse', 'circle', 'body', 'none']) { f.ch = { ...ch0, shadow: { ...SHADOW, shape, col: 'purple', dx: 5, lift: 0.5 } };
+      const { ctx, st } = stubCtx(); drawShadow(ctx, f); shapes[shape] = { calls: st.calls, bad: st.bad }; }
+    f.ch = ch0;
+    const def = JSON.parse(JSON.stringify(CHAR_DEFS.stick)); def.shadow = { shape: 'body', alpha: 0.3, skew: -1 };
+    const sc = { a: 'ai', b: 'ai', ax: 300, bx: 380, period: 9 }, chs = [makeCharacter(def), CHARS.stick], a = new World(sc, {}, 7, chs), b = new World(sc, {}, 7, chs), { ctx, st } = stubCtx();
+    a.loop = b.loop = false;
+    for (let i = 0; i < 120; i++) { a.advance(1/60, NOIN); b.advance(1/60, NOIN); if (i % 3 === 0) a.render(ctx, { x: 0, y: 0, w: 800, h: 450 }, false); }
+    return JSON.stringify({ y: f.y, was: was.L, now: now.L, shapes, same: a.stateHash() === b.stateHash(), bad: st.bad, filled: makeCharacter(def).shadow,
+      plain: Object.keys(CHARS).filter(k => CHAR_DEFS[k] && !CHAR_DEFS[k].shadow).every(k => JSON.stringify(CHARS[k].shadow) === JSON.stringify(SHADOW)) }); })()`));
+  assert.ok(r.y < 0, 'measured in the air (it shrinks)');
+  assert.deepEqual(r.now, r.was, 'the default shadow draws exactly what it did');
+  for (const s of ['ellipse', 'circle', 'body']) { assert.ok(r.shapes[s].calls > 2, s + ' draws'); assert.deepEqual(r.shapes[s].bad, [], s + ': no NaN'); }
+  assert.equal(r.shapes.none.calls, 0, 'none draws nothing');
+  assert.deepEqual(r.filled, { shape: 'body', w: 22, h: 4, alpha: 0.3, col: 'black', dx: 0, dy: 1, lift: 1, skew: -1 }, 'makeCharacter fills in the defaults');
+  assert.ok(r.plain, 'characters without a shadow get the default');
+  assert.ok(r.same, 'a body shadow leaves the fight as it was'); assert.deepEqual(r.bad, []);
+});

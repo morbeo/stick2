@@ -95,3 +95,27 @@ function drawFx(ctx, P, list, t, back) {
     ctx.save(); ctx.lineCap = ctx.lineJoin = 'round'; FX_DRAW[e.look](ctx, fxSegs(P, bones), FX_COLS[e.col] || FX_COLS[FX_AUTO[e.look]], e.size ?? 1, t); ctx.restore();
   }
 }
+// ---------- the shadow under a fighter: per character (def.shadow over SHADOW), drawing only ----------
+// shape: ellipse (a blob on the floor), circle (a round blob), body (the figure squashed and sheared onto the floor), none
+// w × h: the blob's half-width and half-height (px); for body w / 22 and h / 22 scale the figure's width and height
+// alpha, col: how dark and what colour (an effect colour; black) · dx, dy: offset from the feet (px)
+// lift: how fast it shrinks as the fighter rises (1: to 0.3 at 140 px up, 0: never) · skew: body only, how far it leans per px of height
+const SHADOW = { shape: 'ellipse', w: 22, h: 4, alpha: 0.08, col: 'black', dx: 0, dy: 1, lift: 1, skew: 0.5 };
+const SHADOW_SHAPES = { ellipse: 'A flat oval on the floor under the feet', circle: 'A round blob (w is its radius), as if lit from above',
+  body: 'The figure itself squashed and sheared onto the floor (h squashes it, skew leans it)', none: 'No shadow' };
+let shadowCv = null; // the body shadow is drawn opaque here first, then laid down at once, so where bones overlap it doesn't get darker
+function drawShadow(ctx, f) {
+  const sh = f.ch.shadow || SHADOW, s = Math.max(0.3, 1 + sh.lift * f.y / 200), x = f.x + sh.dx, y = f.groundY + sh.dy, rgb = FX_COLS[sh.col] || '0,0,0';
+  if (sh.shape === 'none' || !(sh.alpha > 0)) return;
+  if (sh.shape !== 'body') { ctx.fillStyle = `rgba(${rgb},${sh.alpha})`; ctx.beginPath(); ctx.ellipse(x, y, sh.w * s, (sh.shape === 'circle' ? sh.w : sh.h) * s, 0, 0, 7); ctx.fill(); return; }
+  const cv = typeof document === 'object' && ctx.canvas?.width ? shadowCv ??= document.createElement('canvas') : null, c = cv ? cv.getContext('2d') : ctx, col = `rgb(${rgb})`;
+  if (cv) {
+    if (cv.width !== ctx.canvas.width || cv.height !== ctx.canvas.height) Object.assign(cv, { width: ctx.canvas.width, height: ctx.canvas.height });
+    c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); c.setTransform(ctx.getTransform());
+  }
+  c.save(); if (!cv) c.globalAlpha = sh.alpha; // (no scratch canvas, as in the tests: straight onto the canvas)
+  // the feet stay put; a point h px above them lands h × h / 22 below the floor line and h × skew aside
+  c.translate(x, y); c.transform(s * sh.w / 22, 0, -s * sh.skew, -s * sh.h / 22, 0, 0); c.translate(-f.x, -(f.groundY + f.y));
+  drawFigure(c, f.ch, f.body(), col, col, 0, () => col); c.restore();
+  if (cv) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha *= sh.alpha; ctx.drawImage(cv, 0, 0); ctx.restore(); }
+}

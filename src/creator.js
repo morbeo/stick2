@@ -317,6 +317,33 @@ function gaitPanel() {
     ...GAIT_VARS.map(s => s.opts ? h('div', { cls: 'row', tip: s.tip }, h('span', { textContent: s.k }), seg(s.opts, () => get(s.k), v => set({ [s.k]: v })))
       : bodyExpLink(slider(s.k, s, () => get(s.k), v => set({ [s.k]: v }), s.tip), s.k, 'walk'))];
 }
+// the shadow under the fighter (def.shadow, only what differs from SHADOW is saved); drawing only
+const SHADOW_VARS = [
+  { k: 'w', min: 0, max: 60, step: 1, tip: 'Width: the half-width of the oval, the radius of the circle (px); body: the figure\'s width (22 = as wide as the fighter)' },
+  { k: 'h', min: 0, max: 30, step: 0.5, only: ['ellipse', 'body'], tip: 'Height: the half-height of the oval (px); body: how much of the figure\'s height shows on the floor (22 = all of it)' },
+  { k: 'alpha', min: 0, max: 0.6, step: 0.01, tip: 'Darkness: 0 invisible … 0.6 nearly solid' },
+  { k: 'dx', min: -40, max: 40, step: 1, tip: 'Moves the shadow forward (+) or back (−) from the feet (px; on the screen, not by facing)' },
+  { k: 'dy', min: -20, max: 20, step: 1, tip: 'Moves the shadow down (+) or up (−) from the floor line (px)' },
+  { k: 'lift', min: 0, max: 3, step: 0.1, tip: 'How fast the shadow shrinks as the fighter rises: 1 = to a third at 140 px up, 0 = never' },
+  { k: 'skew', min: -2, max: 2, step: 0.05, only: ['body'], tip: 'Body only: how far the shadow leans, per px of height (the light from the side; 0 = straight down)' },
+];
+function shadowPanel() {
+  const get = k => ({ ...SHADOW, ...DEFS[CURRENT].shadow })[k], dflt = k => ({ ...SHADOW, ...CHAR_DEFS[CURRENT]?.shadow })[k];
+  const set = vals => edit(def => {
+    const sh = { ...def.shadow, ...vals };
+    for (const k in sh) if (sh[k] === SHADOW[k]) delete sh[k];
+    if (Object.keys(sh).length) def.shadow = sh; else delete def.shadow; // a character without its own shadow saves none
+  }, 'shadow:' + Object.keys(vals).join());
+  const title = h('h3', { textContent: 'shadow', tip: 'The shadow under this character in a fight: its shape, size, darkness, colour and place. Drawing only, the fight is the same.' });
+  title.append(groupOps(SHADOW_VARS, get, dflt, set));
+  const off = (r, only) => { reg(r, () => { r.hidden = get('shape') === 'none' || !!only && !only.includes(get('shape')); }); return r; };
+  return [title,
+    h('div', { cls: 'row', tip: 'The shadow\'s shape' }, h('span', { textContent: 'shape' }),
+      seg(Object.keys(SHADOW_SHAPES), () => get('shape'), v => set({ shape: v }), SHADOW_SHAPES, o => o === 'none' ? ':block: off' : optLabel(o))),
+    off(h('div', { cls: 'row', tip: 'The shadow\'s colour' }, h('span', { textContent: 'colour' }),
+      seg(['black', ...Object.keys(FX_COLS)], () => get('col'), v => set({ col: v }), { black: 'A plain dark shadow', ...mapVals(FX_COLS, () => 'This colour (a glow under a ghost, coloured light)') }))),
+    ...SHADOW_VARS.map(s => off(slider(s.k, s, () => get(s.k), v => set({ [s.k]: v }), s.tip), s.only))];
+}
 // ---------- bone table: every bone with its properties, edited in place; a row click selects (⌘/Ctrl/Shift+click adds) ----------
 // an edit in a selected row goes to every selected bone, in any other row to that bone only
 const BONE_TIPS = { role: 'What the bone does in procedural motion (click to change)', side: 'Draw order and colour (click to change)', shape: 'How the bone is drawn (click to change)' };
@@ -410,6 +437,7 @@ function bodyPanel() {
     ...radarPanel(),
     ...statsPanel(),
     ...gaitPanel(),
+    ...shadowPanel(),
   ];
 }
 function expPanel() {
