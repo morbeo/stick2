@@ -34,12 +34,12 @@ function restart() { mode().restart(); }
 // rewind every fight n frames and pause there
 function rewind(n) { app.paused = true; app.scrub = false; for (const w of mode().worlds()) w.rewind(n); }
 function toggleHints() { ui.hints = !ui.hints; saveUi(); }
-// factory reset: asks, then deletes everything this app keeps in the browser (characters, keys and macros, layout) and reloads as on a first visit
+// factory reset: asks, then deletes everything this app keeps in the browser (characters, settings, keys and macros, layout) and reloads as on a first visit
 function reload() { location.reload(); }
 function factoryReset(anchor = $('global')) {
   const n = Object.keys(edited()).length;
   popup(anchor, h('b', { textContent: 'factory reset' }),
-    h('p', { textContent: `Delete all local data: ${n ? `${n} edited or custom character${n > 1 ? 's' : ''} (export them first to keep them), ` : ''}keys and macros, layout and hints. The page reloads as on a first visit. This cannot be undone.` }),
+    h('p', { textContent: `Delete all local data: ${n ? `${n} edited or custom character${n > 1 ? 's' : ''} (export them first to keep them), ` : ''}settings, keys and macros, layout and hints. The page reloads as on a first visit. This cannot be undone.` }),
     h('div', { cls: 'bar' }, button(':delete: delete everything', 'Delete every saved stick2 setting in this browser and reload', () => {
       for (const k of Object.keys(localStorage)) if (k.startsWith('stick2.')) localStorage.removeItem(k);
       reload();
@@ -71,7 +71,7 @@ function buildTop() {
     grp('', 'Layout and keys', button(':search:', 'Find anything (⌘K): a mode, a toolbar tool, an action, a table (moves, inputs, combos, bones), a character, a move or a setting', openPalette),
       button(':view_sidebar:', 'Panel: show / hide the side panel' + keyTip('panel'), togglePanel),
       button(':keyboard:', 'Keys: rebind any action, set up macros, and help', keysPanel),
-      button(':ssid_chart:', 'Debug: ghost, boxes and the scope bone, the build and engine version, frame rate and the shown fight\'s state (copy for a bug report), factory reset, and the monitor', debugPanel),
+      button(':ssid_chart:', 'Debug: ghost, boxes and the scope bone, the build and engine version, frame rate and the shown fight\'s state (copy for a bug report), reset settings, factory reset, and the monitor', debugPanel),
       button(':info:', 'Docs: how everything works, with live demo fights, and every setting, move flag, input and key explained; searchable (also in ⌘K)', () => openDocs()),
       toggle(':help:', 'Hints: the line of mouse and key help under the view and the frame meter\'s colour legend; off, they show for a few seconds on the first visit to each mode (?)', () => ui.hints, toggleHints),
       toggle(':waves:', 'Sound: whooshes, hits and blocks in play and in the animate preview, synthesized live (no sound files); off by default in automated browsers', () => !muted(), toggleMute)));
@@ -148,8 +148,8 @@ const SHORTCUTS = {
   rewind: () => rewind(60), stepBack: () => rewind(1),
   restart,
   panel: togglePanel, hints: toggleHints,
-  ghost: () => { CFG.ghost = !CFG.ghost; },
-  boxes: () => { CFG.boxes = !CFG.boxes; },
+  ghost: () => setDisplay('ghost', !CFG.ghost),
+  boxes: () => setDisplay('boxes', !CFG.boxes),
   scrub: () => { app.scrub = !app.scrub; app.scrubF = null; },
   ...Object.fromEntries(Object.keys(MODES).map(m => [m, () => setMode(m)])),
 };

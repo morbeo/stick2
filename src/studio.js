@@ -11,6 +11,15 @@ if (DEFS[saved.current]) CURRENT = saved.current;
 // only edited built-ins are stored, so improved built-ins reach characters nobody changed
 const edited = () => Object.fromEntries(Object.entries(DEFS).filter(([k, d]) => !CHAR_DEFS[k] || JSON.stringify(d) !== JSON.stringify(CHAR_DEFS[k])));
 const save = () => { try { localStorage.setItem(STORE, JSON.stringify({ defs: edited(), current: CURRENT })); } catch {} };
+// settings persist too: the ones changed from the defaults, checked on the way in (known, the right type, in range)
+const CFG_STORE = 'stick2.settings';
+const cfgOk = (k, v) => k in DEFAULTS && typeof v === typeof DEFAULTS[k] && (SPEC[k].opts ? SPEC[k].opts.includes(v) : typeof v !== 'number' || v >= SPEC[k].min && v <= SPEC[k].max);
+const saveCfg = () => { try { localStorage.setItem(CFG_STORE, JSON.stringify(Object.fromEntries(Object.keys(DEFAULTS).filter(k => CFG[k] !== DEFAULTS[k]).map(k => [k, CFG[k]])))); } catch {} };
+const loadCfg = () => { try { for (const [k, v] of Object.entries(JSON.parse(localStorage.getItem(CFG_STORE)) || {})) if (cfgOk(k, v)) CFG[k] = v; } catch {}
+  if (!currentChar().by[CFG.scope]) CFG.scope = currentChar().ids[0]; };
+loadCfg();
+// the display aids (ghost, boxes, scope): saved, but not undo steps
+const setDisplay = (k, v) => { CFG[k] = v; saveCfg(); };
 const studio = { sel: 'uarmF', also: new Set(), undo: [], redo: [], lastKey: null, lastT: 0, colors: false, fold: new Set(), stance: 0 };
 // the stance being edited (0 = main): its pose as drawn, its pose and own binds in the definition (what edits change)
 const curStance = (ch = currentChar()) => ch.stances[studio.stance] || ch.stances[0];
@@ -79,13 +88,13 @@ function edit(fn, key = null) {
 // settings changes (sliders, presets, group buttons, grid picks) are undoable too
 function setCfg(vals, key = null) {
   snapshot(() => ({ cfg: { ...CFG } }), key);
-  Object.assign(CFG, vals);
+  Object.assign(CFG, vals); saveCfg();
 }
 function undoRedo(from, to) {
   if (!from.length) return;
   const e = from.pop();
   studio.lastKey = null;
-  if (e.cfg) { to.push({ cfg: { ...CFG } }); Object.assign(CFG, e.cfg); syncAll(); return; }
+  if (e.cfg) { to.push({ cfg: { ...CFG } }); Object.assign(CFG, e.cfg); saveCfg(); syncAll(); return; }
   to.push(JSON.stringify(DEFS[CURRENT]));
   DEFS[CURRENT] = JSON.parse(e);
   recompile();
@@ -174,9 +183,8 @@ function openFile(f) {
 const cfgData = () => Object.fromEntries(changedCfg().map(k => [k, CFG[k]]));
 // settings from a file over the defaults: known ones of the right type and in range only (the debug views stay)
 function cfgFrom(o = {}) {
-  const ok = (k, v) => k in DEFAULTS && typeof v === typeof DEFAULTS[k] && (SPEC[k].opts ? SPEC[k].opts.includes(v) : typeof v !== 'number' || v >= SPEC[k].min && v <= SPEC[k].max);
   const base = Object.keys(DEFAULTS).filter(k => !['ghost', 'boxes', 'scope'].includes(k)).map(k => [k, DEFAULTS[k]]);
-  return Object.fromEntries([...base, ...Object.entries(o).filter(([k, v]) => ok(k, v))]);
+  return Object.fromEntries([...base, ...Object.entries(o).filter(([k, v]) => cfgOk(k, v))]);
 }
 function exportFile(kind) {
   if (kind === 'character') return exportChar();

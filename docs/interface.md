@@ -38,6 +38,7 @@ The debug button (a chart icon) opens the debug popup, in any tab:
 
 - the **ghost**, **boxes** and **scope** switches;
 - the build, engine version, frame rate, and the shown fight's seed, frame, state hash and fighters, with **copy** for bug reports;
+- **reset settings**: every setting back to its default (⌘Z undoes);
 - **factory reset**;
 - the **monitor**: the scope bone's target angle (grey) against the drawn one (red), with the fight's stats.
 
@@ -67,7 +68,7 @@ Links:
 
 - a mode, a tool on the current toolbar, or a key action;
 - a table: the move table, input table and combos (over the character tab there, else in animate), the bone table (in the character tab);
-- factory reset;
+- reset settings, factory reset;
 - a character, a move (opens it in animate) or a setting (searches the panel for it).
 
 ↑ ↓ pick, Enter runs, Esc closes.
@@ -103,6 +104,7 @@ Every heading carries its buttons on the right, in the same place:
 - **Groups of variables** get the group buttons (below).
 - Panels go from the list to the selected item: character → bones → selected bone → stance → stats → walk; moves → selected move → selected key.
 - The settings panel starts with the search, then the presets.
+- Settings are saved in the browser as you change them; **reset settings** in the debug popup (or the juicy preset) brings back the defaults.
 
 ### Less at once
 
@@ -144,6 +146,6 @@ Whooshes, hits, thuds and blocks, synthesized live with WebAudio (no sound files
 
 ## Factory reset
 
-⌘K **factory reset**, or the debug popup. It asks, then deletes everything stick2 keeps in the browser (edited and custom characters, scenarios, keys and macros, layout and hints) and reloads as on a first visit.
+⌘K **factory reset**, or the debug popup. It asks, then deletes everything stick2 keeps in the browser (edited and custom characters, settings, scenarios, keys and macros, layout and hints) and reloads as on a first visit.
 
 Export **everything** first to keep your work.

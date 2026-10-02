@@ -234,6 +234,15 @@ try {
     if (shown.join() !== 'fireball,fireball clash' || [...document.querySelectorAll('.pop h4')].filter(e => !e.hidden).length !== 1) errs.push('scenario filter ' + shown);
     q.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); if (lab.scen !== 'fireball' || document.querySelector('.pop')) errs.push('scenario filter enter ' + lab.scen);
     lab.scen = 'you vs dummy'; build(); }
+  // settings persist: a change is stored (only what differs from the defaults), comes back on load, bad values are dropped; reset settings brings back the defaults
+  { setCfg({ hitstop: 0.2, easing: 'step' }); setDisplay('boxes', true); const st = JSON.parse(localStorage.getItem('stick2.settings'));
+    if (st.hitstop !== 0.2 || st.easing !== 'step' || st.boxes !== true || 'gravity' in st) errs.push('settings stored ' + JSON.stringify(st));
+    localStorage.setItem('stick2.settings', JSON.stringify({ ...st, gravity: 'heavy', nope: 1 })); Object.assign(CFG, DEFAULTS); loadCfg();
+    if (CFG.hitstop !== 0.2 || CFG.easing !== 'step' || !CFG.boxes || CFG.gravity !== DEFAULTS.gravity || 'nope' in CFG) errs.push('settings loaded');
+    setMode('play'); debugBtn().click(); [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('reset settings')).click(); closePop();
+    if (CFG.hitstop !== DEFAULTS.hitstop || CFG.easing !== DEFAULTS.easing || !CFG.boxes) errs.push('reset settings');
+    undo(); if (CFG.hitstop !== 0.2) errs.push('reset settings undo');
+    setDisplay('boxes', false); applyPreset('juicy'); if (localStorage.getItem('stick2.settings') !== '{}') errs.push('settings at defaults ' + localStorage.getItem('stick2.settings')); }
   // factory reset (⌘K or the debug popup): asks first, then deletes every stick2 key in localStorage (nothing else) and reloads
   { const keep = Object.fromEntries(Object.keys(localStorage).filter(k => k.startsWith('stick2.')).map(k => [k, localStorage[k]]));
     localStorage.setItem('stick2.chars', '{}'); localStorage.setItem('stick2.ui', '{}'); localStorage.setItem('other.app', '1');

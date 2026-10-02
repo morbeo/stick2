@@ -422,7 +422,7 @@ const GALLERY_TARGETS = {
   ai: ['The engine AI: moves, attacks back', { b: 'ai' }],
 };
 const meterToggle = () => toggle(':timeline:', 'Frame meter · ' + METER_TIPS, () => lab.meter, v => { lab.meter = v; });
-const boxesToggle = () => toggle(':check_box_outline_blank:', 'Boxes: ' + SPEC.boxes.tip + keyTip('boxes'), () => CFG.boxes, v => { CFG.boxes = v; });
+const boxesToggle = () => toggle(':check_box_outline_blank:', 'Boxes: ' + SPEC.boxes.tip + keyTip('boxes'), () => CFG.boxes, v => setDisplay('boxes', v));
 // training tools (play): record your inputs, then the dummy replays them (mirrored to its facing)
 function trainingCtl() {
   const human = () => SCENARIOS[lab.scen].a === 'human';
@@ -490,7 +490,7 @@ function zoomBack() {
 }
 function labCtx() {
   if (lab.mode === 'gallery') return [grp('target', 'What the moves play against', seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0]))),
-    grp('show', 'Overlays', meterToggle(), boxesToggle(), toggle(':visibility:', 'Ghost: ' + SPEC.ghost.tip + keyTip('ghost'), () => CFG.ghost, v => { CFG.ghost = v; }))];
+    grp('show', 'Overlays', meterToggle(), boxesToggle(), toggle(':visibility:', 'Ghost: ' + SPEC.ghost.tip + keyTip('ghost'), () => CFG.ghost, v => setDisplay('ghost', v)))];
   if (lab.mode === 'impact') return [
     grp('view', 'The nine scripted hits, or one body alone to strike', seg(['hits', 'ragdoll'], () => lab.impact, v => { lab.impact = v; build(); panels(); },
       { hits: 'Nine scripted hits on the character, struck by the stick fighter', ragdoll: 'One body alone, no attacker: strike it low, mid, high… with the buttons, or drag on it' },
@@ -541,7 +541,7 @@ function labCtx() {
 function cfgControl(s) {
   const name = h('span', { textContent: s.k });
   if (s.k === 'scope') {
-    const b = button('', 'Pick the bone to plot', (e, b) => popup(b, h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => { CFG.scope = v; }))));
+    const b = button('', 'Pick the bone to plot', (e, b) => popup(b, h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v)))));
     reg(b, () => { setRich(b, CFG.scope); });
     return h('div', { cls: 'row', tip: s.tip }, name, b);
   }
@@ -626,9 +626,10 @@ const labSide = () => configPanel();
 function debugPanel(e, b) {
   const row = k => h('div', { cls: 'row', tip: SPEC[k].tip }, h('span', { textContent: k }), toggle(CFG[k] ? 'on' : 'off', SPEC[k].tip, () => CFG[k], v => setCfg({ [k]: v }, 'cfg.' + k)));
   popup(b, h('b', { textContent: 'debug' }), row('ghost'), row('boxes'),
-    h('div', { cls: 'row', tip: SPEC.scope.tip }, h('span', { textContent: 'scope' }), h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => { CFG.scope = v; }))),
+    h('div', { cls: 'row', tip: SPEC.scope.tip }, h('span', { textContent: 'scope' }), h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v)))),
     dbgInfo, h('div', { cls: 'bar' }, button(':content_copy: copy', 'Copy the debug information (for a bug report)', () => navigator.clipboard?.writeText(dbgInfo.textContent)),
-      button(':delete: factory reset', 'Delete all local data: edited characters, keys and macros, layout; then reload as new (asks first)', () => factoryReset())),
+      button(':restart_alt: reset settings', 'Every setting back to its default; the display aids (ghost, boxes, scope) stay (⌘Z undoes)', () => { applyPreset('juicy'); mode().restart(); }),
+      button(':delete: factory reset', 'Delete all local data: edited characters, settings, keys and macros, layout; then reload as new (asks first)', () => factoryReset())),
     h('p', { cls: 'note', textContent: 'monitor: the scope bone\'s target angle (grey) against the drawn one (red), with the stats of the shown or focused fight' }), scopeCv, stats);
   pop.classList.add('dbgpop'); dbgT = 0; drawDebug();
 }
