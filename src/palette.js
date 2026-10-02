@@ -1,5 +1,5 @@
 'use strict';
-// ---------- command palette (⌘K): every mode, toolbar tool, key action, the combo editor, character, move and setting, found by typing ----------
+// ---------- command palette (⌘K): every mode, toolbar tool, key action, table (moves, inputs, combos, bones), character, move and setting, found by typing ----------
 // entries are gathered when it opens, so they follow the current mode's toolbar; ↑ ↓ pick, Enter runs, Esc closes
 function paletteEntries() {
   const tipName = t => (t || '').split(/[:·(]/)[0].trim();
@@ -8,14 +8,22 @@ function paletteEntries() {
     return { kind: 'tool', name, tip: b.dataset.tip, run: () => b.click() };
   });
   const keyOf = a => keymap[a]?.[0] ? shortcutLabel(a) : '';
+  // the tables over the stage: in the character tab over its stage, else in animate
+  const over = ' (in the character tab there, else in animate)', overView = v => () => {
+    if (app.mode === 'character') creator.view = v; else { anim.view = v; if (app.mode !== 'animate') setMode('animate'); }
+    panels();
+  };
   return [
     ...docTopics().map(t => ({ kind: 'docs', name: t.title, tip: t.body, run: () => openDocs(t.id) })),
     ...Object.keys(MODES).map(m => ({ kind: 'mode', name: m, tip: MODES[m], key: keyOf(m), run: () => setMode(m) })),
     ...tools,
     ...ACTIONS.filter(([a, g]) => SHORTCUTS[a] && g !== 'modes').map(([a, , , tip]) => ({ kind: 'action', name: a, tip, key: keyOf(a), run: SHORTCUTS[a] })),
-    { kind: 'editor', name: 'combos', tip: VIEW_TIPS.combos + ' (in the character tab there, else in animate)', run: () => {
-      if (app.mode === 'character') creator.view = 'combos'; else { anim.view = 'combos'; if (app.mode !== 'animate') setMode('animate'); }
-      panels();
+    { kind: 'table', name: 'move table', tip: VIEW_TIPS.table + over, run: overView('table') },
+    { kind: 'table', name: 'input table', tip: VIEW_TIPS.inputs + over, run: () => { inputs.table = true; overView('inputs')(); } },
+    { kind: 'editor', name: 'combos', tip: VIEW_TIPS.combos + over, run: overView('combos') },
+    { kind: 'table', name: 'bone table', tip: 'Every bone of the character in a table over its stage: sort, filter, edit in place, drag to reorder, change parents (in the character tab)', run: () => {
+      if (app.mode !== 'character') setMode('character');
+      creator.view = null; creator.table = true; panels();
     } },
     { kind: 'action', name: 'factory reset', tip: 'Delete all local data (characters, keys, macros, layout) and reload; asks first', run: () => factoryReset() },
     ...Object.keys(DEFS).map(c => ({ kind: 'character', name: c, tip: 'Use this character', run: () => pickChar(c) })),
@@ -45,7 +53,7 @@ function openPalette() {
       h('span', { cls: 'pk', textContent: e.kind }), h('b', { textContent: e.name }), h('span', { cls: 'pt' }, ...rich(e.tip || '')), e.key && h('kbd', { textContent: e.key }))));
     if (!shown.length) list.append(h('div', { cls: 'note', textContent: 'nothing matches' }));
   };
-  const inp = h('input', { placeholder: 'type a mode, tool, combos, move, character or setting…', oninput: () => { sel = 0; fill(); },
+  const inp = h('input', { placeholder: 'type a mode, tool, table, combos, move, character or setting…', oninput: () => { sel = 0; fill(); },
     onkeydown: e => {
       e.stopPropagation();
       if (e.key === 'Escape') closePalette();

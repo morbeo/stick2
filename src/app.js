@@ -64,7 +64,7 @@ function buildTop() {
   reg(pause, () => { setRich(pause, app.paused ? ':play_arrow: play' : ':pause: pause'); pause.classList.toggle('on', app.paused); });
   $('global').replaceChildren(
     grp('', 'Edit history', button(':undo:', 'Undo the last edit: character, moves or settings (⌘Z)', undo), button(':redo:', 'Redo (⇧⌘Z)', redo)),
-    grp('', 'Layout and keys', button(':search:', 'Find anything (⌘K): a mode, a toolbar tool, an action, the combo editor, a character, a move or a setting', openPalette),
+    grp('', 'Layout and keys', button(':search:', 'Find anything (⌘K): a mode, a toolbar tool, an action, a table (moves, inputs, combos, bones), a character, a move or a setting', openPalette),
       button(':view_sidebar:', 'Panel: show / hide the side panel' + keyTip('panel'), togglePanel),
       button(':keyboard:', 'Keys: rebind any action, set up macros, and help', keysPanel),
       button(':info:', 'Docs: how everything works, with live demo fights, and every setting, move flag, input and key explained; searchable (also in ⌘K)', () => openDocs()),

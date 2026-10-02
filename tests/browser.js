@@ -207,6 +207,14 @@ try {
     [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('delete everything'))?.click();
     if (Object.keys(localStorage).some(k => k.startsWith('stick2.')) || localStorage.getItem('other.app') !== '1' || reloaded !== 1) errs.push('factory reset ' + Object.keys(localStorage) + reloaded);
     localStorage.removeItem('other.app'); for (const k in keep) localStorage.setItem(k, keep[k]); }
+  // ⌘K reaches every table: the move table, the input table, the combos (character tab: over its stage, else animate) and the bone table (character tab)
+  { const run = n => { closePop(); paletteEntries().find(e => e.name === n)?.run(); panels(); };
+    setMode('play'); run('move table'); if (app.mode !== 'animate' || anim.view !== 'table' || !document.querySelector('.mtable tbody tr')) errs.push('palette move table ' + app.mode + anim.view);
+    run('input table'); if (anim.view !== 'inputs' || !inputs.table || !document.querySelector('.mtable table:not([hidden])')) errs.push('palette input table ' + anim.view);
+    setMode('character'); run('move table'); if (app.mode !== 'character' || creator.view !== 'table') errs.push('palette move table in character ' + creator.view);
+    run('bone table'); if (app.mode !== 'character' || creator.view || !creator.table || !document.querySelector('.btable')) errs.push('palette bone table');
+    setMode('play'); run('bone table'); if (app.mode !== 'character' || !document.querySelector('.btable')) errs.push('palette bone table from play ' + app.mode);
+    creator.table = false; creator.view = null; anim.view = 'cards'; inputs.table = false; panels(); }
   // ⌘K: combos opens the combo editor over the stage (character tab: there, else animate)
   { setMode('play'); const e = paletteEntries().find(e => e.name === 'combos' && e.kind === 'editor'); e?.run(); panels();
     if (app.mode !== 'animate' || anim.view !== 'combos' || !document.querySelector('.ctable')) errs.push('palette combos ' + app.mode + anim.view);
