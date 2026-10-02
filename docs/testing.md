@@ -14,7 +14,20 @@
 | `tests/roster.test.js` | the built-in characters: signature moves bound and playable, projectiles, stances |
 | `tests/render.test.js` | every scenario renders into a stub canvas with every overlay on, and drawing never changes the fight |
 | `tests/data.test.js` | data validation: settings defaults within their range / options, presets, power presets and scenario settings use real settings with fitting values, scenario characters exist; bones (unique, parents exist, limits); moves (heights, hits, striking bones, posed bones, durations, chains, throws and counters name real moves); every bound input and stance key |
+| `tests/determinism.test.js` | the same seed plays the same AI fight frame for frame (also in a fresh engine); another seed plays another |
 | `tests/centaur.js` | a quadruped test character (not in the roster) for bones a biped never has; `run(require('./centaur'))` adds it |
 | `tests/browser.js` | headless Chrome: every mode, character and stance, no errors |
 
 A data check lists every problem it finds, one line each (`stick.jab: punch chains into nothing, not a move`), so one run shows all of them.
+
+## Seeds
+
+The engine takes no clock and no hidden randomness: time comes in as each frame's `dt`, and all chance (the AI, sparks, random weapons) comes from the world's seeded generator (`new World(scenario, settings, seed, chars)`). The snapshot, replay and unit tests use fixed seeds.
+
+The randomized tests share one seed from `tests/seed.js`, printed on every run (`# seed 1`):
+
+| Command | Seed |
+|---|---|
+| `npm test` | 1, the same every run |
+| `SEED=42 npm test` | 42: rerun a failure with the seed it names |
+| `SEED=random npm test` | a fresh one each run, to explore; it is printed, so a failure can be replayed |
