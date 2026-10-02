@@ -213,7 +213,7 @@ function creatorCtx() {
     ...creator.preview === 'impact' && !creator.expOn ? blowGrps(() => creator.w, () => creatorMode.restart()) : [],
     grp('', 'Experiment', toggle(':science: experiment', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
       () => creator.expOn && creator.exp.kind === 'body', on => setExp(on))),
-    grp('show', 'Overlays', toggle(':check_box_outline_blank: boxes', SPEC.boxes.tip, () => CFG.boxes, v => setDisplay('boxes', v)), colorsToggle()),
+    showGrp(['boxes', 'colours']),
   ];
 }
 const setProp = (k, v) => edit(def => { for (const b of selDefs(def)) b[k] = v; }, selIds() + '.' + k);

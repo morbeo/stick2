@@ -90,7 +90,8 @@ function seg(opts, get, set, tips = {}, label = optLabel) {
   }));
 }
 // a labelled group of toolbar controls (related tools sit together, divided from the next group)
-const grp = (label, tip, ...els) => h('span', { cls: 'grp', tip }, label && h('span', { cls: 'gl', textContent: label }), ...els.flat());
+// a named group is a part of the layout (data-part): the layout popup can hide it
+const grp = (label, tip, ...els) => { const g = h('span', { cls: 'grp', tip }, label && h('span', { cls: 'gl', textContent: label }), ...els.flat()); if (label) g.dataset.part = label; return g; };
 function slider(label, { min, max, step }, get, set, tip) {
   const inp = h('input', { type: 'range', min, max, step }), val = h('span', { cls: 'v' });
   inp.addEventListener('input', () => { set(+inp.value); val.textContent = fmt(+inp.value); });
@@ -138,7 +139,8 @@ function folds(els, scope, open) {
     sec.classList.toggle('more', !!L.more[k]);
     el.dataset.tip = el.dataset.tip || 'Click the heading to fold or unfold the section';
     el.onclick = e => { if (e.target.closest('button')) return; L.fold[k] = sec.classList.toggle('shut'); saveLay(); };
-    sec.k = k;
+    el.append(button(':close:', 'Hide this section on this tab (the layout button in the menu bar shows it again)', () => layShow('side:' + name, false), 'mini hidebtn'));
+    sec.k = k; sec.fname = name; // (not .part: elements have one, the shadow parts)
     out.push(sec);
   }
   for (const sec of out.filter(s => s.k)) {

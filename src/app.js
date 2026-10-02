@@ -22,11 +22,16 @@ function setMode(m) {
   mode().enter(m);
   layApply(); // the tab's layout: side panel, then the panels
 }
+// the tab's toolbar groups and side sections, less the ones its layout hides; app.parts lists them all (for the layout popup)
 function panels() {
   const views = VIEWS[tabOf(app.mode)];
-  $('ctx').replaceChildren(...views ? [grp('view', 'What this tab shows', seg(views, () => app.mode, setMode, MODES, m => `:${MODE_ICONS[m]}: ${{ play: 'fight', animate: 'editor' }[m] || m}`))] : [], ...mode().ctxBar());
+  app.shows = [];
+  const ctx = [...views ? [grp('view', 'What this tab shows', seg(views, () => app.mode, setMode, MODES, m => `:${MODE_ICONS[m]}: ${{ play: 'fight', animate: 'editor' }[m] || m}`))] : [], ...mode().ctxBar()];
   $('side').classList.remove('searching');
-  $('side').replaceChildren(...folds(mode().side().filter(Boolean), app.mode, mode().open || []));
+  const side = folds(mode().side().filter(Boolean), app.mode, mode().open || []);
+  app.parts = { ctx: [...new Set(ctx.map(el => el.dataset.part).filter(Boolean))], side: side.map(s => s.fname).filter(Boolean) };
+  $('ctx').replaceChildren(...ctx.filter(el => !el.dataset.part || layShown('ctx:' + el.dataset.part)));
+  $('side').replaceChildren(...side.filter(s => !s.fname || layShown('side:' + s.fname)));
   $('over').replaceChildren(...mode().overlay?.() || []); // controls placed over the canvas
   syncAll();
 }

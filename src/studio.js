@@ -20,7 +20,8 @@ const loadCfg = () => { try { for (const [k, v] of Object.entries(JSON.parse(loc
 loadCfg();
 // the display aids (ghost, boxes, scope, hud, labels): saved, but not undo steps
 const setDisplay = (k, v) => { CFG[k] = v; saveCfg(); };
-const studio = { sel: 'uarmF', also: new Set(), undo: [], redo: [], lastKey: null, lastT: 0, colors: false, fold: new Set(), stance: 0 };
+const studio = { sel: 'uarmF', also: new Set(), undo: [], redo: [], lastKey: null, lastT: 0, fold: new Set(), stance: 0 };
+layFlag(studio, 'colors', 'colours');
 // the stance being edited (0 = main): its pose as drawn, its pose and own binds in the definition (what edits change)
 const curStance = (ch = currentChar()) => ch.stances[studio.stance] || ch.stances[0];
 const editPose = def => studio.stance ? def.stances[studio.stance - 1].pose : def.poses.stance;

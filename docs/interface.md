@@ -32,15 +32,34 @@ Three rows, the same in every tab:
 
 ### Layouts
 
-The layout button (four squares) in the menu bar. Each tab remembers its own layout as you go: which side sections are folded, which show **more**, and whether the side panel is shown.
+![The layout popup](img/layout.png)
 
-| Button | Does |
+The layout button (four squares) in the menu bar. Each tab remembers its own layout as you go: which toolbar groups and side sections are shown, which overlays are on, which side sections are folded, which show **more**, and whether the side panel is shown.
+
+| Row or button | Does |
 |---|---|
+| toolbar | shows or hides each toolbar group of this tab |
+| side panel | shows or hides the whole side panel, and each of its sections; hovering a section heading shows a **×** that hides it too |
+| overlays | the same overlay toggles as the toolbar's **show** group |
 | use | switches to another named layout; changes are kept in the one in use |
 | save as… | copies this layout (every tab) under a new name and uses it |
 | reset tab | this tab back to how it starts, in this layout |
 | reset all | every tab back to how it starts, in this layout |
 | delete | deletes the layout in use (not the default) |
+
+The **show** group in the toolbar holds the overlays, always in this order; each tab has the ones that apply to it:
+
+| Toggle | Draws |
+|---|---|
+| meter | the frame meter (kept per tab) |
+| inputs | your inputs in numpad notation, in play (kept per tab) |
+| boxes | the hitboxes and hurtboxes (setting `boxes`) |
+| ghost | the keyframe pose as a ghost (setting `ghost`) |
+| colours | bones coloured by role, in the editors (kept per tab) |
+| hud | health and stun bars, dizzy stars, callouts and the hit counter (setting `hud`) |
+| labels | each fight's label and stats line (setting `labels`) |
+
+⌘K finds **hide toolbar group: …** and **hide side section: …** (or **show**) for the parts of the tab you are on.
 
 ### Debug
 

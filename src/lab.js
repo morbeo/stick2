@@ -4,7 +4,8 @@ const canvas = $('c'), ctx = canvas.getContext('2d');
 const cursor = c => { if (canvas.style.cursor !== c) canvas.style.cursor = c; }; // the mouse cursor follows what is under it
 let dpr = 1;
 const lab = { mode: 'play', scen: 'you vs dummy', builder: false, rows: null, x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
-  seeds: 1, meter: false, inputs: false, tape: null, rec: false, replay: false, target: 'dummy', playback: null, chars: [null, null], impact: 'hits', blowPower: 'normal', blowSide: 'front' };
+  seeds: 1, tape: null, rec: false, replay: false, target: 'dummy', playback: null, chars: [null, null], impact: 'hits', blowPower: 'normal', blowSide: 'front' };
+layFlag(lab, 'meter'); layFlag(lab, 'inputs'); // per tab, in the layout
 const newWorld = (...a) => Object.assign(new World(...a), { loop: app.loop });
 
 // what the little plot under a grid cell shows, by the swept variable
@@ -421,8 +422,6 @@ const GALLERY_TARGETS = {
   whiff: ['Nobody in range: the move whiffs, pure animation', { bx: 720 }],
   ai: ['The engine AI: moves, attacks back', { b: 'ai' }],
 };
-const meterToggle = () => toggle(':timeline:', 'Frame meter · ' + METER_TIPS, () => lab.meter, v => { lab.meter = v; });
-const boxesToggle = () => toggle(':check_box_outline_blank:', 'Boxes: ' + SPEC.boxes.tip + keyTip('boxes'), () => CFG.boxes, v => setDisplay('boxes', v));
 // training tools (play): record your inputs, then the dummy replays them (mirrored to its facing)
 function trainingCtl() {
   const human = () => SCENARIOS[lab.scen].a === 'human';
@@ -434,8 +433,7 @@ function trainingCtl() {
   const rep = toggle(':replay: replay', 'The dummy plays your recording in a loop: practise against your own combo or pressure', () => lab.replay, v => { lab.replay = v; build(); });
   reg(rec, () => { rec.disabled = !human(); });
   reg(rep, () => { rep.disabled = !human() || lab.rec || !lab.tape?.length; });
-  return [grp('show', 'Training overlays', meterToggle(), toggle(':stadia_controller:', 'Input display: your inputs in numpad notation (6 forward, 2 down, 8 up) and frames held', () => lab.inputs, v => { lab.inputs = v; }), boxesToggle()),
-    grp('dummy', 'Record your inputs for the dummy to play back', rec, rep)];
+  return [grp('dummy', 'Record your inputs for the dummy to play back', rec, rep)];
 }
 // the menu bar's replay buttons: save the play fight (play only), play a replay file (switches to play)
 function replaySave() {
@@ -490,15 +488,14 @@ function zoomBack() {
 }
 function labCtx() {
   if (lab.mode === 'gallery') return [grp('target', 'What the moves play against', seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0]))),
-    grp('show', 'Overlays', meterToggle(), boxesToggle(), toggle(':visibility:', 'Ghost: ' + SPEC.ghost.tip + keyTip('ghost'), () => CFG.ghost, v => setDisplay('ghost', v)))];
+    showGrp(['meter', 'boxes', 'ghost', 'hud', 'labels'])];
   if (lab.mode === 'impact') return [
     grp('view', 'The nine scripted hits, or one body alone to strike', seg(['hits', 'ragdoll'], () => lab.impact, v => { lab.impact = v; build(); panels(); },
       { hits: 'Nine scripted hits on the character, struck by the stick fighter', ragdoll: 'One body alone, no attacker: strike it low, mid, high… with the buttons, or drag on it' },
       v => v === 'hits' ? ':grid_view: hits' : ':accessibility_new: ragdoll')),
     ...lab.impact === 'ragdoll' ? blowGrps(() => lab.cells[0].w, build) : [],
     grp('falls', SPEC.falls.tip, seg(SPEC.falls.opts, () => CFG.falls, v => setCfg({ falls: v }), SPEC.falls.optTips)),
-    grp('show', 'Overlays', lab.impact === 'ragdoll' ? null : toggle(':person_off: no attacker', 'Hide the attacker: only the struck body, its blows still land the same way (and drags strike it unobstructed)', () => lab.solo, v => { lab.solo = v; build(); }),
-      meterToggle(), boxesToggle()), zoomBack()];
+    showGrp(['meter', 'boxes', 'hud', 'labels'], lab.impact === 'ragdoll' ? null : toggle(':person_off: no attacker', 'Hide the attacker: only the struck body, its blows still land the same way (and drags strike it unobstructed)', () => lab.solo, v => { lab.solo = v; build(); })), zoomBack()];
   const els = [];
   if (lab.mode === 'grid') els.push(grp('grid', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
   if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('fight', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = null; build(); panels(); }),
@@ -532,7 +529,8 @@ function labCtx() {
   }
   if (lab.mode === 'grid' && lab.kind !== 'attacks') els.push(grp('stats', 'How the cells are measured and ordered',
     seg([1, 3, 5], () => lab.seeds, v => { lab.seeds = v; build(); }, { 1: 'One fight per cell', 3: 'Each cell fought with 3 seeds; stats averaged (AI fights differ per seed)', 5: '5 seeds per cell, averaged' }, v => `${v} seed${v > 1 ? 's' : ''}`),
-    sortButton(), meterToggle()));
+    sortButton()));
+  els.push(showGrp(['meter', ...lab.mode === 'play' ? ['inputs'] : [], 'boxes', 'ghost', 'hud', 'labels']));
   if (lab.mode === 'play') els.push(...trainingCtl());
   return els;
 }

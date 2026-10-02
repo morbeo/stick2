@@ -792,8 +792,7 @@ function movesGrp() {
     seg(['table', 'inputs', 'combos'], cur, set, mapVals(VIEW_TIPS, t => t + ' (click again: close)'), v => ({ table: ':table_rows: table', inputs: ':stadia_controller: inputs', combos: ':trending_up: combos' })[v]), pick);
 }
 function animCtx() {
-  return [movesGrp(), grp('show', 'Overlays', toggle(':visibility:', 'Ghost: ' + SPEC.ghost.tip + keyTip('ghost'), () => CFG.ghost, v => setDisplay('ghost', v)),
-    toggle(':check_box_outline_blank:', 'Boxes: ' + SPEC.boxes.tip + keyTip('boxes'), () => CFG.boxes, v => setDisplay('boxes', v)), colorsToggle()), compareGrp()];
+  return [movesGrp(), showGrp(['boxes', 'ghost', 'colours']), compareGrp()];
 }
 const CMP_TIPS = { off: 'No comparison', overlay: 'The compared move drawn over this one in amber, at the same moment',
   strip: 'Filmstrip: this move and the compared one frame by frame on one time scale, tinted by phase (click a frame to go there)' };

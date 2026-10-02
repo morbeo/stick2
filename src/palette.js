@@ -26,6 +26,8 @@ function paletteEntries() {
       creator.view = null; creator.table = true; panels();
     } },
     ...Object.keys(layouts.sets).map(n => ({ kind: 'layout', name: 'layout: ' + n, tip: 'Use this layout (what each tab shows)', run: () => layUse(n) })),
+    ...['ctx', 'side'].flatMap(kind => app.parts[kind].map(p => { const id = kind + ':' + p, on = layShown(id), what = kind === 'ctx' ? 'toolbar group' : 'side section';
+      return { kind: 'layout', name: `${on ? 'hide' : 'show'} ${what}: ${p}`, tip: `${on ? 'Hide' : 'Show'} the ${what} "${p}" on this tab (layout)`, run: () => layShow(id, !on) }; })),
     { kind: 'layout', name: 'reset layout', tip: 'This tab back to how it starts, in the layout in use', run: () => layReset(tabOf(app.mode)) },
     { kind: 'action', name: 'reset settings', tip: 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels) stay (⌘Z undoes)', run: () => { applyPreset('juicy'); mode().restart(); } },
     { kind: 'action', name: 'factory reset', tip: 'Delete all local data (characters, settings, keys, macros, layout) and reload; asks first', run: () => factoryReset() },
