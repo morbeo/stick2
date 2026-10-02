@@ -75,6 +75,18 @@ A stance can have its own body. Pick the stance under the stance pose and switch
 - The editor and the preview show the stance picked. In a fight the switch keeps the running move; new bones grow in.
 - In the character JSON: `stances[i].body = { bones: { id: { len, … , hidden } }, add: [bones], scale, stats, gait, chains: { move: next } }`. Only what differs is stored.
 
+### Stance requirements
+
+Under a stance's body row, **requirements** set when it can be taken and what ends it (unset: as before, on the ground, any time):
+
+- **where:** on the ground (the default), in the air, or both. A press in the air waits for the ground as before.
+- **hp below / hp above:** only with at most / at least this share of health left (a desperation stance at 0.3).
+- **cooldown:** seconds after leaving it before it can be taken again. **min time:** seconds before it can be left. **max time:** seconds, then back to main on its own.
+- **exit on:** hit, knocked down, blocking, grabbed: back to main.
+- **once a round.**
+- **moves:** all (its binds over main's), own (only its own binds), or a list of the moves it allows.
+- A stance key whose stances are all blocked does nothing. In the JSON: `stances[i].req`, only what differs.
+
 ### In the air
 
 - Every fighter gets air drift, a top fall speed with ↓ fast fall, an **air dodge** (G in the air: intangible; with a direction, a burst) and an **air dash** (double tap in the air), once per jump.

@@ -59,3 +59,47 @@ test('a fight with stance bodies replays in sync', () => {
   assert.ok(r.switched > 0, 'the fight used the stance');
   assert.equal(r.desync, null); assert.ok(r.end);
 });
+
+// ---------- requirements and limits (stance.req) ----------
+// the stance a fights in at the frames in at, with stance req and scripts a / b
+const stIs = (req, a, b = 'dummy', n = 150, at = []) => R(`(() => { const ch = stanced(null, { req: ${JSON.stringify(req)} }), w = new World({ a: ${JSON.stringify(a)}, b: ${JSON.stringify(b)}, ax: 330, bx: 380, period: 9 }, {}, 7, [ch, CHARS.stick]);
+  w.loop = false; const out = []; for (let i = 1; i <= ${n}; i++) { w.advance(1 / 60, NOIN); if (${JSON.stringify(at)}.includes(i)) out.push(w.a.stanceI); } return out; })()`);
+
+test('requirements: health, where, once and cooldown decide whether a stance can be taken', () => {
+  const r = R(`(() => { const ch = stanced(null, { req: { hpBelow: 0.5, cooldown: 1 } }), w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 400, period: 9 }, {}, 7, [ch, CHARS.stick]), f = w.a;
+    const full = f.stanceOk(1); f.hp = f.c('health') * 0.4; const low = f.stanceOk(1);
+    f.grounded = false; const air = f.stanceOk(1), pressAir = f.stanceOk(1, false); f.grounded = true;
+    f.setStance(1); f.setStance(0); const cd = f.stanceOk(1); w.simT += 1; const after = f.stanceOk(1);
+    const c2 = stanced(null, { req: { once: true, air: true, grounded: false } }), w2 = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 400, period: 9 }, {}, 7, [c2, CHARS.stick]), g = w2.a;
+    const ground = g.stanceOk(1); g.grounded = false; const up = g.stanceOk(1); g.setStance(1); g.setStance(0); const again = g.stanceOk(1);
+    return { full, low, air, pressAir, cd, after, ground, up, again }; })()`);
+  assert.deepEqual(r, { full: false, low: true, air: false, pressAir: true, cd: false, after: true, ground: false, up: true, again: false });
+});
+
+test('a blocked stance key does nothing (no special), an allowed one switches', () => {
+  const blocked = R(`fight({ a: [0.1, 'special+guard'], b: 'dummy', ax: 330, bx: 380, period: 9 }, [stanced(null, { req: { hpBelow: 0.5 } }), CHARS.stick], 60).seen`);
+  assert.deepEqual(blocked, []);
+  assert.deepEqual(stIs({ hpAbove: 0.5 }, [0.1, 'special+guard'], 'dummy', 40, [40]), [1]);
+});
+
+test('maxT sends it back to main, minT holds it, cooldown waits', () => {
+  assert.deepEqual(stIs({ maxT: 0.5 }, [0.1, 'special+guard'], 'dummy', 60, [20, 30, 60]), [1, 1, 0]);
+  // (script numbers are waits: presses at about 0.1, 0.5 and 1.2 s)
+  assert.deepEqual(stIs({ minT: 1 }, [0.1, 'special+guard', 0.4, 'special+guard', 0.7, 'special+guard'], 'dummy', 90, [50, 90]), [1, 0]);
+  // in at 0.1, out at 0.4, again at 0.8 (too soon) and 1.6
+  assert.deepEqual(stIs({ cooldown: 1 }, [0.1, 'special+guard', 0.3, 'special+guard', 0.4, 'special+guard', 0.8, 'special+guard'], 'dummy', 110, [20, 35, 60, 110]), [1, 0, 0, 1]);
+  assert.deepEqual(stIs({}, [0.1, 'special+guard', 0.3, 'special+guard', 0.4, 'special+guard'], 'dummy', 60, [60]), [1], 'no cooldown: straight back in');
+});
+
+test('exitOn: a hit sends it back to main', () => {
+  const b = [0.4, 'punch'];
+  assert.deepEqual(stIs({ exitOn: ['hit'] }, [0.1, 'special+guard'], b, 50, [20, 50]), [1, 0]);
+  assert.deepEqual(stIs({ exitOn: ['block'] }, [0.1, 'special+guard'], b, 50, [20, 50]), [1, 1], 'not on a hit');
+});
+
+test('moves: own drops the main binds, a list keeps only those moves', () => {
+  const r = R(`(() => { const own = stanced(null, { binds: { punch: 'hook' }, req: { moves: 'own' } }).stances[1].binds, list = stanced(null, { req: { moves: ['jab', 'sweep'] } }).stances[1].binds;
+    return { own, list: Object.values(list).sort() }; })()`);
+  assert.deepEqual(r.own, { punch: 'hook' });
+  assert.deepEqual(r.list, ['jab', 'sweep']);
+});

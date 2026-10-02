@@ -315,7 +315,42 @@ function stanceRow() {
       button(':history: revert body', `Throw away ${names[i]}'s own body: back to the main body (undoable)`, () => edit(def => { delete def.stances[i - 1].body; }), 'mini'))) : null,
     i && studio.own ? slider('size', { min: 0.5, max: 2, step: 0.05 }, () => stanceBody()?.scale ?? 1,
       v => edit(def => { if (v === 1) delete editBody(def).scale; else editBody(def).scale = v; }, 'stance scale'),
-      `Size of the whole body in ${names[i]}: × every bone's length, thickness and hurtbox`) : null];
+      `Size of the whole body in ${names[i]}: × every bone's length, thickness and hurtbox`) : null,
+    ...i ? stanceReq(i, names[i]) : []];
+}
+// a stance's requirements and limits (def.stances[i - 1].req; only what differs from STANCE_REQ is stored)
+function stanceReq(i, name) {
+  const req = k => ({ ...STANCE_REQ, ...DEFS[CURRENT].stances[i - 1].req })[k];
+  const set = (vals, key = null) => edit(def => {
+    const st = def.stances[i - 1], r = { ...st.req, ...vals };
+    for (const k in r) if (JSON.stringify(r[k]) === JSON.stringify(STANCE_REQ[k])) delete r[k];
+    if (Object.keys(r).length) st.req = r; else delete st.req;
+  }, key);
+  const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', { textContent: label }), h('span', { cls: 'bar' }, ...c));
+  const sl = (k, label, max, step, tip) => slider(label, { min: 0, max, step }, () => req(k), v => set({ [k]: v }, 'req:' + k), tip);
+  const where = () => req('grounded') && req('air') ? 'both' : req('air') ? 'air' : 'ground';
+  const EXITS = { hit: 'Hit (a blow that lands)', knockdown: 'Knocked down', block: 'Blocking a blow', grab: 'Grabbed by a throw' };
+  const moves = () => Array.isArray(req('moves')) ? 'list' : req('moves');
+  const pick = (e, b) => popup(b, h('b', { textContent: `moves allowed in ${name}` }), h('div', { cls: 'bar' }, Object.keys(currentChar().moves).map(n =>
+    toggle(n, `Allow ${n} in ${name} (its binds that play other moves are dropped)`, () => req('moves').includes?.(n),
+      on => set({ moves: on ? [...req('moves'), n] : req('moves').filter(x => x !== n) })))));
+  const listBtn = button(':tune: moves', `Pick the moves ${name} allows`, pick, 'mini');
+  reg(listBtn, () => { listBtn.hidden = moves() !== 'list'; if (moves() === 'list') setRich(listBtn, `:tune: ${req('moves').length} moves`); });
+  const title = h('h4', { textContent: 'requirements', tip: `When ${name} can be switched to, how long it lasts and what sends it back to main. Unset: as today (on the ground, any time)` });
+  return [title,
+    row('where', `Where ${name} can be switched to`, seg(['ground', 'air', 'both'], where, v => set({ grounded: v !== 'air', air: v !== 'ground' }),
+      { ground: 'Only standing on the floor (the default)', air: 'Only in the air', both: 'On the floor or in the air' }, v => optLabel(v === 'ground' ? 'stand' : v))),
+    sl('hpBelow', 'hp below', 1, 0.05, `Only with at most this much health left (1 = any): a desperation stance at 0.3`),
+    sl('hpAbove', 'hp above', 1, 0.05, `Only with at least this much health left (0 = any)`),
+    sl('cooldown', 'cooldown', 10, 0.1, `Seconds after leaving ${name} before it can be taken again (0 = straight away)`),
+    sl('minT', 'min time', 5, 0.1, `Seconds in ${name} before it can be left (0 = any time)`),
+    sl('maxT', 'max time', 20, 0.1, `Seconds in ${name}, then back to main on its own (0 = no limit)`),
+    row('exit on', `What sends ${name} back to main`, ...Object.entries(EXITS).map(([k, tip]) =>
+      toggle(k, `${tip}: back to main`, () => req('exitOn').includes(k), on => set({ exitOn: on ? [...req('exitOn'), k] : req('exitOn').filter(x => x !== k) })))),
+    row('once', `How often ${name} can be taken`, toggle(':timer: once a round', `${name} can be taken once a round`, () => req('once'), v => set({ once: v }))),
+    row('moves', `The moves ${name} plays`, seg(['all', 'own', 'list'], moves, v => set({ moves: v === 'list' ? [] : v }),
+      { all: `${name}'s binds over the main ones (the default)`, own: `Only ${name}'s own binds: inputs it doesn't bind play nothing`, list: `Only the moves picked: binds playing other moves are dropped` }),
+      listBtn)];
 }
 // the generator's variables; the random characters experiment shows nine of them
 function randomPanel(changed = () => {}) {

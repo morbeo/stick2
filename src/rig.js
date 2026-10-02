@@ -465,6 +465,11 @@ const HITS = { fh: 'handF', bh: 'handB', ff: 'footF', bf: 'footB' };
 // Directions in numpad terms (6 = towards the opponent): a diagonal without a move falls back to its vertical, then to neutral
 // the inputs that switch stance (→ = toward the opponent); stances sharing a key are cycled, pressing it again goes back to main
 const STANCE_KEYS = { 'S+G': 'S+G', '↓S+G': '↓ S+G', '→S+G': '→ S+G', '←S+G': '← S+G' };
+// a stance's requirements (def.stances[i].req, over these): grounded / air = where it can be switched to; hpBelow / hpAbove: health
+// fractions (at most / at least); cooldown: s after leaving it before it can be taken again; minT: s in it before leaving; maxT: s,
+// then back to main (0 = no limit); exitOn: back to main when hit, knocked down, blocking or grabbed; once: once a round;
+// moves: 'all' (its binds over main's), 'own' (only its own binds) or a list of the moves it allows
+const STANCE_REQ = { grounded: true, air: false, hpBelow: 1, hpAbove: 0, cooldown: 0, minT: 0, maxT: 0, exitOn: [], once: false, moves: 'all' };
 // stance keys were K+G before K+G became the second throw
 const stanceKey = k => (k || 'S+G').replace('K+G', 'S+G');
 // a stance's keyframed idle / walk loop: the moves idle / walk for the main stance, craneIdle / craneWalk for a stance named crane
@@ -582,9 +587,13 @@ function makeCharacter(def) {
     poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, motions: customMotions(def), binds: { ...BINDS, ...def.binds }, binds25: { ...BINDS_25, ...def.binds25 },
     stats: Object.fromEntries(CHAR_STATS.map(s => [s.k, def[s.k] ?? 1])), gait: { ...Object.fromEntries(GAIT_VARS.map(s => [s.k, s.v])), ...def.gait },
     shadow: { ...SHADOW, ...def.shadow } };
-  // stances: the main one plus any extra; each has its pose, its own binds over the main ones and the key that switches to it
-  ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: ch.binds, binds25: ch.binds25 },
-    ...(def.stances || []).map(s => ({ name: s.name, key: stanceKey(s.key), pose: { ...ch.poses.stance, ...s.pose }, binds: { ...ch.binds, ...s.binds }, binds25: { ...ch.binds25, ...s.binds25 } }))];
+  // stances: the main one plus any extra; each has its pose, its own binds over the main ones, the key that switches to it and
+  // its requirements (STANCE_REQ; req.moves 'own': only its own binds, a list: only those moves)
+  const binds = (s, k) => { const m = s.req?.moves, b = m === 'own' ? { ...s[k] } : { ...ch[k], ...s[k] };
+    return Array.isArray(m) ? Object.fromEntries(Object.entries(b).filter(([, n]) => m.includes(n))) : b; };
+  ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: ch.binds, binds25: ch.binds25, req: { ...STANCE_REQ } },
+    ...(def.stances || []).map(s => ({ name: s.name, key: stanceKey(s.key), pose: { ...ch.poses.stance, ...s.pose }, binds: binds(s, 'binds'), binds25: binds(s, 'binds25'),
+      req: { ...STANCE_REQ, ...s.req } }))];
   // armed (see armed): the weapon class's binds go over every stance's, where the move exists
   ch.def = def;
   if (def.weapon) {

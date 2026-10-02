@@ -19,7 +19,8 @@ class Fighter {
       sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0, jugUsed: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, heldAt: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
-      airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null, layerAt: {}, away: false, turnRate: 0, turnMid: null });
+      airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null, layerAt: {}, away: false, turnRate: 0, turnMid: null,
+      stanceT: 0, stanceCd: {}, stanceUsed: [] }); // time in the stance, when each stance was left, the stances taken (req.once)
     this.hp = this.c('health'); this.ch0 = ch.weapon ? armed(ch, '') : ch; // ch0: the character without its weapon
     this.target = this.basePose();
     this.disp = { ...this.target };
@@ -43,9 +44,24 @@ class Fighter {
   }
   // switch to stance i: its body (stanceChar; a running move goes on)
   setStance(i) {
-    this.stanceI = i;
+    if (this.stanceI) this.stanceCd[this.stanceI] = this.w.simT;
+    this.stanceI = i; this.stanceT = 0;
+    if (i && this.st.req.once) this.stanceUsed.push(i);
     const ch = stanceChar(this.ch, i);
     if (ch !== this.ch) this.setChar(ch, true);
+  }
+  // its limits send it back to main (maxT, exitOn)
+  stanceExit() { this.setStance(0); this.say(this.st.name.toUpperCase()); }
+  // exitOn: hit | knockdown | block | grab
+  exitOn(ev) { if (this.stanceI && this.st.req.exitOn.includes(ev)) this.stanceExit(); }
+  // whether stance i can be switched to now: its requirements (STANCE_REQ; grounded / air only when where is set: the switch itself
+  // checks it, a press in the air still lands into the stance) and the current stance's minT
+  stanceOk(i, where = true) {
+    const r = this.ch.stances[i]?.req, mx = this.c('health'), hp = mx > 0 ? this.hp / mx : 1;
+    if (!r || i === this.stanceI || this.stanceI && this.stanceT < this.st.req.minT - 1e-9) return false;
+    if (where && !(r.grounded && this.grounded || r.air && !this.grounded)) return false;
+    return hp <= r.hpBelow && hp >= r.hpAbove && !(r.once && this.stanceUsed.includes(i))
+      && !(r.cooldown && i in this.stanceCd && this.w.simT - this.stanceCd[i] < r.cooldown - 1e-9);
   }
   c(k) { // character stats scale their settings
     const v = this.over[k] ?? this.w.cfg[k], s = STAT_OF[k];
@@ -177,10 +193,11 @@ class Fighter {
     const as = b => !inp.guard ? b : b === 'punch' ? 'throw' : b === 'kick' ? 'throw2' : b === 'special' && taunt ? 'taunt' : b === 'special' && to >= 0 ? 'stance' : b;
     for (const b of ['punch', 'kick', 'special']) if (inp[b]) this.buffer = { b: as(b), t: 0.2, motion: this.motion(), to };
   }
-  // the stance a key switches to: the next one after the current among the stances with that key and main (-1: none)
+  // the stance a key switches to: the next one after the current among the stances with that key and main whose requirements
+  // allow it (-1: no stance has the key; the current one: none allowed, the press is spent)
   stanceTo(key) {
-    const c = this.ch.stances.map((s, i) => i).filter(i => !i || this.ch.stances[i].key === key);
-    return c.length < 2 ? -1 : c.find(i => i > this.stanceI) ?? c[0];
+    const c = this.ch.stances.map((s, i) => i).filter(i => !i || this.ch.stances[i].key === key), cur = this.stanceI;
+    return c.length < 2 ? -1 : [...c.filter(i => i > cur), ...c.filter(i => i < cur)].find(i => this.stanceOk(i, false)) ?? cur;
   }
   // every special motion in the recent directions, the character's own first (6236 is both →↓↘ and ↓↘→: the first one with a move bound wins)
   motion() {
@@ -336,7 +353,8 @@ class Fighter {
   update(dt, inp) {
     const c = k => this.c(k);
     this.inp = inp;
-    this.time += dt; this.hurtT -= dt; this.flashT -= dt; this.comboT -= dt;
+    this.time += dt; this.hurtT -= dt; this.flashT -= dt; this.comboT -= dt; this.stanceT += dt;
+    if (this.stanceI && this.st.req.maxT && this.stanceT >= this.st.req.maxT - 1e-9) this.stanceExit();
     this.comboPop *= Math.exp(-10 * dt);
     if (this.free) this.combo = 0;
     if (this.heldBy) this.held(dt, inp);
@@ -344,7 +362,7 @@ class Fighter {
 
     // start a move, or chain into the next one once the current move's active frames are over
     const a0 = this.action;
-    if (this.buffer?.b === 'stance' && this.free && !a0 && this.grounded) {
+    if (this.buffer?.b === 'stance' && this.free && !a0 && this.stanceOk(this.buffer.to)) {
       const to = this.buffer.to; this.buffer = null; this.say(this.ch.stances[to].name.toUpperCase()); this.setStance(to);
     }
     // 2D: J / K with ↑ held in the jump squat is an up attack instead of a jump
@@ -874,6 +892,7 @@ class Fighter {
     // just guard: G tapped within justGuardWindow before the parry window: shorter blockstun, no chip, no push
     const just = this.c('justGuard') && within(this.w.simT - this.guardT, (this.c('parry') ? this.c('parryWindow') : 0) + this.c('justGuardWindow'));
     const bs = (m.bstun || (m.stun || 0.4) * this.c('blockStun')) * (just ? this.c('justGuardStun') : 1);
+    this.exitOn('block');
     this.hurtT = this.blockT = bs; this.guarding = true; this.combo = 0; this.buffer = null; this.parryT = 0; this.blocked = att;
     this.vx = just ? 0 : att.dir * (m.bpush || m.knock * this.c('blockPush')) * this.c('powerScale') / this.ch.stats.weight;
     if (this.c('health') > 0 && !just && !this.c('inv')) this.hp = Math.max(1, this.hp - this.damageOf(m, 1) * (m.chip || this.c('chip'))); // chip never knocks out
@@ -909,6 +928,7 @@ class Fighter {
   }
   // a throw connected: the victim is held for the tech window, then thrown by the move named in the grab's throw
   seize(o) {
+    o.exitOn('grab');
     o.heldBy = this; o.heldT = this.c('techWindow'); o.heldAt = this.w.simT; o.buffer = null; o.guarding = false; o.blockT = 0; o.dir = -this.dir; o.away = false;
     o.start(makeHurt(o.ch.hurt.mid[0], 9, this.w.rand, o.st.pose)); o.hurtT = 9;
     const toss = this.ch.moves[this.action.m.throw];
@@ -939,6 +959,7 @@ class Fighter {
       this.flashT = 0.1; this.say('ARMOR'); this.sqv -= this.c('squash') * 8 * m.power;
       return;
     }
+    this.exitOn('hit');
     // disarm: a knockdown or a blow hard enough knocks the weapon loose
     if (this.ch.weapon && !this.rag && this.w.items && (m.kd || m.power * this.c('powerScale') >= this.c('disarm'))) { this.letGo(false); this.say('DISARM'); }
     // counter hit: caught in the startup or active frames of its own attack
@@ -957,6 +978,7 @@ class Fighter {
     if (m.kd || m.crumple || juggle || combo >= 7 || this.ko) {
       this.juggles = this.kd ? this.juggles + 1 : 0;
       this.kd = 'fly'; this.bounces = otg ? 99 : 0; this.grounded = false; this.action = null; this.hurtT = 0; // hit off the ground: a small pop, no bounce
+      this.exitOn('knockdown');
       this.vy = -Math.max((m.launch || 300) * ps, this.ko ? 380 : 0) * this.c('juggleDecay') ** this.juggles * this.c('launchScale') / this.ch.stats.weight;
       this.splat = !!m.wall; this.wallB = !!m.wallbounce; this.gb = !!m.bounce && !otg; this.splatT = 0; this.flyT = 0;
       if (m.crumple && !juggle) { this.vx = att.dir * 30; this.vy = -120; this.bounces = 99; this.say('CRUMPLE'); } // folds where it stands

@@ -246,6 +246,12 @@ try {
       || viewChar().by.uarmF.len !== 30 || edFrame().ch.by.uarmF.len !== 30 || creator.w.a.ch.by.uarmF.len !== 30) errs.push('stance only len ' + JSON.stringify(body));
     deleteBone(); if (!viewChar().by.handF.hidden || CHARS.stick.by.uarmF.hidden) errs.push('stance only hide');
     undo(); undo(); if (DEFS.stick.stances[0].body?.bones?.uarmF?.len) errs.push('stance only undo');
+    // requirements: where and exit on, stored only while they differ from the defaults
+    const btn = t => [...document.querySelectorAll('#side button')].find(b => b.dataset.tip?.startsWith(t));
+    btn('Only in the air').click(); btn('Hit (a blow').click();
+    const rq = JSON.stringify(DEFS.stick.stances[0].req), on = CHARS.stick.stances[1].req;
+    btn('Only standing').click(); btn('Hit (a blow').click();
+    if (rq !== '{"grounded":false,"air":true,"exitOn":["hit"]}' || !on.air || DEFS.stick.stances[0].req) errs.push('stance req ' + rq + JSON.stringify(DEFS.stick.stances[0].req));
     studio.stance = 0; panels(); if (own()) errs.push('stance only toggle on main');
     studio.own = false; }
   // the bone table rearranges bones: drag a row's id onto another to move it before it (the draw order), click parent to hang it from another bone
