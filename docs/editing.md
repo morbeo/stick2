@@ -87,6 +87,15 @@ Under a stance's body row, **requirements** set when it can be taken and what en
 - **moves:** all (its binds over main's), own (only its own binds), or a list of the moves it allows.
 - A stance key whose stances are all blocked does nothing. In the JSON: `stances[i].req`, only what differs.
 
+### Stance transitions
+
+**transition** (under the requirements) sets how the body changes switching to the stance, and back to main from it:
+
+- **springs** (the default): the springs chase the new pose.
+- **auto:** the stance pose and the bone lengths blend over **frames** (60 a second) with the **ease**. New bones grow from nothing, hidden ones shrink away.
+- **move:** a keyframed transition move plays: `mainToCrane` switching into a stance named crane (or the move picked), `craneToMain` back to main. **new transition move** and **back** make them (half way between the two poses, then into the stance) and open them in animate. The move eases from wherever the body is, like any move; a switch forced by the stance's limits (max time, exit on) skips it.
+- In the JSON: `stances[i].morph = { mode, T, ease, move }`, only what differs.
+
 ### In the air
 
 - Every fighter gets air drift, a top fall speed with ↓ fast fall, an **air dodge** (G in the air: intangible; with a direction, a burst) and an **air dash** (double tap in the air), once per jump.

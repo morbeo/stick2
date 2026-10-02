@@ -253,7 +253,13 @@ try {
     btn('Only standing').click(); btn('Hit (a blow').click();
     if (rq !== '{"grounded":false,"air":true,"exitOn":["hit"]}' || !on.air || DEFS.stick.stances[0].req) errs.push('stance req ' + rq + JSON.stringify(DEFS.stick.stances[0].req));
     studio.stance = 0; panels(); if (own()) errs.push('stance only toggle on main');
-    studio.own = false; }
+    studio.own = false;
+    // transition: move mode shows the move row; new transition move makes <main>To<Stance> and opens it in animate
+    studio.stance = 1; panels(); const nm = morphName('main', curStance().name);
+    btn('A keyframed transition move').click(); btn('Make ' + nm).click();
+    if (DEFS.stick.stances[0].morph?.mode !== 'move' || !CHARS.stick.moves[nm] || app.mode !== 'animate' || anim.move !== nm) errs.push('transition move ' + [nm, app.mode, anim.move]);
+    anim.move = 'jab'; undo(); undo(); if (DEFS.stick.moves[nm] || DEFS.stick.stances[0].morph) errs.push('transition undo');
+    setMode('character'); studio.stance = 0; panels(); }
   // the bone table rearranges bones: drag a row's id onto another to move it before it (the draw order), click parent to hang it from another bone
   { setMode('character'); pickChar('stick'); lay('character').panel = 'bones'; creator.tsort = { k: '', dir: 1 }; creator.tfilter = ''; panels();
     const idCell = id => [...document.querySelectorAll('.btable tbody td:first-child')].find(td => td.textContent === id), ids = () => currentChar().ids;

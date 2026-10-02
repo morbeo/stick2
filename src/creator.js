@@ -9,7 +9,7 @@ const PREVIEWS = {
   impact: [null, 'The body alone, no attacker: strike it low, mid, high… with the blow buttons and watch it fall (the ragdoll).'],
 };
 // the preview's scenario (impact: the experiment grid plays the showcase)
-const previewScen = () => { const s = SCENARIOS[PREVIEWS[creator.preview][0] || 'showcase']; return { ...s, init: w => { s.init?.(w); w.a.setStance(studio.stance); } }; };
+const previewScen = () => { const s = SCENARIOS[PREVIEWS[creator.preview][0] || 'showcase']; return { ...s, init: w => { s.init?.(w); w.a.setStance(studio.stance, 'instant'); } }; };
 
 // ---------- editor view: the stance pose, big, with a handle on every joint ----------
 function edLayout() {

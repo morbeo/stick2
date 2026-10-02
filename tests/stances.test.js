@@ -48,16 +48,17 @@ test('a stance with an empty body fights exactly like one without', () => {
   assert.deepEqual(r[0], r[1]);
 });
 
-test('a fight with stance bodies replays in sync', () => {
-  const r = R(`(() => { const ch = stanced(BODY), w = new World(SCENARIOS['you vs dummy'], {}, 5, [ch, CHARS.stick]);
+test('a fight with stance bodies (auto morph, max time) replays in sync', () => {
+  const r = R(`(() => { const ch = stanced(BODY, { morph: { mode: 'auto', T: 8 }, req: { maxT: 1 } }), w = new World(SCENARIOS['you vs dummy'], {}, 5, [ch, CHARS.stick]);
     const inp = i => ({ ...NOIN, right: i % 90 < 40, punch: i % 120 === 10, kick: i % 120 === 90, guard: i % 120 >= 60 && i % 120 < 63, special: i % 120 === 61 });
-    w.loop = false; let switched = 0;
-    for (let i = 0; i < 500 && !w.done; i++) { w.advance(1 / 60, inp(i)); switched += w.a.stanceI; }
+    w.loop = false; let switched = 0, at = null;
+    for (let i = 0; i < 500 && !w.done; i++) { w.advance(1 / 60, inp(i)); switched += w.a.stanceI; if (w.log.length === 248) at = w.stateHash(); }
     const rep = JSON.parse(JSON.stringify(makeReplay(w, 'you vs dummy'))), p = replayWorld(rep); p.loop = false;
     for (let i = 0; i <= rep.frames.length; i++) p.advance(0, NOIN);
-    return { switched, desync: p.desync, end: p.stateHash() === rep.end }; })()`);
+    w.rewind(w.log.length - 248); // from a checkpoint copy (cloneState) taken mid-stance
+    return { switched, desync: p.desync, end: p.stateHash() === rep.end, rewind: w.stateHash() === at }; })()`);
   assert.ok(r.switched > 0, 'the fight used the stance');
-  assert.equal(r.desync, null); assert.ok(r.end);
+  assert.equal(r.desync, null); assert.ok(r.end); assert.ok(r.rewind, 'rewinding plays the same');
 });
 
 // ---------- requirements and limits (stance.req) ----------
@@ -102,4 +103,29 @@ test('moves: own drops the main binds, a list keeps only those moves', () => {
     return { own, list: Object.values(list).sort() }; })()`);
   assert.deepEqual(r.own, { punch: 'hook' });
   assert.deepEqual(r.list, ['jab', 'sweep']);
+});
+
+// ---------- switch transitions (stance.morph) ----------
+test('an auto morph blends the stance pose and the bone lengths, done in T frames', () => {
+  const r = R(`(() => { const ch = stanced({ bones: { uarmF: { len: 30 } } }, { morph: { mode: 'auto', T: 10, ease: 'linear' } }), w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 400, period: 9 }, {}, 7, [ch, CHARS.stick]), f = w.a;
+    for (let i = 0; i < 5; i++) w.advance(1 / 60, NOIN);
+    const p0 = f.stancePose().uarmF; f.setStance(1); let n = 0, mid = null, len = null;
+    while (f.morph && n < 30) { w.advance(1 / 60, NOIN); n++; if (n === 5) { mid = f.stancePose().uarmF; len = f.lens.uarmF; } }
+    return { p0, to: f.st.pose.uarmF, n, mid, len, end: f.stancePose() === f.st.pose }; })()`);
+  assert.equal(r.n, 10);
+  assert.ok(Math.abs(r.mid - (r.p0 + r.to) / 2) < 1e-6, `half way at frame 5: ${r.mid}`);
+  assert.ok(r.len > 20 && r.len < 27, 'the length half way: ' + r.len);
+  assert.ok(r.end);
+});
+
+test('a transition move plays on the switch, back to main too, or the one the stance names', () => {
+  const go = (morph, script) => R(`(() => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.stick)), k = p => ({ keys: [{ d: 0.1, e: 'outQuad', p }, { d: 0.1, e: 'inOutCubic', p: null }] });
+    d.moves.mainToBig = k({ uarmF: 0 }); d.moves.bigToMain = k({ uarmF: 40 }); d.moves.grow = k({ uarmF: 80 });
+    d.stances = [{ name: 'big', key: 'S+G', pose: { uarmF: -100 }, binds: {}, morph: ${JSON.stringify(morph)} }];
+    const r = fight({ a: ${JSON.stringify(script)}, b: 'dummy', ax: 330, bx: 380, period: 9 }, [makeCharacter(d), CHARS.stick], 120);
+    return { seen: r.seen, st: r.w.a.stanceI }; })()`);
+  const sg = [0.1, 'special+guard', 0.6, 'special+guard'];
+  assert.deepEqual(go({ mode: 'move' }, sg), { seen: ['a:mainToBig', 'a:bigToMain'], st: 0 });
+  assert.deepEqual(go({ mode: 'move', move: 'grow' }, sg), { seen: ['a:grow', 'a:bigToMain'], st: 0 });
+  assert.deepEqual(go({ mode: 'springs' }, sg), { seen: [], st: 0 });
 });

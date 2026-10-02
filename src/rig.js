@@ -470,10 +470,15 @@ const STANCE_KEYS = { 'S+G': 'S+G', '↓S+G': '↓ S+G', '→S+G': '→ S+G', '�
 // then back to main (0 = no limit); exitOn: back to main when hit, knocked down, blocking or grabbed; once: once a round;
 // moves: 'all' (its binds over main's), 'own' (only its own binds) or a list of the moves it allows
 const STANCE_REQ = { grounded: true, air: false, hpBelow: 1, hpAbove: 0, cooldown: 0, minT: 0, maxT: 0, exitOn: [], once: false, moves: 'all' };
+// switching into a stance (and back to main from it): springs = the springs chase the new pose; auto = the stance pose and the bone
+// lengths blend over T frames (60 fps) with the ease; move = a keyframed transition move plays (move, or one named <from>To<To>)
+const MORPH = { mode: 'springs', T: 12, ease: 'inOutCubic', move: '' };
 // stance keys were K+G before K+G became the second throw
 const stanceKey = k => (k || 'S+G').replace('K+G', 'S+G');
 // a stance's keyframed idle / walk loop: the moves idle / walk for the main stance, craneIdle / craneWalk for a stance named crane
 const loopName = (ch, i, kind) => i ? ch.stances[i].name + kind[0].toUpperCase() + kind.slice(1) : kind;
+// a stance switch's transition move (morph mode move) unless the stance names its own: mainToCrane, craneToMain
+const morphName = (from, to) => from + 'To' + to[0].toUpperCase() + to.slice(1);
 // movement layers: a move named <state>Layer (per stance, like the loops) is keyframed on top of the procedural / IK pose while the
 // fighter is in that state: [tip, how much of it shows (0..1) for a fighter f]
 const LAYERS = {
@@ -588,12 +593,12 @@ function makeCharacter(def) {
     stats: Object.fromEntries(CHAR_STATS.map(s => [s.k, def[s.k] ?? 1])), gait: { ...Object.fromEntries(GAIT_VARS.map(s => [s.k, s.v])), ...def.gait },
     shadow: { ...SHADOW, ...def.shadow } };
   // stances: the main one plus any extra; each has its pose, its own binds over the main ones, the key that switches to it and
-  // its requirements (STANCE_REQ; req.moves 'own': only its own binds, a list: only those moves)
+  // its requirements (STANCE_REQ; req.moves 'own': only its own binds, a list: only those moves) and its transition (MORPH)
   const binds = (s, k) => { const m = s.req?.moves, b = m === 'own' ? { ...s[k] } : { ...ch[k], ...s[k] };
     return Array.isArray(m) ? Object.fromEntries(Object.entries(b).filter(([, n]) => m.includes(n))) : b; };
-  ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: ch.binds, binds25: ch.binds25, req: { ...STANCE_REQ } },
+  ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: ch.binds, binds25: ch.binds25, req: { ...STANCE_REQ }, morph: { ...MORPH } },
     ...(def.stances || []).map(s => ({ name: s.name, key: stanceKey(s.key), pose: { ...ch.poses.stance, ...s.pose }, binds: binds(s, 'binds'), binds25: binds(s, 'binds25'),
-      req: { ...STANCE_REQ, ...s.req } }))];
+      req: { ...STANCE_REQ, ...s.req }, morph: { ...MORPH, ...s.morph } }))];
   // armed (see armed): the weapon class's binds go over every stance's, where the move exists
   ch.def = def;
   if (def.weapon) {

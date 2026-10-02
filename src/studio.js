@@ -316,7 +316,40 @@ function stanceRow() {
     i && studio.own ? slider('size', { min: 0.5, max: 2, step: 0.05 }, () => stanceBody()?.scale ?? 1,
       v => edit(def => { if (v === 1) delete editBody(def).scale; else editBody(def).scale = v; }, 'stance scale'),
       `Size of the whole body in ${names[i]}: × every bone's length, thickness and hurtbox`) : null,
-    ...i ? stanceReq(i, names[i]) : []];
+    ...i ? stanceReq(i, names[i]) : [], ...i ? stanceMorph(i, names[i]) : []];
+}
+// a stance's switch transition (def.stances[i - 1].morph over MORPH): springs, an auto blend over T frames, or a transition move
+function stanceMorph(i, name) {
+  const mo = k => ({ ...MORPH, ...DEFS[CURRENT].stances[i - 1].morph })[k];
+  const set = (vals, key = null) => edit(def => {
+    const st = def.stances[i - 1], m = { ...st.morph, ...vals };
+    for (const k in m) if (m[k] === MORPH[k]) delete m[k];
+    if (Object.keys(m).length) st.morph = m; else delete st.morph;
+  }, key);
+  const show = (el, mode) => { reg(el, () => { el.hidden = mo('mode') !== mode; }); return el; };
+  const inName = () => mo('move') || morphName('main', name), outName = morphName(name, 'main');
+  // a new transition move: half way between the two stance poses, then on into the stance switched to; opened in animate
+  const make = (n, from, to) => {
+    const ch = currentChar(), a = ch.stances[from].pose, b = ch.stances[to].pose;
+    if (!ch.moves[n]) edit(def => { def.moves[n] = { keys: [{ d: 0.12, e: 'inOutCubic', p: Object.fromEntries(Object.keys(b).map(j => [j, Math.round(((a[j] ?? b[j]) + b[j]) / 2)])) },
+      { d: 0.12, e: 'inOutCubic', p: null }] }; });
+    studio.stance = to; openMove(n);
+  };
+  const pick = (e, b) => { const ns = Object.keys(currentChar().moves).filter(n => !currentChar().moves[n].power);
+    popup(b, h('b', { textContent: `transition into ${name}` }), seg(['', ...ns], () => mo('move'), v => { set({ move: v }); closePop(); },
+      { '': `The move named ${morphName('main', name)}`, ...Object.fromEntries(ns.map(n => [n, `Play ${n} when switching to ${name}`])) }, v => v || morphName('main', name))); };
+  const moveBtn = button(':animation: move', `The move played switching to ${name} · click: pick another`, pick, 'mini');
+  reg(moveBtn, () => setRich(moveBtn, `:animation: ${inName()}${currentChar().moves[inName()] ? '' : ' (none yet)'}`));
+  return [h('h4', { textContent: 'transition', tip: `How the body changes switching to ${name} (and back to main from it)` }),
+    h('div', { cls: 'row', tip: 'The switch transition' }, h('span', { textContent: 'morph' }), seg(['springs', 'auto', 'move'], () => mo('mode'), v => set({ mode: v }),
+      { springs: 'The springs chase the new pose (the default)', auto: 'The stance pose and the bone lengths blend over the frames below, with the ease (new bones grow from nothing)',
+        move: `A keyframed transition move plays: ${morphName('main', name)} (or the one picked) switching in, ${outName} back to main` })),
+    show(slider('frames', { min: 1, max: 60, step: 1 }, () => mo('T'), v => set({ T: v }, 'morph:T'), 'How many frames (60 a second) the blend takes'), 'auto'),
+    show(h('div', { cls: 'row', tip: 'How the blend eases' }, h('span', { textContent: 'ease' }), seg(['linear', 'inOutCubic', 'outQuad', 'outBack'], () => mo('ease'), v => set({ ease: v }),
+      { linear: 'Even', inOutCubic: 'Slow in and out (the default)', outQuad: 'Fast, then settles', outBack: 'Overshoots, then settles' })), 'auto'),
+    show(h('div', { cls: 'row', tip: `The transition moves of ${name}` }, h('span', { textContent: 'move' }), h('span', { cls: 'bar' }, moveBtn,
+      button(':add: new transition move', `Make ${inName()} (half way between the poses, then into ${name}) and open it in animate`, () => make(inName(), 0, i), 'mini'),
+      button(':add: back', `Make ${outName}, played going back to main, and open it in animate`, () => make(outName, i, 0), 'mini'))), 'move')];
 }
 // a stance's requirements and limits (def.stances[i - 1].req; only what differs from STANCE_REQ is stored)
 function stanceReq(i, name) {
