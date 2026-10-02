@@ -62,6 +62,8 @@ const IMPACTS = {
   'K.O.': ['The fight\'s last hit: the body goes limp', { a: [0.1, '@roundhouse'], bx: 385, cfg: { health: 100 }, init: w => { w.b.hp = 1; } }],
 };
 
+// a gallery cell builds its fight when it is needed (scrolled into view) and drops it off screen, so it never runs a stale character
+const lazyCell = (mk, c) => Object.defineProperty(c, 'w', { get() { return this._w ??= mk(); }, enumerable: true });
 function build() {
   const scen = SCENARIOS[lab.scen];
   lab.cells = []; lab.cols = 3; lab.zoom = false; lab.scroll = 0;
@@ -73,8 +75,8 @@ function build() {
   else if (lab.mode === 'impact') for (const [k, [tip, s]] of Object.entries(IMPACTS))
     lab.cells.push({ w: newWorld({ b: 'dummy', period: 3, ...s, init: w => { s.init?.(w); w.a.hidden = lab.solo; } }, {}, 7, [CHARS.stick, currentChar()]), label: k, tip });
   else if (lab.mode === 'gallery') {
-    for (const m of galleryMoves()) lab.cells.push({ w: newWorld({ ...galleryScen(m), ...GALLERY_TARGETS[lab.target][1] }), move: m, label: m });
-    for (const [k, [tip, s]] of Object.entries(MOVEMENTS)) lab.cells.push({ w: newWorld({ period: 2.4, ...s }), motion: true, label: k, tip: `${k}: ${tip}` });
+    for (const m of galleryMoves()) lab.cells.push(lazyCell(() => newWorld({ ...galleryScen(m), ...GALLERY_TARGETS[lab.target][1] }), { move: m, label: m }));
+    for (const [k, [tip, s]] of Object.entries(MOVEMENTS)) lab.cells.push(lazyCell(() => newWorld({ period: 2.4, ...s }), { motion: true, label: k, tip: `${k}: ${tip}` }));
   }
   else if (lab.kind !== 'sweep') lab.cells = lab.kind === 'breed' ? breedCells() : attackCells();
   else {
@@ -105,6 +107,8 @@ const fullArea = () => ({ x: 0, y: 0, w: canvas.width, h: canvas.height });
 const labRects = (n = shown().length) => cellRects(n, lab.zoom ? 1 : lab.cols, fullArea(), lab.mode === 'gallery' && !lab.zoom ? 190 * dpr : 0, lab.zoom ? 0 : lab.scroll);
 const maxScroll = () => { const r = labRects(); return r.length ? Math.max(0, r[r.length - 1].y + r[r.length - 1].h + lab.scroll + 4 * dpr - canvas.height) : 0; };
 const shown = () => lab.zoom ? [lab.focus] : lab.cells;
+// the shown cells whose rect is on the canvas: only these are drawn, and in the gallery only these run
+const onScreen = () => { const r = labRects(); return shown().filter((c, i) => r[i].y + r[i].h > 0 && r[i].y < canvas.height); };
 const hitRect = (rects, x, y) => rects.findIndex(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
 
 // ---------- render ----------
@@ -181,7 +185,7 @@ function labRender() {
   clear();
   lab.scroll = clamp(lab.scroll, 0, maxScroll()); // the canvas or the column count may have changed
   const cells = shown(), play = lab.mode === 'play', rects = labRects(cells.length);
-  cells.forEach((c, i) => drawCell(c, rects[i], { full: play, plot: !play && lab.mode !== 'impact', meter: lab.meter,
+  cells.forEach((c, i) => !(rects[i].y + rects[i].h > 0 && rects[i].y < canvas.height) ? delete c._w : drawCell(c, rects[i], { full: play, plot: !play && lab.mode !== 'impact', meter: lab.meter,
     selected: !play && !lab.zoom && (lab.mode === 'grid' && lab.kind !== 'sweep' ? c.parent && 'parent'
       : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) && 'current settings' : c === lab.focus && 'focused') }));
   if (lab.mode === 'grid' && lab.kind === 'attacks' && !lab.zoom) cells.forEach((c, i) => { c.btns = null; if (i === lab.hover) drawCellButtons(c, rects[i]); });
@@ -628,7 +632,7 @@ function impactMouse(type, x, y) {
 const labMode = {
   enter(m) { lab.mode = m; build(); },
   restart: build,
-  worlds: () => lab.cells.flatMap(c => [c.w, ...(c.extra || [])]),
+  worlds: () => (lab.mode === 'gallery' ? onScreen() : lab.cells).flatMap(c => [c.w, ...(c.extra || [])]),
   render: labRender,
   ctxBar: labCtx,
   side: labSide,

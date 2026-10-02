@@ -211,6 +211,12 @@ try {
     if (app.mode !== 'animate' || anim.view !== 'combos' || !document.querySelector('.ctable')) errs.push('palette combos ' + app.mode + anim.view);
     setMode('character'); e?.run(); panels(); if (app.mode !== 'character' || creator.view !== 'combos' || !document.querySelector('.ctable')) errs.push('palette combos in character');
     creator.view = null; anim.view = 'cards'; panels(); }
+  // the gallery only builds and runs the cells on screen: the rest wait until scrolled into view
+  { setMode('gallery'); const n = lab.cells.length, built = () => lab.cells.filter(c => c._w).length;
+    if (mode().worlds().length >= n || built() > mode().worlds().length) errs.push('gallery lazy ' + [mode().worlds().length, built(), n]);
+    lab.scroll = maxScroll(); const last = lab.cells[n - 1]; labRender();
+    if (!mode().worlds().includes(last.w) || lab.cells[1]._w) errs.push('gallery scrolled ' + mode().worlds().length); // (the focused first cell is kept for the Debug panel)
+    lab.scroll = 0; }
   // the gallery: every move, then every movement (with a hover tip); all run without errors
   { setMode('gallery'); const n = Object.keys(currentChar().moves).length, mv = lab.cells.filter(c => c.motion);
     if (lab.cells.length !== n + Object.keys(MOVEMENTS).length || mv.length !== Object.keys(MOVEMENTS).length || !mv.every(c => c.tip)) errs.push('gallery cells ' + lab.cells.length);
