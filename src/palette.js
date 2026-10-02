@@ -28,7 +28,7 @@ function paletteEntries() {
     { kind: 'action', name: 'factory reset', tip: 'Delete all local data (characters, keys, macros, layout) and reload; asks first', run: () => factoryReset() },
     ...Object.keys(DEFS).map(c => ({ kind: 'character', name: c, tip: 'Use this character', run: () => pickChar(c) })),
     ...Object.keys(currentChar().moves).map(n => ({ kind: 'move', name: n, tip: 'Open it in the animate editor', run: () => openMove(n) })),
-    ...SCHEMA.filter(s => !Array.isArray(s)).map(s => ({ kind: 'setting', name: s.k, tip: s.tip, run: () => {
+    ...SCHEMA.filter(s => !Array.isArray(s)).map(s => ({ kind: 'setting', name: s.k, tip: s.tip, run: ['ghost', 'boxes', 'scope'].includes(s.k) ? () => debugPanel(null, debugBtn()) : () => {
       if (mode() !== labMode) setMode('play');
       lab.q = s.k; panels();
     } })),

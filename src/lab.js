@@ -225,7 +225,6 @@ function labRender() {
     const h = canvas.height * canvas.height / (canvas.height + ms);
     ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(canvas.width - 5 * dpr, lab.scroll / ms * (canvas.height - h), 3 * dpr, h);
   }
-  drawScope(); drawDebug();
 }
 
 function text(s, x, y, col, size, weight = '', align = 'left') {
@@ -308,20 +307,21 @@ function drawPlot(c, r) {
   }
 }
 
-// sidebar oscilloscope: target vs drawn for one bone of the focused cell's left fighter
+// the debug popup's oscilloscope: target vs drawn for one bone of the shown fight's left fighter
 const scopeCv = h('canvas', { id: 'scope', tip: 'Oscilloscope: the angle of one bone (the scope setting) over the last seconds of the focused fight.\n' +
   'grey = the target the keyframes ask for · red = what is drawn after the pose filter (springs, damping, follow-through).\n' +
   'Use it to tune the filter: overshoot and wobble show as red ringing around grey, lag as red trailing behind it, flat parts are hit stop.' }), sctx = scopeCv.getContext('2d'), stats = h('div', { cls: 'note' });
 function drawScope() {
-  if (!scopeCv.isConnected || !lab.focus) return;
-  const w = lab.focus.w, hs = w.hist;
+  const w = scopeCv.isConnected && dbgWorld();
+  if (!w) return;
+  const hs = w.hist;
   scopeCv.width = scopeCv.clientWidth * dpr; scopeCv.height = scopeCv.clientHeight * dpr;
   const cw = scopeCv.width, ch = scopeCv.height;
   sctx.fillStyle = '#fff'; sctx.fillRect(0, 0, cw, ch);
   const all = hs.tgt.concat(hs.disp), lo = Math.min(...all) - 5, hi = Math.max(...all) + 5, r = { x: 0, y: 4, w: cw, h: ch - 8 };
   series(sctx, hs.tgt, r, lo, hi, '#bbb', HIST);
   series(sctx, hs.disp, r, lo, hi, '#c0392b', HIST);
-  stats.textContent = `${lab.focus.label || lab.scen} — ${w.cfg.scope}: target (grey) vs drawn (red)\n` +
+  stats.textContent = `${mode() === labMode ? lab.focus?.label || lab.scen : app.mode} — ${w.cfg.scope}: target (grey) vs drawn (red)\n` +
     `frozen ${Math.round(100 * w.frozenT / (w.simT || 1))}% of ${w.simT.toFixed(1)}s · ${w.hits} hits` +
     (w.adv === null ? '' : ` · last hit ${w.adv >= 0 ? '+' : ''}${w.adv}f`);
 }
@@ -561,8 +561,7 @@ const BASIC_CFG = new Set(['plant', 'plantStep', 'maxSpeed', 'jumpVel', 'gravity
   'comboStop', 'comboShake', 'comboSpeed', 'shake', 'zoomPunch', 'squash', 'sparks', 'ghost', 'boxes', 'scope']);
 // fuzzy match: every query letter appears in order (ignoring case and spaces)
 const fuzzy = (q, text) => { let i = 0; text = text.toLowerCase(); for (const c of q.toLowerCase().replace(/\s/g, '')) if ((i = text.indexOf(c, i) + 1) === 0) return false; return true; };
-// debug: shown in the Debug section (the first group), after its variables
-function configPanel(debug = []) {
+function configPanel() {
   let title = '';
   const rows = SCHEMA.map((s, i) => {
     if (Array.isArray(s)) { title = s[0]; return { el: groupHeading(s, i), head: true }; }
@@ -582,7 +581,7 @@ function configPanel(debug = []) {
       onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { e.target.value = lab.q = ''; filter(); } } }));
   filter();
   const first = rows.findIndex((r, i) => i && r.head);
-  return [search, ...rows.slice(0, first).map(r => r.el), ...debug, heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes) stay.', ''),
+  return [search, heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes) stay.', ''),
     h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(optLabel(n), PRESET_TIPS[n], () => applyPreset(n))),
       button(':restart_alt: reset', 'All settings back to their defaults', () => applyPreset('juicy'))),
     heading('Power', 'How hard blows land and how far bodies fly and bounce (off the floor, the walls and the ceiling). Only those settings change.', ''),
@@ -622,16 +621,27 @@ function gridLink(row, s) {
   return expLink(row, `test ${s.k} in a grid, one value per cell`,
     () => { lab.kind = 'sweep'; Object.assign(lab.x, { k: s.k, lo: s.min, hi: s.max }); lab.y.k = ''; setMode('grid'); });
 }
-const labSide = () => configPanel([dbgInfo, h('div', { cls: 'bar' }, button(':content_copy: copy', 'Copy the debug information (for a bug report)', () => navigator.clipboard?.writeText(dbgInfo.textContent)),
-    button(':delete: factory reset', 'Delete all local data: edited characters, keys and macros, layout; then reload as new (asks first)', (e, el) => factoryReset(el))),
-  h('p', { cls: 'note', textContent: 'monitor: the scope bone\'s target angle (grey) against the drawn one (red), with the stats of the first or focused fight' }), scopeCv, stats]);
-// the Debug section: build, engine and runtime numbers and the focused fight's state, refreshed twice a second
+const labSide = () => configPanel();
+// the debug popup (menu bar): the Debug settings, the debug information, copy and factory reset, the monitor
+function debugPanel(e, b) {
+  const row = k => h('div', { cls: 'row', tip: SPEC[k].tip }, h('span', { textContent: k }), toggle(CFG[k] ? 'on' : 'off', SPEC[k].tip, () => CFG[k], v => setCfg({ [k]: v }, 'cfg.' + k)));
+  popup(b, h('b', { textContent: 'debug' }), row('ghost'), row('boxes'),
+    h('div', { cls: 'row', tip: SPEC.scope.tip }, h('span', { textContent: 'scope' }), h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => { CFG.scope = v; }))),
+    dbgInfo, h('div', { cls: 'bar' }, button(':content_copy: copy', 'Copy the debug information (for a bug report)', () => navigator.clipboard?.writeText(dbgInfo.textContent)),
+      button(':delete: factory reset', 'Delete all local data: edited characters, keys and macros, layout; then reload as new (asks first)', () => factoryReset())),
+    h('p', { cls: 'note', textContent: 'monitor: the scope bone\'s target angle (grey) against the drawn one (red), with the stats of the shown or focused fight' }), scopeCv, stats);
+  pop.classList.add('dbgpop'); dbgT = 0; drawDebug();
+}
+const debugBtn = () => [...$('global').querySelectorAll('button')].find(b => b.dataset.tip?.startsWith('Debug:'));
+// the fight the debug popup reports on: the focused cell in play / grid, else the mode's first world
+const dbgWorld = () => mode() === labMode ? lab.focus?.w || lab.cells[0]?.w : mode().worlds()[0];
+// the debug information: build, engine and runtime numbers and the shown fight's state, refreshed twice a second
 const dbgInfo = h('pre', { cls: 'note dbg', tip: 'Debug information: the build (npm run build-info writes it), engine version, frame rate, and the focused fight: seed, frame, state hash, each fighter' });
 let dbgT = 0;
 function drawDebug() {
   if (!dbgInfo.isConnected || performance.now() < dbgT) return;
   dbgT = performance.now() + 500;
-  const b = typeof BUILD === 'object' ? BUILD : null, w = lab.focus?.w || lab.cells[0]?.w;
+  const b = typeof BUILD === 'object' ? BUILD : null, w = dbgWorld();
   const name = f => f.action ? (f.action.m.hurt ? 'hurt' : Object.keys(f.ch.moves).find(k => f.ch.moves[k] === f.action.m) || 'move') : f.kd || '';
   let kb = 0; try { for (const k in localStorage) if (localStorage.hasOwnProperty(k)) kb += (k.length + localStorage[k].length) / 512; } catch {}
   dbgInfo.textContent = [
@@ -688,7 +698,7 @@ const labMode = {
   render: labRender,
   ctxBar: labCtx,
   side: labSide,
-  open: ['debug', 'presets'],
+  open: ['presets'],
   mouse(type, x, y, e) {
     if (lab.mode === 'impact' && !e.shiftKey && impactMouse(type, x, y)) return;
     if (type === 'down') labClick(x, y, e);

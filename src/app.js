@@ -71,6 +71,7 @@ function buildTop() {
     grp('', 'Layout and keys', button(':search:', 'Find anything (⌘K): a mode, a toolbar tool, an action, a table (moves, inputs, combos, bones), a character, a move or a setting', openPalette),
       button(':view_sidebar:', 'Panel: show / hide the side panel' + keyTip('panel'), togglePanel),
       button(':keyboard:', 'Keys: rebind any action, set up macros, and help', keysPanel),
+      button(':ssid_chart:', 'Debug: ghost, boxes and the scope bone, the build and engine version, frame rate and the shown fight\'s state (copy for a bug report), factory reset, and the monitor', debugPanel),
       button(':info:', 'Docs: how everything works, with live demo fights, and every setting, move flag, input and key explained; searchable (also in ⌘K)', () => openDocs()),
       toggle(':help:', 'Hints: the line of mouse and key help under the view and the frame meter\'s colour legend; off, they show for a few seconds on the first visit to each mode (?)', () => ui.hints, toggleHints),
       toggle(':waves:', 'Sound: whooshes, hits and blocks in play and in the animate preview, synthesized live (no sound files); off by default in automated browsers', () => !muted(), toggleMute)));
@@ -103,7 +104,7 @@ function drawPaused(r) {
   ctx.restore();
 }
 let last = performance.now();
-const perf = { t0: last, frames: 0, worst: 0 }; // frames per second and the slowest frame, for the Debug panel
+const perf = { t0: last, frames: 0, worst: 0 }; // frames per second and the slowest frame, for the debug popup
 function frame(now) {
   const raw = Math.min(0.05, (now - last) / 1000);
   perf.frames++; perf.worst = Math.max(perf.worst, now - last);
@@ -117,7 +118,7 @@ function frame(now) {
     for (const w of mode().worlds()) { w.advance(dt, inp); w.scrubN = undefined; }
     app.stepOnce = false;
   }
-  mode().render();
+  mode().render(); drawScope(); drawDebug();
   if (app.paused && !app.scrub) drawPaused(mode().preview?.() || { x: 0, y: 0, w: canvas.width, h: canvas.height });
   const help = $('help');
   help.hidden = !ui.hints && now > app.hintUntil;

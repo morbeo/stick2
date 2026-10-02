@@ -234,7 +234,7 @@ try {
     if (shown.join() !== 'fireball,fireball clash' || [...document.querySelectorAll('.pop h4')].filter(e => !e.hidden).length !== 1) errs.push('scenario filter ' + shown);
     q.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); if (lab.scen !== 'fireball' || document.querySelector('.pop')) errs.push('scenario filter enter ' + lab.scen);
     lab.scen = 'you vs dummy'; build(); }
-  // factory reset (⌘K or the Debug panel): asks first, then deletes every stick2 key in localStorage (nothing else) and reloads
+  // factory reset (⌘K or the debug popup): asks first, then deletes every stick2 key in localStorage (nothing else) and reloads
   { const keep = Object.fromEntries(Object.keys(localStorage).filter(k => k.startsWith('stick2.')).map(k => [k, localStorage[k]]));
     localStorage.setItem('stick2.chars', '{}'); localStorage.setItem('stick2.ui', '{}'); localStorage.setItem('other.app', '1');
     let reloaded = 0; reload = () => { reloaded++; };
@@ -242,7 +242,7 @@ try {
     if (!document.querySelector('.pop') || localStorage.getItem('stick2.chars') === null) errs.push('factory reset asks first');
     [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('cancel'))?.click();
     if (document.querySelector('.pop') || localStorage.getItem('stick2.chars') === null || reloaded) errs.push('factory reset cancel');
-    setMode('play'); [...document.querySelectorAll('#side button')].find(b => b.textContent.includes('factory reset'))?.click();
+    setMode('play'); debugBtn().click(); [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('factory reset'))?.click();
     [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('delete everything'))?.click();
     if (Object.keys(localStorage).some(k => k.startsWith('stick2.')) || localStorage.getItem('other.app') !== '1' || reloaded !== 1) errs.push('factory reset ' + Object.keys(localStorage) + reloaded);
     localStorage.removeItem('other.app'); for (const k in keep) localStorage.setItem(k, keep[k]); }
@@ -362,10 +362,13 @@ try {
       errs.push('bone table ' + [on, lag('shinF'), lag('shinB'), lag('footF'), selIds()]);
     undo(); undo(); syncAll(); if (cell('shinF', 'lag').value === '2.3') errs.push('bone table after undo');
     creator.table = false; panels(); }
-  // debug: the first section of the lab settings, with the engine version and the fighters of the focused fight
-  { setMode('play'); panels(); dbgT = 0; drawDebug();
+  // debug: a popup from the menu bar (not in the side panel), with the engine version and the fighters of the shown fight, in any mode
+  { setMode('play'); panels(); if (dbgInfo.isConnected || [...$('side').querySelectorAll('h3')].some(e => e.textContent.startsWith('Debug'))) errs.push('debug still in the side panel');
+    debugBtn().click(); dbgT = 0; drawDebug();
     if (!dbgInfo.isConnected || !dbgInfo.textContent.includes('engine v' + ENGINE_VERSION) || !/P2 /.test(dbgInfo.textContent)) errs.push('debug info ' + dbgInfo.textContent.slice(0, 80));
-    if ($('side').querySelector('.head, h3')?.textContent.indexOf('Debug') < 0) errs.push('debug not first'); }
+    closePop(); setMode('animate'); panels(); debugBtn().click(); dbgT = 0; drawDebug(); drawScope();
+    if (!dbgInfo.textContent.includes('animate') || !/P1 /.test(dbgInfo.textContent) || !stats.textContent.startsWith('animate')) errs.push('debug in animate ' + dbgInfo.textContent.slice(0, 120));
+    closePop(); setMode('play'); panels(); }
   // keys by context: in a fight a shortcut letter takes ⇧ and the letters are the fighter's; in the editor modes the plain key
   // is the shortcut and fight keys do nothing; a focused slider keeps its keys; a clicked button lets go of focus; clashes are flagged
   { const kd = (code, o = {}, t = document.body) => { t.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, ...o })); t.dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true, ...o })); };
