@@ -356,6 +356,14 @@ function addBone() {
   });
 }
 const subtree = (def, id) => [id, ...def.bones.filter(b => b.parent === id).flatMap(b => subtree(def, b.id))];
+// rearranging: a bone moves before another in the list (inside a side, earlier bones draw underneath; a parent stays before its children),
+// or hangs from another bone (null: the hip), never from one hanging from it
+function moveBone(id, before) {
+  if (id === before) return;
+  edit(def => { const b = def.bones.find(b => b.id === id); def.bones.splice(def.bones.indexOf(b), 1); def.bones.splice(def.bones.findIndex(x => x.id === before), 0, b); });
+}
+const parentChoices = (def, id) => { const sub = new Set(subtree(def, id)); return def.bones.filter(b => !sub.has(b.id)).map(b => b.id); };
+function setParent(id, p) { edit(def => { def.bones.find(b => b.id === id).parent = p; }); }
 function deleteBone() {
   const def = DEFS[CURRENT], gone = new Set(subtree(def, studio.sel));
   if (gone.size >= def.bones.length) return; // keep at least one bone

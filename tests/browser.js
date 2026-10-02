@@ -158,6 +158,20 @@ try {
     sb('moves').click(); if (document.querySelectorAll('.mtable tbody tr').length !== Object.keys(currentChar().moves).length) errs.push('character move table');
     [...document.querySelectorAll('.mtable .bar button')].find(b => b.textContent.includes('editor')).click(); if (document.querySelector('.mtable') || app.mode !== 'character') errs.push('character move table close');
     sb('inputs').click(); if (!document.querySelector('.mtable')) errs.push('character inputs'); creator.view = null; panels(); }
+  // the bone table rearranges bones: drag a row's id onto another to move it before it (the draw order), click parent to hang it from another bone
+  { setMode('character'); pickChar('stick'); creator.table = true; creator.tsort = { k: '', dir: 1 }; creator.tfilter = ''; panels();
+    const idCell = id => [...document.querySelectorAll('.btable tbody td:first-child')].find(td => td.textContent === id), ids = () => currentChar().ids;
+    const dt = new DataTransfer(); idCell('uarmF').dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true }));
+    idCell('thighF').dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true })); idCell('thighF').dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true }));
+    if (!(ids().indexOf('uarmF') < ids().indexOf('thighF'))) errs.push('bone reorder ' + ids());
+    const pc = id => idCell(id).parentNode.children[1].querySelector('button');
+    pc('handF').click(); const opts = [...document.querySelectorAll('.pop button')].map(b => b.textContent);
+    if (!opts.includes('chest') || !opts.includes('hip') || opts.includes('handF')) errs.push('bone parent choices ' + opts);
+    pc('handF').click(); pc('uarmF').click(); if ([...document.querySelectorAll('.pop button')].some(b => b.textContent === 'farmF')) errs.push('bone parent loop offered');
+    pc('uarmF').click(); pc('handF').click(); [...document.querySelectorAll('.pop button')].find(b => b.textContent === 'chest').click();
+    if (DEFS.stick.bones.find(b => b.id === 'handF').parent !== 'chest' || currentChar().by.handF.parent !== 'chest') errs.push('bone reparent');
+    undo(); undo(); if (DEFS.stick.bones.find(b => b.id === 'handF').parent !== 'farmF' || !(ids().indexOf('thighF') < ids().indexOf('uarmF'))) errs.push('bone rearrange undo');
+    creator.table = false; panels(); }
   // play's fighter select: P1 and P2 each pick from a grid of cards (or follow the editor), swap trades them; the fight is rebuilt with them
   { setMode('play'); pickChar('stick'); lab.scen = 'you vs dummy'; lab.chars = [null, null]; setMode('play');
     const fb = i => [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('P' + i + ':')), card = k => [...document.querySelectorAll('.pop .card')].find(c => c.textContent === k);

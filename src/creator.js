@@ -297,8 +297,8 @@ function gaitPanel() {
 // an edit in a selected row goes to every selected bone, in any other row to that bone only
 const BONE_TIPS = { role: 'What the bone does in procedural motion (click to change)', side: 'Draw order and colour (click to change)', shape: 'How the bone is drawn (click to change)' };
 const BONE_COLS = [
-  { k: 'id', tip: 'Click a row to select the bone (⌘/Ctrl/Shift+click adds it to the selection)', get: b => b.id },
-  { k: 'parent', tip: 'The bone it hangs from', get: b => b.parent || '' },
+  { k: 'id', tip: 'Click a row to select the bone (⌘/Ctrl/Shift+click adds it to the selection) · drag the id onto another bone to move it before that one: inside front, centre and back, earlier bones draw underneath (unsorted and unfiltered only)', get: b => b.id },
+  { k: 'parent', tip: 'The bone it hangs from (hip: a root)', get: b => b.parent || '' },
   ...['role', 'side', 'shape'].map(k => ({ k, tip: BONE_TIPS[k], get: b => b[k] ?? BONE[k] ?? '', opts: { role: ROLE_TIPS, side: SIDE_TIPS, shape: SHAPE_TIPS }[k] })),
   { k: 'stance', tip: 'Angle in the stance pose, relative to the parent', get: b => curStance().pose[b.id] ?? 0, num: { min: -270, max: 270, step: 1 } },
   ...BONE_PROPS.map(p => ({ k: p.k, tip: p.tip, get: b => b[p.k] ?? BONE[p.k], num: p })),
@@ -327,15 +327,21 @@ function boneTable() {
       .filter(r => !q || fuzzy(q, r.v.filter(v => typeof v === 'string').join(' ')));
     if (col) { const i = BONE_COLS.indexOf(col);
       rows.sort((a, b) => dir * (typeof a.v[i] === 'number' && typeof b.v[i] === 'number' ? a.v[i] - b.v[i] : String(a.v[i]).localeCompare(String(b.v[i])))); }
-    head.replaceChildren(...BONE_COLS.map(c => h('th', { tip: `${c.tip} · click: sort`, textContent: c.k + (c.k === sk ? (dir > 0 ? ' ▲' : ' ▼') : ''),
-      onclick: () => { creator.tsort = { k: c.k, dir: c.k === sk ? -dir : 1 }; fill(); } })));
+    head.replaceChildren(...BONE_COLS.map(c => h('th', { tip: `${c.tip} · click: sort (again: reverse, a third time: back to the bone order)`, textContent: c.k + (c.k === sk ? (dir > 0 ? ' ▲' : ' ▼') : ''),
+      onclick: () => { creator.tsort = c.k === sk && dir < 0 ? { k: '', dir: 1 } : { k: c.k, dir: c.k === sk ? -dir : 1 }; fill(); } })));
     body.replaceChildren(...rows.map(({ b, v }) => {
       const tr = h('tr', { onclick: e => { pickBoneSel(b.id, e.shiftKey || e.metaKey || e.ctrlKey); syncAll(); } });
       reg(tr, () => tr.classList.toggle('on', selIds().includes(b.id)));
       const stop = e => e.stopPropagation();
       tr.append(...BONE_COLS.map((c, i) => {
         const td = h('td'), tip = `${b.id} · ${c.tip}${selIds().length > 1 && selIds().includes(b.id) ? ' · goes to every selected bone' : ''}`;
-        if (c.k === 'id') { td.textContent = v[i]; td.style.borderLeft = `4px solid ${ROLE_COLS[b.role][b.side === 'b' ? 1 : 0]}`; }
+        if (c.k === 'id') { td.textContent = v[i]; td.style.borderLeft = `4px solid ${ROLE_COLS[b.role][b.side === 'b' ? 1 : 0]}`;
+          if (!sk && !q) Object.assign(td, { draggable: true, className: 'drag', ondragstart: e => { e.dataTransfer?.setData('text/plain', b.id); },
+            ondragover: e => { e.preventDefault(); td.classList.add('dropto'); }, ondragleave: () => td.classList.remove('dropto'),
+            ondrop: e => { e.preventDefault(); const id = e.dataTransfer?.getData('text/plain'); if (def.bones.some(x => x.id === id)) { moveBone(id, b.id); fill(); } } }); }
+        else if (c.k === 'parent') td.append(button(v[i] || 'hip', tip + ' · click: hang it from another bone', (e, el) => { stop(e);
+          popup(el, h('b', { textContent: `${b.id} hangs from` }), seg(['hip', ...parentChoices(def, b.id)], () => b.parent || 'hip', x => { closePop(); setParent(b.id, x === 'hip' ? null : x); fill(); },
+            Object.fromEntries(['hip', ...parentChoices(def, b.id)].map(x => [x, x === 'hip' ? 'The hip: a root, like the legs and the waist' : `Hang ${b.id} (and what hangs from it) from ${x}`])))); }, 'mini'));
         else if (c.num) td.append(h('input', { type: 'number', min: c.num.min, max: c.num.max, step: c.num.step, value: v[i], tip, onclick: stop, onkeydown: stop,
           onchange: e => { const x = parseFloat(e.target.value), blank = e.target.value === '';
             setBoneCol(b.id, c.k, c.k === 'min' || c.k === 'max' ? (blank ? null : clamp(x, c.num.min, c.num.max)) : blank ? (c.k === 'stance' ? 0 : undefined) : clamp(x, c.num.min, c.num.max)); fill(); } }));
