@@ -18,6 +18,7 @@ How the code is laid out, and the tools that build its generated files.
 | `node tools/screenshots.js [name …]` | regenerates the screenshots in `docs/img/` (headless Chrome; no name = every shot) |
 | `node tools/animations.js [name …]` | regenerates the short animations (`anim-*.png`): each loops one scenario, saved as an animated PNG (no name = every clip) |
 | `npm run itch` | packs `dist/stick2-itch.zip` for itch.io: `index.html`, `docs.html`, `src/`, `fonts/` and `LICENSE` (see [Publishing on itch.io](#publishing-on-itchio)) |
+| `npm run itch:push` | runs the tests, packs the zip and uploads it with butler to `morbeo/stick2:html`, versioned by the commit (refuses uncommitted changes) |
 | `python tools/icons.py MaterialSymbolsOutlined.ttf` | rebuilds the icon font subset (needs fonttools + brotli) |
 
 Rerun the screenshots and animations after a visible change. Both find Chrome on their own; `CHROME=/path/to/chrome` overrides it.
@@ -33,12 +34,12 @@ The only asset is `fonts/icons.woff2`, a subset of [Material Symbols](https://gi
 ## Publishing on itch.io
 
 1. Run `npm run itch`. It refreshes `src/build.js` and writes `dist/stick2-itch.zip`, with `index.html` at the root of the zip. If there are uncommitted changes, it warns that they're included.
-2. On itch.io, create a project with **Kind of project: HTML**. Upload the zip and tick **This file will be played in the browser**.
+2. On itch.io, create a project with **Kind of project: HTML**. Upload the zip, or push it with `npm run itch:push` (step 4), then tick **This file will be played in the browser** next to the upload.
 3. Under **Embed options**:
    - set the viewport to 1400 × 800;
    - turn on the fullscreen button;
    - leave mobile friendly off.
-4. To publish a new version, upload the new zip in place of the old one, or push it with itch's [butler](https://itch.io/docs/butler/): `butler push dist/stick2-itch.zip <user>/<game>:html`.
+4. To publish a new version, commit and run `npm run itch:push`. It runs the tests, packs the zip and uploads it with [butler](https://itch.io/docs/butler/) to the `html` channel of `morbeo/stick2`, labelled with the commit. Set up butler once with `butler login`. Uploads after the first keep the "played in the browser" setting. `butler status morbeo/stick2` shows the live version.
 
 Notes for the itch.io page:
 - The game runs in an iframe, so the player clicks it before keys work. In fullscreen, the browser may take Esc.

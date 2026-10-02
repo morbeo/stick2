@@ -4,6 +4,7 @@
   "scripts": {
     "build-info": "node tools/build-info.js",
     "itch": "node tools/itch.js",
+    "itch:push": "npm test && node tools/itch.js --push",
     "coverage": "node --test --experimental-test-coverage --test-coverage-include='src/**' tests/*.test.js",
     "coverage:browser": "COVERAGE=1 node tests/browser.js",
     "pretest": "node tools/build-info.js",
