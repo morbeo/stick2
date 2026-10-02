@@ -2,49 +2,292 @@
 
 [← docs index](README.md)
 
-The four tabs (play, grid, character, animate) and the views inside them.
+The top bar has four tabs: **play**, **grid**, **character** and **animate**. Some of them have more views inside (impact, gallery, tests), picked under **view** in the toolbar.
+
+| Tab | Views | What it's for |
+|---|---|---|
+| [play](#play) | fight · [impact](#impact) | fight, train, watch hit reactions |
+| [grid](#grid) | | compare one fight across many settings |
+| [character](#character) | | build a body |
+| [animate](#animate) | cards · list · [gallery](#gallery) · [tests](#tests) | build moves, check them all |
 
 ## Play
 
-![A fight](img/play.png)
+![A fight with the frame meter](img/play.png)
 
-- **play**: one fight (you / engine AI / dummy / scripted scenarios); the **scenario picker** (fight in the toolbar) groups them by who fights, the scripted tests by topic (chains, juggles & falls, guard & counters, specials, movement, weapons), each group with its icon, with a filter box (Enter picks the first left); **my scenarios** (new scenario in the picker copies the current one into a builder over the stage; ✎ next to the picker reopens it): P1 and P2 each get a character (or the one being edited), a controller (you / AI / dummy / a script like `0.2, 2P, hold up 0.2, K`), a start x and back turned, plus a restart period and the settings it brings (add one by name, or take my settings: every one changed from the defaults); saved in this browser as you edit, listed first in the picker, export / import as JSON, copy, delete; **fighter select** (the fighters group in the toolbar): P1, P2 and each extra fighter of the scenario (P3, P4… in 2v2, free-for-all, multi-dummy fights) pick any character from a grid of cards, or follow the one being edited (the default; extras unset fight as P2), with random, mirror (P2 takes P1's) and swap (P1 and P2); a scenario that names its own characters keeps them; the AI cancels chains into rush and spin, stomps a downed fighter and meets jumps with rising; **AI difficulty** (AI settings: aiLevel easy / normal / hard / expert): how often it decides and guards, its reaction time, and its chance to break a throw (about 1 in 10 / 1 in 3 / 3 in 5 / most), tech a landing, anti-air and juggle; a scenario can set its own (cfg.aiLevel)
-- **endless waves** (play → fight endless waves, or ai vs waves to watch): once every enemy is down, the knocked-out ones leave and the next wave runs in from both edges; the waves group in the toolbar (or the Waves settings) picks one / pairs / growing (wave n brings n, at most 5) / horde (4), and mixed makes them random built-in characters instead of the opponent's; clearing a wave gives back waveHeal of your health, your K.O. starts over at wave 1; the wave and the enemies down are shown on top
-- **training** (play): frame meter (startup / active / recovery / hitstun / hit stop per frame) and input display in numpad notation, both off until switched on under show, record your inputs and let the dummy replay them; **rewind** (⇧V: one second back, C: one frame back) restores the last checkpoint before that point (one a second, thinned to one every 10 s past the last minute) and replays the inputs from there, deterministically, then pauses; **replay** (:save:, in the menu bar next to undo / redo) downloads the play fight as a replay file (inputs, seed, settings, characters, a state checksum every second), the **replay** toggle (:theaters:, next to it) plays one back, from any tab (it switches to play): a file from another engine version asks first, and the top line shows the version and where the fight goes out of sync
+One fight on the full stage.
+
+### Scenarios
+
+**fight** in the toolbar opens the scenario picker:
+
+- Scenarios are grouped by who fights: you, the engine AI, a dummy.
+- The scripted tests are grouped by topic: chains, juggles & falls, guard & counters, specials, movement, weapons.
+- Type in the filter box to narrow the list; Enter picks the first one left.
+
+### My scenarios
+
+![The scenario builder](img/builder.png)
+
+**new scenario** in the picker copies the current scenario into a builder over the stage. ✎ next to the picker reopens it.
+
+- **P1 and P2** each get a character (or the one being edited), a controller, a start x and back turned.
+- **Controllers:** you, AI, dummy, or a script like `0.2, 2P, hold up 0.2, K`.
+- **restart** sets how often the fight starts over.
+- **settings:** add one by name, or **take my settings** to bring every setting you changed from the defaults.
+- Saved in this browser as you edit, and listed first in the picker.
+- copy, export / import as JSON, delete.
+
+### Fighter select
+
+![Picking P3 in a 2 v 2 fight](img/fighters.png)
+
+The **fighters** group in the toolbar has one button per fighter: P1, P2, and P3, P4… in 2 v 2, free-for-all and multi-dummy fights.
+
+- Click one to pick any character from a grid of cards.
+- By default a fighter follows the character being edited. Unset extra fighters fight as P2.
+- **random** picks a random character; **mirror** gives P2 the same one as P1; ⇄ swaps P1 and P2.
+- A scenario that names its own characters keeps them.
+
+### The AI
+
+The AI cancels chains into rush and spin, stomps a downed fighter and meets jumps with rising.
+
+**aiLevel** (AI settings) sets how often it decides and guards, how fast it reacts, and its chance to break a throw, tech a landing, anti-air and juggle. A scenario can set its own.
+
+| aiLevel | breaks a throw |
+|---|---|
+| easy | about 1 in 10 |
+| normal | about 1 in 3 |
+| hard | about 3 in 5 |
+| expert | most of the time |
+
+### Endless waves
+
+Pick **endless waves** in the fight picker (or **ai vs waves** to watch).
+
+- When every enemy is down, the knocked-out ones leave and the next wave runs in from both edges.
+- The **waves** group in the toolbar (or the Waves settings) picks the size: one, pairs, growing (wave *n* brings *n*, at most 5) or horde (4).
+- **mixed** sends random built-in characters instead of copies of the opponent.
+- Clearing a wave gives back **waveHeal** of your health. If you're K.O.'d, you start over at wave 1.
+- The wave and the enemies down are shown at the top.
+
+### Training
+
+Turn these on under **show**:
+
+- **Frame meter:** startup, active, recovery, hitstun and hit stop, frame by frame.
+- **Input display:** your inputs in numpad notation.
+
+The **dummy** group records your inputs and lets the dummy replay them.
+
+**Rewind:** ⇧V goes one second back, C one frame back. It restores the last checkpoint before that point and replays the inputs from there, exactly as before, then pauses. Checkpoints are kept once a second, thinned to one every 10 s past the last minute.
+
+### Replays
+
+![The menu bar: replay save and play, export and import](img/menubar.png)
+
+Both replay buttons are in the menu bar, next to undo / redo.
+
+- **:save: replay** downloads the play fight as a replay file: inputs, seed, settings, characters, and a state checksum every second.
+- **:theaters: replay** plays one back, from any tab (it switches to play).
+- A file from another engine version asks first. The top line then shows the version and where the fight goes out of sync.
+
+## Impact
+
+![Impact: nine hit reactions side by side](img/impact.png)
+
+**play → view impact** (key 6). Hit reactions and falls side by side.
+
+### Hits
+
+Nine bodies, each struck by the stick fighter: jab, kick, sweep, roundhouse, launcher, wall splat, ground bounce, crumple and K.O.
+
+- **Drag on a body** to strike it at that point. The drag's direction and length are the blow; a long one knocks down.
+- **Click a body** for a medium blow.
+- **falls:** ragdoll or pose, to compare the two.
+- **no attacker** hides the stick fighter. Its blows still land the same way and the camera frames the struck body, so only the reaction is on screen and drags reach the body unobstructed.
+
+### Ragdoll
+
+![One body alone, launched by the launcher button](img/ragdoll.png)
+
+**ragdoll** (next to **hits**) is one big body alone.
+
+- The **blow** buttons strike it: high, mid, low, sweep, launcher, overhead, knockdown, crumple, K.O. Each is a stick move's hit without damage, on the bone at that height.
+- **light / normal / heavy** set how hard; **front / back** where from.
+- **stand up** puts it back on its feet.
+- Drags still strike it.
+
+The same body and buttons are in the character editor as the **impact** preview.
 
 ## Grid
 
 ![Grid: one fight, nine hit stop values](img/grid.png)
 
-- **grid**: 3x3 sweep of any tunable (or X x Y), every cell replaying the same seeded fight; **breed** gives the cells random values of the settings you pick around a parent (click the best cell to breed around it); **attacks** generates random attacks for the current character (IK-posed on any limb end), breeds them, and saves one as a move or opens it in animate: hover any cell for its own save / edit buttons (the same attack saved twice keeps one name); pick the striking limb (any / arm / leg / head / tail…) and height (any / high / mid / low) of new attacks, or a pose to strike into (**pose → animation**: a preset pose or another stance; the limb that moves most strikes, after an anticipation the other way); the character editor's pose → animation button opens the grid on a pose
-- **grid testing**: 1/3/5 seeds per cell with averaged hits / whiffs / frozen %, sort cells by a metric, **collision test** (every hitTest mode × three fights), **window edge test** (lastFrame off / on × presses on the tech window's last frame and one frame inside: the edge break and tech only count with it on); gallery moves can hit a dummy, whiff, or face the AI
+A 3 × 3 sweep of any setting (or X × Y). Every cell replays the same seeded fight, so the only difference is the setting.
 
-## Impact
+### Breed
 
-![Impact view](img/impact.png)
+**breed** gives the cells random values of the settings you pick, around a parent. Click the best cell to breed around it.
 
-- **impact** (play → view impact, key 6): hit reactions and falls side by side: jab, kick, sweep, roundhouse, launcher, wall splat, ground bounce, crumple and K.O., each struck by the stick fighter on the current character; drag on any body to strike it at that point (the drag's direction and length are the blow, a long one knocks down), click a body for a medium blow; switch falls between ragdoll and pose to compare; **no attacker** hides the stick fighter (its blows still land the same way, the camera frames the struck body) so only the reaction is on screen and drags reach the body unobstructed; the **ragdoll** view (next to **hits**) is one big body alone: the **blow** buttons strike it high, mid, low, sweep, launcher, overhead, knockdown, crumple or K.O. (a stick move's hit without damage, on the bone at that height), light / normal / heavy and front / back set how hard and from where, **stand up** puts it back on its feet, and drags still strike it
+### Attacks
+
+**attacks** generates random attacks for the current character (IK-posed on any limb end) and breeds them.
+
+- Hover a cell for its own **save** (as a move) and **edit** (in animate) buttons. Saving the same attack twice keeps one name.
+- Pick the striking **limb** (any, arm, leg, head, tail…) and **height** (any, high, mid, low) of new attacks.
+- **pose → animation:** pick a preset pose or another stance to strike into. The limb that moves most strikes, after an anticipation the other way. The character editor's pose → animation button opens the grid on a pose.
+
+### Testing in the grid
+
+- 1, 3 or 5 seeds per cell, with averaged hits, whiffs and frozen %; sort cells by a metric.
+- **collision test:** every hitTest mode × three fights.
+- **window edge test:** lastFrame off / on × presses on the tech window's last frame and one frame inside. The edge break and tech only count with it on.
+- Gallery moves can hit a dummy, whiff, or face the AI.
 
 ## Character
 
 ![The character editor](img/character.png)
 
-- **character**: drag joints to set length and stance angle, drag the hip (the square handle where the waist and legs start) to move the waist over the feet (the legs bend, the feet stay), select several bones (⌘/Ctrl+click a joint or a name in the tree, Shift+click in the tree) and every bone property, role, side, shape, limits and stance angle you change goes to all of them, add role-based limbs (arms, legs, tails, heads, joints), tune bone properties (stretch, follow-through, stiffness, secondary motion: react = how hard blows jolt the bone, sway = idle drift, dangle = hangs like a rope…; the dangle and dangleDrag settings: tails, sneeko's scarf, hadoo's headband and hicco's beard and gourd droop with gravity, stream back from a run and lift in a fall) and watch the live preview fight (preview: showcase, walk, vs ai, or **impact**: the body alone with impact's blow buttons, to see it fall); the **table** button on the bones heading puts every bone in a table over the stage (id, parent, role, side, shape, stance angle, every bone property, limits, lock): click a header to sort (a third click goes back to the bone order), drag a bone's id onto another to move it before that one (inside front, centre and back, earlier bones draw underneath), click its parent to hang it (and what hangs from it) from another bone or the hip, a fuzzy filter matches id, parent, role, side and shape, values are edited in place (an edit to a selected row goes to every selected bone), click a row to select it, ⌘/Ctrl/Shift+click to add it to the selection; **experiment** breeds a 3x3 grid of body variations around the cell you click (with **limbs** on, variations also add, drop or extend limbs); the **moves** group in the toolbar (here and in animate) opens the move table, the inputs and the combos over the stage, edited in place (click again: close), and a move clicked in them (or picked from **edit**) opens in animate
+Build a body by dragging it.
+
+### The skeleton
+
+- **Drag a joint** to set its bone's length and stance angle.
+- **Drag the hip** (the square handle where the waist and legs start) to move the waist over the feet. The legs bend, the feet stay.
+- **Select several bones:** ⌘/Ctrl+click a joint or a name in the tree, Shift+click in the tree. Any property, role, side, shape, limit or stance angle you change goes to all of them.
+- **Add limbs** by role: arms, legs, tails, heads, joints.
+
+![Hovering the hip handle](img/hip.png)
+
+### Bone properties
+
+Stretch, follow-through, stiffness and secondary motion:
+
+- **react:** how hard blows jolt the bone.
+- **sway:** idle drift.
+- **dangle:** hangs like a rope. With the dangle and dangleDrag settings, tails, sneeko's scarf, hadoo's headband and hicco's beard and gourd droop with gravity, stream back from a run and lift in a fall.
+
+### Preview
+
+A live fight next to the editor: **showcase**, **walk**, **vs ai**, or **impact** (the body alone with the [ragdoll](#ragdoll) blow buttons, to see it fall).
+
+### Bone table
+
+![The bone table](img/bonetable.png)
+
+The **table** button on the bones heading puts every bone in a table over the stage: id, parent, role, side, shape, stance angle, every bone property, limits, lock.
+
+- Click a header to sort; a third click goes back to the bone order.
+- Drag a bone's id onto another to move it before that one. Inside front, centre and back, earlier bones draw underneath.
+- Click a bone's parent to hang it (and what hangs from it) from another bone or the hip.
+- The fuzzy filter matches id, parent, role, side and shape.
+- Edit values in place. An edit in a selected row goes to every selected bone.
+- Click a row to select it; ⌘/Ctrl/Shift+click adds it to the selection.
+
+### Experiment
+
+**experiment** breeds a 3 × 3 grid of body variations around the cell you click. With **limbs** on, variations also add, drop or extend limbs.
+
+### Moves
+
+The **moves** group in the toolbar (here and in animate) opens the move table, the inputs and the combos over the stage. Click it again to close. A move clicked in them (or picked from **edit**) opens in animate. See [Editing](editing.md).
 
 ## Animate
 
 ![The move editor](img/animate.png)
 
-- **animate**: pose keyframes by dragging joints (IK; Alt = rotate one bone; every joint moves unless locked: joint limits only steer the solve, a drag they would stop goes past them; the square handle on the hip moves the body and bends the legs so the feet stay), retime keys on a 60 fps timeline (each key block shows its phase colour: green startup, red active, blue recovery; hatching for invincible, unblockable and armor; its easing curve, a lunge arrow, icons for its flags, dashed when it returns to the stance; drag a key's edge to retime, drag the key to reorder, double-click to split, Delete removes it; the transport, key and onion / aim buttons sit right above the timeline), set easing / active frames / lunge and hit properties, **key events** (under events: the hit spark style hit / heavy / slash / blunt / none, a sound as the key is reached, after-images while it plays, screen shake; effects only, the fight plays out the same; a key with events shows a spark icon), pick the striking bones (limb, head and tail ends as buttons, any bone from the list, or Shift+click a joint; Shift+click a button or ⌘/Ctrl+Shift+click a joint adds or removes one, so several limbs strike at once and whichever lands counts, once per target), **aim** (the striking limb follows the cursor) and a live preview with springs and hit stop against a chosen **target**: any character, standing / crouching / guarding / low guard, idle / in the air / lying / dizzy, facing toward or away. The move list shows a drawing of each move's strike (hover plays it) or just names, groups moves by type, striking limb, height, stance or **fighting style** (the move's style: boxing, karate, muay thai, capoeira, kung fu, taekwondo, wrestling, the rest basic), sorts by order / name / startup / damage and filters by name, group or input. The **table** view puts every move in a table over the stage (type, input, stance, limb, height, startup / active / recovery, power, knock, launch, stun, damage, chip, flags): click a header to sort, a fuzzy filter matches any text column, values are edited in place (frames retime that phase's keys), clicking a row opens the move in the keyframe editor and hovering it plays the move next to the cursor. The cursor shows what a drag will do; **reach** sets how much a drag moves: bone, limb (a hand bends the arm) or body (everything the joint hangs from, so the torso leans after the hand); **aim** makes the striking limb follow the cursor, and double-clicking any joint makes that one follow instead; **mirror** swaps the front and back limbs of a key. **Compare** (toolbar) picks a second move: **overlay** draws it over the edited one in amber at the same moment (feet on the same ground), **strip** shows both as filmstrips, a frame every few frames on one time scale, tinted by phase (startup / active / recovery) with their frame data, the playhead's frame outlined; click a frame to go there
+Pose keyframes, retime them, and watch the move against a target.
+
+### Posing
+
+- **Drag a joint** to pose it (IK). Alt rotates one bone.
+- Every joint moves unless locked. Joint limits only steer the solve: a drag they would stop goes past them.
+- **The hip** (square handle) moves the body and bends the legs so the feet stay.
+- **reach** sets how much a drag moves: **bone**, **limb** (a hand bends the arm) or **body** (everything the joint hangs from, so the torso leans after the hand).
+- **aim:** the striking limb follows the cursor. Double-click any joint to make that one follow instead.
+- **mirror** swaps the front and back limbs of a key.
+- The cursor shows what a drag will do.
+
+### The timeline
+
+Keys sit on a 60 fps timeline. The transport, key and onion / aim buttons are right above it.
+
+Each key block shows:
+
+| Look | Meaning |
+|---|---|
+| green / red / blue | startup / active / recovery |
+| hatching | invincible, unblockable or armor |
+| a curve | its easing |
+| an arrow | its lunge |
+| icons | its flags |
+| dashed | it returns to the stance |
+
+- Drag a key's edge to retime it, drag the key to reorder.
+- Double-click to split a key; Delete removes it.
+
+### Key properties
+
+- Easing, active frames, lunge and hit properties.
+- **events:** the hit spark (hit, heavy, slash, blunt, none), a sound as the key is reached, after-images while it plays, screen shake. Effects only: the fight plays out the same. A key with events shows a spark icon.
+- **Striking bones:** limb, head and tail ends as buttons, any bone from the list, or Shift+click a joint. Shift+click a button or ⌘/Ctrl+Shift+click a joint to add or remove one, so several limbs strike at once; whichever lands counts, once per target.
+
+### Preview target
+
+A live preview with springs and hit stop, against a **target**:
+
+- any character
+- standing, crouching, guarding or low guard
+- idle, in the air, lying or dizzy
+- facing toward or away
+
+### The move list
+
+- **cards** (a drawing of each move's strike; hover plays it) or **list** (just names).
+- **group** by type, striking limb, height, stance or **fighting style**: boxing, karate, muay thai, capoeira, kung fu, taekwondo, wrestling; the rest are basic.
+- **sort** by order, name, startup or damage.
+- **filter** by name, group or input.
+
+### Compare
+
+**compare** (toolbar) picks a second move:
+
+- **overlay** draws it over the edited one in amber at the same moment, feet on the same ground.
+- **strip** shows both as filmstrips: a frame every few frames on one time scale, tinted by phase, with their frame data. The playhead's frame is outlined; click a frame to go there.
+
+The move table, input table and combos are on the [Editing](editing.md) page.
 
 ## Gallery
 
 ![Gallery: every move looping with its timeline and frame data](img/gallery.png)
 
-- **gallery** (animate → view gallery): every move looping (attacks first, then specials, rolls, taunts, weapon moves…) with its keyframe timeline and frame data (startup / active / recovery, advantage on hit), then every movement played by a short script (idle, walk, back walk, run, dash, back dash, crouch, jump, jump forward, flip, air dash, air dodge, guard, low guard, turn, hit reaction, blockstun, knockdown & getup, launched, dizzy) with its speed and height plot (hover a cell for what it shows); cells keep a readable size and scroll with the mouse wheel; only the cells on screen are built, run and drawn (a cell scrolled away drops its fight and starts afresh when it comes back), so a long move list stays light
+**animate → view gallery.** Every move looping, then every movement.
+
+- **Moves:** attacks first, then specials, rolls, taunts, weapon moves… Each with its keyframe timeline and frame data (startup, active, recovery, advantage on hit).
+- **Movements**, each played by a short script with its speed and height plot: idle, walk, back walk, run, dash, back dash, crouch, jump, jump forward, flip, air dash, air dodge, guard, low guard, turn, hit reaction, blockstun, knockdown & getup, launched, dizzy. Hover a cell for what it shows.
+- Cells keep a readable size and scroll with the mouse wheel.
+- Only the cells on screen are built, run and drawn. A cell scrolled away drops its fight and starts afresh when it comes back, so a long move list stays light.
 
 ## Tests
 
 ![The move test matrix](img/tests.png)
 
-- **tests** (animate → view tests): the **move test matrix**: one move (or all moves) of the character played against a target in every state (stand, crouch, guard, low guard, air, down, dizzy) × facing it or back turned × near / far, against itself or every character (against: same / all); each cell shows H hit, B blocked or · whiff and is checked: it hits or is blocked as its height and the target's guard say (guard blocks from the front, a high passes over a crouch, only otg hits the floor), its own setup (standing, facing, near: at the move's **range**, 45 px unset, a move property in the move panel) connects, both return to neutral, nothing becomes NaN or leaves the stage; red cells fail (hover for why), failing only hides the rest, click a cell to watch it looping over the table and **open in animate** to edit the move with that exact target (the preview target has near / far too); my scenarios are played through as cases (NaN, stage, stuck 5 s); cells run in the background a few per frame and rerun when the character or a setting changes
+**animate → view tests.** The move test matrix: one move (or all) played against a target in every state.
+
+**Columns:** stand, crouch, guard, low guard, air, down, dizzy × facing or back turned × near or far. **against:** the same character, or all of them.
+
+Each cell shows **H** hit, **B** blocked or **·** whiff, and is checked:
+
+- It hits or is blocked as its height and the target's guard say: guard blocks from the front, a high passes over a crouch, only otg hits the floor.
+- Its own setup connects: standing, facing, near, at the move's **range** (45 px unset; a move property in the move panel).
+- Both fighters return to neutral.
+- Nothing becomes NaN or leaves the stage.
+
+Using it:
+
+- Red cells fail; hover for why. **failing only** hides the rest.
+- Click a cell to watch it looping over the table. **open in animate** edits the move with that exact target (the preview target has near / far too).
+- My scenarios are played through as cases too (NaN, stage, stuck 5 s).
+- Cells run in the background, a few per frame, and rerun when the character or a setting changes.
