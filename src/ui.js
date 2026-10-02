@@ -120,10 +120,10 @@ function heading(title, info, keys) {
 }
 
 // ---------- side panel sections: a heading folds what follows it, up to the next heading; rows marked adv wait behind "more" ----------
-// both remembered per mode and heading (saved in this browser); a search shows everything that matches
+// both remembered per mode and heading in the tab's layout (layout.js); a search shows everything that matches
 const UI_STORE = 'stick2.ui';
 const ui = (() => { try { return JSON.parse(localStorage.getItem(UI_STORE)) || {}; } catch { return {}; } })();
-ui.fold ??= {}; ui.more ??= {}; ui.seen ??= {};
+ui.seen ??= {};
 const saveUi = () => { try { localStorage.setItem(UI_STORE, JSON.stringify(ui)); } catch {} };
 // open: headings shown unfolded until the user folds them
 function folds(els, scope, open) {
@@ -133,17 +133,18 @@ function folds(els, scope, open) {
     if (el.tagName !== 'H3') { if (body) body.append(el); else out.push(el); continue; }
     const name = (el.dataset.fold || el.firstChild?.textContent || '').toLowerCase(), k = scope + ':' + name;
     const sec = h('div', { cls: 'fold' }, el, body = h('div', { cls: 'fbody' }));
-    sec.classList.toggle('shut', ui.fold[k] ?? !open.includes(name));
-    sec.classList.toggle('more', !!ui.more[k]);
+    const L = lay();
+    sec.classList.toggle('shut', L.fold[k] ?? !open.includes(name));
+    sec.classList.toggle('more', !!L.more[k]);
     el.dataset.tip = el.dataset.tip || 'Click the heading to fold or unfold the section';
-    el.onclick = e => { if (e.target.closest('button')) return; ui.fold[k] = sec.classList.toggle('shut'); saveUi(); };
+    el.onclick = e => { if (e.target.closest('button')) return; L.fold[k] = sec.classList.toggle('shut'); saveLay(); };
     sec.k = k;
     out.push(sec);
   }
   for (const sec of out.filter(s => s.k)) {
     const advs = sec.querySelectorAll('.adv'), n = advs.length;
     if (!n) continue;
-    const b = button('', 'Show the less used variables of this group too (a search always shows them)', () => { ui.more[sec.k] = sec.classList.toggle('more'); saveUi(); }, 'mini morebtn');
+    const b = button('', 'Show the less used variables of this group too (a search always shows them)', () => { lay().more[sec.k] = sec.classList.toggle('more'); saveLay(); }, 'mini morebtn');
     reg(b, () => setRich(b, sec.classList.contains('more') ? ':unfold_less: fewer' : `:unfold_more: ${n} more`));
     advs[n - 1].after(b); // where the hidden rows show up
   }

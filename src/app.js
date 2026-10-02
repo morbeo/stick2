@@ -20,7 +20,7 @@ function setMode(m) {
   app.mode = m; closePop(); cursor('default');
   if (!ui.seen[m]) { ui.seen[m] = true; saveUi(); app.hintUntil = performance.now() + 8000; } // the first visit shows the hints a moment
   mode().enter(m);
-  panels();
+  layApply(); // the tab's layout: side panel, then the panels
 }
 function panels() {
   const views = VIEWS[tabOf(app.mode)];
@@ -45,7 +45,7 @@ function factoryReset(anchor = $('global')) {
       reload();
     }), button(':close: cancel', 'Keep everything', closePop)));
 }
-function togglePanel() { document.body.classList.toggle('noside'); resize(); }
+function togglePanel() { lay().hide.side = !lay().hide.side; saveLay(); layApply(); }
 
 // help under the rebindable keys (P = punch, K = kick, directions as on the numpad: 2 down, 3 down-forward, 6 forward…)
 const KEYS = [
@@ -69,7 +69,8 @@ function buildTop() {
     grp('', 'Files: the character, the settings or everything, as JSON', button(':download: export :expand_more:', 'Export to a file: the character, the settings or everything', fileMenu('export', exportFile)),
       button(':upload: import :expand_more:', 'Import from a file: a character, settings or everything', fileMenu('import', importFile))),
     grp('', 'Layout and keys', button(':search:', 'Find anything (⌘K): a mode, a toolbar tool, an action, a table (moves, inputs, combos, bones), a character, a move or a setting', openPalette),
-      button(':view_sidebar:', 'Panel: show / hide the side panel' + keyTip('panel'), togglePanel),
+      button(':view_sidebar:', 'Panel: show / hide the side panel (remembered per tab)' + keyTip('panel'), togglePanel),
+      button(':view_module:', LAY_TIP, layoutPanel),
       button(':keyboard:', 'Keys: rebind any action, set up macros, and help', keysPanel),
       button(':ssid_chart:', 'Debug: ghost, boxes and the scope bone, the build and engine version, frame rate and the shown fight\'s state (copy for a bug report), reset settings, factory reset, and the monitor', debugPanel),
       button(':info:', 'Docs: how everything works, with live demo fights, and every setting, move flag, input and key explained; searchable (also in ⌘K)', () => openDocs()),
@@ -192,6 +193,7 @@ addEventListener('mousemove', e => {
 canvas.addEventListener('wheel', e => { if (mode().wheel?.(e.deltaY, e)) e.preventDefault(); }, { passive: false });
 addEventListener('mouseup', e => { if (!down) return; down = false; mode().mouse?.('up', ...at(e), e); syncAll(); });
 
+layInit();
 buildTop();
 setMode('play');
 readHash();

@@ -12,7 +12,7 @@ Three rows, the same in every tab:
 
 | Row | What's on it |
 |---|---|
-| menu bar | the tabs · undo / redo · replay save / play · export / import · search, panel, keys, debug, docs, hints, sound |
+| menu bar | the tabs · undo / redo · replay save / play · export / import · search, panel, layout, keys, debug, docs, hints, sound |
 | transport | pause, rewind, step back, step, restart, speed, scrub, loop (the same in every mode) |
 | toolbar | the mode's own tools in labelled groups: fight · fighters · show · dummy, grid · axes · tests · stats… |
 
@@ -29,6 +29,18 @@ Three rows, the same in every tab:
 - Importing **everything** asks first.
 - A broken character in the file loads nothing.
 - Settings out of range fall back to their default.
+
+### Layouts
+
+The layout button (four squares) in the menu bar. Each tab remembers its own layout as you go: which side sections are folded, which show **more**, and whether the side panel is shown.
+
+| Button | Does |
+|---|---|
+| use | switches to another named layout; changes are kept in the one in use |
+| save as… | copies this layout (every tab) under a new name and uses it |
+| reset tab | this tab back to how it starts, in this layout |
+| reset all | every tab back to how it starts, in this layout |
+| delete | deletes the layout in use (not the default) |
 
 ### Debug
 
@@ -68,7 +80,7 @@ Links:
 
 - a mode, a tool on the current toolbar, or a key action;
 - a table: the move table, input table and combos (over the character tab there, else in animate), the bone table (in the character tab);
-- reset settings, factory reset;
+- a layout by name, reset layout, reset settings, factory reset;
 - a character, a move (opens it in animate) or a setting (searches the panel for it).
 
 ↑ ↓ pick, Enter runs, Esc closes.
@@ -109,7 +121,7 @@ Every heading carries its buttons on the right, in the same place:
 ### Less at once
 
 - Click a heading to fold its section. Folded ones hide their group buttons until hovered.
-- Only the section you work in starts open; each one is remembered per mode in this browser.
+- Only the section you work in starts open; each one is remembered per mode in the tab's [layout](#layouts).
 - Groups show their main variables and keep the rest behind a **more** button (moves: power, knock, launch, stun, damage; bones: len, thick, hurt, lag, stretch; settings: a few per group). A search shows every match, folded or not.
 - The character is one button with its drawing, which opens the grid of characters.
 - The help line under the view and the frame meter's colour legend show for a few seconds on the first visit to a mode, then only with **hints** (? top right).

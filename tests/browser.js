@@ -234,6 +234,22 @@ try {
     if (shown.join() !== 'fireball,fireball clash' || [...document.querySelectorAll('.pop h4')].filter(e => !e.hidden).length !== 1) errs.push('scenario filter ' + shown);
     q.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); if (lab.scen !== 'fireball' || document.querySelector('.pop')) errs.push('scenario filter enter ' + lab.scen);
     lab.scen = 'you vs dummy'; build(); }
+  // layouts: folds and the side panel are kept per tab in the current layout; save as copies it, switching swaps them, reset clears a tab or all
+  { setMode('play'); const fold = () => document.querySelector('#side .fold:not(.shut)'), k0 = fold().k; fold().querySelector('h3').click();
+    if (lay().fold[k0] !== true || !JSON.parse(localStorage.getItem('stick2.layouts')).sets.default.tabs.play.fold[k0]) errs.push('layout fold saved');
+    togglePanel(); if (!document.body.classList.contains('noside') || !lay().hide.side) errs.push('layout panel off');
+    setMode('character'); if (document.body.classList.contains('noside')) errs.push('layout panel is per tab'); setMode('play');
+    const pr = window.prompt; window.prompt = () => 'mine'; laySaveAs(); window.prompt = pr;
+    if (layouts.current !== 'mine' || !lay().hide.side) errs.push('layout save as');
+    layReset('play'); if (document.body.classList.contains('noside') || lay().fold[k0] !== undefined) errs.push('layout reset tab');
+    layUse('default'); if (!document.body.classList.contains('noside')) errs.push('layout switch');
+    $('global').querySelector('button[data-tip^="Layout:"]').click(); const pb = t => [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes(t));
+    if (!pb('mine') || pb('delete')) errs.push('layout popup'); pb('reset all').click();
+    if (document.body.classList.contains('noside') || Object.keys(laySet().tabs).some(t => Object.keys(lay(t).fold).length)) errs.push('layout reset all');
+    layUse('mine'); layDelete(); if (layouts.current !== 'default' || layouts.sets.mine) errs.push('layout delete'); closePop();
+    paletteEntries().find(e => e.name === 'layout: default')?.run(); if (layouts.current !== 'default') errs.push('layout in ⌘K');
+    layouts.fresh = true; ui.fold = { 'impact:presets': true, 'gallery:power': true }; layInit(); // folds saved before layouts move to their tab
+    if (lay('play').fold['impact:presets'] !== true || lay('animate').fold['gallery:power'] !== true || ui.fold) errs.push('layout migration'); layReset(); }
   // settings persist: a change is stored (only what differs from the defaults), comes back on load, bad values are dropped; reset settings brings back the defaults
   { setCfg({ hitstop: 0.2, easing: 'step' }); setDisplay('boxes', true); const st = JSON.parse(localStorage.getItem('stick2.settings'));
     if (st.hitstop !== 0.2 || st.easing !== 'step' || st.boxes !== true || 'gravity' in st) errs.push('settings stored ' + JSON.stringify(st));
