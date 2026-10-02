@@ -165,6 +165,16 @@ try {
     fb(1).click(); [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('editor')).click();
     if (w().a.ch !== CHARS.stick || lab.chars[0] !== null) errs.push('fighter follows the editor');
     lab.chars = [null, null]; build(); }
+  // the scenario picker: groups by who fights, scripted tests by topic, every scenario in one; the filter narrows them
+  { setMode('play'); const sb = () => [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('Choose who fights'));
+    sb().click(); const heads = [...document.querySelectorAll('.pop h4')].map(e => e.textContent), names = [...document.querySelectorAll('.pop .bar button')].map(b => b.textContent);
+    for (const g of ['you', 'engine AI', 'chains', 'juggles & falls', 'guard & counters', 'specials', 'movement', 'weapons']) if (!heads.includes(g)) errs.push('scenario group ' + g);
+    if (names.length !== Object.keys(SCENARIOS).length || new Set(names).size !== names.length) errs.push('scenario picker lists ' + names.length);
+    const q = document.querySelector('.pop input'); q.value = 'fireb'; q.dispatchEvent(new Event('input'));
+    const shown = [...document.querySelectorAll('.pop .bar button')].filter(b => !b.hidden).map(b => b.textContent);
+    if (shown.join() !== 'fireball,fireball clash' || [...document.querySelectorAll('.pop h4')].filter(e => !e.hidden).length !== 1) errs.push('scenario filter ' + shown);
+    q.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); if (lab.scen !== 'fireball' || document.querySelector('.pop')) errs.push('scenario filter enter ' + lab.scen);
+    lab.scen = 'you vs dummy'; build(); }
   // ⌘K: combos opens the combo editor over the stage (character tab: there, else animate)
   { setMode('play'); const e = paletteEntries().find(e => e.name === 'combos' && e.kind === 'editor'); e?.run(); panels();
     if (app.mode !== 'animate' || anim.view !== 'combos' || !document.querySelector('.ctable')) errs.push('palette combos ' + app.mode + anim.view);
