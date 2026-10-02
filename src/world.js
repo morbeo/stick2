@@ -140,7 +140,7 @@ class World {
     for (const s of this.shots) { s.x += s.vx * h; s.t += h; if (s.t > s.life || s.x < 20 || s.x > W - 20) pop(s, '#aaa'); }
     for (const s of this.shots) for (const o of this.shots) if (s !== o && !gone.has(s) && !gone.has(o) && s.owner.team !== o.owner.team
       && Math.abs(s.x - o.x) < s.r + o.r && Math.abs(s.y - o.y) < s.r + o.r && Math.abs(s.z - o.z) <= cfg.zReach) { pop(s, '#d68c14'); pop(o, '#d68c14'); this.clashes++; }
-    for (const s of this.shots) if (!gone.has(s)) for (const o of this.foes(s.owner)) if (Math.abs(o.z - s.z) <= cfg.zReach) {
+    for (const s of this.shots) if (!gone.has(s)) for (const o of this.foes(s.owner)) if (Math.abs(o.z - s.z) <= cfg.zReach && !(s.m.height === 'high' && o.crouching)) { // a high shot flies over a crouch
       const hit = o.hurtAt([[s.x - s.vx * h, s.y], [s.x, s.y], s.r], false, false);
       if (!hit) continue;
       const def = o.defend(s, s.m, null), fr = s.owner.freeze; // blocked from the side it comes from; a counter can't catch it

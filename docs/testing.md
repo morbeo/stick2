@@ -40,7 +40,7 @@ The randomized tests share one seed from `tests/seed.js`, printed on every run (
 
 `npm test` plays each move in 2 cells of the matrix (about 340 cells, 5 s), the cells picked by the seed: `SEED=random npm test` tries others. `npm run test:matrix` (`MATRIX=full`) plays every move of every character in all 28 columns against itself, about 36,000 cells in 8 minutes, before a release. A failure lists each bad cell (`stick.jab vs sneeko, target guard back turned near: a position became NaN`) with the command that reruns it; the Tests view (animate tab) shows the same cell playing.
 
-The matrix tests invariants only. Whether a move hits, is blocked or whiffs where it should is checked in the Tests view, where some cells still fail on purpose, as known bugs: projectiles fired point-blank spawn behind the target (a guard faces the wrong way), the shuriken (a high) hits crouching targets, and flyingKnee, backfist, overhand and some of noodo's moves whiff their own setup.
+The matrix tests invariants only. Whether a move hits, is blocked or whiffs where it should is checked in the Tests view, where some cells still fail on purpose, as known bugs: flyingKnee, wallDive, warpClaw and some of noodo's moves (spin, turnKick, risingKick, armada, lariat, longJab) whiff their own setup.
 
 ## Fuzzing
 

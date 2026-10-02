@@ -840,9 +840,10 @@ class Fighter {
   // key: the attacker's current key (unblockable is a property of frames, not of the whole move)
   defend(att, m, key) {
     const k = this.action?.m.keys[this.action.i], h = m.height || 'mid';
-    if (k?.catch && (att.x - this.x) * this.dir > 0 && (!k.catchH || k.catchH.includes(h))) return 'catch';
+    const front = (att.owner ? -att.vx : att.x - this.x) * this.dir > 0; // a shot or thrown weapon comes from where it flies from (fired point-blank it can start past the target)
+    if (k?.catch && front && (!k.catchH || k.catchH.includes(h))) return 'catch';
     const able = this.guarding || this.parryT > 0 && this.free && this.grounded && !this.action && this.squatT <= 0;
-    if (key?.unblock || !able || (att.x - this.x) * this.dir <= 0) return null;
+    if (key?.unblock || !able || !front) return null;
     if (!this.grounded) return m.noAirGuard ? null : this.parryT > 0 && this.c('parry') ? 'parry' : 'block'; // air guard: every height
     if (!(h === 'smid' || (this.crouching ? h === 'low' : h !== 'low'))) return null;
     return this.parryT > 0 && this.c('parry') ? 'parry' : 'block';
