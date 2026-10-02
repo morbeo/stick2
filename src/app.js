@@ -7,12 +7,13 @@ const MODES = {
   gallery: 'Every move of the character looping, with its keyframe timeline and frame data, then every movement (walk, run, dash, jump, flip, guard, hit, knockdown, dizzy…) with its speed and height. Only the cells on screen run (scroll for more).',
   impact: 'Hit reactions and falls: standard hits on the character side by side; drag on a body to strike it anywhere.',
   character: 'Build the fighter: drag joints, add limbs, tune bones. The preview fights with it live.',
+  tests: 'Every move tried against every target: standing, crouching, guarding high and low, in the air, on the floor, dizzy; facing it or turned away; near and far; against the character itself or every one. Red cells did not do what they should (hover for why); click one to watch it and open it in animate to fix it. Your scenarios are played through too.',
   animate: 'Pose keyframes by dragging joints, retime them on the timeline, and watch the move with springs and hit stop.',
 };
-const mode = () => ({ character: creatorMode, animate: animMode })[app.mode] || labMode;
-// the top bar's tabs: impact is a view of play and gallery a view of animate, picked first in their toolbar
-const VIEWS = { play: ['play', 'impact'], animate: ['animate', 'gallery'] };
-const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', gallery: 'animation', impact: 'crisis_alert', character: 'accessibility_new', animate: 'timeline' };
+const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode })[app.mode] || labMode;
+// the top bar's tabs: impact is a view of play, gallery and tests views of animate, picked first in their toolbar
+const VIEWS = { play: ['play', 'impact'], animate: ['animate', 'gallery', 'tests'] };
+const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', gallery: 'animation', impact: 'crisis_alert', tests: 'science', character: 'accessibility_new', animate: 'timeline' };
 const tabOf = m => Object.keys(VIEWS).find(t => VIEWS[t].includes(m)) || m;
 
 function setMode(m) {

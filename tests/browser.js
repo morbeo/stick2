@@ -228,6 +228,21 @@ try {
     const json = exportScens(); importScens(json.replace('jab vs sumo', 'copy of it')); if (!SCENARIOS['copy of it']) errs.push('builder import');
     if (!document.querySelector('.sbuild')) errs.push('builder gone ' + lab.scen + lab.builder + lab.mode); [...document.querySelectorAll('.sbuild button')].find(b => b.dataset.tip === 'Delete this scenario').click(); if (SCENARIOS['jab vs sumo'] || myScens()['jab vs sumo'] || lab.scen === 'jab vs sumo') errs.push('builder delete ' + lab.scen);
     delete myScens()['copy of it']; delete SCENARIOS['copy of it']; lab.builder = false; keep === null ? localStorage.removeItem('stick2.scenarios') : localStorage.setItem('stick2.scenarios', keep); lab.scen = 'you vs dummy'; build(); panels(); }
+  // the tests view: a move against every target column (and opponent), checked; failing only; a cell isolated plays over the table and opens in animate with its setup
+  { setMode('tests'); tests.move = 'jab'; rerunTests(); panels();
+    for (let i = 0; i < 200 && tests.queue.length; i++) testMode.tick();
+    const cellsN = document.querySelectorAll('.tmat td.tcell').length - Object.keys(myScens()).length;
+    if (tests.queue.length || cellsN !== 28 || document.querySelectorAll('.tmat td.fail').length || !testProgress.textContent.startsWith('28/28')) errs.push('tests jab ' + cellsN + ' ' + testProgress.textContent);
+    tests.opps = 'all'; rerunTests(); if (tests.total !== 28 * Object.keys(DEFS).length + Object.keys(myScens()).length) errs.push('tests all opponents ' + tests.total); tests.opps = 'same'; rerunTests(); panels();
+    for (let i = 0; i < 200 && tests.queue.length; i++) testMode.tick();
+    const k = cellKey('jab', CURRENT, 8); tests.res[k] = { out: 'hit', issues: ['made up'], t: 1 }; tests.failing = true; panels();
+    if (document.querySelectorAll('.tmat tbody tr').length !== 1 || document.querySelectorAll('.tmat td.fail').length !== 1) errs.push('tests failing only ' + document.querySelectorAll('.tmat tbody tr').length);
+    document.querySelector('.tmat td.fail').click();
+    if (tests.sel !== k || !tests.w || !document.querySelector('.tmat.iso') || !document.querySelector('.tmat .bar').textContent.includes('made up')) errs.push('tests isolate ' + tests.sel);
+    [...document.querySelectorAll('.tmat button')].find(b => b.textContent.includes('open in animate')).click();
+    if (app.mode !== 'animate' || anim.move !== 'jab' || anim.target.stance !== 'guard' || anim.target.facing !== 'toward' || anim.target.dist !== 'near') errs.push('tests open in animate ' + app.mode + JSON.stringify(anim.target));
+    setMode('tests'); const h0 = CFG.hitstop; setCfg({ hitstop: h0 + 0.01 }); testMode.tick(); if (tests.total - tests.queue.length > 40 || tests.res[k]) errs.push('tests rerun on a setting'); setCfg({ hitstop: h0 });
+    tests.failing = false; tests.move = null; anim.target = { char: null, stance: 'stand', state: 'idle', facing: 'toward', dist: 'near' }; setMode('play'); }
   // ⌘K reaches every table: the move table, the input table, the combos (character tab: over its stage, else animate) and the bone table (character tab)
   { const run = n => { closePop(); paletteEntries().find(e => e.name === n)?.run(); panels(); };
     setMode('play'); run('move table'); if (app.mode !== 'animate' || anim.view !== 'table' || !document.querySelector('.mtable tbody tr')) errs.push('palette move table ' + app.mode + anim.view);

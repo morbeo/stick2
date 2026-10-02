@@ -1,7 +1,7 @@
 'use strict';
 // ---------- animate mode: pose keyframes by dragging joints (IK), retime them on a frame timeline, preview with springs ----------
 const anim = { move: 'jab', key: 1, t: 0, playing: true, onion: true, aim: false, aimId: null, reach: 'limb', drag: null, hover: null, anchor: null, pv: null, hold: false,
-  target: { char: null, stance: 'stand', state: 'idle', facing: 'toward' }, group: 'type', sort: 'order', filter: '', view: 'cards',
+  target: { char: null, stance: 'stand', state: 'idle', facing: 'toward', dist: 'near' }, group: 'type', sort: 'order', filter: '', view: 'cards',
   tfilter: '', tsort: { k: null, dir: 1 }, tscroll: 0, // the move table's filter, sort column and scroll
   cmp: null, cmpView: 'off' }; // the move compared with (compare group): drawn over this one or as filmstrips
 const curMove = () => currentChar().moves[anim.move];
@@ -245,25 +245,18 @@ function selectKey(i) {
 }
 
 // ---------- preview: the real engine (springs, hit stop) playing the move against a target ----------
-// the target: any character, standing / crouching / guarding, idle / in the air / lying / dizzy, facing toward or away
-const STANCES = { stand: 'dummy', crouch: [{ hold: 'down', t: 99 }], guard: [{ hold: 'guard', t: 99 }], low: [{ hold: 'down+guard', t: 99 }] };
+// the target: any character, standing / crouching / guarding, idle / in the air / lying / dizzy, facing toward or away, near or far (targetScen in checks.js)
 const TARGET_TIPS = {
   stand: 'The target stands still', crouch: 'The target crouches: highs pass over it', guard: 'The target holds guard: blocks highs and mids from the front',
   low: 'The target holds a low guard: blocks lows and special mids from the front',
   idle: 'The target is on the ground and free', air: 'The target jumps so it is near the top of its jump when the move becomes active',
   down: 'The target lies on the floor: only off-the-ground (otg) moves hit it', dizzy: 'The target is dizzy: the next hit wakes it',
   toward: 'The target faces the attacker', away: 'The target turns its back: guard and parry only work from the front (it stays turned while crouching or holding a low guard)',
+  near: 'The target stands at the move\'s usual distance', far: `The target stands ${FAR} px further away`,
 };
 function pvScen() {
-  const m = curMove(), tg = anim.target, s = galleryScen(anim.move, !!m.air);
-  s.b = tg.state === 'air' ? [Math.max(0, 0.1 + frameData(m, CFG.attackSpeed).startup / 60 - 0.25), 'hop'] : STANCES[tg.stance];
-  s.init = w => {
-    const b = w.b;
-    w.a.stanceI = studio.stance;
-    if ((b.away = tg.facing === 'away')) b.dir = -b.dir;
-    if (tg.state === 'down') Object.assign(b, { kd: 'down', downT: 99 });
-    if (tg.state === 'dizzy') Object.assign(b, { dizzyT: 99, hurtT: 99 });
-  };
+  const s = targetScen(anim.move, curMove(), anim.target), init = s.init;
+  s.init = w => { w.a.stanceI = studio.stance; init(w); };
   return s;
 }
 function buildPreview() { anim.pv = Object.assign(newWorld(pvScen(), {}, 1, [currentChar(), CHARS[anim.target.char] || currentChar()]), { sfx: playSound }); }
@@ -838,7 +831,7 @@ function targetBar() {
     popup(b, h('div', { cls: 'bar' }, seg([null, ...Object.keys(DEFS)], () => tg.char, v => { set('char', v); closePop(); }, { null: 'The character being edited' }, v => v ?? 'same'))), 'mini');
   reg(who, () => { setRich(who, ':person: ' + (tg.char && DEFS[tg.char] ? tg.char : 'same')); });
   const sg = (k, opts) => seg(opts, () => tg[k], v => set(k, v), TARGET_TIPS);
-  return h('div', { cls: 'over tgt', tip: 'The target of the preview' }, who, sg('stance', Object.keys(STANCES)), sg('state', ['idle', 'air', 'down', 'dizzy']), sg('facing', ['toward', 'away']));
+  return h('div', { cls: 'over tgt', tip: 'The target of the preview' }, who, sg('stance', Object.keys(STANCES)), sg('state', ['idle', 'air', 'down', 'dizzy']), sg('facing', ['toward', 'away']), sg('dist', ['near', 'far']));
 }
 
 const animMode = {

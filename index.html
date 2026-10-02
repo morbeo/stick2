@@ -71,6 +71,11 @@
   canvas.radar { width: 250px; height: 250px; display: block; margin: 0 auto; }
   #over > .mtable { inset: 0; display: block; overflow: auto; background: #f3f0e8; padding: 8px; }
   .btable td.drag { cursor: grab; } .btable td.dropto { box-shadow: inset 0 3px 0 #c33; }
+  #over > .tmat.iso { inset: 50% 0 0 0; border-top: 1px solid #ccc; }
+  .tmat table { border-collapse: collapse; } .tmat th.sub { font-weight: normal; color: #777; min-width: 22px; }
+  .tmat td.tcell { text-align: center; cursor: pointer; min-width: 22px; color: #555; } .tmat td.tname { white-space: nowrap; }
+  .tmat td.pass { background: #e3ecd9; } .tmat td.fail { background: #e9b3a8; color: #8a1d0e; font-weight: bold; } .tmat td.skip { background: #e6e2da; color: #999; }
+  .tmat td.on { outline: 2px solid #c33; outline-offset: -2px; }
   #over > .sbuild { inset: auto 0 0 0; max-height: 50%; border-top: 1px solid #ccc; }
   #over > .btable { inset: auto 0 0 0; max-height: 45%; border-top: 1px solid #ccc; }
   .mtable .bar { margin-bottom: 6px; } .mtable .bar input { flex: 1; }
@@ -152,12 +157,14 @@
 <script src="src/fighter.js"></script>
 <script src="src/world.js"></script>
 <script src="src/brain.js"></script>
+<script src="src/checks.js"></script>
 <script src="src/ui.js"></script>
 <script src="src/sound.js"></script>
 <script src="src/studio.js"></script>
 <script src="src/lab.js"></script>
 <script src="src/creator.js"></script>
 <script src="src/editor.js"></script>
+<script src="src/matrix.js"></script>
 <script src="src/inputs.js"></script>
 <script src="src/combos.js"></script>
 <script src="src/breed.js"></script>

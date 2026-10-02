@@ -824,3 +824,22 @@ test('chase jump: after a launcher hits, ↑ held jumps after the victim (press)
   assert.equal(off.top, 0, 'off: no jump');
   assert.equal(run(`fight(SCENARIOS['chase jump'], [CHARS.stick], 150).w.hits`), 3, 'the chase jump scenario: launcher, air P, air K');
 });
+
+test('move checks: each target column says what may happen (guard blocks from the front, highs pass over a crouch, only otg hits the floor) and stick\'s jab passes every column', () => {
+  const ok = (mv, s, facing = 'toward', dist = 'near') => run(`allowed(CHARS.stick.moves.${mv}, CHECK_COLS.find(c => c.s === '${s}' && c.facing === '${facing}' && c.dist === '${dist}'), { otg: 'flagged' }).ok.join()`);
+  assert.equal(run('CHECK_COLS.length'), 28, '7 states × toward / away × near / far');
+  assert.equal(ok('jab', 'stand'), 'hit', 'its own setup must connect');
+  assert.equal(ok('jab', 'stand', 'toward', 'far'), 'hit,whiff');
+  assert.equal(ok('cross', 'guard'), 'block,whiff', 'a guard blocks a mid from the front');
+  assert.equal(ok('cross', 'guard', 'away'), 'hit,whiff', 'not from behind');
+  assert.equal(ok('sweep', 'low'), 'block,whiff', 'a low guard blocks a low');
+  assert.equal(ok('sweep', 'guard'), 'hit,whiff', 'a standing guard does not');
+  assert.equal(ok('jab', 'down'), 'whiff', 'the floor: otg moves only');
+  assert.equal(run("CHARS.stick.moves.jab.height"), 'high');
+  assert.equal(ok('jab', 'crouch'), 'whiff', 'a high passes over a crouch');
+  // stick's jab against itself: every column passes, and recovers in about a second
+  const res = run(`CHECK_COLS.map(c => runCheck(CHARS.stick, CHARS.stick, 'jab', c))`);
+  for (const [i, r] of res.entries()) assert.equal(r.issues.length, 0, `column ${i}: ${JSON.stringify(r)}`);
+  assert.equal(res[0].out, 'hit'); assert.equal(res.find((r, i) => run(`CHECK_COLS[${i}].s`) === 'guard' && i % 4 === 0).out, 'block');
+  assert.ok(res.every(r => r.t < 4), 'each settles inside its limit (a knockdown included)');
+});
