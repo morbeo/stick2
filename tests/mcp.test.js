@@ -34,18 +34,25 @@ test('initialize answers with a supported protocol version, the capabilities and
 
 test('tools/list: each tool has a description and an object input schema', async () => {
   const { tools } = (await s.rpc('tools/list')).result, names = tools.map(t => t.name);
-  for (const n of ['list_characters', 'get_character', 'list_moves', 'list_scenarios', 'list_settings', 'set_settings', 'simulate'])
+  for (const n of ['list_characters', 'get_character', 'list_moves', 'list_scenarios', 'list_settings', 'set_settings', 'simulate', 'run_checks', 'replay_export', 'replay_import'])
     assert.ok(names.includes(n), n);
   for (const t of tools) assert.ok(t.description.length > 20 && t.inputSchema.type === 'object', t.name);
 });
 
-test('characters and moves: the built-ins, a definition, frame data', async () => {
+test('characters and moves: the built-ins, a definition, frame data; a broken edit is refused and changes nothing', async () => {
   const cs = (await s.call('list_characters')).json;
   assert.ok(cs.length >= 10 && cs.some(c => c.name === 'stick' && c.builtin));
   const def = (await s.call('get_character', { name: 'stick' })).json;
   assert.ok(def.bones.length > 10 && def.moves.jab);
   const jab = (await s.call('list_moves', { char: 'stick' })).json.find(m => m.name === 'jab');
   assert.ok(jab.startup > 0 && jab.active > 0 && jab.binds.includes('punch'), JSON.stringify(jab));
+  const bad = await s.call('edit_character', { name: 'stick', patch: { bones: { waist: { parent: 'nowhere' } } } });
+  assert.ok(bad.isError && /no parent bone/.test(bad.content[0].text), bad.content[0].text);
+  const made = (await s.call('create_character', { def: { ...def, name: 'longlegs' } })).json;
+  assert.equal(made.name, 'longlegs');
+  assert.equal((await s.call('edit_character', { name: 'longlegs', patch: { bones: { thighF: { len: 30 } }, speed: 1.2 } })).json.bones, def.bones.length);
+  assert.equal((await s.call('get_character', { name: 'longlegs' })).json.bones.find(b => b.id === 'thighF').len, 30);
+  assert.equal((await s.call('edit_move', { char: 'longlegs', name: 'jab', move: { damage: 9 }, merge: true })).json.damage, 9);
 });
 
 test('settings: checked against their spec (type, range, options), set, read back and reset', async () => {
@@ -72,6 +79,23 @@ test('simulate: deterministic (same seed, same end hash), summed up with stats a
   assert.equal(m.fighters[0].ctl, 'human');
   assert.ok(m.events.shown.length >= 1, 'the macro plays a move');
   assert.ok((await s.call('simulate', { scenario: 'no such' })).isError);
+});
+
+test('a replay round trip: simulate → replay_export → replay_import plays in sync to the same end', async () => {
+  const sim = (await s.call('simulate', { scenario: 'you vs ai', seed: 2, inputs: '0.3, 6, 6, P, 0.4, 2K, 0.3, 236P', frames: 900, events: false })).json;
+  const rep = (await s.call('replay_export', { simulation: sim.id })).json;
+  assert.equal(rep.format, 'stick2-replay');
+  const back = (await s.call('replay_import', { json: rep, events: false })).json;
+  assert.equal(back.desync, null);
+  assert.equal(back.endHash, sim.endHash);
+  const bent = (await s.call('replay_import', { json: { ...rep, cfg: { ...rep.cfg, maxSpeed: rep.cfg.maxSpeed * 1.3 } }, events: false })).json;
+  assert.ok(bent.desync > 0, 'other settings: out of sync');
+});
+
+test('run_checks: a move against every target state', async () => {
+  const r = (await s.call('run_checks', { char: 'stick', move: 'jab', all: true })).json;
+  assert.equal(r.moves[0].cells.length, 28);
+  assert.equal(r.moves[0].outs.length, 28);
 });
 
 test('resources: the docs and the schemas', async () => {

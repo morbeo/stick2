@@ -28,6 +28,49 @@ function inside() {
   // a scenario given as JSON: string controllers other than human / ai / dummy are macro text ('0.2, 2P, K')
   const scenFrom = s => { const ctl = c => typeof c === 'string' && !['human', 'ai', 'dummy'].includes(c) ? parseMacro(c) : c;
     return { ...s, a: ctl(s.a), b: ctl(s.b), ...(s.more ? { more: s.more.map(m => ({ ...m, c: ctl(m.c) })) } : {}) }; };
+  // JSON merge patch (RFC 7386): objects merge, null deletes, anything else replaces; bones may also be patched by id ({ id: {...} | null })
+  const merge = (t, p) => {
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return p;
+    const o = t && typeof t === 'object' && !Array.isArray(t) ? { ...t } : {};
+    for (const [k, v] of Object.entries(p)) if (v === null) delete o[k]; else o[k] = merge(o[k], v);
+    return o;
+  };
+  // the shape makeCharacter needs, with messages that say what is wrong (it would only throw a TypeError)
+  const checkDef = def => {
+    const bad = [], ids = new Set(), obj = v => v && typeof v === 'object' && !Array.isArray(v);
+    if (!obj(def)) fail('a character definition is an object');
+    if (!Array.isArray(def.bones) || !def.bones.length) bad.push('bones: a list of bones is required');
+    else for (const [i, b] of def.bones.entries()) {
+      if (!obj(b) || typeof b.id !== 'string' || !b.id) { bad.push(`bones[${i}] needs a string id`); continue; }
+      if (ids.has(b.id)) bad.push(`bone id "${b.id}" is used twice`);
+      ids.add(b.id);
+      for (const k of ['len', 'a', 'thick', 'hurt', 'min', 'max']) if (b[k] !== undefined && !Number.isFinite(b[k])) bad.push(`bone ${b.id}: ${k} is a number`);
+    }
+    if (Array.isArray(def.bones)) for (const b of def.bones) if (b?.parent !== undefined && b.parent !== null && !ids.has(b.parent)) bad.push(`bone ${b.id}: no parent bone "${b.parent}"`);
+    if (Array.isArray(def.bones) && !bad.length) { // no loops: every chain of parents reaches a root
+      const by = Object.fromEntries(def.bones.map(b => [b.id, b]));
+      for (const b of def.bones) { let x = b, n = 0; while (x.parent && n++ <= def.bones.length) x = by[x.parent]; if (n > def.bones.length) { bad.push(`bone ${b.id}: its parents loop`); break; } }
+    }
+    if (!obj(def.poses) || !obj(def.poses.stance)) bad.push('poses.stance: a pose ({ boneId: angle }) is required');
+    if (!obj(def.moves)) bad.push('moves: an object of moves is required (it may be empty)');
+    else for (const [n, m] of Object.entries(def.moves)) {
+      if (!obj(m) || !Array.isArray(m.keys) || !m.keys.length) { bad.push(`move ${n}: keys, a list of keyframes, is required`); continue; }
+      m.keys.forEach((k, i) => { if (!obj(k) || !(k.d > 0)) bad.push(`move ${n} key ${i}: d (seconds, > 0) is required`); else if (k.p !== undefined && k.p !== null && !obj(k.p)) bad.push(`move ${n} key ${i}: p is a pose or null`); });
+      for (const h of [].concat(m.hit || [])) if (ids.size && !ids.has(h) && h !== 'weapon') bad.push(`move ${n}: hits with "${h}", which is not a bone`);
+    }
+    if (def.hurt !== undefined && !obj(def.hurt)) bad.push('hurt: an object of hit-reaction pose lists');
+    if (bad.length) fail(bad.slice(0, 12).join('; ') + (bad.length > 12 ? ` (+${bad.length - 12} more)` : ''));
+    makeCharacter(def);
+  };
+  const patchDef = (def, p) => {
+    const { bones, ...rest } = p, out = merge(def, rest);
+    if (Array.isArray(bones)) out.bones = bones;
+    else if (bones) {
+      out.bones = def.bones.filter(b => bones[b.id] !== null).map(b => bones[b.id] ? merge(b, bones[b.id]) : b);
+      for (const [id, b] of Object.entries(bones)) if (b && !def.bones.some(x => x.id === id)) out.bones.push({ id, ...b });
+    }
+    return out;
+  };
 
   // a whole fight recorded, summed up: who won, when, the stats, the events (filtered), the end hash
   function summary(w, rec, o = {}) {
@@ -80,6 +123,30 @@ function inside() {
           flags: ['throw', 'air', 'kd', 'special', 'otg', 'inv', 'crumple', 'launcher', 'roll', 'wide', 'wall', 'wallbounce', 'bounce', 'noAirGuard'].filter(k => m[k]),
           ...(m.weapon ? { weapon: m.weapon } : {}), ...(m.next ? { next: m.next } : {}), keys: m.keys.length }; });
     },
+    // a new character from a definition: makeCharacter throws on a broken one before anything changes; a taken name gets a number (like the app)
+    createCharacter(def, replace) {
+      checkDef(def);
+      const base = def.name || 'char'; let name = base, n = 2;
+      if (!replace) while (CHARS[name]) name = base + n++;
+      MCP.defs[name] = { ...clone(def), name }; CHARS[name] = makeCharacter(MCP.defs[name]);
+      return { name, bones: CHARS[name].bones.length, moves: Object.keys(CHARS[name].moves).length };
+    },
+    editCharacter(n, patch) {
+      const def = patchDef(clone(charOf(n).def), patch);
+      if (def.name !== n) def.name = n;
+      checkDef(def);
+      MCP.defs[n] = def; CHARS[n] = makeCharacter(def);
+      return { name: n, bones: CHARS[n].bones.length, moves: Object.keys(CHARS[n].moves).length };
+    },
+    editMove(n, name, move, mergeIt) {
+      const def = clone(charOf(n).def);
+      if (move === null) { if (!def.moves[name]) fail(`${n} has no move "${name}"`); delete def.moves[name]; }
+      else def.moves[name] = mergeIt ? merge(def.moves[name] || fail(`${n} has no move "${name}" to merge into`), move) : move;
+      checkDef(def);
+      MCP.defs[n] = def; CHARS[n] = makeCharacter(def);
+      return move === null ? { deleted: name } : MCP.listMoves(n).find(m => m.name === name);
+    },
+
     // ---------- scenarios and fights ----------
     listScenarios: () => Object.entries(SCENARIOS).map(([name, s]) => ({ name, a: ctlName(s.a), b: ctlName(s.b), fighters: 2 + (s.more?.length || 0),
       ...(s.period ? { period: s.period } : {}), ...(s.chars ? { chars: s.chars } : {}), ...(s.cfg && Object.keys(s.cfg).length ? { cfg: s.cfg } : {}),
@@ -97,6 +164,45 @@ function inside() {
       const rec = recordFight(w, o.frames);
       return { replay: makeReplay(w, o.scen ? o.name || 'custom' : o.scenario), summary: summary(w, rec, o) };
     },
+    // a replay file played through: the same summary, plus the first frame that came out differently (null = in sync)
+    importReplay(r, o = {}) {
+      if (r?.format !== REPLAY_FORMAT) fail('not a stick2 replay (format "stick2-replay")');
+      const w = replayWorld(r); w.loop = false;
+      const rec = recordFight(w);
+      if (!w.done) w.advance(0, NOIN); // past the last frame: the end checksum
+      return { summary: summary(w, rec, o), desync: w.desync, version: r.version, engine: ENGINE_VERSION,
+        ...(r.version !== ENGINE_VERSION ? { warning: `recorded with engine v${r.version}, this is v${ENGINE_VERSION}: it most likely plays out differently` } : {}) };
+    },
+    // the move matrix (the tests view): a move of ch against opp in every target state; failing = the cells with issues
+    runChecks(n, move, oppName, all) {
+      const ch = charOf(n), opp = oppName ? charOf(oppName) : ch, names = move ? [move] : Object.keys(ch.moves).filter(k => ch.moves[k].power);
+      if (move && !ch.moves[move]) fail(`${n} has no move "${move}"`);
+      const moves = names.map(name => {
+        const cells = CHECK_COLS.map(col => ({ target: `${col.s} ${col.facing} ${col.dist}`, ...runCheck(ch, opp, name, col) }))
+          .map(c => ({ target: c.target, out: c.out, ...(c.issues.length ? { issues: c.issues } : {}), ...(c.why ? { why: c.why } : {}) }));
+        const failing = cells.filter(c => c.issues);
+        return { move: name, failing: failing.length, outs: cells.map(c => c.out[0]).join(''), cells: all ? cells : failing };
+      });
+      return { char: n, opp: opp.name, columns: CHECK_COLS.map(c => `${c.s} ${c.facing} ${c.dist}`), failing: moves.reduce((s, m) => s + m.failing, 0), moves };
+    },
+
+    // ---------- profiles: the app's "everything" file (edited characters, settings, my scenarios) ----------
+    loadProfile(d) {
+      const out = { chars: [], settings: {}, rejected: [], scenarios: [] };
+      if (d.format === 'stick2.settings' || d.format === 'stick2.everything') {
+        for (const [n, def] of Object.entries(d.chars || {})) try { checkDef(def); } catch (e) { fail(`character ${n} is broken, nothing was loaded: ${e.message}`); } // all or nothing
+        for (const [n, def] of Object.entries(d.chars || {})) { MCP.defs[n] = { ...clone(def), name: n }; CHARS[n] = makeCharacter(MCP.defs[n]); out.chars.push(n); }
+        if (d.scenarios) { Object.assign(myStore, clone(d.scenarios)); saveScens(); out.scenarios = Object.keys(d.scenarios); }
+        for (const k of Object.keys(DEFAULTS)) if (!DISPLAY.includes(k)) CFG[k] = DEFAULTS[k];
+        for (const [k, v] of Object.entries(d.cfg || {})) { const bad = cfgProblem(k, v); if (bad) out.rejected.push(bad); else CFG[k] = out.settings[k] = v; }
+        if (d.current && CHARS[d.current]) CURRENT = d.current;
+        return out;
+      }
+      if (Array.isArray(d.bones)) return { chars: [MCP.createCharacter(d).name] };
+      fail('not a stick2 file: an everything or settings export (format stick2.everything / stick2.settings) or a character');
+    },
+    saveProfile: () => ({ format: 'stick2.everything', chars: MCP.defs, current: CURRENT,
+      cfg: Object.fromEntries(Object.entries(changed()).filter(([k]) => !DISPLAY.includes(k))), scenarios: myStore }),
   };
 }
 
@@ -125,6 +231,23 @@ function session() {
       const { replay, summary } = call('simulate', o), id = keep(replay, summary, o.scenario || 'custom');
       return { id, ...summary, ...(o.replay ? { replay } : {}) };
     },
+    importReplay(o) {
+      const r = o.json !== undefined ? (typeof o.json === 'string' ? JSON.parse(o.json) : o.json) : JSON.parse(fs.readFileSync(file(o.path), 'utf8'));
+      const res = call('importReplay', r, o), id = keep(r, res.summary, 'import');
+      return { id, desync: res.desync, inSync: res.desync === null, version: res.version, engine: res.engine, ...(res.warning ? { warning: res.warning } : {}), ...res.summary };
+    },
+    // the move matrix move by move until a time budget runs out: what is left is listed, to check in another call
+    runChecks(o) {
+      const t0 = Date.now(), budget = (o.seconds ?? 25) * 1000, names = o.move ? [o.move] : o.moves || call('listMoves', o.char).filter(m => m.power).map(m => m.name);
+      let res = null; const left = [...names];
+      while (left.length && (!res || Date.now() - t0 < budget)) {
+        const r = call('runChecks', o.char, left.shift(), o.opp, o.all);
+        if (res) { res.moves.push(...r.moves); res.failing += r.failing; } else res = r;
+      }
+      return { ...res, checked: res.moves.length, ...(left.length ? { unchecked: left, note: `out of time: call again with moves: [the unchecked ones]` } : {}) };
+    },
+    loadProfile(p) { return call('loadProfile', JSON.parse(fs.readFileSync(file(p), 'utf8'))); },
+    saveProfile(p) { const d = call('saveProfile'); fs.mkdirSync(path.dirname(file(p)), { recursive: true }); fs.writeFileSync(file(p), JSON.stringify(d, null, 1)); return { path: file(p), chars: Object.keys(d.chars), settings: Object.keys(d.cfg).length, scenarios: Object.keys(d.scenarios).length }; },
   };
 }
 module.exports = session;

@@ -20,6 +20,13 @@ const TOOLS = {
     run: a => S.call('getCharacter', a.name) },
   list_moves: { d: 'A character\'s moves with frame data (startup / active / recovery frames at 60 fps, at the attackSpeed setting × its tempo), damage, height, knockback, flags, combo links and the input slots that play each.',
     p: { char: str('character name'), speed: num('attack speed for the frame data (default: the attackSpeed setting × the character\'s tempo)') }, req: ['char'], run: a => S.call('listMoves', a.char, a.speed) },
+  create_character: { d: 'Add a character from a definition (see stick2://schema/character; get_character gives one to start from). It is checked by compiling it: a broken one changes nothing. A taken name gets a number unless replace is true.',
+    p: { def: obj('the character definition'), replace: bool('replace a character of the same name (built-ins too, for this session)') }, req: ['def'], run: a => S.call('createCharacter', a.def, !!a.replace) },
+  edit_character: { d: 'Change a character with a JSON merge patch of its definition: objects merge, null deletes a key, anything else replaces. bones may be patched by id: { bones: { thighF: { len: 30 }, tail: { parent: "waist", len: 20, role: "tail" }, horn: null } }. Checked by compiling; a broken result changes nothing.',
+    p: { name: str('character name'), patch: obj('merge patch of the definition') }, req: ['name', 'patch'], run: a => S.call('editCharacter', a.name, a.patch) },
+  edit_move: { d: 'Set, merge into or delete one move of a character (move shape: stick2://schema/character → move, key). Returns its new frame data.',
+    p: { char: str('character name'), name: str('move name'), move: { type: ['object', 'null'], description: 'the move (null deletes it)' }, merge: bool('merge-patch the existing move instead of replacing it') }, req: ['char', 'name', 'move'],
+    run: a => S.call('editMove', a.char, a.name, a.move, !!a.merge) },
 
   // ---------- settings ----------
   list_settings: { d: 'The settings (every tunable of the engine), by group. Without group: the groups and their keys. With group: each setting\'s default, current value, range or options and what it does.',
@@ -39,7 +46,21 @@ const TOOLS = {
       events: EVENTS, replay: bool('include the replay file (JSON) in the answer') },
     run: a => { if (!a.scenario && !a.scen) throw new Error('give a scenario name or scen');
       return S.simulate({ ...a, frames: Math.max(1, Math.min(36000, a.frames ?? 3600)) }); } },
+  run_checks: { d: 'The move matrix (the app\'s tests view): each move against a target in every state (standing, crouching, guarding high and low, in the air, on the floor, dizzy; facing it or turned away; near and far) and whether what happens is what should (hit / block / whiff). Returns the failing cells with why; outs has one letter per column (h hit, b block, w whiff, s skip). A character\'s every attack takes a minute or two: each call checks moves until its time budget runs out and lists the rest.',
+    p: { char: str('character name'), move: str('one move'), moves: arr('these moves (default: every attack of the character)', { type: 'string' }), opp: str('the target character (default: the same one)'),
+      all: bool('list every cell, not only the failing ones'), seconds: num('time budget (default 25): moves left unchecked are listed, to check in another call') }, req: ['char'],
+    run: a => S.runChecks({ ...a, all: !!a.all }) },
 
+  // ---------- replays and profiles ----------
+  replay_export: { d: 'A kept fight (simulation id) as a replay file: the app\'s format, JSON. The app opens it in the replay tab (or send it there with browser_command open_replay); save it with path.',
+    p: { simulation: str('simulation id'), path: str('also write it to this file (relative to the repo)') }, req: ['simulation'],
+    run: a => { const r = S.sim(a.simulation).replay; if (a.path) { fs.mkdirSync(path.dirname(S.file(a.path)), { recursive: true }); fs.writeFileSync(S.file(a.path), JSON.stringify(r)); } return r; } },
+  replay_import: { d: 'Play a replay file (from the app or replay_export) and sum it up like simulate, with desync: the first frame that came out differently from the recording (null = in sync). A replay is pinned to the engine version it was recorded with. It is kept under a new id.',
+    p: { json: { type: ['object', 'string'], description: 'the replay (JSON object or text)' }, path: str('or a file (relative to the repo)'), events: EVENTS }, run: a => S.importReplay(a) },
+  load_profile: { d: 'Load a file the app exported: "everything" (edited characters, settings, my scenarios), settings, or a character file. Characters are checked first (one broken: nothing loads); settings go over the defaults, bad ones are listed.',
+    p: { path: str('the file (relative to the repo)') }, req: ['path'], run: a => S.loadProfile(a.path) },
+  save_profile: { d: 'Save the session as an app "everything" file (characters made or edited here, changed settings, scenarios): the app loads it with import → everything.',
+    p: { path: str('the file (relative to the repo), e.g. out/profile.json') }, req: ['path'], run: a => S.saveProfile(a.path) },
 };
 
 // ---------- resources: the docs and the data shapes ----------
