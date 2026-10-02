@@ -153,6 +153,18 @@ try {
     sb('moves').click(); if (document.querySelectorAll('.mtable tbody tr').length !== Object.keys(currentChar().moves).length) errs.push('character move table');
     [...document.querySelectorAll('.mtable .bar button')].find(b => b.textContent.includes('editor')).click(); if (document.querySelector('.mtable') || app.mode !== 'character') errs.push('character move table close');
     sb('inputs').click(); if (!document.querySelector('.mtable')) errs.push('character inputs'); creator.view = null; panels(); }
+  // play's fighter select: P1 and P2 each pick from a grid of cards (or follow the editor), swap trades them; the fight is rebuilt with them
+  { setMode('play'); pickChar('stick'); lab.scen = 'you vs dummy'; lab.chars = [null, null]; setMode('play');
+    const fb = i => [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('P' + i + ':')), card = k => [...document.querySelectorAll('.pop .card')].find(c => c.textContent === k);
+    fb(1).click(); if (document.querySelectorAll('.pop .card').length !== Object.keys(DEFS).length) errs.push('fighter cards ' + document.querySelectorAll('.pop .card').length);
+    card('jabbo').click(); fb(2).click(); card('lumpo').click();
+    const w = () => lab.cells[0].w;
+    if (w().a.ch !== CHARS.jabbo || w().b.ch !== CHARS.lumpo || CURRENT !== 'stick') errs.push('fighter pick ' + w().a.ch.name + w().b.ch.name + CURRENT);
+    [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('Swap')).click();
+    if (w().a.ch !== CHARS.lumpo || w().b.ch !== CHARS.jabbo) errs.push('fighter swap');
+    fb(1).click(); [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('editor')).click();
+    if (w().a.ch !== CHARS.stick || lab.chars[0] !== null) errs.push('fighter follows the editor');
+    lab.chars = [null, null]; build(); }
   // ⌘K: combos opens the combo editor over the stage (character tab: there, else animate)
   { setMode('play'); const e = paletteEntries().find(e => e.name === 'combos' && e.kind === 'editor'); e?.run(); panels();
     if (app.mode !== 'animate' || anim.view !== 'combos' || !document.querySelector('.ctable')) errs.push('palette combos ' + app.mode + anim.view);

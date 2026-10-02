@@ -205,10 +205,11 @@ function drawThumb(cv, ch, pose = ch.poses.stance, cw = 60, chh = 64) {
   c.translate(w / 2 - (x0 + x1) / 2 * s, hh - 3 * dpr - low * s); c.scale(s, s);
   drawFigure(c, ch, L, INK[0], INK[1]);
 }
-function charCard(k) {
+// a character as a card; by default clicking it makes it the one every mode edits
+function charCard(k, pick = pickChar, on = k => CURRENT === k) {
   const cv = h('canvas'), b = h('button', { cls: 'card', tip: `${CHAR_DEFS[k] ? 'Built-in' : 'Your character'}: ${k} · ${CHARS[k].bones.length} bones · speed ${CHARS[k].stats.speed}`,
-    onclick: () => { closePop(); pickChar(k); syncAll(); } }, cv, h('span', { textContent: k }));
-  reg(b, () => { b.classList.toggle('on', CURRENT === k); drawThumb(cv, CHARS[k]); });
+    onclick: () => { closePop(); pick(k); syncAll(); } }, cv, h('span', { textContent: k }));
+  reg(b, () => { b.classList.toggle('on', on(k)); drawThumb(cv, CHARS[k]); });
   return b;
 }
 // the character's stances: each has its own pose, binds (unset slots use the main ones), key and idle / walk loops
@@ -252,7 +253,7 @@ function charPanel() {
   // the current character only; the others in a popup grid (picking one is rare next to editing it)
   const cv = h('canvas'), name = h('b'), info = h('span', { cls: 'note' });
   const pick = h('button', { cls: 'charpick', tip: 'The character every mode uses · click: pick another',
-    onclick: () => popup(pick, h('div', { cls: 'cards' }, Object.keys(DEFS).map(charCard))) }, cv, h('span', {}, name, info), ...rich(':expand_more:'));
+    onclick: () => popup(pick, h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k)))) }, cv, h('span', {}, name, info), ...rich(':expand_more:'));
   reg(pick, () => { const c = currentChar(); drawThumb(cv, c, undefined, 36, 40); name.textContent = CURRENT;
     info.textContent = `${CHAR_DEFS[CURRENT] ? 'built-in' : 'yours'} · ${c.bones.length} bones`; });
   return [head, pick];

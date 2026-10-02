@@ -4,7 +4,7 @@ const canvas = $('c'), ctx = canvas.getContext('2d');
 const cursor = c => { if (canvas.style.cursor !== c) canvas.style.cursor = c; }; // the mouse cursor follows what is under it
 let dpr = 1;
 const lab = { mode: 'play', scen: 'you vs dummy', rows: null, x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
-  seeds: 1, meter: false, inputs: false, tape: null, rec: false, replay: false, target: 'dummy', playback: null };
+  seeds: 1, meter: false, inputs: false, tape: null, rec: false, replay: false, target: 'dummy', playback: null, chars: [null, null] };
 const newWorld = (...a) => Object.assign(new World(...a), { loop: app.loop });
 
 // what the little plot under a grid cell shows, by the swept variable
@@ -67,7 +67,7 @@ function build() {
   lab.cells = []; lab.cols = 3; lab.zoom = false; lab.scroll = 0;
   if (lab.mode === 'play') {
     const replay = lab.replay && lab.tape?.length && scen.a === 'human';
-    lab.cells.push({ w: lab.playback ? Object.assign(replayWorld(lab.playback), { loop: app.loop }) : newWorld(replay ? { ...scen, b: { tape: lab.tape } } : scen) });
+    lab.cells.push({ w: lab.playback ? Object.assign(replayWorld(lab.playback), { loop: app.loop }) : newWorld(replay ? { ...scen, b: { tape: lab.tape } } : scen, {}, 1, playChars()) });
     lab.cells[0].w.sfx = playSound; lab.cols = 1;
   }
   else if (lab.mode === 'impact') for (const [k, [tip, s]] of Object.entries(IMPACTS))
@@ -299,6 +299,22 @@ function drawScope() {
     (w.adv === null ? '' : ` · last hit ${w.adv >= 0 ? '+' : ''}${w.adv}f`);
 }
 
+// play's fighters: P1 and P2 by name, null = the character being edited (extra fighters take P2's); a scenario's own chars win
+const playChars = () => lab.chars.some(Boolean) ? lab.chars.map(n => CHARS[n] || currentChar()) : null;
+function fighterPick(i) {
+  const set = v => { lab.chars[i] = v; build(); }, cv = h('canvas'), name = () => lab.chars[i] && CHARS[lab.chars[i]] ? lab.chars[i] : CURRENT;
+  const b = button('', `P${i + 1}: the ${i ? 'opponent' : 'fighter you play (the left one)'} · click: pick from every character`, (e, el) => popup(el,
+    h('b', { textContent: `P${i + 1}` }), h('p', { textContent: SCENARIOS[lab.scen].chars ? 'This scenario brings its own fighters; the pick applies to the others.' : `Who fights as P${i + 1}` }),
+    h('div', { cls: 'bar' }, toggle(':edit: editor', `Follow the character being edited (now ${CURRENT})`, () => !lab.chars[i], () => { closePop(); set(null); }),
+      button(':casino: random', 'A random character from the roster', () => { closePop(); const ks = Object.keys(DEFS); set(ks[Math.floor(Math.random() * ks.length)]); }),
+      i ? button(':content_copy: mirror', 'The same character as P1', () => { closePop(); set(lab.chars[0]); }) : null),
+    h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k, set, k => name() === k && !!lab.chars[i])))));
+  b.classList.add('fpick');
+  reg(b, () => { b.replaceChildren(cv, h('span', { textContent: `P${i + 1} ${name()}` })); drawThumb(cv, CHARS[name()], undefined, 20, 22); });
+  return b;
+}
+const swapFighters = () => button(':swap_horiz:', 'Swap P1 and P2', () => { lab.chars.reverse(); build(); });
+
 // ---------- context bar: scenario, grid axes, focus ----------
 const ctlName = c => c === 'human' ? 'you' : c === 'ai' ? 'AI' : Array.isArray(c) ? 'script' : 'dummy';
 function scenTip(s) {
@@ -418,6 +434,7 @@ function labCtx() {
   const els = [];
   if (lab.mode === 'grid') els.push(grp('grid', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
   if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('fight', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = null; build(); })));
+  if (lab.mode === 'play') els.push(grp('fighters', 'Who fights: P1 (you) and P2, each any character; unset = the one being edited', fighterPick(0), swapFighters(), fighterPick(1)));
   if (lab.mode === 'play' && SCENARIOS[lab.scen]?.waves) els.push(grp('waves', SPEC.waves.tip + ' Changing it starts over at wave 1',
     seg(SPEC.waves.opts, () => CFG.waves, v => { setCfg({ waves: v }); mode().restart(); }, SPEC.waves.optTips),
     toggle(':casino: mixed', SPEC.waveMix.tip, () => CFG.waveMix, v => { setCfg({ waveMix: v }); mode().restart(); })));
