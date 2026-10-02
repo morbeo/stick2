@@ -689,7 +689,8 @@ class Fighter {
           const a = r.p[b.parent || 'hip'], e = r.p[b.id], ex = e.x - a.x, ey = e.y - a.y, l2 = ex * ex + ey * ey || 1e-6;
           A[b.id] = Math.atan2(ex * d, ey) / R; Om[b.id] = (ey * (e.vx - a.vx) - ex * (e.vy - a.vy)) * d / l2;
         }
-        const K = 400 * c('tone') * r.tone, KL = 3000, KS = 150;
+        const K = 400 * c('tone') * r.tone, KL = 3000, KS = 150, kin = {};
+        for (const b of [...ch.bones].reverse()) kin[b.id] = [b, ...b.kids.flatMap(k => kin[k.id])]; // each bone and all it carries
         for (const b of ch.bones) {
           if (b === ref) continue;
           const pb = ch.by[b.parent], pid = pb ? pb.id : ref.id, a = r.p[b.parent || 'hip'], e = r.p[b.id], far = r.p[pb ? pb.parent || 'hip' : ref.id];
@@ -706,12 +707,13 @@ class Fighter {
           }
           // implicit (backward Euler) spring and critical damper: stable however stiff
           const dw = (om + dt * f) / (1 + 2 * Math.sqrt(k) * dt + k * dt * dt) - om;
-          const ex = e.x - a.x, ey = e.y - a.y, fx = far.x - a.x, fy = far.y - a.y;
-          const Ic = (ex * ex + ey * ey) / e.im, Ip = (fx * fx + fy * fy) / far.im, wc = Ip / (Ic + Ip + 1e-9);
-          const dex = (dw * wc) * ey * d, dey = -(dw * wc) * ex * d, dfx = -(dw * (1 - wc)) * fy * d, dfy = (dw * (1 - wc)) * fx * d;
-          e.vx += dex; e.vy += dey; far.vx += dfx; far.vy += dfy;
-          a.vx -= (dex / e.im + dfx / far.im) * a.im; a.vy -= (dey / e.im + dfy / far.im) * a.im;
-          Om[b.id] += dw * wc; Om[pid] -= dw * (1 - wc);
+          const fx = far.x - a.x, fy = far.y - a.y, sub = b.role === 'head' ? kin[b.id] : [b];
+          const Ic = sub.reduce((t, k) => { const q = r.p[k.id]; return t + ((q.x - a.x) ** 2 + (q.y - a.y) ** 2) / q.im; }, 0), Ip = (fx * fx + fy * fy) / far.im, wc = Ip / (Ic + Ip + 1e-9);
+          const dfx = -(dw * (1 - wc)) * fy * d, dfy = (dw * (1 - wc)) * fx * d;
+          let px = dfx / far.im, py = dfy / far.im;
+          for (const k of sub) { const q = r.p[k.id], dx = (dw * wc) * (q.y - a.y) * d, dy = -(dw * wc) * (q.x - a.x) * d; q.vx += dx; q.vy += dy; px += dx / q.im; py += dy / q.im; Om[k.id] += dw * wc; }
+          far.vx += dfx; far.vy += dfy; a.vx -= px * a.im; a.vy -= py * a.im;
+          Om[pid] -= dw * (1 - wc);
         }
       }
       const cb = c('ceiling');
@@ -768,12 +770,14 @@ class Fighter {
       } else if (land > 150) { this.w.dust(hip.x, G, imp, this.z); this.w.trauma = Math.min(1, this.w.trauma + 0.15 * imp); }
     }
     // the bone angles from the joints, unwrapped next to the last ones so the springs never spin a full turn afterwards
+    // (Wa: the world angles as fk adds them up, turns included: a half-level bone like the neck would flip over otherwise)
     const Wa = {};
     for (const b of ch.bones) {
-      const a = r.p[b.parent || 'hip'], e = r.p[b.id], pb = ch.by[b.parent];
-      const Wb = Wa[b.id] = Math.atan2((e.x - a.x) * d, e.y - a.y) / R;
-      const p = pb ? Wb - Wa[pb.id] + b.level * (Wa[pb.id] - pb.restW) : Wb;
+      const a = r.p[b.parent || 'hip'], e = r.p[b.id], pb = ch.by[b.parent], pw = pb ? Wa[pb.id] : 0;
+      const Wb = Math.atan2((e.x - a.x) * d, e.y - a.y) / R;
+      const p = pb ? Wb - pw + b.level * (pw - pb.restW) : Wb;
       this.disp[b.id] = this.prev[b.id] + wrap180(p - this.prev[b.id]);
+      Wa[b.id] = pw + this.disp[b.id] - b.level * (pw - (pb ? pb.restW : 0));
       this.lens[b.id] = Math.hypot(e.x - a.x, e.y - a.y);
       this.flt[b.id].reset(this.disp[b.id]);
     }

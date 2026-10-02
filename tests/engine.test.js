@@ -192,6 +192,28 @@ test('a fully limp body lies with its knees bent (slack), neither straight nor f
   assert.ok(knees.every(k => k > 15 && k < 150), `knees ${knees}`);
 });
 
+test('a ragdoll is drawn where it is simulated, upside down too (the half-level neck keeps up)', () => {
+  const off = run(`(() => { const w = new World({ a: [0.1, '@launcher'], b: 'dummy', period: 9 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    let off = 0; for (let i = 0; i < 240; i++) { w.advance(1/60, NOIN); const f = w.b; if (!f.rag) continue; const P = f.body();
+      for (const id in f.rag.p) off = Math.max(off, Math.hypot(f.rag.p[id].x - P[id][0], f.rag.p[id].y - P[id][1])); } return off; })()`);
+  assert.ok(off < 0.5, `drawn ${off}px off`);
+});
+
+test('a ragdoll head keeps to its joint limits and never props the body up', () => {
+  let frames = 0, over = 0;
+  for (const c of ['stick', 'grumbo', 'lumpo', 'sarj']) for (const seed of [1, 2, 3]) for (const a of ['@charge', '@launcher', '@sweep']) {
+    const r = run(`(() => { const w = new World({ a: [0.1, '${a}'], b: 'dummy', bx: 380, period: 9 }, {}, ${seed}, [CHARS.stick, CHARS.${c}]); w.loop = false;
+      const f = w.b, ch = f.ch, head = ch.bones.find(b => b.shape === 'circle' && b.role === 'head'); let n = 0, over = 0, prop = 0;
+      for (let i = 0; i < 400; i++) { w.advance(1/60, NOIN); if (!f.rag) continue; const p = f.rag.p, A = id => { const b = ch.by[id], a = p[b.parent || 'hip'], e = p[id]; return Math.atan2((e.x - a.x) * f.dir, e.y - a.y) / R; };
+        n++; if (ch.bones.some(b => { if (b.role !== 'head' || b.min === undefined) return false; const x = wrap180(A(b.id) - A(b.parent) - (b.min + b.max) / 2) + (b.min + b.max) / 2; return x < b.min - 10 || x > b.max + 10; })) over++;
+        const nk = p[head.parent], hd = p[head.id]; if (f.kd === 'down') prop = hd.y + hd.r > f.groundY - 1 && hd.y - nk.y > 3 && f.groundY - nk.y > 14 ? 1 : 0; }
+      return { n, over, prop }; })()`);
+    assert.ok(!r.prop, `${c} ${a} seed ${seed}: the head props the body up`);
+    frames += r.n; over += r.over;
+  }
+  assert.ok(over / frames < 0.06, `${over} of ${frames} frames more than 10° past a head joint limit`);
+});
+
 test('per-move hit stop, blockstun and block push override the settings', () => {
   const probe = (mv, guard) => run(`(() => { const d = { ...CHAR_DEFS.stick, moves: { ...CHAR_DEFS.stick.moves, kick: { ...CHAR_DEFS.stick.moves.kick, ...${JSON.stringify(mv)} } } };
     const w = new World({ a: [0.1, '@kick'], b: ${guard ? "[{ hold: 'guard', t: 3 }]" : "'dummy'"}, ax: 330, bx: 385, period: 9 }, {}, 7, [makeCharacter(d), CHARS.stick]); w.loop = false;
