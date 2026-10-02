@@ -32,7 +32,7 @@ One fight on the full stage.
 
 **new scenario** in the picker copies the current scenario into a builder over the stage. **scenario** in the **panels** group (shown for your own scenarios) opens and closes it.
 
-- **P1 and P2** each get a character (or the one being edited), a controller, a start x and back turned.
+- **P1 and P2** each get a character (or the one being edited), a controller, a start x, back turned and a shield (off, no damage or untouchable, as in the fighters group).
 - **Controllers:** you, AI, dummy, or a script like `0.2, 2P, hold up 0.2, K`.
 - **restart** sets how often the fight starts over.
 - **settings:** add one by name, or **take my settings** to bring every setting you changed from the defaults.
@@ -49,6 +49,7 @@ The **fighters** group in the toolbar has one button per fighter: P1, P2, and P3
 - By default a fighter follows the character being edited. Unset extra fighters fight as P2.
 - **random** picks a random character; **mirror** gives P2 the same one as P1; ⇄ swaps P1 and P2.
 - A scenario that names its own characters keeps them.
+- The **shield** beside each fighter cycles off → **no damage** (it reacts to hits but loses no health, chip included, so it is never knocked out) → **untouchable** (nothing hits it: strikes, shots, thrown weapons and throws pass through). The fight restarts with it, and a saved replay keeps it.
 
 ### The AI
 

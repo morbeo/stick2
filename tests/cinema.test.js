@@ -58,3 +58,29 @@ test('slow motion on counter hit, parry and K.O.; a K.O. freeze stops everyone',
     return [slow, frozen, slow0]; })()`);
   assert.ok(r[0] > 1.4, 'K.O. slow motion ' + r[0]), assert.ok(r[1] > 0, 'K.O. freeze'), assert.equal(r[2], 0.35);
 });
+
+// invulnerability per fighter: the scen's aover / bover / more[].over reach Fighter.c, and replays keep them
+test('an untouchable fighter takes no hits: strikes, shots and thrown weapons pass through', () => {
+  for (const s of ['J,J,K', 'air combo', 'fireball', 'weapon throw']) {
+    const r = run(`(() => { const w = cine({ ...SCENARIOS[${JSON.stringify(s)}], bover: { inv: 'untouchable' } }, {}, 150), p = cine(${JSON.stringify(s)}, {}, 150);
+      return [w.hits, w.b.hp, w.b.c('health'), p.hits]; })()`);
+    assert.equal(r[0], 0, s), assert.equal(r[1], r[2], s), assert.ok(r[3] > 0, s + ' hits without the shield');
+  }
+});
+
+test('a no damage fighter reacts to hits but keeps its health; chip and K.O. too', () => {
+  const r = run(`(() => { let hurt = 0; const w = cine({ ...SCENARIOS['J,J,K'], bover: { inv: 'nodamage' } }, {}, 150, w => { if (!w.b.free) hurt++; });
+    const ko = cine({ a: [0.1, '@roundhouse'], b: 'dummy', bx: 385, bover: { inv: 'nodamage' }, init: w => { w.b.hp = 1; } }, {}, 60);
+    const chip = cine({ ...SCENARIOS['vs guard'], bover: { inv: 'nodamage' } }, { chip: 0.5 }, 150);
+    return [w.hits, hurt, w.b.hp, w.b.c('health'), ko.hits, ko.b.hp, ko.b.ko, chip.blocks, chip.b.hp]; })()`);
+  assert.ok(r[0] > 0 && r[1] > 10, 'hit and reacting'), assert.equal(r[2], r[3]);
+  assert.ok(r[4] > 0 && r[5] === 1 && !r[6], 'no K.O.');
+  assert.ok(r[7] > 0 && r[8] === r[3], 'no chip');
+});
+
+test('the shields go into replay files and play back', () => {
+  const r = run(`(() => { const w = cine({ ...SCENARIOS['J,J,K'], aover: { inv: 'nodamage' }, bover: { inv: 'untouchable' } }, {}, 120), rep = makeReplay(w, 'J,J,K'), back = replayWorld(rep);
+    back.loop = false; for (let i = 0; i <= rep.frames.length; i++) back.advance(0, NOIN);
+    return JSON.stringify([rep.scen.bover.inv, back.a.c('inv'), back.b.c('inv'), back.desync]); })()`);
+  assert.deepEqual(JSON.parse(r), ['untouchable', 'nodamage', 'untouchable', null]);
+});

@@ -242,6 +242,11 @@ try {
     fb(1).click(); [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes('editor')).click();
     if (w().a.ch !== CHARS.stick || lab.chars[0] !== null) errs.push('fighter follows the editor');
     lab.chars = [null, null]; build();
+    // a shield per fighter: off → no damage → untouchable → off, the fight rebuilt with it in the scen
+    const sh = i => [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('P' + i + "'s shield"));
+    sh(2).click(); const nd = w().b.c('inv'); sh(2).click();
+    if (nd !== 'nodamage' || w().b.c('inv') !== 'untouchable' || w().scen.bover?.inv !== 'untouchable' || w().a.c('inv') || !sh(2).classList.contains('on') || !sh(2).dataset.tip.includes('untouchable: nothing')) errs.push('shield ' + [nd, w().b.c('inv')]);
+    sh(2).click(); if (w().b.c('inv') || lab.inv[1] || sh(2).classList.contains('on')) errs.push('shield off ' + w().b.c('inv'));
     // a scenario with more fighters has a pick for each: P3 unset fights as P2, P4 picked fights as that one
     lab.scen = 'ai free-for-all'; lab.chars = [null, 'lumpo']; build(); panels();
     const fp = [...document.querySelectorAll('#ctx .fpick')]; fp[3]?.click(); [...document.querySelectorAll('.pop .cards > *')].find(c => c.textContent.includes('jabbo'))?.click();
@@ -373,6 +378,8 @@ try {
     const name = lab.scen, u = () => myScens()[lab.scen], w = () => lab.cells[0].w;
     if (!document.querySelector('.sbuild') || !u() || !/^my scenario/.test(name) || u().p[0].ctl !== 'script' || u().p[0].script !== 'punch, 0.13, punch, 0.13, kick') errs.push('builder new ' + name + JSON.stringify(u()));
     bb('jabbo', row(0)).click(); bb('lumpo', row(1)).click(); bb('AI', row(1)).click();
+    bb('untouchable', row(1)).click(); const inv1 = [u().p[1].inv, w().b.c('inv')]; row(1).querySelector('button[data-tip="P2 can be hit and hurt"]').click();
+    if (inv1.join() !== 'untouchable,untouchable' || 'inv' in u().p[1] || w().b.c('inv')) errs.push('builder shield ' + inv1);
     const sc = row(0).querySelector('input.script'); sc.value = '0.2, 2P'; sc.dispatchEvent(new Event('change'));
     const nm = document.querySelector('.sbuild input.sname'); nm.value = 'jab vs sumo'; nm.dispatchEvent(new Event('change'));
     if (lab.scen !== 'jab vs sumo' || !SCENARIOS['jab vs sumo'] || SCENARIOS[name] || w().a.ch !== CHARS.jabbo || w().b.ch !== CHARS.lumpo || !(w().ctl[1] instanceof Brain) || JSON.stringify(w().scen.a) !== JSON.stringify([0.2, 'down+punch'])) errs.push('builder edit ' + lab.scen + ' ' + JSON.stringify(w().scen.a));

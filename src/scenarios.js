@@ -1,6 +1,6 @@
 'use strict';
 // ---------- my scenarios: built in the browser (characters, controllers, scripts, positions, settings), saved as you go ----------
-// stored as { name: { p: [{ char, ctl, script, x, away }, …], period, cfg } } and registered in SCENARIOS (flag user) for the picker and the grid
+// stored as { name: { p: [{ char, ctl, script, x, away, inv }, …], period, cfg } } and registered in SCENARIOS (flag user) for the picker and the grid
 const SCEN_STORE = 'stick2.scenarios';
 const myStore = (() => { try { return JSON.parse(localStorage.getItem(SCEN_STORE)) || {}; } catch { return {}; } })();
 const myScens = () => myStore;
@@ -11,14 +11,15 @@ const scriptText = a => a.map(i => typeof i === 'number' ? (Number.isInteger(i) 
 function toScen(u) {
   const [p, q] = u.p, ctl = f => f.ctl === 'script' ? parseMacro(f.script) : CTLS[f.ctl];
   const away = u.p.map(f => f.away);
-  return { a: ctl(p), b: ctl(q), ax: p.x, bx: q.x, chars: [p.char, q.char], cfg: { ...u.cfg }, period: u.period, user: true,
+  const over = f => f.inv ? { inv: f.inv } : undefined; // invulnerability: the fighter's own override (Fighter.c)
+  return { a: ctl(p), b: ctl(q), ax: p.x, bx: q.x, aover: over(p), bover: over(q), chars: [p.char, q.char], cfg: { ...u.cfg }, period: u.period, user: true,
     init: away.some(Boolean) ? w => { [w.a, w.b].forEach((f, i) => { if (away[i]) { f.away = true; f.dir = -f.dir; } }); } : undefined };
 }
 // a new one from a scenario's two fighters (its script, positions, characters and settings)
 function fromScen(s, chars) {
-  const f = (c, x, ch) => ({ char: ch ?? null, ctl: Array.isArray(c) ? 'script' : Object.keys(CTLS).find(k => CTLS[k] === c) || 'dummy', script: Array.isArray(c) ? scriptText(c) : '', x, away: false });
+  const f = (c, x, ch, o) => ({ char: ch ?? null, ctl: Array.isArray(c) ? 'script' : Object.keys(CTLS).find(k => CTLS[k] === c) || 'dummy', script: Array.isArray(c) ? scriptText(c) : '', x, away: false, ...o?.inv && { inv: o.inv } });
   const scripted = Array.isArray(s.a);
-  return { p: [f(s.a, s.ax ?? (scripted ? 330 : 300), (s.chars || chars)?.[0]), f(s.b, s.bx ?? (scripted ? 375 : 500), (s.chars || chars)?.at(-1))], period: s.period || 0, cfg: { ...s.cfg } };
+  return { p: [f(s.a, s.ax ?? (scripted ? 330 : 300), (s.chars || chars)?.[0], s.aover), f(s.b, s.bx ?? (scripted ? 375 : 500), (s.chars || chars)?.at(-1), s.bover)], period: s.period || 0, cfg: { ...s.cfg } };
 }
 function saveScens() {
   for (const k of Object.keys(SCENARIOS)) if (SCENARIOS[k].user && !myStore[k]) delete SCENARIOS[k];
@@ -30,7 +31,7 @@ function newScen() {
   let n = 1;
   while (SCENARIOS[`my scenario ${n}`]) n++;
   const name = `my scenario ${n}`;
-  myStore[name] = fromScen(SCENARIOS[lab.scen], lab.chars.some(Boolean) ? lab.chars : null);
+  myStore[name] = fromScen(withInv(SCENARIOS[lab.scen]), lab.chars.some(Boolean) ? lab.chars : null);
   saveScens(); lab.scen = name; build(); openStage('builder');
 }
 // every change saves and rebuilds the fight behind the builder
@@ -54,7 +55,10 @@ function scenBuilder() {
       f.ctl === 'script' ? h('input', { cls: 'macro script', value: f.script, tip: "Steps: '0.2, 2P, 0.12, K' (waits have a dot, inputs in numpad notation or words: down+punch, @move plays a move, hold up 0.2)",
         onkeydown: e => e.stopPropagation(), onchange: e => { f.script = e.target.value; scenChanged(); } }) : null,
       slider('x', { min: 40, max: W - 40, step: 5 }, () => f.x, v => { f.x = v; scenChanged(); }, `Where P${i + 1} starts (the stage is ${W} wide)`),
-      toggle(':swap_horiz: back turned', `P${i + 1} starts with its back to the foe`, () => f.away, v => { f.away = v; scenChanged(); })));
+      toggle(':swap_horiz: back turned', `P${i + 1} starts with its back to the foe`, () => f.away, v => { f.away = v; scenChanged(); }),
+      seg(['off', 'nodamage', 'untouchable'], () => f.inv || 'off', v => { if (v === 'off') delete f.inv; else f.inv = v; scenChanged(); },
+        { off: `P${i + 1} can be hit and hurt`, nodamage: `P${i + 1} reacts to hits but loses no health`, untouchable: `Nothing hits P${i + 1}: strikes, shots and throws pass through` },
+        v => v === 'off' ? ':shield: off' : v === 'nodamage' ? 'no damage' : v)));
     // settings: the overrides it brings, each editable; add one by name, or take every setting changed from the defaults now
     const over = Object.keys(u.cfg).filter(k => SPEC[k]).map(k => { const s = SPEC[k], set = v => { u.cfg[k] = v; scenChanged(); };
       return h('div', { cls: 'bar' }, s.opts ? h('span', { textContent: k }) : null,

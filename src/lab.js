@@ -4,7 +4,7 @@ const canvas = $('c'), ctx = canvas.getContext('2d');
 const cursor = c => { if (canvas.style.cursor !== c) canvas.style.cursor = c; }; // the mouse cursor follows what is under it
 let dpr = 1;
 const lab = { mode: 'play', scen: 'you vs dummy', rows: null, x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
-  seeds: 1, tape: null, rec: false, replay: false, target: 'dummy', playback: null, chars: [null, null], impact: 'hits', blowPower: 'normal', blowSide: 'front' };
+  seeds: 1, tape: null, rec: false, replay: false, target: 'dummy', playback: null, chars: [null, null], inv: [], impact: 'hits', blowPower: 'normal', blowSide: 'front' };
 layFlag(lab, 'meter'); layFlag(lab, 'inputs'); // per tab, in the layout
 const newWorld = (...a) => Object.assign(new World(...a), { loop: app.loop });
 
@@ -93,7 +93,7 @@ function build() {
   lab.cells = []; lab.cols = 3; lab.zoom = false; lab.scroll = 0;
   if (lab.mode === 'play') {
     const replay = lab.replay && lab.tape?.length && scen.a === 'human';
-    lab.cells.push({ w: lab.playback ? Object.assign(replayWorld(lab.playback), { loop: app.loop }) : newWorld(replay ? { ...scen, b: { tape: lab.tape } } : scen, {}, 1, playChars()) });
+    lab.cells.push({ w: lab.playback ? Object.assign(replayWorld(lab.playback), { loop: app.loop }) : newWorld(withInv(replay ? { ...scen, b: { tape: lab.tape } } : scen), {}, 1, playChars()) });
     lab.cells[0].w.sfx = playSound; lab.cols = 1;
   }
   else if (lab.mode === 'impact' && lab.impact === 'ragdoll') { lab.cells.push({ w: ragdollWorld() }); lab.cols = 1; }
@@ -351,6 +351,17 @@ function fighterPick(i) {
   reg(b, () => { b.replaceChildren(cv, h('span', { textContent: `P${i + 1} ${name()}` })); drawThumb(cv, CHARS[name()], undefined, 20, 22); });
   return b;
 }
+// play's shields: invulnerability per fighter (null, nodamage, untouchable), put in the scen as the fighters' overrides so replays keep it
+const INV_OPTS = [null, 'nodamage', 'untouchable'];
+const withInv = s => s.user || !lab.inv.some(Boolean) ? s : { ...s, ...lab.inv[0] && { aover: { ...s.aover, inv: lab.inv[0] } }, ...lab.inv[1] && { bover: { ...s.bover, inv: lab.inv[1] } },
+  ...s.more && { more: s.more.map((m, i) => lab.inv[i + 2] ? { ...m, over: { ...m.over, inv: lab.inv[i + 2] } } : m) } };
+function shieldButton(i) {
+  const b = button('', '', () => { lab.inv[i] = INV_OPTS[(INV_OPTS.indexOf(lab.inv[i] ?? null) + 1) % 3]; build(); }, 'tog');
+  reg(b, () => { const v = lab.inv[i];
+    setRich(b, v ? `:shield: ${v === 'nodamage' ? 'no damage' : 'untouchable'}` : ':shield:'); b.classList.toggle('on', !!v);
+    b.dataset.tip = `P${i + 1}'s shield, now ${v === 'nodamage' ? 'no damage: hit reactions, but no health lost' : v ? 'untouchable: nothing hits it' : 'off'} · click: off → no damage → untouchable`; });
+  return b;
+}
 const swapFighters = () => button(':swap_horiz:', 'Swap P1 and P2', () => { [lab.chars[0], lab.chars[1]] = [lab.chars[1] ?? null, lab.chars[0] ?? null]; build(); });
 
 // ---------- context bar: scenario, grid axes, focus ----------
@@ -508,7 +519,7 @@ function labCtx() {
   if (lab.mode === 'grid') els.push(grp('grid', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
   if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('fight', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = null; build(); panels(); })));
   if (lab.mode === 'play' && !SCENARIOS[lab.scen]?.user) els.push(grp('fighters', 'Who fights: P1 (you), P2 and any extra fighters of the scenario, each any character; unset = the one being edited (P3 on: as P2)',
-    fighterPick(0), swapFighters(), fighterPick(1), Array.from({ length: fighterCount(SCENARIOS[lab.scen]) - 2 }, (_, i) => fighterPick(i + 2))));
+    fighterPick(0), shieldButton(0), swapFighters(), fighterPick(1), shieldButton(1), Array.from({ length: fighterCount(SCENARIOS[lab.scen]) - 2 }, (_, i) => [fighterPick(i + 2), shieldButton(i + 2)])));
   if (lab.mode === 'play' && SCENARIOS[lab.scen]?.waves) els.push(grp('waves', SPEC.waves.tip + ' Changing it starts over at wave 1',
     seg(SPEC.waves.opts, () => CFG.waves, v => { setCfg({ waves: v }); mode().restart(); }, SPEC.waves.optTips),
     toggle(':casino: mixed', SPEC.waveMix.tip, () => CFG.waveMix, v => { setCfg({ waveMix: v }); mode().restart(); })));

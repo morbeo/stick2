@@ -828,6 +828,7 @@ class Fighter {
   // the hurt bone the strike overlaps most, or null
   hurtAt([s0, s1, r], useTarget, otg) {
     const a = this.action;
+    if (this.c('inv') === 'untouchable') return null; // a scenario's or play's shield: strikes, shots and thrown weapons pass through
     if (this.kd === 'down' && !otg || a?.m.inv || a?.m.keys[a.i]?.inv || this.dodgeT > 0 || this.invT > 0) return null;
     const P = useTarget ? this.points(this.target) : this.body();
     let best = null;
@@ -864,7 +865,7 @@ class Fighter {
     const bs = (m.bstun || (m.stun || 0.4) * this.c('blockStun')) * (just ? this.c('justGuardStun') : 1);
     this.hurtT = this.blockT = bs; this.guarding = true; this.combo = 0; this.buffer = null; this.parryT = 0; this.blocked = att;
     this.vx = just ? 0 : att.dir * (m.bpush || m.knock * this.c('blockPush')) * this.c('powerScale') / this.ch.stats.weight;
-    if (this.c('health') > 0 && !just) this.hp = Math.max(1, this.hp - this.damageOf(m, 1) * (m.chip || this.c('chip'))); // chip never knocks out
+    if (this.c('health') > 0 && !just && !this.c('inv')) this.hp = Math.max(1, this.hp - this.damageOf(m, 1) * (m.chip || this.c('chip'))); // chip never knocks out
     if (just) { this.say('JUST'); this.flashT = 0.08; }
     for (const c of this.ch.chains.arm) this.jolt(c[0], -300 * m.power); // the guard gives
     this.sqv -= this.c('squash') * 8 * m.power;
@@ -921,8 +922,9 @@ class Fighter {
   say(text) { this.label = text; this.labelT = 0.9; this.w.ev(this, 'say', text); }
   takeHit(att, m, hit) {
     const a = this.action, own = a && !a.m.hurt;
-    if (own && a.m.keys[a.i]?.armor && (this.c('health') <= 0 || this.hp > this.damageOf(m, 1))) { // armor: the damage lands, the move goes on
-      if (this.c('health') > 0) this.hp -= this.damageOf(m, 1);
+    const hurt = this.c('health') > 0 && !this.c('inv'); // inv nodamage: every hit reaction, no health lost
+    if (own && a.m.keys[a.i]?.armor && (!hurt || this.hp > this.damageOf(m, 1))) { // armor: the damage lands, the move goes on
+      if (hurt) this.hp -= this.damageOf(m, 1);
       this.flashT = 0.1; this.say('ARMOR'); this.sqv -= this.c('squash') * 8 * m.power;
       return;
     }
@@ -932,7 +934,7 @@ class Fighter {
     const ck = own && a.m.power && a.i < a.m.cancel ? this.c('counterHit') : 1;
     const combo = this.combo = (this.free ? 0 : this.combo) + 1, dmg = this.damageOf(m, combo) * ck, wasDizzy = this.dizzyT > 0;
     if (ck > 1) this.say('COUNTER');
-    if (this.c('health') > 0 && (this.hp -= dmg) <= 0) { this.hp = 0; this.ko = true; this.say('K.O.'); }
+    if (hurt && (this.hp -= dmg) <= 0) { this.hp = 0; this.ko = true; this.say('K.O.'); }
     this.dizzyT = 0; this.reelT = 0;
     this.stunM = wasDizzy ? 0 : this.stunM + dmg; // a hit wakes a dizzy fighter (and empties the meter)
     this.comboShown = combo; this.comboT = 1; this.comboPop = 1;

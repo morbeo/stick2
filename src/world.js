@@ -48,12 +48,12 @@ class World {
       frozenT: 0, hits: 0, blocks: 0, parries: 0, clashes: 0, koT: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
       pend: null, adv: null, macro: null, combo: 1, nid: 0, fi: 0, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
     if (!this.replaying) { this.log = []; this.checkpoints = []; this.sums = {}; this.desync = null; } // every frame since the start: [dt, input, macro], for rewind and replays
-    // a vs b, plus any extra fighters: { c: controller, x, team }
-    const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0 }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1 }, ...(s.more || [])];
+    // a vs b, plus any extra fighters: { c: controller, x, team, over }; over: the fighter's own settings (aover / bover for a and b: inv …)
+    const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0, over: s.aover }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1, over: s.bover }, ...(s.more || [])];
     if (s.waves || s.survival) specs.length = 1; // the enemies come in waves (nextWave) or one by one (spawn)
     const chars = this.chars || [currentChar()];
     this.fighters = specs.map((sp, i) => Object.assign(
-      new Fighter(this, sp.x, i < 2 ? 1 - 2 * i : sp.x < W / 2 ? 1 : -1, COLS[i % COLS.length], chars[Math.min(i, chars.length - 1)]),
+      new Fighter(this, sp.x, i < 2 ? 1 - 2 * i : sp.x < W / 2 ? 1 : -1, COLS[i % COLS.length], chars[Math.min(i, chars.length - 1)], sp.over),
       { team: sp.team ?? i }));
     [this.a, this.b] = this.fighters;
     // weapons: one per fighter from the settings (on the floor in front, or in hand), plus the scenario's (items, aw / bw / more[].w = held)
@@ -356,6 +356,7 @@ class World {
 
   // ---------- juice ----------
   onHit(att, vic, hit, m, def) {
+    if (vic.c('inv') === 'untouchable') return; // nothing lands on it: not the impact tool, a counter or a throw either
     const cfg = this.cfg, pt = hit.pt, hp0 = vic.hp;
     const note = () => this.ev(att, def || 'hit', att.action?.name || m.name || '', { vic: vic.id, dmg: hp0 - vic.hp, combo: vic.combo, height: m.height });
     this.pend = { att, vic, at: null, vt: null };
