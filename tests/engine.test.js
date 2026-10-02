@@ -367,8 +367,9 @@ test('planted feet stay put while the body walks over them, step when left behin
 test('rewind after a long fight starts from a checkpoint, not from the start', () => {
   const r = json(`(() => { const w = new World(SCENARIOS['ai vs ai'], { health: 1e6 }, 3, [CHARS.stick, CHARS.sneeko]); w.loop = false;
     for (let i = 0; i < 7200; i++) w.advance(1 / 60, NOIN);
-    const t = Date.now(); w.rewind(30); return { ms: Date.now() - t, n: w.log.length, cps: w.checkpoints.length }; })()`);
-  assert.equal(r.n, 7170), assert.equal(r.cps, 66), assert.ok(r.ms < 100, r.ms + ' ms'); // the last 60 + one per 10 s before them
+    let steps = 0; const adv = w.advance; w.advance = (...a) => (steps++, adv.apply(w, a)); w.rewind(30); return { steps, n: w.log.length, cps: w.checkpoints.length }; })()`);
+  assert.equal(r.n, 7170), assert.equal(r.cps, 66); // the last 60 + one per 10 s before them
+  assert.ok(r.steps < 60, 'replays ' + r.steps + ' frames, not the whole fight'); // frames counted, not milliseconds: no wall clock, never flaky
 });
 
 test('two weapon strikes that meet clash: no hit, both recoil; with clash off the first one lands', () => {
