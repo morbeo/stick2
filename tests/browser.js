@@ -136,6 +136,23 @@ try {
     if (myLooks[name].speed !== 200) errs.push('look slider ' + JSON.stringify(myLooks[name]));
     deleteLook(name); if (name in FX_LOOKS || Object.keys(FX_LOOKS).length !== before) errs.push('look delete ' + name + ' ' + Object.keys(FX_LOOKS).length);
     openStage(null); panels(); }
+  // tracker panel: new track starts a 16-step row; cells toggle (even clicked out of order, each against the live state,
+  // not a stale snapshot from before the last redraw), steps resizes every row's cells, rows add/remove, delete removes the track
+  { setMode('animate'); openStage('tracker'); panels();
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('new track')).click();
+    const name = Object.keys(myTracks)[0];
+    if (!name || myTracks[name].rows.length !== 1 || myTracks[name].rows[0].cells.length !== 16) errs.push('new track not created ' + JSON.stringify(myTracks[name]));
+    const cells = () => [...document.querySelectorAll('.trk button.cell')];
+    cells()[0].click(); cells()[2].click(); cells()[4].click(); cells()[6].click(); // grabbed once, each click redraws the rest: must still land on the right cell
+    if (myTracks[name].rows[0].cells.filter(Boolean).length !== 4 || [0, 2, 4, 6].some(i => !myTracks[name].rows[0].cells[i])) errs.push('tracker cells ' + JSON.stringify(myTracks[name].rows[0].cells));
+    [...document.querySelectorAll('.mtable .bar')].flatMap(b => [...b.querySelectorAll('.seg button')]).find(b => b.textContent === '8').click();
+    if (myTracks[name].steps !== 8 || myTracks[name].rows[0].cells.length !== 8) errs.push('tracker steps ' + JSON.stringify(myTracks[name]));
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('row')).click();
+    if (myTracks[name].rows.length !== 2 || myTracks[name].rows[1].cells.length !== 8) errs.push('tracker add row ' + JSON.stringify(myTracks[name].rows));
+    [...document.querySelectorAll('.trk button')].find(b => b.dataset.rich === ':delete:').click();
+    if (myTracks[name].rows.length !== 1) errs.push('tracker remove row ' + myTracks[name].rows.length);
+    deleteTrack(name); if (name in myTracks) errs.push('tracker delete ' + name);
+    openStage(null); panels(); }
   // the attack grid: a hovered cell's own save button keeps that attack (once, however often it is pressed), without breeding
   lab.kind = 'attacks'; setMode('grid'); lab.hover = 4; labRender();
   const cell = lab.cells[4], sb = cell.btns.find(b => !b.open), seed = breed.seed, nMoves = Object.keys(DEFS[CURRENT].moves).length;

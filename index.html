@@ -92,6 +92,8 @@
   .card canvas { width: 60px; height: 64px; }
   canvas.radar { width: 250px; height: 250px; display: block; margin: 0 auto; }
   canvas.wave { width: 100%; height: 60px; display: block; background: #1a1a1a; border-radius: 3px; margin: 4px 0; }
+  .trk { display: flex; flex-direction: column; gap: 2px; } .trk button.cell { width: 14px; padding: 0; }
+  .trk button.cell.cur { outline: 2px solid #c33; outline-offset: -2px; }
   #over > .mtable { inset: 0; display: block; overflow: auto; background: #f3f0e8; padding: 8px; }
   #over > .mtable.itable { display: flex; flex-direction: column; overflow: hidden; } /* its two columns scroll on their own, split not stacked */
   .itable .isplit { display: flex; gap: 14px; flex: 1; min-height: 0; }
@@ -207,6 +209,7 @@
 <script src="src/ui.js"></script>
 <script src="src/layout.js"></script>
 <script src="src/sound.js"></script>
+<script src="src/tracker.js"></script>
 <script src="src/studio.js"></script>
 <script src="src/lab.js"></script>
 <script src="src/creator.js"></script>

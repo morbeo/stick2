@@ -241,7 +241,7 @@ The **panels** group → **bones** puts every bone in a table over the stage: id
 
 ### Moves
 
-The **panels** group in the toolbar (here and in animate) opens the move table, the inputs, the combos, and [sounds and looks](editing.md#sounds-and-effects) over the stage; here also the **bones** table. Click it again, × or Esc to close; each tab keeps its own open panel. A move clicked in them (or picked from **edit** in the **moves** group; in animate, from the **move** group) opens in animate. See [Editing](editing.md).
+The **panels** group in the toolbar (here and in animate) opens the move table, the inputs, the combos, [sounds, looks](editing.md#sounds-and-effects) and the [tracker](editing.md#tracker) over the stage; here also the **bones** table. Click it again, × or Esc to close; each tab keeps its own open panel. A move clicked in them (or picked from **edit** in the **moves** group; in animate, from the **move** group) opens in animate. See [Editing](editing.md).
 
 ## Animate
 

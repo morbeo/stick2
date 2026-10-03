@@ -692,7 +692,8 @@ const VIEW_TIPS = { cards: 'A drawing of each move (hover to play it)', list: 'C
   inputs: 'Every input over the stage: direction pads per button show which directions have no move of their own, and a table of all inputs; click one to give it a move',
   combos: 'The combos over the stage: the chain links (P / K, or a direction with it like 6P, after a move chains into the next, chains setting authored) as a tree per starter or a table of routes with damage and frames; add, change and cut links in place',
   sounds: 'Design sounds: every built-in and custom sound, a slider over every synth parameter, a test button; duplicate a built-in to tune your own',
-  looks: 'Design fx looks: a generic particle effect tuned by sliders (count, life, speed, spread, angle, gravity, size, shape), with a live preview; built-ins stay hand-coded, read-only' };
+  looks: 'Design fx looks: a generic particle effect tuned by sliders (count, life, speed, spread, angle, gravity, size, shape), with a live preview; built-ins stay hand-coded, read-only',
+  tracker: 'A simple step sequencer: rows of sounds, a grid of beats, play it as a loop at a tempo' };
 // ---------- move table: every move of the character, sortable, fuzzy-filtered, values edited in place ----------
 // startup / active / recovery edits retime that phase's keys; height opens its options; hovering a row plays the move by the cursor
 const PHASE_TIPS = { startup: 'Startup frames (60 fps) before the first active key. Edit to retime the startup keys.',
@@ -910,6 +911,60 @@ function looksPanel() {
   fill();
   return wrap;
 }
+// ---------- tracker: a simple step sequencer (rows of sounds, a grid of beats) that loops at a tempo ----------
+let trackSel = null;
+function newTrack() {
+  let n = 1; while (myTracks['track' + n]) n++;
+  const name = 'track' + n; saveTrack(name, { bpm: 120, steps: 16, rows: [newRow()] }); trackSel = name; return name;
+}
+function trackFields(name, refill) {
+  // every mutator reads myTracks[name] fresh (not a captured copy): refill() fully rebuilds this panel on every edit
+  // (like soundFields), so a stale closure from a previous build must never write back an outdated snapshot
+  const t = myTracks[name], playingThis = () => tracker.playing && tracker.name === name;
+  const set = (k, v) => { saveTrack(name, { ...myTracks[name], [k]: v }); refill(); };
+  const setRow = (i, k, v) => { saveTrack(name, { ...myTracks[name], rows: myTracks[name].rows.map((r, j) => j === i ? { ...r, [k]: v } : r) }); refill(); };
+  const setSteps = n => { const live = myTracks[name];
+    saveTrack(name, { ...live, steps: n, rows: live.rows.map(r => ({ ...r, cells: Array.from({ length: n }, (_, i) => r.cells[i] || false) })) }); refill(); };
+  const nm = h('input', { cls: 'macro', value: name, tip: 'Rename this track', onkeydown: e => e.stopPropagation(),
+    onchange: () => { const v = nm.value.trim(); if (!v || v === name || myTracks[v]) { nm.value = name; return; } renameTrack(name, v); trackSel = v; refill(); } });
+  const grid = h('div', { cls: 'trk' });
+  grid.replaceChildren(...t.rows.map((row, i) => h('div', { cls: 'bar' },
+    button(row.sound, 'Sound for this row (click to change)', (e, el) => popup(el, seg(Object.keys(SOUNDS), () => row.sound, v => { closePop(); setRow(i, 'sound', v); },
+      Object.fromEntries(Object.keys(SOUNDS).map(s => [s, s])))), 'mini'),
+    ...row.cells.map((on, c) => { const b = button('', `${row.sound} · step ${c + 1} (click to toggle, playing: highlighted)`,
+      () => setRow(i, 'cells', myTracks[name].rows[i].cells.map((v, k) => k === c ? !v : v)), 'mini cell' + (on ? ' on' : '')); b.dataset.col = c; return b; }),
+    button(':delete:', 'Remove this row', () => { saveTrack(name, { ...myTracks[name], rows: myTracks[name].rows.filter((_, j) => j !== i) }); refill(); }, 'mini'))));
+  const paint = () => { if (!grid.isConnected) return; const cur = curStep(myTracks[name] || t);
+    for (const c of grid.querySelectorAll('.cell')) c.classList.toggle('cur', +c.dataset.col === cur);
+    if (playingThis()) requestAnimationFrame(paint); };
+  requestAnimationFrame(paint);
+  return h('div', {},
+    h('div', { cls: 'bar' }, nm,
+      button(playingThis() ? ':stop: stop' : ':play_arrow: play', playingThis() ? `Stop ${name}` : `Play ${name} on a loop`,
+        () => { playingThis() ? stopTrack() : playTrack(name); refill(); }),
+      button(':delete: delete', `Delete ${name}`, () => { deleteTrack(name); trackSel = null; refill(); })),
+    slider('tempo', { min: 60, max: 220, step: 1 }, () => t.bpm, v => set('bpm', v), 'Beats per minute'),
+    h('div', { cls: 'bar' }, h('span', { textContent: 'steps' }), seg([8, 16, 32], () => t.steps, setSteps,
+      { 8: '8 steps', 16: '16 steps (a bar of 4/4)', 32: '32 steps' })),
+    grid,
+    button(':add: row', 'Add a sound row', () => { const live = myTracks[name]; saveTrack(name, { ...live, rows: [...live.rows, newRow(Object.keys(SOUNDS)[0], live.steps)] }); refill(); }));
+}
+function trackerPanel() {
+  const wrap = h('div', { cls: 'mtable' }), body = h('div');
+  const fill = () => {
+    if (trackSel && !myTracks[trackSel]) trackSel = null;
+    const row = n => h('div', { cls: 'bar' + (trackSel === n ? ' on' : ''), onclick: () => { trackSel = n; fill(); } },
+      h('b', { textContent: n }),
+      button(tracker.playing && tracker.name === n ? ':stop:' : ':play_arrow:', tracker.playing && tracker.name === n ? `Stop ${n}` : `Play ${n}`,
+        e => { e.stopPropagation(); tracker.playing && tracker.name === n ? stopTrack() : playTrack(n); fill(); }, 'mini'));
+    body.replaceChildren(...Object.keys(myTracks).map(row), h('h4', { textContent: trackSel || 'pick a track' }),
+      trackSel ? trackFields(trackSel, fill) : h('p', { cls: 'note', textContent: 'new track starts a 16-step pattern; its rows pick from your sounds' }));
+  };
+  wrap.append(stageHead('tracker', 'A simple step sequencer: each row plays one of your sounds on a loop of steps, at a tempo — a tiny drum machine built from the sounds you\'ve made.',
+    button(':add: new track', 'A new 16-step track', () => { newTrack(); fill(); })), body);
+  fill();
+  return wrap;
+}
 // the move picker (the move group's popup): the moves as cards or a list, grouped, sorted and filtered
 function moveList() {
   const pick = n => { closePop(); pickMove(n); }, view = () => lay('animate').movesView || 'cards', list = h('div'), fill = () => {
@@ -1035,7 +1090,8 @@ function movesGrp() {
     popup(b, h('div', { cls: 'bar' }, Object.keys(currentChar().moves).sort().map(n => button(n, `Open ${n} in the keyframe editor`, () => { closePop(); openMove(n); })))));
   return grp('moves', 'The character\'s moves: pick one to open in the keyframe editor (or click a move in the table, inputs or combos)', pick);
 }
-const MOVE_PANELS = ['table', 'inputs', 'combos', 'sounds', 'looks'], moveStage = () => ({ table: moveTable, inputs: inputTable, combos: comboView, sounds: soundsPanel, looks: looksPanel })[stageOpen()];
+const MOVE_PANELS = ['table', 'inputs', 'combos', 'sounds', 'looks', 'tracker'],
+  moveStage = () => ({ table: moveTable, inputs: inputTable, combos: comboView, sounds: soundsPanel, looks: looksPanel, tracker: trackerPanel })[stageOpen()];
 // the move toolbar (animate): previous / next, the move being edited with the picker, its actions and the stance
 function moveGrp() {
   const ch = currentChar(), names = Object.keys(ch.moves), step = d => pickMove(names[(names.indexOf(anim.move) + d + names.length) % names.length]);

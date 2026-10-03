@@ -195,6 +195,10 @@ Neither sounds nor looks are picked from a closed list — both can be designed 
 
 **panels** → **looks**. Built-in looks (fire, aura, lightning…) are hand-coded drawing and shown read-only. **new look** instead makes a custom one from a single generic particle effect, tuned by sliders: how many spawn per point, their lifetime, launch speed/spread/angle, gravity, size from birth to the end of its life, and a shape (a dot, a trailing streak, or a ring) — plus a default colour and whether it draws behind the body (like aura) or in front. A small preview animates live next to the sliders. A custom look appears anywhere a look is picked, including a move or key's fx.
 
+### Tracker
+
+**panels** → **tracker**. A simple step sequencer built from your own sounds: a track has a tempo and a number of steps (8, 16 or 32), and any number of rows, each picking a sound and a grid of beats it plays on. **play** loops it, highlighting the step currently sounding. **new track** (or **+ row**) starts one; delete a row or the whole track, rename it freely.
+
 ## Movement layers
 
 **animate → move group → + → layer.** Every movement state can get a keyframed layer on top of its procedural / IK motion.
