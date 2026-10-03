@@ -97,7 +97,7 @@ function renderDocs(root) {
     onkeydown: e => { if (e.key === 'Enter') { const f = toc.querySelector('.pitem'); if (f) f.click(); } } });
   root.replaceChildren(h('div', { cls: 'dbox' },
     h('div', { cls: 'dside' }, h('div', { cls: 'bar' }, search,
-      docs.page ? button(':sports_kabaddi: app', 'Leave the docs and open the app', closeDocs) : button(':close:', 'Close the docs (Esc)', closeDocs)), toc), body));
+      docs.page ? button(':sports_kabaddi: app', 'Leave the docs and open the app', closeDocs, 'mini') : button(':close:', 'Close the docs (Esc)', closeDocs, 'mini')), toc), body));
   fill();
 }
 // a demo shows the engine as shipped: default settings and the built-in stick, whatever the editors have changed

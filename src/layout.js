@@ -92,9 +92,10 @@ function layDelete() {
 function openStage(name) { unpeek(); lay().panel = name || null; saveLay(); panels(); }
 const closeStage = () => openStage(null);
 const stageOpen = () => lay().panel;
-// the head row of every stage panel: its name, its own tools, then × (Esc)
-const stageHead = (title, tip, ...tools) => h('div', { cls: 'bar stagehead' }, h('b', { textContent: title, tip }), ...tools, h('span', { cls: 'fill' }),
-  button(':close:', `Close the ${title} (Esc)`, closeStage, 'mini'));
+// the head row of every stage panel: its name, its own tools, then × (Esc) pinned to the panel's own top-right corner
+// (not just pushed to the end of the tools, which can wrap to another line and land it anywhere)
+const stageHead = (title, tip, ...tools) => h('div', { cls: 'bar stagehead' }, h('b', { textContent: title, tip }), ...tools,
+  button(':close:', `Close the ${title} (Esc)`, closeStage, 'mini closebtn'));
 const STAGE_LABELS = { table: ':table_rows: table', inputs: ':stadia_controller: inputs', combos: ':trending_up: combos', bones: ':accessibility_new: bones', builder: ':edit: scenario', compare: ':sync_alt: compare', events: ':list: events' };
 function panelsGrp(names, tips) {
   return grp('panels', 'Tables over the stage, edited in place (click again, × or Esc: close)',

@@ -13,6 +13,7 @@
   input, button { font: inherit; }
   @font-face { font-family: Icons; src: url(fonts/icons.woff2) format('woff2'); font-display: block; }
   .ic { font-family: Icons; font-size: 1.25em; line-height: 1; vertical-align: -.25em; font-weight: normal; font-style: normal; }
+  .ic.close { color: #c0392b; }
   button { background: #fbfaf6; border: 1px solid #cfc8bb; border-radius: 3px; padding: 0 6px; height: 22px; line-height: 20px; box-sizing: border-box; cursor: pointer; color: #333; white-space: nowrap; vertical-align: middle; }
   button .ic { font-size: 15px; vertical-align: -3px; }
   button.ico { padding: 0; width: 22px; text-align: center; } /* icon only: a small square */
@@ -32,6 +33,7 @@
   #side .fold > h3 .gops { flex-wrap: nowrap; flex-shrink: 0; } .fold.shut > h3:not(:hover) .gops { display: none; }
   #side h3 .hidebtn { margin-left: auto; color: #999; } #side h3 .gops + .hidebtn { margin-left: 2px; } #side h3:not(:hover) .hidebtn { visibility: hidden; }
   .stagehead > b { margin-right: 6px; }
+  .stagehead { position: relative; padding-right: 20px; } .stagehead .closebtn { position: absolute; top: 0; right: 0; }
   button.mini { padding: 0 3px; font-size: 11px; height: 18px; line-height: 16px; } button.mini.ico { width: 18px; padding: 0; } button.mini .ic { font-size: 13px; vertical-align: -2px; }
   .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 3px 0; } .bar.col { flex-direction: column; align-items: stretch; }
   #top { grid-area: top; padding: 4px 10px; border-bottom: 1px solid #ddd7cb; }
