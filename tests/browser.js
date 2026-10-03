@@ -798,6 +798,19 @@ try {
         ui.clip = { ...clipSet(), fps: 60, aspect: 'view' }; rp.movie.shots = revShots; panels(); await exportMovie(); saveClip = sc;
         // 5 reversed frames + 3 normal frames; it must not throw, and must produce about that many frames
         if (!got || Math.abs(got.length - 8) > 2) errs.push('reverse export ' + (got && got.length)); }); }
+    // screen fx: a fully opaque tint replaces the picture with its colour; letterbox bars are black top and bottom
+    { movieEdit(M => { M.shots = [{ reel: 0, a: 0, b: 3, fx: { tint: { col: '#3366cc', amt: 1 } } }]; });
+      const tintShots = rp.movie.shots;
+      afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
+        ui.clip = { ...clipSet(), fps: 30, aspect: 'view' }; rp.movie.shots = tintShots; panels(); await exportMovie(); saveClip = sc;
+        const c = got && got[0]?.c, g = c && c.getContext('2d'), px = g && g.getImageData(c.width >> 1, c.height >> 1, 1, 1).data;
+        if (!px || px[0] !== 0x33 || px[1] !== 0x66 || px[2] !== 0xcc) errs.push('fx tint ' + (px && [...px])); });
+      movieEdit(M => { M.shots = [{ reel: 0, a: 0, b: 3, fx: { letterbox: true } }]; });
+      const letterShots = rp.movie.shots;
+      afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
+        ui.clip = { ...clipSet(), fps: 30, aspect: 'view' }; rp.movie.shots = letterShots; panels(); await exportMovie(); saveClip = sc;
+        const c = got && got[0]?.c, g = c && c.getContext('2d'), px = g && g.getImageData(2, 2, 1, 1).data;
+        if (!px || px[0] > 10 || px[1] > 10 || px[2] > 10) errs.push('fx letterbox ' + (px && [...px])); }); }
     // clips: the 1:1 aspect crops the subject to a square
     { ui.clip = { ...clipSet(), aspect: '1:1', fit: 'crop', size: 200 }; clip.key = null; clip.frames.length = 0; clip.last = 0; clipCapture(5e6, true);
       const f = clip.frames[0]?.c; if (!f || f.width !== 200 || f.height !== 200) errs.push('clip aspect ' + (f && [f.width, f.height]));
