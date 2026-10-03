@@ -104,6 +104,18 @@ test('new fx looks (spiky aura, bubbles, sparks) draw without NaN, each on its o
   assert.deepEqual(r.auto, ['purple', 'cyan', 'gold']); assert.deepEqual(r.back, [true, false, false]);
 });
 
+test('an effect\'s spd scales the time passed to its look (the preview tool\'s speed slider; unset: unchanged)', () => {
+  const r = JSON.parse(run(`(() => { const ch = CHARS.stick, P = fk(ch, ch.poses.stance, 1), { ctx } = stubCtx();
+    const orig = FX_DRAW.aura; let seen = null;
+    FX_DRAW.aura = (c, segs, rgb, k, t) => { seen = t; };
+    drawFx(ctx, P, [[{ look: 'aura', spd: 2 }, ch.bones]], 0.37, true); const withSpd = seen; seen = null;
+    drawFx(ctx, P, [[{ look: 'aura' }, ch.bones]], 0.37, true); const without = seen;
+    FX_DRAW.aura = orig;
+    return JSON.stringify({ withSpd, without }); })()`));
+  assert.ok(Math.abs(r.withSpd - 0.74) < 1e-9, 'spd 2 doubles the time passed to the look: ' + r.withSpd);
+  assert.ok(Math.abs(r.without - 0.37) < 1e-9, 'unset spd: unchanged');
+});
+
 test('shadow: the default draws today\'s oval, every shape draws, none draws nothing, and a shadow leaves the fight as it was', () => {
   const r = JSON.parse(run(`(() => { const log = () => { const L = []; return { L, ctx: new Proxy({}, { get: (t, k) => k in t ? t[k] : (...a) => L.push([k, ...a]), set: (t, k, v) => (L.push([k, v]), t[k] = v, true) }) }; };
     const w = new World(SCENARIOS['you vs ai'], {}, 7); w.loop = false; for (let i = 0; i < 30; i++) w.advance(1/60, { ...NOIN, up: i < 3 });
