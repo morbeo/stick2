@@ -6,7 +6,7 @@ const ACTIONS = [
   ['up', 'fight', ['KeyW', 'ArrowUp'], '2D: jump (with J / K together: an up attack) · 2.5D: a direction for moves and into the screen (lanes: double tap sidesteps)'],
   ['down', 'fight', ['KeyS', 'ArrowDown'], 'Crouch (and the down of special motions) · 2.5D: out of the screen (lanes: double tap sidesteps)'],
   ['hop', 'fight', ['Space'], 'Jump, in every plane (2D: ↑ too); with ← / → held a ninja flip (flips setting)'],
-  ['punch', 'fight', ['KeyJ'], 'Punch (P)'], ['kick', 'fight', ['KeyK'], 'Kick (K)'], ['special', 'fight', ['KeyU'], 'Special (S): with a direction, a different special'],
+  ['punch', 'fight', ['KeyJ'], 'Punch (P)'], ['kick', 'fight', ['KeyK'], 'Kick (K)'], ['special', 'fight', ['KeyN'], 'Special (S): with a direction, a different special'],
   ['guard', 'fight', ['KeyL'], 'Guard (G), hold: blocks attacks from the front only; with ↓ a low guard. Tap it just before a hit to parry'],
   ['pause', 'transport', ['KeyP'], 'Pause or resume the fight(s)'], ['step', 'transport', ['KeyN'], 'Advance one 60 fps frame'],
   ['rewind', 'transport', ['KeyV'], 'Rewind one second (the fight replays its inputs up to there)'], ['stepBack', 'transport', ['KeyC'], 'Back one frame'],
