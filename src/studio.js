@@ -493,8 +493,9 @@ function boneTree() {
     const fold = studio.fold.has(b.id);
     const tw = b.kids.length ? button(fold ? '▸' : '▾', fold ? `Show the bones under ${b.id}` : `Hide the bones under ${b.id} in this list`, () => { studio.fold[fold ? 'delete' : 'add'](b.id); panels(); }, 'twist')
       : h('span', { cls: 'twist' });
-    const nb = button(b.id + (b.lock ? ' 🔒' : '') + (b.hidden ? ' (hidden)' : ''), `${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''} · ${b.len}px${fold ? ` · ${subtree(DEFS[CURRENT], b.id).length - 1} hidden` : ''} · click: select it (Shift / ⌘: add to the selection)`,
+    const nb = button(b.id + (b.lock ? ' 🔒' : '') + (b.hidden ? ' (hidden)' : ''), `${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''} · ${b.len}px${fold ? ` · ${subtree(DEFS[CURRENT], b.id).length - 1} hidden` : ''} · click: select it (Shift / ⌘: add to the selection) · double-click: rename`,
       e => pickBoneSel(b.id, e.shiftKey || e.metaKey || e.ctrlKey));
+    nb.ondblclick = e => { e.stopPropagation(); renameBone(b.id).then(panels); };
     nb.style.borderLeft = `4px solid ${ROLE_COLS[b.role][b.side === 'b' ? 1 : 0]}`;
     reg(nb, () => nb.classList.toggle('on', selIds().includes(b.id)));
     const row = h('div', { cls: 'tree' }, tw, nb);
@@ -559,6 +560,24 @@ function addBone() {
     studio.sel = id + n; studio.also.clear();
   });
 }
+// every stance body override (main's and each named stance's): where a bone id can also appear, besides def.bones
+const allBodies = def => [def.main?.body, ...(def.stances || []).map(s => s.body)].filter(Boolean);
+// rename a bone: follows it into its parent pointers, the stance bodies that add or override it, and every pose that poses it
+async function renameBone(id = studio.sel) {
+  const was = id, name = (await askText('Rename the bone', was))?.trim();
+  if (!name || name === was) return;
+  const def = DEFS[CURRENT];
+  if ([...def.bones, ...allBodies(def).flatMap(b => b.add || [])].some(b => b.id === name)) return notice('Name taken', `"${name}" already exists`);
+  edit(def => {
+    for (const b of [...def.bones, ...allBodies(def).flatMap(b => b.add || [])]) { if (b.id === was) b.id = name; if (b.parent === was) b.parent = name; }
+    for (const body of allBodies(def)) if (body.bones?.[was]) { body.bones[name] = body.bones[was]; delete body.bones[was]; }
+    forEachPose(def, p => { if (Object.prototype.hasOwnProperty.call(p, was)) { p[name] = p[was]; delete p[was]; } });
+  });
+  if (studio.sel === was) studio.sel = name;
+  if (studio.also.has(was)) { studio.also.delete(was); studio.also.add(name); }
+}
+// every bone in the current stance's view, selected together (⌘/Ctrl+click adds one at a time; this adds them all)
+function selectAllBones() { const ids = viewChar().ids; studio.sel = ids[0]; studio.also = new Set(ids); }
 const subtree = (def, id) => [id, ...def.bones.filter(b => b.parent === id).flatMap(b => subtree(def, b.id))];
 // rearranging: a bone moves before another in the list (inside a side, earlier bones draw underneath; a parent stays before its children),
 // or hangs from another bone (null: the hip), never from one hanging from it

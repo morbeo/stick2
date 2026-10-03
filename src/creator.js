@@ -397,6 +397,8 @@ function boneTable() {
       tr.append(...BONE_COLS.map((c, i) => {
         const td = h('td'), tip = `${b.id} · ${c.tip}${selIds().length > 1 && selIds().includes(b.id) ? ' · goes to every selected bone' : ''}`;
         if (c.k === 'id') { td.textContent = v[i]; td.style.borderLeft = `4px solid ${ROLE_COLS[b.role][b.side === 'b' ? 1 : 0]}`;
+          Object.assign(td, { ondblclick: e => { stop(e); renameBone(b.id).then(fill); } });
+          td.dataset.tip = tip + ' · double-click: rename';
           if (!sk && !q) Object.assign(td, { draggable: true, className: 'drag', ondragstart: e => { e.dataTransfer?.setData('text/plain', b.id); },
             ondragover: e => { e.preventDefault(); td.classList.add('dropto'); }, ondragleave: () => td.classList.remove('dropto'),
             ondrop: e => { e.preventDefault(); const id = e.dataTransfer?.getData('text/plain'); if (def.bones.some(x => x.id === id)) { moveBone(id, b.id); fill(); } } }); }
@@ -433,7 +435,9 @@ function bodyPanel() {
     h('h4', { tip: 'Click to select · ▾ ▸ fold a branch' }, ...rich(':straighten: bones'), crud({
       new: ['Add one bone at the end of the selected bone (same role and side)', addBone],
       copy: ['Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb],
-      delete: ['Delete the selected bone and everything below it (Del)', deleteBone] })),
+      rename: ['Rename the selected bone (follows it into moves, poses and stance bodies)', () => renameBone()],
+      delete: ['Delete the selected bone and everything below it (Del)', deleteBone] },
+      button(':select_all: select all', 'Select every bone, so an edit goes to all of them at once', selectAllBones, 'mini'))),
     boneTree(),
     ...bonePanel(),
     heading('Stance pose', 'Set the whole stance from a preset (per limb, so it works for any body), or turn a pose into attacks', ''),
