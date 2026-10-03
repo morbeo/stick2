@@ -107,6 +107,23 @@ try {
     [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('delete')).click();
     if (name in SOUNDS || name in mySounds) errs.push('sound delete ' + name);
     openStage(null); panels(); }
+  // sound waveform preview + the extra resonance/detune options: renderSound (offline, silent) draws into the wave canvas; both
+  // options round-trip through SOUNDS/mySounds and don't stop a sound built-ins never set them on from playing or rendering
+  afterSync.push(async () => { setMode('animate'); openStage('sounds'); panels();
+    [...document.querySelectorAll('.mtable .bar:not(.stagehead)')].find(b => b.textContent.startsWith('hit')).click();
+    const cv = document.querySelector('.mtable canvas.wave'); if (!cv) errs.push('sound wave canvas missing');
+    await new Promise(r => setTimeout(r, 200));
+    const px = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+    if (!px.some((v, i) => i % 4 !== 3 && v !== 0)) errs.push('sound wave canvas blank');
+    const sliders = [...document.querySelectorAll('.mtable input[type=range]')];
+    const qs = sliders.find(s => Math.abs(+s.max - 20) < 0.01), det = sliders.find(s => +s.min === -1200);
+    if (!qs || !det) errs.push('resonance/detune sliders missing');
+    else { qs.value = 8; qs.dispatchEvent(new Event('input')); det.value = 200; det.dispatchEvent(new Event('input'));
+      if (SOUNDS.hit.q !== 8 || SOUNDS.hit.detune !== 200) errs.push('resonance/detune ' + JSON.stringify(SOUNDS.hit));
+      let data; try { data = await renderSound(SOUNDS.hit); } catch (e) { errs.push('renderSound threw ' + e.message); }
+      if (data && [...data].some(v => !Number.isFinite(v))) errs.push('renderSound non-finite');
+      resetSound('hit'); }
+    openStage(null); panels(); });
   // looks panel: lists every look, a built-in is read-only (hand-coded), new look makes a tunable generic-particle one,
   // a slider edits it live, delete removes it from FX_LOOKS/FX_DRAW
   { setMode('animate'); openStage('looks'); panels();

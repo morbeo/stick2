@@ -787,9 +787,27 @@ function duplicateSound(from) {
 }
 const SOUND_FIELD_TIPS = { noise: 'The noise layer\'s filter type, or none for no noise layer', nf0: 'Noise filter start frequency (Hz)',
   nf1: 'Noise filter end frequency (Hz), swept over the sound\'s duration', ngain: 'Noise layer volume',
+  q: 'Noise filter resonance: higher narrows and emphasises the band around the filter frequency (a whistly, ringing noise)',
   tone: 'The tone layer\'s oscillator waveform, or none for no tone layer', tf0: 'Tone start frequency (Hz)',
   tf1: 'Tone end frequency (Hz), swept over the sound\'s duration', tgain: 'Tone layer volume',
+  detune: 'Tone pitch offset in cents (100 = a semitone): a quick way to try a variant without retyping both frequencies',
   attack: 'Ramp-up time before the decay starts (0: an instant hard onset, like every built-in)', dur: 'Total length, in seconds' };
+// the sound's actual rendered waveform (noise + tone layers, gain and all), redrawn whenever the preset it was built for changes
+function soundWave(name) {
+  const cv = h('canvas', { width: 280, height: 60, cls: 'wave' });
+  (async () => {
+    const s = SOUNDS[name]; if (!s) return;
+    let data; try { data = await renderSound(s); } catch { return; }
+    if (!cv.isConnected || SOUNDS[name] !== s) return; // the panel moved on (deleted, or another edit already redrew it)
+    const ctx = cv.getContext('2d'), w = cv.width, hh = cv.height;
+    ctx.clearRect(0, 0, w, hh);
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, hh / 2); ctx.lineTo(w, hh / 2); ctx.stroke();
+    ctx.strokeStyle = '#4ac1e0'; ctx.lineWidth = 1.5; ctx.beginPath();
+    for (let x = 0; x < w; x++) { const v = data[Math.floor(x / w * data.length)] || 0, y = hh / 2 - v * (hh / 2 - 2); x ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.stroke();
+  })();
+  return cv;
+}
 function soundFields(name, refill) {
   const s = SOUNDS[name], built = name in BASE_SOUNDS, set = (k, v) => { saveSound(name, { ...SOUNDS[name], [k]: v }); refill(); };
   // a built-in keeps its name (other moves already reference it by that name); only a custom one can rename or disappear for good
@@ -800,16 +818,19 @@ function soundFields(name, refill) {
       button(':play_arrow: test', `Play ${name}`, () => playSound(name)),
       button(built ? ':restart_alt: revert' : ':delete: delete', built ? `Back to ${name}'s shipped values` : `Delete ${name}`,
         () => { resetSound(name); if (!built) soundSel = null; refill(); })),
+    soundWave(name),
     h('div', { cls: 'bar' }, h('span', { textContent: 'noise' }), seg(['bandpass', 'lowpass', 'highpass', 'none'], () => s.noise, v => set('noise', v),
       Object.fromEntries(['bandpass', 'lowpass', 'highpass', 'none'].map(v => [v, SOUND_FIELD_TIPS.noise])))),
     slider('noise start', { min: 50, max: 6000, step: 10 }, () => s.nf0, v => set('nf0', v), SOUND_FIELD_TIPS.nf0),
     slider('noise end', { min: 50, max: 6000, step: 10 }, () => s.nf1, v => set('nf1', v), SOUND_FIELD_TIPS.nf1),
     slider('noise gain', { min: 0, max: 1, step: 0.05 }, () => s.ngain, v => set('ngain', v), SOUND_FIELD_TIPS.ngain),
+    slider('noise resonance', { min: 0.1, max: 20, step: 0.1 }, () => s.q ?? 1, v => set('q', v), SOUND_FIELD_TIPS.q),
     h('div', { cls: 'bar' }, h('span', { textContent: 'tone' }), seg(['sine', 'square', 'sawtooth', 'triangle', 'none'], () => s.tone, v => set('tone', v),
       Object.fromEntries(['sine', 'square', 'sawtooth', 'triangle', 'none'].map(v => [v, SOUND_FIELD_TIPS.tone])))),
     slider('tone start', { min: 20, max: 2000, step: 5 }, () => s.tf0, v => set('tf0', v), SOUND_FIELD_TIPS.tf0),
     slider('tone end', { min: 20, max: 2000, step: 5 }, () => s.tf1, v => set('tf1', v), SOUND_FIELD_TIPS.tf1),
     slider('tone gain', { min: 0, max: 1, step: 0.05 }, () => s.tgain, v => set('tgain', v), SOUND_FIELD_TIPS.tgain),
+    slider('tone detune', { min: -1200, max: 1200, step: 10 }, () => s.detune ?? 0, v => set('detune', v), SOUND_FIELD_TIPS.detune),
     slider('attack', { min: 0, max: 0.3, step: 0.01 }, () => s.attack, v => set('attack', v), SOUND_FIELD_TIPS.attack),
     slider('duration', { min: 0.02, max: 1, step: 0.01 }, () => s.dur, v => set('dur', v), SOUND_FIELD_TIPS.dur));
 }

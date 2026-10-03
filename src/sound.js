@@ -4,8 +4,9 @@
 const snd = { ctx: null, noise: null };
 const muted = () => ui.mute ?? !!navigator.webdriver;
 function toggleMute() { ui.mute = !muted(); saveUi(); }
-// a sound: a noise layer (filtered white noise, swept) and/or a tone layer (an oscillator, swept), both with their own
-// gain and an exponential decay over dur (plus an optional ramp-up, attack, before the decay starts)
+// a sound: a noise layer (filtered white noise, swept, with a q resonance) and/or a tone layer (an oscillator, swept,
+// with a detune), both with their own gain and an exponential decay over dur (plus an optional ramp-up, attack, before
+// the decay starts); q and detune default to 1 and 0 when absent, so every pre-existing preset still sounds the same
 // BASE_SOUNDS: the shipped defaults, never mutated (so a built-in can be edited, then reverted); SOUNDS: the live table
 // (built-ins, each overridable, plus any new custom ones) that playSound and everywhere a sound is picked both read
 const BASE_SOUNDS = {
@@ -23,6 +24,33 @@ function saveSound(name, preset) { mySounds[name] = SOUNDS[name] = preset; saveS
 function resetSound(name) { delete mySounds[name]; if (BASE_SOUNDS[name]) SOUNDS[name] = { ...BASE_SOUNDS[name] }; else delete SOUNDS[name]; saveSounds(); }
 function renameSound(from, to) { if (!mySounds[from] || to === from || SOUNDS[to]) return; mySounds[to] = SOUNDS[to] = mySounds[from]; resetSound(from); }
 function saveSounds() { try { localStorage.setItem(SOUND_STORE, JSON.stringify(mySounds)); } catch {} }
+// one second of white noise shared by every noise layer; an AudioBuffer isn't tied to a context, so the live context's
+// buffer is reused as-is by an OfflineAudioContext too (renderSound, for the sound editor's waveform preview)
+function noiseBuffer(c) {
+  if (!snd.noise) { snd.noise = c.createBuffer(1, c.sampleRate, c.sampleRate);
+    const d = snd.noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  return snd.noise;
+}
+// builds the noise + tone layers of a preset onto dest, starting at now (0 for an offline render): the one graph both
+// playSound (the live AudioContext) and renderSound (an OfflineAudioContext, for the editor's waveform preview) use
+function synthSound(c, now, s, dest) {
+  const { noise, nf0, nf1, ngain, tone, tf0, tf1, tgain, attack, dur } = s;
+  // instant peak (attack 0, as every sound used to be), or a ramp up to it, then the same exponential decay to silence
+  const env = (g, peak) => {
+    if (attack > 0) { g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(peak, now + attack); } else g.gain.setValueAtTime(peak, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + dur); return g;
+  };
+  if (noise !== 'none' && ngain > 0) {
+    const src = c.createBufferSource(), f = c.createBiquadFilter(), g = env(c.createGain(), ngain);
+    src.buffer = noiseBuffer(c); f.type = noise; f.Q.value = s.q ?? 1; f.frequency.setValueAtTime(nf0, now); f.frequency.exponentialRampToValueAtTime(Math.max(1, nf1), now + dur);
+    src.connect(f).connect(g).connect(dest); src.start(now); src.stop(now + dur);
+  }
+  if (tone !== 'none' && tgain > 0) {
+    const o = c.createOscillator(), og = env(c.createGain(), tgain);
+    o.type = tone; o.detune.value = s.detune ?? 0; o.frequency.setValueAtTime(tf0, now); o.frequency.exponentialRampToValueAtTime(Math.max(1, tf1), now + dur);
+    o.connect(og).connect(dest); o.start(now); o.stop(now + dur);
+  }
+}
 // pan: 0 left … 1 right (x / W from the world)
 function playSound(name, pan = 0.5) {
   const s = SOUNDS[name];
@@ -30,26 +58,14 @@ function playSound(name, pan = 0.5) {
   try {
     const c = snd.ctx ??= new AudioContext();
     if (c.state === 'suspended') c.resume();
-    if (!snd.noise) { // one second of white noise, shared
-      snd.noise = c.createBuffer(1, c.sampleRate, c.sampleRate);
-      const d = snd.noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    }
-    const { noise, nf0, nf1, ngain, tone, tf0, tf1, tgain, attack, dur } = s, now = c.currentTime, out = c.createStereoPanner();
+    const out = c.createStereoPanner();
     out.pan.value = clamp(pan * 2 - 1, -1, 1) * 0.6; out.connect(c.destination);
-    // instant peak (attack 0, as every sound used to be), or a ramp up to it, then the same exponential decay to silence
-    const env = (g, peak) => {
-      if (attack > 0) { g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(peak, now + attack); } else g.gain.setValueAtTime(peak, now);
-      g.gain.exponentialRampToValueAtTime(0.001, now + dur); return g;
-    };
-    if (noise !== 'none' && ngain > 0) {
-      const src = c.createBufferSource(), f = c.createBiquadFilter(), g = env(c.createGain(), ngain);
-      src.buffer = snd.noise; f.type = noise; f.frequency.setValueAtTime(nf0, now); f.frequency.exponentialRampToValueAtTime(Math.max(1, nf1), now + dur);
-      src.connect(f).connect(g).connect(out); src.start(now); src.stop(now + dur);
-    }
-    if (tone !== 'none' && tgain > 0) {
-      const o = c.createOscillator(), og = env(c.createGain(), tgain);
-      o.type = tone; o.frequency.setValueAtTime(tf0, now); o.frequency.exponentialRampToValueAtTime(Math.max(1, tf1), now + dur);
-      o.connect(og).connect(out); o.start(now); o.stop(now + dur);
-    }
+    synthSound(c, c.currentTime, s, out);
   } catch { /* no audio: stay silent */ }
+}
+// the same sound rendered silently offline, for the sound editor's waveform preview (never played, never muted)
+async function renderSound(s) {
+  const sr = 44100, c = new OfflineAudioContext(1, Math.ceil(sr * Math.max(s.dur, 0.02)), sr);
+  synthSound(c, 0, s, c.destination);
+  return (await c.startRendering()).getChannelData(0);
 }
