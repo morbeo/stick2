@@ -280,7 +280,8 @@ const SCENARIOS = {
   'survival': { a: 'human', b: 'ai', survival: true },
   'ai survival': { a: 'ai', b: 'ai', survival: true },
   'sandwich': { a: ['punch', 0.13, 'punch', 0.13, 'kick', 0.7, 'punch', 0.13, 'punch', 0.13, 'kick'], b: 'dummy', bx: 372, more: [{ c: 'dummy', x: 285, team: 1 }], period: 3.4 },
-  'showcase': { a: ['!punch', 0.13, 'punch', 0.13, 'kick', 0.9, '!down+kick', 1.1, 'hop', 0.12, 'kick', 0.8, { hold: 'back', t: 0.5 }], b: 'dummy', ax: 250, bx: 420, period: 5.5 },
+  // punches, a kick, a sweep, an air kick, a dash into a grab and throw, a special, then backs off
+  'showcase': { a: ['!punch', 0.13, 'punch', 0.13, 'kick', 0.9, '!down+kick', 1.1, 'hop', 0.12, 'kick', 0.5, 'fwd', 0.05, 'fwd', 0.25, '!punch+guard', 0.8, 'special', 0.6, { hold: 'back', t: 0.6 }], b: 'dummy', ax: 250, bx: 420, period: 8 },
   // weapons (see WEAPONS): P+G picks one up and throws it; aw / bw = starts held, items = lying on the floor
   'pick up & slash': { a: [{ hold: 'fwd', t: 0.25 }, 0.1, 'punch+guard', 0.4, '!punch', 0.6, '!fwd+punch', 0.9, '!down+punch'], b: 'dummy', ax: 290, bx: 420, items: [{ type: 'sword', x: 335 }], period: 5 },
   'weapon throw': { a: [0.3, 'punch+guard'], aw: 'dagger', b: 'dummy', ax: 250, bx: 480, period: 2.4 },
