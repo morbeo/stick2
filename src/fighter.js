@@ -20,7 +20,7 @@ class Fighter {
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, heldAt: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
       airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null, layerAt: {}, away: false, turnRate: 0, turnMid: null,
-      stanceT: 0, stanceCd: {}, stanceUsed: [], morph: null }); // time in the stance, when each stance was left, the stances taken (req.once), an auto morph
+      stanceT: 0, stanceCd: {}, stanceUsed: [], morph: null, moveCount: {} }); // time in the stance, when each stance was left, the stances taken (req.once), an auto morph, times each move has started (over.limits)
     this.hp = this.c('health'); this.ch0 = ch.weapon ? armed(ch, '') : ch; // ch0: the character without its weapon
     this.target = this.basePose();
     this.disp = { ...this.target };
@@ -231,8 +231,11 @@ class Fighter {
     const s = this.dirs.map(d => d.n).join(''), all = { ...this.ch.motions, ...MOTIONS };
     return Object.keys(all).filter(k => all[k].test(s));
   }
-  // input slot -> the move the character binds to it (see BINDS); a special motion picks its special on the ground
-  pick(b, motion) {
+  // a move count limit (over.limits, a scenario or per-fighter override): 0 bans it outright, a number caps uses this fight
+  allowed(m) { const lim = this.over.limits?.[m]; return lim === undefined || (this.moveCount[m] || 0) < lim; }
+  // input slot -> the move the character binds to it, filtered by allowed() (see BINDS); a special motion picks its special on the ground
+  pick(b, motion) { const m = this.pickRaw(b, motion); return m && this.allowed(m) ? m : null; }
+  pickRaw(b, motion) {
     const i = this.inp, fwd = (i.right - i.left) * this.dir > 0, P = b === 'punch';
     if (b === 'special') { // S: a special per direction, the neutral one when that direction has none
       if (!this.grounded && i.down && this.c('pounce') && this.ch.moves.pounce) return 'pounce';
@@ -260,7 +263,8 @@ class Fighter {
     return Object.keys(s).find(n => s[n] === t && this.c(SPECIALS[n]) && this.ch.moves[n]) || null;
   }
   // what the running move can be cancelled into, once its cancel window is open (Combos & cancels)
-  cancelInto(a, b, motion) {
+  cancelInto(a, b, motion) { const m = this.cancelIntoRaw(a, b, motion); return m && this.allowed(m) ? m : null; }
+  cancelIntoRaw(a, b, motion) {
     if (a.i < a.m.cancel) return null;
     const m = this.pick(b, motion);
     if (m && this.ch.moves[m].special && !a.m.special && a.hit && this.c('specialCancel')) return m;
@@ -281,7 +285,7 @@ class Fighter {
     const mv = typeof m === 'string' ? this.ch.moves[m] : m, ms = this.ch.moves;
     const name = typeof m === 'string' ? m : Object.keys(ms).find(k => ms[k] === m) || Object.keys(WEAPON_MOVES).find(k => WEAPON_MOVES[k] === m) || '';
     this.action = { m: mv, name, i: 0, t: 0, from: { ...this.target }, hit: false, hits: [] };
-    if (!mv.hurt) this.w.ev(this, 'move', name);
+    if (!mv.hurt) { this.w.ev(this, 'move', name); if (name) this.moveCount[name] = (this.moveCount[name] || 0) + 1; }
     if (this.action.m.roll) this.passT = this.invT = this.c('rollInv'); // a roll: through fighters and untouchable a moment
     const keys = this.action.m.keys;
     if (this.away && !this.action.m.hurt && !keys.some(k => k.turn)) { this.away = false; this.dir = -this.dir; } // back turned: a move without turns faces the foe first

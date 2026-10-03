@@ -48,7 +48,7 @@ class World {
       frozenT: 0, hits: 0, blocks: 0, parries: 0, clashes: 0, koT: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
       pend: null, adv: null, macro: null, combo: 1, nid: 0, fi: 0, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
     if (!this.replaying) { this.log = []; this.checkpoints = []; this.sums = {}; this.desync = null; } // every frame since the start: [dt, input, macro], for rewind and replays
-    // a vs b, plus any extra fighters: { c: controller, x, team, over }; over: the fighter's own settings (aover / bover for a and b: inv …)
+    // a vs b, plus any extra fighters: { c: controller, x, team, over }; over: the fighter's own settings (aover / bover for a and b: inv, aiStyle, limits, aiSkill …)
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0, over: s.aover }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1, over: s.bover }, ...(s.more || [])];
     if (s.waves || s.survival) specs.length = 1; // the enemies come in waves (nextWave) or one by one (spawn)
     const chars = this.chars || [currentChar()];
