@@ -131,7 +131,7 @@ const FX_DRAW = {
 // the effects of fxNow over the points P: the ones behind the body (back) or in front
 function drawFx(ctx, P, list, t, back) {
   for (const [e, bones] of list) if (FX_DRAW[e.look] && FX_BACK.has(e.look) === back) {
-    ctx.save(); ctx.lineCap = ctx.lineJoin = 'round'; FX_DRAW[e.look](ctx, fxSegs(P, bones), FX_COLS[e.col] || FX_COLS[FX_AUTO[e.look]], e.size ?? 1, t); ctx.restore();
+    ctx.save(); ctx.lineCap = ctx.lineJoin = 'round'; FX_DRAW[e.look](ctx, fxSegs(P, bones), FX_COLS[e.col] || FX_COLS[FX_AUTO[e.look]], e.size ?? 1, t * (e.spd ?? 1)); ctx.restore();
   }
 }
 // ---------- the shadow under a fighter: per character (def.shadow over SHADOW), drawing only ----------
