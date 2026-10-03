@@ -3,8 +3,8 @@
 const W = 800, H = 450, GROUND = 360, CEIL = 8; // CEIL: the top of the screen (ceiling setting)
 const INK = ['#222', '#8a8580'], RED = ['#c0392b', '#e0998f'];
 const COLS = [INK, RED, ['#2c6fb0', '#94b7d8'], ['#2e8b57', '#97c5ab'], ['#8e44ad', '#c6a2d6'], ['#b9770e', '#e0c08a']];
-// punch = pressed this frame, punchHeld = held down (a weapon throw charges while P+G stay held)
-const NOIN = { left: false, right: false, up: false, down: false, hop: false, punch: false, kick: false, special: false, guard: false, punchHeld: false };
+// punch = pressed this frame, punchHeld/kickHeld/specialHeld = held down (a weapon throw, or a chargeable move, powers up while its button stays held)
+const NOIN = { left: false, right: false, up: false, down: false, hop: false, punch: false, kick: false, special: false, guard: false, punchHeld: false, kickHeld: false, specialHeld: false };
 // depth (2.5D): z > 0 is toward the camera. Drawn lower and bigger; hits are tested in the fight plane plus a depth check
 const ZMAX = 60, LANE = 40, ZS = 0.45, ZK = 0.0025;
 const HIST = 240;
@@ -328,7 +328,7 @@ class World {
     // recording for the replay dummy: one entry per substep the human is not frozen, directions relative to facing
     if (this.tape && !this.replaying && this.ctl[0] === 'human' && this.a.freeze <= 0) {
       const i = ins[0], d = this.a.dir > 0;
-      this.tape.push({ fwd: d ? i.right : i.left, back: d ? i.left : i.right, up: i.up, down: i.down, hop: i.hop, punch: i.punch, kick: i.kick, special: i.special, guard: i.guard, punchHeld: i.punchHeld });
+      this.tape.push({ fwd: d ? i.right : i.left, back: d ? i.left : i.right, up: i.up, down: i.down, hop: i.hop, punch: i.punch, kick: i.kick, special: i.special, guard: i.guard, punchHeld: i.punchHeld, kickHeld: i.kickHeld, specialHeld: i.specialHeld });
     }
     const moving = fs.filter(f => f.freeze > 0 ? (f.freeze -= h, false) : true); // hit stop: a frozen fighter sits out the substep
     moving.forEach(f => f.update(h, ins[fs.indexOf(f)]));

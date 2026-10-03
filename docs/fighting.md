@@ -298,6 +298,16 @@ Scenario: laser beam.
 | --- |
 | ![A beam: the laser](img/anim-laser-beam.png) |
 
+### Charging
+
+Key flag **charge**; move field **charge** (dur, timeout, min, max); in animate the charge toggle and the charge row.
+
+- The move holds at its charge key while its button stays held, the striking limbs glowing brighter as it powers up.
+- **dur** is the seconds held to reach full power; **timeout** is the most it can be held before it fires anyway, at whatever charge it reached.
+- **min** and **max** are the power multiplier at no charge and at full charge: they scale damage, knockback, and a shot or beam's size, speed or reach.
+- A plain tap fires at the **min** multiplier — unheld, the move plays exactly as it would without charge.
+- The stick's **fireball** and **laserBeam** are chargeable.
+
 ### Rising and multi-hit keys
 
 In the key panel: the **rise** slider and the **rehit** toggle.

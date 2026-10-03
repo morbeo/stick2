@@ -58,7 +58,8 @@ class Replay {
     if (f.freeze > 0 || !this.tape.length) return { ...NOIN };
     const e = this.tape[this.i], d = f.dir > 0;
     this.i = (this.i + 1) % this.tape.length;
-    return { left: d ? e.back : e.fwd, right: d ? e.fwd : e.back, up: !!e.up, down: e.down, hop: !!e.hop, punch: e.punch, kick: e.kick, special: !!e.special, guard: !!e.guard, punchHeld: !!e.punchHeld };
+    return { left: d ? e.back : e.fwd, right: d ? e.fwd : e.back, up: !!e.up, down: e.down, hop: !!e.hop, punch: e.punch, kick: e.kick, special: !!e.special, guard: !!e.guard,
+      punchHeld: !!e.punchHeld, kickHeld: !!e.kickHeld, specialHeld: !!e.specialHeld };
   }
 }
 
