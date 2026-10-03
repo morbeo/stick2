@@ -226,8 +226,19 @@ CHAR_DEFS.sneeko = { ...stick, name: 'sneeko', speed: 1.25, jump: 1.15, weight: 
     axeKick: attack({ power: 1.6, damage: 13, hit: 'ff', height: 'shigh', knock: 150, stun: 0.5, lunge: 140 },
       [0.1, { torso: -22, lfU: 170, lfL: -5, afU: 40, abU: 60 }],
       [0.06, { torso: 15, lfU: 55, lfL: 0, lbU: -15, lbL: 0, afU: 30, abU: 40 }], 0.06, 0.24),
+    // ← S: a ninja substitution — holds still a moment; a strike caught during it answers by vanishing
+    substituteCatch: { power: 1, special: true, counter: 'substitute', keys: [
+      { d: 0.05, e: 'outQuad', p: { torso: 10, afU: -30, afL: 100, abU: -20, abL: 100 } },
+      { d: 0.22, p: { torso: 10, afU: -30, afL: 100, abU: -20, abL: 100 }, catch: true },
+      { d: 0.18, e: 'inOutCubic', p: null }] },
+    // the answer: a stationary double left right where it stood (a shot that doesn't move, gone shortly), invincible as
+    // it reappears behind the foe — pure escape, no damage of its own, the way the samurai shodown ninjas vanish
+    substitute: { power: 0, damage: 0, hit: 'fh', height: 'mid', knock: 0, stun: 0, special: true, shot: { speed: 0, size: 18, life: 0.4, look: 'dark' }, keys: [
+      { d: 0.04, e: 'outExpo', shoot: true, p: { torso: 20, afU: 100, afL: 10, abU: 90, abL: 10 }, warp: true, inv: true },
+      { d: 0.14, p: { torso: 10, afU: -20, afL: 60, abU: -10, abL: 60 }, inv: true },
+      { d: 0.14, e: 'inOutCubic', p: null }] },
   }) },
-  ...bind({ fwdPunch: 'knifeHand', downFwdKick: 'slide', upKick: 'axeKick', backKick: 'fadeKick', qcfPunch: 'shuriken', dpKick: 'vanishKick', qcfKick: 'slide', qcbPunch: 'shadowSlash',
+  ...bind({ fwdPunch: 'knifeHand', downFwdKick: 'slide', upKick: 'axeKick', backKick: 'fadeKick', backSpecial: 'substituteCatch', qcfPunch: 'shuriken', dpKick: 'vanishKick', qcfKick: 'slide', qcbPunch: 'shadowSlash',
     special: 'shuriken', fwdSpecial: 'shadowSlash', upSpecial: 'risingKick', downSpecial: 'slide', airSpecial: 'airShuriken', airPunch: 'airPunch' },
   { upFwdKick: 'axeKick', upFwdPunch: 'rising' }),
   stances: [{ name: 'shadow', pose: stylePose([140, 0], [0, 25], [-100, 30], [-220, 20], [60, -100, 90], [-40, -60, 90]),

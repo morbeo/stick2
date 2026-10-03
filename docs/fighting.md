@@ -154,6 +154,8 @@ Hit stop, shake and zoom that grow with each combo hit; attacks, or the whole ga
 
 **← S** is catch, a counter stance. Its catch key answers a mid strike from the front with **reversal**. The key's **catchH** lists the heights it catches. Any move can catch: a key's **catch** flag, and the move panel's **counter** row picks which move answers (**new counter move** makes one, starting from the built-in reversal, and opens it) — its damage lands on the attacker at once.
 
+A counter doesn't have to be an attack. Sneeko's own **← S** (substituteCatch → substitute) is a ninja substitution: a strike caught during it answers by warping away (the **warp** key flag) and leaving a stationary decoy — a shot with speed 0 and a short life — right where it stood. No damage of its own, no retaliation: pure escape, like the ninjas in Samurai Shodown.
+
 | Catch: ← S answers a mid strike with reversal |
 | --- |
 | ![Catch: ← S answers a mid strike with reversal](img/anim-catch.png) |
