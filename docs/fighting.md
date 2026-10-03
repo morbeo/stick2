@@ -473,6 +473,13 @@ Try both in [impact](modes.md#impact).
 
 ## Body and movement
 
+### Jumping
+
+Air settings: **wallJump**, **wallJumpPush**, **wallJumpReach** (and the usual jump, double-jump and air-dash ones).
+
+- Jumping next to a wall while airborne is a triangle jump: up at wallJump × jumpVel and away from the wall at wallJumpPush, giving back the air dodge and dash (not the extra jumps). 0 = off.
+- It plays **wallJumpLayer** (a movement layer, see [Movement layers](editing.md#movement-layers)): a push off the wall, kicking away from it, blended on top of the regular rise/fall for as long as the kick-off lasts.
+
 ### Foot planting
 
 Feet settings: **plant**, **plantStep**, **plantStepT**, **plantLift**; off by default.

@@ -700,7 +700,7 @@ test('the gallery shows every move and every movement: each move cell plays its 
       walk: f => f.vx * f.dir > 50, 'back walk': f => f.vx * f.dir < -50 && f.dashT <= 0,
       run: f => f.running && Math.abs(f.vx) > f.c('maxSpeed') * 1.2, dash: f => f.dashT > 0 && f.vx * f.dir > 0, 'back dash': f => f.dashT > 0 && f.vx * f.dir < 0,
       crouch: f => f.crouching, jump: f => !f.grounded && !f.vx, 'jump forward': f => !f.grounded && f.vx * f.dir > 0, flip: f => f.flip !== 0,
-      'air dash': f => f.airDashT > 0, 'air dodge': f => f.dodgeT > 0, guard: f => f.guarding && !f.crouching, 'low guard': f => f.guarding && f.crouching,
+      'air dash': f => f.airDashT > 0, 'wall jump': f => f.wallJumpT > 0, 'air dodge': f => f.dodgeT > 0, guard: f => f.guarding && !f.crouching, 'low guard': f => f.guarding && f.crouching,
       turn: f => Math.abs(f.face) < 0.5, 'hit reaction': f => f.hurtT > 0 && !f.kd && f.blockT <= 0, blockstun: f => f.blockT > 0,
       'knockdown & getup': f => f.kd === 'down', launched: f => f.kd === 'fly', dizzy: f => f.dizzyT > 0,
     };
@@ -724,7 +724,7 @@ test('movement layers: a move named <state>Layer adds its offsets from its ref p
     const out = {}, plain = makeCharacter(CHAR_DEFS.stick), id = plain.chains.spine[0][0].id, ref = plain.poses.stance;
     const key = { ...ref, [id]: ref[id] + 40 }, layer = mix => ({ ref, mix, keys: [{ d: 0.01, p: key }, { d: 1, p: key }] });
     const scen = { crouch: 'crouch', rise: 'jump', fall: 'jump', flip: 'flip', run: 'run', dash: 'dash', backDash: 'back dash', backWalk: 'back walk',
-      airDash: 'air dash', guard: 'guard', hurt: 'hit reaction', tumble: 'launched', lying: 'knockdown & getup', dizzy: 'dizzy', turn: 'turn' };
+      airDash: 'air dash', wallJump: 'wall jump', guard: 'guard', hurt: 'hit reaction', tumble: 'launched', lying: 'knockdown & getup', dizzy: 'dizzy', turn: 'turn' };
     const most = (kind, s, mix = 1) => {
       const ch = makeCharacter({ ...CHAR_DEFS.stick, moves: { ...CHAR_DEFS.stick.moves, [kind + 'Layer']: layer(mix) } });
       const w = new World(MOVEMENTS[s][1], {}, 7, [ch]); w.loop = false;

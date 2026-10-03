@@ -500,14 +500,15 @@ const morphName = (from, to) => from + 'To' + to[0].toUpperCase() + to.slice(1);
 // fighter is in that state: [tip, how much of it shows (0..1) for a fighter f]
 const LAYERS = {
   crouch: ['Crouching', f => +(!f.kd && f.grounded && (f.crouching || f.squatT > 0))],
-  rise: ['Rising in a jump', f => +(!f.kd && !f.grounded && !f.flip && f.vy <= 0)],
-  fall: ['Falling from a jump', f => +(!f.kd && !f.grounded && !f.flip && f.vy > 0)],
+  rise: ['Rising in a jump', f => +(!f.kd && !f.grounded && !f.flip && f.vy <= 0 && f.wallJumpT <= 0)],
+  fall: ['Falling from a jump', f => +(!f.kd && !f.grounded && !f.flip && f.vy > 0 && f.wallJumpT <= 0)],
   flip: ['A ninja flip', f => +(!f.kd && !f.grounded && !!f.flip)],
   run: ['Running', f => +(!f.kd && f.grounded && f.running && f.dashT <= 0)],
   dash: ['A forward dash', f => +(f.dashT > 0 && f.vx * f.dir > 0)],
   backDash: ['A back dash', f => +(f.dashT > 0 && f.vx * f.dir < 0)],
   backWalk: ['Walking backward, by how fast', f => !f.kd && f.grounded && f.dashT <= 0 && !f.crouching && f.vx * f.dir < 0 ? Math.min(1, -f.vx * f.dir / f.c('maxSpeed')) : 0],
   airDash: ['An air dash', f => +(f.airDashT > 0)],
+  wallJump: ['A wall jump: kicking off the wall', f => +(f.wallJumpT > 0)],
   guard: ['Guarding (and in blockstun)', f => +f.guarding],
   hurt: ['Hit: the hit reaction, until free', f => +(f.hurtT > 0 && !f.kd && !f.guarding && f.dizzyT <= 0)],
   tumble: ['Knocked into the air: the tumble', f => +(!!f.kd && f.kd !== 'down')],
@@ -650,9 +651,10 @@ const oldMove = m => ({ ...m, hit: mapHit(m.hit, h => HITS[h] || h), keys: m.key
 const mapVals = (o, f) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, f(v)]));
 // built-in definitions (plain JSON: what the creator edits, saves and reverts to); CHARS = compiled
 // movement layers (LAYERS, written in raw bone angles: a layer's ref is its own procedural-pose snapshot, which oldMove's
-// fromOld doesn't know how to reproduce) for the ground and air dashes: a single committed lunge, not a sped-up walk cycle.
-// Every built-in fighter inherits these through retimed(), which maps over the stick's own moveset
-const DASH_LAYERS = {
+// fromOld doesn't know how to reproduce): the ground and air dashes (a single committed lunge, not a sped-up walk cycle)
+// and the wall jump (a push off the wall, kicking away from it). Every built-in fighter inherits these through retimed(),
+// which maps over the stick's own moveset
+const MOVEMENT_LAYERS = {
   dashLayer: { ref: { waist: 166, chest: 1, neck: 2, head: 1, thighF: 25, shinF: -89, footF: 90, uarmF: -146, farmF: 109, handF: 0, thighB: -18, shinB: 0, footB: 90, uarmB: -165, farmB: 128, handB: 3 },
     keys: [
       { d: 0.08, e: 'outExpo', p: { waist: 148, chest: -12, thighF: 50, shinF: -60, thighB: -48, shinB: 22, uarmF: -175, farmF: 70, uarmB: -110, farmB: 150 } },
@@ -665,11 +667,16 @@ const DASH_LAYERS = {
     keys: [
       { d: 0.08, e: 'outExpo', p: { waist: 160, chest: -15, thighF: 75, shinF: -110, thighB: -20, shinB: -60, uarmF: -160, farmF: 60, uarmB: -110, farmB: 70 } },
       { d: 0.14, e: 'inOutCubic', p: null }] },
+  // kicking off the wall: both legs spring out straight behind (where the wall was), the lead arm reaches on ahead
+  wallJumpLayer: { ref: { waist: 176, chest: 0, neck: 0, head: 1, thighF: 55, shinF: -95, footF: 90, uarmF: -125, farmF: 95, handF: 0, thighB: -10, shinB: -45, footB: 90, uarmB: -140, farmB: 100, handB: 3 },
+    keys: [
+      { d: 0.1, e: 'outExpo', p: { waist: 190, chest: -5, head: -15, thighF: 100, shinF: -140, thighB: 35, shinB: -90, uarmF: -175, farmF: 30, uarmB: -55, farmB: 70 } },
+      { d: 0.18, e: 'inOutCubic', p: null }] },
 };
 const CHAR_DEFS = {
   stick: { name: 'stick', bones: STICK_BONES,
     poses: mapVals({ stance: STANCE, crouch: CROUCH, air: AIR, airFall: AIR_FALL, fall: FALL, lie: LIE }, fromOld),
-    moves: { ...mapVals(STICK_MOVES, oldMove), ...DASH_LAYERS }, hurt: mapVals(STICK_HURT, set => set.map(fromOld)) },
+    moves: { ...mapVals(STICK_MOVES, oldMove), ...MOVEMENT_LAYERS }, hurt: mapVals(STICK_HURT, set => set.map(fromOld)) },
 };
 // ---------- weapons: an extra bone in the front hand; while held, its class's moves go over P, → P and ↓ P ----------
 // look: how it is drawn · a: grip angle relative to the hand · back: length behind the hand (a staff is held along it)

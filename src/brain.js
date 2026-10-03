@@ -308,6 +308,7 @@ const MOVEMENTS = {
   'jump forward': ['A jump with → held', { a: [0.2, 'fwd+hop', { hold: 'fwd', t: 0.6 }], b: 'dummy', ax: 220, bx: 640 }],
   flip: ['A ninja flip (flips always)', { a: [0.2, 'fwd+hop', { hold: 'fwd', t: 0.6 }], b: 'dummy', ax: 220, bx: 640, cfg: { flips: 'always' } }],
   'air dash': ['A double tap → in the air: the air dash', { a: [0.2, 'hop', 0.15, 'fwd', 0.05, 'fwd'], b: 'dummy', ax: 220, bx: 640 }],
+  'wall jump': ['Jumps by a wall, then hops again: the wall jump', { a: [0.1, 'hop', 0.2, 'hop'], b: 'dummy', ax: 20, bx: 640 }],
   'air dodge': ['G in the air: the air dodge', { a: [0.2, 'hop', 0.2, 'guard'], b: 'dummy', bx: 560 }],
   guard: ['Holding G: the guard', { a: [0.2, { hold: 'guard', t: 1 }], b: 'dummy', bx: 560 }],
   'low guard': ['Holding ↓ G: the low guard', { a: [0.2, { hold: 'down+guard', t: 1 }], b: 'dummy', bx: 560 }],
