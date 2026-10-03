@@ -1,15 +1,17 @@
 'use strict';
 // ---------- character mode: drag the skeleton, tune bones, watch it fight live; body experiment grid ----------
-const creator = { preview: 'showcase', w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
+const creator = { preview: 'showcase', opponent: 'self', w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
   exp: { kind: 'body', vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
 const PREVIEWS = {
-  showcase: ['showcase', 'Scripted demo: walk in, J,J,K chain, sweep, jump kick, back off.'],
+  showcase: ['showcase', 'Scripted demo: punches, a kick, a sweep, a jump kick, a dash into a grab and throw, a special, then backs off.'],
   walk: ['walk', 'Walk forward and back: check the walk cycle and arm swing.'],
   'vs ai': ['ai vs ai', 'Two copies fight each other with the engine AI.'],
   impact: [null, 'The body alone, no attacker: strike it low, mid, high… with the blow buttons and watch it fall (the ragdoll).'],
 };
 // the preview's scenario (impact: the experiment grid plays the showcase)
 const previewScen = () => { const s = SCENARIOS[PREVIEWS[creator.preview][0] || 'showcase']; return { ...s, init: w => { s.init?.(w); w.a.setStance(studio.stance, 'instant'); } }; };
+// the opponent's character model for the main preview (not the body-experiment cells, which bring their own)
+const previewChars = () => [currentChar(), CHARS[creator.opponent] || currentChar()];
 
 // ---------- editor view: the stance pose, big, with a handle on every joint ----------
 function edLayout() {
@@ -217,7 +219,17 @@ function creatorCtx() {
 }
 // what the preview plays: under the preview (a lot of free space there), not the toolbar
 function previewBar() {
-  return h('div', { cls: 'over pvbar' }, seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); panels(); }, mapVals(PREVIEWS, p => p[1])));
+  const oppNames = ['self', ...Object.keys(CHARS)];
+  const oppB = (() => {
+    const choiceB = n => { const b = button(n, n === 'self' ? 'A copy of the character you\'re editing' : `Fight ${n} instead of a copy of yourself`,
+      () => { creator.opponent = n; closePop(); creatorMode.restart(); panels(); }); reg(b, () => b.classList.toggle('on', creator.opponent === n)); return b; };
+    const b = button('', 'The opponent\'s character in the preview (not just a copy of yours)', (e, el) =>
+      popup(el, h('div', { cls: 'bar' }, h('span', { cls: 'seg' }, oppNames.map(choiceB)))));
+    reg(b, () => setRich(b, ':person: ' + creator.opponent));
+    return b;
+  })();
+  return h('div', { cls: 'over pvbar' }, seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); panels(); }, mapVals(PREVIEWS, p => p[1])),
+    creator.preview === 'impact' ? null : oppB);
 }
 const setProp = (k, v) => edit(def => { for (const b of selDefs(def)) b[k] = v; }, selIds() + '.' + k);
 const prop = k => selBone()?.[k] ?? BONE[k];
@@ -482,7 +494,7 @@ const creatorMode = {
   preview: () => creator.expOn ? null : edLayout().pv,
   clipRects: () => creator.expOn ? cellRects(9, 3, fullArea()).map((r, i) => ({ key: creator.exp.cells[i], r })) : [{ key: 'preview', r: edLayout().pv }],
   split: () => !creator.expOn,
-  enter() { creator.w = creator.preview === 'impact' ? ragdollWorld() : newWorld(previewScen()); if (creator.expOn) buildExp(); },
+  enter() { creator.w = creator.preview === 'impact' ? ragdollWorld() : newWorld(previewScen(), {}, 7, previewChars()); if (creator.expOn) buildExp(); },
   restart() { creatorMode.enter(); },
   worlds: () => creator.expOn ? creator.exp.cells.map(c => c.w) : [creator.w],
   render: creatorRender,
