@@ -1,0 +1,66 @@
+<!doctype html>
+<!-- generates itch.io store assets (favicon, social image, wide cover, a transparent logo) from the app's own rendering
+     code and icon font — no external image files, consistent with everything else being procedural. Driven by
+     tools/itch-assets.js over headless Chrome (tools/chrome.js), the same way tools/render.html serves the MCP server. -->
+<meta charset="utf-8">
+<title>stick2 itch assets</title>
+<style>@font-face { font-family: Icons; src: url(../fonts/icons.woff2) format('woff2'); font-display: block; }</style>
+<script src="../src/core.js"></script>
+<script src="../src/rig.js"></script>
+<script src="../src/fx.js"></script>
+<script src="../src/roster.js"></script>
+<script src="../src/fighter.js"></script>
+<script src="../src/world.js"></script>
+<script src="../src/brain.js"></script>
+<script src="../src/checks.js"></script>
+<script src="../src/events.js"></script>
+<script src="../src/clip.js"></script>
+<script src="frames.js"></script>
+<script>
+const MARK = 0xeae9; // sports_martial_arts (src/ui.js's ICONS; the app's own favicon uses the same glyph)
+// headless Chrome can be asked to use a font before it has actually rasterized it; force a load at a representative size
+async function ready() { await document.fonts.load('900px Icons'); }
+
+// a square mark: a filled circle (or none) behind the glyph, scaled to fill — the favicon and app icon shape
+window.renderMark = async (size, { bg = '#222', fg = '#fff', pad = 0.16 } = {}) => {
+  await ready();
+  const c = document.createElement('canvas'); c.width = c.height = size; const x = c.getContext('2d');
+  if (bg) { x.fillStyle = bg; x.beginPath(); x.arc(size / 2, size / 2, size / 2, 0, 7); x.fill(); }
+  x.font = `${Math.round(size * (1 - pad * 2))}px Icons`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = fg;
+  x.fillText(String.fromCodePoint(MARK), size / 2, size / 2 + size * 0.02);
+  return c.toDataURL('image/png');
+};
+
+// a horizontal wordmark (mark + "stick2"), transparent background: a dark outline under a light fill reads on either
+// a light or a dark page background, as itch.io's logo guidance asks for
+window.renderLogo = async (w, h, { fg = '#f3f0e8' } = {}) => {
+  await ready();
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
+  const m = h * 0.82, pad = h * 0.09, markText = String.fromCodePoint(MARK), baseline = h / 2 + h * 0.02;
+  x.textBaseline = 'middle'; x.textAlign = 'left'; x.lineJoin = 'round';
+  x.font = `${m}px Icons`;
+  x.lineWidth = h * 0.07; x.strokeStyle = '#000'; x.strokeText(markText, pad, baseline);
+  x.fillStyle = fg; x.fillText(markText, pad, baseline);
+  const markW = x.measureText(markText).width, tx = pad + markW + h * 0.14;
+  x.font = `bold ${h * 0.5}px ui-monospace, Menlo, monospace`;
+  x.lineWidth = h * 0.07; x.strokeStyle = '#000'; x.strokeText('stick2', tx, baseline);
+  x.fillStyle = fg; x.fillText('stick2', tx, baseline);
+  return c.toDataURL('image/png');
+};
+
+// a promo image: one replay frame (frames.js, the app's own draw code), a bottom gradient band, the wordmark over it
+window.renderPromo = async (r, frame, w, h, opts = {}) => {
+  await ready();
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
+  drawFrames(r, [frame], w, h, opts, () => x);
+  const bandH = h * 0.22, grad = x.createLinearGradient(0, h - bandH, 0, h);
+  grad.addColorStop(0, 'rgba(20,16,10,0)'); grad.addColorStop(1, 'rgba(20,16,10,0.72)');
+  x.fillStyle = grad; x.fillRect(0, h - bandH, w, bandH);
+  const mh = bandH * 0.5, pad = w * 0.025, markText = String.fromCodePoint(MARK), baseline = h - bandH * 0.3;
+  x.textBaseline = 'alphabetic'; x.textAlign = 'left'; x.fillStyle = '#f3f0e8';
+  x.font = `${mh}px Icons`; x.fillText(markText, pad, baseline);
+  const markW = x.measureText(markText).width;
+  x.font = `bold ${mh}px ui-monospace, Menlo, monospace`; x.fillText('stick2', pad + markW + w * 0.012, baseline);
+  return c.toDataURL('image/png');
+};
+</script>

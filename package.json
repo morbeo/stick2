@@ -4,6 +4,7 @@
   "scripts": {
     "build-info": "node tools/build-info.js",
     "itch": "node tools/itch.js",
+    "itch:assets": "node tools/itch-assets.js",
     "mcp": "node tools/mcp.js",
     "itch:push": "npm test && node tools/itch.js --push",
     "coverage": "node --test --experimental-test-coverage --test-coverage-include='src/**' tests/*.test.js",
