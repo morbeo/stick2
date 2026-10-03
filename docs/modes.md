@@ -30,7 +30,7 @@ One fight on the full stage.
 
 ![The scenario builder](img/builder.png)
 
-**new scenario** in the picker copies the current scenario into a builder over the stage. **scenario** in the **panels** group (shown for your own scenarios) opens and closes it.
+**new scenario** in the picker copies the current scenario into a builder over the stage. **scenario** in the **panels** group (shown for your own scenarios) opens and closes it. **test in grid** jumps to the [grid](#grid) with this scenario as its one row, to sweep it across settings.
 
 - **P1 and P2** each get a character (or the one being edited), a controller, a start x, back turned and a shield (off, no damage or untouchable, as in the fighters group).
 - **Character:** click a fighter's thumbnail for the same card-grid picker as the fighters group — **editor** (the one being edited), **random**, or any character.

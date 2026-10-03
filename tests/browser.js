@@ -476,6 +476,14 @@ try {
     setCfg({ hitstop: 0.2 }); bb(Object.values(document.querySelectorAll('.sbuild button')).find(b => b.textContent.includes('take my settings')).textContent.trim()).click();
     if (u().cfg.hitstop !== 0.2 || w().cfg.hitstop !== 0.2) errs.push('builder take settings ' + JSON.stringify(u().cfg)); applyPreset('juicy');
     if (!JSON.parse(localStorage.getItem('stick2.scenarios'))['jab vs sumo']) errs.push('builder saved');
+    // stage picker: plain is the default (undefined), picking another sets it and the live world, back to plain clears it
+    bb('dojo').click(); if (u().stage !== 'dojo' || w().scen.stage !== 'dojo') errs.push('builder stage ' + u().stage);
+    bb('plain').click(); if (u().stage) errs.push('builder stage reset ' + u().stage);
+    // test in grid: jumps to grid mode, sweeping settings with this scenario as the one row
+    [...document.querySelectorAll('.sbuild button')].find(b => b.textContent.includes('test in grid')).click();
+    if (app.mode !== 'grid' || lab.y.k !== 'scenario' || JSON.stringify(lab.rows) !== JSON.stringify(['jab vs sumo']) || lab.kind !== 'sweep') errs.push('test in grid ' + app.mode + ' ' + lab.y.k + ' ' + JSON.stringify(lab.rows));
+    setMode('play'); lab.scen = 'jab vs sumo'; build(); openStage('builder');
+    if (!document.querySelector('.sbuild')) errs.push('builder reopen after grid test');
     sb().click(); const g = [...document.querySelectorAll('.pop h4')].find(e => e.textContent.includes('my scenarios'));
     if (!g || g.nextSibling.textContent !== 'jab vs sumo') errs.push('builder group'); closePop();
     const json = exportScens(); importScens(json.replace('jab vs sumo', 'copy of it')); if (!SCENARIOS['copy of it']) errs.push('builder import');
