@@ -508,11 +508,12 @@ try {
     if (DEFS.stick.moves.launcher.damage !== 17) errs.push('input table damage ' + DEFS.stick.moves.launcher.damage);
     removeInput('m41236'); if (DEFS.stick.motions.m41236 || editBinds(DEFS.stick).m41236Punch) errs.push('remove input');
     undo(); undo(); undo(); lay('animate').panel = null; inputs.table = false; panels(); }
-  // compare: the strip button picks a move to compare with; the filmstrip draws both, a click on a frame goes there
+  // compare: under the preview, not the toolbar; the strip button picks a move to compare with; the filmstrip draws both, a click on a frame goes there
   { setMode('animate'); pickChar('stick'); anim.move = 'roundhouse'; anim.cmp = null; anim.cmpView = 'off'; panels();
-    [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('Filmstrip')).click();
+    if (document.querySelector('#ctx [data-tip="The move to compare with"]')) errs.push('compare still in toolbar');
+    [...document.querySelectorAll('.cmpbar button')].find(b => b.dataset.tip?.startsWith('Filmstrip')).click();
     if (anim.cmpView !== 'strip' || cmpMove()) errs.push('compare strip ' + anim.cmpView);
-    [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip === 'The move to compare with').click();
+    [...document.querySelectorAll('.cmpbar button')].find(b => b.dataset.tip === 'The move to compare with').click();
     [...document.querySelectorAll('.pop button')].find(b => b.textContent.trim().endsWith('armada')).click();
     if (anim.cmp !== 'armada' || anim.cmpView !== 'strip') errs.push('compare pick ' + [anim.cmp, anim.cmpView]);
     mode().render(); const { step, cw } = stripCells(anLayout().ed); animMouse('down', cw * 2.5, anLayout().ed.h / 2, { detail: 1 });
