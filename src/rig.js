@@ -672,6 +672,10 @@ const MOVEMENT_LAYERS = {
     keys: [
       { d: 0.1, e: 'outExpo', p: { waist: 190, chest: -5, head: -15, thighF: 100, shinF: -140, thighB: 35, shinB: -90, uarmF: -175, farmF: 30, uarmB: -55, farmB: 70 } },
       { d: 0.18, e: 'inOutCubic', p: null }] },
+  // a ninja run: a steep forward lean (the legs' own swing still drives the stride) with both arms swept straight back,
+  // held for as long as the run lasts (one key, eased in quickly, long enough it won't visibly re-ease mid-sprint)
+  runLayer: { ref: { waist: 166, chest: 1, neck: 2, head: 1, thighF: 25, shinF: -89, footF: 90, uarmF: -146, farmF: 109, handF: 0, thighB: -18, shinB: 0, footB: 90, uarmB: -165, farmB: 128, handB: 3 },
+    keys: [{ d: 3, e: 'outQuad', p: { waist: 120, chest: -15, head: -12, uarmF: -100, farmF: 15, uarmB: -85, farmB: 10 } }] },
 };
 const CHAR_DEFS = {
   stick: { name: 'stick', bones: STICK_BONES,

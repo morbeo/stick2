@@ -937,6 +937,23 @@ test('dash/backDash/airDash movement layers (dashLayer etc.) blend a one-off lun
   assert.ok(r.dashSettled < r.backDashSettled, 'a forward dash leans the opposite way from a back dash once both have faded');
 });
 
+test('runLayer (a ninja run) holds a forward lean while running, and wallJumpLayer blends a kick-off pose, both finite', () => {
+  const r = JSON.parse(run(`(() => {
+    const runW = new World({ a: 'human', b: 'dummy', ax: 300, bx: 2000, period: 9 }, {}, 7, [CHARS.stick, CHARS.stick]), rf = runW.a;
+    rf.doubleTap('right');
+    const runWaist = []; for (let i = 0; i < 90; i++) { runW.advance(1/60, { ...NOIN, right: true }); runWaist.push(rf.disp.waist); }
+    const wjW = new World({ a: 'human', b: 'dummy', ax: 20, bx: 700, period: 9 }, {}, 7, [CHARS.stick, CHARS.stick]), wf = wjW.a;
+    wf.grounded = false; wf.vy = 50; wf.airT = 0.5; wf.dir = 1;
+    let wallJumped = false; const wjThighF = [];
+    for (let i = 0; i < 30; i++) { wjW.advance(1/60, { ...NOIN, hop: i === 0 }); wallJumped ||= wf.wallJumpT > 0; wjThighF.push(wf.disp.thighF); }
+    return JSON.stringify({ runWaist, runBad: !runWaist.every(isFinite), running: rf.running, wallJumped, wjThighF, wjBad: !wjThighF.every(isFinite) }); })()`));
+  assert.ok(r.running, 'held forward after the dash: still running');
+  assert.ok(!r.runBad && !r.wjBad, 'the pose stays finite through both');
+  assert.ok(r.runWaist.at(-1) < r.runWaist[0] - 20, `the ninja lean grows while running: ${r.runWaist[0]} -> ${r.runWaist.at(-1)}`);
+  assert.ok(r.wallJumped, 'the second hop, near the wall and airborne, triggers the wall jump');
+  assert.ok(Math.max(...r.wjThighF) > r.wjThighF[0] + 50, `the kick-off pose swings the leg out: ${JSON.stringify(r.wjThighF)}`);
+});
+
 test('the replay dummy plays back a recorded tape, mirrored to its own facing; a key macro presses its steps over the held keys', () => {
   const r = JSON.parse(run(`(() => {
     const rec = new World(SCENARIOS['you vs dummy'], {}, 7); rec.loop = false; rec.tape = [];
