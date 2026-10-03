@@ -286,7 +286,8 @@ function drawPlot(c, r) {
       ctx.fillStyle = f.fin ? '#c0392b' : '#444'; ctx.fillRect(x, r.y + r.h - hh, bw * 0.7, hh);
       ctx.strokeStyle = '#999'; ctx.lineWidth = dpr; ctx.strokeRect(x, r.y + r.h - hw, bw * 0.7, hw);
     });
-    note('freeze/hit 0-0.4s: fill got, outline wanted');
+    // no hits yet looks the same as an empty graph otherwise: say so, instead of leaving it blank with only the generic note
+    note(w.freezes.length ? 'freeze/hit 0-0.4s: fill got, outline wanted' : 'no hits yet');
   } else if (kind === 'move') {
     hline(r, -700, 700, 0);
     series(ctx, w.hist.vx, r, -700, 700, '#222', HIST);
