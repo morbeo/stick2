@@ -878,6 +878,21 @@ test('air recovery aims where you hold: ← / → bursts that way; unheld keeps 
   assert.ok(Math.abs(none.vx) < 100, 'no direction: the old damped momentum, not a full burst: ' + none.vx);
 });
 
+test('forcePlant: a leg chain that never reaches as low as the body\'s own lowest point (a short or high-set extra leg) is skipped by foot planting unless its root bone is marked forcePlant', () => {
+  const r = JSON.parse(run(`(() => {
+    const mk = force => {
+      const ch = JSON.parse(JSON.stringify(CHAR_DEFS.stick));
+      ch.bones.push({ id: 'shortLeg', len: 8, a: 150, role: 'leg', side: 'f', hurt: 0, ...(force && { forcePlant: true }) },
+        { id: 'shortLegEnd', parent: 'shortLeg', len: 5, a: 10, role: 'leg', side: 'f', hurt: 0 });
+      const chC = makeCharacter(ch), w = new World({ a: 'dummy', b: 'dummy' }, { plant: true }, 7, [chC, CHARS.stick]), f = w.a;
+      for (let i = 0; i < 20; i++) w.advance(1/60, { ...NOIN, right: true });
+      const idx = f.ch.chains.leg.findIndex(c => c[0].id === 'shortLeg');
+      return f.feet[idx] != null; };
+    return JSON.stringify({ without: mk(false), withForce: mk(true) }); })()`));
+  assert.equal(r.without, false, 'a short leg with no forcePlant is treated as lifted: never planted');
+  assert.equal(r.withForce, true, 'forcePlant overrides that: it plants and steps like any other leg');
+});
+
 test('the damp filter: the drawn pose catches the keyframed one at dampRate, slower with a lower rate', () => {
   const lag = rate => +run(`(() => { const w = new World(SCENARIOS['J,J,J'], { filter: 'damp', dampRate: ${rate} }, 7); w.loop = false; let lag = 0;
     for (let i = 0; i < 90; i++) { w.advance(1/60, NOIN); const f = w.a; for (const j of f.ch.ids) { if (!isFinite(f.disp[j])) return NaN; lag += Math.abs(f.disp[j] - f.target[j]); } }

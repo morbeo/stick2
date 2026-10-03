@@ -360,6 +360,7 @@ const BONE_COLS = [
   ...BONE_PROPS.map(p => ({ k: p.k, tip: p.tip, get: b => b[p.k] ?? BONE[p.k], num: p })),
   ...['min', 'max'].map(k => ({ k, tip: `Joint limit (${k}) relative to the parent; empty = no limits`, get: b => b[k] ?? '', num: { min: -180, max: 180, step: 1 } })),
   { k: 'lock', tip: 'Locked: keeps its angle to its parent while posing (click to switch)', get: b => b.lock ? 'lock' : '' },
+  { k: 'forcePlant', tip: 'Force plant: a leg chain\'s own bone (role leg) always takes part in foot planting and stepping (the FEET settings), even if it never reaches as low as the body\'s other feet — a short or high-set extra leg (click to switch)', get: b => b.forcePlant ? 'plant' : '' },
 ];
 const SIDE_NAMES = { f: 'front', '': 'centre', b: 'back' };
 function setBoneCol(id, k, v) {
@@ -410,6 +411,7 @@ function boneTable() {
         else if (c.opts) td.append(button(c.k === 'side' ? SIDE_NAMES[v[i]] : v[i], tip, (e, el) => { stop(e);
           popup(el, seg(Object.keys(c.opts), () => b[c.k] ?? BONE[c.k], x => { setBoneCol(b.id, c.k, x); closePop(); fill(); }, c.opts, c.k === 'side' ? o => SIDE_NAMES[o] : optLabel)); }, 'mini'));
         else if (c.k === 'lock') td.append(button(b.lock ? ':lock:' : '—', tip, e => { stop(e); setBoneCol(b.id, 'lock', b.lock ? undefined : true); fill(); }, 'mini'));
+        else if (c.k === 'forcePlant') td.append(button(b.forcePlant ? ':footprint:' : '—', tip, e => { stop(e); setBoneCol(b.id, 'forcePlant', b.forcePlant ? undefined : true); fill(); }, 'mini'));
         else td.textContent = v[i];
         return td;
       }));

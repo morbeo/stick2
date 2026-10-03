@@ -818,8 +818,10 @@ CHAR_DEFS.houndo = { ...mapPoses({ ...stick, moves: retimed(0.85, 0.9) }, beastP
 const tenTip = (parent, a) => [
   { id: parent + 'Tip', parent, len: 9, a, role: 'tail', thick: 3, lag: 1.5, dangle: 0.5, stretch: 0.2, min: -90, max: 90 },
   { id: parent + 'TipEnd', parent: parent + 'Tip', len: 7, a: 15, role: 'tail', thick: 2, lag: 2.5, dangle: 0.6, stretch: 0.3, min: -90, max: 90 }];
+// forcePlant (legs only): these are shorter and set higher on the body than the real legs, so they'd never reach as low as
+// the body's own lowest point and would be forever "lifted" to the automatic foot-planting check — forced in, they still step
 const extraLimb = (id, parent, role, a) => [
-  { id, parent, len: 3, a, role, side: id.endsWith('F') ? 'f' : 'b', hurt: 0, lag: 0.5, min: -180, max: 180 },
+  { id, parent, len: 3, a, role, side: id.endsWith('F') ? 'f' : 'b', hurt: 0, lag: 0.5, min: -180, max: 180, ...(role === 'leg' && { forcePlant: true }) },
   { id: id + 'Mid', parent: id, len: 3, role, side: id.endsWith('F') ? 'f' : 'b', hurt: 0, lag: 1.2, dangle: 0.3, stretch: 0.15, min: -90, max: 90 },
   { id: id + 'End', parent: id + 'Mid', len: 2, role, side: id.endsWith('F') ? 'f' : 'b', hurt: 0, lag: 2, dangle: 0.5, stretch: 0.2, min: -90, max: 90 }];
 const EXTRA_FULL = {
