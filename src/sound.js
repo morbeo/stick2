@@ -6,19 +6,22 @@ const muted = () => ui.mute ?? !!navigator.webdriver;
 function toggleMute() { ui.mute = !muted(); saveUi(); }
 // a sound: a noise layer (filtered white noise, swept) and/or a tone layer (an oscillator, swept), both with their own
 // gain and an exponential decay over dur (plus an optional ramp-up, attack, before the decay starts)
-const SOUNDS = {
+// BASE_SOUNDS: the shipped defaults, never mutated (so a built-in can be edited, then reverted); SOUNDS: the live table
+// (built-ins, each overridable, plus any new custom ones) that playSound and everywhere a sound is picked both read
+const BASE_SOUNDS = {
   whoosh: { noise: 'bandpass', nf0: 400, nf1: 2400, ngain: 0.35, tone: 'none', tf0: 0, tf1: 0, tgain: 0, attack: 0, dur: 0.16 },
   hit: { noise: 'lowpass', nf0: 3000, nf1: 900, ngain: 0.5, tone: 'sine', tf0: 180, tf1: 90, tgain: 0.5, attack: 0, dur: 0.09 },
   thud: { noise: 'lowpass', nf0: 1200, nf1: 300, ngain: 0.45, tone: 'sine', tf0: 110, tf1: 40, tgain: 0.8, attack: 0, dur: 0.22 },
   block: { noise: 'highpass', nf0: 2500, nf1: 1800, ngain: 0.3, tone: 'sine', tf0: 900, tf1: 700, tgain: 0.15, attack: 0, dur: 0.06 },
 };
-// ---------- my sounds: custom presets built in the browser, saved as you go (same pattern as scenarios: myStore -> SCENARIOS) ----------
+// ---------- my sounds: edits to a built-in, or wholly new ones, saved as you go (same pattern as scenarios: myStore -> SCENARIOS) ----------
 const SOUND_STORE = 'stick2.sounds';
 const mySounds = (() => { try { return JSON.parse(localStorage.getItem(SOUND_STORE)) || {}; } catch { return {}; } })();
-Object.assign(SOUNDS, mySounds);
+const SOUNDS = { ...BASE_SOUNDS, ...mySounds };
 function saveSound(name, preset) { mySounds[name] = SOUNDS[name] = preset; saveSounds(); }
-function deleteSound(name) { delete mySounds[name]; delete SOUNDS[name]; saveSounds(); }
-function renameSound(from, to) { if (!mySounds[from] || to === from || SOUNDS[to]) return; mySounds[to] = SOUNDS[to] = mySounds[from]; deleteSound(from); }
+// a built-in: back to its shipped values; a custom one: gone entirely
+function resetSound(name) { delete mySounds[name]; if (BASE_SOUNDS[name]) SOUNDS[name] = { ...BASE_SOUNDS[name] }; else delete SOUNDS[name]; saveSounds(); }
+function renameSound(from, to) { if (!mySounds[from] || to === from || SOUNDS[to]) return; mySounds[to] = SOUNDS[to] = mySounds[from]; resetSound(from); }
 function saveSounds() { try { localStorage.setItem(SOUND_STORE, JSON.stringify(mySounds)); } catch {} }
 // pan: 0 left … 1 right (x / W from the world)
 function playSound(name, pan = 0.5) {
