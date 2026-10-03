@@ -572,6 +572,12 @@ const CHAR_STATS = [
   { k: 'tempo', g: 'fight', cfg: ['attackSpeed'], min: 0.6, max: 1.5, step: 0.05, tip: 'How fast its moves play, × attackSpeed.' },
   { k: 'springs', g: 'fight', cfg: ['freq'], min: 0.4, max: 2, step: 0.05, tip: 'Limb spring frequency, × freq: above 1 snappy, below 1 floppy.' },
   { k: 'grabRange', g: 'fight', cfg: ['grabReach'], min: 0, max: 3, step: 0.05, tip: 'Throw reach, × grabReach.' },
+  { k: 'chip', g: 'fight', cfg: ['chip'], min: 0, max: 2, step: 0.05, tip: 'Chip damage it takes through guard, × chip.' },
+  { k: 'blockPush', g: 'fight', cfg: ['blockPush'], min: 0, max: 2, step: 0.05, tip: 'Pushback it takes on block, × blockPush.' },
+  { k: 'comboDamage', g: 'fight', cfg: ['comboDamage'], min: 0.5, max: 1.5, step: 0.05, tip: 'Damage it takes, scaling per extra combo hit, × comboDamage.' },
+  { k: 'knockScale', g: 'fight', cfg: ['knockScale'], min: 0, max: 2, step: 0.05, tip: 'Knockback it takes, × knockScale (on top of weight).' },
+  { k: 'justGuardKnock', g: 'fight', cfg: ['justGuardKnock'], min: 0, max: 2, step: 0.05, tip: 'How hard its own just guard (JUST) pushes back the attacker, × justGuardKnock.' },
+  { k: 'pushBlockForce', g: 'fight', cfg: ['pushBlockForce'], min: 0, max: 2, step: 0.05, tip: 'How hard its own push block shoves the attacker away, × pushBlockForce.' },
 ];
 const STAT_GROUPS = { ground: 'Ground: walking, dashing, turning, weight', air: 'Air: jumps, gravity, drift, falling, air dodge and air dash', fight: 'Fight: health, toughness, tempo, limb springs, grab range' };
 // walk and idle, per character: the procedural cycle's knobs (moves named idle / walk, if any, replace it with keyframed loops)
