@@ -353,6 +353,14 @@ Scenarios: flash kick, lightning legs. A scenario's **chars** names the characte
 | --- | --- |
 | ![Flash kick: rise carries the move into the air](img/anim-flash-kick.png) | ![Lightning legs: rehit lands a multi-hit move again](img/anim-lightning-legs.png) |
 
+### Stretching, thickening and fading bones at a key
+
+Key fields **len**, **thick**, **alpha** (each `{boneId: multiplier}`); in animate the key panel's **stretch**, **girth** and **fade** rows pick the bones and the multiplier.
+
+- **stretch** (len) multiplies a bone's length toward this key, 1 = normal. It eases in from the key before and back out after, just like a pose. A stretched bone also reaches further and its hurtbox grows with it, so a punch down a stretched arm actually lands from range — a Dhalsim limb.
+- **girth** (thick) multiplies how thick a bone draws. **fade** (alpha) multiplies how visible it is, 0 = invisible. Both are drawing only; they don't change reach or the hurtbox.
+- A bone's whole chain beyond the stretched one moves with it (the forearm stretching also carries the hand), since length feeds forward kinematics like any other bone property.
+
 ## Weapons
 
 ### Settings

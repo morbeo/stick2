@@ -855,16 +855,17 @@ function drawWeapon(ctx, b, o, e, col, extra = 0) {
   else if (b.look === 'hammer') { line(-3, l, 3.5, WOOD); poly([[l - 6, -7], [l - 6, 9], [l + 4, 9], [l + 4, -7]], METAL); }
   else line(-(b.back || 0) - 2, l, b.look === 'pole' ? 3 : 4, WOOD); // pole, nunchuck stick
 }
-function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null) {
+// mul: a fighter's live per-bone key.thick / key.alpha multipliers (mid-move), or null outside one
+function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
   ctx.lineCap = ctx.lineJoin = 'round';
   for (const side of ['b', '', 'f']) for (const b of ch.bones) if (b.side === side) {
     const o = P[b.parent || 'hip'], e = P[b.id], c = tint ? tint(b) : side === 'b' ? back : col;
     if (b.hidden && (b.shape === 'circle' || Math.hypot(e[0] - o[0], e[1] - o[1]) < 0.5)) continue; // a stance's hidden bone (drawn while it shrinks away)
-    const a = b.alpha ?? 1;
+    const a = (b.alpha ?? 1) * (mul?.alpha?.[b.id] ?? 1), thick = b.thick * (mul?.thick?.[b.id] ?? 1);
     if (a < 1) { ctx.save(); ctx.globalAlpha *= a; }
     if (b.shape === 'circle') { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(e[0], e[1], b.len + extra / 2, 0, 7); ctx.fill(); }
     else if (b.role === 'weapon') drawWeapon(ctx, b, o, e, extra || tint?.(b) ? c : null, extra);
-    else { ctx.strokeStyle = c; ctx.lineWidth = b.thick + extra; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0], e[1]); ctx.stroke(); }
+    else { ctx.strokeStyle = c; ctx.lineWidth = thick + extra; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0], e[1]); ctx.stroke(); }
     if (a < 1) ctx.restore();
   }
 }

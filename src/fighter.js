@@ -1,4 +1,7 @@
 'use strict';
+// a key's per-bone multipliers (key.len, key.thick, key.alpha): tweened toward like the pose, 1 = no change, eased back after
+// (len feeds the hurtbox and reach too, a Dhalsim limb; thick and alpha are drawing only)
+const KEY_MULS = ['len', 'thick', 'alpha'];
 // a lying body (pose falls): turned about the hips to the angle where its joints sit lowest over its lowest point,
 // so no pose leaves the torso or head hanging in the air above the floor
 function settle(ch, L) {
@@ -25,8 +28,8 @@ class Fighter {
     this.target = this.basePose();
     this.disp = { ...this.target };
     this.prev = { ...this.target };
-    this.flt = {}; this.lens = {};
-    for (const b of ch.bones) { this.flt[b.id] = new SecondOrder(this.target[b.id]); this.lens[b.id] = b.len; }
+    this.flt = {}; this.lens = {}; this.mul = Object.fromEntries(KEY_MULS.map(p => [p, {}]));
+    for (const b of ch.bones) { this.flt[b.id] = new SecondOrder(this.target[b.id]); this.lens[b.id] = b.len; for (const p of KEY_MULS) this.mul[p][b.id] = 1; }
   }
   // swap the body live (character editor, weapons): new bones start at the base pose, the running move is dropped.
   // keep (a stance body): the move goes on, bones new to the body join it where they are and grow from nothing, lengths ease over
@@ -39,8 +42,9 @@ class Fighter {
       const fresh = keep && !old.by[b.id];
       if (!this.flt[b.id] || fresh) { this.flt[b.id] = new SecondOrder(base[b.id]); this.target[b.id] = this.disp[b.id] = this.prev[b.id] = base[b.id]; }
       if (!keep) this.lens[b.id] = b.len; else if (fresh) this.lens[b.id] = 0;
+      for (const p of KEY_MULS) if (this.mul[p][b.id] === undefined) this.mul[p][b.id] = 1;
     }
-    if (keep && this.action) for (const j of ch.ids) this.action.from[j] ??= this.target[j];
+    if (keep && this.action) for (const j of ch.ids) { this.action.from[j] ??= this.target[j]; for (const p of KEY_MULS) this.action.fromMul[p][j] ??= this.mul[p][j]; }
   }
   // switch to stance i: its body (stanceChar; a running move goes on) and its transition (MORPH; back to main: the left stance's).
   // how: 'switch' (the stance key), 'exit' (its limits: no transition move), 'instant' (previews: no transition)
@@ -290,7 +294,7 @@ class Fighter {
   start(m) {
     const mv = typeof m === 'string' ? this.ch.moves[m] : m, ms = this.ch.moves;
     const name = typeof m === 'string' ? m : Object.keys(ms).find(k => ms[k] === m) || Object.keys(WEAPON_MOVES).find(k => WEAPON_MOVES[k] === m) || '';
-    this.action = { m: mv, name, i: 0, t: 0, from: { ...this.target }, hit: false, hits: [] };
+    this.action = { m: mv, name, i: 0, t: 0, from: { ...this.target }, fromMul: Object.fromEntries(KEY_MULS.map(p => [p, { ...this.mul[p] }])), hit: false, hits: [] };
     if (mv.charge) this.action.chargeBtn = this.inp.punch ? 'punch' : this.inp.kick ? 'kick' : this.inp.special ? 'special' : null;
     if (!mv.hurt) { this.w.ev(this, 'move', name); if (name) this.moveCount[name] = (this.moveCount[name] || 0) + 1; }
     if (this.action.m.roll) this.passT = this.invT = this.c('rollInv'); // a roll: through fighters and untouchable a moment
@@ -340,7 +344,7 @@ class Fighter {
     if (this.taking && a.pick && (k.grip || first && !a.m.keys.some(x => x.grip))) {
       const it = this.taking; this.taking = null;
       this.w.items.splice(this.w.items.indexOf(it), 1); this.wield(it.type); this.action = a; this.say(it.type.toUpperCase());
-      for (const j of this.ch.ids) a.from[j] ??= this.target[j]; // the weapon's bones join the tween where they are
+      for (const j of this.ch.ids) { a.from[j] ??= this.target[j]; for (const p of KEY_MULS) a.fromMul[p][j] ??= this.mul[p][j]; } // the weapon's bones join the tween where they are
     }
     if (k.warp) this.warp();
     if (k.shoot) this.shoot(a);
@@ -635,7 +639,9 @@ class Fighter {
       if (a.m.charge && a.chargeBtn && this.inp[a.chargeBtn + 'Held'] && keys[a.i]?.charge
         && a.t >= keys[a.i].d && (a.charge || 0) < a.m.charge.timeout) { a.charge = (a.charge || 0) + dt; a.t = keys[a.i].d * 0.999; }
       while (a.i < keys.length && a.t >= keys[a.i].d) {
-        a.t -= keys[a.i].d; a.from = resolve(base, keys[a.i].p); this.keyReached(keys[a.i++]);
+        a.t -= keys[a.i].d; a.from = resolve(base, keys[a.i].p);
+        a.fromMul = Object.fromEntries(KEY_MULS.map(p => [p, Object.fromEntries(ch.ids.map(j => [j, keys[a.i][p]?.[j] ?? 1]))]));
+        this.keyReached(keys[a.i++]);
         if (keys[a.i]?.turn) this.turnKey(keys[a.i]);
         if (keys[a.i]?.lunge) this.vx = this.dir * keys[a.i].lunge;
         if (keys[a.i]?.drop && !this.grounded) this.vy = keys[a.i].drop;
@@ -653,8 +659,11 @@ class Fighter {
     if (this.action) {
       const a = this.action, k = a.m.keys[a.i], to = resolve(base, k.p);
       const e = EASE[c('easing') === 'authored' ? k.e || 'linear' : c('easing')](a.t / k.d);
-      for (const j of this.ch.ids) this.target[j] = a.from[j] + (to[j] - a.from[j]) * e;
-    } else Object.assign(this.target, base);
+      for (const j of this.ch.ids) {
+        this.target[j] = a.from[j] + (to[j] - a.from[j]) * e;
+        for (const p of KEY_MULS) this.mul[p][j] = a.fromMul[p][j] + ((k[p]?.[j] ?? 1) - a.fromMul[p][j]) * e;
+      }
+    } else { Object.assign(this.target, base); for (const j of this.ch.ids) for (const p of KEY_MULS) this.mul[p][j] = 1; }
 
     // filter layer: displayed pose chases the target pose
     const mode = c('filter'), mo = this.morph, me = mo && EASE[mo.ease](Math.min(1, mo.t / mo.T));
@@ -671,9 +680,9 @@ class Fighter {
       }
       // limits are applied after the filter so spring overshoot never hyperextends a joint; a pose authored past a limit is kept
       if (b.min !== undefined) this.disp[j] = clamp(this.disp[j], Math.min(b.min, x), Math.max(b.max, x));
-      // stretch: fast-swinging bones lengthen, then ease back
+      // stretch: fast-swinging bones lengthen, then ease back; a move's own key.len (this.mul.len) stretches it on purpose (a Dhalsim limb)
       // (an auto morph blends the lengths from the old body's, new bones from nothing)
-      const len = mo ? (mo.lens[j] ?? 0) + (b.len - (mo.lens[j] ?? 0)) * me : b.len;
+      const len = (mo ? (mo.lens[j] ?? 0) + (b.len - (mo.lens[j] ?? 0)) * me : b.len) * this.mul.len[j];
       const want = len * (1 + b.stretch * Math.min(1, Math.abs(this.disp[j] - this.prev[j]) / dt / 1500));
       this.lens[j] = mo ? want : this.lens[j] + (want - this.lens[j]) * (1 - Math.exp(-30 * dt));
       wa[j] = wp + this.disp[j];
@@ -1153,7 +1162,7 @@ class Fighter {
     drawFx(ctx, P, fxs, this.time, true);
     if (this.flashT > 0 && this.c('flash')) { drawFigure(ctx, this.ch, P, '#111', '#111', 4); drawFigure(ctx, this.ch, P, '#fff', '#fff'); }
     else if (this.dodgeT > 0) { ctx.globalAlpha = 0.4; drawFigure(ctx, this.ch, P, this.col[0], this.col[1]); ctx.globalAlpha = 1; } // air dodge: see-through
-    else drawFigure(ctx, this.ch, P, this.col[0], this.col[1]);
+    else drawFigure(ctx, this.ch, P, this.col[0], this.col[1], 0, null, this.mul);
     drawFx(ctx, P, fxs, this.time, false);
     if (this.c('boxes')) this.drawBoxes(ctx);
     const a = this.action;
