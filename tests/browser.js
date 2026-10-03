@@ -744,6 +744,20 @@ try {
       const proj = projectFile(), before = JSON.stringify(rp.movie.shots), nReels = rp.reels.length;
       loadProject(proj);
       if (rp.reels.length !== nReels || JSON.stringify(rp.movie.shots) !== before || !rp.reel) errs.push('project round-trip ' + [rp.reels.length, JSON.stringify(rp.movie.shots)]); }
+    // transitions: a crossfade blends the previous shot's last frame into the next one's first, for its own duration, then plays normally;
+    // 'cut' (the default) has none
+    { movieEdit(M => { M.shots = [{ reel: 0, a: 0, b: 5 }, { reel: 0, a: 5, b: 10, trans: { kind: 'cross', dur: 2 / 60 } }]; });
+      setPlayMovie(true);
+      for (let i = 0; i < 6; i++) mode().tick(1 / 60); // plays shot 0's 5 frames, then crosses into shot 1
+      if (!rp.mv || rp.mv.shotI !== 1 || !rp.mv.trans || rp.mv.trans.kind !== 'cross') errs.push('transition start ' + JSON.stringify(rp.mv && [rp.mv.shotI, rp.mv.trans]));
+      const stillAt5 = rp.mv.n; if (stillAt5 !== rp.mv.a) errs.push('transition holds the shot frames until done ' + stillAt5);
+      for (let i = 0; i < 4; i++) mode().tick(1 / 60); // past its two-frame duration
+      if (rp.mv.trans || rp.mv.n <= rp.mv.a) errs.push('transition ends, the shot plays on ' + JSON.stringify(rp.mv.trans));
+      setPlayMovie(false);
+      afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
+        ui.clip = { ...clipSet(), fps: 60, aspect: 'view' }; await exportMovie(); saveClip = sc;
+        // 5 content frames + 2 transition frames + 5 content frames at 60fps
+        if (!got || Math.abs(got.length - 12) > 2) errs.push('transition export ' + (got && got.length)); }); }
     // clips: the 1:1 aspect crops the subject to a square
     { ui.clip = { ...clipSet(), aspect: '1:1', fit: 'crop', size: 200 }; clip.key = null; clip.frames.length = 0; clip.last = 0; clipCapture(5e6, true);
       const f = clip.frames[0]?.c; if (!f || f.width !== 200 || f.height !== 200) errs.push('clip aspect ' + (f && [f.width, f.height]));
