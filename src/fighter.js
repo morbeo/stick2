@@ -285,6 +285,7 @@ class Fighter {
     const mv = typeof m === 'string' ? this.ch.moves[m] : m, ms = this.ch.moves;
     const name = typeof m === 'string' ? m : Object.keys(ms).find(k => ms[k] === m) || Object.keys(WEAPON_MOVES).find(k => WEAPON_MOVES[k] === m) || '';
     this.action = { m: mv, name, i: 0, t: 0, from: { ...this.target }, hit: false, hits: [] };
+    if (mv.charge) this.action.chargeBtn = this.inp.punch ? 'punch' : this.inp.kick ? 'kick' : this.inp.special ? 'special' : null;
     if (!mv.hurt) { this.w.ev(this, 'move', name); if (name) this.moveCount[name] = (this.moveCount[name] || 0) + 1; }
     if (this.action.m.roll) this.passT = this.invT = this.c('rollInv'); // a roll: through fighters and untouchable a moment
     const keys = this.action.m.keys;
@@ -345,17 +346,17 @@ class Fighter {
   // a shoot key: the move's projectile leaves from between its striking limbs (one at a time per fighter; shots setting)
   shoot(a) {
     if (!this.c('shots') || this.w.shots.some(s => s.owner === this)) return;
-    const m = a.m, o = m.shot || {}, P = this.body(), ps = hitIds(m).map(id => P[id]).filter(Boolean);
+    const k = this.chargeMul(a.m, a.charge), m = this.chargedHit(a.m, a.charge), o = m.shot || {}, P = this.body(), ps = hitIds(m).map(id => P[id]).filter(Boolean);
     const pt = ps.length ? [ps.reduce((s, p) => s + p[0], 0) / ps.length, ps.reduce((s, p) => s + p[1], 0) / ps.length] : [this.x + this.dir * 30, this.groundY + this.y - 60];
-    this.w.shots.push({ x: pt[0], y: pt[1], z: this.z, vx: this.dir * (o.speed ?? 360), dir: this.dir, r: o.size ?? 12, life: o.life ?? 2, t: 0, look: o.look || 'ki', owner: this, m });
+    this.w.shots.push({ x: pt[0], y: pt[1], z: this.z, vx: this.dir * (o.speed ?? 360) * k, dir: this.dir, r: (o.size ?? 12) * k, life: o.life ?? 2, t: 0, look: o.look || 'ki', owner: this, m });
     a.hit = true; // fired: not a whiff
   }
   // a beam key: a straight line held out from the striking limbs for its duration, hitting once wherever it touches a foe (beams setting)
   fireBeam(a) {
     if (!this.c('beams') || this.w.beams.some(b => b.owner === this)) return;
-    const m = a.m, o = m.beam || {}, P = this.body(), ps = hitIds(m).map(id => P[id]).filter(Boolean);
+    const k = this.chargeMul(a.m, a.charge), m = this.chargedHit(a.m, a.charge), o = m.beam || {}, P = this.body(), ps = hitIds(m).map(id => P[id]).filter(Boolean);
     const pt = ps.length ? [ps.reduce((s, p) => s + p[0], 0) / ps.length, ps.reduce((s, p) => s + p[1], 0) / ps.length] : [this.x + this.dir * 30, this.groundY + this.y - 60];
-    this.w.beams.push({ x: pt[0], y: pt[1], z: this.z, dir: this.dir, vx: this.dir, w: o.width ?? 14, range: o.range ?? 500, dur: o.duration ?? 0.25, t: 0, hit: false, look: o.look || 'laser', owner: this, m });
+    this.w.beams.push({ x: pt[0], y: pt[1], z: this.z, dir: this.dir, vx: this.dir, w: (o.width ?? 14) * k, range: (o.range ?? 500) * k, dur: o.duration ?? 0.25, t: 0, hit: false, look: o.look || 'laser', owner: this, m });
     a.hit = true; // fired: not a whiff
   }
   // reaching for a weapon: it slides and turns on the floor so its handle meets the hand at the grip key; let go if the reach is cut short
@@ -392,6 +393,17 @@ class Fighter {
   // a weapon move's blow, by the weight of the weapon held
   weaponHit(m) {
     const w = m.weapon && this.weapon, k = w ? weaponPower(w) : 1;
+    return k === 1 ? m : { ...m, power: m.power * k, damage: m.damage * k, knock: m.knock * k };
+  }
+  // a chargeable move's current power multiplier (move field charge: dur, timeout, min, max; charge = seconds held)
+  chargeMul(m, charge) {
+    if (!m.charge) return 1;
+    const { dur = 1, min = 1, max = 2 } = m.charge;
+    return min + Math.min(1, (charge || 0) / dur) * (max - min);
+  }
+  // a chargeable move's blow, by how long its button was held: scales power, damage and knock
+  chargedHit(m, charge) {
+    const k = this.chargeMul(m, charge);
     return k === 1 ? m : { ...m, power: m.power * k, damage: m.damage * k, knock: m.knock * k };
   }
 
@@ -611,6 +623,10 @@ class Fighter {
       // a weapon throw with P+G still held: the key before the release holds its pose, charging up to throwChargeT
       if (a.toss && this.ch.weapon && this.inp.guard && this.inp.punchHeld && a.i === Math.max(0, keys.findIndex(k => k.release) - 1)
         && a.t >= keys[a.i].d && (a.charge || 0) < c('throwChargeT')) { a.charge = (a.charge || 0) + dt; a.t = keys[a.i].d * 0.999; }
+      // a chargeable move (key flag charge; move field charge: dur, timeout, min, max) holds at that key while its
+      // trigger button stays held, up to charge.timeout; letting go (or reaching it) carries the move on with that charge
+      if (a.m.charge && a.chargeBtn && this.inp[a.chargeBtn + 'Held'] && keys[a.i]?.charge
+        && a.t >= keys[a.i].d && (a.charge || 0) < a.m.charge.timeout) { a.charge = (a.charge || 0) + dt; a.t = keys[a.i].d * 0.999; }
       while (a.i < keys.length && a.t >= keys[a.i].d) {
         a.t -= keys[a.i].d; a.from = resolve(base, keys[a.i].p); this.keyReached(keys[a.i++]);
         if (keys[a.i]?.turn) this.turnKey(keys[a.i]);
@@ -729,7 +745,7 @@ class Fighter {
       if (cl) { this.w.clash(this, o, cl); break; }
       // several striking bones: the deepest overlap counts, one hit per foe per move
       const h = ss.map(s => o.hurtAt(s, c('hitTest') === 'target', otg)).reduce((best, h) => h && (!best || h.d < best.d) ? h : best, null);
-      if (h) { a.hits.push(o); a.hit = true; out.push({ f: this, o, h, a, m: this.weaponHit(a.m), key: a.m.keys[a.i] }); }
+      if (h) { a.hits.push(o); a.hit = true; out.push({ f: this, o, h, a, m: this.weaponHit(this.chargedHit(a.m, a.charge)), key: a.m.keys[a.i] }); }
     }
     this.lastTips = Object.fromEntries(ss.map(s => [s.id, s[1]]));
     this.lastSegs = Object.fromEntries(ss.filter(s => !s.sweep).map(s => [s.id, [s[0], s[1]]]));
@@ -1138,6 +1154,11 @@ class Fighter {
       const q = Math.min(1, a.charge / this.c('throwChargeT')), o = P[this.ch.by.weapon.parent], e = P[this.ch.by.weaponTip ? 'weaponTip' : 'weapon'];
       ctx.strokeStyle = `rgba(230,180,34,${0.2 + 0.4 * q})`; ctx.lineWidth = 6 + 10 * q; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0], e[1]); ctx.stroke();
+    }
+    if (a?.charge && a.m.charge) { // a chargeable move charging: its striking limbs glow brighter as it powers up
+      const q = Math.min(1, a.charge / a.m.charge.dur);
+      ctx.fillStyle = `rgba(230,180,34,${0.2 + 0.4 * q})`;
+      for (const id of hitIds(a.m)) if (P[id]) { ctx.beginPath(); ctx.arc(P[id][0], P[id][1], 6 + 8 * q, 0, 7); ctx.fill(); }
     }
     // health bar and callouts (PARRY, K.O.) over the head (setting hud)
     if (!this.c('hud')) return ctx.restore();

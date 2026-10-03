@@ -211,16 +211,18 @@ const STICK_MOVES = {
     [0.08, { torso: -5, afU: 20, afL: 140, abU: 25, abL: 140 }],
     [0.05, { torso: 20, afU: 100, afL: 5, abU: 72, abL: 15, lfU: 40, lfL: -30, lbU: -25, lbL: 0 }], 0.06, 0.24),
   // a projectile (shoot key): both palms drawn back to the hip, then pushed out; the shot leaves as the push is reached and hits
-  // with the move's own power, damage and height (move field shot: speed, size, life, look)
-  fireball: { power: 1.2, damage: 9, hit: ['fh', 'bh'], height: 'mid', knock: 220, stun: 0.42, special: true, shot: { speed: 360, size: 12, look: 'ki' }, keys: [
-    { d: 0.13, e: 'outQuad', p: { torso: -10, afU: -40, afL: 120, abU: -50, abL: 120, lfU: 35, lfL: -40, lbU: -25, lbL: -10 } },
+  // with the move's own power, damage and height (move field shot: speed, size, life, look). Chargeable (key flag charge, move
+  // field charge: dur, timeout, min, max): holding the button through the wind-up fires it bigger, faster and harder
+  fireball: { power: 1.2, damage: 9, hit: ['fh', 'bh'], height: 'mid', knock: 220, stun: 0.42, special: true, shot: { speed: 360, size: 12, look: 'ki' }, charge: { dur: 0.5, timeout: 1.2, min: 1, max: 1.8 }, keys: [
+    { d: 0.13, e: 'outQuad', charge: true, p: { torso: -10, afU: -40, afL: 120, abU: -50, abL: 120, lfU: 35, lfL: -40, lbU: -25, lbL: -10 } },
     { d: 0.06, e: 'outExpo', shoot: true, p: { torso: 18, afU: 90, afL: 5, abU: 80, abL: 10, lfU: 40, lfL: -35, lbU: -30, lbL: 0 } },
     { d: 0.16, p: { torso: 18, afU: 90, afL: 5, abU: 80, abL: 10, lfU: 40, lfL: -35, lbU: -30, lbL: 0 } },
     { d: 0.22, e: 'inOutCubic', p: null }] },
   // a beam (beam key): both palms pushed out and held there; the beam leaves as the push is reached, holds out for its duration
-  // (move field beam: width, range, duration, look) and hits once with the move's own power, damage and height
-  laserBeam: { power: 1.3, damage: 10, hit: ['fh', 'bh'], height: 'mid', knock: 80, stun: 0.3, special: true, beam: { width: 14, range: 500, duration: 0.25, look: 'laser' }, keys: [
-    { d: 0.12, e: 'outQuad', p: { torso: -8, afU: -30, afL: 110, abU: -40, abL: 110, lfU: 30, lfL: -35, lbU: -20, lbL: -10 } },
+  // (move field beam: width, range, duration, look) and hits once with the move's own power, damage and height. Chargeable
+  // (key flag charge, move field charge): holding the button through the wind-up fires a wider, longer-reaching, harder beam
+  laserBeam: { power: 1.3, damage: 10, hit: ['fh', 'bh'], height: 'mid', knock: 80, stun: 0.3, special: true, beam: { width: 14, range: 500, duration: 0.25, look: 'laser' }, charge: { dur: 0.45, timeout: 1.1, min: 1, max: 1.7 }, keys: [
+    { d: 0.12, e: 'outQuad', charge: true, p: { torso: -8, afU: -30, afL: 110, abU: -40, abL: 110, lfU: 30, lfL: -35, lbU: -20, lbL: -10 } },
     { d: 0.05, e: 'outExpo', beam: true, p: { torso: 15, afU: 95, afL: 10, abU: 85, abL: 15, lfU: 35, lfL: -30, lbU: -25, lbL: 0 } },
     { d: 0.2, p: { torso: 15, afU: 95, afL: 10, abU: 85, abL: 15, lfU: 35, lfL: -30, lbU: -25, lbL: 0 } },
     { d: 0.2, e: 'inOutCubic', p: null }] },

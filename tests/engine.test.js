@@ -904,6 +904,22 @@ test('beams: a beam key holds a straight line out from the striking limb; it hit
   assert.equal(go(['@laserBeam'], 'dummy', { beams: false }).seen, 0, 'beams off: no beam');
 });
 
+test('chargeable moves: holding the move\'s button fires it bigger, faster and harder; a tap fires at minimum; charge.timeout caps how long it can be held', () => {
+  const go = t => JSON.parse(run(`(() => {
+    const ch = makeCharacter({ ...CHAR_DEFS.stick, binds: { special: 'fireball' } });
+    const w = new World({ a: [${t > 0 ? `'special', { hold: 'specialHeld', t: ${t} }` : `'special'`}], b: 'dummy', ax: 250, bx: 560 }, {}, 7, [ch, CHARS.stick]); w.loop = false;
+    let shot = null, charge = 0; const hp0 = w.b.hp;
+    for (let i = 0; i < 300; i++) { w.advance(1/60, NOIN); charge = Math.max(charge, w.a.action?.charge || 0); if (!shot && w.shots[0]) shot = w.shots[0]; }
+    return JSON.stringify({ r: shot?.r, vx: Math.abs(shot?.vx || 0), dmg: hp0 - w.b.hp, charge }); })()`));
+  const tap = go(0), held = go(1), long = go(3);
+  assert.equal(tap.charge, 0, 'a tap: no charge, fires at minimum');
+  assert.ok(held.charge > 0.5, 'held a second: charged ' + held.charge);
+  assert.ok(held.r > tap.r * 1.3 && held.vx > tap.vx * 1.3, `bigger and faster: ${held.r}/${held.vx} vs ${tap.r}/${tap.vx}`);
+  assert.ok(held.dmg > tap.dmg && tap.dmg > 0, `hits harder: ${held.dmg} vs ${tap.dmg}`);
+  assert.ok(long.charge <= 1.25, 'charge.timeout caps it even held well past: ' + long.charge);
+  assert.ok(long.r > 0, 'it still fires once the timeout forces it');
+});
+
 test('chase jump: after a launcher hits, ↑ held jumps after the victim (press), on its own (auto), not at all (off)', () => {
   const chase = (mode, a) => JSON.parse(run(`(() => { const w = new World({ a: ${JSON.stringify(a)}, b: 'dummy', ax: 330, bx: 372, period: 9 }, { chaseJump: '${mode}' }, 7, [CHARS.stick]); w.loop = false;
     let top = 0, gap = 1e9, flew = false;

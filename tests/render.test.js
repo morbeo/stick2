@@ -43,6 +43,7 @@ test('every projectile look, styled spark and glow draws without NaN', () => {
     const kinds = [...new Set(w.parts.map(p => p.t))]; w.drawParticles(ctx);
     w.a.force('charge'); w.a.draw(ctx); // unblockable frames ahead: the striking limbs glow
     w.b.action = { m: w.b.ch.moves.stance || Object.values(w.b.ch.moves)[0], i: 0, t: 0, hits: [], charge: 0.2 }; w.b.draw(ctx); // a throw charging
+    w.a.action = { m: w.a.ch.moves.fireball, i: 0, t: 0, hits: [], charge: 0.3 }; w.a.draw(ctx); // a chargeable move charging: its striking limbs glow
     return JSON.stringify({ kinds, calls: st.calls, bad: [...new Set(st.bad)] }); })()`));
   for (const k of ['flash', 'ring', 'slash', 'spark']) assert.ok(r.kinds.includes(k), 'particle ' + k);
   assert.ok(r.calls > 100), assert.deepEqual(r.bad, []);
