@@ -245,6 +245,15 @@ A knockdown lies **downTime** (Falls) before getting up.
 | --- | --- |
 | ![Taunt: ↑ S+G beckons the foe](img/anim-taunt.png) | ![Win pose: the survivor's victory move](img/anim-win-pose.png) |
 
+### Powering up
+
+The stick's third stance, **powered** (S+G cycles main → boxing → powered). A DBZ-style power-up: fists clench, an aura builds and the screen shakes harder with each key of its transition move (**mainToPowered**), then it fights faster and snappier (speed, dash, tempo, springs) until it's hit or 8 seconds pass.
+
+- It's a stance like any other: the stat buff is **body.stats** on the stance, applied the moment it switches (not gated behind the charge-up finishing — the vulnerability while it plays is the cost).
+- **req.exitOn: ['hit']** cancels it early if the charge-up (or the powered stance itself) gets hit; **req.maxT** sends it back to main on its own.
+- Reverting (by either of those) is a **setStance(0, 'exit')**, which skips the transition move back — it just snaps back.
+- A character can make this part of its own moveset: a stance named anything, a **\<from\>To\<To\>** move for the charge-up, **req.exitOn** / **maxT** to limit it, **body.stats** for the buff.
+
 ### Attacking
 
 - **Pounce** (pounce): ↓ S in the air dives onto a fighter lying on the floor. pounce hits off the ground and lands into its strike; a key's **drop** drives it down.
