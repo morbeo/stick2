@@ -135,6 +135,7 @@ function undoRedo(from, to) {
   studio.lastKey = null;
   if (e.cfg) { to.push({ cfg: { ...CFG } }); Object.assign(CFG, e.cfg); saveCfg(); syncAll(); return; }
   if (e.reel) { to.push({ reel: reelSnap() }); reelRestore(e.reel); return; } // a replay edit (replay.js)
+  if (e.movie) { to.push({ movie: JSON.stringify(rp.movie) }); rp.movie = JSON.parse(e.movie); panels(); return; } // a movie edit (replay.js)
   to.push(JSON.stringify(DEFS[CURRENT]));
   DEFS[CURRENT] = JSON.parse(e);
   recompile();
