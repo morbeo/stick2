@@ -35,7 +35,7 @@ Three rows, the same in every tab:
 
 ![Compare settings](img/compare.png)
 
-The **compare** stage panel (the **panels** group in play and grid, **import → compare…**, or ⌘K **compare settings**) lists two sets of settings side by side.
+The **compare** stage panel (the **panels** group in grid, **import → compare…**, or ⌘K **compare settings**) lists two sets of settings side by side.
 
 - **A** and **B** are each the current settings, a preset, or a settings or everything file (only its settings are read).
 - Each row is a setting that differs: its group, name (hover for what it does), A, B, B − A for numbers, and the default. **all** lists every setting; the filter finds settings by name or group.

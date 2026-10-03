@@ -553,7 +553,9 @@ function labCtx() {
     seg([1, 3, 5], () => lab.seeds, v => { lab.seeds = v; build(); }, { 1: 'One fight per cell', 3: 'Each cell fought with 3 seeds; stats averaged (AI fights differ per seed)', 5: '5 seeds per cell, averaged' }, v => `${v} seed${v > 1 ? 's' : ''}`),
     sortButton()));
   els.push(showGrp(['meter', ...lab.mode === 'play' ? ['inputs'] : [], 'boxes', 'ghost', 'hud', 'labels']));
-  if (lab.mode !== 'gallery') els.push(panelsGrp(['compare', ...lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? ['builder'] : []], { compare: CMP_PANEL_TIP, builder: BUILDER_TIP }));
+  // compare settings only in grid (it drives the grid's own compare kind); play just gets its scenario builder, if it has one
+  const panelNames = [...lab.mode !== 'play' ? ['compare'] : [], ...lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? ['builder'] : []];
+  if (lab.mode !== 'gallery' && panelNames.length) els.push(panelsGrp(panelNames, { compare: CMP_PANEL_TIP, builder: BUILDER_TIP }));
   if (lab.mode === 'play') els.push(...trainingCtl());
   return els;
 }

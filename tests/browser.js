@@ -365,7 +365,8 @@ try {
     if (Math.abs(anLayout().pv.x / dpr - (x0 - 100)) > 1 || anim.key !== k0 || !JSON.parse(localStorage.getItem('stick2.layouts')).sets.default.tabs.animate.size.split) errs.push('split ' + anLayout().pv.x / dpr + ' ' + x0);
     setMode('character'); if (Math.abs(edLayout().pv.x / dpr - x0) > 1) errs.push('split per tab'); layReset(); setMode('play'); }
   // compare settings: A and B (current, a preset, a file) differing in 3 settings give 3 rows; use B takes one (undoable), use all B every one; the text has - / + lines
-  { setMode('play'); applyPreset('juicy'); const keep = { ...CFG };
+  // (compare lives in grid, not play: no button for it there, and opening it from elsewhere lands in grid)
+  { setMode('grid'); applyPreset('juicy'); const keep = { ...CFG };
     cmp.a = { name: 'current' }; cmp.b = { name: 'f', cfg: { ...cfgFrom({}), hitstop: 0.2, gravity: 999, easing: 'step' } }; cmp.all = false; cmp.q = '';
     paletteEntries().find(e => e.name === 'compare settings').run();
     const rows = () => [...document.querySelectorAll('.cmptable tbody tr')], cell = (r, i) => r.children[i].textContent;
@@ -377,7 +378,9 @@ try {
     cmp.all = true; panels(); if (rows().length < 50) errs.push('compare all ' + rows().length); cmp.all = false;
     [...document.querySelectorAll('.cmptable button')].find(b => b.textContent === 'use all B').click(); if (rows().length !== 1 || rows()[0].textContent !== 'A and B are the same') errs.push('compare use all ' + rows().length);
     undo(); cmp.a = { name: 'raw' }; cmp.b = { name: 'juicy' }; panels(); if (!rows().some(r => cell(r, 1) === 'easing')) errs.push('compare presets');
-    setMode('grid'); if (document.querySelector('.cmptable')) errs.push('compare per tab'); setMode('play'); closeStage(); if (document.querySelector('.cmptable')) errs.push('compare close'); }
+    setMode('play'); if (document.querySelector('.cmptable')) errs.push('compare per tab');
+    if ([...document.querySelectorAll('#ctx button')].some(b => b.dataset.tip?.startsWith(CMP_PANEL_TIP))) errs.push('compare button in play');
+    setMode('grid'); if (!document.querySelector('.cmptable')) errs.push('compare back in grid'); closeStage(); if (document.querySelector('.cmptable')) errs.push('compare close'); }
   // survival: the side panel has the Survival settings, the fight draws with its time counter
   { setMode('play'); lab.scen = 'survival'; build(); panels(); const w = lab.cells[0].w; for (let i = 0; i < 200; i++) w.advance(1/60, NOIN); labRender();
     if (!w.scen.survival || w.survT < 3 || ![...document.querySelectorAll('#side h3')].some(e => e.textContent.includes('Survival'))) errs.push('survival ' + w.survT);
