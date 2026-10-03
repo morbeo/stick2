@@ -265,8 +265,13 @@ class Fighter {
     const m = this.pick(b, motion);
     if (m && this.ch.moves[m].special && !a.m.special && a.hit && this.c('specialCancel')) return m;
     const rule = this.c('chains');
-    if (rule === 'authored') { // a link on the direction held (6P, 2K…, numpad toward the foe), else the plain P / K one
-      const i = this.inp, n = 5 + (i.right - i.left) * this.dir - (i.down ? 3 : i.up ? -3 : 0), k = { punch: 'P', kick: 'K' }[b];
+    if (rule === 'authored') { // a link on the direction held (6P, 2K…, numpad toward the foe), else the plain P / K / S one
+      const i = this.inp, n = 5 + (i.right - i.left) * this.dir - (i.down ? 3 : i.up ? -3 : 0);
+      if (b === 'special') { // specials chain on the bind table's own names: diagonals collapse to their vertical, like a bind
+        const key = n <= 3 ? 'downSpecial' : n >= 7 ? 'upSpecial' : n === 4 ? 'backSpecial' : n === 6 ? 'fwdSpecial' : null;
+        return (key && a.m.next?.[key]) || a.m.next?.special;
+      }
+      const k = { punch: 'P', kick: 'K' }[b];
       return (k && n !== 5 && a.m.next?.[n + k]) || a.m.next?.[b];
     }
     if (rule === 'free') return a.hit && m && !this.used.includes(m) ? m : null;

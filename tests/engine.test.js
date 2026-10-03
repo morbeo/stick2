@@ -730,6 +730,13 @@ test('directional links: P with a direction held chains into that direction\'s l
   assert.deepEqual(r, ['cross', 'elbow', 'uppercut', 'cross', 'cross']);
 });
 
+test('directional links on S: a direction held chains into that direction\'s special link (fwdSpecial, downSpecial…, diagonals fall back to vertical), neutral into the plain one', () => {
+  const r = JSON.parse(run(`(() => { const w = new World({ a: [], b: [], ax: 330, bx: 400, period: 9 }, {}, 1, [CHARS.stick, CHARS.stick]), f = w.a;
+    const a = { m: { cancel: 0, next: { special: 'uppercut', fwdSpecial: 'fireball', downSpecial: 'sweep' } }, i: 0 }, at = dirs => { f.inp = { ...NOIN, ...dirs }; return f.cancelInto(a, 'special'); };
+    return JSON.stringify([at({}), at(f.dir > 0 ? { right: true } : { left: true }), at({ down: true }), at(f.dir > 0 ? { left: true } : { right: true }), at({ up: true })]); })()`));
+  assert.deepEqual(r, ['uppercut', 'fireball', 'sweep', 'uppercut', 'uppercut']);
+});
+
 test('back turned, ↓ crouches without turning around: a low guard held with the back to the foe stays turned, so a low hits it', () => {
   const go = hold => JSON.parse(run(`(() => { const w = new World({ a: [0.5, 'down+kick'], b: [{ hold: '${hold}', t: 99 }], ax: 330, bx: 380, period: 9, init: w => { w.b.away = true; w.b.dir = -w.b.dir; } }, {}, 1, [CHARS.stick, CHARS.stick]);
     w.loop = false; let crouched = false; for (let i = 0; i < 60; i++) { w.advance(1/60, NOIN); crouched ||= w.b.crouching; }

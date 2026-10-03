@@ -193,7 +193,7 @@ A direction pad per button (P, K, S, air P, air K; numpad layout, 6 = toward the
 
 The **panels** group → **combos**. The chain links, editable.
 
-With the **chains** setting on authored, P or K in a move's cancel window chains into its next move. A link can also be on a direction held with the button, like 6P or 2K (→ is toward the foe). A direction without its own link falls back to the plain P / K one.
+With the **chains** setting on authored, P, K or S in a move's cancel window chains into its next move. A link can also be on a direction held with the button, like 6P or 2K (→ is toward the foe). A direction without its own link falls back to the plain P / K / S one. S's directions are fwd / back / up / down only (diagonals count as their vertical, like a bind), not every direction like P and K.
 
 ### Tree
 

@@ -86,7 +86,7 @@ The move table shows hits, juggle and the flags.
 
 ### Ways to combo
 
-- **Chains:** authored routes, with a link on P / K or on a direction held with it (like 6P), or a free 2-button magic series.
+- **Chains:** authored routes, with a link on P / K / S or on a direction held with it (like 6P, or fwdSpecial / backSpecial / upSpecial / downSpecial for S), or a free 2-button magic series.
 - **Specials by motion** cancel normals on hit:
 
 | Motion | Special |

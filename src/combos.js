@@ -1,14 +1,20 @@
 'use strict';
-// ---------- combos: the chain links (a move's next: P / K, or a direction with it like 6P / 2K → move) as a tree per starter or a table of routes, edited in place ----------
+// ---------- combos: the chain links (a move's next: P / K / S, or a direction with it like 6P / 2K / 6S → move) as a tree per starter or a table of routes, edited in place ----------
 const combos = { view: 'tree' };
-const LINK_BTNS = { punch: 'P', kick: 'K' };
-// a link key's label (P, K, 6P…), its button (P / K) and direction (numpad, 5: none), and the key for a button and direction
-const linkName = b => LINK_BTNS[b] || b, linkBtn = b => LINK_BTNS[b] || b.slice(-1), linkDir = b => LINK_BTNS[b] ? 5 : +b[0];
-const linkKey = (L, d) => d === 5 ? (L === 'P' ? 'punch' : 'kick') : d + L;
+const LINK_BTNS = { punch: 'P', kick: 'K', special: 'S' };
+// specials chain on the bind table's own names (fwdSpecial, backSpecial, upSpecial, downSpecial; diagonals collapse to their
+// vertical, like a bind), not a numeric prefix like P / K; the direction picker below shows them the same way (6S, 2S…)
+const SPECIAL_KEY = { 5: 'special', 6: 'fwdSpecial', 4: 'backSpecial', 8: 'upSpecial', 2: 'downSpecial' };
+const SPECIAL_DIR = Object.fromEntries(Object.entries(SPECIAL_KEY).map(([d, k]) => [k, +d]));
+// a link key's label (P, K, S, 6P, 6S…), its button (P / K / S) and direction (numpad, 5: none), and the key for a button and direction
+const linkName = b => LINK_BTNS[b] || (b in SPECIAL_DIR ? `${SPECIAL_DIR[b]}S` : b);
+const linkBtn = b => LINK_BTNS[b] || (b in SPECIAL_DIR ? 'S' : b.slice(-1));
+const linkDir = b => LINK_BTNS[b] ? 5 : b in SPECIAL_DIR ? SPECIAL_DIR[b] : +b[0];
+const linkKey = (L, d) => L === 'S' ? SPECIAL_KEY[d] : d === 5 ? (L === 'P' ? 'punch' : 'kick') : d + L;
 // an input slot in numpad notation (5P, 6K, j.2P…), from the input pads
 const SLOT_NOTE = Object.fromEntries(INPUT_PADS.flatMap(p => p.cells.filter(c => c.own).map(c => [c.chain[0], c.label])));
-const COMBO_TIPS = { tree: 'Every starter with its branches: the input that chains into each next move (P, K, or a direction with it like 6P); ✕ cuts a link, + P / + K adds one',
-  table: 'One row per route from a starter to its end: inputs, damage (before combo scaling) and frames; click a step to change or cut it, hover one to play the combo up to it, + P / + K extends the route' };
+const COMBO_TIPS = { tree: 'Every starter with its branches: the input that chains into each next move (P, K, S, or a direction with it like 6P / 6S); ✕ cuts a link, + P / + K / + S adds one',
+  table: 'One row per route from a starter to its end: inputs, damage (before combo scaling) and frames; click a step to change or cut it, hover one to play the combo up to it, + P / + K / + S extends the route' };
 // set (or with '' remove) the link from a move on a button (in a stance's body with this stance only: nextOf / setNext)
 function setLink(from, b, to) {
   edit(def => {
@@ -26,8 +32,8 @@ function pickLink(anchor, from, b, done) {
     const g = MOVE_GROUPS.type(m, ch, n); groups.set(g, [...groups.get(g) || [], n]);
   }
   const set = v => { setLink(from, b, v); closePop(); done(); }, L = linkBtn(b);
-  // another direction: an existing link moves to it, a new one is made on it
-  const dirs = [7, 8, 9, 4, 5, 6, 1, 2, 3].filter(d => d === linkDir(b) || !src.next?.[linkKey(L, d)]);
+  // another direction: an existing link moves to it, a new one is made on it (S: only the 5 it actually binds, diagonals collapse)
+  const dirs = (L === 'S' ? [8, 4, 5, 6, 2] : [7, 8, 9, 4, 5, 6, 1, 2, 3]).filter(d => d === linkDir(b) || !src.next?.[linkKey(L, d)]);
   const setDir = d => { const k = linkKey(L, d); if (!cur) { closePop(); return pickLink(anchor, from, k, done); } edit(def => { const next = { ...nextOf(def, from), [k]: cur }; delete next[b]; setNext(def, from, next); }); closePop(); done(); };
   const dirTips = Object.fromEntries(dirs.map(d => [d, d === 5 ? `${L} with no direction held (also the fallback for a direction without its own link)` : `${d}${L}: ${L} with ${DIR_ARROW[d]} held (→ toward the foe)`]));
   popup(anchor, h('b', { textContent: `${from} › ${linkName(b)}` }), h('p', { textContent: `The move ${linkName(b)} chains ${from} into, in its cancel window (chains setting authored)` }),
@@ -35,9 +41,9 @@ function pickLink(anchor, from, b, done) {
     cur ? h('div', { cls: 'bar' }, button(':content_cut: cut', `Remove the link: ${linkName(b)} after ${from} does not chain`, () => set(''))) : null,
     ...[...groups].flatMap(([g, ns]) => [h('h4', { textContent: g }), h('div', { cls: 'bar' }, seg(ns, () => cur, set, Object.fromEntries(ns.map(n => [n, `${from} chains into ${n} on ${linkName(b)}`]))))]));
 }
-// + P / + K while the button has a direction without a link: a new link on it (no direction if that is free; the popup picks another)
-const addLinks = (from, done) => ['P', 'K'].flatMap(L => {
-  const next = viewChar().moves[from].next || {}, d = [5, 6, 4, 2, 8, 3, 1, 9, 7].find(d => !next[linkKey(L, d)]);
+// + P / + K / + S while the button has a direction without a link: a new link on it (no direction if that is free; the popup picks another)
+const addLinks = (from, done) => ['P', 'K', 'S'].flatMap(L => {
+  const next = viewChar().moves[from].next || {}, d = (L === 'S' ? [5, 6, 4, 8, 2] : [5, 6, 4, 2, 8, 3, 1, 9, 7]).find(d => !next[linkKey(L, d)]);
   return d ? [button(`:add: ${L}`, `Chain ${from} into a move on ${L} (or a direction with it, like 6${L})`, (e, el) => { e.stopPropagation(); pickLink(el, from, linkKey(L, d), done); }, 'mini')] : [];
 });
 // a move as a chip: click opens it in the editor, hover plays it (with a route: the route up to it)
