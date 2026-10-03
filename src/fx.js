@@ -7,10 +7,14 @@ const FX_LOOKS = {
   aura: 'Aura: a pulsing glow around the bones, sparkles rising (powering up, a charged strike)',
   fire: 'Fire: flames licking up from the bones (a flaming kick, a fire fist)',
   lightning: 'Lightning: jagged bolts crackling around the bones (an electric attack)',
-  smoke: 'Smoke: puffs rising and spreading from the bones (a vanish, a smouldering fist)' };
+  smoke: 'Smoke: puffs rising and spreading from the bones (a vanish, a smouldering fist)',
+  spikyAura: 'Spiky aura: a pulsing glow bristling with jagged spikes (a feral power-up, a dark aura)',
+  bubbles: 'Bubbles: rising bubbles with a highlight, popping near the top (underwater, a toxic brew)',
+  sparks: 'Sparks: a shower of bright streaks flying out and falling (grinding metal, a shower of impact sparks)' };
 const FX_ON = { strike: 'The striking limbs (the move\'s hit bones, the whole limb)', body: 'The whole body', arm: 'The arms', leg: 'The legs', head: 'The head', tail: 'The tails', weapon: 'The weapon' };
 const FX_COLS = { blue: '60,140,240', cyan: '0,175,255', red: '220,50,35', orange: '240,110,30', gold: '230,170,30', purple: '160,80,220', green: '60,200,90', white: '235,235,240', grey: '130,125,120', dark: '45,35,55' };
-const FX_AUTO = { aura: 'blue', fire: 'orange', lightning: 'cyan', smoke: 'grey' }, FX_BACK = new Set(['aura', 'smoke']); // aura and smoke draw behind the body
+const FX_AUTO = { aura: 'blue', fire: 'orange', lightning: 'cyan', smoke: 'grey', spikyAura: 'purple', bubbles: 'cyan', sparks: 'gold' };
+const FX_BACK = new Set(['aura', 'smoke', 'spikyAura']); // these draw behind the body; the rest (fire, lightning, bubbles, sparks) in front
 const FX_MAX = 4, fxList = e => !e ? [] : [].concat(e).filter(Boolean).slice(0, FX_MAX);
 const fxRnd = (a, b) => { const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return x - Math.floor(x); };
 // the effects playing at key i: the last key up to i that sets them (its list replaces the move's), else the move's
@@ -85,6 +89,41 @@ const FX_DRAW = {
         const r = fxRnd(si * 5 + q, j + 3), ph = (t * (0.5 + 0.4 * r) + r) % 1;
         ctx.fillStyle = `rgba(${rgb},${0.3 * (1 - ph) * Math.min(1, ph * 5)})`;
         dot(ctx, x + (r - 0.5) * 18 * k * ph + Math.sin(t * 2 + r * 9) * 3 * k, y - ph * 36 * k, (3 + 9 * ph) * k);
+      }
+    }));
+  },
+  spikyAura(ctx, segs, rgb, k, t) {
+    const p = 1 + 0.15 * Math.sin(t * 9);
+    for (const [w, a] of [[14, 0.1], [7, 0.18]]) { ctx.strokeStyle = ctx.fillStyle = `rgba(${rgb},${a})`; fxStroke(ctx, segs, w * k * p); }
+    segs.forEach(({ i: si, ...s }) => {
+      // outward: the segment's own perpendicular (a limb), or straight out from the centre (a ring bone)
+      const dx = s.c ? 0 : s.b[0] - s.a[0], dy = s.c ? 0 : s.b[1] - s.a[1], len0 = Math.hypot(dx, dy) || 1, nx = -dy / len0, ny = dx / len0;
+      fxPoints(s, 11).forEach(([x, y], j) => {
+        const r = fxRnd(si, j), side = fxRnd(si + 50, j) > 0.5 ? 1 : -1;
+        const [rx, ry] = s.c ? [(x - s.c[0]) / s.r, (y - s.c[1]) / s.r] : [nx * side, ny * side];
+        const ph = (t * 1.4 + r) % 1, spike = (7 + 9 * r) * k * (1 - ph * 0.3), tx = -ry, ty = rx, bw = 1.6 * k;
+        ctx.fillStyle = `rgba(${rgb},${0.65 * (1 - ph)})`;
+        ctx.beginPath(); ctx.moveTo(x - tx * bw, y - ty * bw); ctx.lineTo(x + rx * spike, y + ry * spike); ctx.lineTo(x + tx * bw, y + ty * bw); ctx.closePath(); ctx.fill();
+      });
+    });
+  },
+  bubbles(ctx, segs, rgb, k, t) {
+    segs.forEach(({ i: si, ...s }) => fxPoints(s, 9).forEach(([x, y], j) => {
+      const r = fxRnd(si, j), ph = (t * (0.5 + 0.3 * r) + r) % 1, rad = (2 + 4 * r) * k * (0.5 + 0.5 * Math.sin(ph * Math.PI));
+      const bx = x + Math.sin(t * 2 + r * 15) * 5 * k * ph, by = y - ph * 30 * k;
+      ctx.fillStyle = `rgba(${rgb},${0.45 * (1 - ph * 0.7)})`; dot(ctx, bx, by, rad);
+      ctx.fillStyle = 'rgba(255,255,255,0.5)'; dot(ctx, bx - rad * 0.35, by - rad * 0.35, rad * 0.3);
+    }));
+  },
+  sparks(ctx, segs, rgb, k, t) {
+    segs.forEach(({ i: si, ...s }) => fxPoints(s, 13).forEach(([x, y], j) => {
+      for (let q = 0; q < 2; q++) {
+        const r = fxRnd(si * 7 + q, j), ph = (t * (2 + r) + r * 3) % 0.6; // a brief flight, most of the cycle: gone
+        const ang = fxRnd(si + q, j + 5) * 6.283, speed = (20 + 30 * r) * k;
+        const at = d => [x + Math.cos(ang) * speed * d, y + Math.sin(ang) * speed * d + 40 * k * d * d]; // a little gravity arcs it down
+        const [px, py] = at(ph), [tx, ty] = at(Math.max(0, ph - 0.08));
+        ctx.strokeStyle = `rgba(${rgb},${0.9 * (1 - ph / 0.6)})`; ctx.lineWidth = 1.3 * k;
+        ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(px, py); ctx.stroke();
       }
     }));
   },

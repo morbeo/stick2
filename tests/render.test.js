@@ -80,6 +80,20 @@ test('effects: an old single effect still draws, a stack draws each, a key\'s st
   assert.ok(r.same, 'effects leave the fight as it was'); assert.deepEqual(r.bad, []);
 });
 
+test('new fx looks (spiky aura, bubbles, sparks) draw without NaN, each on its own side of the body', () => {
+  const r = JSON.parse(run(`(() => { const ch = CHARS.stick, P = fk(ch, ch.poses.stance, 1);
+    const draw = (look, back) => { const { ctx, st } = stubCtx(); drawFx(ctx, P, [[{ look }, ch.bones]], 0.37, back); return { calls: st.calls, bad: st.bad }; };
+    return JSON.stringify({ spikyAuraBack: draw('spikyAura', true), spikyAuraFront: draw('spikyAura', false),
+      bubblesFront: draw('bubbles', false), bubblesBack: draw('bubbles', true), sparksFront: draw('sparks', false),
+      auto: ['spikyAura', 'bubbles', 'sparks'].map(l => FX_AUTO[l]), back: ['spikyAura', 'bubbles', 'sparks'].map(l => FX_BACK.has(l)) }); })()`));
+  assert.ok(r.spikyAuraBack.calls > 5, 'spiky aura draws'); assert.equal(r.spikyAuraFront.calls, 0, 'spiky aura is a back effect');
+  assert.deepEqual(r.spikyAuraBack.bad, []);
+  assert.ok(r.bubblesFront.calls > 5, 'bubbles draws'); assert.equal(r.bubblesBack.calls, 0, 'bubbles is a front effect');
+  assert.deepEqual(r.bubblesFront.bad, []);
+  assert.ok(r.sparksFront.calls > 5, 'sparks draws'); assert.deepEqual(r.sparksFront.bad, []);
+  assert.deepEqual(r.auto, ['purple', 'cyan', 'gold']); assert.deepEqual(r.back, [true, false, false]);
+});
+
 test('shadow: the default draws today\'s oval, every shape draws, none draws nothing, and a shadow leaves the fight as it was', () => {
   const r = JSON.parse(run(`(() => { const log = () => { const L = []; return { L, ctx: new Proxy({}, { get: (t, k) => k in t ? t[k] : (...a) => L.push([k, ...a]), set: (t, k, v) => (L.push([k, v]), t[k] = v, true) }) }; };
     const w = new World(SCENARIOS['you vs ai'], {}, 7); w.loop = false; for (let i = 0; i < 30; i++) w.advance(1/60, { ...NOIN, up: i < 3 });
