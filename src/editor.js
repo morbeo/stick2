@@ -656,7 +656,7 @@ function makeLoop(kind) {
 // a movement layer (LAYERS): two keys at the procedural pose of the state, its ref; edits are offsets from it, added on top in a fight
 const LAYER_STATE = {
   crouch: { crouching: true }, rise: { grounded: false, vy: -300 }, fall: { grounded: false, vy: 300 }, flip: { grounded: false, flip: 1 },
-  run: { running: true, vx: 1.6 }, dash: { vx: 2 }, backDash: { vx: -2 }, backWalk: { vx: -1 }, airDash: { grounded: false }, guard: { guarding: true },
+  run: { running: true, vx: 1.6 }, dash: { vx: 2 }, backDash: { vx: -2 }, backWalk: { vx: -1 }, airDash: { grounded: false }, wallJump: { grounded: false, vy: -300, vx: 1 }, guard: { guarding: true },
   hurt: {}, tumble: { kd: 'fly', vy: -200 }, lying: { kd: 'down' }, dizzy: { dizzyT: 1 }, turn: { face: 0 },
 };
 function makeLayer(kind) {

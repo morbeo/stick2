@@ -20,7 +20,7 @@ class Fighter {
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
       kd: null, downT: 0, wake: null, won: false, wallB: false, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [], dirs: [], pressT: { punch: -1e9, kick: -1e9, special: -1e9 }, guardHeld: false, guardPressT: -1e9, used: [], juggles: 0, jugUsed: 0,
-      z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
+      z: 0, vz: 0, lane: 0, dashT: 0, wallJumpT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, heldAt: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
       airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null, layerAt: {}, away: false, turnRate: 0, turnMid: null,
       stanceT: 0, stanceCd: {}, stanceUsed: [], morph: null, moveCount: {} }); // time in the stance, when each stance was left, the stances taken (req.once), an auto morph, times each move has started (over.limits)
@@ -484,7 +484,7 @@ class Fighter {
     const upTap = inp.up && !this.prevIn.up;
     this.prevIn = inp;
     if (!inp[fwdK] || !this.free || this.action) this.running = false;
-    this.dashT -= dt; this.passT -= dt; this.invT -= dt; this.blockT -= dt; this.parryT -= dt; this.labelT -= dt; this.dodgeT -= dt; this.airDashT -= dt; this.dizzyT -= dt; this.reelT -= dt; this.splatT -= dt;
+    this.dashT -= dt; this.wallJumpT -= dt; this.passT -= dt; this.invT -= dt; this.blockT -= dt; this.parryT -= dt; this.labelT -= dt; this.dodgeT -= dt; this.airDashT -= dt; this.dizzyT -= dt; this.reelT -= dt; this.splatT -= dt;
     if (this.free) this.stunM = Math.max(0, this.stunM - c('dizzyDrain') * dt);
     if (this.grounded && !this.kd) this.jugUsed = 0; // back on its feet: the juggle pool refills
     // guard: held while free on the ground (or in the air: airGuard), and kept through blockstun; with ↓ it is a low guard (in the belt too)
@@ -540,7 +540,7 @@ class Fighter {
       this.chase = chase;
     } else if (hop && wall && !this.grounded && this.free && !busy && c('wallJump') > 0 && this.airT > 0.1 && !this.st.fly) { // triangle jump: off the wall, up and away
       this.vy = -c('jumpVel') * c('wallJump'); this.vx = wall * c('wallJumpPush'); this.sqv += c('squash') * 20; this.flip = 0; this.airT = 0;
-      this.airDodged = this.airDashed = false; this.say('WALL JUMP');
+      this.airDodged = this.airDashed = false; this.wallJumpT = 0.3; this.say('WALL JUMP');
     } else if (hop && !this.grounded && this.free && !busy && (this.ch.stats.jumps < 0 || this.airJumps < this.ch.stats.jumps - 1) && !this.st.fly) { // max jumps: another jump in the air (jumps < 0: infinite)
       this.airJumps++; this.vy = -c('jumpVel') * 0.9; this.sqv += c('squash') * 20; this.flip = 0;
       this.vx = (inp.right - inp.left) * Math.max(Math.abs(this.vx), c('airSpeed') * 0.8);
