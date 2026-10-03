@@ -114,6 +114,8 @@ function layoutPanel(e, b) {
   const parts = (kind, title, tip, ...first) => h('div', { cls: 'row', tip: tip + ' · drag a part to reorder' }, drop(h('span', { textContent: title }), kind, null), h('div', { cls: 'bar' }, ...first,
     ...app.parts[kind].map(p => part(kind, title, p))));
   popup(b, h('b', { textContent: 'layout · ' + tab }),
+    h('div', { cls: 'row', tip: 'Edit another tab\'s layout without closing this' }, h('span', { textContent: 'tab' }),
+      seg(Object.keys(MODES), () => app.mode, v => { setMode(v); re(); }, MODES)),
     parts('ctx', 'toolbar', 'The toolbar groups this tab shows'),
     parts('side', 'side panel', 'The side panel and its sections (hover a heading: × hides it too)',
       toggle('panel', 'Show or hide the whole side panel on this tab' + keyTip('panel'), () => !lay().hide.side, togglePanel)),
