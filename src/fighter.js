@@ -537,7 +537,7 @@ class Fighter {
     } else if (hop && wall && !this.grounded && this.free && !busy && c('wallJump') > 0 && this.airT > 0.1 && !this.st.fly) { // triangle jump: off the wall, up and away
       this.vy = -c('jumpVel') * c('wallJump'); this.vx = wall * c('wallJumpPush'); this.sqv += c('squash') * 20; this.flip = 0; this.airT = 0;
       this.airDodged = this.airDashed = false; this.say('WALL JUMP');
-    } else if (hop && !this.grounded && this.free && !busy && this.airJumps < this.ch.stats.jumps - 1 && !this.st.fly) { // max jumps: another jump in the air
+    } else if (hop && !this.grounded && this.free && !busy && (this.ch.stats.jumps < 0 || this.airJumps < this.ch.stats.jumps - 1) && !this.st.fly) { // max jumps: another jump in the air (jumps < 0: infinite)
       this.airJumps++; this.vy = -c('jumpVel') * 0.9; this.sqv += c('squash') * 20; this.flip = 0;
       this.vx = (inp.right - inp.left) * Math.max(Math.abs(this.vx), c('airSpeed') * 0.8);
     }

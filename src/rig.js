@@ -544,7 +544,7 @@ const CHAR_STATS = [
   { k: 'turnaround', g: 'ground', cfg: ['turnSpeed'], min: 0.3, max: 3, step: 0.05, tip: 'How fast it turns to face the other way, × turnSpeed. Slow turners are open to cross-ups.' },
   { k: 'weight', g: 'ground', cfg: [], min: 0.5, max: 2, step: 0.05, tip: 'Heavier bodies are pushed and launched less: knockback, block push and launch ÷ weight.' },
   { k: 'jump', g: 'air', cfg: ['jumpVel'], f: (v, s) => v * Math.sqrt(s.jump * s.gravity), min: 0.5, max: 2, step: 0.05, tip: 'Jump height, × the height jumpVel and gravity give (whatever its gravity).' },
-  { k: 'jumps', g: 'air', cfg: [], min: 1, max: 5, step: 1, tip: 'Max jumps: 2 = a double jump (jump again in the air), and so on.' },
+  { k: 'jumps', g: 'air', cfg: [], min: -1, max: 5, step: 1, tip: 'Max jumps: 2 = a double jump (jump again in the air), and so on. -1 = infinite air jumps.' },
   { k: 'gravity', g: 'air', cfg: ['gravity'], min: 0.4, max: 2, step: 0.05, tip: 'Its gravity, × gravity: high = snappy short jumps (jump height stays), low = floaty.' },
   { k: 'airSpeed', g: 'air', cfg: ['airSpeed'], min: 0.3, max: 2, step: 0.05, tip: 'Top drift speed in the air, × airSpeed.' },
   { k: 'airAccel', g: 'air', cfg: ['airAccel'], min: 0, max: 3, step: 0.05, tip: 'Air control, × airAccel: how fast the drift turns around.' },
