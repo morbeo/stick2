@@ -22,7 +22,7 @@ The character panel shows a grid of drawings, all at one scale.
 
 ### The roster
 
-**stick** is the plain base. The dozen others are stereotypes, each with signature moves bound to every input, motions, a second stance, stats and a gait:
+**stick** is the plain base. The rest are stereotypes, each with signature moves bound to every input, motions, a second stance, stats and a gait:
 
 | Character | Type | Signature moves |
 |---|---|---|
@@ -38,6 +38,10 @@ The character panel shows a grid of drawings, all at one scale.
 | gogili | the beast | long arms, hunched, rolling ball, electricity, a bite |
 | pollo | the luchador | giant swing, german suplex, dropkick, plancha, high jumps |
 | gloomo | the boss demon | horns, wings, tail, four arms, dark orb, psycho dash, warp claw, skull dive |
+| centaur | the trampling horse | a horizontal horse body: tramples forward, a donkey kick, rears up to headbutt, or to box with its forelegs |
+| houndo | the hound | fights posed on all fours: a tackle, a low claw rake, rears up to bite, a hind-leg kick, a howl |
+| tako | the shapeshifter | an ink cloud, a slippery invincible dodge; shifts into an octopus form for a tentacle slam and a constricting grab |
+| clampo | the wrestler | huge and slow: a bear hug into a slam (a combo throw), a leg-lock ankle twist, a running tackle, a diving splash |
 
 ### Your own
 
