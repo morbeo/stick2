@@ -27,6 +27,15 @@ test('stanceChar compiles a stance body once, over the base character and with a
   assert.equal(r.aw, 'handF');
 });
 
+test('fight-setting stats (chip, blockPush, comboDamage, knockScale, justGuardKnock, pushBlockForce) override per character/stance like any other stat', () => {
+  const body = { stats: { chip: 0.5, blockPush: 0.5, comboDamage: 1.3, knockScale: 0.6, justGuardKnock: 1.5, pushBlockForce: 1.4 } };
+  const r = R(`(() => { const ch = stanced(${JSON.stringify(body)}), s = stanceChar(ch, 1);
+    const w = new World({ a: 'dummy', b: 'dummy' }, {}, 7, [s, CHARS.stick]), f = w.a;
+    return { chip: f.c('chip'), blockPush: f.c('blockPush'), comboDamage: +f.c('comboDamage').toFixed(2), knockScale: f.c('knockScale'),
+      justGuardKnock: f.c('justGuardKnock'), pushBlockForce: f.c('pushBlockForce') }; })()`);
+  assert.deepEqual(r, { chip: 0.05, blockPush: 0.3, comboDamage: 1.17, knockScale: 0.6, justGuardKnock: 270, pushBlockForce: 630 });
+});
+
 test('alpha 0 hides a bone exactly like hidden: true (and cascades to what hangs off it); between, it stays solid', () => {
   const body = { bones: { uarmF: { alpha: 0 }, uarmB: { alpha: 0.4 } } };
   const r = R(`(() => { const ch = stanced(${JSON.stringify(body)}), s = stanceChar(ch, 1);
