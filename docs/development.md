@@ -23,6 +23,7 @@ How the code is laid out, and the tools that build its generated files.
 | `node tools/mcp.js [--serve PORT]` | the MCP server (`npm run mcp`): fights, settings, characters, replays and pictures over MCP; `--serve` also serves the app for the live bridge (see [MCP server](mcp.md)) |
 | `npm run itch` | packs `dist/stick2-itch.zip` for itch.io: `index.html`, `docs.html`, `src/`, `fonts/` and `LICENSE` (see [Publishing on itch.io](#publishing-on-itchio)) |
 | `npm run itch:push` | runs the tests, packs the zip and uploads it with butler to `morbeo/stick2:html`, versioned by the commit (refuses uncommitted changes) |
+| `npm run itch:assets` | writes a favicon, a social image, a cover and a logo to `out/itch/`, drawn from the app's own code (see [Publishing on itch.io](#publishing-on-itchio)) |
 | `python tools/icons.py MaterialSymbolsOutlined.ttf` | rebuilds the icon font subset (needs fonttools + brotli) |
 
 Rerun the screenshots and animations after a visible change. Both find Chrome on their own; `CHROME=/path/to/chrome` overrides it.
@@ -34,6 +35,7 @@ The only asset is `fonts/icons.woff2`, a subset of [Material Symbols](https://gi
 - Icons are written as `:name:` in labels and tooltips.
 - Arrows ← → ↑ ↓ become icons too.
 - To add one: put its name in `ICONS` in `src/ui.js`, then rebuild the subset with `python tools/icons.py MaterialSymbolsOutlined.ttf`.
+- The page's favicon is drawn the same way: `src/ui.js` renders the `sports_martial_arts` icon to a canvas once the font loads and sets it as the favicon, no image file.
 
 ## Publishing on itch.io
 

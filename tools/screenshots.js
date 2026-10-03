@@ -18,18 +18,25 @@ const SHOTS = {
   tests: [`setMode('tests'); tests.move = null; rerunTests(); panels(); for (let i = 0; i < 400 && tests.queue.length; i++) testMode.tick(); panels();
     isolate(Object.keys(tests.res).find(k => failed(tests.res[k]))); ${run(45)}`, [0, 80, 1100, 600]],
   impact: [`setMode('impact'); panels(); ${run(25)}`, [0, 80, 1100, 600]],
-  ragdoll: [`setMode('impact'); lab.impact = 'ragdoll'; build(); panels(); ${run(5)} blow(lab.cells[0].w, 'launcher'); ${run(24)}`, [0, 40, 1100, 640]],
+  // crop reaches the page bottom (800) so the blow bar (under the preview, not the toolbar) is in frame
+  ragdoll: [`setMode('impact'); lab.impact = 'ragdoll'; build(); panels(); ${run(5)} blow(lab.cells[0].w, 'launcher'); ${run(24)}`, [0, 40, 1100, 760]],
   hip: [`setMode('character'); panels(); creator.hover = 'hip'; ${run(30)}`, [0, 80, 1100, 600]],
   movepicker: [`setMode('animate'); anim.move = 'roundhouse'; animMode.enter(); panels(); ${run(10)} [...document.querySelectorAll('#ctx [data-part="move"] button')].find(b => b.textContent.includes('roundhouse')).click(); Object.assign(pop.style, { left: '368px', top: '83px', maxHeight: 'none' }); pop.firstChild.style.maxHeight = '570px';`, [340, 40, 660, 630]],
   compare: [`lab.scen = 'ai vs ai'; setMode('play'); build(); cmp.a = { name: 'current' }; cmp.b = { name: 'raw' }; setCfg({ hitstop: 0.12, gravity: 2600 }); openStage('compare'); ${run(10)}`, [0, 436, 1100, 340]],
   // the four effect looks, one per fighter (on every bone)
   effects: [`lab.scen = 'you vs 3 dummies'; setMode('play'); build(); panels(); ${run(40)}
     lab.cells[0].w.fighters.forEach((f, i) => { const look = ['lightning', 'aura', 'fire', 'smoke'][i]; f.ch = { ...f.ch, bones: f.ch.bones.map(b => ({ ...b, fx: { look } })) }; f.x = 180 + i * 240; }); ${run(12)}`, [0, 400, 1100, 370]],
-  combos: [`setMode('animate'); lay('animate').panel = 'combos'; panels(); mode().render();`, [0, 80, 1100, 600]],
+  // setLink shows a chain into a special (6S) too, not just P / K
+  combos: [`setMode('animate'); lay('animate').panel = 'combos'; setLink('jab', 'fwdSpecial', 'shoulderCharge'); panels(); mode().render();`, [0, 80, 1100, 600]],
   movetable: [`setMode('animate'); lay('animate').panel = 'table'; panels(); mode().render();`, [0, 80, 1100, 600]],
   inputs: [`setMode('animate'); lay('animate').panel = 'inputs'; panels(); mode().render();`, [0, 80, 1100, 600]],
   bonetable: [`setMode('character'); lay('character').panel = 'bones'; panels(); ${run(10)}`, [0, 80, 1100, 600]],
-  builder: [`setMode('play'); newScen(); ${run(30)}`, [0, 440, 1100, 360]],
+  // P2 set to AI to show the style / skill / limits row (otherwise only a human or dummy controller shows)
+  builder: [`setMode('play'); newScen(); ${run(10)}
+    [...document.querySelector('[data-p="1"]').querySelectorAll('button')].find(b => b.textContent.trim() === 'AI').click(); ${run(20)}`, [0, 440, 1100, 400]],
+  // a stance's requirements, fly and transition rows, scrolled into view in the side panel
+  stancereq: [`setMode('character'); pickChar('stick'); studio.stance = 1; lay().fold['character:stance pose'] = false; panels(); ${run(5)}
+    [...document.querySelectorAll('#side h3')].find(el => el.textContent.toLowerCase().includes('stance pose')).scrollIntoView();`, [1080, 60, 320, 740]],
   fighters: [`lab.scen = 'ai 2v2'; setMode('play'); build(); panels(); ${run(30)} document.querySelectorAll('.fpick')[2].click();`, [0, 0, 1000, 480]],
   menubar: [`setMode('play'); panels(); ${run(30)} [...document.querySelectorAll('#global button')].find(b => b.dataset.tip?.startsWith('Export')).click();`, [0, 0, 1400, 130]],
   // a popup is placed to fit the small capture window: put it back where it opens in the full page

@@ -81,6 +81,8 @@ A stance can have its own body. Pick the stance under the stance pose and switch
 
 ### Stance requirements
 
+![A stance's key, body, requirements and transition rows](img/stancereq.png)
+
 Under a stance's body row, **requirements** set when it can be taken and what ends it (unset: as before, on the ground, any time):
 
 - **where:** on the ground (the default), in the air, or both. A press in the air waits for the ground as before.
@@ -187,9 +189,9 @@ A direction pad per button (P, K, S, air P, air K; numpad layout, 6 = toward the
 | outlined | the move being edited |
 
 - Click a pad or row to give it a move: the open one, the default, none, or any move. ⌘Z undoes.
-- Under the pads: a table of every input (the unassigned ones on request).
+- **details** opens a table of every input beside the pads, a split rather than a scroll down (the unassigned ones on request).
 - **details:** the move an input plays has its startup, height, damage, power and stun edited in place. The move itself changes, so every input playing it changes too.
-- **+ input** adds an input of your own: a motion in numpad notation plus P or K, e.g. `41236` = ←↙↓↘→ (↑ directions count too). It's kept with the character (motions) and tried before the built-in motions, longest first. Its row has a delete button.
+- **+ input** adds an input of your own: a motion in numpad notation plus P or K, e.g. `41236` = ←↙↓↘→ (↑ directions count too). It's kept with the character (motions) and tried before the built-in motions, longest first. Its row has a delete button; so does its pad's popup.
 
 ## Combos
 
