@@ -48,6 +48,16 @@ test('every projectile look, styled spark and glow draws without NaN', () => {
   assert.ok(r.calls > 100), assert.deepEqual(r.bad, []);
 });
 
+test('a beam draws without NaN, fading as it ends, at any width or facing', () => {
+  const r = JSON.parse(run(`(() => { const w = new World(SCENARIOS['you vs ai'], { boxes: true }, 7), { ctx, st } = stubCtx();
+    w.loop = false; w.advance(1/60, NOIN);
+    w.beams.push({ x: 200, y: 300, z: 0, dir: 1, vx: 1, w: 14, range: 400, dur: 0.25, t: 0.05, look: 'laser', owner: w.a }); // mid-flight
+    w.beams.push({ x: 500, y: 320, z: 0, dir: -1, vx: -1, w: 30, range: 400, dur: 0.25, t: 0.23, look: 'laser', owner: w.b }); // near the end: fading
+    w.drawBeams(ctx);
+    return JSON.stringify({ calls: st.calls, bad: [...new Set(st.bad)] }); })()`));
+  assert.ok(r.calls > 5), assert.deepEqual(r.bad, []);
+});
+
 test('hud and labels off draw less, leave the fight as it was, and stay out of replays', () => {
   const r = JSON.parse(run(`(() => { const calls = cfg => { const w = new World(SCENARIOS['you vs ai'], cfg, 7), { ctx, st } = stubCtx(); w.loop = false;
       for (let i = 0; i < 60; i++) { w.advance(1/60, { ...NOIN, punch: i % 20 === 0 }); w.render(ctx, { x: 0, y: 0, w: 800, h: 450 }, true); }

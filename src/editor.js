@@ -509,6 +509,7 @@ function counterRow() {
 // what normalize returns to: the built-in move of the same name (copies like jab2: the move they were copied from)
 const builtInMove = () => (CHAR_DEFS[CURRENT] || CHAR_DEFS.stick).moves[anim.move.replace(/\d+$/, '')];
 const SHOT_TIPS = { ki: 'A blue ball of energy', fire: 'A flickering fireball', dark: 'A dark purple orb', wave: 'A crescent wave (sonic boom)', star: 'A spinning shuriken' };
+const BEAM_TIPS = { laser: 'A bright red-hot line' };
 const SPARK_TIPS = { hit: 'Hit spark: the plain sparks and ring when a strike during this key lands', heavy: 'Heavy: a big flash, a wide ring and thick sparks',
   slash: 'Slash: a cut across the point of impact (blades)', blunt: 'Blunt: a flash and chunky bits (clubs, stomps)', none: 'No spark' };
 const SOUND_TIPS = { '': 'No sound as this key is reached (hits and blocks still sound)', whoosh: 'Sound: a whoosh as this key is reached (swings)',
@@ -549,6 +550,8 @@ function keyPanel() {
         () => k().turn === true, v => setKey('turn', v || undefined)),
       toggle(':bolt: shoot', 'Shoot: the move\'s projectile leaves the striking limbs as this key is reached (shots setting); it hits with this move\'s power, damage and height. Its look, speed and size are under shot.',
         () => !!k().shoot, v => setKey('shoot', v || undefined)),
+      toggle(':horizontal_rule: beam', 'Beam: a straight line held out from the striking limbs as this key is reached (beams setting), hitting once wherever it touches a foe, with this move\'s power, damage and height. Its look, width, range and duration are under beam.',
+        () => !!k().beam, v => setKey('beam', v || undefined)),
       toggle(':repeat: rehit', 'Rehit: the move can hit again from this key, whoever it already hit (multi-hits: lightning legs, hundred-hand slap).',
         () => !!k().rehit, v => setKey('rehit', v || undefined)),
       toggle(':rotate_right: spin', 'Spin: a whole turn during this key (turn: 2), its back showing halfway; spinning kicks wind up with it and strike facing the foe.',
@@ -569,6 +572,11 @@ function keyPanel() {
       slider('shot speed', { min: 100, max: 900, step: 20 }, () => curMove().shot?.speed ?? 360, v => setMove('shot', { ...curMove().shot, speed: v }, 'shot.speed'), 'How fast the shot flies (px/s).'),
       slider('shot size', { min: 4, max: 30, step: 1 }, () => curMove().shot?.size ?? 12, v => setMove('shot', { ...curMove().shot, size: v }, 'shot.size'), 'The shot\'s radius (px): its hitbox and how big it draws.'),
       slider('shot life', { min: 0.2, max: 4, step: 0.1 }, () => curMove().shot?.life ?? 2, v => setMove('shot', { ...curMove().shot, life: v }, 'shot.life'), 'Seconds before the shot fizzles out (a short one is a close-range blast).')] : [],
+    ...curMove().keys.some(x => x.beam) ? [h('div', { cls: 'row', tip: 'The beam this move holds out (move field beam)' }, h('span', { textContent: 'beam' }), h('span', { cls: 'bar' },
+      seg(Object.keys(BEAM_TIPS), () => curMove().beam?.look || 'laser', v => setMove('beam', { ...curMove().beam, look: v }), BEAM_TIPS))),
+      slider('beam width', { min: 4, max: 40, step: 1 }, () => curMove().beam?.width ?? 14, v => setMove('beam', { ...curMove().beam, width: v }, 'beam.width'), 'The beam\'s width (px): its hitbox and how thick it draws.'),
+      slider('beam range', { min: 100, max: 900, step: 20 }, () => curMove().beam?.range ?? 500, v => setMove('beam', { ...curMove().beam, range: v }, 'beam.range'), 'How far the beam reaches (px).'),
+      slider('beam duration', { min: 0.05, max: 1, step: 0.05 }, () => curMove().beam?.duration ?? 0.25, v => setMove('beam', { ...curMove().beam, duration: v }, 'beam.duration'), 'Seconds the beam stays out; it hits once, the moment it touches a foe.')] : [],
     adv(slider('shake', { min: 0, max: 1, step: 0.05 }, () => k().shake || 0, v => setKey('shake', v || undefined, 'shake'),
       'Key event: screen shake added as this key is reached (0 none … 1 the most; a heavy landing, a stomp).')),
     ...curMove().weapon ? [h('div', { cls: 'row', tip: 'Weapon hand: where pick-up and throw moves take or let go of the weapon' }, h('span', { textContent: 'hand' }), h('span', { cls: 'bar' },

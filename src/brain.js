@@ -229,6 +229,7 @@ const SCENARIOS = {
   'back throw': { a: [0.1, { hold: 'back', t: 0.1 }, 'back+punch+guard'], b: [{ hold: 'guard', t: 2 }], ax: 330, bx: 372, period: 2.4 },
   // ↗ S turns the back: G held does not guard it (the foe's jab lands from behind), then K faces the foe again for the kick
   'fireball': { a: [0.2, '@fireball'], b: 'dummy', ax: 220, bx: 560, period: 2 },
+  'laser beam': { a: [0.2, '@laserBeam'], b: 'dummy', ax: 250, bx: 560, period: 2 },
   // roster specials: a scenario's chars names the fighters (the last fills the rest)
   'flash kick': { a: [0.2, 'up+special'], b: 'dummy', chars: ['sarj', 'stick'], ax: 330, bx: 380, period: 2 },
   'lightning legs': { a: [0.2, 'special'], b: 'dummy', chars: ['zippa', 'stick'], ax: 330, bx: 372, period: 2 },

@@ -17,6 +17,7 @@ const CLIPS = {
   'anim-air-recover': ['air recover', 2.4, [220, 395, 600, 200]],
   'anim-wall-bounce': ['wall bounce', 2.4, [520, 395, 500, 200]],
   'anim-fireball': ['fireball', 2, [90, 395, 820, 200]],
+  'anim-laser-beam': ['laser beam', 2, [90, 395, 820, 200]],
 };
 const FPS = 20, STEP = 60 / FPS; // the engine runs at 60: three engine frames per animation frame
 

@@ -57,7 +57,7 @@ class World {
       { team: sp.team ?? i }));
     [this.a, this.b] = this.fighters;
     // weapons: one per fighter from the settings (on the floor in front, or in hand), plus the scenario's (items, aw / bw / more[].w = held)
-    this.items = []; this.shots = [];
+    this.items = []; this.shots = []; this.beams = [];
     const wt = this.cfg.weapon, pickW = () => wt === 'random' ? Object.keys(WEAPONS)[Math.floor(this.rand() * 7)] : wt;
     this.fighters.forEach((f, i) => {
       const held = [s.aw, s.bw][i] ?? specs[i].w;
@@ -162,6 +162,19 @@ class World {
     }
     if (gone.size) this.shots = this.shots.filter(s => !gone.has(s));
   }
+  // ---------- beams (Fighter.fireBeam): a straight line held out from the muzzle for its duration, hitting once wherever it touches a foe ----------
+  updateBeams(h) {
+    const cfg = this.cfg, gone = new Set();
+    for (const b of this.beams) { b.t += h; if (b.t > b.dur) gone.add(b); }
+    for (const b of this.beams) if (!b.hit) for (const o of this.foes(b.owner)) if (Math.abs(o.z - b.z) <= cfg.zReach && !(b.m.height === 'high' && o.crouching)) {
+      const end = clamp(b.x + b.dir * b.range, 20, W - 20), hit = o.hurtAt([[b.x, b.y], [end, b.y], b.w / 2], false, false);
+      if (!hit) continue;
+      const def = o.defend(b, b.m, null), fr = b.owner.freeze; // blocked from the side it comes from; a counter can't catch it
+      this.onHit(b.owner, o, hit, b.m, def === 'catch' ? 'block' : def);
+      b.owner.freeze = fr; b.hit = true; break; // hits once; keeps showing until its duration ends
+    }
+    if (gone.size) this.beams = this.beams.filter(b => !gone.has(b));
+  }
   // looks: ki (a blue ball), fire (flickering orange), dark (purple), wave (a crescent, sonic boom), star (a spinning shuriken)
   drawShots(ctx) {
     const COL = { ki: ['80,160,255', '#2c6fb0'], fire: ['240,140,30', '#c0392b'], dark: ['142,68,173', '#2c1338'], wave: ['230,200,60', '#b07a2c'], star: ['120,120,130', '#444'] };
@@ -182,6 +195,21 @@ class World {
         ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, r * 0.45, 0, 7); ctx.fill();
       }
       if (this.cfg.boxes) { ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, s.r, 0, 7); ctx.stroke(); }
+      ctx.restore();
+    }
+  }
+  // looks: laser (a bright red-hot core in a wider glow)
+  drawBeams(ctx) {
+    const COL = { laser: '230,60,60' };
+    for (const b of this.beams) {
+      const rgb = COL[b.look] || COL.laser, end = clamp(b.x + b.dir * b.range, 20, W - 20);
+      const a = b.t < b.dur - 0.08 ? 1 : Math.max(0, (b.dur - b.t) / 0.08); // a quick fade as it ends
+      ctx.save(); ctx.translate(0, b.z * ZS); ctx.lineCap = 'round';
+      for (const [w, al] of [[b.w * 2.2, 0.25 * a], [b.w, 0.9 * a], [b.w * 0.35, 0.85 * a]]) {
+        ctx.strokeStyle = w === b.w * 0.35 ? `rgba(255,255,255,${al})` : `rgba(${rgb},${al})`;
+        ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(end, b.y); ctx.stroke();
+      }
+      if (this.cfg.boxes) { ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = b.w + 7; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(end, b.y); ctx.stroke(); }
       ctx.restore();
     }
   }
@@ -267,7 +295,7 @@ class World {
   }
   stateHash() {
     return hashNums([this.rand.seed, this.hits, this.blocks, this.clashes, this.simT, ...this.items.flatMap(it => [it.x, it.y]), ...this.shots.flatMap(s => [s.x, s.t]),
-      ...this.fighters.flatMap(f => [f.x, f.y, f.z, f.vx, f.vy, f.hp, f.dir, f.action?.i ?? -1, f.action?.t ?? 0])]);
+      ...this.beams.flatMap(b => [b.t, b.hit ? 1 : 0]), ...this.fighters.flatMap(f => [f.x, f.y, f.z, f.vx, f.vy, f.hp, f.dir, f.action?.i ?? -1, f.action?.t ?? 0])]);
   }
   // a running key macro (keys.js) presses its steps on top of the keys held
   withMacro(inp, f, o, h) {
@@ -292,7 +320,7 @@ class World {
     this.zoom *= Math.exp(-h * 10);
     this.bank = Math.min(cfg.hitstopBudget, this.bank + h * cfg.hitstopBudget);
     if (this.frozen) this.frozenT += h;
-    this.updateParticles(h); this.updateItems(h); this.updateShots(h);
+    this.updateParticles(h); this.updateItems(h); this.updateShots(h); this.updateBeams(h);
 
     const fs = this.fighters, tg = fs.map(f => this.nearestFoe(f));
     const ins = this.koT ? fs.map(() => NOIN) : this.ctl.map((c, i) => c === 'human' ? this.withMacro(inp, fs[i], tg[i], h) : c === 'human2' ? inp2 : !c || !tg[i] ? NOIN : c.input(fs[i], tg[i], h));
@@ -556,6 +584,7 @@ class World {
       f.draw(ctx, f.freeze > 0 && f === this.victim ? Math.sin(T * 170) * cfg.hitShake : 0);
     this.drawItems(ctx);
     this.drawShots(ctx);
+    this.drawBeams(ctx);
     this.drawParticles(ctx);
     if (cfg.impactFrames) this.drawImpact(ctx);
     ctx.restore();

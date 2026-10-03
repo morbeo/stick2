@@ -281,6 +281,23 @@ Scenarios: fireball, fireball clash.
 | --- |
 | ![A projectile: the fireball](img/anim-fireball.png) |
 
+### Beams
+
+The **beams** setting; key flag **beam**; in animate the beam toggle and the beam row (look: laser; width, range, duration).
+
+- As the beam key is reached, a straight line holds out from between the striking limbs, as far as its range.
+- It hits once, the moment it touches a foe, with the move's own power, damage, height and stun; it keeps showing for the rest of its duration.
+- It's blocked from the side it comes from. A counter can't catch it, and the fighter holding it out gets no hit stop.
+- One beam per fighter at a time. Unlike a shot, two beams don't cancel each other.
+- The boxes view rings its hitbox.
+- The stick's library has **laserBeam** (both palms pushed out, a beam between them), not bound to a key by default.
+
+Scenario: laser beam.
+
+| A beam: the laser |
+| --- |
+| ![A beam: the laser](img/anim-laser-beam.png) |
+
 ### Rising and multi-hit keys
 
 In the key panel: the **rise** slider and the **rehit** toggle.

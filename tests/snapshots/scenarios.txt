@@ -26,6 +26,7 @@ specials (S)   hits 2 blocks 0 hp 100.0 81.0 x 536 574
 throw          hits 1 blocks 0 hp 100.0 86.0 x 336 517
 back throw     hits 1 blocks 0 hp 100.0 86.0 x 306 110
 fireball       hits 1 blocks 0 hp 100.0 91.0 x 220 584
+laser beam     hits 1 blocks 0 hp 100.0 90.0 x 250 563
 flash kick     hits 1 blocks 0 hp 110.0 85.0 x 331 491
 lightning legs hits 5 blocks 0 hp 95.0 87.7 x 330 380
 fireball clash hits 1 blocks 0 hp 100.0 91.0 x 220 604
