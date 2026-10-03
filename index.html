@@ -9,6 +9,9 @@
   body { display: grid; grid-template: "top top" auto "stage side" 1fr "help side" auto / 1fr var(--side-w, 300px); }
   body.noside { grid-template-columns: 1fr 0; }
   body.noside #side, body.noside #grip { display: none; }
+  /* theater mode (play): just the fight, nothing else — for streaming or recording, Esc or the same shortcut leaves it */
+  body.theater { grid-template: "stage" 1fr / 1fr; }
+  body.theater #top, body.theater #help, body.theater #side, body.theater #grip { display: none; }
   #grip { grid-area: side; justify-self: start; width: 6px; margin-left: -3px; cursor: col-resize; z-index: 5; }
   input, button { font: inherit; }
   @font-face { font-family: Icons; src: url(fonts/icons.woff2) format('woff2'); font-display: block; }

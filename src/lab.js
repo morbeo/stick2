@@ -560,7 +560,10 @@ function labCtx() {
   // compare settings only in grid (it drives the grid's own compare kind); play just gets its scenario builder, if it has one
   const panelNames = [...lab.mode !== 'play' ? ['compare'] : [], ...lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? ['builder'] : []];
   if (lab.mode !== 'gallery' && panelNames.length) els.push(panelsGrp(panelNames, { compare: CMP_PANEL_TIP, builder: BUILDER_TIP }));
-  if (lab.mode === 'play') els.push(...trainingCtl());
+  if (lab.mode === 'play') els.push(...trainingCtl(),
+    grp('theater', 'No toolbars, no side panel, just the fight — for streaming or recording',
+      toggle(':crop_landscape: theater', 'Theater mode: no toolbars, no side panel, just the fight, and tries for fullscreen' + keyTip('theater') + ' (Esc, or the key again, leaves it)',
+        () => app.theater, setTheater)));
   return els;
 }
 

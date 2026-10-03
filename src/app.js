@@ -1,6 +1,13 @@
 'use strict';
 // ---------- app: mode buttons, transport, frame loop, keyboard and mouse ----------
-const app = { mode: 'play', paused: false, stepOnce: false, speed: 1, loop: true, scrub: false, scrubF: null, hintUntil: 0, fps: 0, frameMs: 0, worstMs: 0 };
+const app = { mode: 'play', paused: false, stepOnce: false, speed: 1, loop: true, scrub: false, scrubF: null, hintUntil: 0, fps: 0, frameMs: 0, worstMs: 0, theater: false };
+// theater mode (play): no toolbars, no side panel, just the fight — for streaming or recording. Tries for fullscreen too
+// (best-effort: browsers can refuse outside a direct click, automated ones usually do); Esc or the toggle again leaves both
+function setTheater(v) {
+  app.theater = v; document.body.classList.toggle('theater', v); resize();
+  if (v) document.documentElement.requestFullscreen?.().catch(() => {});
+  else if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+}
 const MODES = {
   play: 'Fight in one arena. Pick who fights: you, the AI, scripted combos, crowds.',
   grid: 'Nine copies of one fight side by side, each with different settings. Click a cell to focus it.',
@@ -175,6 +182,7 @@ const SHORTCUTS = {
   boxes: () => setDisplay('boxes', !CFG.boxes),
   scrub: () => { app.scrub = !app.scrub; app.scrubF = null; },
   clip: saveLast, record: toggleRecord,
+  theater: () => setTheater(!app.theater),
   ...Object.fromEntries(Object.keys(MODES).map(m => [m, () => setMode(m)])),
 };
 addEventListener('keydown', e => { if (captureKey(e)) e.stopImmediatePropagation(); }, true); // rebinding a key
@@ -184,6 +192,7 @@ addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyZ' || e.code === 'KeyY')) { e.preventDefault(); e.shiftKey || e.code === 'KeyY' ? redo() : undo(); return; }
   const a = act(e), mod = e.metaKey || e.ctrlKey;
   if (mode().key?.(e, a)) { e.preventDefault(); syncAll(); return; }
+  if (e.code === 'Escape' && !mod && app.theater) { setTheater(false); return; }
   if (e.code === 'Escape' && !mod && stageOpen()) { closeStage(); return; }
   if (!mod && SHORTCUTS[a]) { SHORTCUTS[a](); syncAll(); return; }
   if (!inFight()) return; // the editor modes: no fighter is yours, the fight keys and macros do nothing
