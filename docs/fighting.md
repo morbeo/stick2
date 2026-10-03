@@ -136,11 +136,11 @@ Hit stop, shake and zoom that grow with each combo hit; attacks, or the whole ga
 | ← held, then P+G | backThrow: backGrab into backToss |
 
 - A throw has short reach. It goes through guard but misses a crouching or airborne fighter.
-- The grab names its throw animation, **toss** (a move: `m.throw`), which plays on the victim, its damage landing on the thrower.
+- The grab names its throw animation, **toss** (a move: `m.throw`), which the THROWER plays (the victim hangs in a generic hurt pose, pinned in front of it); its damage lands on the victim once the hold ends.
 - **backToss**'s key marked **turn** swings the held victim round, sliding, to land behind the thrower.
 - The victim is held for **techWindow**. The pair isn't pushed apart while held, so neither slides.
 - **Break:** the victim presses P+G in time to break free (BREAK). Otherwise it's thrown down.
-- Any move can be a custom throw: in animate, the move panel's **throw** row picks which of the character's moves plays on the victim (**new toss move** makes one, starting from the built-in toss, and opens it). A throw move needs no active keys of its own. Bind it to any input, same as a strike.
+- Any move can be a custom throw: in animate, the move panel's **throw** row picks which of the character's moves the thrower plays (**new toss move** makes one, starting from the built-in toss, and opens it). A throw move needs no active keys of its own. Bind it to any input, same as a strike.
 
 ### Catch
 
