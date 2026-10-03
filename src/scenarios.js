@@ -131,6 +131,9 @@ function scenBuilder() {
         () => { for (const k of changedCfg()) u.cfg[k] = CFG[k]; scenChanged(); fill(); }, 'mini')), found);
   };
   wrap.append(stageHead('scenario', BUILDER_TIP, h('span', { cls: 'note', textContent: 'saved in this browser as you edit' }),
+    button(':grid_view: test in grid', 'Open this scenario in the grid, one row, to sweep it across settings', () => {
+      lab.kind = 'sweep'; lab.x = { k: 'hitstop' }; lab.y = { k: 'scenario' }; lab.rows = [lab.scen]; setMode('grid');
+    }),
     button(':content_copy: copy', 'A new scenario starting from this one', newScen),
     button(':download: export', 'Download all my scenarios as a JSON file', () => { const a = h('a', { href: URL.createObjectURL(new Blob([exportScens()], { type: 'application/json' })), download: 'stick2-scenarios.json' }); a.click(); }),
     button(':upload: import', 'Add scenarios from a JSON file (same names are replaced)', () => { const i = h('input', { type: 'file', accept: '.json', onchange: async () => importScens(await i.files[0].text()) }); i.click(); }),

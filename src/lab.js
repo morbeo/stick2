@@ -42,7 +42,7 @@ const AXIS_SCENS = ['J,J,K', 'sweep', 'ai vs ai'], CANCEL_SCENS = ['J,J,K', 'air
   PLANE_SCENS = ['sidestep', 'ninja flip', 'dash & run', 'ai vs ai'], EDGE_SCENS = ['break inside', 'break edge', 'tech inside', 'tech edge'];
 function axisValues(ax, n) {
   const s = SPEC[ax.k];
-  if (ax.k === 'scenario') return lab.rows || AXIS_SCENS;
+  if (ax.k === 'scenario') return (lab.rows || AXIS_SCENS).filter(k => SCENARIOS[k]); // a row can go stale (its "my scenario" deleted)
   if (ax.k === 'comboFx') return Object.keys(COMBO_FX);
   if (s.opts) return s.opts;
   if (typeof s.v === 'boolean') return [false, true];
