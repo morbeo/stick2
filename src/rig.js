@@ -15,7 +15,14 @@ const BONE = {
   stiff: 1, damp: 1,   // multipliers on the spring frequency / damping
   react: 1, sway: 1,   // secondary motion: how hard blows and bounces jolt the bone; how much it drifts while idle
   dangle: 0,           // how much the bone swings with the body's motion: trails behind a run, lifts in a fall (tails, scarves)
+  alpha: 1,            // visibility: 0 hides it (and everything below it: no draw, no hurtbox, no part in chains), between draws it translucent
 };
+// a bone (or an ancestor) at alpha 0, or flagged hidden directly (older data): no draw, no hurtbox, no part in chains
+function applyHidden(bones) {
+  const by = Object.fromEntries(bones.map(x => [x.id, x]));
+  const hid = x => !!x && ((x.alpha ?? 1) <= 0 || !!x.hidden || hid(by[x.parent]));
+  for (const x of bones) if (hid(x)) Object.assign(x, { hidden: true, len: 0, hurt: 0 }); else delete x.hidden;
+}
 
 // ---------- the default stick fighter ----------
 const limb = s => [
@@ -578,6 +585,7 @@ function makeCharacter(def) {
   if (def.main?.body) { def = bodyDef(def, def.main.body); delete def.main.body; }
   const by = {}, order = [];
   for (const b of def.bones) by[b.id] = { ...BONE, parent: null, ...b };
+  applyHidden(Object.values(by));
   const visit = b => { if (order.includes(b)) return; if (b.parent) visit(by[b.parent]); order.push(b); };
   Object.values(by).forEach(visit); // parents before children
   for (const b of order) {
@@ -724,13 +732,9 @@ function weaponBones(ch, type) {
 // A hidden bone (and all below it) has no length, hurtbox or chain and isn't drawn
 function bodyDef(def, b) {
   const k = b.scale || 1, over = b.bones || {};
-  const bones = [...def.bones, ...(b.add || [])].map(x => ({ ...x, ...over[x.id] })), by = Object.fromEntries(bones.map(x => [x.id, x]));
-  const hid = x => !!x && (!!x.hidden || hid(by[x.parent]));
-  const hidden = new Set(bones.filter(hid).map(x => x.id));
-  for (const x of bones) {
-    if (hidden.has(x.id)) Object.assign(x, { hidden: true, len: 0, hurt: 0 });
-    else { delete x.hidden; if (k !== 1) Object.assign(x, { len: (x.len ?? BONE.len) * k, hurt: (x.hurt ?? BONE.hurt) * k, thick: (x.thick ?? BONE.thick) * k }); }
-  }
+  const bones = [...def.bones, ...(b.add || [])].map(x => ({ ...x, ...over[x.id] }));
+  if (k !== 1) for (const x of bones) Object.assign(x, { len: (x.len ?? BONE.len) * k, hurt: (x.hurt ?? BONE.hurt) * k, thick: (x.thick ?? BONE.thick) * k });
+  applyHidden(bones);
   const moves = { ...def.moves };
   for (const [n, next] of Object.entries(b.chains || {})) if (moves[n]) moves[n] = { ...moves[n], next };
   const stats = Object.fromEntries(Object.entries(b.stats || {}).filter(([s]) => s !== 'health' && CHAR_STATS.some(c => c.k === s)));
@@ -856,9 +860,11 @@ function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null) {
   for (const side of ['b', '', 'f']) for (const b of ch.bones) if (b.side === side) {
     const o = P[b.parent || 'hip'], e = P[b.id], c = tint ? tint(b) : side === 'b' ? back : col;
     if (b.hidden && (b.shape === 'circle' || Math.hypot(e[0] - o[0], e[1] - o[1]) < 0.5)) continue; // a stance's hidden bone (drawn while it shrinks away)
-    if (b.shape === 'circle') { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(e[0], e[1], b.len + extra / 2, 0, 7); ctx.fill(); continue; }
-    if (b.role === 'weapon') { drawWeapon(ctx, b, o, e, extra || tint?.(b) ? c : null, extra); continue; }
-    ctx.strokeStyle = c; ctx.lineWidth = b.thick + extra;
-    ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0], e[1]); ctx.stroke();
+    const a = b.alpha ?? 1;
+    if (a < 1) { ctx.save(); ctx.globalAlpha *= a; }
+    if (b.shape === 'circle') { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(e[0], e[1], b.len + extra / 2, 0, 7); ctx.fill(); }
+    else if (b.role === 'weapon') drawWeapon(ctx, b, o, e, extra || tint?.(b) ? c : null, extra);
+    else { ctx.strokeStyle = c; ctx.lineWidth = b.thick + extra; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0], e[1]); ctx.stroke(); }
+    if (a < 1) ctx.restore();
   }
 }

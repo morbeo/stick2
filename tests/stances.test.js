@@ -27,6 +27,16 @@ test('stanceChar compiles a stance body once, over the base character and with a
   assert.equal(r.aw, 'handF');
 });
 
+test('alpha 0 hides a bone exactly like hidden: true (and cascades to what hangs off it); between, it stays solid', () => {
+  const body = { bones: { uarmF: { alpha: 0 }, uarmB: { alpha: 0.4 } } };
+  const r = R(`(() => { const ch = stanced(${JSON.stringify(body)}), s = stanceChar(ch, 1);
+    return { zero: [s.by.uarmF.hidden, s.by.uarmF.len, s.by.uarmF.hurt, s.by.farmF.hidden], half: [s.by.uarmB.alpha, s.by.uarmB.hidden, s.by.uarmB.len],
+      arms: s.chains.arm.map(c => c[0].id) }; })()`);
+  assert.deepEqual(r.zero, [true, 0, 0, true], 'alpha 0: hidden, zeroed, and cascades to its child');
+  assert.deepEqual(r.half, [0.4, null, 17], 'alpha 0.4: translucent, but its length and hurtbox stay');
+  assert.deepEqual(r.arms, ['uarmB'], 'the alpha-0 arm is excluded from the chain, the translucent one is not');
+});
+
 test('switching stance swaps the body and its stats, keeping the running move', () => {
   const r = R(`(() => { const ch = stanced(BODY), sw = fight({ a: [0.1, 'special+guard'], b: 'dummy', ax: 330, bx: 380, period: 9 }, [ch, CHARS.stick], 40).w.a;
     const w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 400, period: 9 }, {}, 7, [ch, CHARS.stick]), f = w.a;

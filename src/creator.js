@@ -221,7 +221,7 @@ function previewBar() {
 }
 const setProp = (k, v) => edit(def => { for (const b of selDefs(def)) b[k] = v; }, selIds() + '.' + k);
 const prop = k => selBone()?.[k] ?? BONE[k];
-const BONE_BASIC = ['len', 'thick', 'hurt', 'lag', 'stretch']; // the rest wait behind "more"
+const BONE_BASIC = ['len', 'thick', 'hurt', 'lag', 'stretch', 'alpha']; // the rest wait behind "more"
 function bonePanel() {
   const title = heading('', 'Properties of the selected bone. Click a joint in the editor or a name above to select; ⌘/Ctrl+click (Shift+click in the tree) adds bones to the selection: the values shown are the last one\'s, a change goes to every selected bone.',
     'drag joint: length + angle · Shift+drag: angle only · drag the hip (square): move the waist over the feet · Del delete bone');
@@ -253,8 +253,6 @@ function bonePanel() {
     ...BONE_PROPS.map(p => { const r = bodyExpLink(slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip), p.k); return BONE_BASIC.includes(p.k) ? r : adv(r); }),
     row('limits', 'Clamp how far this joint can bend', toggle(':straighten: limits', 'On: the joint bends only between min and max (starts at ±90° from the parent); off removes them (undoable)', () => prop('min') !== undefined, lim)),
     ...limRows,
-    stanceOnly() ? row('hidden', 'Hidden in this stance', toggle(':visibility: hidden', 'Hidden in this stance: the bone and everything below it are not drawn, have no hurtbox and take no part in walking (Del does the same here)',
-      () => !!viewChar().by[studio.sel]?.hidden, v => edit(def => { for (const b of selDefs(def)) if (v) b.hidden = true; else delete b.hidden; }))) : null,
     row('lock', 'Lock to the parent', toggle(':lock: lock', 'Locked: the joint keeps its angle to its parent while posing. Dragging it (or IK through it) turns the first unlocked bone above, so locked bones move as one group.',
       () => !!prop('lock'), v => setProp('lock', v || undefined)))];
 }
