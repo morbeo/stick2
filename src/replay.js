@@ -420,8 +420,8 @@ function rpRender() {
       ctx.save(); ctx.beginPath(); ctx.rect(pv.x, pv.y, pv.w, pv.h); ctx.clip(); ctx.translate(pv.x, pv.y);
       drawFreeze(ctx, pv.w, pv.h, fr.img, fr.zoom, fr.text); ctx.restore(); }
     else if (rp.mv?.rev) ctx.drawImage(rp.mv.rev.imgs[rp.mv.rev.i].img, pv.x, pv.y, pv.w, pv.h);
-    else if (rp.mv) { const sh = rp.movie.shots[rp.mv.shotI], [dx, dy] = shakeOff(sh.fx?.shake);
-      drawCell({ w: rp.mv.w, label: `shot ${rp.mv.shotI + 1}/${rp.movie.shots.length} · ${rp.reels[sh.reel]?.name || ''}` }, { ...pv, x: pv.x + dx, y: pv.y + dy }, { full: true, plot: false });
+    else if (rp.mv) { const sh = rp.movie.shots[rp.mv.shotI], reel = rp.reels[sh.reel], [dx, dy] = shakeOff(sh.fx?.shake);
+      drawCell({ w: rp.mv.w, shot: reel && camAt(reel.rep, rp.mv.w, rp.mv.n), label: `shot ${rp.mv.shotI + 1}/${rp.movie.shots.length} · ${reel?.name || ''}` }, { ...pv, x: pv.x + dx, y: pv.y + dy }, { full: true, plot: false });
       if (sh.fx) { ctx.save(); ctx.beginPath(); ctx.rect(pv.x, pv.y, pv.w, pv.h); ctx.clip(); ctx.translate(pv.x, pv.y); drawShotFx(ctx, pv.w, pv.h, sh.fx); ctx.restore(); } }
     else text(rp.movie.shots.length ? 'The movie ended.' : 'No shots yet: add one in the movie section.', pv.x + pv.w / 2, pv.y + pv.h / 2, '#888', 13, '', 'center');
     return;
@@ -591,6 +591,14 @@ const footRange = () => [foot().in ?? 0, Math.min(foot().out ?? rp.N, rp.N)];
 const rateAt = (f, on = rp.footOn) => on && spanAt('slow', f)?.rate || 1;
 function shotAt(w, f, on = rp.footOn) {
   const s = on && spanAt('cam', f);
+  if (!s) return null;
+  const fs = w.fighters.filter(x => !x.hidden), pick = s.follow === 'P1' ? [fs[0]] : s.follow === 'P2' ? [fs[1] || fs[0]] : fs;
+  return { zoom: s.zoom, x: pick.reduce((a, x) => a + x.x, 0) / pick.length };
+}
+// a movie shot's camera: whatever camera spans are set on its own source reel's footage, at the frame it is showing (a shot has
+// no camera of its own — it inherits the reel's, the same spans that reel's own footage preview and export already use)
+function camAt(rep, w, f) {
+  const s = (rep.footage?.spans || []).find(sp => sp.kind === 'cam' && f >= sp.a && f < sp.b);
   if (!s) return null;
   const fs = w.fighters.filter(x => !x.hidden), pick = s.follow === 'P1' ? [fs[0]] : s.follow === 'P2' ? [fs[1] || fs[0]] : fs;
   return { zoom: s.zoom, x: pick.reduce((a, x) => a + x.x, 0) / pick.length };
@@ -843,7 +851,7 @@ async function exportMovie() {
       const fr = w.playback.frames, end = Math.min(sh.b, fr.length);
       for (let f = 0; f < sh.a; f++) { const [dt, inp, mq, inp2] = fr[f]; if (mq) w.macro = new Script(parseMacro(mq)); w.advance(dt, inp, inp2); }
       if (si > 0 && lastImg && sh.trans && sh.trans.kind !== 'cut') { // a frozen blend from the previous shot's last frame to this one's first, before its own frames play
-        const toImg = h2canvas(W2, H2), tg = toImg.getContext('2d'); tg.fillStyle = '#f3f0e8'; tg.fillRect(0, 0, W2, H2); w.render(tg, { x: 0, y: 0, w: W2, h: H2 }, true, { fill });
+        const toImg = h2canvas(W2, H2), tg = toImg.getContext('2d'); tg.fillStyle = '#f3f0e8'; tg.fillRect(0, 0, W2, H2); w.render(tg, { x: 0, y: 0, w: W2, h: H2 }, true, { ...camAt(reel.rep, w, sh.a), fill });
         const n = Math.max(1, Math.round(sh.trans.dur * fps));
         for (let k = 1; k <= n; k++) { const c = h2canvas(W2, H2), g = c.getContext('2d'); transDraw(g, W2, H2, lastImg, toImg, sh.trans, k / n); frames.push({ c, t: next * 1000 }); next += 1 / fps; lastImg = c; }
         t = next;
@@ -856,7 +864,7 @@ async function exportMovie() {
         if (next <= t1 - 1e-9) {
           const [dx, dy] = shakeOff(sh.fx?.shake), c = h2canvas(W2, H2), g = c.getContext('2d'), r = { x: dx, y: dy, w: W2, h: H2 };
           g.fillStyle = '#f3f0e8'; g.fillRect(0, 0, W2, H2);
-          w.render(g, r, true, { fill });
+          w.render(g, r, true, { ...camAt(reel.rep, w, f), fill });
           if (o.inputs && w.ctl[0] === 'human') drawInputs(w, 10 * dpr, 30 * dpr, g);
           if (o.meter) drawMeter(w, { x: 6 * dpr, y: H2 - 24 * dpr, w: W2 - 12 * dpr, h: 18 * dpr }, true, g);
           drawShotFx(g, W2, H2, sh.fx);
