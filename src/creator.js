@@ -394,9 +394,10 @@ function boneTable() {
       const stop = e => e.stopPropagation();
       tr.append(...BONE_COLS.map((c, i) => {
         const td = h('td'), tip = `${b.id} · ${c.tip}${selIds().length > 1 && selIds().includes(b.id) ? ' · goes to every selected bone' : ''}`;
-        if (c.k === 'id') { td.textContent = v[i]; td.style.borderLeft = `4px solid ${ROLE_COLS[b.role][b.side === 'b' ? 1 : 0]}`;
+        if (c.k === 'id') { const stanceOwn = studio.stance > 0 && !!stanceBody()?.add?.some(x => x.id === b.id);
+          td.textContent = v[i] + (stanceOwn ? ' ★' : ''); td.style.borderLeft = `4px solid ${ROLE_COLS[b.role][b.side === 'b' ? 1 : 0]}`;
           Object.assign(td, { ondblclick: e => { stop(e); renameBone(b.id).then(fill); } });
-          td.dataset.tip = tip + ' · double-click: rename';
+          td.dataset.tip = tip + (stanceOwn ? ' · ★ only exists in this stance' : '') + ' · double-click: rename';
           if (!sk && !q) Object.assign(td, { draggable: true, className: 'drag', ondragstart: e => { e.dataTransfer?.setData('text/plain', b.id); },
             ondragover: e => { e.preventDefault(); td.classList.add('dropto'); }, ondragleave: () => td.classList.remove('dropto'),
             ondrop: e => { e.preventDefault(); const id = e.dataTransfer?.getData('text/plain'); if (def.bones.some(x => x.id === id)) { moveBone(id, b.id); fill(); } } }); }

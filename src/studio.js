@@ -494,7 +494,10 @@ function boneTree() {
     const fold = studio.fold.has(b.id);
     const tw = b.kids.length ? button(fold ? '▸' : '▾', fold ? `Show the bones under ${b.id}` : `Hide the bones under ${b.id} in this list`, () => { studio.fold[fold ? 'delete' : 'add'](b.id); panels(); }, 'twist')
       : h('span', { cls: 'twist' });
-    const nb = button(b.id + (b.lock ? ' 🔒' : '') + (b.hidden ? ' (hidden)' : ''), `${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''} · ${b.len}px${fold ? ` · ${subtree(DEFS[CURRENT], b.id).length - 1} hidden` : ''} · click: select it (Shift / ⌘: add to the selection) · double-click: rename`,
+    const stanceOwn = studio.stance > 0 && !!stanceBody()?.add?.some(x => x.id === b.id);
+    const nb = button(b.id + (b.lock ? ' 🔒' : '') + (b.hidden ? ' (hidden)' : '') + (stanceOwn ? ' (this stance)' : ''),
+      `${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''} · ${b.len}px${fold ? ` · ${subtree(DEFS[CURRENT], b.id).length - 1} hidden` : ''}` +
+      (stanceOwn ? ' · only exists in this stance' : '') + ' · click: select it (Shift / ⌘: add to the selection) · double-click: rename',
       e => pickBoneSel(b.id, e.shiftKey || e.metaKey || e.ctrlKey));
     nb.ondblclick = e => { e.stopPropagation(); renameBone(b.id).then(panels); };
     nb.style.borderLeft = `4px solid ${ROLE_COLS[b.role][b.side === 'b' ? 1 : 0]}`;
