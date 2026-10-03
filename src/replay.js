@@ -416,6 +416,9 @@ function rpRender() {
     if (rp.mv?.trans) { const tr = rp.mv.trans, p = Math.min(1, tr.t / tr.dur);
       ctx.save(); ctx.beginPath(); ctx.rect(pv.x, pv.y, pv.w, pv.h); ctx.clip(); ctx.translate(pv.x, pv.y);
       transDraw(ctx, pv.w, pv.h, tr.from, tr.to, tr, p); ctx.restore(); }
+    else if (rp.mv?.freeze) { const fr = rp.mv.freeze;
+      ctx.save(); ctx.beginPath(); ctx.rect(pv.x, pv.y, pv.w, pv.h); ctx.clip(); ctx.translate(pv.x, pv.y);
+      drawFreeze(ctx, pv.w, pv.h, fr.img, fr.zoom, fr.text); ctx.restore(); }
     else if (rp.mv) drawCell({ w: rp.mv.w, label: `shot ${rp.mv.shotI + 1}/${rp.movie.shots.length} · ${rp.reels[rp.movie.shots[rp.mv.shotI].reel]?.name || ''}` }, pv, { full: true, plot: false });
     else text('No shots yet: add one in the movie section.', pv.x + pv.w / 2, pv.y + pv.h / 2, '#888', 13, '', 'center');
     return;
@@ -738,6 +741,13 @@ function transDraw(g, w, h, from, to, trans, p) {
     if (horiz) { g.drawImage(from, fromOff, 0, w, h); g.drawImage(to, toOff, 0, w, h); } else { g.drawImage(from, 0, fromOff, w, h); g.drawImage(to, 0, toOff, w, h); }
   } else g.drawImage(to, 0, 0, w, h);
 }
+// a shot's freeze frame { at (frame, relative to the shot; unset: its last), hold (s), zoom, text }: holds on one frame, optionally
+// punched in and captioned, before the shot's own frames play on
+function drawFreeze(g, w, h, img, zoom, text) {
+  if (zoom > 1) { g.save(); g.translate(w / 2, h / 2); g.scale(zoom, zoom); g.drawImage(img, -w / 2, -h / 2, w, h); g.restore(); }
+  else g.drawImage(img, 0, 0, w, h);
+  if (text) drawTitle(g, text, { x: 0, y: 0, w, h });
+}
 // a new shot from this reel: the selection, else the footage in–out, else two seconds from the playhead
 function addShot() {
   const s = selSpan(), [a, b] = s || (foot().in != null || foot().out != null ? footRange() : [rp.n, Math.min(rp.N, frameAt(rp.T[rp.n] + 2))]);
@@ -754,7 +764,7 @@ function mvLoad(shotI, transFrom = null) {
   const w = replayWorld(reel.rep); w.loop = false; w.replaying = true;
   const frames = w.playback.frames, N = Math.min(sh.b, frames.length), a = Math.min(sh.a, N);
   for (let f = 0; f < a; f++) { const [dt, inp, mq, inp2] = frames[f]; if (mq) w.macro = new Script(parseMacro(mq)); w.advance(dt, inp, inp2); }
-  rp.mv = { shotI, w, frames, n: a, N, a, T: frames.slice(a, N).reduce((arr, f) => (arr.push(arr[arr.length - 1] + f[0]), arr), [0]), t: 0, trans: null };
+  rp.mv = { shotI, w, frames, n: a, N, a, T: frames.slice(a, N).reduce((arr, f) => (arr.push(arr[arr.length - 1] + f[0]), arr), [0]), t: 0, trans: null, freeze: null };
   if (transFrom && sh.trans && sh.trans.kind !== 'cut') rp.mv.trans = { ...sh.trans, from: transFrom, to: mvSnapshot(), t: 0 };
   return true;
 }
@@ -764,13 +774,21 @@ function mvSnapshot() {
   const g = c.getContext('2d'); g.fillStyle = '#f3f0e8'; g.fillRect(0, 0, pv.w, pv.h); rp.mv.w.render(g, { x: 0, y: 0, w: pv.w, h: pv.h }, true);
   return c;
 }
-function mvStepOnce() { const m = rp.mv, [dt, inp, mq, inp2] = m.frames[m.n]; if (mq) m.w.macro = new Script(parseMacro(mq)); m.w.advance(dt, inp, inp2); m.n++; }
+function mvStepOnce() {
+  const m = rp.mv, sh = rp.movie.shots[m.shotI], [dt, inp, mq, inp2] = m.frames[m.n];
+  if (mq) m.w.macro = new Script(parseMacro(mq));
+  m.w.advance(dt, inp, inp2);
+  const at = sh.freeze && m.a + (sh.freeze.at ?? m.N - m.a - 1);
+  if (sh.freeze && m.n === at) m.freeze = { ...sh.freeze, t: 0, hold: sh.freeze.hold ?? 1, zoom: sh.freeze.zoom ?? 1, img: mvSnapshot() };
+  m.n++;
+}
 function mvTick(dt) {
   if (!rp.mv && !mvLoad(0)) { app.paused = true; return; }
   const m = rp.mv;
   if (m.trans) { m.trans.t += dt; if (m.trans.t >= m.trans.dur) m.trans = null; return; } // the shot's own frames wait out the transition
+  if (m.freeze) { m.freeze.t += dt; if (m.freeze.t >= m.freeze.hold) m.freeze = null; return; }
   m.t += dt;
-  while (m.n < m.N && m.T[m.n - m.a + 1] <= m.t + 1e-9) mvStepOnce();
+  while (!m.freeze && m.n < m.N && m.T[m.n - m.a + 1] <= m.t + 1e-9) mvStepOnce();
   if (m.n >= m.N) { const img = mvSnapshot(); if (!mvLoad(m.shotI + 1, img)) app.paused = true; }
 }
 function setPlayMovie(v) { rp.playMovie = v; rp.mv = null; if (v) mvLoad(0); app.paused = false; }
@@ -796,6 +814,7 @@ async function exportMovie() {
         for (let k = 1; k <= n; k++) { const c = h2canvas(W2, H2), g = c.getContext('2d'); transDraw(g, W2, H2, lastImg, toImg, sh.trans, k / n); frames.push({ c, t: next * 1000 }); next += 1 / fps; lastImg = c; }
         t = next;
       }
+      const freezeAt = sh.freeze && sh.a + (sh.freeze.at ?? end - sh.a - 1);
       for (let f = sh.a; f < end; f++) {
         const [dt, inp, mq, inp2] = fr[f]; if (mq) w.macro = new Script(parseMacro(mq));
         const t1 = t + dt;
@@ -809,6 +828,11 @@ async function exportMovie() {
           lastImg = c;
         }
         t = t1; w.advance(dt, inp, inp2);
+        if (f === freezeAt && lastImg) { // hold on the last rendered frame, then carry on from here
+          const hold = Math.max(1, Math.round((sh.freeze.hold ?? 1) * fps));
+          for (let k = 0; k < hold; k++) { const c = h2canvas(W2, H2), g = c.getContext('2d'); drawFreeze(g, W2, H2, lastImg, sh.freeze.zoom ?? 1, sh.freeze.text); frames.push({ c, t: next * 1000 }); next += 1 / fps; }
+          t = next;
+        }
         if (++done % 30 === 0) { clip.busy = `render ${Math.round(100 * done / total)}%`; syncAll(); await new Promise(r => setTimeout(r)); }
       }
     }
@@ -848,6 +872,22 @@ function transBtn(j) {
   reg(b, () => setRich(b, `:movie_filter: ${cur().kind}`));
   return b;
 }
+// a shot's freeze frame: holds on one of its frames (its last, or wherever the playhead was when "here" was clicked), zoomed and
+// captioned if set, before its own frames (after the freeze point) play on
+function freezeBtn(j) {
+  const on = () => !!rp.movie.shots[j].freeze, cur = () => rp.movie.shots[j].freeze || { hold: 1, zoom: 1, text: '' };
+  const set = vals => movieEdit(M => { M.shots[j].freeze = { ...cur(), ...vals }; });
+  const b = button(':pause_circle:', 'Hold on a frame of this shot before it plays on', (e, btn) => popup(btn, h('b', { textContent: 'freeze frame' }),
+    h('div', { cls: 'row' }, h('span', { textContent: 'freeze' }), toggle(':pause_circle: on', 'Hold on a frame, then play on', on,
+      v => movieEdit(M => { if (v) M.shots[j].freeze = cur(); else delete M.shots[j].freeze; }))),
+    h('div', { cls: 'row' }, h('span', { textContent: 'at' }), button(':my_location: here', 'Freeze at the playhead (edit this reel first)', () => set({ at: rp.n - rp.movie.shots[j].a }), 'mini'),
+      h('span', { cls: 'note', textContent: cur().at !== undefined ? `frame ${cur().at} of the shot` : 'the last frame of the shot' })),
+    h('div', { cls: 'row' }, h('span', { textContent: 'hold' }), slider('secs', { min: 0.1, max: 5, step: 0.1 }, () => cur().hold, v => set({ hold: v }), 'How long it holds')),
+    h('div', { cls: 'row' }, h('span', { textContent: 'zoom' }), slider('×', { min: 1, max: 3, step: 0.1 }, () => cur().zoom, v => set({ zoom: v }), 'Punch in while held')),
+    h('div', { cls: 'row' }, h('span', { textContent: 'caption' }), h('input', { cls: 'macro', value: cur().text, oninput: e2 => set({ text: e2.target.value }) }))), 'mini');
+  reg(b, () => b.classList.toggle('on', on()));
+  return b;
+}
 function shotRow(sh, j) {
   const reel = rp.reels[sh.reel], active = reel === rp.reel;
   const t = f => active ? fmtT(rp.T[f]) : `frame ${f}`;
@@ -862,7 +902,7 @@ function shotRow(sh, j) {
     button(':swap_horiz:', 'Use a different reel for this shot', (e, b) => popup(b, h('b', { textContent: 'pick a reel' }),
       h('div', { cls: 'bar col' }, rp.reels.map((r, i) => button(r.name, `Use "${r.name}" for this shot`, () => { movieEdit(M => { M.shots[j].reel = i; }); closePop(); })))), 'mini'),
     h('span', { cls: 'note', textContent: `${t(sh.a)} – ${t(sh.b)}` }),
-    inBtn, outBtn, j > 0 ? transBtn(j) : null,
+    inBtn, outBtn, j > 0 ? transBtn(j) : null, freezeBtn(j),
     button(':content_copy:', 'Duplicate this shot', () => movieEdit(M => { M.shots.splice(j + 1, 0, { ...sh }); }), 'mini'),
     crud({ delete: ['Delete this shot', () => movieEdit(M => { M.shots.splice(j, 1); })] }));
 }

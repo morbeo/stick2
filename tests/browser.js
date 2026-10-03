@@ -737,9 +737,10 @@ try {
       for (let i = 0; i < 10; i++) mode().tick(1 / 60);
       if (rp.mv.n <= rp.mv.a || rp.n !== n0) errs.push('movie play steps its own world, this reel untouched ' + [rp.mv.n, rp.n, n0]);
       setPlayMovie(false); if (rp.mv || rp.playMovie) errs.push('movie stop');
+      const shotsForExport = rp.movie.shots;
       afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
-        ui.clip = { ...clipSet(), fps: 15, aspect: 'view' }; await exportMovie(); saveClip = sc;
-        let t = 0; for (const sh of rp.movie.shots) { const fr = rp.reels[sh.reel].rep.frames; for (let f = sh.a; f < Math.min(sh.b, fr.length); f++) t += fr[f][0]; }
+        ui.clip = { ...clipSet(), fps: 15, aspect: 'view' }; rp.movie.shots = shotsForExport; await exportMovie(); saveClip = sc;
+        let t = 0; for (const sh of shotsForExport) { const fr = rp.reels[sh.reel].rep.frames; for (let f = sh.a; f < Math.min(sh.b, fr.length); f++) t += fr[f][0]; }
         if (!got || Math.abs(got.length - t * 15) > 3) errs.push('movie export ' + (got && got.length) + ' vs ' + Math.round(t * 15)); });
       const proj = projectFile(), before = JSON.stringify(rp.movie.shots), nReels = rp.reels.length;
       loadProject(proj);
@@ -754,10 +755,24 @@ try {
       for (let i = 0; i < 4; i++) mode().tick(1 / 60); // past its two-frame duration
       if (rp.mv.trans || rp.mv.n <= rp.mv.a) errs.push('transition ends, the shot plays on ' + JSON.stringify(rp.mv.trans));
       setPlayMovie(false);
+      const transShots = rp.movie.shots;
       afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
-        ui.clip = { ...clipSet(), fps: 60, aspect: 'view' }; await exportMovie(); saveClip = sc;
+        ui.clip = { ...clipSet(), fps: 60, aspect: 'view' }; rp.movie.shots = transShots; await exportMovie(); saveClip = sc;
         // 5 content frames + 2 transition frames + 5 content frames at 60fps
         if (!got || Math.abs(got.length - 12) > 2) errs.push('transition export ' + (got && got.length)); }); }
+    // freeze frame: holds on a frame of the shot (zoomed, captioned), then the shot plays on from there
+    { movieEdit(M => { M.shots = [{ reel: 0, a: 0, b: 5, freeze: { at: 2, hold: 2 / 60, zoom: 1.5, text: 'HIT' } }]; });
+      setPlayMovie(true);
+      for (let i = 0; i < 3; i++) mode().tick(1 / 60); // steps to frame 2, where the freeze triggers
+      if (!rp.mv.freeze || rp.mv.n !== 3) errs.push('freeze start ' + JSON.stringify([!!rp.mv.freeze, rp.mv.n]));
+      for (let i = 0; i < 3; i++) mode().tick(1 / 60); // past its two-frame hold
+      if (rp.mv.freeze || rp.mv.n <= 3) errs.push('freeze ends, the shot plays on ' + JSON.stringify([rp.mv.freeze, rp.mv.n]));
+      setPlayMovie(false);
+      const freezeShots = rp.movie.shots;
+      afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
+        ui.clip = { ...clipSet(), fps: 60, aspect: 'view' }; rp.movie.shots = freezeShots; await exportMovie(); saveClip = sc;
+        // 5 content frames + 2 held frames
+        if (!got || Math.abs(got.length - 7) > 2) errs.push('freeze export ' + (got && got.length)); }); }
     // clips: the 1:1 aspect crops the subject to a square
     { ui.clip = { ...clipSet(), aspect: '1:1', fit: 'crop', size: 200 }; clip.key = null; clip.frames.length = 0; clip.last = 0; clipCapture(5e6, true);
       const f = clip.frames[0]?.c; if (!f || f.width !== 200 || f.height !== 200) errs.push('clip aspect ' + (f && [f.width, f.height]));
