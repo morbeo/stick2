@@ -779,7 +779,7 @@ function moveTable() {
   requestAnimationFrame(() => { wrap.scrollTop = anim.tscroll || 0; });
   return wrap;
 }
-// ---------- sounds: design new ones (sliders over the synth), built-ins are read-only (duplicate to customize) ----------
+// ---------- sounds: every one is tunable, built-ins included (revert goes back to the shipped values) ----------
 let soundSel = null;
 function duplicateSound(from) {
   let n = 1; while (SOUNDS[from + n]) n++;
@@ -791,14 +791,15 @@ const SOUND_FIELD_TIPS = { noise: 'The noise layer\'s filter type, or none for n
   tf1: 'Tone end frequency (Hz), swept over the sound\'s duration', tgain: 'Tone layer volume',
   attack: 'Ramp-up time before the decay starts (0: an instant hard onset, like every built-in)', dur: 'Total length, in seconds' };
 function soundFields(name, refill) {
-  if (!(name in mySounds)) return h('div', {}, h('p', { cls: 'note', textContent: `${name} is built in — duplicate it to tune a copy.` }),
-    button(':content_copy: duplicate', `A custom copy of ${name}, free to tune`, () => { duplicateSound(name); refill(); }));
-  const s = SOUNDS[name], set = (k, v) => { saveSound(name, { ...SOUNDS[name], [k]: v }); refill(); };
-  const nm = h('input', { cls: 'macro', value: name, tip: 'Rename this sound', onkeydown: e => e.stopPropagation(),
+  const s = SOUNDS[name], built = name in BASE_SOUNDS, set = (k, v) => { saveSound(name, { ...SOUNDS[name], [k]: v }); refill(); };
+  // a built-in keeps its name (other moves already reference it by that name); only a custom one can rename or disappear for good
+  const nm = built ? h('b', { textContent: name }) : h('input', { cls: 'macro', value: name, tip: 'Rename this sound', onkeydown: e => e.stopPropagation(),
     onchange: () => { const v = nm.value.trim(); if (!v || v === name || SOUNDS[v]) { nm.value = name; return; } renameSound(name, v); soundSel = v; refill(); } });
   return h('div', {},
-    h('div', { cls: 'bar' }, nm, button(':play_arrow: test', `Play ${name}`, () => playSound(name)),
-      button(':delete: delete', `Delete ${name}`, () => { deleteSound(name); soundSel = null; refill(); })),
+    h('div', { cls: 'bar' }, nm, built ? h('span', { cls: 'note', textContent: 'built-in — tunable, revert to go back' }) : null,
+      button(':play_arrow: test', `Play ${name}`, () => playSound(name)),
+      button(built ? ':restart_alt: revert' : ':delete: delete', built ? `Back to ${name}'s shipped values` : `Delete ${name}`,
+        () => { resetSound(name); if (!built) soundSel = null; refill(); })),
     h('div', { cls: 'bar' }, h('span', { textContent: 'noise' }), seg(['bandpass', 'lowpass', 'highpass', 'none'], () => s.noise, v => set('noise', v),
       Object.fromEntries(['bandpass', 'lowpass', 'highpass', 'none'].map(v => [v, SOUND_FIELD_TIPS.noise])))),
     slider('noise start', { min: 50, max: 6000, step: 10 }, () => s.nf0, v => set('nf0', v), SOUND_FIELD_TIPS.nf0),
@@ -817,12 +818,12 @@ function soundsPanel() {
   const fill = () => {
     if (soundSel && !SOUNDS[soundSel]) soundSel = null;
     const row = n => h('div', { cls: 'bar' + (soundSel === n ? ' on' : ''), onclick: () => { soundSel = n; fill(); } },
-      h('b', { textContent: n }), n in mySounds ? null : h('span', { cls: 'note', textContent: 'built-in' }),
+      h('b', { textContent: n }), n in BASE_SOUNDS ? h('span', { cls: 'note', textContent: 'built-in' }) : null,
       button(':play_arrow:', `Play ${n}`, e => { e.stopPropagation(); playSound(n); }, 'mini'));
     body.replaceChildren(...Object.keys(SOUNDS).map(row), h('h4', { textContent: soundSel || 'pick a sound' }),
-      soundSel ? soundFields(soundSel, fill) : h('p', { cls: 'note', textContent: 'click a sound above to hear it or tune a custom copy of it' }));
+      soundSel ? soundFields(soundSel, fill) : h('p', { cls: 'note', textContent: 'click a sound above to hear it, tune it, or tune a copy of it' }));
   };
-  wrap.append(stageHead('sounds', 'Every sound is synthesized live (no files). Built-ins are read-only; duplicate one to tune a custom copy — it plays anywhere that name is picked (the key events row).',
+  wrap.append(stageHead('sounds', 'Every sound is synthesized live (no files). A slider per parameter, built-ins included — revert goes back to a built-in\'s shipped values. A custom (or customized) sound plays anywhere that name is picked (the key events row).',
     button(':add: new sound', 'A new sound, copied from whoosh', () => { duplicateSound('whoosh'); fill(); })), body);
   fill();
   return wrap;

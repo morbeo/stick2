@@ -88,18 +88,24 @@ try {
     undo(); if (DEFS[CURRENT].binds.backKick !== '' || !cell('4K').classList.contains('fall')) errs.push('input undo');
     undo(); undo();
     undo(); lay('animate').panel = null; panels(); }
-  // sounds panel: lists every sound, a built-in is read-only, new/duplicate makes a tunable copy, a slider edits it live, delete removes it
+  // sounds panel: lists every sound; a built-in is directly tunable (revert undoes it); new sound makes a wholly custom one (delete removes it)
   { setMode('animate'); openStage('sounds'); panels();
     const rows = () => [...document.querySelectorAll('.mtable .bar:not(.stagehead)')];
     if (rows().length !== Object.keys(SOUNDS).length) errs.push('sounds panel rows ' + rows().length + ' vs ' + Object.keys(SOUNDS).length);
     rows()[0].click(); // a built-in (whoosh)
-    if (!document.querySelector('.mtable p.note')) errs.push('built-in sound shows as read-only');
+    if (!document.querySelector('.mtable input[type=range]')) errs.push('built-in sound has no sliders');
+    const whooshBase = BASE_SOUNDS.whoosh.nf0;
+    const sl0 = document.querySelector('.mtable input[type=range]'); sl0.value = whooshBase + 500; sl0.dispatchEvent(new Event('input'));
+    if (SOUNDS.whoosh.nf0 !== whooshBase + 500 || !('whoosh' in mySounds)) errs.push('built-in sound slider ' + JSON.stringify(SOUNDS.whoosh));
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('revert')).click();
+    if (SOUNDS.whoosh.nf0 !== whooshBase || 'whoosh' in mySounds) errs.push('built-in sound revert ' + JSON.stringify(SOUNDS.whoosh));
     [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('new sound')).click();
-    const name = Object.keys(mySounds).find(n => n.startsWith('whoosh'));
-    if (!name || !(name in SOUNDS)) errs.push('new sound not created ' + name);
+    const name = Object.keys(mySounds).find(n => n.startsWith('whoosh') && n !== 'whoosh');
+    if (!name || !(name in SOUNDS) || name in BASE_SOUNDS) errs.push('new sound not created ' + name);
     const sl = document.querySelector('.mtable input[type=range]'); sl.value = 780; sl.dispatchEvent(new Event('input'));
     if (SOUNDS[name].nf0 !== 780) errs.push('sound slider ' + JSON.stringify(SOUNDS[name]));
-    deleteSound(name); if (name in SOUNDS || name in mySounds) errs.push('sound delete ' + name);
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('delete')).click();
+    if (name in SOUNDS || name in mySounds) errs.push('sound delete ' + name);
     openStage(null); panels(); }
   // looks panel: lists every look, a built-in is read-only (hand-coded), new look makes a tunable generic-particle one,
   // a slider edits it live, delete removes it from FX_LOOKS/FX_DRAW

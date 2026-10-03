@@ -189,7 +189,7 @@ Neither sounds nor looks are picked from a closed list — both can be designed 
 
 ### Sounds
 
-**panels** → **sounds**. Every sound is synthesized live (WebAudio, no files): a noise layer (a filtered sweep) and/or a tone layer (an oscillator sweep), each with its own gain, over an attack and a decay. The 4 built-ins (whoosh, hit, thud, block) are read-only; **duplicate** one (or **new sound**) to get a tunable copy — a slider per parameter, a **test** button, rename, delete. A custom sound appears anywhere a sound is picked, including the key events row above.
+**panels** → **sounds**. Every sound is synthesized live (WebAudio, no files): a noise layer (a filtered sweep) and/or a tone layer (an oscillator sweep), each with its own gain, over an attack and a decay. Every one is tunable, the 4 built-ins (whoosh, hit, thud, block) included — a slider per parameter, a **test** button; **revert** puts a built-in back to its shipped values (it keeps its name, since other moves already pick it by name). **new sound** (or **duplicate**) makes a wholly new one instead, free to rename or delete. A sound appears anywhere a sound is picked, including the key events row above.
 
 ### Effects (looks)
 
