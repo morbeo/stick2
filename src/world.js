@@ -573,13 +573,7 @@ class World {
     ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
     this.view = { s, ox: r.x + r.w / 2 + (sx - cx) * s, oy: r.y + r.h / 2 + (sy - cy) * s }; // screen = world · s + o
     ctx.transform(s, 0, 0, s, this.view.ox, this.view.oy);
-    ctx.strokeStyle = '#cfc8bb'; ctx.lineWidth = 2;
-    const plane = cfg.plane, g = this.groundY;
-    if (plane !== '2d') { // the floor in depth; lanes get a line each
-      ctx.fillStyle = '#ebe5d9'; ctx.fillRect(-2000, g - ZMAX * ZS, W + 4000, ZMAX * ZS * 2);
-      if (plane === 'lanes') for (const l of [-1, 0, 1]) { ctx.beginPath(); ctx.moveTo(-2000, g + l * LANE * ZS); ctx.lineTo(W + 2000, g + l * LANE * ZS); ctx.stroke(); }
-    } else { ctx.beginPath(); ctx.moveTo(-2000, g); ctx.lineTo(W + 2000, g); ctx.stroke(); }
-    ctx.fillStyle = '#e4ded2'; ctx.fillRect(-2000, -2000, 2020, 4000); ctx.fillRect(W - 20, -2000, 2000, 4000); // walls
+    (STAGES[this.scen.stage] || STAGES.plain).draw(ctx, this);
     if (cfg.speedLines) this.drawSpeedLines(ctx);
     for (const f of this.fighters.filter(f => !f.hidden).sort((a, b) => a.z - b.z)) // far ones first
       f.draw(ctx, f.freeze > 0 && f === this.victim ? Math.sin(T * 170) * cfg.hitShake : 0);

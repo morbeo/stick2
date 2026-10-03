@@ -3,7 +3,8 @@ const test = require('node:test'), assert = require('node:assert/strict'), load 
 const { run } = load();
 // a 2D context that records calls and checks every coordinate is a finite number
 run(`var stubCtx = () => { const st = { calls: 0, bad: [] };
-  const ctx = new Proxy(st, { get: (t, k) => k in t ? t[k] : (...a) => { st.calls++; if (a.some(v => typeof v === 'number' && !isFinite(v))) st.bad.push(k); },
+  const ctx = new Proxy(st, { get: (t, k) => k in t ? t[k] : (...a) => { st.calls++; if (a.some(v => typeof v === 'number' && !isFinite(v))) st.bad.push(k);
+      return /^create(Linear|Radial)Gradient$/.test(k) ? { addColorStop: () => {} } : undefined; },
     set: (t, k, v) => (t[k] = v, true) });
   return { ctx, st }; };`);
 
@@ -77,6 +78,15 @@ test('the timer draws an elapsed mm:ss clock that counts up from the round\'s st
     return { t0, afterReset: w.simT }; })())`));
   assert.ok(r.t0 > 2 && r.t0 < 2.2, `about 2s elapsed: ${r.t0}`);
   assert.equal(r.afterReset, 0, 'a reset (new round) starts the clock over');
+});
+
+test('every stage (STAGES) draws without NaN; a scenario with no stage set draws exactly like "plain"', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => { const draw = scen => { const w = new World(scen, {}, 7), { ctx, st } = stubCtx(); w.loop = false;
+      w.advance(1/60, NOIN); w.render(ctx, { x: 0, y: 0, w: 800, h: 450 }, true); return { calls: st.calls, bad: st.bad }; };
+    const results = Object.fromEntries(Object.keys(STAGES).map(k => [k, draw({ ...SCENARIOS['you vs ai'], stage: k })]));
+    return { results, def: draw(SCENARIOS['you vs ai']) }; })())`));
+  for (const k of Object.keys(r.results)) { assert.ok(r.results[k].calls > 10, `${k} draws`); assert.deepEqual(r.results[k].bad, [], `${k}: no NaN`); }
+  assert.equal(r.results.plain.calls, r.def.calls, 'no scen.stage defaults to plain, drawing the same as today');
 });
 
 test('effects: an old single effect still draws, a stack draws each, a key\'s stack replaces the move\'s, and a stacked fighter fights the same', () => {
