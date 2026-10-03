@@ -413,7 +413,10 @@ function rpRender() {
   }
   const pv = rpLayout().pv;
   if (rp.playMovie) { // the movie: each shot's own world, in turn; the timeline below is this reel's, not the movie's (a later phase)
-    if (rp.mv) drawCell({ w: rp.mv.w, label: `shot ${rp.mv.shotI + 1}/${rp.movie.shots.length} · ${rp.reels[rp.movie.shots[rp.mv.shotI].reel]?.name || ''}` }, pv, { full: true, plot: false });
+    if (rp.mv?.trans) { const tr = rp.mv.trans, p = Math.min(1, tr.t / tr.dur);
+      ctx.save(); ctx.beginPath(); ctx.rect(pv.x, pv.y, pv.w, pv.h); ctx.clip(); ctx.translate(pv.x, pv.y);
+      transDraw(ctx, pv.w, pv.h, tr.from, tr.to, tr, p); ctx.restore(); }
+    else if (rp.mv) drawCell({ w: rp.mv.w, label: `shot ${rp.mv.shotI + 1}/${rp.movie.shots.length} · ${rp.reels[rp.movie.shots[rp.mv.shotI].reel]?.name || ''}` }, pv, { full: true, plot: false });
     else text('No shots yet: add one in the movie section.', pv.x + pv.w / 2, pv.y + pv.h / 2, '#888', 13, '', 'center');
     return;
   }
@@ -710,33 +713,65 @@ function exportPop(e, b) {
 }
 
 // ---------- movie: shots cut from any loaded reel (the reel, its branches, an imported file), played and exported one after another ----------
-// a project file: every reel the movie uses, plus the movie itself (shots: [{ reel: index into reels, a, b }]); fx and transitions are a later phase
+// a project file: every reel the movie uses, plus the movie itself (shots: [{ reel: index into reels, a, b, trans }]); shot fx are a later phase
 const PROJECT_FORMAT = 'stick2-project';
 function movieEdit(fn, key = null) { snapshot(() => ({ movie: JSON.stringify(rp.movie) }), key); fn(rp.movie); panels(); }
+// a shot's transition in from the one before it (shot 0 has none): dur in seconds; fade/flash: col; wipe/slide: dir, the edge the
+// new shot enters from. Drawn by blending two frozen frames (the old shot's last, the new one's first), in the preview and export
+const TRANS_KINDS = { cut: 'Switches instantly (the default)', fade: 'Fades through a colour', cross: 'Crossfades into the new shot',
+  wipe: 'A hard edge wipes the new shot in', slide: 'The new shot slides in, pushing the old one out' };
+const TRANS_DIRS = { L: 'from the left', R: 'from the right', U: 'from the top', D: 'from the bottom' };
+function transDraw(g, w, h, from, to, trans, p) {
+  const { kind, dir = 'R', col = 'black' } = trans;
+  if (kind === 'fade') {
+    if (p < 0.5) { g.drawImage(from, 0, 0, w, h); g.globalAlpha = p * 2; g.fillStyle = col; g.fillRect(0, 0, w, h); g.globalAlpha = 1; }
+    else { g.fillStyle = col; g.fillRect(0, 0, w, h); g.globalAlpha = (p - 0.5) * 2; g.drawImage(to, 0, 0, w, h); g.globalAlpha = 1; }
+  } else if (kind === 'cross') { g.drawImage(from, 0, 0, w, h); g.globalAlpha = p; g.drawImage(to, 0, 0, w, h); g.globalAlpha = 1; }
+  else if (kind === 'wipe') {
+    g.drawImage(from, 0, 0, w, h); g.save(); g.beginPath();
+    if (dir === 'R') g.rect(w * (1 - p), 0, w * p, h); else if (dir === 'L') g.rect(0, 0, w * p, h);
+    else if (dir === 'D') g.rect(0, h * (1 - p), w, h * p); else g.rect(0, 0, w, h * p);
+    g.clip(); g.drawImage(to, 0, 0, w, h); g.restore();
+  } else if (kind === 'slide') {
+    const sign = dir === 'R' || dir === 'D' ? 1 : -1, horiz = dir === 'L' || dir === 'R', size = horiz ? w : h;
+    const toOff = size * (1 - p) * sign, fromOff = -size * p * sign;
+    if (horiz) { g.drawImage(from, fromOff, 0, w, h); g.drawImage(to, toOff, 0, w, h); } else { g.drawImage(from, 0, fromOff, w, h); g.drawImage(to, 0, toOff, w, h); }
+  } else g.drawImage(to, 0, 0, w, h);
+}
 // a new shot from this reel: the selection, else the footage in–out, else two seconds from the playhead
 function addShot() {
   const s = selSpan(), [a, b] = s || (foot().in != null || foot().out != null ? footRange() : [rp.n, Math.min(rp.N, frameAt(rp.T[rp.n] + 2))]);
   movieEdit(M => { M.shots.push({ reel: rp.reels.indexOf(rp.reel), a, b }); });
 }
 function importReel() { pickReplay(r => { rp.reels.push({ rep: r, name: r.scenario, edits: 0 }); panels(); }); }
-// movie playback: a lightweight world of its own per shot (rp.reel / master / view are untouched, so editing the loaded reel still works)
-function mvLoad(shotI) {
+// movie playback: a lightweight world of its own per shot (rp.reel / master / view are untouched, so editing the loaded reel still works).
+// transFrom: the previous shot's last frame, when this shot transitions in from it; a frozen blend plays before the shot's own frames do
+function mvLoad(shotI, transFrom = null) {
   const sh = rp.movie.shots[shotI];
   if (!sh) { rp.mv = null; return false; }
   const reel = rp.reels[sh.reel];
-  if (!reel) return mvLoad(shotI + 1); // a shot whose reel was removed: skip it
+  if (!reel) return mvLoad(shotI + 1, transFrom); // a shot whose reel was removed: skip it
   const w = replayWorld(reel.rep); w.loop = false; w.replaying = true;
   const frames = w.playback.frames, N = Math.min(sh.b, frames.length), a = Math.min(sh.a, N);
   for (let f = 0; f < a; f++) { const [dt, inp, mq, inp2] = frames[f]; if (mq) w.macro = new Script(parseMacro(mq)); w.advance(dt, inp, inp2); }
-  rp.mv = { shotI, w, frames, n: a, N, a, T: frames.slice(a, N).reduce((arr, f) => (arr.push(arr[arr.length - 1] + f[0]), arr), [0]), t: 0 };
+  rp.mv = { shotI, w, frames, n: a, N, a, T: frames.slice(a, N).reduce((arr, f) => (arr.push(arr[arr.length - 1] + f[0]), arr), [0]), t: 0, trans: null };
+  if (transFrom && sh.trans && sh.trans.kind !== 'cut') rp.mv.trans = { ...sh.trans, from: transFrom, to: mvSnapshot(), t: 0 };
   return true;
+}
+// a snapshot of the current movie frame, at the preview's own size (used to blend a transition either side of it)
+function mvSnapshot() {
+  const pv = rpLayout().pv, c = document.createElement('canvas'); c.width = pv.w; c.height = pv.h;
+  const g = c.getContext('2d'); g.fillStyle = '#f3f0e8'; g.fillRect(0, 0, pv.w, pv.h); rp.mv.w.render(g, { x: 0, y: 0, w: pv.w, h: pv.h }, true);
+  return c;
 }
 function mvStepOnce() { const m = rp.mv, [dt, inp, mq, inp2] = m.frames[m.n]; if (mq) m.w.macro = new Script(parseMacro(mq)); m.w.advance(dt, inp, inp2); m.n++; }
 function mvTick(dt) {
   if (!rp.mv && !mvLoad(0)) { app.paused = true; return; }
-  const m = rp.mv; m.t += dt;
+  const m = rp.mv;
+  if (m.trans) { m.trans.t += dt; if (m.trans.t >= m.trans.dur) m.trans = null; return; } // the shot's own frames wait out the transition
+  m.t += dt;
   while (m.n < m.N && m.T[m.n - m.a + 1] <= m.t + 1e-9) mvStepOnce();
-  if (m.n >= m.N && !mvLoad(m.shotI + 1)) app.paused = true;
+  if (m.n >= m.N) { const img = mvSnapshot(); if (!mvLoad(m.shotI + 1, img)) app.paused = true; }
 }
 function setPlayMovie(v) { rp.playMovie = v; rp.mv = null; if (v) mvLoad(0); app.paused = false; }
 // export: each shot's own reel rendered in turn, cut to cut (a shot's own fx and the transition between shots are a later phase)
@@ -748,12 +783,19 @@ async function exportMovie() {
   let t = 0, next = 0, done = 0;
   clip.busy = 'render 0%'; syncAll();
   const hud = CFG.hud; CFG.hud = o.hud;
+  let lastImg = null;
   try {
-    for (const sh of rp.movie.shots) {
+    for (const [si, sh] of rp.movie.shots.entries()) {
       const reel = rp.reels[sh.reel]; if (!reel) continue;
       const w = replayWorld(reel.rep); w.loop = false; w.replaying = true;
       const fr = w.playback.frames, end = Math.min(sh.b, fr.length);
       for (let f = 0; f < sh.a; f++) { const [dt, inp, mq, inp2] = fr[f]; if (mq) w.macro = new Script(parseMacro(mq)); w.advance(dt, inp, inp2); }
+      if (si > 0 && lastImg && sh.trans && sh.trans.kind !== 'cut') { // a frozen blend from the previous shot's last frame to this one's first, before its own frames play
+        const toImg = h2canvas(W2, H2), tg = toImg.getContext('2d'); tg.fillStyle = '#f3f0e8'; tg.fillRect(0, 0, W2, H2); w.render(tg, { x: 0, y: 0, w: W2, h: H2 }, true, { fill });
+        const n = Math.max(1, Math.round(sh.trans.dur * fps));
+        for (let k = 1; k <= n; k++) { const c = h2canvas(W2, H2), g = c.getContext('2d'); transDraw(g, W2, H2, lastImg, toImg, sh.trans, k / n); frames.push({ c, t: next * 1000 }); next += 1 / fps; lastImg = c; }
+        t = next;
+      }
       for (let f = sh.a; f < end; f++) {
         const [dt, inp, mq, inp2] = fr[f]; if (mq) w.macro = new Script(parseMacro(mq));
         const t1 = t + dt;
@@ -764,6 +806,7 @@ async function exportMovie() {
           if (o.inputs && w.ctl[0] === 'human') drawInputs(w, 10 * dpr, 30 * dpr, g);
           if (o.meter) drawMeter(w, { x: 6 * dpr, y: H2 - 24 * dpr, w: W2 - 12 * dpr, h: 18 * dpr }, true, g);
           for (; next <= t1 - 1e-9; next += 1 / fps) frames.push({ c, t: next * 1000 });
+          lastImg = c;
         }
         t = t1; w.advance(dt, inp, inp2);
         if (++done % 30 === 0) { clip.busy = `render ${Math.round(100 * done / total)}%`; syncAll(); await new Promise(r => setTimeout(r)); }
@@ -791,6 +834,20 @@ function loadProject(p) {
 }
 // a shot in the side panel: which reel, its range (seconds while that reel is the one loaded, else frame numbers), trim to the
 // playhead (only while editing that reel), duplicate, delete; drag to reorder
+// the transition into shot j from the one before it (none for the first shot: nothing plays before it)
+function transBtn(j) {
+  const cur = () => rp.movie.shots[j].trans || { kind: 'cut', dur: 0.4, col: 'black', dir: 'R' };
+  const set = vals => movieEdit(M => { const t = { ...cur(), ...vals }; M.shots[j].trans = t.kind === 'cut' ? undefined : t; });
+  const b = button(':movie_filter:', 'How this shot transitions in from the one before it', (e, btn) => popup(btn, h('b', { textContent: 'transition in' }),
+    h('div', { cls: 'row' }, h('span', { textContent: 'kind' }), seg(Object.keys(TRANS_KINDS), () => cur().kind, v => set({ kind: v }), TRANS_KINDS)),
+    h('div', { cls: 'row' }, h('span', { textContent: 'for' }), slider('secs', { min: 0.1, max: 2, step: 0.05 }, () => cur().dur, v => set({ dur: v }), 'How long the transition takes')),
+    (() => { const r = h('div', { cls: 'row' }, h('span', { textContent: 'colour' }), seg(['black', 'white'], () => cur().col, v => set({ col: v })));
+      reg(r, () => { r.hidden = cur().kind !== 'fade'; }); return r; })(),
+    (() => { const r = h('div', { cls: 'row' }, h('span', { textContent: 'enters' }), seg(Object.keys(TRANS_DIRS), () => cur().dir, v => set({ dir: v }), TRANS_DIRS));
+      reg(r, () => { r.hidden = !['wipe', 'slide'].includes(cur().kind); }); return r; })()), 'mini');
+  reg(b, () => setRich(b, `:movie_filter: ${cur().kind}`));
+  return b;
+}
 function shotRow(sh, j) {
   const reel = rp.reels[sh.reel], active = reel === rp.reel;
   const t = f => active ? fmtT(rp.T[f]) : `frame ${f}`;
@@ -805,7 +862,7 @@ function shotRow(sh, j) {
     button(':swap_horiz:', 'Use a different reel for this shot', (e, b) => popup(b, h('b', { textContent: 'pick a reel' }),
       h('div', { cls: 'bar col' }, rp.reels.map((r, i) => button(r.name, `Use "${r.name}" for this shot`, () => { movieEdit(M => { M.shots[j].reel = i; }); closePop(); })))), 'mini'),
     h('span', { cls: 'note', textContent: `${t(sh.a)} – ${t(sh.b)}` }),
-    inBtn, outBtn,
+    inBtn, outBtn, j > 0 ? transBtn(j) : null,
     button(':content_copy:', 'Duplicate this shot', () => movieEdit(M => { M.shots.splice(j + 1, 0, { ...sh }); }), 'mini'),
     crud({ delete: ['Delete this shot', () => movieEdit(M => { M.shots.splice(j, 1); })] }));
 }
