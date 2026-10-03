@@ -117,6 +117,7 @@ test('character stats: max jumps, jump height under any gravity, air dash, air d
   const one = probe(['hop']);
   assert.ok(probe(['hop', 0.3, 'hop'], { jumps: 2 }).top < one.top - 30, 'double jump goes higher');
   assert.equal(probe(['hop', 0.3, 'hop']).top, one.top, 'one jump only');
+  assert.ok(probe(['hop', 0.25, 'hop', 0.25, 'hop', 0.25, 'hop'], { jumps: -1 }).top < one.top - 90, 'jumps: -1 is infinite: keeps climbing with each extra hop');
   assert.ok(Math.abs(probe(['hop'], { gravity: 2 }).top - one.top) < 4, 'gravity keeps the jump height');
   assert.ok(probe(['hop', 0.2, 'fwd', 0.05, 'fwd']).vx > 400, 'air dash');
   assert.ok(probe(['hop', 0.2, 'fwd', 0.05, 'fwd'], { airDash: 0 }).vx < 100, 'no air dash at 0');
@@ -124,6 +125,13 @@ test('character stats: max jumps, jump height under any gravity, air dash, air d
   assert.ok(probe(['hop', 0.32, { hold: 'down', t: 0.5 }]).vy > one.vy + 150, 'fast fall');
   const seen = g => run(`fight({ a: [0.1, 'punch+guard'], b: 'dummy', ax: 300, bx: 375, period: 9 }, [makeCharacter({ ...CHAR_DEFS.stick, grabRange: ${g} }), CHARS.stick], 60).seen`).join(' ');
   assert.ok(seen(3).includes('a:toss') && !seen(0).includes('a:toss'), `grab range: ${seen(3)} / ${seen(0)}`);
+});
+
+test('a stance can override jumps (any stat): its own value while in it; unset, it keeps main\'s', () => {
+  const r = JSON.parse(run(`(() => { const d = { ...CHAR_DEFS.stick, jumps: 2, stances: [{ name: 'flighty', body: { stats: { jumps: -1 } } }, { name: 'plain', body: {} }] };
+    const ch = makeCharacter(d);
+    return JSON.stringify({ main: ch.stats.jumps, flighty: stanceChar(ch, 1).stats.jumps, plain: stanceChar(ch, 2).stats.jumps }); })()`));
+  assert.equal(r.main, 2); assert.equal(r.flighty, -1, 'infinite in the flighty stance'); assert.equal(r.plain, 2, 'no override: inherits main\'s');
 });
 
 test('mid turn the body keeps turnWidth of its width and tucks in (turnTuck)', () => {

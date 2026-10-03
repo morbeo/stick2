@@ -57,7 +57,7 @@ Stats scale the fight settings for that character. Three groups, with group butt
 | Group | Stats |
 |---|---|
 | ground | walk speed, dash speed, traction, turnaround, weight |
-| air | jump height (whatever its gravity), max jumps, gravity, air speed, air acceleration, fall speed, air dodge, air dash |
+| air | jump height (whatever its gravity), max jumps (-1 = infinite air jumps), gravity, air speed, air acceleration, fall speed, air dodge, air dash |
 | fight | health, toughness, tempo, springs, grab range |
 
 The **radar** above the stats draws the chosen stats: each axis runs from the stat's minimum to its maximum, the dashed ring is 1. Other characters can be overlaid to compare.
