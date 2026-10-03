@@ -91,6 +91,8 @@ function buildTop() {
     grp('', 'Layout and keys', button(':search:', 'Find anything (⌘K): a mode, a toolbar tool, an action, a table (moves, inputs, combos, bones), a character, a move or a setting', openPalette),
       button(':view_sidebar:', 'Panel: show / hide the side panel (remembered per tab)' + keyTip('panel'), togglePanel),
       button(':view_module:', LAY_TIP, layoutPanel),
+      button(':zoom_in:', 'Interface scale: the whole page bigger or smaller (not the fight itself, which always fills its own space)', (e, b) => popup(b,
+        slider('scale', { min: 0.6, max: 1.8, step: 0.05 }, () => ui.scale, setUiScale, 'The whole interface, zoomed'))),
       button(':keyboard:', 'Keys: rebind any action, set up macros, and help', keysPanel),
       button(':ssid_chart:', 'Debug: ghost, boxes, hud, labels and the scope bone, the build and engine version, frame rate and the shown fight\'s state (copy for a bug report), reset settings, factory reset, and the monitor', debugPanel),
       button(':info:', 'Docs: how everything works, with live demo fights, and every setting, move flag, input and key explained; searchable (also in ⌘K)', () => openDocs()),
@@ -111,7 +113,7 @@ function buildTop() {
 }
 
 function resize() {
-  dpr = devicePixelRatio || 1;
+  dpr = (devicePixelRatio || 1) * (ui.scale || 1); // the interface scale zooms clientWidth down/up too; keep the canvas crisp at any scale
   const st = $('stage');
   canvas.width = st.clientWidth * dpr; canvas.height = st.clientHeight * dpr;
 }

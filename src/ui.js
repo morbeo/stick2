@@ -140,6 +140,10 @@ function heading(title, info, keys) {
 const UI_STORE = 'stick2.ui';
 const ui = (() => { try { return JSON.parse(localStorage.getItem(UI_STORE)) || {}; } catch { return {}; } })();
 ui.seen ??= {};
+// interface scale: the whole page zoomed, not the canvas (dpr handles that separately) — applied at once, before first paint
+ui.scale ??= 1;
+document.documentElement.style.zoom = ui.scale;
+const setUiScale = v => { ui.scale = v; saveUi(); document.documentElement.style.zoom = v; resize(); };
 const saveUi = () => { try { localStorage.setItem(UI_STORE, JSON.stringify(ui)); } catch {} };
 // open: headings shown unfolded until the user folds them
 function folds(els, scope, open) {
