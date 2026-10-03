@@ -592,7 +592,10 @@ function makeCharacter(def) {
     tips: [...chains.arm, ...chains.leg, ...chains.head, ...chains.tail, ...chains.weapon].map(c => c[c.length - 1]),
     poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, motions: customMotions(def), binds: { ...BINDS, ...def.binds }, binds25: { ...BINDS_25, ...def.binds25 },
     stats: Object.fromEntries(CHAR_STATS.map(s => [s.k, def[s.k] ?? 1])), gait: { ...Object.fromEntries(GAIT_VARS.map(s => [s.k, s.v])), ...def.gait },
-    shadow: { ...SHADOW, ...def.shadow } };
+    shadow: { ...SHADOW, ...def.shadow },
+    // a character's own colour (def.col, a hex string), the back-limb shade tinted from it; unset: the fight assigns one
+    // by player slot instead (P1 black, P2 red…, see COLS in world.js), same as every character before this existed
+    col: def.col ? [def.col, tint(def.col, 0.6)] : null };
   // stances: the main one plus any extra; each has its pose, its own binds over the main ones, the key that switches to it and
   // its requirements (STANCE_REQ; req.moves 'own': only its own binds, a list: only those moves) and its transition (MORPH)
   // fly: the stance hovers instead of falling — ↑ / ↓ fly up / down, gravity and landing are suspended while in it

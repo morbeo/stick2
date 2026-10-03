@@ -12,7 +12,7 @@ function settle(ch, L) {
 }
 class Fighter {
   constructor(w, x, dir, col, ch, over = {}) {
-    Object.assign(this, { id: w.nid++, w, x, groundY: w.groundY, dir, face: dir, col, ch, over, y: 0, vx: 0, vy: 0, grounded: true,
+    Object.assign(this, { id: w.nid++, w, x, groundY: w.groundY, dir, face: dir, col: ch.col || col, ch, over, y: 0, vx: 0, vy: 0, grounded: true,
       time: 0, seed: w.rand(0, 100), walkPh: 0, lean: 0, inp: NOIN,
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
       kd: null, downT: 0, wake: null, won: false, wallB: false, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
