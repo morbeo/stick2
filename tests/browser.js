@@ -724,6 +724,26 @@ try {
         ui.clip = { ...clipSet(), fps: 15, aspect: 'view' }; rp.hl.slow = false; const segs = hlSegs(); await exportHighlights(); saveClip = sc;
         let t = 0; for (const sg of segs) for (let f = sg.a; f < sg.b; f++) t += rp.frames[f][0];
         if (!got || Math.abs(got.length - t * 15) > 2) errs.push('highlights export ' + (got && got.length) + ' vs ' + Math.round(t * 15)); }); }
+    // movie: a fresh reel's footage in–out becomes its first shot; + shot falls back to it with nothing selected; the movie/reel
+    // toggle plays each shot's own world without touching this reel's playhead; export cuts every shot together; a project
+    // file round-trips every loaded reel and the movie
+    { const shots0 = rp.movie.shots;
+      if (shots0.length !== 1 || shots0[0].reel !== 0 || shots0[0].a !== 0) errs.push('movie default shot ' + JSON.stringify(shots0));
+      rp.sel.clear(); addShot();
+      const added = rp.movie.shots[rp.movie.shots.length - 1];
+      if (rp.movie.shots.length !== 2 || added.a !== 60 || added.b !== 240) errs.push('movie add shot (footage fallback) ' + JSON.stringify(added));
+      const n0 = rp.n; setPlayMovie(true);
+      if (!rp.mv || rp.mv.shotI !== 0) errs.push('movie play start ' + JSON.stringify(rp.mv && rp.mv.shotI));
+      for (let i = 0; i < 10; i++) mode().tick(1 / 60);
+      if (rp.mv.n <= rp.mv.a || rp.n !== n0) errs.push('movie play steps its own world, this reel untouched ' + [rp.mv.n, rp.n, n0]);
+      setPlayMovie(false); if (rp.mv || rp.playMovie) errs.push('movie stop');
+      afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
+        ui.clip = { ...clipSet(), fps: 15, aspect: 'view' }; await exportMovie(); saveClip = sc;
+        let t = 0; for (const sh of rp.movie.shots) { const fr = rp.reels[sh.reel].rep.frames; for (let f = sh.a; f < Math.min(sh.b, fr.length); f++) t += fr[f][0]; }
+        if (!got || Math.abs(got.length - t * 15) > 3) errs.push('movie export ' + (got && got.length) + ' vs ' + Math.round(t * 15)); });
+      const proj = projectFile(), before = JSON.stringify(rp.movie.shots), nReels = rp.reels.length;
+      loadProject(proj);
+      if (rp.reels.length !== nReels || JSON.stringify(rp.movie.shots) !== before || !rp.reel) errs.push('project round-trip ' + [rp.reels.length, JSON.stringify(rp.movie.shots)]); }
     // clips: the 1:1 aspect crops the subject to a square
     { ui.clip = { ...clipSet(), aspect: '1:1', fit: 'crop', size: 200 }; clip.key = null; clip.frames.length = 0; clip.last = 0; clipCapture(5e6, true);
       const f = clip.frames[0]?.c; if (!f || f.width !== 200 || f.height !== 200) errs.push('clip aspect ' + (f && [f.width, f.height]));

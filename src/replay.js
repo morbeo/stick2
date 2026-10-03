@@ -4,7 +4,8 @@
 // checkpoints; the shown world seeks by restoring the last checkpoint before a frame and playing the frames after it.
 
 const rp = { reel: null, master: null, view: null, frames: [], T: [0], N: 0, events: [], n: 0, t: 0, show: new Set(Object.keys(EVENT_TYPES)), sel: new Set(),
-  footOn: true, fsel: null, reels: [], cmp: null, cmpView: null, moments: [], hl: { picked: new Set(), slow: true, titles: true }, expWhat: 'footage', filter: '', sort: { k: 't', dir: 1 }, hover: null, drag: null, scrollTo: null, lanes: {}, v: [0, 1], fold: new Set(), base: [], mx: -1, my: -1 };
+  footOn: true, fsel: null, reels: [], cmp: null, cmpView: null, moments: [], hl: { picked: new Set(), slow: true, titles: true }, expWhat: 'footage', filter: '', sort: { k: 't', dir: 1 }, hover: null, drag: null, scrollTo: null, lanes: {}, v: [0, 1], fold: new Set(), base: [], mx: -1, my: -1,
+  movie: { shots: [] }, playMovie: false, mv: null, shotDrag: null }; // the movie: shots across any loaded reel, see "movie" below
 const fmtT = t => t.toFixed(2) + 's';
 const who = id => id < 0 ? '' : 'P' + (id + 1);
 
@@ -13,7 +14,9 @@ const who = id => id < 0 ? '' : 'P' + (id + 1);
 function loadReel(rep, name, reel = null) {
   rep.marks ||= []; rep.footage ||= { in: null, out: null, spans: [] };
   rp.reel = reel ? Object.assign(reel, { rep }) : { rep, name: name || rep.scenario, edits: 0 };
-  if (!reel) { rp.reels = [rp.reel]; rp.cmp = null; } else if (rp.cmp?.reel === reel) rp.cmp = null;
+  // a fresh reel (not a branch, not a project's own): one reel, and the footage in–out becomes the movie's first shot
+  if (!reel) { rp.reels = [rp.reel]; rp.cmp = null; rp.movie = { shots: [{ reel: 0, a: rep.footage.in ?? 0, b: rep.footage.out ?? rep.frames.length }] }; rp.playMovie = false; rp.mv = null; }
+  else if (rp.cmp?.reel === reel) rp.cmp = null;
   const w = rp.master = replayWorld(rep);
   w.loop = false; // the recording ends at its K.O. (a play fight's log starts at its last restart)
   rp.frames = w.playback.frames; rp.rec = []; rp.lanes = {};
@@ -408,7 +411,13 @@ function rpRender() {
     text('No replay yet: fight in play, then come back here (or press "from play"), or open a replay file.', canvas.width / 2, canvas.height / 2, '#888', 13, '', 'center');
     return;
   }
-  const pv = rpLayout().pv, c = rp.cmp, side = c && rp.cmpView === 'side', a = side ? { ...pv, w: Math.floor(pv.w / 2) - 2 * dpr } : pv;
+  const pv = rpLayout().pv;
+  if (rp.playMovie) { // the movie: each shot's own world, in turn; the timeline below is this reel's, not the movie's (a later phase)
+    if (rp.mv) drawCell({ w: rp.mv.w, label: `shot ${rp.mv.shotI + 1}/${rp.movie.shots.length} · ${rp.reels[rp.movie.shots[rp.mv.shotI].reel]?.name || ''}` }, pv, { full: true, plot: false });
+    else text('No shots yet: add one in the movie section.', pv.x + pv.w / 2, pv.y + pv.h / 2, '#888', 13, '', 'center');
+    return;
+  }
+  const c = rp.cmp, side = c && rp.cmpView === 'side', a = side ? { ...pv, w: Math.floor(pv.w / 2) - 2 * dpr } : pv;
   drawCell({ w: rp.view, shot: shotAt(rp.view, rp.n), label: `${c ? 'A · ' : ''}${rp.reel.name} · engine v${rp.reel.rep.version}` }, a, { full: true, plot: false });
   if (side) drawCell({ w: c.view, label: `B · ${c.reel.name}` }, { ...a, x: a.x + a.w + 4 * dpr }, { full: true, plot: false });
   else if (c) { // overlay: B's picture over A's, see-through
@@ -700,6 +709,118 @@ function exportPop(e, b) {
     h('div', { cls: 'bar' }, button(':download: export', 'Render it at this size and save it as a file', () => { closePop(); rp.expWhat === 'highlights' ? exportHighlights() : exportReel(); })));
 }
 
+// ---------- movie: shots cut from any loaded reel (the reel, its branches, an imported file), played and exported one after another ----------
+// a project file: every reel the movie uses, plus the movie itself (shots: [{ reel: index into reels, a, b }]); fx and transitions are a later phase
+const PROJECT_FORMAT = 'stick2-project';
+function movieEdit(fn, key = null) { snapshot(() => ({ movie: JSON.stringify(rp.movie) }), key); fn(rp.movie); panels(); }
+// a new shot from this reel: the selection, else the footage in–out, else two seconds from the playhead
+function addShot() {
+  const s = selSpan(), [a, b] = s || (foot().in != null || foot().out != null ? footRange() : [rp.n, Math.min(rp.N, frameAt(rp.T[rp.n] + 2))]);
+  movieEdit(M => { M.shots.push({ reel: rp.reels.indexOf(rp.reel), a, b }); });
+}
+function importReel() { pickReplay(r => { rp.reels.push({ rep: r, name: r.scenario, edits: 0 }); panels(); }); }
+// movie playback: a lightweight world of its own per shot (rp.reel / master / view are untouched, so editing the loaded reel still works)
+function mvLoad(shotI) {
+  const sh = rp.movie.shots[shotI];
+  if (!sh) { rp.mv = null; return false; }
+  const reel = rp.reels[sh.reel];
+  if (!reel) return mvLoad(shotI + 1); // a shot whose reel was removed: skip it
+  const w = replayWorld(reel.rep); w.loop = false; w.replaying = true;
+  const frames = w.playback.frames, N = Math.min(sh.b, frames.length), a = Math.min(sh.a, N);
+  for (let f = 0; f < a; f++) { const [dt, inp, mq, inp2] = frames[f]; if (mq) w.macro = new Script(parseMacro(mq)); w.advance(dt, inp, inp2); }
+  rp.mv = { shotI, w, frames, n: a, N, a, T: frames.slice(a, N).reduce((arr, f) => (arr.push(arr[arr.length - 1] + f[0]), arr), [0]), t: 0 };
+  return true;
+}
+function mvStepOnce() { const m = rp.mv, [dt, inp, mq, inp2] = m.frames[m.n]; if (mq) m.w.macro = new Script(parseMacro(mq)); m.w.advance(dt, inp, inp2); m.n++; }
+function mvTick(dt) {
+  if (!rp.mv && !mvLoad(0)) { app.paused = true; return; }
+  const m = rp.mv; m.t += dt;
+  while (m.n < m.N && m.T[m.n - m.a + 1] <= m.t + 1e-9) mvStepOnce();
+  if (m.n >= m.N && !mvLoad(m.shotI + 1)) app.paused = true;
+}
+function setPlayMovie(v) { rp.playMovie = v; rp.mv = null; if (v) mvLoad(0); app.paused = false; }
+// export: each shot's own reel rendered in turn, cut to cut (a shot's own fx and the transition between shots are a later phase)
+async function exportMovie() {
+  if (clip.busy) return;
+  if (!rp.movie.shots.length) return notice('No shots yet', 'Add one in the movie section first.');
+  const o = expSet(), set = clipSet(), fps = set.fps, [W2, H2] = expSize(W / H), fill = set.fit !== 'letterbox';
+  const frames = [], total = rp.movie.shots.reduce((n, sh) => n + Math.max(0, sh.b - sh.a), 0);
+  let t = 0, next = 0, done = 0;
+  clip.busy = 'render 0%'; syncAll();
+  const hud = CFG.hud; CFG.hud = o.hud;
+  try {
+    for (const sh of rp.movie.shots) {
+      const reel = rp.reels[sh.reel]; if (!reel) continue;
+      const w = replayWorld(reel.rep); w.loop = false; w.replaying = true;
+      const fr = w.playback.frames, end = Math.min(sh.b, fr.length);
+      for (let f = 0; f < sh.a; f++) { const [dt, inp, mq, inp2] = fr[f]; if (mq) w.macro = new Script(parseMacro(mq)); w.advance(dt, inp, inp2); }
+      for (let f = sh.a; f < end; f++) {
+        const [dt, inp, mq, inp2] = fr[f]; if (mq) w.macro = new Script(parseMacro(mq));
+        const t1 = t + dt;
+        if (next <= t1 - 1e-9) {
+          const c = h2canvas(W2, H2), g = c.getContext('2d'), r = { x: 0, y: 0, w: W2, h: H2 };
+          g.fillStyle = '#f3f0e8'; g.fillRect(0, 0, W2, H2);
+          w.render(g, r, true, { fill });
+          if (o.inputs && w.ctl[0] === 'human') drawInputs(w, 10 * dpr, 30 * dpr, g);
+          if (o.meter) drawMeter(w, { x: 6 * dpr, y: H2 - 24 * dpr, w: W2 - 12 * dpr, h: 18 * dpr }, true, g);
+          for (; next <= t1 - 1e-9; next += 1 / fps) frames.push({ c, t: next * 1000 });
+        }
+        t = t1; w.advance(dt, inp, inp2);
+        if (++done % 30 === 0) { clip.busy = `render ${Math.round(100 * done / total)}%`; syncAll(); await new Promise(r => setTimeout(r)); }
+      }
+    }
+  } finally { CFG.hud = hud; clip.busy = ''; }
+  await saveClip(frames);
+}
+const projectFile = () => ({ format: PROJECT_FORMAT, version: ENGINE_VERSION, reels: rp.reels.map(r => ({ name: r.name, rep: r.rep })), movie: rp.movie });
+const saveProject = () => saveBlob('movie.stick2-project.json', new Blob([JSON.stringify(projectFile())], { type: 'application/json' }));
+function pickProject(then) {
+  const inp = h('input', { type: 'file', accept: '.json,application/json' });
+  inp.onchange = async () => {
+    let p; try { p = JSON.parse(await inp.files[0].text()); } catch (err) { return notice('Not a project file', err.message); }
+    if (p.format !== PROJECT_FORMAT) return notice('Not a project file', 'This JSON file is not a stick2 movie project.');
+    then(p);
+  };
+  inp.click();
+}
+function loadProject(p) {
+  rp.reels = p.reels.map(r => ({ rep: r.rep, name: r.name, edits: 0 }));
+  loadReel(rp.reels[0].rep, rp.reels[0].name, rp.reels[0]); // a listed reel: rp.reels / rp.movie (set next) are left alone
+  rp.movie = p.movie; rp.playMovie = false; rp.mv = null;
+  app.paused = true;
+}
+// a shot in the side panel: which reel, its range (seconds while that reel is the one loaded, else frame numbers), trim to the
+// playhead (only while editing that reel), duplicate, delete; drag to reorder
+function shotRow(sh, j) {
+  const reel = rp.reels[sh.reel], active = reel === rp.reel;
+  const t = f => active ? fmtT(rp.T[f]) : `frame ${f}`;
+  const inBtn = button('[', 'Start the shot at the playhead (edit this reel first)', () => movieEdit(M => { M.shots[j].a = Math.min(rp.n, M.shots[j].b - 1); }), 'mini');
+  const outBtn = button(']', 'End the shot at the playhead (edit this reel first)', () => movieEdit(M => { M.shots[j].b = Math.max(rp.n, M.shots[j].a + 1); }), 'mini');
+  reg(inBtn, () => { inBtn.disabled = !active; }); reg(outBtn, () => { outBtn.disabled = !active; });
+  return h('div', { cls: 'bar', draggable: true, ondragstart: () => { rp.shotDrag = j; },
+    ondragover: e => e.preventDefault(), ondrop: e => { e.preventDefault(); if (rp.shotDrag == null || rp.shotDrag === j) return;
+      movieEdit(M => { const [s] = M.shots.splice(rp.shotDrag, 1); M.shots.splice(j, 0, s); }); rp.shotDrag = null; } },
+    h('span', { cls: 'note', textContent: String(j + 1) }),
+    button(reel ? reel.name : '(missing reel)', active ? 'This reel is being edited' : `Edit "${reel?.name}"`, () => { if (reel && !active) loadReel(reel.rep, reel.name, reel); app.paused = true; panels(); }, 'mini'),
+    button(':swap_horiz:', 'Use a different reel for this shot', (e, b) => popup(b, h('b', { textContent: 'pick a reel' }),
+      h('div', { cls: 'bar col' }, rp.reels.map((r, i) => button(r.name, `Use "${r.name}" for this shot`, () => { movieEdit(M => { M.shots[j].reel = i; }); closePop(); })))), 'mini'),
+    h('span', { cls: 'note', textContent: `${t(sh.a)} – ${t(sh.b)}` }),
+    inBtn, outBtn,
+    button(':content_copy:', 'Duplicate this shot', () => movieEdit(M => { M.shots.splice(j + 1, 0, { ...sh }); }), 'mini'),
+    crud({ delete: ['Delete this shot', () => movieEdit(M => { M.shots.splice(j, 1); })] }));
+}
+function movieSide() {
+  return [heading('movie', 'Shots cut from any loaded reel (this one, a branch, or one imported below), played one after another. Saved in a project file alongside the reels it uses.'),
+    h('div', { cls: 'bar' }, button(':add: shot', 'Add a shot from this reel: the selection, else the footage in–out, else two seconds from the playhead', addShot),
+      button(':upload: import reel', 'Load another replay file to cut shots from, without replacing this one', importReel),
+      toggle(':movie: preview', 'Preview the movie instead of this reel: its shots play in turn, cut to cut', () => rp.playMovie, setPlayMovie),
+      button(':download: export', 'Export the movie as one clip, cuts only (size and format as in footage → export)', exportMovie)),
+    ...rp.movie.shots.length ? rp.movie.shots.map((sh, j) => shotRow(sh, j)) : [h('p', { cls: 'note', textContent: 'No shots yet.' })],
+    h('div', { cls: 'bar' }, button(':save: save project', 'Save every loaded reel and the movie as one project file', saveProject),
+      button(':upload: open project', 'Open a project file: its reels and movie, replacing these', () => pickProject(p => { loadProject(p); panels(); }))),
+  ];
+}
+
 // ---------- toolbar, side panel ----------
 function reelFromPlay() {
   const w = lab.mode === 'play' && lab.cells[0]?.w;
@@ -727,6 +848,10 @@ function rpCtx() {
       ...Object.entries(FOOT_KINDS).map(([k, [, tip]]) => button(`:add: ${k}`, `${tip}. Over the selection, else a second from the playhead`, () => addSpan(k))),
       toggle(':visibility:', 'Preview the footage: slow motion, camera, labels and the in–out loop in the view (off: the plain fight)', () => rp.footOn, v => { rp.footOn = v; }),
       button(':download: export', 'Export the in–out range: format, size and shape, overlays', exportPop)),
+    grp('movie', 'Cut shots from any loaded reel into a movie, played one after another (the movie section in the side panel)',
+      button(':add: shot', 'Add a shot from this reel: the selection, else the footage in–out, else two seconds from the playhead', addShot),
+      toggle(':movie: preview', 'Preview the movie instead of this reel', () => rp.playMovie, setPlayMovie),
+      button(':download: export', 'Export the movie as one clip, cuts only', exportMovie)),
     grp('branch', 'Play on from the playhead as P1 or P2 (the other side keeps its recording or its AI), keep the result as a branch and compare it with the reel',
       button(':sports_kabaddi: P1', 'Branch: play on from here as P1, in play; then keep it', () => branchFrom(1)), button(':sports_kabaddi: P2', 'Branch: play on from here as P2, in play; then keep it', () => branchFrom(2)),
       seg(['side', 'overlay'], () => rp.cmp && rp.cmpView, v => { rp.cmpView = v; if (!rp.cmp) loadCmp(rp.reels.find(r => r !== rp.reel)); panels(); },
@@ -830,7 +955,8 @@ function hlPanel() {
   return [heading('highlights', 'The best moments, found from the events (combos of three hits or more, K.O.s, parries, counters, wall hits, throws), best first. Pick the ones for a highlights reel; export joins them in fight order.'),
     h('div', { cls: 'bar' }, toggle(':speed: slow finish', 'Slow each moment\'s finishing blow to a quarter speed', () => rp.hl.slow, v => { rp.hl.slow = v; }),
       toggle('titles', 'Show each moment\'s name over its first second', () => rp.hl.titles, v => { rp.hl.titles = v; }),
-      button(':download: export', 'Export the picked moments as one clip (size and format as in footage → export)', () => exportHighlights())),
+      button(':download: export', 'Export the picked moments as one clip (size and format as in footage → export)', () => exportHighlights()),
+      button(':movie: make movie', 'Add the picked highlights as shots, in fight order', () => movieEdit(M => { M.shots.push(...hlSegs().map(sg => ({ reel: rp.reels.indexOf(rp.reel), a: sg.a, b: sg.b }))); }))),
     ...rp.moments.length ? rp.moments.slice(0, 12).map(m => h('div', { cls: 'bar trow' },
       toggle(String(m.score), `Score ${m.score}: put it in the highlights reel`, () => rp.hl.picked.has(m.a), v => { rp.hl.picked[v ? 'add' : 'delete'](m.a); }),
       button(`${fmtT(rp.T[m.a])} ${m.name}`, 'Go there and select the span', () => { rpSeek(m.a); rp.v = [rp.T[m.a] - 0.2, rp.T[m.b] + 0.2]; rpView(...rp.v); app.paused = true; }, 'mini')))
@@ -882,12 +1008,16 @@ function rpSide() {
     rp.reel.desync !== null ? h('p', { cls: 'note warn', textContent: `The file goes out of sync with its recording from ${fmtT(rp.T[rp.reel.desync] ?? 0)}.` }) : null,
     h('p', { cls: 'note', textContent: w.fighters.map(f => `${who(f.id)} ${f.ch.name}`).join(' · ') }),
     ...nowPanel(), ...selPanel(), ...typesPanel(), ...hlPanel(),
-    ...footSide(), ...markSide(),
-    heading('reels', 'This reel and its branches (play on from the playhead as P1 or P2, then keep it). Edit one, or compare it with the one you edit: side by side or as a ghost; the events only one has are marked (B: amber outline, only in A: amber underline).'),
+    ...footSide(), ...movieSide(), ...markSide(),
+    heading('reels', 'This reel, its branches and any imported for the movie. Edit one, or compare it with the one you edit: side by side or as a ghost; the events only one has are marked (B: amber outline, only in A: amber underline).'),
     ...rp.reels.map(r => h('div', { cls: 'bar' + (r === rp.reel ? ' on' : '') },
       button(r === rp.reel ? `:edit: ${r.name}` : r.name, r === rp.reel ? 'The reel being edited' : `Edit this reel${r.from !== undefined ? ` (branched at ${fmtT(rp.T[Math.min(r.from, rp.N)])})` : ''}`, () => { if (r !== rp.reel) { loadReel(r.rep, r.name, r); app.paused = true; panels(); } }, 'mini'),
       r !== rp.reel && toggle(':sync_alt:', 'Compare it with the reel being edited', () => rp.cmp?.reel === r, v => { loadCmp(v ? r : null); rp.cmpView ||= 'side'; panels(); }),
-      r.parent && crud({ delete: ['Delete this branch', () => { rp.reels.splice(rp.reels.indexOf(r), 1); if (rp.cmp?.reel === r) loadCmp(null); if (rp.reel === r) loadReel(r.parent.rep, r.parent.name, r.parent); panels(); }] }))),
+      (r.parent || r !== rp.reel) && crud({ delete: [r.parent ? 'Delete this branch' : 'Remove this reel (any shots using it go too)', () => {
+        const idx = rp.reels.indexOf(r); rp.reels.splice(idx, 1);
+        rp.movie.shots = rp.movie.shots.filter(sh => sh.reel !== idx).map(sh => sh.reel > idx ? { ...sh, reel: sh.reel - 1 } : sh);
+        if (rp.cmp?.reel === r) loadCmp(null); if (rp.reel === r) loadReel(r.parent.rep, r.parent.name, r.parent); panels();
+      }] }))),
     heading('stats', 'Per fighter: damage dealt, hits landed, blocks and parries made, times thrown, its longest and most damaging combo, when it was knocked out.'),
     h('table', { cls: 'stats' }, h('tr', {}, h('th'), ...rpStats().map(({ l }) => h('th', { textContent: `${who(l.id)} ${l.name}`, style: `color:${l.col}` }))),
       ...rpStats()[0]?.rows.map((r, i) => h('tr', {}, h('td', { textContent: r[0] }), ...rpStats().map(st => h('td', { textContent: st.rows[i][1] })))) || []),
@@ -898,25 +1028,26 @@ function rpSide() {
 
 const replayMode = {
   enter() { if (!rp.reel && lab.mode === 'play' && lab.cells[0]?.w.log.length) { loadReel(makeReplay(lab.cells[0].w, lab.playback?.scenario || lab.scen)); app.paused = true; } },
-  restart() { if (rp.reel) rpSeek(0); },
+  restart() { if (rp.playMovie) mvLoad(0); else if (rp.reel) rpSeek(0); },
   worlds: () => [], // the shown fight is played here (tick), not by the frame loop
-  debugWorld: () => rp.view,
+  debugWorld: () => rp.playMovie ? rp.mv?.w : rp.view,
   tick(dt) {
     if (!rp.reel || rp.drag || clip.busy) return; // an export plays the shown fight itself
+    if (rp.playMovie) { mvTick(dt); return; }
     rp.t += dt * rateAt(rp.n);
     while (rp.n < rp.N && rp.T[rp.n + 1] <= rp.t + 1e-9) rpStep();
     rpFollow();
     const [a, b] = footRange();
     if (rp.n >= (rp.footOn ? b : rp.N)) { if (app.loop) rpSeek(rp.footOn ? a : 0); else app.paused = true; }
   },
-  rewind(n) { if (rp.reel) rpSeek(rp.n - n); },
-  scrub(f) { if (rp.reel) rpSeek(frameAt(f * rp.T[rp.N])); },
+  rewind(n) { if (!rp.playMovie && rp.reel) rpSeek(rp.n - n); },
+  scrub(f) { if (!rp.playMovie && rp.reel) rpSeek(frameAt(f * rp.T[rp.N])); },
   preview: () => rpLayout().pv,
   clipRects: () => rp.reel ? [{ key: 'replay', r: rpLayout().pv }] : [],
   render: rpRender,
   ctxBar: rpCtx,
   side: rpSide,
-  open: ['replay', 'now', 'selection', 'types', 'highlights', 'footage', 'bookmarks', 'reels', 'stats'],
+  open: ['replay', 'now', 'selection', 'types', 'highlights', 'footage', 'movie', 'bookmarks', 'reels', 'stats'],
   overlay: () => rp.reel && stageOpen() === 'events' ? [eventTable()] : [],
   mouse: rpMouse,
   wheel: rpWheel,
