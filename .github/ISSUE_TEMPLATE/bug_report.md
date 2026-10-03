@@ -18,7 +18,7 @@ What you expected to happen instead.
 3. See the problem
 
 **Attachments**
-If you used the app's **report a bug** button (top bar), paste its output below, or attach the downloaded bundle. Otherwise, a saved replay (plain JSON, see [Testing](../../docs/testing.md)) or a screenshot helps a lot.
+The app's **report a bug** button (top bar, or the debug popup) copies a report for you — paste it below. A saved replay (plain JSON, see [Testing](../../docs/testing.md)) or a screenshot helps a lot too.
 
 **Browser**
 e.g. Chrome 129 on macOS
