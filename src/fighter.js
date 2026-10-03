@@ -940,7 +940,7 @@ class Fighter {
     this.hurtT = this.blockT = bs; this.guarding = true; this.combo = 0; this.buffer = null; this.parryT = 0; this.blocked = att;
     this.vx = just ? 0 : att.dir * (m.bpush || m.knock * this.c('blockPush')) * this.c('powerScale') / this.ch.stats.weight;
     if (this.c('health') > 0 && !just && !this.c('inv')) this.hp = Math.max(1, this.hp - this.damageOf(m, 1) * (m.chip || this.c('chip'))); // chip never knocks out
-    if (just) { this.say('JUST'); this.flashT = 0.08; }
+    if (just) { this.say('JUST'); this.flashT = 0.08; att.vx = -att.dir * this.c('justGuardKnock') * this.c('powerScale') / att.ch.stats.weight; }
     for (const c of this.ch.chains.arm) this.jolt(c[0], -300 * m.power); // the guard gives
     this.sqv -= this.c('squash') * 8 * m.power;
   }

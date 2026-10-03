@@ -94,6 +94,7 @@ const SCHEMA = [
   { k: 'justGuard', v: true, tip: 'Just guard: a guard tapped a little earlier than a parry (within justGuardWindow before the parry window) blocks perfectly: shorter blockstun, no chip, no push (JUST).' },
   { k: 'justGuardWindow', v: 0.05, min: 0.01, max: 0.2, step: 0.01, tip: 'How long (s) the just guard window lasts, before the parry window (from the start of it with parry off).' },
   { k: 'justGuardStun', v: 0.5, min: 0, max: 1, step: 0.05, tip: 'Blockstun after a just guard, as a fraction of the normal blockstun.' },
+  { k: 'justGuardKnock', v: 180, min: 0, max: 600, step: 10, tip: 'Pushback (px/s) on the ATTACKER when their hit is just-guarded (JUST), on top of their own momentum. 0: no extra push.' },
   { k: 'parryStun', v: 0.45, min: 0.1, max: 1, step: 0.05, tip: 'How long (s) a parried attacker staggers.' },
   ['Stagger & dizzy', 'A heavy blow staggers: extra stun, the fighter reels. Damage also fills a stun meter (the yellow bar under health) that drains while the fighter is free; when it is full the fighter is dizzy: helpless, swaying, stars over the head, until the time runs out or a hit wakes it.', ''],
   { k: 'staggerAt', v: 11, min: 0, max: 40, step: 1, tip: 'A move whose damage (before combo scaling) is at least this staggers on hit, unless it knocks down. 0 = never.' },
@@ -263,7 +264,7 @@ function makeRand(seed) {
 // ranges away), of the other sign than a range that never goes below zero, or not a number. Values are never limited, only flagged
 const riskOf = (v, min, max) => !Number.isFinite(v) ? 'danger' : min === undefined || v >= min && v <= max ? '' : min >= 0 && v < 0 || v < min - 10 * (max - min) || v > max + 10 * (max - min) ? 'danger' : 'warn';
 const RISK_TIPS = { warn: 'outside the usual range: it may look or play oddly', danger: 'far outside the usual range: the fight may become unstable (bodies flying off, jitter)' };
-const ENGINE_VERSION = 37;
+const ENGINE_VERSION = 38;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied

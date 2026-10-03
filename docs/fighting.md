@@ -193,7 +193,7 @@ The Specials settings have a switch for each one. All of them are moves edited i
 
 - **Guard cancel** (guardCancel): strikes back at once from blockstun, invincible as it starts, for **guardCancelCost** health.
 - **Push block** (pushBlock): ends the blockstun with a shove that slides the attacker away (**pushBlockForce**).
-- **Just guard** (justGuard, in Guard & damage): a guard tapped within **justGuardWindow** before the parry window blocks perfectly: blockstun × **justGuardStun**, no chip, no push (JUST).
+- **Just guard** (justGuard, in Guard & damage): a guard tapped within **justGuardWindow** before the parry window blocks perfectly: blockstun × **justGuardStun**, no chip, no push on the defender (JUST) — and **justGuardKnock** pushes the attacker back.
 - **Counters by height** (counters):
   - **catchHigh** catches a high or special-high strike and answers with **highCounter**, an elbow to the body.
   - **catchLow** catches a low and answers with **lowCounter**, a stamp that knocks down.
