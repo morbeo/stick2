@@ -43,6 +43,10 @@ The **compare** stage panel (the **panels** group in grid, **import → compare�
 - **copy** puts the differences on the clipboard as text: `- key: A` and `+ key: B` lines.
 - To watch the difference, the grid's **compare** kind plays the same fight with A and with B side by side ([modes](modes.md#compare-a-and-b)).
 
+### Interface scale
+
+The magnifying-glass button in the menu bar zooms the whole page bigger or smaller (0.6–1.8×) — the fight itself always fills its own space at full sharpness at any scale. Saved in this browser.
+
 ### Layouts
 
 ![The layout popup](img/layout.png)
