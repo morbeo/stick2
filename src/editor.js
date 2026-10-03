@@ -538,7 +538,7 @@ const BEAM_TIPS = { laser: 'A bright red-hot line' };
 const SPARK_TIPS = { hit: 'Hit spark: the plain sparks and ring when a strike during this key lands', heavy: 'Heavy: a big flash, a wide ring and thick sparks',
   slash: 'Slash: a cut across the point of impact (blades)', blunt: 'Blunt: a flash and chunky bits (clubs, stomps)', none: 'No spark' };
 const SOUND_TIPS = { '': 'No sound as this key is reached (hits and blocks still sound)', whoosh: 'Sound: a whoosh as this key is reached (swings)',
-  hit: 'Sound: a slap as this key is reached', thud: 'Sound: a low thud as this key is reached (landings, stomps)' };
+  hit: 'Sound: a slap as this key is reached', thud: 'Sound: a low thud as this key is reached (landings, stomps)', block: 'Sound: a sharp block as this key is reached' };
 const KEY_VARS = [{ k: 'e', opts: Object.keys(EASE) }, { k: 'lunge', min: 0, max: 600, step: 10 }];
 function keyPanel() {
   const title = heading('', 'The selected key: the pose reached at its end, how long it takes and how it eases. Drag joints in the editor to pose it. Adding, splitting, deleting and retiming keys: the bar above the timeline.',
@@ -591,7 +591,8 @@ function keyPanel() {
           setKey('catchH', next.length === 5 ? undefined : next); }))))),
     adv(h('div', { cls: 'row', tip: 'Key events: effects played as this key is reached or hits; they change nothing in the fight' }, h('span', { textContent: 'events' }), h('span', { cls: 'bar' },
       seg(['hit', 'heavy', 'slash', 'blunt', 'none'], () => k().spark || 'hit', v => setKey('spark', v === 'hit' ? undefined : v), SPARK_TIPS, v => v === 'hit' ? ':auto_awesome: hit' : v),
-      seg(['', 'whoosh', 'hit', 'thud'], () => k().sound || '', v => setKey('sound', v || undefined), SOUND_TIPS, v => v || ':block:'),
+      seg(['', ...Object.keys(SOUNDS)], () => k().sound || '', v => setKey('sound', v || undefined),
+        { '': SOUND_TIPS[''], ...Object.fromEntries(Object.keys(SOUNDS).map(n => [n, SOUND_TIPS[n] || `Sound: ${n} (custom, in the sounds panel)`])) }, v => v || ':block:'),
       toggle(':blur_on: after', 'After-images: the fighter leaves fading copies of itself while this key plays (fast dashes, teleports)', () => !!k().after, v => setKey('after', v || undefined))))),
     subFold(':auto_awesome: key fx', fxRows('The effects from this key on (until a later key changes them): the same as before, none, or its own stack; drawing only, the fight is the same',
       () => k().fx, (e, key) => setKey('fx', e, key), fxOns(edChar()), () => fxAt(curMove(), anim.key - 1))),
@@ -689,7 +690,9 @@ function moveCard(n, tip, pick = pickMove) {
 const VIEW_TIPS = { cards: 'A drawing of each move (hover to play it)', list: 'Compact: names only',
   table: 'Every move in a table over the stage: sort by any column, fuzzy filter, edit the values in place, hover a row to see it play',
   inputs: 'Every input over the stage: direction pads per button show which directions have no move of their own, and a table of all inputs; click one to give it a move',
-  combos: 'The combos over the stage: the chain links (P / K, or a direction with it like 6P, after a move chains into the next, chains setting authored) as a tree per starter or a table of routes with damage and frames; add, change and cut links in place' };
+  combos: 'The combos over the stage: the chain links (P / K, or a direction with it like 6P, after a move chains into the next, chains setting authored) as a tree per starter or a table of routes with damage and frames; add, change and cut links in place',
+  sounds: 'Design sounds: every built-in and custom sound, a slider over every synth parameter, a test button; duplicate a built-in to tune your own',
+  looks: 'Design fx looks: a generic particle effect tuned by sliders (count, life, speed, spread, angle, gravity, size, shape), with a live preview; built-ins stay hand-coded, read-only' };
 // ---------- move table: every move of the character, sortable, fuzzy-filtered, values edited in place ----------
 // startup / active / recovery edits retime that phase's keys; height opens its options; hovering a row plays the move by the cursor
 const PHASE_TIPS = { startup: 'Startup frames (60 fps) before the first active key. Edit to retime the startup keys.',
@@ -774,6 +777,115 @@ function moveTable() {
   wrap.append(stageHead('move table', VIEW_TIPS.table, filter),
     h('table', {}, h('thead', {}, head), body));
   requestAnimationFrame(() => { wrap.scrollTop = anim.tscroll || 0; });
+  return wrap;
+}
+// ---------- sounds: design new ones (sliders over the synth), built-ins are read-only (duplicate to customize) ----------
+let soundSel = null;
+function duplicateSound(from) {
+  let n = 1; while (SOUNDS[from + n]) n++;
+  const name = from + n; saveSound(name, { ...SOUNDS[from] }); soundSel = name; return name;
+}
+const SOUND_FIELD_TIPS = { noise: 'The noise layer\'s filter type, or none for no noise layer', nf0: 'Noise filter start frequency (Hz)',
+  nf1: 'Noise filter end frequency (Hz), swept over the sound\'s duration', ngain: 'Noise layer volume',
+  tone: 'The tone layer\'s oscillator waveform, or none for no tone layer', tf0: 'Tone start frequency (Hz)',
+  tf1: 'Tone end frequency (Hz), swept over the sound\'s duration', tgain: 'Tone layer volume',
+  attack: 'Ramp-up time before the decay starts (0: an instant hard onset, like every built-in)', dur: 'Total length, in seconds' };
+function soundFields(name, refill) {
+  if (!(name in mySounds)) return h('div', {}, h('p', { cls: 'note', textContent: `${name} is built in — duplicate it to tune a copy.` }),
+    button(':content_copy: duplicate', `A custom copy of ${name}, free to tune`, () => { duplicateSound(name); refill(); }));
+  const s = SOUNDS[name], set = (k, v) => { saveSound(name, { ...SOUNDS[name], [k]: v }); refill(); };
+  const nm = h('input', { cls: 'macro', value: name, tip: 'Rename this sound', onkeydown: e => e.stopPropagation(),
+    onchange: () => { const v = nm.value.trim(); if (!v || v === name || SOUNDS[v]) { nm.value = name; return; } renameSound(name, v); soundSel = v; refill(); } });
+  return h('div', {},
+    h('div', { cls: 'bar' }, nm, button(':play_arrow: test', `Play ${name}`, () => playSound(name)),
+      button(':delete: delete', `Delete ${name}`, () => { deleteSound(name); soundSel = null; refill(); })),
+    h('div', { cls: 'bar' }, h('span', { textContent: 'noise' }), seg(['bandpass', 'lowpass', 'highpass', 'none'], () => s.noise, v => set('noise', v),
+      Object.fromEntries(['bandpass', 'lowpass', 'highpass', 'none'].map(v => [v, SOUND_FIELD_TIPS.noise])))),
+    slider('noise start', { min: 50, max: 6000, step: 10 }, () => s.nf0, v => set('nf0', v), SOUND_FIELD_TIPS.nf0),
+    slider('noise end', { min: 50, max: 6000, step: 10 }, () => s.nf1, v => set('nf1', v), SOUND_FIELD_TIPS.nf1),
+    slider('noise gain', { min: 0, max: 1, step: 0.05 }, () => s.ngain, v => set('ngain', v), SOUND_FIELD_TIPS.ngain),
+    h('div', { cls: 'bar' }, h('span', { textContent: 'tone' }), seg(['sine', 'square', 'sawtooth', 'triangle', 'none'], () => s.tone, v => set('tone', v),
+      Object.fromEntries(['sine', 'square', 'sawtooth', 'triangle', 'none'].map(v => [v, SOUND_FIELD_TIPS.tone])))),
+    slider('tone start', { min: 20, max: 2000, step: 5 }, () => s.tf0, v => set('tf0', v), SOUND_FIELD_TIPS.tf0),
+    slider('tone end', { min: 20, max: 2000, step: 5 }, () => s.tf1, v => set('tf1', v), SOUND_FIELD_TIPS.tf1),
+    slider('tone gain', { min: 0, max: 1, step: 0.05 }, () => s.tgain, v => set('tgain', v), SOUND_FIELD_TIPS.tgain),
+    slider('attack', { min: 0, max: 0.3, step: 0.01 }, () => s.attack, v => set('attack', v), SOUND_FIELD_TIPS.attack),
+    slider('duration', { min: 0.02, max: 1, step: 0.01 }, () => s.dur, v => set('dur', v), SOUND_FIELD_TIPS.dur));
+}
+function soundsPanel() {
+  const wrap = h('div', { cls: 'mtable' }), body = h('div');
+  const fill = () => {
+    if (soundSel && !SOUNDS[soundSel]) soundSel = null;
+    const row = n => h('div', { cls: 'bar' + (soundSel === n ? ' on' : ''), onclick: () => { soundSel = n; fill(); } },
+      h('b', { textContent: n }), n in mySounds ? null : h('span', { cls: 'note', textContent: 'built-in' }),
+      button(':play_arrow:', `Play ${n}`, e => { e.stopPropagation(); playSound(n); }, 'mini'));
+    body.replaceChildren(...Object.keys(SOUNDS).map(row), h('h4', { textContent: soundSel || 'pick a sound' }),
+      soundSel ? soundFields(soundSel, fill) : h('p', { cls: 'note', textContent: 'click a sound above to hear it or tune a custom copy of it' }));
+  };
+  wrap.append(stageHead('sounds', 'Every sound is synthesized live (no files). Built-ins are read-only; duplicate one to tune a custom copy — it plays anywhere that name is picked (the key events row).',
+    button(':add: new sound', 'A new sound, copied from whoosh', () => { duplicateSound('whoosh'); fill(); })), body);
+  fill();
+  return wrap;
+}
+// ---------- looks: design new fx looks (a generic particle draw, sliders over it), built-ins are hand-coded, not editable here ----------
+let lookSel = null;
+const DEFAULT_LOOK = { count: 6, life: 0.5, speed: 60, spread: 40, angle: -90, gravity: 200, size0: 3, size1: 0, shape: 'dot', col: 'white', back: false };
+function newLook() {
+  let n = 1; while (FX_LOOKS['custom' + n]) n++;
+  const name = 'custom' + n; saveLook(name, { ...DEFAULT_LOOK }); lookSel = name; return name;
+}
+const LOOK_SHAPE_TIPS = { dot: 'A filled circle', line: 'A short trailing streak (sparks, speed lines)', ring: 'A stroked ring (an expanding shockwave)' };
+const LOOK_FIELD_TIPS = { count: 'Particles spawned per point along the wrapped bones, looping', life: 'One particle\'s lifetime in seconds before it loops',
+  speed: 'Launch speed (px/s)', spread: 'Random spread around the launch angle, in degrees', angle: 'Launch angle, in degrees (-90: straight up, 0: forward, along facing)',
+  gravity: 'Downward acceleration (px/s²); negative floats upward', size0: 'Size at birth', size1: 'Size at the end of its life (0: shrinks to nothing)' };
+// a small self-animating preview: the look drawn on a single fixed segment, independent of any character
+function lookPreview(name) {
+  const cv = h('canvas', { width: 140, height: 140 }), t0 = performance.now();
+  const loop = () => {
+    if (!cv.isConnected) return;
+    const ctx = cv.getContext('2d'), t = (performance.now() - t0) / 1000;
+    ctx.clearRect(0, 0, 140, 140); ctx.save(); ctx.translate(70, 110);
+    ctx.strokeStyle = '#ccc'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -50); ctx.stroke();
+    const p = myLooks[name];
+    if (p) FX_DRAW[name]?.(ctx, [{ i: fxSeed(name), w: 4, a: [0, 0], b: [0, -50] }], FX_COLS[p.col] || FX_COLS.white, 1, t);
+    ctx.restore(); requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+  return cv;
+}
+function lookFields(name, refill) {
+  if (!(name in myLooks)) return h('p', { cls: 'note', textContent: `${name} is a built-in, hand-coded look — only custom looks (new look) are tunable here.` });
+  const p = myLooks[name], set = (k, v) => { saveLook(name, { ...myLooks[name], [k]: v }); refill(); };
+  const nm = h('input', { cls: 'macro', value: name, tip: 'Rename this look', onkeydown: e => e.stopPropagation(),
+    onchange: () => { const v = nm.value.trim(); if (!v || v === name || FX_LOOKS[v]) { nm.value = name; return; } renameLook(name, v); lookSel = v; refill(); } });
+  return h('div', { cls: 'bar' },
+    h('div', {}, lookPreview(name)),
+    h('div', {},
+      h('div', { cls: 'bar' }, nm, button(':delete: delete', `Delete ${name}`, () => { deleteLook(name); lookSel = null; refill(); })),
+      h('div', { cls: 'bar' }, h('span', { textContent: 'shape' }), seg(Object.keys(LOOK_SHAPE_TIPS), () => p.shape, v => set('shape', v), LOOK_SHAPE_TIPS),
+        h('span', { textContent: 'colour' }), seg(Object.keys(FX_COLS), () => p.col || 'white', v => set('col', v), Object.fromEntries(Object.keys(FX_COLS).map(c => [c, `Default colour: ${c} (a move can still override it)`]))),
+        toggle(':layers: behind', 'Draws behind the body (like aura, smoke) instead of in front', () => !!p.back, v => set('back', v || undefined))),
+      slider('count', { min: 1, max: 20, step: 1 }, () => p.count, v => set('count', v), LOOK_FIELD_TIPS.count),
+      slider('life', { min: 0.1, max: 2, step: 0.05 }, () => p.life, v => set('life', v), LOOK_FIELD_TIPS.life),
+      slider('speed', { min: 0, max: 300, step: 5 }, () => p.speed, v => set('speed', v), LOOK_FIELD_TIPS.speed),
+      slider('spread', { min: 0, max: 360, step: 5 }, () => p.spread, v => set('spread', v), LOOK_FIELD_TIPS.spread),
+      slider('angle', { min: -180, max: 180, step: 5 }, () => p.angle, v => set('angle', v), LOOK_FIELD_TIPS.angle),
+      slider('gravity', { min: -400, max: 600, step: 10 }, () => p.gravity, v => set('gravity', v), LOOK_FIELD_TIPS.gravity),
+      slider('size start', { min: 0, max: 12, step: 0.5 }, () => p.size0, v => set('size0', v), LOOK_FIELD_TIPS.size0),
+      slider('size end', { min: 0, max: 12, step: 0.5 }, () => p.size1, v => set('size1', v), LOOK_FIELD_TIPS.size1)));
+}
+function looksPanel() {
+  const wrap = h('div', { cls: 'mtable' }), body = h('div');
+  const fill = () => {
+    if (lookSel && !FX_LOOKS[lookSel]) lookSel = null;
+    const row = n => h('div', { cls: 'bar' + (lookSel === n ? ' on' : ''), onclick: () => { lookSel = n; fill(); } },
+      h('b', { textContent: n }), n in myLooks ? null : h('span', { cls: 'note', textContent: 'built-in' }));
+    body.replaceChildren(...Object.keys(FX_LOOKS).map(row), h('h4', { textContent: lookSel || 'pick a look' }),
+      lookSel ? lookFields(lookSel, fill) : h('p', { cls: 'note', textContent: 'click a look above; new look starts a tunable custom one' }));
+  };
+  wrap.append(stageHead('looks', 'Design new fx looks: a generic particle effect tuned by sliders (count, life, speed, spread, angle, gravity, size, shape). Built-in looks are hand-coded JS and shown read-only. A custom look appears anywhere looks are picked (a move or key\'s fx).',
+    button(':add: new look', 'A new custom look, starting from simple rising dots', () => { newLook(); fill(); })), body);
+  fill();
   return wrap;
 }
 // the move picker (the move group's popup): the moves as cards or a list, grouped, sorted and filtered
@@ -901,7 +1013,7 @@ function movesGrp() {
     popup(b, h('div', { cls: 'bar' }, Object.keys(currentChar().moves).sort().map(n => button(n, `Open ${n} in the keyframe editor`, () => { closePop(); openMove(n); })))));
   return grp('moves', 'The character\'s moves: pick one to open in the keyframe editor (or click a move in the table, inputs or combos)', pick);
 }
-const MOVE_PANELS = ['table', 'inputs', 'combos'], moveStage = () => ({ table: moveTable, inputs: inputTable, combos: comboView })[stageOpen()];
+const MOVE_PANELS = ['table', 'inputs', 'combos', 'sounds', 'looks'], moveStage = () => ({ table: moveTable, inputs: inputTable, combos: comboView, sounds: soundsPanel, looks: looksPanel })[stageOpen()];
 // the move toolbar (animate): previous / next, the move being edited with the picker, its actions and the stance
 function moveGrp() {
   const ch = currentChar(), names = Object.keys(ch.moves), step = d => pickMove(names[(names.indexOf(anim.move) + d + names.length) % names.length]);

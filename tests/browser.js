@@ -88,6 +88,31 @@ try {
     undo(); if (DEFS[CURRENT].binds.backKick !== '' || !cell('4K').classList.contains('fall')) errs.push('input undo');
     undo(); undo();
     undo(); lay('animate').panel = null; panels(); }
+  // sounds panel: lists every sound, a built-in is read-only, new/duplicate makes a tunable copy, a slider edits it live, delete removes it
+  { setMode('animate'); openStage('sounds'); panels();
+    const rows = () => [...document.querySelectorAll('.mtable .bar:not(.stagehead)')];
+    if (rows().length !== Object.keys(SOUNDS).length) errs.push('sounds panel rows ' + rows().length + ' vs ' + Object.keys(SOUNDS).length);
+    rows()[0].click(); // a built-in (whoosh)
+    if (!document.querySelector('.mtable p.note')) errs.push('built-in sound shows as read-only');
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('new sound')).click();
+    const name = Object.keys(mySounds).find(n => n.startsWith('whoosh'));
+    if (!name || !(name in SOUNDS)) errs.push('new sound not created ' + name);
+    const sl = document.querySelector('.mtable input[type=range]'); sl.value = 780; sl.dispatchEvent(new Event('input'));
+    if (SOUNDS[name].nf0 !== 780) errs.push('sound slider ' + JSON.stringify(SOUNDS[name]));
+    deleteSound(name); if (name in SOUNDS || name in mySounds) errs.push('sound delete ' + name);
+    openStage(null); panels(); }
+  // looks panel: lists every look, a built-in is read-only (hand-coded), new look makes a tunable generic-particle one,
+  // a slider edits it live, delete removes it from FX_LOOKS/FX_DRAW
+  { setMode('animate'); openStage('looks'); panels();
+    const before = Object.keys(FX_LOOKS).length;
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('new look')).click();
+    const name = Object.keys(myLooks)[0];
+    if (!name || !(name in FX_LOOKS) || !FX_DRAW[name]) errs.push('new look not created ' + name);
+    const sliders = document.querySelectorAll('.mtable input[type=range]');
+    sliders[2].value = 200; sliders[2].dispatchEvent(new Event('input')); // speed (count, life, speed, …)
+    if (myLooks[name].speed !== 200) errs.push('look slider ' + JSON.stringify(myLooks[name]));
+    deleteLook(name); if (name in FX_LOOKS || Object.keys(FX_LOOKS).length !== before) errs.push('look delete ' + name + ' ' + Object.keys(FX_LOOKS).length);
+    openStage(null); panels(); }
   // the attack grid: a hovered cell's own save button keeps that attack (once, however often it is pressed), without breeding
   lab.kind = 'attacks'; setMode('grid'); lab.hover = 4; labRender();
   const cell = lab.cells[4], sb = cell.btns.find(b => !b.open), seed = breed.seed, nMoves = Object.keys(DEFS[CURRENT].moves).length;
@@ -131,6 +156,19 @@ try {
     // the character menu: the current one on a button, the rest in a popup
     setMode('animate'); document.querySelector('.charpick').click(); [...document.querySelectorAll('.pop .card')].find(c => c.textContent === 'grumbo').click();
     if (CURRENT !== 'grumbo' || document.querySelector('.pop')) errs.push('char menu ' + CURRENT); pickChar('stick'); }
+  // movelist (play's side panel): every bound move of the played character with its input notation, grouped, fuzzy-filterable,
+  // and live as the character or stance changes
+  { setMode('play'); pickChar('stick'); lab.scen = 'you vs dummy'; build(); panels(); labRender();
+    const section = () => [...document.querySelectorAll('#side .fold')].find(f => f.querySelector('h3').textContent.toLowerCase().startsWith('movelist'));
+    const rowsText = () => [...section().querySelectorAll('.bar')].map(r => r.textContent);
+    if (!rowsText().some(t => /jab/i.test(t))) errs.push('movelist missing a known move ' + rowsText().slice(0, 3));
+    const before = rowsText().length, q = section().querySelector('input'); q.value = 'jab'; q.dispatchEvent(new Event('input')); labRender();
+    const filtered = rowsText();
+    if (!(filtered.length > 0 && filtered.length < before) || !filtered.some(t => /jab/i.test(t))) errs.push('movelist filter ' + filtered.length + '/' + before + ' ' + filtered);
+    q.value = ''; q.dispatchEvent(new Event('input')); labRender();
+    pickChar('hadoo'); lab.chars = ['hadoo', null]; build(); panels(); labRender();
+    if (!rowsText().some(t => t.includes('kiBlast'))) errs.push('movelist not live on character switch ' + rowsText().slice(0, 3));
+    pickChar('stick'); lab.chars = [null, null]; build(); }
   // impact without an attacker: it is not drawn or framed, its blows land as before
   { lab.solo = true; setMode('impact'); const w = lab.cells[0].w; for (let i = 0; i < 60; i++) w.advance(1/60, NOIN);
     if (!w.a.hidden || !w.hits) errs.push('impact solo ' + [w.a.hidden, w.hits]); lab.solo = false; }
