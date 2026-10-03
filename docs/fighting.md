@@ -114,6 +114,10 @@ A Capcom-style jump after a **launcher** (move flag launcher; the stick's 2P). I
 
 Scenario: chase jump.
 
+| The chase jump: a launcher followed up at once |
+| --- |
+| ![The chase jump: a launcher followed up at once](img/anim-chase-jump.png) |
+
 ### Combo escalation
 
 Hit stop, shake and zoom that grow with each combo hit; attacks, or the whole game, speeding up (or slowing) along a combo.
@@ -148,6 +152,10 @@ Hit stop, shake and zoom that grow with each combo hit; attacks, or the whole ga
 ### Catch
 
 **← S** is catch, a counter stance. Its catch key answers a mid strike from the front with **reversal**. The key's **catchH** lists the heights it catches. Any move can catch: a key's **catch** flag, and the move panel's **counter** row picks which move answers (**new counter move** makes one, starting from the built-in reversal, and opens it) — its damage lands on the attacker at once.
+
+| Catch: ← S answers a mid strike with reversal |
+| --- |
+| ![Catch: ← S answers a mid strike with reversal](img/anim-catch.png) |
 
 ### Recovery
 
@@ -192,6 +200,10 @@ The Specials settings have a switch for each one. All of them are moves edited i
 - **Rolls** (rollFwd, rollBack; move flag roll): tumble through the foe or away from it, invincible and passing through fighters for **rollInv**.
 - **Teleport:** reappears **teleportDist** behind the foe at its key marked **warp**, turned to face it, leaving after-images.
 
+| Roll: tumbles through the foe, invincible | Teleport: reappears behind the foe, after-images |
+| --- | --- |
+| ![Roll: tumbles through the foe, invincible](img/anim-roll-through.png) | ![Teleport: reappears behind the foe, after-images](img/anim-teleport.png) |
+
 ### Defending
 
 - **Guard cancel** (guardCancel): strikes back at once from blockstun, invincible as it starts, for **guardCancelCost** health.
@@ -202,6 +214,10 @@ The Specials settings have a switch for each one. All of them are moves edited i
   - **catchLow** catches a low and answers with **lowCounter**, a stamp that knocks down.
   - ← S stays the mid catch.
   - A key's catch heights are toggles under **catches** in animate.
+
+| Guard cancel: strikes back from blockstun | Push block: shoves the attacker away |
+| --- | --- |
+| ![Guard cancel: strikes back from blockstun](img/anim-guard-cancel.png) | ![Push block: shoves the attacker away](img/anim-push-block.png) |
 
 ### Getting up
 
@@ -215,15 +231,27 @@ The Specials settings have a switch for each one. All of them are moves edited i
 
 A knockdown lies **downTime** (Falls) before getting up.
 
+| Wake-up attack: a kick from the floor | Wake-up roll: rolls up and away |
+| --- | --- |
+| ![Wake-up attack: a kick from the floor](img/anim-wake-up-attack.png) | ![Wake-up roll: rolls up and away](img/anim-wake-up-roll.png) |
+
 ### Showing off
 
 - **Taunt** (taunt): ↑ S+G beckons the foe. It's open to any hit while it plays. Off: ↑ S+G switches stance, as S+G does.
 - **Win pose** (winPose): after a K.O. the controllers pause and each fighter still standing plays its **win** move.
 
+| Taunt: ↑ S+G beckons the foe | Win pose: the survivor's victory move |
+| --- | --- |
+| ![Taunt: ↑ S+G beckons the foe](img/anim-taunt.png) | ![Win pose: the survivor's victory move](img/anim-win-pose.png) |
+
 ### Attacking
 
 - **Pounce** (pounce): ↓ S in the air dives onto a fighter lying on the floor. pounce hits off the ground and lands into its strike; a key's **drop** drives it down.
 - **Wall bounce** (move flag wallbounce, on spin and the shoulder charge): the victim bounces back off the wall at **wallBounceSpeed**, popped up, its juggle count reset for a follow-up.
+
+| Pounce: ↓ S in the air dives onto a downed foe |
+| --- |
+| ![Pounce: ↓ S in the air dives onto a downed foe](img/anim-pounce.png) |
 
 ### Turnaround
 
@@ -320,6 +348,10 @@ In the key panel: the **rise** slider and the **rehit** toggle.
 
 Scenarios: flash kick, lightning legs. A scenario's **chars** names the characters it plays with.
 
+| Flash kick: rise carries the move into the air | Lightning legs: rehit lands a multi-hit move again |
+| --- | --- |
+| ![Flash kick: rise carries the move into the air](img/anim-flash-kick.png) | ![Lightning legs: rehit lands a multi-hit move again](img/anim-lightning-legs.png) |
+
 ## Weapons
 
 ### Settings
@@ -348,6 +380,10 @@ Dagger, sword, axe, bat, nunchucks (the outer stick flails on a loose joint), wa
 - A thrown weapon flies, hits its thrower's foes once along its whole drawn length (a staff behind the grip too), then drops.
 - pickUp and weaponThrow are weapon moves edited in animate. Unmarked grip / release means the first key.
 - A knockdown, or a blow of at least **disarm** power, knocks the weapon loose.
+
+| Picking up a sword, then slashing |
+| --- |
+| ![Picking up a sword, then slashing](img/anim-pickup-slash.png) |
 
 ### Weapon moves
 
@@ -380,6 +416,10 @@ The boxes view shows held weapons in amber and flying ones in red.
 **AI:** picks weapons up and sometimes throws them.
 
 **Scenarios:** pick up & slash, weapon throw, disarm, sword vs staff ai, weapons ai, weapon clash, deflect.
+
+| Weapon clash: two strikes meet, both recoil |
+| --- |
+| ![Weapon clash: two strikes meet, both recoil](img/anim-weapon-clash.png) |
 
 ## Power
 

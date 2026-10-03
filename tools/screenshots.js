@@ -43,6 +43,16 @@ const SHOTS = {
   layout: [`setMode('play'); panels(); ${run(30)} $('global').querySelector('button[data-tip^="Layout:"]').click(); Object.assign(pop.style, { left: '560px', top: '32px', maxHeight: 'none' });`, [540, 20, 460, 540]],
   debug: [`setMode('play'); panels(); ${run(90)} debugBtn().click(); Object.assign(pop.style, { left: '955px', top: '32px', maxHeight: 'none' }); dbgT = 0; drawDebug(); drawScope();`, [940, 20, 400, 540]],
   palette: [`setMode('play'); panels(); ${run(30)} openPalette(); const i = document.querySelector('#palette input'); i.value = 'table'; i.dispatchEvent(new Event('input'));`, [250, 0, 900, 520]],
+  // the stats radar, scrolled into view in the side panel
+  statsradar: [`setMode('character'); pickChar('stick'); panels(); ${run(5)}
+    const sec = [...document.querySelectorAll('#side .fold')].find(s => s.querySelector('h3')?.textContent.toLowerCase().includes('radar'));
+    sec.classList.remove('shut'); sec.querySelector('canvas').scrollIntoView({ block: 'start' });`, [1080, 330, 320, 310]],
+  keys: [`setMode('play'); panels(); ${run(30)} const b = [...document.querySelectorAll('#global button')].find(x => x.dataset.tip?.startsWith('Keys:')); keysPanel(null, b);
+    Object.assign(pop.style, { left: '680px', top: '32px', maxHeight: 'none' });`, [660, 20, 400, 700]],
+  docspanel: [`setMode('play'); panels(); openDocs('specials'); docsFrame(); docsFrame();`, [0, 0, 1400, 800]],
+  replay: [`lab.scen = 'you vs ai'; setMode('play'); const w = lab.cells[0].w;
+    for (let i = 0; i < 400; i++) w.advance(1 / 60, { ...NOIN, right: i % 120 < 40, punch: i % 23 === 0, kick: i % 37 === 0 });
+    rp.reel = null; setMode('replay'); panels();`, [0, 80, 1400, 600]],
 };
 fs.mkdirSync(outDir, { recursive: true });
 const page = path.join(os.tmpdir(), 'stick2-shot.html');
