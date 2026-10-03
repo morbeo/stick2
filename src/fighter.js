@@ -16,7 +16,7 @@ class Fighter {
       time: 0, seed: w.rand(0, 100), walkPh: 0, lean: 0, inp: NOIN,
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
       kd: null, downT: 0, wake: null, won: false, wallB: false, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
-      sq: 0, sqv: 0, trail: [], dirs: [], used: [], juggles: 0, jugUsed: 0,
+      sq: 0, sqv: 0, trail: [], dirs: [], pressT: { punch: -1e9, kick: -1e9, special: -1e9 }, guardHeld: false, guardPressT: -1e9, used: [], juggles: 0, jugUsed: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, heldAt: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
       airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null, layerAt: {}, away: false, turnRate: 0, turnMid: null,
@@ -214,10 +214,16 @@ class Fighter {
     const n = 5 + (inp.right - inp.left) * this.dir - (inp.down ? 3 : inp.up ? -3 : 0), t = this.w.simT, d = this.dirs;
     if (d[d.length - 1]?.n !== n) d.push({ n, t });
     while (d.length > 1 && t - d[1].t > this.c('motionWindow')) d.shift();
+    // inputLeniency: guard doesn't need to land on the exact same frame as the button for a P+G / K+G / S+G combo —
+    // held, or freshly pressed within it, still counts. special likewise doesn't need to land on guard's own frame.
+    const tol = this.c('inputLeniency'), pt = this.pressT, fresh = b => t - pt[b] <= tol;
+    for (const b of ['punch', 'kick', 'special']) if (inp[b]) pt[b] = t;
+    if (inp.guard && !this.guardHeld) this.guardPressT = t; this.guardHeld = inp.guard;
+    const guardOn = inp.guard || t - this.guardPressT <= tol;
     // P+G throws, K+G is the second throw; ↑ S+G taunts; S+G (with a direction or not) switches to the stance with that key
-    const taunt = inp.guard && inp.special && inp.up && this.c('taunt');
-    const to = inp.guard && inp.special && !taunt ? this.stanceTo((['', '↓', '↓', '↓', '←', '', '→'][n] || '') + 'S+G') : -1;
-    const as = b => !inp.guard ? b : b === 'punch' ? 'throw' : b === 'kick' ? 'throw2' : b === 'special' && taunt ? 'taunt' : b === 'special' && to >= 0 ? 'stance' : b;
+    const taunt = guardOn && fresh('special') && inp.up && this.c('taunt');
+    const to = guardOn && fresh('special') && !taunt ? this.stanceTo((['', '↓', '↓', '↓', '←', '', '→'][n] || '') + 'S+G') : -1;
+    const as = b => !guardOn ? b : b === 'punch' ? 'throw' : b === 'kick' ? 'throw2' : b === 'special' && taunt ? 'taunt' : b === 'special' && to >= 0 ? 'stance' : b;
     for (const b of ['punch', 'kick', 'special']) if (inp[b]) this.buffer = { b: as(b), t: 0.2, motion: this.motion(), to };
   }
   // the stance a key switches to: the next one after the current among the stances with that key and main whose requirements
