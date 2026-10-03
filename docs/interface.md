@@ -128,9 +128,11 @@ The box at the top of the settings panel: fuzzy search over the variable names a
 
 ## Keys and macros
 
-The **keys** button (⌨) in the top bar shows every key and lets you rebind them, in groups: fight, transport, view, modes, animate, character. Saved in the browser.
+The **keys** button (⌨) in the top bar shows every key and lets you rebind them, in collapsible groups: fight, transport, view, modes, animate, character. A search box fuzzy-filters the actions by name or tip. Saved in the browser.
 
 **Macros:** one key presses a sequence such as `2, 3, 6P`: numpad directions + P / K, with waits like `0.1`.
+
+**Custom binds:** a key for any app function, not just the fixed actions above — a mode, toolbar tool, table, layout toggle, character, move or setting, the same things ⌘K finds. Type to find one (the same fuzzy ranking as the palette), pick it, then press a key for it; re-key or delete it like a macro. `reset keys` clears these too.
 
 ### Keys depend on where you are
 
