@@ -5,7 +5,10 @@
 const R = Math.PI / 180;
 const BONE = {
   len: 10, a: 0,       // length (px) and rest angle
-  role: 'tail',        // spine | head | arm | leg | tail: decides breathing, walk cycle, hit reactions
+  role: 'tail',        // spine | head | arm | leg | tail | weapon: decides breathing, walk cycle, hit reactions
+  also: undefined,     // extra roles a chain's own root bone also joins (e.g. ['leg']): a limb can drive/plant as more
+                        // than one type (houndo's front legs: role arm, also leg, so they gait and plant like real legs
+                        // but still count as an arm for weapon-holding)
   side: '',            // f | b | '': front / back limb (back is drawn behind, in the second colour)
   shape: 'line',       // line | circle (circle is centred on the bone's end, radius = len)
   thick: 5, hurt: 0,   // stroke width; hurtbox radius (0 = can't be hit here)
@@ -633,6 +636,7 @@ function makeCharacter(def) {
     const c = [b];
     for (let k; (k = c[c.length - 1].kids.find(k => k.role === b.role && !k.hidden));) c.push(k);
     chains[b.role].push(c);
+    for (const r of b.also || []) (chains[r] ??= []).push(c);
   }
   const rest = Object.fromEntries(order.map(b => [b.id, b.a]));
   const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains,
@@ -774,7 +778,9 @@ const WEAPON_CLASSES = {
 CHAR_DEFS.stick.moves = { ...CHAR_DEFS.stick.moves, ...WEAPON_MOVES };
 // the weapon's bones on the front hand; nunchucks: the handle and the flailing stick (weaponTip) on a loose joint
 function weaponBones(ch, type) {
-  const w = WEAPONS[type], arm = ch.chains.arm.find(c => c[0].side === 'f') || ch.chains.arm[0], parent = arm ? arm[arm.length - 1].id : ch.bones[0].id;
+  // no arms (a houndo, all fours): the nearest thing to a hand is a front leg's own tip instead of the root bone
+  const w = WEAPONS[type], limb = ch.chains.arm.find(c => c[0].side === 'f') || ch.chains.arm[0] || ch.chains.leg.find(c => c[0].side === 'f') || ch.chains.leg[0];
+  const parent = limb ? limb[limb.length - 1].id : ch.bones[0].id;
   const b = { role: 'weapon', side: 'f', look: w.look, thick: 3, hurt: 0, lag: 0.3, react: 0.3, sway: 0 };
   if (w.chain) return [{ ...b, id: 'weapon', parent, len: Math.round(w.len / 2), a: w.a }, { ...b, id: 'weaponTip', parent: 'weapon', len: Math.round(w.len / 2), a: 0, lag: 3, stiff: 0.6, damp: 0.5, react: 2 }];
   return [{ ...b, id: 'weapon', parent, len: w.len, a: w.a, back: w.back || 0 }];

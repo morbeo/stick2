@@ -254,6 +254,9 @@ function bonePanel() {
     ['Experiment: nine bodies varying these properties; click the best to breed around it', () => { BONE_PROPS.forEach(p => creator.exp.vars.add(p.k)); setExp(true); }]));
   return [title,
     row(':category: role', 'What the bone does in procedural motion', seg(Object.keys(ROLE_TIPS), () => prop('role'), v => edit(d => { for (const b of selDefs(d)) b.role = v; }), ROLE_TIPS)),
+    row(':layers: also', 'A chain\'s own root bone can also join another role\'s chains, without losing its own: it gaits and plants as that role too (houndo\'s front legs: role arm, also leg — still a hand for a weapon, but driven and planted like the hind legs)',
+      ...Object.keys(ROLE_TIPS).filter(r => r !== prop('role')).map(r => toggle(r, `Also act as ${r}`, () => (prop('also') || []).includes(r), v => edit(d => { for (const b of selDefs(d)) {
+        const also = new Set(b.also || []); v ? also.add(r) : also.delete(r); b.also = also.size ? [...also] : undefined; } })))),
     row(':flip: side', 'Draw order and colour', seg(['f', '', 'b'], () => prop('side'), v => edit(d => { for (const b of selDefs(d)) b.side = v; }), SIDE_TIPS,
       o => ({ f: 'front', '': 'centre', b: 'back' })[o])),
     row('shape', 'How the bone is drawn', seg(['line', 'circle'], () => prop('shape'), v => edit(d => { for (const b of selDefs(d)) b.shape = v; }), SHAPE_TIPS)),
@@ -368,6 +371,7 @@ const BONE_COLS = [
   { k: 'id', tip: 'Click a row to select the bone (⌘/Ctrl/Shift+click adds it to the selection) · drag the id onto another bone to move it before that one: inside front, centre and back, earlier bones draw underneath (unsorted and unfiltered only)', get: b => b.id },
   { k: 'parent', tip: 'The bone it hangs from (hip: a root)', get: b => b.parent || '' },
   ...['role', 'side', 'shape'].map(k => ({ k, tip: BONE_TIPS[k], get: b => b[k] ?? BONE[k] ?? '', opts: { role: ROLE_TIPS, side: SIDE_TIPS, shape: SHAPE_TIPS }[k] })),
+  { k: 'also', tip: 'Other roles this bone\'s chain also joins (gait, planting, weapon-holding…), on top of its own role — click to toggle (houndo\'s front legs: role arm, also leg)', get: b => (b.also || []).join(' ') },
   { k: 'stance', tip: 'Angle in the stance pose, relative to the parent', get: b => curStance().pose[b.id] ?? 0, num: { min: -270, max: 270, step: 1 } },
   ...BONE_PROPS.map(p => ({ k: p.k, tip: p.tip, get: b => b[p.k] ?? BONE[p.k], num: p })),
   ...['min', 'max'].map(k => ({ k, tip: `Joint limit (${k}) relative to the parent; empty = no limits`, get: b => b[k] ?? '', num: { min: -180, max: 180, step: 1 } })),
@@ -424,6 +428,10 @@ function boneTable() {
           popup(el, seg(Object.keys(c.opts), () => b[c.k] ?? BONE[c.k], x => { setBoneCol(b.id, c.k, x); closePop(); fill(); }, c.opts, c.k === 'side' ? o => SIDE_NAMES[o] : optLabel)); }, 'mini'));
         else if (c.k === 'lock') td.append(button(b.lock ? ':lock:' : '—', tip, e => { stop(e); setBoneCol(b.id, 'lock', b.lock ? undefined : true); fill(); }, 'mini'));
         else if (c.k === 'forcePlant') td.append(button(b.forcePlant ? ':footprint:' : '—', tip, e => { stop(e); setBoneCol(b.id, 'forcePlant', b.forcePlant ? undefined : true); fill(); }, 'mini'));
+        else if (c.k === 'also') td.append(button(v[i] || '—', tip, (e, el) => { stop(e);
+          popup(el, h('b', { textContent: `${b.id} also joins` }), ...Object.keys(ROLE_TIPS).filter(r => r !== b.role).map(r =>
+            toggle(r, `Also act as ${r}`, () => (b.also || []).includes(r), on => { const also = new Set(b.also || []);
+              on ? also.add(r) : also.delete(r); setBoneCol(b.id, 'also', also.size ? [...also] : undefined); fill(); }))); }, 'mini'));
         else td.textContent = v[i];
         return td;
       }));

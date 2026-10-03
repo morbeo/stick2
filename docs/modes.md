@@ -205,6 +205,7 @@ Build a body by dragging it.
 - **Drag the hip** (the square handle where the waist and legs start) to move the waist over the feet. The legs bend, the feet stay.
 - **Select several bones:** ⌘/Ctrl+click a joint or a name in the tree, Shift+click in the tree. Any property, role, side, shape, limit or stance angle you change goes to all of them.
 - **Add limbs** by role: arms, legs, tails, heads, joints.
+- **also:** a limb's own role is fixed, but its root bone can also join another role's chain — houndo's front legs are arms (so weapons still go in a hand) that also act as legs (so they gait and plant on the ground with the hind ones).
 
 ![Hovering the hip handle](img/hip.png)
 
@@ -225,7 +226,7 @@ A live fight next to the editor, picked in a bar under the preview: **showcase**
 
 ![The bone table](img/bonetable.png)
 
-The **panels** group → **bones** puts every bone in a table over the stage: id, parent, role, side, shape, stance angle, every bone property, limits, lock.
+The **panels** group → **bones** puts every bone in a table over the stage: id, parent, role, side, shape, also, stance angle, every bone property, limits, lock.
 
 - Click a header to sort; a third click goes back to the bone order.
 - Drag a bone's id onto another to move it before that one. Inside front, centre and back, earlier bones draw underneath.

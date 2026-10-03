@@ -1152,3 +1152,22 @@ test('samplePose (movement layers: dash/backDash/airDash/wallJump/run) never NaN
   }).filter(Boolean)`);
   assert.deepEqual(r, [], `no NaN bones: ${r.join(', ')}`);
 });
+
+test('a bone chain can join more than one role (BONE.also): houndo\'s front legs are both arms and legs, driven and planted like the hind ones, and still hold a weapon like an arm', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => {
+    const w = new World({ a: 'human', b: 'dummy', ax: 330, bx: 700, period: 9 }, {}, 7, [CHARS.houndo, CHARS.stick]);
+    w.loop = false;
+    const legChains = CHARS.houndo.chains.leg.length, armChains = CHARS.houndo.chains.arm.length;
+    const sameChain = CHARS.houndo.chains.arm[0] === CHARS.houndo.chains.leg.find(c => c[0].id === CHARS.houndo.chains.arm[0][0].id);
+    for (let i = 0; i < 60; i++) w.advance(1/60, { ...NOIN, right: true });
+    return { legChains, armChains, sameChain }; })())`));
+  assert.equal(r.legChains, 4, 'the 2 hind legs plus the 2 arm chains (also: leg) are all leg chains');
+  assert.equal(r.armChains, 2, 'the front legs are still arm chains too (also joins, does not replace)');
+  assert.ok(r.sameChain, 'the very same chain object is shared between chains.arm and chains.leg, not a copy');
+
+  const weapon = run(`(() => { const w = new World({ a: 'human', b: 'dummy', ax: 330, bx: 500, weapon: 'dagger', weaponStart: 'held', period: 9 }, {}, 7, [CHARS.houndo, CHARS.stick]);
+    w.loop = false; let bad = false;
+    for (let i = 0; i < 90 && !bad; i++) { w.advance(1/60, { ...NOIN, punch: i === 20 }); const P = w.a.body(); bad = Object.values(P).some(p => !isFinite(p[0]) || !isFinite(p[1])); }
+    return !bad; })()`);
+  assert.ok(weapon, 'holding a weapon (weaponBones picks an arm chain, which a front leg still is) stays NaN-free');
+});
