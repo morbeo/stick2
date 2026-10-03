@@ -660,8 +660,7 @@ function debugPanel(e, b) {
   const row = k => h('div', { cls: 'row', tip: SPEC[k].tip }, h('span', { textContent: k }), toggle(CFG[k] ? 'on' : 'off', SPEC[k].tip, () => CFG[k], v => setCfg({ [k]: v }, 'cfg.' + k)));
   popup(b, h('b', { textContent: 'debug' }), row('ghost'), row('boxes'), row('hud'), row('labels'),
     h('div', { cls: 'row', tip: SPEC.scope.tip }, h('span', { textContent: 'scope' }), h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v), Object.fromEntries(currentChar().ids.map(id => [id, `Plot the angle of ${id}`]))))),
-    dbgInfo, h('div', { cls: 'bar' }, button(':content_copy: copy', 'Copy the debug information (for a bug report)', () => navigator.clipboard?.writeText(dbgInfo.textContent)),
-      button(':bug_report: report a bug', 'Copy a bug report (build, settings changed from default, the shown fight) and open a new GitHub issue to paste it into', reportBug),
+    dbgInfo, h('div', { cls: 'bar' }, button(':bug_report: report a bug', 'Shows the report (build, settings changed from default, the shown fight), to copy and paste into a new GitHub issue', (e, b) => reportBug(b), 'bugbtn'),
       button(':restart_alt: reset settings', 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels) stay (⌘Z undoes)', () => { applyPreset('juicy'); mode().restart(); }),
       button(':delete: factory reset', 'Delete all local data: edited characters, settings, keys and macros, layout; then reload as new (asks first)', () => factoryReset())),
     h('p', { cls: 'note', textContent: 'monitor: the scope bone\'s target angle (grey) against the drawn one (red), with the stats of the shown or focused fight' }), scopeCv, stats);
@@ -672,14 +671,12 @@ const debugBtn = () => [...$('global').querySelectorAll('button')].find(b => b.d
 const dbgWorld = () => mode() === labMode ? lab.focus?.w || lab.cells[0]?.w : mode().debugWorld?.() || mode().worlds()[0];
 // the debug information: build, engine and runtime numbers and the shown fight's state, refreshed twice a second
 const dbgInfo = h('pre', { cls: 'note dbg', tip: 'Debug information: the build (npm run build-info writes it), engine version, frame rate, and the focused fight: seed, frame, state hash, each fighter' });
-let dbgT = 0;
-function drawDebug() {
-  if (!dbgInfo.isConnected || performance.now() < dbgT) return;
-  dbgT = performance.now() + 500;
+// build, engine and runtime numbers and the shown fight's state, computed fresh (not just refreshed while the debug popup is open)
+function debugText() {
   const b = typeof BUILD === 'object' ? BUILD : null, w = dbgWorld();
   const name = f => f.action ? (f.action.m.hurt ? 'hurt' : Object.keys(f.ch.moves).find(k => f.ch.moves[k] === f.action.m) || 'move') : f.kd || '';
   let kb = 0; try { for (const k in localStorage) if (localStorage.hasOwnProperty(k)) kb += (k.length + localStorage[k].length) / 512; } catch {}
-  dbgInfo.textContent = [
+  return [
     b ? `build ${b.commit}${b.dirty ? ' + changes' : ''} (${b.branch}) · ${b.date.slice(0, 16).replace('T', ' ')}` : 'build unknown (npm run build-info)',
     `engine v${ENGINE_VERSION} · ${app.fps} fps · ${app.frameMs.toFixed(1)} ms/frame, worst ${app.worstMs.toFixed(0)} ms`,
     `${app.mode} / ${lab.mode} · ${mode().worlds().length} worlds · ${Object.keys(DEFAULTS).filter(k => CFG[k] !== DEFAULTS[k]).length} settings changed`,
@@ -688,14 +685,24 @@ function drawDebug() {
     `canvas ${canvas.width}×${canvas.height} @${dpr} · storage ${kb.toFixed(0)} KB · ${navigator.userAgent.match(/(Firefox|Chrome|Version)\/[\d.]+/)?.[0] || ''}`,
   ].join('\n');
 }
-// copies the debug info plus the actual settings changed from default (the count alone isn't actionable in a report),
-// and opens a new GitHub issue to paste it into; a saved replay (play: save replay) is the other half of a good report
-function reportBug() {
-  const settings = cfgData(), text = [dbgInfo.textContent,
-    Object.keys(settings).length ? 'settings changed from default: ' + JSON.stringify(settings) : 'settings: all default',
-    'attach a saved replay if you can reproduce it (play: the save replay button)'].join('\n');
-  navigator.clipboard?.writeText(text);
-  window.open('https://github.com/morbeo/stick2/issues/new?template=bug_report.md', '_blank');
+let dbgT = 0;
+function drawDebug() {
+  if (!dbgInfo.isConnected || performance.now() < dbgT) return;
+  dbgT = performance.now() + 500;
+  dbgInfo.textContent = debugText();
+}
+// shows the debug info plus the actual settings changed from default (the count alone isn't actionable in a report);
+// one button copies it and opens a new GitHub issue to paste it into. A saved replay (play: save replay) is the other
+// half of a good report, so it's called out here too
+function reportBug(anchor) {
+  const settings = cfgData(), text = [debugText(),
+    Object.keys(settings).length ? 'settings changed from default: ' + JSON.stringify(settings) : 'settings: all default'].join('\n');
+  popup(anchor, h('b', { textContent: 'report a bug' }),
+    h('p', {}, 'This is copied for you below. Describe what happened, paste it in, and attach a saved replay if you can reproduce it (play: the save replay button).'),
+    h('pre', { cls: 'note dbg', textContent: text }),
+    h('div', { cls: 'bar' }, button(':bug_report: copy & open a new issue', 'Copy this to your clipboard and open a new GitHub issue to paste it into', () => {
+      navigator.clipboard?.writeText(text); window.open('https://github.com/morbeo/stick2/issues/new?template=bug_report.md', '_blank'); closePop();
+    }, 'bugbtn')));
 }
 
 // click focuses a cell; in breed / attacks a click breeds around it and Shift+click focuses

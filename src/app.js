@@ -106,7 +106,7 @@ function buildTop() {
       button(':ssid_chart:', 'Debug: ghost, boxes, hud, labels and the scope bone, the build and engine version, frame rate and the shown fight\'s state (copy for a bug report), reset settings, factory reset, and the monitor', debugPanel),
       button(':info:', 'Docs: how everything works, with live demo fights, and every setting, move flag, input and key explained; searchable (also in ⌘K)', () => openDocs()),
       toggle(':help:', 'Hints: the line of mouse and key help under the view and the frame meter\'s colour legend; off, they show for a few seconds on the first visit to each mode (?)', () => ui.hints, toggleHints),
-      soundBtn, button(':bug_report:', 'Report a bug: copy a bug report (build, settings changed from default, the shown fight) and open a new GitHub issue to paste it into', reportBug)));
+      soundBtn, button(':bug_report:', 'Report a bug: shows the report (build, settings changed from default, the shown fight), to copy and paste into a new GitHub issue', (e, b) => reportBug(b), 'bugbtn')));
   $('transport').replaceChildren(grp('', 'Playback', pause,
     button(':fast_rewind:', 'Rewind one second: every fight is restored from its last checkpoint and replayed with the same inputs, so your own and the AI\'s fights rewind too; play on from there to try something else' + keyTip('rewind'), () => rewind(60)),
     button(':skip_previous:', 'Back one frame and pause there' + keyTip('stepBack'), () => rewind(1)),
