@@ -38,11 +38,13 @@ const curStance = (ch = viewChar()) => ch.stances[studio.stance] || ch.stances[0
 const editPose = def => studio.stance ? def.stances[studio.stance - 1].pose : def.poses.stance;
 // the character as the editors show it: in the stance picked, with its body (stanceChar)
 const viewChar = () => stanceChar(currentChar(), studio.stance);
-// "this stance only" (own, with a stance other than main picked): bone, size, stat, gait, effect and chain edits go to the stance's
-// body (def.stances[i].body, see stanceDef) instead of the character
-const stanceOnly = () => studio.stance > 0 && studio.own && !!DEFS[CURRENT].stances?.[studio.stance - 1];
-const editBody = def => def.stances[studio.stance - 1].body ??= {};
-const stanceBody = (def = DEFS[CURRENT]) => studio.stance ? def.stances?.[studio.stance - 1]?.body : undefined;
+// "this stance only" (own): bone, size, stat, gait, effect and chain edits go to the stance's body (def.stances[i].body
+// for a stance, def.main.body for main itself, see bodyDef) instead of every stance at once
+const stanceOnly = () => studio.own && (studio.stance ? !!DEFS[CURRENT].stances?.[studio.stance - 1] : true);
+const editBody = def => (studio.stance ? def.stances[studio.stance - 1] : (def.main ??= {})).body ??= {};
+const stanceBody = (def = DEFS[CURRENT]) => studio.stance ? def.stances?.[studio.stance - 1]?.body : def.main?.body;
+// clears an empty def.main left behind once its last req / morph / fly / body override is removed
+const pruneMain = def => { if (def.main && !Object.keys(def.main).length) delete def.main; };
 // the definition a bone edit changes: a bone the stance adds is its own entry; else the stance's override (stance only) or the bone
 function boneDef(def, id) {
   const add = stanceBody(def)?.add?.find(b => b.id === id);
@@ -314,22 +316,27 @@ function stanceRow() {
   const del = () => { if (!studio.stance) return; const i = studio.stance - 1; studio.stance = 0; edit(def => { def.stances.splice(i, 1); if (!def.stances.length) delete def.stances; }); panels(); };
   const names = currentChar().stances.map(s => s.name), i = studio.stance;
   const keyTips = Object.fromEntries(Object.entries(STANCE_KEYS).map(([k, l]) => [k, `${l} switches to ${names[i]}; pressed again in it, back to main (stances sharing a key take turns)`]));
+  // a stance's own req/morph/fly/body (def.stances[i - 1]); main's the same, in def.main (no key: it's never switched "into" by one)
+  const own = i ? () => DEFS[CURRENT].stances[i - 1] : () => DEFS[CURRENT].main;
+  const ref = i ? def => def.stances[i - 1] : def => (def.main ??= {});
   return [h('div', { cls: 'row', tip: 'Stances: their key switches to them in a fight. The stance picked here is the one the pose, input and idle / walk loop edits change, and the one previews start in.' },
     h('span', {}, ...rich(':sports_martial_arts: stance')), h('span', { cls: 'bar' },
       seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); }, Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance: the base pose, binds and loops'])), i => names[i]),
       crud({ new: ['New stance: a copy of the current one with no binds of its own', add], delete: ['Delete this stance (not the main one)', del] }))),
-    i ? h('div', { cls: 'row', tip: `The input that switches to ${names[i]} in a fight (→ = toward the opponent)` }, h('span', {}, ...rich(':keyboard: key')), h('span', { cls: 'bar' },
-      seg(Object.keys(STANCE_KEYS), () => stanceKey(DEFS[CURRENT].stances?.[i - 1]?.key), v => edit(def => { def.stances[i - 1].key = v; }), keyTips, k => STANCE_KEYS[k]),
+    h('div', { cls: 'row', tip: i ? `The input that switches to ${names[i]} in a fight (→ = toward the opponent)` : `${names[i]} hovers instead of falling: ↑ / ↓ fly up / down, gravity and the ground are suspended while in it` },
+      h('span', {}, ...rich(i ? ':keyboard: key' : ':air: fly')), h('span', { cls: 'bar' },
+      i ? seg(Object.keys(STANCE_KEYS), () => stanceKey(own()?.key), v => edit(def => { ref(def).key = v; }), keyTips, k => STANCE_KEYS[k]) : null,
       toggle(':air: fly', `${names[i]} hovers instead of falling: ↑ / ↓ fly up / down, gravity and the ground are suspended while in it`,
-        () => !!DEFS[CURRENT].stances?.[i - 1]?.fly, v => edit(def => { if (v) def.stances[i - 1].fly = true; else delete def.stances[i - 1].fly; })))) : null,
-    i ? h('div', { cls: 'row', tip: `The body in ${names[i]}: the same as main, or changed for this stance only` }, h('span', { textContent: 'body' }), h('span', { cls: 'bar' },
-      toggle(':accessibility_new: this stance only', `This stance only: bone edits (length, thickness, shape, effects…, new limbs, delete = hide), size, stats, walk and combo links go to ${names[i]}'s own body, not the character's. Off: they change the character in every stance`,
+        () => !!own()?.fly, v => edit(def => { if (v) ref(def).fly = true; else { delete ref(def).fly; if (!i) pruneMain(def); } })))),
+    h('div', { cls: 'row', tip: `The body in ${names[i]}: the same as ${i ? 'main' : 'the character as authored'}, or changed for this stance only` }, h('span', { textContent: 'body' }), h('span', { cls: 'bar' },
+      toggle(':accessibility_new: this stance only', `This stance only: bone edits (length, thickness, shape, effects…, new limbs, delete = hide), size, stats, walk and combo links go to ${names[i]}'s own body, not every stance's. Off: they change the character in every stance`,
         () => studio.own, v => { studio.own = v; panels(); }),
-      button(':history: revert body', `Throw away ${names[i]}'s own body: back to the main body (undoable)`, () => edit(def => { delete def.stances[i - 1].body; }), 'mini'))) : null,
-    i && studio.own ? slider('size', { min: 0.5, max: 2, step: 0.05 }, () => stanceBody()?.scale ?? 1,
+      button(':history: revert body', `Throw away ${names[i]}'s own body: back to ${i ? 'the main body' : 'the character as authored'} (undoable)`,
+        () => edit(def => { delete ref(def).body; if (!i) pruneMain(def); }), 'mini'))),
+    studio.own ? slider('size', { min: 0.5, max: 2, step: 0.05 }, () => stanceBody()?.scale ?? 1,
       v => edit(def => { if (v === 1) delete editBody(def).scale; else editBody(def).scale = v; }, 'stance scale'),
       `Size of the whole body in ${names[i]}: × every bone's length, thickness and hurtbox`) : null,
-    ...i ? stanceReq(i, names[i]) : [], ...i ? stanceMorph(i, names[i]) : []];
+    ...stanceReq(i, names[i]), ...i ? stanceMorph(i, names[i]) : []];
 }
 // a stance's switch transition (def.stances[i - 1].morph over MORPH): springs, an auto blend over T frames, or a transition move
 function stanceMorph(i, name) {
@@ -364,25 +371,30 @@ function stanceMorph(i, name) {
       button(':add: new transition move', `Make ${inName()} (half way between the poses, then into ${name}) and open it in animate`, () => make(inName(), 0, i), 'mini'),
       button(':add: back', `Make ${outName}, played going back to main, and open it in animate`, () => make(outName, i, 0), 'mini'))), 'move')];
 }
-// a stance's requirements and limits (def.stances[i - 1].req; only what differs from STANCE_REQ is stored)
+// a stance's requirements and limits (def.stances[i - 1].req for a stance, def.main.req for main; only what differs
+// from STANCE_REQ is stored). maxT, exit on and auto need somewhere to send it other than itself, so main skips them
 function stanceReq(i, name) {
-  const req = k => ({ ...STANCE_REQ, ...DEFS[CURRENT].stances[i - 1].req })[k];
+  const own = i ? () => DEFS[CURRENT].stances[i - 1] : () => DEFS[CURRENT].main;
+  const req = k => ({ ...STANCE_REQ, ...own()?.req })[k];
   const set = (vals, key = null) => edit(def => {
-    const st = def.stances[i - 1], r = { ...st.req, ...vals };
+    const st = i ? def.stances[i - 1] : (def.main ??= {}), r = { ...st.req, ...vals };
     for (const k in r) if (JSON.stringify(r[k]) === JSON.stringify(STANCE_REQ[k])) delete r[k];
     if (Object.keys(r).length) st.req = r; else delete st.req;
+    if (!i) pruneMain(def);
   }, key);
   const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', {}, ...rich(label)), h('span', { cls: 'bar' }, ...c));
   const sl = (k, label, max, step, tip) => slider(label, { min: 0, max, step }, () => req(k), v => set({ [k]: v }, 'req:' + k), tip);
   const where = () => req('grounded') && req('air') ? 'both' : req('air') ? 'air' : 'ground';
   const EXITS = { hit: 'Hit (a blow that lands)', knockdown: 'Knocked down', block: 'Blocking a blow', grab: 'Grabbed by a throw' };
+  const moveOpts = i ? ['all', 'own', 'list'] : ['all', 'list']; // main has no separate "own" binds layer to fall back to
   const moves = () => Array.isArray(req('moves')) ? 'list' : req('moves');
   const pick = (e, b) => popup(b, h('b', { textContent: `moves allowed in ${name}` }), h('div', { cls: 'bar' }, Object.keys(currentChar().moves).map(n =>
     toggle(n, `Allow ${n} in ${name} (its binds that play other moves are dropped)`, () => req('moves').includes?.(n),
       on => set({ moves: on ? [...req('moves'), n] : req('moves').filter(x => x !== n) })))));
   const listBtn = button(':tune: moves', `Pick the moves ${name} allows`, pick, 'mini');
   reg(listBtn, () => { listBtn.hidden = moves() !== 'list'; if (moves() === 'list') setRich(listBtn, `:tune: ${req('moves').length} moves`); });
-  const title = h('h4', { tip: `When ${name} can be switched to, how long it lasts and what sends it back to main. Unset: as today (on the ground, any time)` }, ...rich(':gavel: requirements'));
+  const title = h('h4', { tip: i ? `When ${name} can be switched to, how long it lasts and what sends it back to main. Unset: as today (on the ground, any time)`
+    : `When ${name} can be switched back into, and how long before it can be left again. Unset: as today (any time, any health)` }, ...rich(':gavel: requirements'));
   return [title,
     row(':my_location: where', `Where ${name} can be switched to`, seg(['ground', 'air', 'both'], where, v => set({ grounded: v !== 'air', air: v !== 'ground' }),
       { ground: 'Only standing on the floor (the default)', air: 'Only in the air', both: 'On the floor or in the air' }, v => optLabel(v === 'ground' ? 'stand' : v))),
@@ -390,13 +402,14 @@ function stanceReq(i, name) {
     sl('hpAbove', 'hp above', 1, 0.05, `Only with at least this much health left (0 = any)`),
     sl('cooldown', 'cooldown', 10, 0.1, `Seconds after leaving ${name} before it can be taken again (0 = straight away)`),
     sl('minT', 'min time', 5, 0.1, `Seconds in ${name} before it can be left (0 = any time)`),
-    sl('maxT', 'max time', 20, 0.1, `Seconds in ${name}, then back to main on its own (0 = no limit)`),
-    row('exit on', `What sends ${name} back to main`, ...Object.entries(EXITS).map(([k, tip]) =>
-      toggle(k, `${tip}: back to main`, () => req('exitOn').includes(k), on => set({ exitOn: on ? [...req('exitOn'), k] : req('exitOn').filter(x => x !== k) })))),
+    ...i ? [sl('maxT', 'max time', 20, 0.1, `Seconds in ${name}, then back to main on its own (0 = no limit)`),
+      row('exit on', `What sends ${name} back to main`, ...Object.entries(EXITS).map(([k, tip]) =>
+        toggle(k, `${tip}: back to main`, () => req('exitOn').includes(k), on => set({ exitOn: on ? [...req('exitOn'), k] : req('exitOn').filter(x => x !== k) }))))] : [],
     row('once', `How often ${name} can be taken`, toggle(':timer: once a round', `${name} can be taken once a round`, () => req('once'), v => set({ once: v })),
-      toggle(':smart_toy: auto', `No key needed: ${name} is taken the moment the requirements above hold, and left the moment they stop holding`, () => req('auto'), v => set({ auto: v }))),
-    row('moves', `The moves ${name} plays`, seg(['all', 'own', 'list'], moves, v => set({ moves: v === 'list' ? [] : v }),
-      { all: `${name}'s binds over the main ones (the default)`, own: `Only ${name}'s own binds: inputs it doesn't bind play nothing`, list: `Only the moves picked: binds playing other moves are dropped` }),
+      ...i ? [toggle(':smart_toy: auto', `No key needed: ${name} is taken the moment the requirements above hold, and left the moment they stop holding`, () => req('auto'), v => set({ auto: v }))] : []),
+    row('moves', `The moves ${name} plays`, seg(moveOpts, moves, v => set({ moves: v === 'list' ? [] : v }),
+      { all: i ? `${name}'s binds over the main ones (the default)` : 'The usual binds (the default)', own: `Only ${name}'s own binds: inputs it doesn't bind play nothing`,
+        list: `Only the moves picked: binds playing other moves are dropped` }),
       listBtn)];
 }
 // the generator's variables; the random characters experiment shows nine of them

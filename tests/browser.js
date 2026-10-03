@@ -258,7 +258,13 @@ try {
     const rq = JSON.stringify(DEFS.stick.stances[0].req), on = CHARS.stick.stances[1].req;
     btn('Only standing').click(); btn('Hit (a blow').click();
     if (rq !== '{"grounded":false,"air":true,"exitOn":["hit"]}' || !on.air || DEFS.stick.stances[0].req) errs.push('stance req ' + rq + JSON.stringify(DEFS.stick.stances[0].req));
-    studio.stance = 0; panels(); if (own()) errs.push('stance only toggle on main');
+    // main is a stance too: it gets the same "this stance only" toggle, but its own body bakes into the character itself (no separate variant)
+    studio.stance = 0; panels(); if (!own()) errs.push('no stance only toggle on main');
+    setProp('len', 25);
+    const mainBody = DEFS.stick.main?.body;
+    if (!studio.own || mainBody?.bones?.uarmF?.len !== 25 || CHARS.stick.by.uarmF.len !== 25 || CHARS.stick.base
+      || viewChar().by.uarmF.len !== 25 || edFrame().ch.by.uarmF.len !== 25 || creator.w.a.ch.by.uarmF.len !== 25) errs.push('main stance only len ' + JSON.stringify(mainBody));
+    undo(); if (DEFS.stick.main) errs.push('main stance only undo');
     studio.own = false;
     // transition: move mode shows the move row; new transition move makes <main>To<Stance> and opens it in animate
     studio.stance = 1; panels(); const nm = morphName('main', curStance().name);

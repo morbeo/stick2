@@ -155,3 +155,47 @@ test('a transition move plays on the switch, back to main too, or the one the st
   assert.deepEqual(go({ mode: 'move', move: 'grow' }, sg), { seen: ['a:grow', 'a:bigToMain'], st: 0 });
   assert.deepEqual(go({ mode: 'springs' }, sg), { seen: [], st: 0 });
 });
+
+// ---------- main is a stance too (def.main: req / body / fly over its stance 0) ----------
+// the stick with def.main set, plus a second stance "big" so main's own body can be seen cascading into it
+run(`var mained = (main, body) => { const d = JSON.parse(JSON.stringify(CHAR_DEFS.stick)); d.main = main;
+  d.stances = [{ name: 'big', key: 'S+G', pose: {}, binds: {}, ...(body ? { body } : {}) }]; return makeCharacter(d); };`);
+const M = (main, body) => `mained(${JSON.stringify(main)}, ${JSON.stringify(body)})`;
+
+test('an unset def.main compiles exactly like today: same stances[0], main: true on it', () => {
+  const r = R(`(() => { const a = makeCharacter(CHAR_DEFS.stick), b = ${M(undefined)}; return { a: a.stances[0], b: b.stances[0] }; })()`);
+  assert.deepEqual(r.a, r.b);
+  assert.equal(r.a.main, true);
+});
+
+test("def.main.body becomes the character's own body; another stance's body still varies from it", () => {
+  const body = { bones: { uarmF: { len: 30 } }, scale: 1.2 }, bigBody = { bones: { uarmB: { hidden: true } } };
+  const r = R(`(() => { const ch = ${M({ body }, bigBody)}, big = stanceChar(ch, 1);
+    return { uarmF: ch.by.uarmF.len, base: ch.base, bigUarmF: big.by.uarmF.len, bigHidden: big.by.uarmB.hidden }; })()`);
+  assert.equal(r.uarmF, 36, "main's own body is the base body (× its scale)");
+  assert.equal(r.base, undefined, 'no separate variant needed: it IS the base');
+  assert.equal(r.bigUarmF, 36, "big varies from main's body, not the character as authored");
+  assert.equal(r.bigHidden, true, 'and adds its own change on top');
+});
+
+test('a weapon held in main with its own body is sized once, not twice', () => {
+  const r = R(`(() => { const a = armed(${M({ body: { scale: 2 } })}, 'sword'), p = armed(makeCharacter(CHAR_DEFS.stick), 'sword');
+    return { weapon: a.by.weapon.len, pWeapon: p.by.weapon.len, shin: a.by.shinF.len, pShin: p.by.shinF.len }; })()`);
+  assert.ok(Math.abs(r.weapon - r.pWeapon) < 1e-9, 'the weapon itself does not inherit the body scale, either way');
+  assert.equal(r.shin, r.pShin * 2, 'but the body is scaled exactly once');
+});
+
+test('def.main.req gates a switch back into main (where, hp, cooldown); maxT / exitOn / auto are not offered to main', () => {
+  const r = R(`(() => { const ch = ${M({ req: { hpAbove: 0.5 } })}, w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 400, period: 9 }, {}, 7, [ch, CHARS.stick]), f = w.a;
+    f.setStance(1); const hurt0 = f.stanceOk(0); f.hp = f.c('health') * 0.4; const hurt = f.stanceOk(0); f.hp = f.c('health'); const healed = f.stanceOk(0);
+    return { hurt0, hurt, healed }; })()`);
+  assert.deepEqual(r, { hurt0: true, hurt: false, healed: true });
+});
+
+test('def.main.fly makes main itself hover', () => {
+  const r = R(`(() => { const ch = ${M({ fly: true })}, w = new World({ a: 'human', b: 'dummy', ax: 300, bx: 400, period: 9 }, {}, 7, [ch, CHARS.stick]), f = w.a;
+    for (let i = 0; i < 20; i++) w.advance(1 / 60, { ...NOIN, up: true });
+    return { y: f.y, grounded: f.grounded }; })()`);
+  assert.ok(r.y < -10, `rose while flying up: ${r.y}`);
+  assert.equal(r.grounded, false);
+});
