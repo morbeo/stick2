@@ -71,6 +71,17 @@ test('hud, labels and timer off draw less, leave the fight as it was, and stay o
   assert.ok(r.skip.includes('hud') && r.skip.includes('labels') && r.skip.includes('timer'));
 });
 
+test('hudPos "top" draws the health bars at the top instead of over each fighter\'s head, without changing the fight', () => {
+  const r = JSON.parse(run(`(() => { const run = cfg => { const w = new World(SCENARIOS['you vs ai'], cfg, 7), { ctx, st } = stubCtx(); w.loop = false;
+      for (let i = 0; i < 60; i++) { w.advance(1/60, { ...NOIN, punch: i % 20 === 0 }); w.render(ctx, { x: 0, y: 0, w: 800, h: 450 }, true); }
+      return { calls: st.calls, bad: st.bad, hash: w.stateHash() }; };
+    const body = run({}), top = run({ hudPos: 'top' });
+    return JSON.stringify({ body, top }); })()`));
+  assert.deepEqual(r.body.bad, []); assert.deepEqual(r.top.bad, []);
+  assert.equal(r.top.hash, r.body.hash, 'only where the bars draw changes, not the fight');
+  assert.notEqual(r.top.calls, r.body.calls, 'a different number of draw calls: the bars moved, not duplicated');
+});
+
 test('the timer draws an elapsed mm:ss clock that counts up from the round\'s start, and resets when the round restarts', () => {
   const r = JSON.parse(run(`JSON.stringify((() => { const w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 500 }, { timer: true }, 7); w.loop = false;
     for (let i = 0; i < 125; i++) w.advance(1/60, NOIN); // just past 2s

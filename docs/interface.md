@@ -73,7 +73,7 @@ The **show** group in the toolbar holds the overlays, always in this order; each
 | boxes | the hitboxes and hurtboxes (setting `boxes`) |
 | ghost | the keyframe pose as a ghost (setting `ghost`) |
 | colours | bones coloured by role, in the editors (kept per tab) |
-| hud | health and stun bars, dizzy stars, callouts and the hit counter (setting `hud`) |
+| hud | health and stun bars, dizzy stars, callouts and the hit counter (setting `hud`; `hudPos` moves the bars to the top of the screen instead of over each fighter's head) |
 | labels | each fight's label and stats line (setting `labels`) |
 | timer | an elapsed match clock (mm:ss), counting up from the round's start (setting `timer`) |
 
