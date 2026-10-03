@@ -422,7 +422,7 @@ function rpRender() {
     else if (rp.mv?.rev) ctx.drawImage(rp.mv.rev.imgs[rp.mv.rev.i].img, pv.x, pv.y, pv.w, pv.h);
     else if (rp.mv) { const sh = rp.movie.shots[rp.mv.shotI], reel = rp.reels[sh.reel], [dx, dy] = shakeOff(sh.fx?.shake);
       drawCell({ w: rp.mv.w, shot: reel && camAt(reel.rep, rp.mv.w, rp.mv.n), label: `shot ${rp.mv.shotI + 1}/${rp.movie.shots.length} · ${reel?.name || ''}` }, { ...pv, x: pv.x + dx, y: pv.y + dy }, { full: true, plot: false });
-      if (sh.fx) { ctx.save(); ctx.beginPath(); ctx.rect(pv.x, pv.y, pv.w, pv.h); ctx.clip(); ctx.translate(pv.x, pv.y); drawShotFx(ctx, pv.w, pv.h, sh.fx); ctx.restore(); } }
+      if (sh.fx) { ctx.save(); ctx.beginPath(); ctx.rect(pv.x, pv.y, pv.w, pv.h); ctx.clip(); ctx.translate(pv.x, pv.y); drawShotFx(ctx, pv.w, pv.h, sh.fx, rp.mv.n - rp.mv.a); ctx.restore(); } }
     else text(rp.movie.shots.length ? 'The movie ended.' : 'No shots yet: add one in the movie section.', pv.x + pv.w / 2, pv.y + pv.h / 2, '#888', 13, '', 'center');
     return;
   }
@@ -762,13 +762,14 @@ function drawFreeze(g, w, h, img, zoom, text) {
 // a shot's screen effects { shake, vignette, tint: { col, amt }, letterbox, caption }, drawn over its own frames (not over a
 // freeze, a transition or a reversed shot's pictures: those are their own, separate phase of the shot)
 const shakeOff = amt => amt ? [(Math.random() - 0.5) * amt * 2, (Math.random() - 0.5) * amt * 2] : [0, 0];
-function drawShotFx(g, w, h, fx) {
+// atFrame: the frame being drawn, relative to the shot's own start (0-based) — governs the caption's cue, if it has one
+function drawShotFx(g, w, h, fx, atFrame = 0) {
   if (!fx) return;
   if (fx.letterbox) { const bar = h * 0.12; g.fillStyle = '#000'; g.fillRect(0, 0, w, bar); g.fillRect(0, h - bar, w, bar); }
   if (fx.vignette) { const grad = g.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.75);
     grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,0.65)'); g.fillStyle = grad; g.fillRect(0, 0, w, h); }
   if (fx.tint?.amt) { g.fillStyle = fx.tint.col; g.globalAlpha = fx.tint.amt; g.fillRect(0, 0, w, h); g.globalAlpha = 1; }
-  if (fx.caption) drawTitle(g, fx.caption, { x: 0, y: 0, w, h });
+  if (fx.caption && (fx.capAt === undefined || (atFrame >= fx.capAt && atFrame < fx.capAt + (fx.capDur ?? 2) * 60))) drawTitle(g, fx.caption, { x: 0, y: 0, w, h });
 }
 // a new shot from this reel: the selection, else the footage in–out, else two seconds from the playhead
 function addShot() {
@@ -867,7 +868,7 @@ async function exportMovie() {
           w.render(g, r, true, { ...camAt(reel.rep, w, f), fill });
           if (o.inputs && w.ctl[0] === 'human') drawInputs(w, 10 * dpr, 30 * dpr, g);
           if (o.meter) drawMeter(w, { x: 6 * dpr, y: H2 - 24 * dpr, w: W2 - 12 * dpr, h: 18 * dpr }, true, g);
-          drawShotFx(g, W2, H2, sh.fx);
+          drawShotFx(g, W2, H2, sh.fx, f - sh.a);
           for (; next <= t1 - 1e-9; next += 1 / fps) frames.push({ c, t: next * 1000 });
           lastImg = c;
         }
@@ -952,6 +953,7 @@ function speedBtn(j) {
 function fxBtn(j) {
   const cur = () => rp.movie.shots[j].fx || { shake: 0, vignette: false, tint: { col: '#c0392b', amt: 0 }, letterbox: false, caption: '' };
   const set = vals => movieEdit(M => { const f = { ...cur(), ...vals, tint: { ...cur().tint, ...vals.tint } };
+    if (!f.caption) { delete f.capAt; delete f.capDur; }
     M.shots[j].fx = f.shake || f.vignette || f.tint.amt || f.letterbox || f.caption ? f : undefined; });
   const b = button(':auto_awesome:', 'Screen effects over this shot: shake, vignette, a colour tint, letterbox bars, a caption', (e, btn) => popup(btn, h('b', { textContent: 'effects' }),
     h('div', { cls: 'row' }, h('span', { textContent: 'shake' }), slider('px', { min: 0, max: 20, step: 1 }, () => cur().shake, v => set({ shake: v }), 'Camera jitter each frame (0 = none)')),
@@ -959,7 +961,12 @@ function fxBtn(j) {
     h('div', { cls: 'row' }, h('span', { textContent: 'tint' }), h('input', { type: 'color', value: cur().tint.col, oninput: e2 => set({ tint: { col: e2.target.value } }) }),
       slider('', { min: 0, max: 1, step: 0.05 }, () => cur().tint.amt, v => set({ tint: { amt: v } }), 'How strong the colour wash is (0 = none)')),
     h('div', { cls: 'row' }, h('span', { textContent: 'letterbox' }), toggle(':crop_landscape: on', 'Black bars top and bottom, for a cinematic look', () => cur().letterbox, v => set({ letterbox: v }))),
-    h('div', { cls: 'row' }, h('span', { textContent: 'caption' }), h('input', { cls: 'macro', value: cur().caption, oninput: e2 => set({ caption: e2.target.value }) }))), 'mini');
+    h('div', { cls: 'row' }, h('span', { textContent: 'caption' }), h('input', { cls: 'macro', value: cur().caption, oninput: e2 => set({ caption: e2.target.value }) })),
+    (() => { const r = h('div', { cls: 'row' }, h('span', { textContent: 'cue' }),
+        toggle(':timer: timed', 'Shows only for a while, instead of the whole shot', () => cur().capAt !== undefined, v => set({ capAt: v ? 0 : undefined })),
+        button(':my_location: here', 'Starts the caption at the playhead (edit this reel first)', () => set({ capAt: rp.n - rp.movie.shots[j].a }), 'mini'),
+        slider('secs', { min: 0.2, max: 5, step: 0.1 }, () => cur().capDur ?? 2, v => set({ capDur: v }), 'How long the caption shows'));
+      reg(r, () => { r.hidden = !cur().caption; }); return r; })()), 'mini');
   reg(b, () => b.classList.toggle('on', !!rp.movie.shots[j].fx));
   return b;
 }

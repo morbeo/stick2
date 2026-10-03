@@ -823,6 +823,13 @@ try {
         ui.clip = { ...clipSet(), fps: 30, aspect: 'view' }; rp.movie.shots = camShots; panels(); await exportMovie(); saveClip = sc;
         if (!got || !got.length) errs.push('camera export ' + (got && got.length));
         reel.rep.footage.spans.length = 0; }); }
+    // a caption's cue: shows only within its window when timed, always when not
+    { let calls = 0; const orig = drawTitle; drawTitle = () => { calls++; };
+      drawShotFx({}, 100, 100, { caption: 'HI', capAt: 0, capDur: 1 / 60 }, 0); const inCue = calls; calls = 0;
+      drawShotFx({}, 100, 100, { caption: 'HI', capAt: 0, capDur: 1 / 60 }, 59); const outCue = calls; calls = 0;
+      drawShotFx({}, 100, 100, { caption: 'HI' }, 9999); const always = calls;
+      drawTitle = orig;
+      if (inCue !== 1 || outCue !== 0 || always !== 1) errs.push('caption cue ' + [inCue, outCue, always]); }
     // clips: the 1:1 aspect crops the subject to a square
     { ui.clip = { ...clipSet(), aspect: '1:1', fit: 'crop', size: 200 }; clip.key = null; clip.frames.length = 0; clip.last = 0; clipCapture(5e6, true);
       const f = clip.frames[0]?.c; if (!f || f.width !== 200 || f.height !== 200) errs.push('clip aspect ' + (f && [f.width, f.height]));
