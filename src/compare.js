@@ -27,9 +27,9 @@ function cmpFile(side, then) {
     cmp[side] = { name: name.replace(/\.json$/, ''), cfg: cfgFrom(d.cfg) }; then?.();
   });
 }
-// compare… in the import menu and ⌘K: the current settings against a file, over the play tab (or grid)
+// compare… in the import menu and ⌘K: the current settings against a file, over the grid tab (play has no compare panel)
 function compareFile() { cmpFile('b', () => { cmp.a = { name: 'current' }; openCompare(); }); }
-function openCompare() { if (mode() !== labMode || lab.mode === 'gallery') setMode('play'); openStage('compare'); }
+function openCompare() { if (mode() !== labMode || lab.mode === 'play' || lab.mode === 'gallery') setMode('grid'); openStage('compare'); }
 // the A or B button: the current settings, a preset or a file; the grid's compare cells follow
 function cmpSource(side) {
   const S = side.toUpperCase(), set = s => { cmp[side] = s; if (lab.mode === 'grid' && lab.kind === 'compare') build(); panels(); };

@@ -87,7 +87,7 @@ function buildTop() {
       button(':history:', 'Edit the play fight in the replay tab: its events on a timeline and in a table', reelFromPlay)),
     grp('', 'Files: the character, the settings or everything, as JSON', button(':download: export :expand_more:', 'Export to a file: the character, the settings or everything', fileMenu('export', exportFile)),
       button(':upload: import :expand_more:', 'Import from a file: a character, settings or everything', fileMenu('import', importFile,
-        button('compare…', 'Compare settings: the current ones against a settings or everything file, setting by setting (play tab)', compareFile)))),
+        button('compare…', 'Compare settings: the current ones against a settings or everything file, setting by setting (grid tab)', compareFile)))),
     grp('', 'Layout and keys', button(':search:', 'Find anything (⌘K): a mode, a toolbar tool, an action, a table (moves, inputs, combos, bones), a character, a move or a setting', openPalette),
       button(':view_sidebar:', 'Panel: show / hide the side panel (remembered per tab)' + keyTip('panel'), togglePanel),
       button(':view_module:', LAY_TIP, layoutPanel),
