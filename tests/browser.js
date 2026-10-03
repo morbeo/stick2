@@ -349,14 +349,14 @@ try {
     if (lay('play').fold['impact:presets'] !== true || lay('animate').fold['gallery:power'] !== true || ui.fold) errs.push('layout migration'); layReset(); });
   // visibility: toolbar groups and side sections hide per tab (popup, heading ×, ⌘K); the overlays sit in one order, meter / inputs / colours kept per tab
   { setMode('play'); const part = (k, p) => $(k).querySelector('[data-part="' + p + '"]');
-    layShow('ctx:fight', false); if (part('ctx', 'fight') || !app.parts.ctx.includes('fight')) errs.push('hide toolbar group');
-    setMode('impact'); if (part('ctx', 'fight')) errs.push('hidden group is per tab, not per view'); if (lay('grid').hide['ctx:fight']) errs.push('hidden group on another tab'); setMode('play');
+    layShow('ctx:scenario', false); if (part('ctx', 'scenario') || !app.parts.ctx.includes('scenario')) errs.push('hide toolbar group');
+    setMode('impact'); if (part('ctx', 'scenario')) errs.push('hidden group is per tab, not per view'); if (lay('grid').hide['ctx:scenario']) errs.push('hidden group on another tab'); setMode('play');
     const sec = app.parts.side[0]; $('side').querySelector('.fold h3 .hidebtn').click();
     if ([...$('side').querySelectorAll('.fold')].some(f => f.fname === sec) || layShown('side:' + sec)) errs.push('heading hides its section');
     layoutPanel(null, $('global').querySelector('button[data-tip^="Layout:"]'));
     const tg = t => [...pop.querySelectorAll('button')].find(b => b.textContent.trim() === t);
-    tg(sec).click(); tg('fight').click(); if (!layShown('side:' + sec) || !part('ctx', 'fight')) errs.push('layout popup shows parts again'); closePop();
-    paletteEntries().find(e => e.name === 'hide toolbar group: fight')?.run(); if (part('ctx', 'fight')) errs.push('hide in ⌘K'); layShow('ctx:fight', true);
+    tg(sec).click(); tg('scenario').click(); if (!layShown('side:' + sec) || !part('ctx', 'scenario')) errs.push('layout popup shows parts again'); closePop();
+    paletteEntries().find(e => e.name === 'hide toolbar group: scenario')?.run(); if (part('ctx', 'scenario')) errs.push('hide in ⌘K'); layShow('ctx:scenario', true);
     const tips = [...part('ctx', 'show').querySelectorAll('button')].map(b => b.dataset.tip.split(/[ :]/)[0]).join();
     if (tips !== 'Frame,Input,Boxes,Ghost,Hud,Labels') errs.push('show order ' + tips);
     lab.meter = true; setMode('grid'); if (lab.meter) errs.push('meter per tab'); setMode('play');

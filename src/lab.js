@@ -524,7 +524,7 @@ function labCtx() {
   if (lab.mode === 'play' && lab.branch) els.push(grp('branch', `A branch of the replay "${lab.branch.reel.name}" from ${lab.branch.n} frames in: you play P${lab.branch.side}`,
     button(':history: keep', 'Keep this branch: back to the replay tab, compared with its reel', keepBranch), button(':close: drop', 'Drop the branch: back to the normal fight', dropBranch)));
   if (lab.mode === 'grid') els.push(grp('grid', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
-  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('fight', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = lab.branch = null; build(); panels(); })));
+  if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('scenario', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = lab.branch = null; build(); panels(); })));
   if (lab.mode === 'play' && !SCENARIOS[lab.scen]?.user) els.push(grp('fighters', 'Who fights: P1 (you), P2 and any extra fighters of the scenario, each any character; unset = the one being edited (P3 on: as P2)',
     fighterPick(0), shieldButton(0), swapFighters(), fighterPick(1), shieldButton(1), Array.from({ length: fighterCount(SCENARIOS[lab.scen]) - 2 }, (_, i) => [fighterPick(i + 2), shieldButton(i + 2)])));
   if (lab.mode === 'play' && SCENARIOS[lab.scen]?.waves) els.push(grp('waves', SPEC.waves.tip + ' Changing it starts over at wave 1',
