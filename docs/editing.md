@@ -81,11 +81,11 @@ The **shadow** section (character tab, under walk & idle) sets the shadow drawn 
 A stance can have its own body. Pick the stance under the stance pose and switch on **this stance only**:
 
 - Bone edits (length, thickness, shape, effects, the other properties), new limbs and bones, stats, walk & idle and combo links then change that stance only. Off, they change the character in every stance.
-- **Del** hides a bone in the stance (with everything below it): it isn't drawn, has no hurtbox and doesn't walk. The **hidden** toggle shows it again.
+- **Del** hides a bone in the stance (with everything below it): it isn't drawn, has no hurtbox and doesn't walk. The bone panel's **alpha** slider shows it again (drag it up from 0) — alpha also works outside stance editing, and between 0 and 1 the bone draws translucent but stays solid.
 - **size** scales the whole body in the stance: every length, thickness and hurtbox.
 - Health stays the character's. **revert body** throws the stance's body away.
 - The editor and the preview show the stance picked. In a fight the switch keeps the running move; new bones grow in.
-- In the character JSON: `stances[i].body = { bones: { id: { len, … , hidden } }, add: [bones], scale, stats, gait, chains: { move: next } }`. Only what differs is stored.
+- In the character JSON: `stances[i].body = { bones: { id: { len, … , alpha } }, add: [bones], scale, stats, gait, chains: { move: next } }`. Only what differs is stored.
 - **Main** (stance 0) can have a body of its own too, the same way: it becomes the character's actual body, and every other stance still varies from it as usual. In the JSON: `main.body`.
 
 ### Stance requirements

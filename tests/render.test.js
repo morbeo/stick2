@@ -141,3 +141,14 @@ test('shadow: the default draws today\'s oval, every shape draws, none draws not
   assert.ok(r.plain, 'characters without a shadow get the default');
   assert.ok(r.same, 'a body shadow leaves the fight as it was'); assert.deepEqual(r.bad, []);
 });
+
+test('a bone\'s alpha draws it translucent (globalAlpha), draws nothing extra at 0 (already excluded), and never NaNs', () => {
+  const r = JSON.parse(run(`(() => { const def = JSON.parse(JSON.stringify(CHAR_DEFS.stick));
+    def.bones = def.bones.map(b => b.id === 'uarmF' ? { ...b, alpha: 0.4 } : b);
+    const ch = makeCharacter(def), P = fk(ch, ch.poses.stance, 1), { ctx, st } = stubCtx(); ctx.globalAlpha = 1;
+    const seen = []; const g = ctx.stroke; ctx.stroke = (...a) => { seen.push(ctx.globalAlpha); return g(...a); };
+    drawFigure(ctx, ch, P, '#000', '#000');
+    return JSON.stringify({ seen, bad: st.bad, calls: st.calls }); })()`));
+  assert.ok(r.seen.some(a => Math.abs(a - 0.4) < 1e-9), 'the translucent bone saved globalAlpha 0.4: ' + r.seen);
+  assert.ok(r.calls > 10), assert.deepEqual(r.bad, []);
+});
