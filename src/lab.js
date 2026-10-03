@@ -565,14 +565,15 @@ function labCtx() {
   if (lab.mode === 'grid' && lab.kind !== 'attacks') els.push(grp('stats', 'How the cells are measured and ordered',
     seg([1, 3, 5], () => lab.seeds, v => { lab.seeds = v; build(); }, { 1: 'One fight per cell', 3: 'Each cell fought with 3 seeds; stats averaged (AI fights differ per seed)', 5: '5 seeds per cell, averaged' }, v => `${v} seed${v > 1 ? 's' : ''}`),
     sortButton()));
-  els.push(showGrp(['meter', ...lab.mode === 'play' ? ['inputs'] : [], 'boxes', 'ghost', 'hud', 'labels']));
+  els.push(showGrp(['meter', ...lab.mode === 'play' ? ['inputs'] : [], 'boxes', 'ghost', 'hud', 'labels', 'timer']));
   // compare settings only in grid (it drives the grid's own compare kind); play just gets its scenario builder, if it has one
   const panelNames = [...lab.mode !== 'play' ? ['compare'] : [], ...lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? ['builder'] : []];
   if (lab.mode !== 'gallery' && panelNames.length) els.push(panelsGrp(panelNames, { compare: CMP_PANEL_TIP, builder: BUILDER_TIP }));
   if (lab.mode === 'play') els.push(...trainingCtl(),
-    grp('theater', 'No toolbars, no side panel, just the fight — for streaming or recording',
+    grp('theater', 'No toolbars, no side panel, just the fight — for streaming or recording. Set what still shows (health bars, frame meter, timer, labels) before switching it on: the toolbar goes away with everything else',
       toggle(':crop_landscape: theater', 'Theater mode: no toolbars, no side panel, just the fight, and tries for fullscreen' + keyTip('theater') + ' (Esc, or the key again, leaves it)',
-        () => app.theater, setTheater)));
+        () => app.theater, setTheater),
+      SHOW.hud(), SHOW.meter(), SHOW.timer(), SHOW.labels()));
   return els;
 }
 
@@ -620,7 +621,7 @@ function configPanel() {
       onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { e.target.value = lab.q = ''; filter(); } } }));
   filter();
   const first = rows.findIndex((r, i) => i && r.head);
-  return [search, heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes, hud, labels) stay.', ''),
+  return [search, heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes, hud, labels, timer) stay.', ''),
     h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(optLabel(n), PRESET_TIPS[n], () => applyPreset(n))),
       button(':restart_alt: reset', 'All settings back to their defaults (same as juicy); the view settings stay, ⌘Z undoes', () => applyPreset('juicy'))),
     heading('Power', 'How hard blows land and how far bodies fly and bounce (off the floor, the walls and the ceiling). Only those settings change.', ''),
@@ -669,7 +670,7 @@ function debugPanel(e, b) {
     (() => { const r = h('div', { cls: 'row', tip: SPEC.scope.tip }, h('span', { textContent: 'bone' }), h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v), Object.fromEntries(currentChar().ids.map(id => [id, `Plot the angle of ${id}`])))));
       reg(r, () => { r.hidden = CFG.scopeKind !== 'angle'; }); return r; })(),
     dbgInfo, h('div', { cls: 'bar' }, button(':bug_report: report a bug', 'Shows the report (build, settings changed from default, the shown fight), to copy and paste into a new GitHub issue', (e, b) => reportBug(b), 'bugbtn'),
-      button(':restart_alt: reset settings', 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels) stay (⌘Z undoes)', () => { applyPreset('juicy'); mode().restart(); }),
+      button(':restart_alt: reset settings', 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels, timer) stay (⌘Z undoes)', () => { applyPreset('juicy'); mode().restart(); }),
       button(':delete: factory reset', 'Delete all local data: edited characters, settings, keys and macros, layout; then reload as new (asks first)', () => factoryReset())),
     h('p', { cls: 'note', textContent: 'monitor: scopeKind plotted over the shown or focused fight (angle: grey target vs red drawn · health / stun: P1 grey vs P2 red · speed: P1\'s vx), with its stats' }), scopeCv, stats);
   pop.classList.add('dbgpop'); dbgT = 0; drawDebug();

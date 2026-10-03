@@ -358,7 +358,7 @@ try {
     tg(sec).click(); tg('scenario').click(); if (!layShown('side:' + sec) || !part('ctx', 'scenario')) errs.push('layout popup shows parts again'); closePop();
     paletteEntries().find(e => e.name === 'hide toolbar group: scenario')?.run(); if (part('ctx', 'scenario')) errs.push('hide in ⌘K'); layShow('ctx:scenario', true);
     const tips = [...part('ctx', 'show').querySelectorAll('button')].map(b => b.dataset.tip.split(/[ :]/)[0]).join();
-    if (tips !== 'Frame,Input,Boxes,Ghost,Hud,Labels') errs.push('show order ' + tips);
+    if (tips !== 'Frame,Input,Boxes,Ghost,Hud,Labels,Timer') errs.push('show order ' + tips);
     lab.meter = true; setMode('grid'); if (lab.meter) errs.push('meter per tab'); setMode('play');
     if (!lab.meter || !JSON.parse(localStorage.getItem('stick2.layouts')).sets.default.tabs.play.show.meter) errs.push('meter saved');
     setDisplay('hud', false); setDisplay('labels', false); labRender(); setDisplay('hud', true); setDisplay('labels', true);

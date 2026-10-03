@@ -75,6 +75,7 @@ The **show** group in the toolbar holds the overlays, always in this order; each
 | colours | bones coloured by role, in the editors (kept per tab) |
 | hud | health and stun bars, dizzy stars, callouts and the hit counter (setting `hud`) |
 | labels | each fight's label and stats line (setting `labels`) |
+| timer | an elapsed match clock (mm:ss), counting up from the round's start (setting `timer`) |
 
 **Sizes**, kept per tab too:
 

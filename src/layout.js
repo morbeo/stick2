@@ -66,6 +66,7 @@ const SHOW = {
   colours: () => colorsToggle(),
   hud: () => cfgShow(':heart_broken:', 'hud'),
   labels: () => cfgShow(':sort_by_alpha:', 'labels'),
+  timer: () => cfgShow(':timer:', 'timer'),
 };
 function showGrp(keys, ...extra) {
   app.shows = Object.keys(SHOW).filter(k => keys.includes(k));

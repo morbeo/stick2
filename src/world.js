@@ -595,12 +595,17 @@ class World {
       ctx.save(); ctx.fillStyle = '#8a8580'; ctx.textAlign = 'center'; ctx.font = `bold ${Math.round(r.h / 28)}px ui-monospace, Menlo, monospace`;
       ctx.fillText(`${head} down`, r.x + r.w / 2, r.y + r.h / 14); ctx.restore();
     }
+    if (cfg.timer) { // an elapsed match clock, counting up from the round's start (mm:ss), corner so it never collides with the wave/survival readout
+      const t = Math.floor(this.simT);
+      ctx.save(); ctx.fillStyle = '#8a8580'; ctx.textAlign = 'right'; ctx.font = `bold ${Math.round(r.h / 28)}px ui-monospace, Menlo, monospace`;
+      ctx.fillText(`${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`, r.x + r.w - r.h / 28, r.y + r.h / 14); ctx.restore();
+    }
   }
 }
 
 // ---------- replay files: the fight's inputs (not its results), pinned to ENGINE_VERSION ----------
 // everything the simulation reads goes in: scenario, seed, every setting, the characters' definitions; sums = checkpoint checksums
-const REPLAY_FORMAT = 'stick2-replay', REPLAY_SKIP = ['boxes', 'hud', 'labels']; // display settings stay live
+const REPLAY_FORMAT = 'stick2-replay', REPLAY_SKIP = ['boxes', 'hud', 'labels', 'timer']; // display settings stay live
 function makeReplay(w, name) {
   const keys = Object.keys(NOIN);
   return { format: REPLAY_FORMAT, version: ENGINE_VERSION, scenario: name, scen: JSON.parse(JSON.stringify(w.scen)), seed: w.seed,
