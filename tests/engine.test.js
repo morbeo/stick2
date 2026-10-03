@@ -499,6 +499,14 @@ test('holding P+G charges a weapon throw: it flies farther and hits harder', () 
   assert.ok(held.dmg > tap.dmg && tap.dmg > 0, `${held.dmg} vs ${tap.dmg}`);
 });
 
+test('inputLeniency: guard a couple of frames ahead of P still throws, not just the exact same frame; too far ahead, or long let go, it does not', () => {
+  const held = seq => JSON.parse(run(`(() => { const w = new World({ a: ${JSON.stringify(seq)}, b: 'dummy', ax: 330, bx: 372 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    let held = false; for (let i = 0; i < 60; i++) { w.advance(1/60, NOIN); held ||= !!w.b.heldBy; } return JSON.stringify({ held }); })()`));
+  assert.ok(held(['guard', 1 / 60, 'punch']).held, 'guard, then punch a frame later: still a throw');
+  assert.ok(!held([{ hold: 'guard', t: 0.6 }, 'punch']).held, 'guard let go well before the punch: no throw (not a negative edge)');
+  assert.ok(!held(['guard', 0.5, 'punch']).held, 'guard pressed, then let go, half a second before the punch: too far, no throw');
+});
+
 test('rolls (G held + → / ←) pass through the foe untouched; teleport (↓↓ S) lands behind it; each has a switch; the motion scheme', () => {
   const go = (a, cfg = {}, b = "'dummy'") => run(`(() => { const w = new World({ a: ${a}, b: ${b}, ax: 300, bx: 380, cfg: ${JSON.stringify(cfg)} }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
     const seen = new Set(), hp = w.a.hp;

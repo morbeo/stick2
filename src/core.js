@@ -79,6 +79,7 @@ const SCHEMA = [
   { k: 'otg', v: 'flagged', opts: ['off', 'flagged', 'all'], tip: 'Off the ground: which moves can hit a fighter lying on the floor (it pops up).',
     optTips: { off: 'Nothing hits a downed fighter.', flagged: 'Only moves marked otg (stomp).', all: 'Every move.' } },
   { k: 'motionWindow', v: 0.3, min: 0.1, max: 0.8, step: 0.05, tip: 'How long (s) the directions of a special motion (↓↘→ …) stay valid.' },
+  { k: 'inputLeniency', v: 0.05, min: 0, max: 0.2, step: 0.01, tip: 'How long (s) guard held or freshly pressed still counts, so P+G throws (K+G, S+G) do not need guard on the exact same frame as the button. 0.05 = 3 frames; 0 = the exact same frame.' },
   ['Guard & damage', 'Hold guard to block attacks from the front, never from behind. Standing guard stops high, special high, mid and special mid; crouching guard stops low and special mid; highs pass over a crouching fighter; unblockable frames go through. Tap guard just before a hit to parry it. Every hit costs health; at 0 the fighter is knocked out and the round restarts.',
     'L guard · ↓+L low guard · tap L: parry · U special'],
   { k: 'health', v: 100, min: 0, max: 300, step: 10, tip: 'Health of every fighter. 0 = endless (training).' },

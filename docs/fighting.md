@@ -141,6 +141,7 @@ Hit stop, shake and zoom that grow with each combo hit; attacks, or the whole ga
 - The victim is held for **techWindow**. The pair isn't pushed apart while held, so neither slides.
 - **Break:** the victim presses P+G in time to break free (BREAK). Otherwise it's thrown down.
 - Any move can be a custom throw: in animate, the move panel's **throw** row picks which of the character's moves the thrower plays (**new toss move** makes one, starting from the built-in toss, and opens it). A throw move needs no active keys of its own. Bind it to any input, same as a strike.
+- **inputLeniency** setting: guard doesn't need to land on the exact same frame as the button — held, or pressed up to this long before it, still throws (S+G likewise, for taunt and stance switches). 0 is the exact same frame, as before.
 
 ### Catch
 
