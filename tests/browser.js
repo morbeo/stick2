@@ -487,6 +487,15 @@ try {
     if (u().props[0].type !== 'spring' || w().props[0].type !== 'spring') errs.push('builder prop type ' + u().props[0].type);
     const px = propRow().querySelector('input[type="range"]'); px.value = 200; px.dispatchEvent(new Event('input'));
     if (u().props[0].x !== 200) errs.push('builder prop x ' + u().props[0].x);
+    // drag-to-reposition on the canvas (builderMouse): dragging the prop, then P1, updates their x like the slider does
+    labRender();
+    { const v = w().view, x0 = w().props[0].x, sx = v.ox + x0 * v.s, sy = v.oy;
+      mode().mouse('down', sx, sy, {}); mode().mouse('move', sx + 50 * v.s, sy, {}); mode().mouse('up', sx + 50 * v.s, sy, {});
+      if (Math.round(u().props[0].x) !== Math.round(x0 + 50)) errs.push('builder drag prop ' + u().props[0].x + ' vs ' + (x0 + 50)); }
+    labRender();
+    { const v = w().view, x0 = w().a.x, sx = v.ox + x0 * v.s, sy = v.oy;
+      mode().mouse('down', sx, sy, {}); mode().mouse('move', sx + 40 * v.s, sy, {}); mode().mouse('up', sx + 40 * v.s, sy, {});
+      if (Math.round(u().p[0].x) !== Math.round(x0 + 40)) errs.push('builder drag actor ' + u().p[0].x + ' vs ' + (x0 + 40)); }
     propRow().querySelector('button[data-tip="Remove this prop"]').click();
     if (u().props.length !== 0 || w().props.length !== 0) errs.push('builder remove prop ' + JSON.stringify(u().props));
     // test in grid: jumps to grid mode, sweeping settings with this scenario as the one row

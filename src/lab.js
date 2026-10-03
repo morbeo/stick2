@@ -751,6 +751,32 @@ function impactMouse(type, x, y) {
   return true;
 }
 
+// the scenario builder open over play: drag a fighter or a prop on the stage to reposition it (the x slider in the
+// builder does the same thing; this is just a quicker way). Dragged live (cheap: just the fighter/prop's x) and only
+// written back to the saved scenario (scenChanged, which rebuilds the preview) once the drag ends
+function builderMouse(type, x, y) {
+  const d = lab.drag, w = lab.cells[0]?.w;
+  if (!w?.view) return false;
+  const v = w.view, wx = clamp((x - v.ox) / v.s, 20, W - 20);
+  const near = () => { let best = null, bd = 40;
+    w.fighters.forEach((f, i) => { const dd = Math.abs(f.x - wx); if (dd < bd) { bd = dd; best = { kind: 'fighter', i }; } });
+    w.props.forEach((p, i) => { const dd = Math.abs(p.x - wx); if (dd < bd) { bd = dd; best = { kind: 'prop', i }; } });
+    return best; };
+  if (type === 'down') {
+    const hit = near();
+    if (!hit) return false;
+    lab.drag = { w, ...hit }; cursor('grabbing');
+    return true;
+  }
+  if (!d) { cursor(near() ? 'grab' : 'default'); return true; }
+  d.w[d.kind === 'fighter' ? 'fighters' : 'props'][d.i].x = wx;
+  if (type === 'up') {
+    lab.drag = null; cursor('default');
+    const u = myStore[lab.scen], list = u && (d.kind === 'fighter' ? u.p : u.props);
+    if (list?.[d.i]) { list[d.i].x = Math.round(wx); scenChanged(); }
+  }
+  return true;
+}
 const labMode = {
   enter(m) { lab.mode = m; build(); },
   restart: build,
@@ -764,6 +790,7 @@ const labMode = {
   get open() { return lab.mode === 'gallery' ? ['move', 'key'] : ['presets']; },
   mouse(type, x, y, e) {
     if (lab.mode === 'impact' && !e.shiftKey && impactMouse(type, x, y)) return;
+    if (lab.mode === 'play' && stageOpen() === 'builder' && SCENARIOS[lab.scen]?.user && builderMouse(type, x, y)) return;
     if (type === 'down') labClick(x, y, e);
     lab.hover = hitRect(labRects(), x, y);
     const tip = shown()[lab.hover]?.tip; // a cell's tip (gallery movements, impacts) shows on hover
@@ -772,7 +799,8 @@ const labMode = {
   },
   wheel(dy) { const ms = maxScroll(); if (!ms) return false; lab.scroll = clamp(lab.scroll + dy * dpr, 0, ms); return true; },
   key(e) { if (e.code === 'Escape' && lab.zoom) { lab.zoom = false; return true; } },
-  hint: () => lab.mode === 'play' ? fightHint()
+  hint: () => lab.mode === 'play' && stageOpen() === 'builder' && SCENARIOS[lab.scen]?.user ? 'drag a fighter or a prop on the stage to reposition it · ' + fightHint()
+    : lab.mode === 'play' ? fightHint()
     : lab.mode === 'impact' ? 'drag on a body: strike it there (direction and length = the blow, long = knockdown) · click a body: a medium blow · click beside: focus / back · Esc back'
     : lab.mode === 'grid' && bred() ? (lab.kind === 'attacks' ? 'click a cell: breed around it · its save / edit buttons: keep that attack · Shift+click: focus · Esc back' : 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back') : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',
 };
