@@ -182,6 +182,7 @@ The **panels** group → **table** puts every move in a table over the stage: ty
 - In a fight, its keys play (looping) from the moment the state begins, and their offsets from the ref are added to the procedural pose.
 - **mix** sets how much: 0 = off, 1 = as keyed. Back walk and turn fade in by speed, or by how far through the turn.
 - Layers group as **layer** in the move picker. Delete one to go back.
+- The stick ships with **dashLayer**, **backDashLayer** and **airDashLayer**: a single committed lunge on a dash (forward, backward, in the air) instead of a sped-up walk cycle. Every built-in fighter inherits them; override or delete one on a character to replace it with its own.
 
 ## Input table
 

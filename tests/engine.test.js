@@ -905,6 +905,23 @@ test('a keyframe\'s len stretches a bone on purpose (a Dhalsim limb): it grows t
   assert.ok(Math.abs(r.settled - r.base) < 0.5, `it eases back to its base length after: ${r.settled} vs ${r.base}`);
 });
 
+test('dash/backDash/airDash movement layers (dashLayer etc.) blend a one-off lunge on top of the procedural walk, then fade, no NaN', () => {
+  const r = JSON.parse(run(`(() => {
+    const go = setup => { const w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 700, period: 9 }, {}, 7, [CHARS.stick, CHARS.stick]), f = w.a;
+      setup(f); const waist = []; for (let i = 0; i < 20; i++) { w.advance(1/60, NOIN); waist.push(f.disp.waist); }
+      return { waist, bad: !waist.every(isFinite) }; };
+    const dash = go(f => f.doubleTap('right')), backDash = go(f => f.doubleTap('left')), airDash = go(f => { f.grounded = false; f.vy = -10; f.doubleTap('right'); });
+    const swing = a => Math.max(...a) - Math.min(...a);
+    return JSON.stringify({ dashBad: dash.bad, backDashBad: backDash.bad, airDashBad: airDash.bad,
+      dashSwing: swing(dash.waist), backDashSwing: swing(backDash.waist), airDashSwing: swing(airDash.waist),
+      dashSettled: dash.waist.at(-1), backDashSettled: backDash.waist.at(-1) }); })()`));
+  assert.ok(!r.dashBad && !r.backDashBad && !r.airDashBad, 'the pose stays finite through all three');
+  assert.ok(r.dashSwing > 15, `a forward dash visibly leans into it: swing ${r.dashSwing}`);
+  assert.ok(r.backDashSwing > 15, `a back dash visibly leans away: swing ${r.backDashSwing}`);
+  assert.ok(r.airDashSwing > 5, `an air dash visibly tucks: swing ${r.airDashSwing}`);
+  assert.ok(r.dashSettled < r.backDashSettled, 'a forward dash leans the opposite way from a back dash once both have faded');
+});
+
 test('the replay dummy plays back a recorded tape, mirrored to its own facing; a key macro presses its steps over the held keys', () => {
   const r = JSON.parse(run(`(() => {
     const rec = new World(SCENARIOS['you vs dummy'], {}, 7); rec.loop = false; rec.tape = [];

@@ -649,10 +649,27 @@ const mapHit = (h, f) => Array.isArray(h) ? h.map(f) : f(h);
 const oldMove = m => ({ ...m, hit: mapHit(m.hit, h => HITS[h] || h), keys: m.keys.map(k => ({ ...k, p: fromOld(k.p) })) });
 const mapVals = (o, f) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, f(v)]));
 // built-in definitions (plain JSON: what the creator edits, saves and reverts to); CHARS = compiled
+// movement layers (LAYERS, written in raw bone angles: a layer's ref is its own procedural-pose snapshot, which oldMove's
+// fromOld doesn't know how to reproduce) for the ground and air dashes: a single committed lunge, not a sped-up walk cycle.
+// Every built-in fighter inherits these through retimed(), which maps over the stick's own moveset
+const DASH_LAYERS = {
+  dashLayer: { ref: { waist: 166, chest: 1, neck: 2, head: 1, thighF: 25, shinF: -89, footF: 90, uarmF: -146, farmF: 109, handF: 0, thighB: -18, shinB: 0, footB: 90, uarmB: -165, farmB: 128, handB: 3 },
+    keys: [
+      { d: 0.08, e: 'outExpo', p: { waist: 148, chest: -12, thighF: 50, shinF: -60, thighB: -48, shinB: 22, uarmF: -175, farmF: 70, uarmB: -110, farmB: 150 } },
+      { d: 0.12, e: 'inOutCubic', p: null }] },
+  backDashLayer: { ref: { waist: 179, chest: 1, neck: 2, head: 1, thighF: 25, shinF: -70, footF: 90, uarmF: -146, farmF: 141, handF: 0, thighB: -18, shinB: 0, footB: 90, uarmB: -165, farmB: 160, handB: 3 },
+    keys: [
+      { d: 0.1, e: 'outExpo', p: { waist: 195, chest: 15, thighF: -10, shinF: -40, thighB: 10, shinB: -10, uarmF: -160, farmF: 100, uarmB: -150, farmB: 110 } },
+      { d: 0.12, e: 'inOutCubic', p: null }] },
+  airDashLayer: { ref: { waist: 176, chest: 0, neck: 0, head: 1, thighF: 55, shinF: -95, footF: 90, uarmF: -125, farmF: 95, handF: 0, thighB: -10, shinB: -45, footB: 90, uarmB: -140, farmB: 100, handB: 3 },
+    keys: [
+      { d: 0.08, e: 'outExpo', p: { waist: 160, chest: -15, thighF: 75, shinF: -110, thighB: -20, shinB: -60, uarmF: -160, farmF: 60, uarmB: -110, farmB: 70 } },
+      { d: 0.14, e: 'inOutCubic', p: null }] },
+};
 const CHAR_DEFS = {
   stick: { name: 'stick', bones: STICK_BONES,
     poses: mapVals({ stance: STANCE, crouch: CROUCH, air: AIR, airFall: AIR_FALL, fall: FALL, lie: LIE }, fromOld),
-    moves: mapVals(STICK_MOVES, oldMove), hurt: mapVals(STICK_HURT, set => set.map(fromOld)) },
+    moves: { ...mapVals(STICK_MOVES, oldMove), ...DASH_LAYERS }, hurt: mapVals(STICK_HURT, set => set.map(fromOld)) },
 };
 // ---------- weapons: an extra bone in the front hand; while held, its class's moves go over P, → P and ↓ P ----------
 // look: how it is drawn · a: grip angle relative to the hand · back: length behind the hand (a staff is held along it)
