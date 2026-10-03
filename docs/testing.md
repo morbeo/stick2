@@ -62,7 +62,6 @@ The build info is shown in the debug popup (the chart button in the menu bar), n
 | `tests/matrix.test.js` | the Tests view's move matrix (`src/checks.js`) with what must hold in every cell: the move starts, nothing becomes NaN, both fighters return to neutral, nobody leaves the stage; against its own character also hit / block / whiff as expected; each move (the stick's library and every fighter's own) gets 2 cells, column and opponent picked by the seed |
 | `tests/fuzz.test.js` | 25 AI fights (10 s each) between random characters with 8 random settings each (any value the side panel allows): nothing throws, nothing becomes NaN, health stays within 0 … its maximum, nobody leaves the stage |
 | `tests/determinism.test.js` | the same seed plays the same AI fight frame for frame (also in a fresh engine); another seed plays another |
-| `tests/centaur.js` | a quadruped test character (not in the roster) for bones a biped never has; `run(require('./centaur'))` adds it |
 | `tests/browser.js` | headless Chrome: every mode, character and stance, no errors |
 | `tests/browser-coverage.js` | the browser test under Chrome's coverage (`npm run coverage:browser`) |
 
