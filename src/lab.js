@@ -4,7 +4,7 @@ const canvas = $('c'), ctx = canvas.getContext('2d');
 const cursor = c => { if (canvas.style.cursor !== c) canvas.style.cursor = c; }; // the mouse cursor follows what is under it
 let dpr = 1;
 const lab = { mode: 'play', scen: 'you vs dummy', rows: null, x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
-  seeds: 1, tape: null, rec: false, replay: false, target: 'dummy', playback: null, chars: [null, null], inv: [], impact: 'hits', blowPower: 'normal', blowSide: 'front' };
+  seeds: 1, tape: null, rec: false, replay: false, target: 'dummy', playback: null, chars: [null, null], inv: [], impact: 'hits', blowPower: 'normal', blowSide: 'front', filter: '' };
 layFlag(lab, 'meter'); layFlag(lab, 'inputs'); // per tab, in the layout
 const newWorld = (...a) => Object.assign(new World(...a), { loop: app.loop });
 
@@ -135,7 +135,7 @@ const fullArea = () => ({ x: 0, y: 0, w: canvas.width, h: canvas.height });
 // the lab's cells; the gallery keeps its cells readable and scrolls (mouse wheel) instead of shrinking them
 const labRects = (n = shown().length) => cellRects(n, lab.zoom ? 1 : lab.cols, fullArea(), lab.mode === 'gallery' && !lab.zoom ? 190 * dpr : 0, lab.zoom ? 0 : lab.scroll);
 const maxScroll = () => { const r = labRects(); return r.length ? Math.max(0, r[r.length - 1].y + r[r.length - 1].h + lab.scroll + 4 * dpr - canvas.height) : 0; };
-const shown = () => lab.zoom ? [lab.focus] : lab.cells;
+const shown = () => lab.zoom ? [lab.focus] : lab.mode === 'gallery' && lab.filter.trim() ? lab.cells.filter(c => fuzzy(lab.filter, c.label)) : lab.cells;
 // the shown cells whose rect is on the canvas: only these are drawn, and in the gallery only these run
 const onScreen = () => { const r = labRects(); return shown().filter((c, i) => r[i].y + r[i].h > 0 && r[i].y < canvas.height); };
 const hitRect = (rects, x, y) => rects.findIndex(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
@@ -215,6 +215,7 @@ function labRender() {
   clear();
   lab.scroll = clamp(lab.scroll, 0, maxScroll()); // the canvas or the column count may have changed
   const cells = shown(), play = lab.mode === 'play', rag = lab.mode === 'impact' && lab.impact === 'ragdoll', rects = labRects(cells.length);
+  if (lab.mode === 'gallery' && !cells.length) text('no move matches the filter', canvas.width / 2, canvas.height / 2, '#999', 13, '', 'center');
   cells.forEach((c, i) => !(rects[i].y + rects[i].h > 0 && rects[i].y < canvas.height) ? delete c._w : drawCell(c, rects[i], { full: play || rag, plot: !play && lab.mode !== 'impact', meter: lab.meter,
     selected: !play && !rag && !lab.zoom && (lab.mode === 'grid' && bred() ? c.parent && 'parent'
       : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) && 'current settings' : c === lab.focus && 'focused') }));
@@ -513,6 +514,8 @@ function zoomBack() {
 }
 function labCtx() {
   if (lab.mode === 'gallery') return [grp('target', 'What the moves play against', seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0]))),
+    grp('filter', 'Fuzzy filter by move name: letters in order match (e.g. "lk" finds lowKick)', h('input', { cls: 'macro', value: lab.filter, placeholder: 'fuzzy filter…',
+      oninput: e => { lab.filter = e.target.value; lab.scroll = 0; }, onkeydown: e => e.stopPropagation() })),
     showGrp(['meter', 'boxes', 'ghost', 'hud', 'labels'])];
   if (lab.mode === 'impact') return [
     grp('kind', 'The nine scripted hits, or one body alone to strike', seg(['hits', 'ragdoll'], () => lab.impact, v => { lab.impact = v; build(); panels(); },
