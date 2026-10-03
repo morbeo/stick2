@@ -2,7 +2,7 @@
 const test = require('node:test'), assert = require('node:assert/strict'), load = require('./load');
 const { run } = load();
 const json = code => JSON.parse(run(`JSON.stringify(${code})`));
-const ROSTER = ['hadoo', 'grumbo', 'jabbo', 'sneeko', 'zippa', 'hicco', 'lumpo', 'sarj', 'noodo', 'gogili', 'pollo', 'gloomo', 'centaur', 'houndo', 'tako'];
+const ROSTER = ['hadoo', 'grumbo', 'jabbo', 'sneeko', 'zippa', 'hicco', 'lumpo', 'sarj', 'noodo', 'gogili', 'pollo', 'gloomo', 'centaur', 'houndo', 'tako', 'clampo'];
 
 test('the roster: the stick and twelve fighters, each with a second stance', () => {
   assert.deepEqual(run('Object.keys(CHARS)'), ['stick', ...ROSTER]);
@@ -59,13 +59,32 @@ test('jabbo throws punches on K too', () => {
   assert.deepEqual(r, []);
 });
 
-test('the command throws land: grumbo spinning piledriver on a half circle, pollo giant swing, lumpo belt throw', () => {
+test('the command throws land: grumbo spinning piledriver on a half circle, pollo giant swing, lumpo belt throw, clampo bearHug/legLock', () => {
   for (const [n, inp, grab, thr, bx = 372] of [['grumbo', ['fwd', 0.03, 'down+fwd', 0.03, 'down', 0.03, 'down+back', 0.03, 'back+punch'], 'spinGrab', 'piledriver', 430],
-    ['pollo', ['@swingGrab'], 'swingGrab', 'giantSwing'], ['lumpo', ['punch+guard'], 'beltGrab', 'beltThrow']]) {
+    ['pollo', ['@swingGrab'], 'swingGrab', 'giantSwing'], ['lumpo', ['punch+guard'], 'beltGrab', 'beltThrow'],
+    ['clampo', ['punch+guard'], 'bearHug', 'slam'], ['clampo', ['kick+guard'], 'legLock', 'ankleTwist']]) {
     const r = run(`(() => { const r = fight({ a: [0.1, ...${JSON.stringify(inp)}], b: 'dummy', ax: 330, bx: ${bx}, period: 9 }, [CHARS.${n}, CHARS.stick], 120); return { seen: r.seen, hits: r.w.hits }; })()`);
     assert.ok(r.seen.includes('a:' + grab) && r.seen.includes('a:' + thr), `${n}: ${r.seen.join(' ')}`);
     assert.ok(r.hits > 0, `${n} ${thr} lands`);
   }
+});
+
+test('clampo\'s bearHug/slam is a combo throw: short enough recovery to land a follow-up hit on the foe before it lands from the launch', () => {
+  const r = json(`(() => { const w = new World({ a: 'human', b: 'dummy', ax: 330, bx: 372, period: 9 }, {}, 7, [CHARS.clampo, CHARS.stick]), f = w.a, o = w.b;
+    let launchFrame = null, freeFrame = null, landFrame = null, followUpLanded = false, hitsAtLaunch = 0;
+    for (let i = 0; i < 180; i++) {
+      const press = i === 2, doFollow = freeFrame !== null && !followUpLanded && landFrame === null;
+      w.advance(1/60, { ...NOIN, punch: press || doFollow, guard: press });
+      if (launchFrame === null && o.kd === 'fly') { launchFrame = i; hitsAtLaunch = w.hits; }
+      if (launchFrame !== null && freeFrame === null && !f.action && f.grounded) freeFrame = i;
+      if (launchFrame !== null && landFrame === null && o.grounded) landFrame = i;
+      if (freeFrame !== null && w.hits > hitsAtLaunch) followUpLanded = true;
+    }
+    return { launchFrame, freeFrame, landFrame, followUpLanded }; })()`);
+  assert.ok(r.launchFrame !== null, 'slam launches the foe');
+  assert.ok(r.freeFrame !== null && r.landFrame !== null && r.freeFrame < r.landFrame,
+    `clampo recovers from slam (frame ${r.freeFrame}) before the foe lands (frame ${r.landFrame}): a real follow-up window`);
+  assert.ok(r.followUpLanded, 'a follow-up punch lands on the still-airborne foe');
 });
 
 test('sneeko\'s substitution (← S, backSpecial): a strike caught during substituteCatch is taken no damage, warps it behind the foe and leaves a stationary decoy that vanishes shortly', () => {
