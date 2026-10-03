@@ -138,6 +138,7 @@ try {
   { setMode('impact'); const btn = t => [...document.querySelectorAll('#ctx button')].find(b => b.textContent.trim().endsWith(t));
     const blow = t => [...document.querySelectorAll('.blowbar button')].find(b => b.textContent.trim().endsWith(t));
     btn('ragdoll').click(); if (document.querySelector('.blowbar.inpv')) errs.push('blow bar full width in lab');
+    if (!paletteEntries().some(e => e.kind === 'tool' && e.name === 'sweep')) errs.push('blow bar not in palette');
     blow('sweep').click(); const w = lab.cells[0].w; let down = false; for (let i = 0; i < 40; i++) { w.advance(1/60, NOIN); down ||= !!w.b.rag || w.b.downT > 0; }
     if (lab.cells.length !== 1 || !w.a.hidden || w.hits !== 1 || !down) errs.push('ragdoll blow ' + [lab.cells.length, w.a.hidden, w.hits, down]);
     blow('stand up').click(); if (lab.cells[0].w === w || lab.cells[0].w.hits) errs.push('ragdoll stand up');
