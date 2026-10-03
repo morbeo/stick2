@@ -317,21 +317,27 @@ function drawPlot(c, r) {
   }
 }
 
-// the debug popup's oscilloscope: target vs drawn for one bone of the shown fight's left fighter
-const scopeCv = h('canvas', { id: 'scope', tip: 'Oscilloscope: the angle of one bone (the scope setting) over the last seconds of the focused fight.\n' +
-  'grey = the target the keyframes ask for · red = what is drawn after the pose filter (springs, damping, follow-through).\n' +
-  'Use it to tune the filter: overshoot and wobble show as red ringing around grey, lag as red trailing behind it, flat parts are hit stop.' }), sctx = scopeCv.getContext('2d'), stats = h('div', { cls: 'note' });
+// the debug popup's oscilloscope: a couple of seconds of the shown fight, grey = P1 (or a bone's target), red = P2 (or drawn)
+const SCOPE_SERIES = {
+  angle: w => ({ a: w.hist.tgt, b: w.hist.disp, label: `${w.cfg.scope}: target (grey) vs drawn (red)` }),
+  health: w => ({ a: w.hist.hpA, b: w.hist.hpB, label: 'health: P1 (grey) vs P2 (red)' }),
+  stun: w => ({ a: w.hist.stunA, b: w.hist.stunB, label: 'stun meter: P1 (grey) vs P2 (red)' }),
+  speed: w => ({ a: w.hist.vx, b: w.hist.vx, label: 'P1 horizontal speed, vx (grey)' }),
+};
+const scopeCv = h('canvas', { id: 'scope', tip: 'Oscilloscope: the scopeKind setting plotted over the last seconds of the focused fight.\n' +
+  'angle: grey = the keyframe target, red = what is drawn after the pose filter (springs, damping, follow-through) — tune overshoot, wobble and lag.\n' +
+  'health / stun: grey = P1, red = P2. speed: P1\'s vx.' }), sctx = scopeCv.getContext('2d'), stats = h('div', { cls: 'note' });
 function drawScope() {
   const w = scopeCv.isConnected && dbgWorld();
   if (!w) return;
-  const hs = w.hist;
+  const { a, b, label } = SCOPE_SERIES[CFG.scopeKind](w);
   scopeCv.width = scopeCv.clientWidth * dpr; scopeCv.height = scopeCv.clientHeight * dpr;
   const cw = scopeCv.width, ch = scopeCv.height;
   sctx.fillStyle = '#fff'; sctx.fillRect(0, 0, cw, ch);
-  const all = hs.tgt.concat(hs.disp), lo = Math.min(...all) - 5, hi = Math.max(...all) + 5, r = { x: 0, y: 4, w: cw, h: ch - 8 };
-  series(sctx, hs.tgt, r, lo, hi, '#bbb', HIST);
-  series(sctx, hs.disp, r, lo, hi, '#c0392b', HIST);
-  stats.textContent = `${mode() === labMode ? lab.focus?.label || lab.scen : app.mode} — ${w.cfg.scope}: target (grey) vs drawn (red)\n` +
+  const all = a.concat(b), lo = Math.min(...all, 0) - 5, hi = Math.max(...all, 0) + 5, r = { x: 0, y: 4, w: cw, h: ch - 8 };
+  series(sctx, a, r, lo, hi, '#bbb', HIST);
+  if (b !== a) series(sctx, b, r, lo, hi, '#c0392b', HIST);
+  stats.textContent = `${mode() === labMode ? lab.focus?.label || lab.scen : app.mode} — ${label}\n` +
     `frozen ${Math.round(100 * w.frozenT / (w.simT || 1))}% of ${w.simT.toFixed(1)}s · ${w.hits} hits` +
     (w.adv === null ? '' : ` · last hit ${w.adv >= 0 ? '+' : ''}${w.adv}f`);
 }
@@ -659,11 +665,13 @@ const labSide = () => lab.mode === 'gallery' ? moveSide() : configPanel();
 function debugPanel(e, b) {
   const row = k => h('div', { cls: 'row', tip: SPEC[k].tip }, h('span', { textContent: k }), toggle(CFG[k] ? 'on' : 'off', SPEC[k].tip, () => CFG[k], v => setCfg({ [k]: v }, 'cfg.' + k)));
   popup(b, h('b', { textContent: 'debug' }), row('ghost'), row('boxes'), row('hud'), row('labels'),
-    h('div', { cls: 'row', tip: SPEC.scope.tip }, h('span', { textContent: 'scope' }), h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v), Object.fromEntries(currentChar().ids.map(id => [id, `Plot the angle of ${id}`]))))),
+    h('div', { cls: 'row', tip: SPEC.scopeKind.tip }, h('span', { textContent: 'scope' }), h('div', { cls: 'bar' }, seg(SPEC.scopeKind.opts, () => CFG.scopeKind, v => setDisplay('scopeKind', v), SPEC.scopeKind.optTips))),
+    (() => { const r = h('div', { cls: 'row', tip: SPEC.scope.tip }, h('span', { textContent: 'bone' }), h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v), Object.fromEntries(currentChar().ids.map(id => [id, `Plot the angle of ${id}`])))));
+      reg(r, () => { r.hidden = CFG.scopeKind !== 'angle'; }); return r; })(),
     dbgInfo, h('div', { cls: 'bar' }, button(':bug_report: report a bug', 'Shows the report (build, settings changed from default, the shown fight), to copy and paste into a new GitHub issue', (e, b) => reportBug(b), 'bugbtn'),
       button(':restart_alt: reset settings', 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels) stay (⌘Z undoes)', () => { applyPreset('juicy'); mode().restart(); }),
       button(':delete: factory reset', 'Delete all local data: edited characters, settings, keys and macros, layout; then reload as new (asks first)', () => factoryReset())),
-    h('p', { cls: 'note', textContent: 'monitor: the scope bone\'s target angle (grey) against the drawn one (red), with the stats of the shown or focused fight' }), scopeCv, stats);
+    h('p', { cls: 'note', textContent: 'monitor: scopeKind plotted over the shown or focused fight (angle: grey target vs red drawn · health / stun: P1 grey vs P2 red · speed: P1\'s vx), with its stats' }), scopeCv, stats);
   pop.classList.add('dbgpop'); dbgT = 0; drawDebug();
 }
 const debugBtn = () => [...$('global').querySelectorAll('button')].find(b => b.dataset.tip?.startsWith('Debug:'));

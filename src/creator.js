@@ -437,7 +437,7 @@ function bodyPanel() {
       copy: ['Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb],
       rename: ['Rename the selected bone (follows it into moves, poses and stance bodies)', () => renameBone()],
       delete: ['Delete the selected bone and everything below it (Del)', deleteBone] },
-      button(':select_all: select all', 'Select every bone, so an edit goes to all of them at once', selectAllBones, 'mini'))),
+      selectAllBtn())),
     boneTree(),
     ...bonePanel(),
     heading('Stance pose', 'Set the whole stance from a preset (per limb, so it works for any body), or turn a pose into attacks', ''),

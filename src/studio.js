@@ -577,7 +577,17 @@ async function renameBone(id = studio.sel) {
   if (studio.also.has(was)) { studio.also.delete(was); studio.also.add(name); }
 }
 // every bone in the current stance's view, selected together (⌘/Ctrl+click adds one at a time; this adds them all)
-function selectAllBones() { const ids = viewChar().ids; studio.sel = ids[0]; studio.also = new Set(ids); }
+function selectAllBones() {
+  const ids = viewChar().ids;
+  if (selIds().length === ids.length) { studio.also.clear(); return; } // already all selected: deselect, back to just the focused bone
+  studio.sel = ids[0]; studio.also = new Set(ids);
+}
+function selectAllBtn() {
+  const b = button(':select_all:', '', selectAllBones, 'mini');
+  reg(b, () => { const all = selIds().length === viewChar().ids.length;
+    b.classList.toggle('on', all); b.dataset.tip = all ? 'Deselect: back to just the focused bone' : 'Select every bone, so an edit goes to all of them at once'; });
+  return b;
+}
 const subtree = (def, id) => [id, ...def.bones.filter(b => b.parent === id).flatMap(b => subtree(def, b.id))];
 // rearranging: a bone moves before another in the list (inside a side, earlier bones draw underneath; a parent stays before its children),
 // or hangs from another bone (null: the hip), never from one hanging from it

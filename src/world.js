@@ -46,7 +46,7 @@ class World {
     const s = this.scen, scripted = Array.isArray(s.a);
     Object.assign(this, { rand: makeRand(this.seed), fx: makeRand(this.seed + 99), parts: [], trauma: 0, zoom: 0, slowT: 0, impactAt: -9, T: 0, simT: 0,
       frozenT: 0, hits: 0, blocks: 0, parries: 0, clashes: 0, koT: 0, freezes: [], victim: null, done: false, bank: this.cfg.hitstopBudget,
-      pend: null, adv: null, macro: null, combo: 1, nid: 0, fi: 0, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
+      pend: null, adv: null, macro: null, combo: 1, nid: 0, fi: 0, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], hpA: [], hpB: [], stunA: [], stunB: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
     if (!this.replaying) { this.log = []; this.checkpoints = []; this.sums = {}; this.desync = null; } // every frame since the start: [dt, input, macro], for rewind and replays
     // a vs b, plus any extra fighters: { c: controller, x, team, over }; over: the fighter's own settings (aover / bover for a and b: inv, aiStyle, limits, aiSkill …)
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0, over: s.aover }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1, over: s.bover }, ...(s.more || [])];
@@ -265,6 +265,7 @@ class World {
     for (const f of this.fighters) if (f.freeze <= 0) f.recordTrail();
     const h = this.hist, j = this.cfg.scope;
     h.tgt.push(this.a.target[j] ?? 0); h.disp.push(this.a.disp[j] ?? 0); h.vx.push(this.a.vx); h.y.push(this.a.y);
+    h.hpA.push(this.a.hp); h.hpB.push(this.b?.hp ?? 0); h.stunA.push(this.a.stunM); h.stunB.push(this.b?.stunM ?? 0);
     h.fs.push([frameState(this.a), frameState(this.b)]);
     if (this.ctl[0] === 'human') this.logInput(inp);
     if (h.tgt.length > HIST) for (const k in h) h[k].shift();
