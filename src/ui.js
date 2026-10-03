@@ -21,7 +21,7 @@ const ICONS = {
   rotate_right: 0xe41a, open_with: 0xe89f, pan_tool: 0xe925, swap_horiz: 0xe8d4, flip: 0xe3e8, auto_awesome: 0xe65f,
   waves: 0xe176, stadia_controller: 0xf135, blur_on: 0xe3a5, sync_alt: 0xea18, sports_handball: 0xea33,
   target: 0xe719, trending_up: 0xe8e5, hourglass_empty: 0xe88b, select_all: 0xe162, block: 0xf08c,
-  crisis_alert: 0xebe9, star: 0xf09a, filter_list: 0xe152, bug_report: 0xe868,
+  crisis_alert: 0xebe9, star: 0xf09a, filter_list: 0xe152, bug_report: 0xe868, volume_off: 0xe04f,
   view_module: 0xe8f0, list: 0xe896, table_rows: 0xf101, category: 0xe72c, height: 0xea16, sort_by_alpha: 0xe053,
   format_list_numbered: 0xe242, heart_broken: 0xeac2, vertical_align_top: 0xe25a, vertical_align_center: 0xe259, vertical_align_bottom: 0xe258,
   smart_toy: 0xf06c, air: 0xefd8, directions_walk: 0xe536, theaters: 0xe8da, cloud: 0xf15c, grain: 0xe3ea, horizontal_rule: 0xf108,
