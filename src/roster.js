@@ -686,6 +686,151 @@ CHAR_DEFS.gloomo = { ...stick, name: 'gloomo', speed: 1.05, dash: 1.4, jump: 1.1
     ...bind({ punch: 'quadRush', fwdPunch: 'psychoDash', special: 'darkOrb', kick: 'tailWhip' }) }] };
 CHAR_DEFS.gloomo.poses = { ...stick.poses, stance: { ...stick.poses.stance, uarm2F: -100, farm2F: 50, uarm2B: -230, farm2B: 40 } };
 
+// centaur: a horizontal horse body from the hips forward; the human waist sits on its front end (its angles are relative to
+// the barrel, so every pose's waist turns by -90); hind legs are the stick's legs, forelegs hang off the barrel: the forelegs
+// move as the stick's legs do (knees forward, they do the kicking), the hind legs bend the other way like hocks and follow at
+// half strength; both relative to the centaur's own stance. Tramples, kicks with both hind hooves, headbutts, whips its tail
+function mapPoses(def, fn) {
+  const f = p => p && fn({ ...p });
+  return { ...def, poses: mapVals(def.poses, f), moves: mapVals(def.moves, m => ({ ...m, keys: m.keys.map(k => ({ ...k, p: f(k.p) })) })),
+    hurt: mapVals(def.hurt, set => set.map(f)) };
+}
+const QUAD_HITS = { footF: 'hoofF', footB: 'hoofB', shinF: 'foreShinF', shinB: 'foreShinB' };
+const QUAD_STANCE = { thighF: -22, shinF: 30, thighB: -12, shinB: 22, foreThighF: -76, foreShinF: -18, foreThighB: -84, foreShinB: -12 };
+function quadLegs(p) {
+  const st = CHAR_DEFS.stick.poses.stance;
+  if ('waist' in p) p.waist -= 90;
+  for (const S of 'FB') {
+    for (const [j, f] of [['thigh', 'foreThigh'], ['shin', 'foreShin']]) if (j + S in p) {
+      const d = p[j + S] - st[j + S];
+      p[f + S] = QUAD_STANCE[f + S] + d; p[j + S] = QUAD_STANCE[j + S] - d / 2;
+    }
+    if ('foot' + S in p) p['hoof' + S] = p['foot' + S];
+  }
+  return p;
+}
+const CENTAUR_MOVES = mapVals({ ...retimed(1.1, 1.2), tailWhip: TAIL_WHIP, ...sig({
+  // → P: tramples forward on all fours, the forelegs pounding the ground
+  trample: { power: 1.6, damage: 12, hit: ['ff', 'bf'], height: 'mid', knock: 380, launch: 120, kd: true, special: true, keys: [
+    { d: 0.12, e: 'outQuad', p: { torso: -5, lfU: -5, lfL: 15, lbU: 10, lbL: -15 } },
+    { d: 0.14, e: 'outExpo', p: { torso: 10, lfU: 55, lfL: -35, lbU: 35, lbL: -25 }, active: true, lunge: 480, rehit: true },
+    { d: 0.14, p: { torso: 5, lfU: 35, lfL: -15, lbU: 20, lbL: -15 }, active: true, lunge: 360 },
+    { d: 0.3, e: 'inOutCubic', p: null }] },
+  // ↓ K: the donkey kick, both hind hooves kick back
+  donkeyKick: { power: 1.5, damage: 11, hit: ['ff', 'bf'], height: 'mid', knock: 460, stun: 0.45, special: true, keys: [
+    { d: 0.1, e: 'outQuad', p: { torso: 30, lfU: -30, lfL: 10, lbU: -20, lbL: 10 } },
+    { d: 0.1, e: 'outExpo', p: { torso: 40, lfU: 70, lfL: -60, lbU: 60, lbL: -60 }, active: true, shake: 0.4 },
+    { d: 0.08, p: { torso: 40, lfU: 70, lfL: -60, lbU: 60, lbL: -60 }, active: true },
+    { d: 0.26, e: 'inOutCubic', p: null }] },
+  // ↑ P: rears up and headbutts down
+  rearButt: { power: 1.4, damage: 10, hit: 'head', height: 'high', knock: 260, stun: 0.4, special: true, keys: [
+    { d: 0.12, e: 'outQuad', p: { torso: -30, head: -20, afU: -20, afL: 100, abU: -30, abL: 100 } },
+    { d: 0.1, e: 'outExpo', p: { torso: 30, head: 10, afU: 100, afL: 10, abU: 90, abL: 15 }, active: true, lunge: 140 },
+    { d: 0.08, p: { torso: 30, head: 10, afU: 100, afL: 10, abU: 90, abL: 15 }, active: true },
+    { d: 0.26, e: 'inOutCubic', p: null }] },
+}) }, m => ({ ...m, hit: mapHit(m.hit, h => QUAD_HITS[h] || h) }));
+CHAR_DEFS.centaur = { ...mapPoses({ ...stick, moves: CENTAUR_MOVES }, quadLegs),
+  name: 'centaur', speed: 1.1, weight: 1.4, jump: 0.9, dash: 1.4, turnaround: 0.45, traction: 0.75, airDodge: 0.6,
+  bones: [{ id: 'barrel', len: 34, a: 90, role: 'spine', hurt: 13, thick: 11, lag: 0, min: 60, max: 120 },
+    ...STICK_BONES.map(b => b.id === 'waist' ? { ...b, parent: 'barrel', a: 90, min: 30, max: 210 } : b.id.startsWith('shin') ? { ...b, min: -8, max: 165 } : b),
+    ...['B', 'F'].flatMap(S => [
+      { id: 'foreThigh' + S, parent: 'barrel', len: 22, a: -90, role: 'leg', side: S.toLowerCase(), hurt: 8, lag: 0, min: -190, max: 50 },
+      { id: 'foreShin' + S, parent: 'foreThigh' + S, len: 23, role: 'leg', side: S.toLowerCase(), hurt: 8, lag: 1, min: -165, max: 8 },
+      { id: 'hoof' + S, parent: 'foreShin' + S, len: 6, a: 90, role: 'leg', side: S.toLowerCase(), hurt: 6, lag: 1.5, level: 1, thick: 5, min: 40, max: 140 }]),
+    ...tail3(12, 3).map(b => b.id === 'tail' ? { ...b, a: -150 } : b)],
+  ...bind({ fwdPunch: 'trample', downKick: 'donkeyKick', upPunch: 'rearButt', backKick: 'tailWhip',
+    special: 'trample', fwdSpecial: 'trample', downSpecial: 'donkeyKick', upSpecial: 'rearButt' }),
+  // ↓ (held a moment): lowers into a charging crouch, quicker into the trample
+  stances: [{ name: 'charge', pose: quadLegs(fromOld({ torso: 20, lfU: 10, lfL: -10, lbU: -5, lbL: 5 })),
+    ...bind({ punch: 'trample', special: 'trample', kick: 'donkeyKick' }) }] };
+
+// houndo: a quadruped beast fighting on all fours; the stick's arms become its front legs (torso turns horizontal the same
+// way the centaur's does), its own legs stay the hind legs. Pounces, claws low, rears up to bite, and howls to taunt
+function beastPose(p) {
+  const q = { ...p };
+  if ('waist' in q) q.waist -= 90;
+  return q;
+}
+CHAR_DEFS.houndo = { ...mapPoses({ ...stick, moves: retimed(0.85, 0.9) }, beastPose),
+  name: 'houndo', speed: 1.3, weight: 0.9, jump: 0.8, dash: 1.5, turnaround: 0.6, traction: 0.9, airDodge: 0.8, health: 0.95,
+  bones: [
+    { ...STICK_BONES[0], a: 90, min: 60, max: 120 },
+    STICK_BONES[1], STICK_BONES[2], { ...STICK_BONES[3], len: 10 },
+    ...STICK_BONES.slice(4).map(b => b.role === 'arm'
+      ? { ...b, len: Math.round(b.len * 1.1), min: b.id.startsWith('uarm') ? -140 : -10, max: b.id.startsWith('uarm') ? 100 : 165 } : b),
+    ...tail3(14, 3)],
+  moves: { ...mapPoses({ ...stick, moves: retimed(0.85, 0.9) }, beastPose).moves, ...sig({
+    // → P: tackles forward, teeth bared
+    tackle: attack({ power: 1.5, damage: 12, hit: 'head', height: 'mid', knock: 320, stun: 0.42, lunge: 480, special: true },
+      [0.1, { torso: -20, lfU: 20, lfL: -30, lbU: -10, lbL: 10 }],
+      [0.12, { torso: 20, head: -10, lfU: 60, lfL: -50, lbU: 30, lbL: -40 }], 0.08, 0.3),
+    // ↓ P: a low claw rake with the front paw
+    clawSwipe: { power: 1.3, damage: 9, hit: ['fh', 'bh'], height: 'low', knock: 160, stun: 0.4, special: true, keys: [
+      { d: 0.08, e: 'outQuad', p: { torso: -20, afU: -40, afL: 40, abU: 40, abL: 60 } },
+      { d: 0.08, e: 'outExpo', p: { torso: 20, afU: 60, afL: 10, abU: 10, abL: 100 }, active: true },
+      { d: 0.06, p: { torso: 20, afU: 60, afL: 10, abU: 10, abL: 100 }, active: true },
+      { d: 0.24, e: 'inOutCubic', p: null }] },
+    // ↑ K: rears and bites down
+    bite: { power: 1.6, damage: 13, hit: 'head', height: 'high', knock: 240, launch: 120, kd: true, special: true, keys: [
+      { d: 0.1, e: 'outQuad', p: { torso: -30, head: -20 } },
+      { d: 0.1, e: 'outExpo', p: { torso: 30, head: 20 }, active: true },
+      { d: 0.08, p: { torso: 30, head: 20 }, active: true },
+      { d: 0.26, e: 'inOutCubic', p: null }] },
+    // ← K: a hind-leg kick, body twisted round to land it behind
+    hindKick: { power: 1.3, damage: 9, hit: ['ff', 'bf'], height: 'mid', knock: 300, stun: 0.4, special: true, keys: [
+      { d: 0.08, e: 'outQuad', p: { torso: -10, lbU: -40, lbL: 20 } },
+      { d: 0.08, e: 'outExpo', p: { torso: 20, lbU: 60, lbL: -60 }, active: true },
+      { d: 0.06, p: { torso: 20, lbU: 60, lbL: -60 }, active: true },
+      { d: 0.24, e: 'inOutCubic', p: null }] },
+    // ↑ S+G: a howl
+    howl: { keys: [
+      { d: 0.2, e: 'outBack', p: { torso: -20, head: -30 } },
+      { d: 0.6, p: { torso: -20, head: -30 } },
+      { d: 0.3, e: 'inOutCubic', p: null }] },
+  }) },
+  ...bind({ fwdPunch: 'tackle', downPunch: 'clawSwipe', upKick: 'bite', backKick: 'hindKick', taunt: 'howl',
+    special: 'tackle', downSpecial: 'clawSwipe', upSpecial: 'bite', backSpecial: 'hindKick' }),
+  // ↓ S+G: a low prowling crouch, quicker into the claw rake
+  stances: [{ name: 'prowl', pose: beastPose(fromOld({ torso: 10, lfU: 5, lfL: -5, lbU: -5, lbL: 5, afU: -10, afL: 10, abU: -5, abL: 15 })),
+    ...bind({ punch: 'clawSwipe', special: 'clawSwipe', fwdPunch: 'bite' }) }] };
+
+// tako: shapeshifts into an octopus. The tentacles are always there, as short nubs at the waist in human form (every
+// move stays valid on the base skeleton, and no bone needs a destructive, one-way hide at the main level); the octopus
+// stance (S+G) hides the legs and grows the tentacles out full length. Main's own specials are an ink cloud and a
+// slippery dodge; the octopus form has its own tentacle slam and constricting grab
+const tentacle = (id, a, len = [16, 14, 12]) => [
+  { id, len: len[0], a, role: 'tail', thick: 5, lag: 0.5, dangle: 0.4 },
+  { id: id + 'Mid', parent: id, len: len[1], a: 10, role: 'tail', thick: 4, lag: 1.5, dangle: 0.5, stretch: 0.2, min: -90, max: 90 },
+  { id: id + 'End', parent: id + 'Mid', len: len[2], a: 10, role: 'tail', thick: 3, lag: 2.5, dangle: 0.6, stretch: 0.3, min: -90, max: 90 }];
+const TEN_FULL = { tenA: 16, tenAMid: 14, tenAEnd: 12, tenB: 16, tenBMid: 14, tenBEnd: 12, tenC: 16, tenCMid: 14, tenCEnd: 12, tenD: 16, tenDMid: 14, tenDEnd: 12 };
+CHAR_DEFS.tako = { ...stick, name: 'tako', speed: 0.95, weight: 0.95, jump: 0.9, airDodge: 1.2, springs: 1.1,
+  bones: [...STICK_BONES, ...tentacle('tenA', 20, [6, 5, 4]), ...tentacle('tenB', 60, [6, 5, 4]), ...tentacle('tenC', -60, [6, 5, 4]), ...tentacle('tenD', -20, [6, 5, 4])],
+  moves: { ...retimed(1), ...sig({
+    // ↓↘→ P: a cloud of ink, blinding and pushing the foe back
+    inkCloud: { power: 1, damage: 6, hit: ['fh', 'bh'], height: 'mid', knock: 300, stun: 0.5, special: true, shot: { speed: 260, size: 18, life: 1.4, look: 'dark' }, fx: { look: 'smoke', on: 'arm' }, keys: [
+      { d: 0.14, e: 'outQuad', p: PALMS_BACK },
+      { d: 0.07, e: 'outExpo', shoot: true, p: PALMS_OUT },
+      { d: 0.18, p: PALMS_OUT },
+      { d: 0.24, e: 'inOutCubic', p: null }] },
+    // ← S: a boneless slip to the side, invincible, with a quick counter-jab as it passes
+    slipAway: { power: 0.8, damage: 4, hit: 'fh', height: 'mid', knock: 140, stun: 0.3, keys: [
+      { d: 0.05, e: 'outQuad', p: { torso: 20 }, inv: true },
+      { d: 0.1, p: { torso: -10, afU: 90, afL: 10 }, inv: true, active: true },
+      { d: 0.15, e: 'inOutCubic', p: null }] },
+  }),
+    // octopus-only (the stance below): a tentacle slam and a constricting grab, written as raw bone poses (no old notation for tentacles)
+    tentacleSlam: attack({ power: 1.6, damage: 13, hit: ['tenAEnd', 'tenBEnd'], height: 'mid', knock: 300, launch: 100, kd: true, special: true },
+      [0.1, { waist: 150, tenA: -40, tenAMid: 20, tenB: 100, tenBMid: -10 }],
+      [0.1, { waist: 190, tenA: 60, tenAMid: -30, tenB: -20, tenBMid: 40 }], 0.1, 0.3),
+    constrict: attack({ power: 1.3, damage: 9, hit: ['tenCEnd', 'tenDEnd'], height: 'low', knock: 60, stun: 0.6, special: true },
+      [0.12, { waist: 172, tenC: -90, tenD: -30 }],
+      [0.12, { waist: 172, tenC: -10, tenD: 70 }], 0.14, 0.28) },
+  ...bind({ fwdSpecial: 'inkCloud', backSpecial: 'slipAway', special: 'inkCloud' }),
+  // S+G: hides the legs, grows the tentacles out full length
+  stances: [{ name: 'octopus', pose: stylePose([172, 0], [0, 0], [35, 115], [15, 125], null, null),
+    body: { bones: { thighF: { hidden: true }, thighB: { hidden: true }, ...mapVals(TEN_FULL, len => ({ len })) } },
+    ...bind({ punch: 'tentacleSlam', fwdPunch: 'tentacleSlam', kick: 'constrict', special: 'tentacleSlam' }) }] };
+
 // the stick's second stance: boxing
 CHAR_DEFS.stick.stances = [{ name: 'boxing', pose: stylePose([176, 0], [0, 10], [-160, 140], [-170, 145], [20, -20, 90], [-15, 0, 90]),
   ...bind({ fwdPunch: 'hook', downFwdPunch: 'bodyHook', upPunch: 'overhand' }) }];

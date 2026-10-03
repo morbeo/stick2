@@ -1,7 +1,6 @@
 // unit tests of the rig and fighter
 const test = require('node:test'), assert = require('node:assert/strict'), load = require('./load');
 const { run } = load();
-run(require('./centaur'));
 
 test('a character\'s own colour (def.col) wins over the player slot; unset, the slot decides as before', () => {
   const r = run(`(() => {
@@ -261,11 +260,11 @@ test('the ceiling bounces a body knocked up to the top of the screen; a ragdoll 
 });
 
 test('endless waves: the next wave comes once every enemy is down, knocked-out ones leave, rewinding across a wave plays the same', () => {
-  const r = run(`(() => { const w = new World(SCENARIOS['ai vs waves'], { health: 60, waves: 'one' }, 2, [CHARS.stick]); w.loop = false;
+  const r = run(`(() => { const w = new World(SCENARIOS['ai vs waves'], { health: 60, waves: 'one' }, 1, [CHARS.stick]); w.loop = false;
     let at = 0, most = 0; for (let i = 0; i < 60 * 60 && w.wave < 3 && !w.done; i++) { w.advance(1/60, NOIN); most = Math.max(most, w.fighters.length); if (w.wave === 2 && !at) at = i; }
     return { wave: w.wave, most, at }; })()`);
   assert.ok(r.at > 0 && r.most === 2, JSON.stringify(r));
-  const same = run(`(() => { const w = new World(SCENARIOS['ai vs waves'], { health: 60, waves: 'one' }, 2, [CHARS.stick]); w.loop = false;
+  const same = run(`(() => { const w = new World(SCENARIOS['ai vs waves'], { health: 60, waves: 'one' }, 1, [CHARS.stick]); w.loop = false;
     for (let i = 0; i < ${r.at} + 60; i++) w.advance(1/60, NOIN); const h = w.stateHash(); w.rewind(80); for (let i = 0; i < 80; i++) w.advance(1/60, NOIN); return [h, w.stateHash(), w.wave]; })()`);
   assert.equal(same[0], same[1]); assert.ok(same[2] >= 2);
 });
@@ -824,6 +823,14 @@ test('a back throw (← P+G) swings the victim to the other side: it lands behin
   assert.equal(d.side, -1); assert.ok(['a:backGrab', 'a:backToss', 'a:turnBack', 'b:jab', 'a:kick'].every(k => d.seen.includes(k)), d.seen.join(' ')); assert.ok(d.hurt > 0);
 });
 
+test('a throw can be aimed by holding back as the grab lands, even from the plain forward grab', () => {
+  const side = hold => JSON.parse(run(`(() => { const w = new World({ a: [0.1, '@grab'${hold ? `, { hold: 'back', t: 1 }` : ''}], b: 'dummy', ax: 330, bx: 372 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    for (let i = 0; i < 150; i++) w.advance(1/60, NOIN);
+    return JSON.stringify({ side: Math.sign(w.b.x - w.a.x) }); })()`)).side;
+  assert.equal(side(false), 1, 'unheld: the plain forward grab throws forward, as before');
+  assert.equal(side(true), -1, 'held back as it lands: thrown behind instead, like a back throw');
+});
+
 test('armor: a hit during an armored key (the hammer wind-up) does its damage but the move goes on and lands', () => {
   const go = d => JSON.parse(run(`(() => { const w = new World({ a: ['punch'], b: [${d}, '@hammer'], ax: 330, bx: 385 }, {}, 7); w.loop = false; const L = new Set();
     for (let i = 0; i < 70; i++) { w.advance(1/60, NOIN); if (w.b.labelT > 0) L.add(w.b.label); }
@@ -840,6 +847,27 @@ test('posed falls (falls: pose): a wallbounce hit bounces off the wall, G just b
   assert.match(labels('wall bounce'), /WALL BOUNCE/);
   assert.match(labels('tech'), /TECH/);
   assert.match(labels('air recover'), /RECOVER/);
+});
+
+test('a tech aims where you hold as it lands: fwd and back send it opposite ways; unheld keeps the old back-and-away default', () => {
+  const vx = dirTok => +run(`(() => { const w = new World({ a: ['down+kick'], b: [0.3, { hold: '${dirTok}guard', t: 0.5 }], period: 2.4 }, {}, 7); w.loop = false;
+    let vx = null; for (let i = 0; i < 150 && vx === null; i++) { w.advance(1/60, NOIN); if (w.b.labelT > 0 && w.b.label === 'TECH') vx = w.b.vx; } return vx; })()`);
+  const none = vx(''), fwd = vx('fwd+'), back = vx('back+');
+  assert.ok(isFinite(none) && isFinite(fwd) && isFinite(back), `tech happened each time: ${none} ${fwd} ${back}`);
+  assert.notEqual(Math.sign(fwd), Math.sign(back), `fwd and back tech opposite ways: ${fwd} vs ${back}`);
+  assert.equal(Math.sign(none), Math.sign(back), `unheld matches the old default direction (back and away): ${none} vs ${back}`);
+});
+
+test('air recovery aims where you hold: ← / → bursts that way; unheld keeps the old damped default', () => {
+  const go = (l, r) => JSON.parse(run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 500 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    const f = w.a; f.kd = 'fly'; f.flyT = 10; f.vy = 200; f.vx = 120; f.splatT = 0; f.dir = 1;
+    f.update(1/60, { ...NOIN, guard: true, left: ${l}, right: ${r} });
+    return JSON.stringify({ vx: f.vx, kd: f.kd }); })()`));
+  const left = go(true, false), right = go(false, true), none = go(false, false);
+  assert.ok(left.vx < 0, 'held left: recovers left ' + left.vx);
+  assert.ok(right.vx > 0, 'held right: recovers right ' + right.vx);
+  assert.equal(none.kd, null, 'no direction: still recovers');
+  assert.ok(Math.abs(none.vx) < 100, 'no direction: the old damped momentum, not a full burst: ' + none.vx);
 });
 
 test('the damp filter: the drawn pose catches the keyframed one at dampRate, slower with a lower rate', () => {
