@@ -54,7 +54,7 @@ win pose       hits 1 blocks 0 hp 5.0 0.0 x 330 524
 pounce         hits 2 blocks 0 hp 100.0 81.9 x 437 475
 wall bounce    hits 2 blocks 0 hp 100.0 76.9 x 589 733
 OTG stomp      hits 2 blocks 0 hp 100.0 82.8 x 413 464
-ai 2v2         hits 17 blocks 0 hp 35.7 100.0 x 100 205
+ai 2v2         hits 17 blocks 0 hp 35.7 100.0 x 95 139
 ai free-for-all hits 12 blocks 0 hp 49.1 64.0 x 640 645
 ai vs waves    hits 5 blocks 0 hp 81.3 65.5 x 403 465
 ai survival    hits 6 blocks 0 hp 52.8 39.0 x 439 475
