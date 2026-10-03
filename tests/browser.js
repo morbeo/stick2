@@ -562,7 +562,24 @@ try {
     keymap.onion = ['KeyP']; if (!keyClashes().has('onion') || !keyClashes().has('pause')) errs.push('clash not flagged');
     keymap.onion = ['KeyO']; unbind('KeyJ', 'view'); if (!keymap.punch.includes('KeyJ')) errs.push('a view key took the punch key');
     unbind('KeyP', 'animate'); if (keymap.pause.includes('KeyP')) errs.push('an editor key did not take the pause key');
-    keymap.pause = ['KeyP']; }
+    keymap.pause = ['KeyP'];
+    // custom binds: any paletteEntries() function (not just ACTIONS), stored as { kind, name, key } and resolved fresh when the key fires
+    setMode('animate'); custom.push({ kind: 'mode', name: 'grid', key: 'KeyZ' });
+    kd('KeyZ'); if (app.mode !== 'grid') errs.push('custom bind did not run');
+    setMode('animate'); custom.pop();
+    kd('KeyZ'); if (app.mode === 'grid') errs.push('deleted custom bind still ran');
+    custom.push({ kind: 'mode', name: 'grid', key: 'KeyH' }); // same raw key as the 'panel' action: both resolve everywhere, so this must clash
+    if (!keyClashes().has('panel') || !keyClashes().has('custom 1')) errs.push('custom bind clash not flagged');
+    custom.pop();
+    setMode('play'); }
+  // keys popup: groups collapse (subFold) and the search box fuzzy-filters the action rows, hiding a group with no match
+  { const keysBtn = [...$('global').querySelectorAll('button')].find(x => x.dataset.tip?.startsWith('Keys:'));
+    keysPanel(null, keysBtn);
+    keysQuery = 'punch'; refreshKeys();
+    const rows = [...keysPop.querySelectorAll('.row')], punchRow = rows.find(r => r.firstChild.textContent === 'punch'), leftRow = rows.find(r => r.firstChild.textContent === 'left');
+    const modesSec = [...keysPop.querySelectorAll('.fold.sub')].find(s => s.querySelector('h4').textContent.startsWith('modes'));
+    if (!punchRow || punchRow.hidden || !leftRow?.hidden || !modesSec?.hidden) errs.push('keys search did not filter');
+    keysQuery = ''; closePop(); }
   // Cinema: letterbox bars over the fight view; impact frames and speed lines draw; the settings rows are in the side panel
   { setMode('play'); lab.scen = 'you vs dummy'; build(); setCfg({ letterbox: true, impactFrames: true, speedLines: true, camLead: 0.2 }); panels();
     const w = lab.cells[0].w, r = labRects()[0]; w.advance(1/60, NOIN); w.impactAt = w.T; Object.assign(w.b, { kd: 'fly', vx: 900, vy: -300 }); mode().render();
