@@ -1111,3 +1111,27 @@ test('move checks: a move whose hits leave out a state must whiff it, and a jab 
   assert.deepEqual(r.air.ok, ['whiff']), assert.match(r.air.why, /leave out stand/);
   assert.equal(r.dud.out, 'whiff'), assert.deepEqual(r.dud.issues, ['whiffs its own setup: a standing target in reach']);
 });
+
+test('props (PROPS, scen.props): a crate breaks after enough hits, a reed only bends (never damaged), a spring reflects a thrown weapon', () => {
+  const breakable = run(`(() => { const w = new World({ a: 'human', b: 'dummy', ax: 330, bx: 500, props: [{ type: 'crate', x: 372 }] }, {}, 7);
+    w.loop = false; const hp0 = w.props[0].hp; let droppedHp = false;
+    for (let i = 0; i < 150 && w.props.length; i++) { w.advance(1/60, { ...NOIN, punch: i % 15 === 2 }); if (w.props[0] && w.props[0].hp < hp0) droppedHp = true; }
+    return { hp0, droppedHp, destroyed: w.props.length === 0 }; })()`);
+  assert.ok(breakable.hp0 > 0, 'a crate starts with hp');
+  assert.ok(breakable.droppedHp, 'a landed strike damages it');
+  assert.ok(breakable.destroyed, 'enough hits destroy and remove it');
+
+  const bendable = run(`(() => { const w = new World({ a: 'human', b: 'dummy', ax: 330, bx: 500, props: [{ type: 'reed', x: 372 }] }, {}, 7);
+    w.loop = false; let bent = false;
+    for (let i = 0; i < 20; i++) { w.advance(1/60, { ...NOIN, punch: i === 2 }); if (w.props[0].bendT > 0) bent = true; }
+    return { bent, stillThere: w.props.length === 1 }; })()`);
+  assert.ok(bendable.bent, 'a struck reed bends');
+  assert.ok(bendable.stillThere, 'bending never destroys it (no hp to lose)');
+
+  const bouncy = run(`(() => { const w = new World({ a: 'dummy', b: 'dummy', ax: 200, bx: 900, props: [{ type: 'spring', x: 450 }] }, { weapon: 'dagger', weaponStart: 'held' }, 7);
+    w.loop = false; w.a.letGo(true, 1);
+    let reflected = false;
+    for (let i = 0; i < 60; i++) { w.advance(1/60, NOIN); const it = w.items.find(x => x.live); if (it && it.vx < 0) reflected = true; }
+    return { reflected }; })()`);
+  assert.ok(bouncy.reflected, 'a bouncy prop reverses a thrown weapon instead of letting it land or pass through');
+});

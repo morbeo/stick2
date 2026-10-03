@@ -41,6 +41,7 @@ One fight on the full stage.
 - **limits:** cap how many times this fighter (AI or you) can use specific moves this fight, or ban one outright at 0. Unlisted moves stay unlimited.
 - **restart** sets how often the fight starts over.
 - **stage** picks the background (plain, dusk, dojo…): a different floor and backdrop, purely visual.
+- **add prop** places collidable scenery: a **crate** (breaks after enough hits), a **reed** (bends when struck, never breaks) or a **spring** (bounces a thrown weapon back instead of landing it). Each has its own x; **remove** takes it out.
 - **settings:** add one by name, or **take my settings** to bring every setting you changed from the defaults.
 - Saved in this browser as you edit, and listed first in the picker.
 - copy, export / import as JSON, delete.

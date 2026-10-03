@@ -58,6 +58,7 @@ class World {
     [this.a, this.b] = this.fighters;
     // weapons: one per fighter from the settings (on the floor in front, or in hand), plus the scenario's (items, aw / bw / more[].w = held)
     this.items = []; this.shots = []; this.beams = [];
+    this.props = (s.props || []).map(p => ({ type: p.type, x: p.x, z: p.z || 0, hp: PROPS[p.type].hp, bendT: 0, bendDir: 0 }));
     const wt = this.cfg.weapon, pickW = () => wt === 'random' ? Object.keys(WEAPONS)[Math.floor(this.rand() * 7)] : wt;
     this.fighters.forEach((f, i) => {
       const held = [s.aw, s.bw][i] ?? specs[i].w;
@@ -146,6 +147,38 @@ class World {
       }
     }
   }
+  // ---------- props (PROPS, src/stage.js): simple collidable scenery, hit by active strikes and thrown weapons ----------
+  // breakable loses hp and is destroyed; bendable just bends (bendDir/bendT, decaying here); bouncy only reflects thrown weapons
+  updateProps(h) {
+    if (!this.props.length) return;
+    const cfg = this.cfg;
+    for (const p of this.props) p.bendT = Math.max(0, p.bendT - h);
+    for (const p of this.props) {
+      const t = PROPS[p.type], top = [p.x, this.groundY - t.h], bot = [p.x, this.groundY], mid = [p.x, this.groundY - t.h / 2];
+      if (!t.bouncy) for (const f of this.fighters) {
+        const a = f.action;
+        if (!a?.m.keys[a.i]?.active || a.m.throw || a.hits.includes(p) || Math.abs(f.z - p.z) > cfg.zReach) continue;
+        const hit = f.strikeShapes(a.m).some(sh => distSegSeg(sh[0], sh[1], top, bot) < sh[2] + t.size);
+        if (!hit) continue;
+        a.hits.push(p);
+        if (t.breakable) { p.hp -= a.m.damage ?? 0; this.spark('blunt', mid, p.z, f.dir); }
+        else if (t.bendable) { p.bendDir = f.dir; p.bendT = 0.08; }
+      }
+      for (const it of this.items) {
+        if (!it.live || it.hitProps?.has(p) || Math.abs(it.z - p.z) > cfg.zReach) continue;
+        const seg = itemSeg(it, cfg.hitR);
+        if (distSegSeg(seg[0], seg[1], top, bot) >= seg[2] + t.size) continue;
+        (it.hitProps ??= new Set()).add(p);
+        const dir = Math.sign(it.vx) || 1;
+        if (t.breakable) { p.hp -= thrownMove(it.type, it.power).damage; this.spark('blunt', mid, p.z, dir); }
+        else if (t.bendable) { p.bendDir = dir; p.bendT = 0.08; }
+        else if (t.bouncy) { it.vx *= -0.6; it.vy = Math.min(it.vy, -200); this.spark('blunt', mid, p.z, dir); }
+      }
+    }
+    const gone = this.props.filter(p => PROPS[p.type].breakable && p.hp <= 0);
+    if (gone.length) { for (const p of gone) this.dust(p.x, this.groundY, 1.5, p.z); this.props = this.props.filter(p => !gone.includes(p)); }
+  }
+  drawProps(ctx) { for (const p of this.props) PROPS[p.type].draw(ctx, p, this); }
   // ---------- projectiles (Fighter.shoot): fly straight until they hit, meet a foe's shot, leave the arena or run out of life ----------
   updateShots(h) {
     const cfg = this.cfg, gone = new Set(), pop = (s, col) => { gone.add(s); this.parts.push({ t: 'ring', x: s.x, y: s.y, z: s.z, life: 0.2, max: 0.2, col, big: true }); };
@@ -295,7 +328,7 @@ class World {
     for (const k of Object.keys(s)) this[k] = cloneState(s[k], memo);
   }
   stateHash() {
-    return hashNums([this.rand.seed, this.hits, this.blocks, this.clashes, this.simT, ...this.items.flatMap(it => [it.x, it.y]), ...this.shots.flatMap(s => [s.x, s.t]),
+    return hashNums([this.rand.seed, this.hits, this.blocks, this.clashes, this.simT, ...this.items.flatMap(it => [it.x, it.y]), ...this.props.flatMap(p => [p.hp ?? 0, p.bendT]), ...this.shots.flatMap(s => [s.x, s.t]),
       ...this.beams.flatMap(b => [b.t, b.hit ? 1 : 0]), ...this.fighters.flatMap(f => [f.x, f.y, f.z, f.vx, f.vy, f.hp, f.dir, f.action?.i ?? -1, f.action?.t ?? 0])]);
   }
   // a running key macro (keys.js) presses its steps on top of the keys held
@@ -338,6 +371,7 @@ class World {
     moving.forEach(f => f.strike(this.foes(f), landed));
     for (const l of landed) if (!l.a.m.throw) this.onHit(l.f, l.o, l.h, l.m, l.o.defend(l.f, l.a.m, l.key));
     for (const l of landed) if (l.a.m.throw && l.f.action === l.a && l.o.free && !l.o.heldBy) l.f.seize(l.o);
+    this.updateProps(h);
     // push apart by the bodies' extents (unless someone is knocked down, or held in a throw: pinned at its spot), then face the nearest foe
     for (let i = 0; i < fs.length; i++) for (let j = i + 1; j < fs.length; j++) {
       const a = fs[i], b = fs[j], d = b.x - a.x;
@@ -574,6 +608,7 @@ class World {
     this.view = { s, ox: r.x + r.w / 2 + (sx - cx) * s, oy: r.y + r.h / 2 + (sy - cy) * s }; // screen = world · s + o
     ctx.transform(s, 0, 0, s, this.view.ox, this.view.oy);
     (STAGES[this.scen.stage] || STAGES.plain).draw(ctx, this);
+    this.drawProps(ctx);
     if (cfg.speedLines) this.drawSpeedLines(ctx);
     for (const f of this.fighters.filter(f => !f.hidden).sort((a, b) => a.z - b.z)) // far ones first
       f.draw(ctx, f.freeze > 0 && f === this.victim ? Math.sin(T * 170) * cfg.hitShake : 0);
