@@ -137,6 +137,7 @@ Nine bodies, each struck by the stick fighter: jab, kick, sweep, roundhouse, lau
 
 **ragdoll** (next to **hits**, in the **kind** group) is one big body alone.
 
+- A bar under the preview, not the toolbar, holds the blow controls.
 - The **blow** buttons strike it: high, mid, low, sweep, launcher, overhead, knockdown, crumple, K.O. Each is a stick move's hit without damage, on the bone at that height.
 - **light / normal / heavy** set how hard; **front / back** where from.
 - **stand up** puts it back on its feet.
@@ -202,7 +203,7 @@ Stretch, follow-through, stiffness and secondary motion:
 
 ### Preview
 
-A live fight next to the editor: **showcase**, **walk**, **vs ai**, or **impact** (the body alone with the [ragdoll](#ragdoll) blow buttons, to see it fall).
+A live fight next to the editor, picked in a bar under the preview: **showcase**, **walk**, **vs ai**, or **impact** (the body alone with the [ragdoll](#ragdoll) blow buttons, stacked above them, to see it fall).
 
 ### Bone table
 
@@ -309,7 +310,7 @@ The picker shows the moves as:
 
 ### Compare
 
-**compare** (toolbar) picks a second move:
+**compare**, a bar under the preview (not the toolbar), picks a second move:
 
 - **overlay** draws it over the edited one in amber at the same moment, feet on the same ground.
 - **strip** shows both as filmstrips: a frame every few frames on one time scale, tinted by phase, with their frame data. The playhead's frame is outlined; click a frame to go there.
