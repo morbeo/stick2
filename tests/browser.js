@@ -457,9 +457,17 @@ try {
     sb().click(); pb('new scenario').click(); panels();
     const name = lab.scen, u = () => myScens()[lab.scen], w = () => lab.cells[0].w;
     if (!document.querySelector('.sbuild') || !u() || !/^my scenario/.test(name) || u().p[0].ctl !== 'script' || u().p[0].script !== 'punch, 0.13, punch, 0.13, kick') errs.push('builder new ' + name + JSON.stringify(u()));
-    bb('jabbo', row(0)).click(); bb('lumpo', row(1)).click(); bb('AI', row(1)).click();
+    row(0).querySelector('button.fpick').click(); pb('jabbo').click(); row(1).querySelector('button.fpick').click(); pb('lumpo').click(); bb('AI', row(1)).click();
     bb('untouchable', row(1)).click(); const inv1 = [u().p[1].inv, w().b.c('inv')]; row(1).querySelector('button[data-tip="P2 can be hit and hurt"]').click();
     if (inv1.join() !== 'untouchable,untouchable' || 'inv' in u().p[1] || w().b.c('inv')) errs.push('builder shield ' + inv1);
+    // actor CRUD (P3 on): add defaults to P2's team, its own character picker, team switch, then remove it again
+    [...document.querySelectorAll('.sbuild button')].find(b => b.textContent.includes('add actor')).click();
+    if (u().p.length !== 3 || u().p[2].team !== 1 || w().fighters.length !== 3) errs.push('builder add actor ' + JSON.stringify(u().p));
+    bb('P1', row(2)).click(); if (u().p[2].team !== 0) errs.push('builder actor team ' + u().p[2].team);
+    row(2).querySelector('button.fpick').click(); pb('sarj').click();
+    if (u().p[2].char !== 'sarj' || w().fighters[2].ch !== CHARS.sarj) errs.push('builder actor char ' + u().p[2].char);
+    row(2).querySelector('button[data-tip^="Remove"]').click();
+    if (u().p.length !== 2 || w().fighters.length !== 2) errs.push('builder remove actor ' + u().p.length);
     const sc = row(0).querySelector('input.script'); sc.value = '0.2, 2P'; sc.dispatchEvent(new Event('change'));
     const nm = document.querySelector('.sbuild input.sname'); nm.value = 'jab vs sumo'; nm.dispatchEvent(new Event('change'));
     if (lab.scen !== 'jab vs sumo' || !SCENARIOS['jab vs sumo'] || SCENARIOS[name] || w().a.ch !== CHARS.jabbo || w().b.ch !== CHARS.lumpo || !(w().ctl[1] instanceof Brain) || JSON.stringify(w().scen.a) !== JSON.stringify([0.2, 'down+punch'])) errs.push('builder edit ' + lab.scen + ' ' + JSON.stringify(w().scen.a));
