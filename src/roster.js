@@ -770,8 +770,9 @@ CHAR_DEFS.centaur = { ...mapPoses({ ...stick, moves: CENTAUR_MOVES }, quadLegs),
       body: { bones: { barrel: { min: 60, max: 185 } } },
       ...bind({ punch: 'rearStrike', fwdPunch: 'rearStrike', special: 'rearStrike', kick: 'rearStomp' }) }] };
 
-// houndo: a quadruped beast fighting on all fours; the stick's arms become its front legs (torso turns horizontal the same
-// way the centaur's does), its own legs stay the hind legs. Pounces, claws low, rears up to bite, and howls to taunt
+// houndo: a beast posed to fight on all fours, not an actual quadruped rig (it's still the stick's own two-legged
+// skeleton): the torso turns horizontal (the same way the centaur's does) so the arms double as front legs, while
+// its own two legs stay the hind legs. Pounces, claws low, rears up to bite, and howls to taunt
 function beastPose(p) {
   const q = { ...p };
   if ('waist' in q) q.waist -= 90;
