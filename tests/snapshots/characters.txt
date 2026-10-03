@@ -11,3 +11,6 @@ noodo      hits 11 hp 13.6 92.5
 gogili     hits 5 hp 72.0 73.8
 pollo      hits 9 hp 39.0 100.0
 gloomo     hits 7 hp 104.3 64.3
+centaur    hits 10 hp 69.8 54.6
+houndo     hits 8 hp 77.5 43.0
+tako       hits 10 hp 20.0 100.0

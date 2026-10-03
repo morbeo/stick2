@@ -2,7 +2,7 @@
 const test = require('node:test'), assert = require('node:assert/strict'), load = require('./load');
 const { run } = load();
 const json = code => JSON.parse(run(`JSON.stringify(${code})`));
-const ROSTER = ['hadoo', 'grumbo', 'jabbo', 'sneeko', 'zippa', 'hicco', 'lumpo', 'sarj', 'noodo', 'gogili', 'pollo', 'gloomo'];
+const ROSTER = ['hadoo', 'grumbo', 'jabbo', 'sneeko', 'zippa', 'hicco', 'lumpo', 'sarj', 'noodo', 'gogili', 'pollo', 'gloomo', 'centaur', 'houndo', 'tako'];
 
 test('the roster: the stick and twelve fighters, each with a second stance', () => {
   assert.deepEqual(run('Object.keys(CHARS)'), ['stick', ...ROSTER]);

@@ -1004,12 +1004,14 @@ class Fighter {
     this.start(m);
     this.w.onHit(this, att, { bone: att.ch.by[hitIds(att.action?.m)[0]] || hit.bone, pt: hit.pt }, m, null);
   }
-  // a throw connected: the victim is held for the tech window, then thrown by the move named in the grab's throw
+  // a throw connected: the victim is held for the tech window, then thrown by the move named in the grab's throw.
+  // ← / → held as it lands aims it: back throws the other way (whichever grab move caught them), forward or neutral keeps it
   seize(o) {
     o.exitOn('grab');
     o.heldBy = this; o.heldT = this.c('techWindow'); o.heldAt = this.w.simT; o.buffer = null; o.guarding = false; o.blockT = 0; o.dir = -this.dir; o.away = false;
     o.start(makeHurt(o.ch.hurt.mid[0], 9, this.w.rand, o.st.pose)); o.hurtT = 9;
-    const toss = this.ch.moves[this.action.m.throw];
+    const backGrab = (this.inp.right - this.inp.left) * this.dir < 0 && this.ch.moves[this.binds.backThrow];
+    const toss = (backGrab && this.ch.moves[backGrab.throw]) || this.ch.moves[this.action.m.throw];
     o.heldM = toss || this.action.m;
     if (toss) this.start(toss);
   }
