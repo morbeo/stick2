@@ -68,6 +68,18 @@ test('the command throws land: grumbo spinning piledriver on a half circle, poll
   }
 });
 
+test('sneeko\'s substitution (← S, backSpecial): a strike caught during substituteCatch is taken no damage, warps it behind the foe and leaves a stationary decoy that vanishes shortly', () => {
+  const r = json(`(() => { const w = new World({ a: 'human', b: [0.1, '@kick'], ax: 330, bx: 375, period: 9 }, {}, 7, [CHARS.sneeko, CHARS.stick]), f = w.a;
+    f.start('substituteCatch'); const hp0 = f.hp, x0 = f.x;
+    const seenShot = [], out = [];
+    for (let i = 0; i < 60; i++) { w.advance(1/60, NOIN); seenShot.push(w.shots.length > 0); out.push(f.action?.name); }
+    return { hp0, hpAfter: f.hp, x0, xAfter: f.x, substituted: out.includes('substitute'), shotAppeared: seenShot.includes(true), shotGone: !seenShot.at(-1) }; })()`);
+  assert.equal(r.hpAfter, r.hp0, 'the catch takes no damage from the kick');
+  assert.ok(r.substituted, 'the counter (substitute) plays');
+  assert.ok(Math.abs(r.xAfter - r.x0) > 50, `warps away from where it stood: ${r.x0} -> ${r.xAfter}`);
+  assert.ok(r.shotAppeared && r.shotGone, 'a stationary decoy appears, then is gone by the end (life: 0.4)');
+});
+
 test('a scenario can name its characters: flash kick plays sarj, lightning legs zippa, whatever the current character', () => {
   for (const [s, n, move] of [['flash kick', 'sarj', 'flashKick'], ['lightning legs', 'zippa', 'lightningLegs']]) {
     const r = json(`(() => { const w = new World(SCENARIOS['${s}'], {}, 7, [CHARS.stick]); w.loop = false; let seen = false;
