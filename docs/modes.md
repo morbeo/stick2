@@ -116,6 +116,13 @@ Both replay buttons are in the menu bar, next to undo / redo.
 - A file from another engine version asks first. The top line then shows the version and where the fight goes out of sync.
 - The history button beside them opens the play fight in the [replay](#replay) tab.
 
+### Theater mode
+
+**theater** in the toolbar (T, or Esc to leave) hides the toolbars and side panel and tries for fullscreen: just the fight, for streaming or recording.
+
+- Set what still shows — health bars (`hud`), frame meter, timer, labels — from the toggles in the **theater** group *before* switching it on: the toolbar (and these toggles with it) goes away along with everything else.
+- **timer** draws an elapsed match clock (mm:ss) in a corner, counting up from the round's start.
+
 ## Impact
 
 ![Impact: nine hit reactions side by side](img/impact.png)

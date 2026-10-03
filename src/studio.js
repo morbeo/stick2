@@ -29,7 +29,7 @@ const saveCfg = debounce(() => { try { localStorage.setItem(CFG_STORE, JSON.stri
 const loadCfg = () => { try { for (const [k, v] of Object.entries(JSON.parse(localStorage.getItem(CFG_STORE)) || {})) if (cfgOk(k, v)) CFG[k] = v; } catch {}
   if (!currentChar().by[CFG.scope]) CFG.scope = currentChar().ids[0]; };
 loadCfg();
-// the display aids (ghost, boxes, scope, hud, labels): saved, but not undo steps
+// the display aids (ghost, boxes, scope, hud, labels, timer): saved, but not undo steps
 const setDisplay = (k, v) => { CFG[k] = v; saveCfg(); };
 const studio = { sel: 'uarmF', also: new Set(), undo: [], redo: [], lastKey: null, lastT: 0, fold: new Set(), stance: 0, own: false };
 layFlag(studio, 'colors', 'colours');

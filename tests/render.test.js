@@ -59,15 +59,24 @@ test('a beam draws without NaN, fading as it ends, at any width or facing', () =
   assert.ok(r.calls > 5), assert.deepEqual(r.bad, []);
 });
 
-test('hud and labels off draw less, leave the fight as it was, and stay out of replays', () => {
+test('hud, labels and timer off draw less, leave the fight as it was, and stay out of replays', () => {
   const r = JSON.parse(run(`(() => { const calls = cfg => { const w = new World(SCENARIOS['you vs ai'], cfg, 7), { ctx, st } = stubCtx(); w.loop = false;
       for (let i = 0; i < 60; i++) { w.advance(1/60, { ...NOIN, punch: i % 20 === 0 }); w.render(ctx, { x: 0, y: 0, w: 800, h: 450 }, true); }
       return { calls: st.calls, hash: w.stateHash() }; };
-    const on = calls({}), off = calls({ hud: false, labels: false });
+    const on = calls({ timer: true }), off = calls({ hud: false, labels: false, timer: false });
     return JSON.stringify({ on, off, skip: REPLAY_SKIP }); })()`));
-  assert.ok(r.off.calls < r.on.calls, `hud off draws less: ${r.off.calls} < ${r.on.calls}`);
+  assert.ok(r.off.calls < r.on.calls, `hud/timer off draws less: ${r.off.calls} < ${r.on.calls}`);
   assert.equal(r.off.hash, r.on.hash);
-  assert.ok(r.skip.includes('hud') && r.skip.includes('labels'));
+  assert.ok(r.skip.includes('hud') && r.skip.includes('labels') && r.skip.includes('timer'));
+});
+
+test('the timer draws an elapsed mm:ss clock that counts up from the round\'s start, and resets when the round restarts', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => { const w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 500 }, { timer: true }, 7); w.loop = false;
+    for (let i = 0; i < 125; i++) w.advance(1/60, NOIN); // just past 2s
+    const t0 = w.simT; w.reset();
+    return { t0, afterReset: w.simT }; })())`));
+  assert.ok(r.t0 > 2 && r.t0 < 2.2, `about 2s elapsed: ${r.t0}`);
+  assert.equal(r.afterReset, 0, 'a reset (new round) starts the clock over');
 });
 
 test('effects: an old single effect still draws, a stack draws each, a key\'s stack replaces the move\'s, and a stacked fighter fights the same', () => {
