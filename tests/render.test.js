@@ -89,6 +89,15 @@ test('every stage (STAGES) draws without NaN; a scenario with no stage set draws
   assert.equal(r.results.plain.calls, r.def.calls, 'no scen.stage defaults to plain, drawing the same as today');
 });
 
+test('every prop (PROPS) draws without NaN, bending and all, and a scenario with none draws exactly the same', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => { const draw = scen => { const w = new World(scen, {}, 7), { ctx, st } = stubCtx(); w.loop = false;
+      for (let i = 0; i < 10; i++) w.advance(1/60, NOIN); w.render(ctx, { x: 0, y: 0, w: 800, h: 450 }, true); return { calls: st.calls, bad: st.bad }; };
+    const sc = { a: 'dummy', b: 'dummy', ax: 300, bx: 500 };
+    const results = Object.fromEntries(Object.keys(PROPS).map(k => [k, draw({ ...sc, props: [{ type: k, x: 400 }] })]));
+    return { results, def: draw(sc) }; })())`));
+  for (const k of Object.keys(r.results)) { assert.ok(r.results[k].calls > r.def.calls, `${k} draws something extra`); assert.deepEqual(r.results[k].bad, [], `${k}: no NaN`); }
+});
+
 test('effects: an old single effect still draws, a stack draws each, a key\'s stack replaces the move\'s, and a stacked fighter fights the same', () => {
   const r = JSON.parse(run(`(() => { const ch = CHARS.stick, jab = ch.moves.jab, draw = list => { const { ctx, st } = stubCtx(); drawFx(ctx, fk(ch, ch.poses.stance, 1), list, 0.3, false); drawFx(ctx, fk(ch, ch.poses.stance, 1), list, 0.3, true); return st.calls; };
     const one = { ...jab, fx: { look: 'fire' } }, two = { ...jab, fx: [{ look: 'fire' }, { look: 'lightning', on: 'body', col: 'red', size: 2 }] };

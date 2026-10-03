@@ -16,7 +16,7 @@ function toScen(u) {
     return Object.keys(o).length ? o : undefined; }; // invulnerability, AI style/skill and move limits: the fighter's own overrides (Fighter.c / allowed)
   return { a: ctl(p), b: ctl(q), ax: p.x, bx: q.x, aover: over(p), bover: over(q), chars: u.p.map(f => f.char),
     more: rest.length ? rest.map(f => ({ c: ctl(f), x: f.x, team: f.team ?? 1, over: over(f) })) : undefined,
-    stage: u.stage, cfg: { ...u.cfg }, period: u.period, user: true,
+    stage: u.stage, props: u.props?.length ? u.props.map(p => ({ type: p.type, x: p.x })) : undefined, cfg: { ...u.cfg }, period: u.period, user: true,
     init: away.some(Boolean) ? w => { w.fighters.forEach((f, i) => { if (away[i]) { f.away = true; f.dir = -f.dir; } }); } : undefined };
 }
 // a new one from a scenario's fighters (its script, positions, characters, teams and settings); P3 on come from s.more
@@ -26,7 +26,8 @@ function fromScen(s, chars) {
     ...team !== undefined && { team }, ...o?.inv && { inv: o.inv }, ...o?.aiStyle && { aiStyle: o.aiStyle }, ...o?.aiSkill && { aiSkill: { ...o.aiSkill } }, ...o?.limits && { limits: { ...o.limits } } });
   const scripted = Array.isArray(s.a);
   return { p: [f(s.a, s.ax ?? (scripted ? 330 : 300), name(0), s.aover), f(s.b, s.bx ?? (scripted ? 375 : 500), name(1), s.bover),
-    ...(s.more || []).map((m, i) => f(m.c, m.x, name(i + 2), m.over, m.team ?? 1))], stage: s.stage, period: s.period || 0, cfg: { ...s.cfg } };
+    ...(s.more || []).map((m, i) => f(m.c, m.x, name(i + 2), m.over, m.team ?? 1))], stage: s.stage,
+    props: (s.props || []).map(p => ({ type: p.type, x: p.x })), period: s.period || 0, cfg: { ...s.cfg } };
 }
 function saveScens() {
   for (const k of Object.keys(SCENARIOS)) if (SCENARIOS[k].user && !myStore[k]) delete SCENARIOS[k];
@@ -79,6 +80,7 @@ function scenBuilder() {
   const fill = () => {
     const name = lab.scen, u = myStore[name];
     if (!u) return closeStage();
+    u.props ??= [];
     const nm = h('input', { cls: 'macro sname', value: name, tip: 'The scenario\'s name (any name the built-ins do not use)', onkeydown: e => e.stopPropagation(),
       onchange: () => { const v = nm.value.trim(); if (!v || v === name || SCENARIOS[v]) { nm.value = name; return; } myStore[v] = u; delete myStore[name]; lab.scen = v; scenChanged(); panels(); } });
     // the character picker: a popup with a grid of cards (as play's fighters group), instead of a flat list of names
@@ -115,6 +117,15 @@ function scenBuilder() {
     const addActor = button(':add: add actor', 'Add another fighter to the scenario (P3 on), ganging up on P1 by default', () => {
       u.p.push({ char: null, ctl: 'dummy', script: '', x: Math.min(W - 60, 160 + 80 * (u.p.length - 2)), away: false, team: 1 }); scenChanged(); fill();
     }, 'mini');
+    // props: simple collidable scenery (PROPS, src/stage.js) — a crate (breakable), a reed (bends) or a spring (bouncy)
+    const propRow = (p, i) => withData({ pr: i }, h('div', { cls: 'bar' }, h('b', { textContent: 'prop' }),
+      seg(Object.keys(PROPS), () => p.type, v => { p.type = v; scenChanged(); fill(); }, Object.fromEntries(Object.keys(PROPS).map(k =>
+        [k, k === 'crate' ? 'A crate: breaks after enough hits' : k === 'reed' ? 'A reed: bends when struck, never breaks' : 'A spring: bounces thrown weapons back']))),
+      slider('x', { min: 20, max: W - 20, step: 5 }, () => p.x, v => { p.x = v; scenChanged(); }, `Where this ${p.type} sits (the stage is ${W} wide)`),
+      button(':close:', 'Remove this prop', () => { u.props.splice(i, 1); scenChanged(); fill(); }, 'mini')));
+    const addProp = button(':add: add prop', 'Add a piece of collidable scenery: a crate (breakable), a reed (bends) or a spring (bouncy)', () => {
+      u.props.push({ type: 'crate', x: Math.min(W - 40, 200 + 60 * u.props.length) }); scenChanged(); fill();
+    }, 'mini');
     // settings: the overrides it brings, each editable; add one by name, or take every setting changed from the defaults now
     const over = Object.keys(u.cfg).filter(k => SPEC[k]).map(k => { const s = SPEC[k], set = v => { u.cfg[k] = v; scenChanged(); };
       return h('div', { cls: 'bar' }, s.opts ? h('span', { textContent: k }) : null,
@@ -126,7 +137,8 @@ function scenBuilder() {
     body.replaceChildren(h('div', { cls: 'bar' }, nm,
       slider('restart', { min: 0, max: 10, step: 0.1 }, () => u.period, v => { u.period = v; scenChanged(); }, 'Restarts every this many seconds (0: plays on)'),
       seg(Object.keys(STAGES), () => u.stage || 'plain', v => { u.stage = v === 'plain' ? undefined : v; scenChanged(); }, Object.fromEntries(Object.keys(STAGES).map(k => [k, STAGES[k].tip])))),
-      ...u.p.map(fighter), h('div', { cls: 'bar' }, addActor), h('h4', { textContent: 'settings' }), ...over,
+      ...u.p.map(fighter), h('div', { cls: 'bar' }, addActor),
+      ...u.props.map(propRow), h('div', { cls: 'bar' }, addProp), h('h4', { textContent: 'settings' }), ...over,
       h('div', { cls: 'bar' }, find, button(':tune: take my settings', 'Bring every setting you changed from the defaults, at its current value',
         () => { for (const k of changedCfg()) u.cfg[k] = CFG[k]; scenChanged(); fill(); }, 'mini')), found);
   };

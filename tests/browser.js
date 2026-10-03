@@ -479,6 +479,16 @@ try {
     // stage picker: plain is the default (undefined), picking another sets it and the live world, back to plain clears it
     bb('dojo').click(); if (u().stage !== 'dojo' || w().scen.stage !== 'dojo') errs.push('builder stage ' + u().stage);
     bb('plain').click(); if (u().stage) errs.push('builder stage reset ' + u().stage);
+    // props: add, pick a type, move it, then remove it
+    [...document.querySelectorAll('.sbuild button')].find(b => b.textContent.includes('add prop')).click();
+    if (u().props.length !== 1 || u().props[0].type !== 'crate' || w().props.length !== 1) errs.push('builder add prop ' + JSON.stringify(u().props));
+    const propRow = () => document.querySelector('.sbuild [data-pr="0"]');
+    propRow().querySelector('button[data-tip^="A spring"]').click();
+    if (u().props[0].type !== 'spring' || w().props[0].type !== 'spring') errs.push('builder prop type ' + u().props[0].type);
+    const px = propRow().querySelector('input[type="range"]'); px.value = 200; px.dispatchEvent(new Event('input'));
+    if (u().props[0].x !== 200) errs.push('builder prop x ' + u().props[0].x);
+    propRow().querySelector('button[data-tip="Remove this prop"]').click();
+    if (u().props.length !== 0 || w().props.length !== 0) errs.push('builder remove prop ' + JSON.stringify(u().props));
     // test in grid: jumps to grid mode, sweeping settings with this scenario as the one row
     [...document.querySelectorAll('.sbuild button')].find(b => b.textContent.includes('test in grid')).click();
     if (app.mode !== 'grid' || lab.y.k !== 'scenario' || JSON.stringify(lab.rows) !== JSON.stringify(['jab vs sumo']) || lab.kind !== 'sweep') errs.push('test in grid ' + app.mode + ' ' + lab.y.k + ' ' + JSON.stringify(lab.rows));

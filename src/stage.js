@@ -35,3 +35,30 @@ const STAGES = {
     ctx.fillStyle = '#c9a877'; ctx.fillRect(-2000, -2000, 2020, 4000); ctx.fillRect(W - 20, -2000, 2000, 4000);
   } },
 };
+
+// ---------- props: simple collidable scenery, placed by a scenario (scen.props: [{type, x, z?}]) ----------
+// size: half-width (and collision radius); h: the collidable column's height, from the floor up (generous, so a punch
+// or a kick, high or low, both reach it — independent of how tall its own drawing happens to be)
+// breakable: takes damage from strikes and thrown weapons, destroyed (debris) at 0 hp
+// bendable: never damaged or destroyed, just bends briefly where it's struck (bendDir/bendT, set in World.updateProps)
+// bouncy: never damaged; a thrown weapon that hits it reflects instead of landing
+// draw(ctx, p, w) runs in world space, like STAGES; w: the World (for w.groundY)
+const PROPS = {
+  crate: { size: 20, h: 90, hp: 30, breakable: true, draw(ctx, p, w) {
+    ctx.save(); ctx.translate(p.x, w.groundY - 24); ctx.fillStyle = '#b08a52'; ctx.strokeStyle = '#7a5c34'; ctx.lineWidth = 2;
+    ctx.fillRect(-20, -24, 40, 48); ctx.strokeRect(-20, -24, 40, 48);
+    ctx.beginPath(); ctx.moveTo(-20, -24); ctx.lineTo(20, 24); ctx.moveTo(20, -24); ctx.lineTo(-20, 24); ctx.stroke();
+    ctx.restore();
+  } },
+  reed: { size: 6, h: 90, bendable: true, draw(ctx, p, w) {
+    const bend = (p.bendDir || 0) * Math.min(1, (p.bendT || 0) / 0.08) * 22;
+    ctx.save(); ctx.translate(p.x, w.groundY); ctx.strokeStyle = '#6a8a4a'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(bend * 0.6, -22, bend, -44); ctx.stroke();
+    ctx.restore();
+  } },
+  spring: { size: 16, h: 90, bouncy: true, draw(ctx, p, w) {
+    ctx.save(); ctx.translate(p.x, w.groundY - 4); ctx.fillStyle = '#c0392b'; ctx.strokeStyle = '#7a2015'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(0, 0, 16, 6, 0, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  } },
+};
