@@ -115,6 +115,7 @@ const SCHEMA = [
   { k: 'rollInv', v: 0.3, min: 0, max: 0.6, step: 0.01, tip: 'Seconds from the start of a roll (move flag roll) that it is invincible and passes through fighters.' },
   { k: 'teleport', v: true, tip: 'Teleport: vanish and reappear behind the foe (the key marked warp), leaving after-images.' },
   { k: 'shots', v: true, tip: 'Projectiles: a move with a key marked shoot fires its shot (fireball) as that key is reached; it flies, hits or is blocked like the move, and two shots meet and cancel. One shot per fighter at a time.' },
+  { k: 'beams', v: true, tip: 'Beams: a move with a key marked beam holds out a straight line from the striking limbs as that key is reached, hitting once wherever it touches a foe. One beam per fighter at a time.' },
   { k: 'turnBack', v: true, tip: 'Turnaround: ↗ S (9S) turns your back to the foe (the key marked turn). Back turned you cannot guard; a direction, or any move without turns, faces it again.' },
   { k: 'teleportDist', v: 60, min: 20, max: 200, step: 5, tip: 'How far (px) behind the foe a teleport lands.' },
   { k: 'guardCancel', v: true, tip: 'Guard cancel: in blockstun, P (guard scheme) or → S (motion) strikes back at once (guardCancel, invincible as it starts) for guardCancelCost health.' },

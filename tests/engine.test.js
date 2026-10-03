@@ -891,6 +891,19 @@ test('projectiles: a shoot key fires the move\'s shot from its striking limb; it
   assert.equal(go(['@fireball'], 'dummy', { shots: false }).seen, 0, 'shots off: no projectile');
 });
 
+test('beams: a beam key holds a straight line out from the striking limb; it hits once from range, is blocked, and is one at a time', () => {
+  const go = (a, b, cfg = {}, n = 60) => JSON.parse(run(`(() => { const w = new World({ a: ${JSON.stringify(a)}, b: ${JSON.stringify(b)}, ax: 250, bx: 560, cfg: ${JSON.stringify(cfg)} }, {}, 7); w.loop = false;
+    let most = 0, seen = 0; const hp0 = w.b.hp;
+    for (let i = 0; i < ${n}; i++) { w.advance(1/60, NOIN); most = Math.max(most, w.beams.filter(b => b.owner === w.a).length); seen ||= w.beams.length; }
+    return JSON.stringify({ hit: hp0 - w.b.hp, ahp: w.a.hp, most, seen, clashes: w.clashes, blocks: w.blocks, hits: w.hits, ax: w.a.x }); })()`));
+  const r = go(['@laserBeam'], 'dummy');
+  assert.equal(r.most, 1), assert.ok(r.hit >= 6, 'and hits: ' + r.hit), assert.ok(Math.abs(r.ax - 250) < 30, 'the beamer stays put');
+  assert.equal(go(['@laserBeam', 0.05, '@laserBeam'], 'dummy').most, 1, 'one beam at a time');
+  const bl = go(['@laserBeam'], [{ hold: 'guard', t: 2 }]);
+  assert.equal(bl.blocks, 1), assert.ok(bl.hit < 3, 'blocked: chip only ' + bl.hit);
+  assert.equal(go(['@laserBeam'], 'dummy', { beams: false }).seen, 0, 'beams off: no beam');
+});
+
 test('chase jump: after a launcher hits, ↑ held jumps after the victim (press), on its own (auto), not at all (off)', () => {
   const chase = (mode, a) => JSON.parse(run(`(() => { const w = new World({ a: ${JSON.stringify(a)}, b: 'dummy', ax: 330, bx: 372, period: 9 }, { chaseJump: '${mode}' }, 7, [CHARS.stick]); w.loop = false;
     let top = 0, gap = 1e9, flew = false;

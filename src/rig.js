@@ -217,6 +217,13 @@ const STICK_MOVES = {
     { d: 0.06, e: 'outExpo', shoot: true, p: { torso: 18, afU: 90, afL: 5, abU: 80, abL: 10, lfU: 40, lfL: -35, lbU: -30, lbL: 0 } },
     { d: 0.16, p: { torso: 18, afU: 90, afL: 5, abU: 80, abL: 10, lfU: 40, lfL: -35, lbU: -30, lbL: 0 } },
     { d: 0.22, e: 'inOutCubic', p: null }] },
+  // a beam (beam key): both palms pushed out and held there; the beam leaves as the push is reached, holds out for its duration
+  // (move field beam: width, range, duration, look) and hits once with the move's own power, damage and height
+  laserBeam: { power: 1.3, damage: 10, hit: ['fh', 'bh'], height: 'mid', knock: 80, stun: 0.3, special: true, beam: { width: 14, range: 500, duration: 0.25, look: 'laser' }, keys: [
+    { d: 0.12, e: 'outQuad', p: { torso: -8, afU: -30, afL: 110, abU: -40, abL: 110, lfU: 30, lfL: -35, lbU: -20, lbL: -10 } },
+    { d: 0.05, e: 'outExpo', beam: true, p: { torso: 15, afU: 95, afL: 10, abU: 85, abL: 15, lfU: 35, lfL: -30, lbU: -25, lbL: 0 } },
+    { d: 0.2, p: { torso: 15, afU: 95, afL: 10, abU: 85, abL: 15, lfU: 35, lfL: -30, lbU: -25, lbL: 0 } },
+    { d: 0.2, e: 'inOutCubic', p: null }] },
   // the rest of the direction table (see BINDS): 4K steps back as it kicks, 1P a quick crouching poke, 3P a lunging body blow,
   // 1K a sweep with the back leg; ↑ diagonals: 7P backfist, 7K crescent (overhead), 9K flying knee
   fadeKick: attack({ power: 1.2, damage: 8, hit: 'ff', height: 'mid', knock: 300, stun: 0.36, lunge: -180 },

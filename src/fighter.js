@@ -337,6 +337,7 @@ class Fighter {
     }
     if (k.warp) this.warp();
     if (k.shoot) this.shoot(a);
+    if (k.beam) this.fireBeam(a);
     if (k.shake) this.w.trauma = Math.min(1, this.w.trauma + k.shake); // key events: screen shake, a sound
     if (k.sound) this.w.sound(k.sound, this.x);
     if (this.ch.weapon && a.toss && (k.release || first && !a.m.keys.some(x => x.release))) { this.letGo(true, a.charge); this.action = a; }
@@ -347,6 +348,14 @@ class Fighter {
     const m = a.m, o = m.shot || {}, P = this.body(), ps = hitIds(m).map(id => P[id]).filter(Boolean);
     const pt = ps.length ? [ps.reduce((s, p) => s + p[0], 0) / ps.length, ps.reduce((s, p) => s + p[1], 0) / ps.length] : [this.x + this.dir * 30, this.groundY + this.y - 60];
     this.w.shots.push({ x: pt[0], y: pt[1], z: this.z, vx: this.dir * (o.speed ?? 360), dir: this.dir, r: o.size ?? 12, life: o.life ?? 2, t: 0, look: o.look || 'ki', owner: this, m });
+    a.hit = true; // fired: not a whiff
+  }
+  // a beam key: a straight line held out from the striking limbs for its duration, hitting once wherever it touches a foe (beams setting)
+  fireBeam(a) {
+    if (!this.c('beams') || this.w.beams.some(b => b.owner === this)) return;
+    const m = a.m, o = m.beam || {}, P = this.body(), ps = hitIds(m).map(id => P[id]).filter(Boolean);
+    const pt = ps.length ? [ps.reduce((s, p) => s + p[0], 0) / ps.length, ps.reduce((s, p) => s + p[1], 0) / ps.length] : [this.x + this.dir * 30, this.groundY + this.y - 60];
+    this.w.beams.push({ x: pt[0], y: pt[1], z: this.z, dir: this.dir, vx: this.dir, w: o.width ?? 14, range: o.range ?? 500, dur: o.duration ?? 0.25, t: 0, hit: false, look: o.look || 'laser', owner: this, m });
     a.hit = true; // fired: not a whiff
   }
   // reaching for a weapon: it slides and turns on the floor so its handle meets the hand at the grip key; let go if the reach is cut short
