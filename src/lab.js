@@ -658,7 +658,7 @@ function debugPanel(e, b) {
   popup(b, h('b', { textContent: 'debug' }), row('ghost'), row('boxes'), row('hud'), row('labels'),
     h('div', { cls: 'row', tip: SPEC.scope.tip }, h('span', { textContent: 'scope' }), h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v), Object.fromEntries(currentChar().ids.map(id => [id, `Plot the angle of ${id}`]))))),
     dbgInfo, h('div', { cls: 'bar' }, button(':content_copy: copy', 'Copy the debug information (for a bug report)', () => navigator.clipboard?.writeText(dbgInfo.textContent)),
-      button(':crisis_alert: report a bug', 'Copy a bug report (build, settings changed from default, the shown fight) and open a new GitHub issue to paste it into', reportBug),
+      button(':bug_report: report a bug', 'Copy a bug report (build, settings changed from default, the shown fight) and open a new GitHub issue to paste it into', reportBug),
       button(':restart_alt: reset settings', 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels) stay (⌘Z undoes)', () => { applyPreset('juicy'); mode().restart(); }),
       button(':delete: factory reset', 'Delete all local data: edited characters, settings, keys and macros, layout; then reload as new (asks first)', () => factoryReset())),
     h('p', { cls: 'note', textContent: 'monitor: the scope bone\'s target angle (grey) against the drawn one (red), with the stats of the shown or focused fight' }), scopeCv, stats);
