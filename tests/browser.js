@@ -652,6 +652,21 @@ try {
       errs.push('bone table ' + [on, lag('shinF'), lag('shinB'), lag('footF'), selIds()]);
     undo(); undo(); syncAll(); if (cell('shinF', 'lag').value === '2.3') errs.push('bone table after undo');
     lay('character').panel = null; panels(); }
+  // BONE.also: a bone panel row (toggles per role, excluding its own) and a bone table column, both editing the same array
+  { setMode('character'); pickChar('houndo'); pickBoneSel('uarmF', false); syncAll(); panels();
+    const row = [...document.querySelectorAll('.row')].find(r => r.textContent.includes('also') && r.textContent.includes('tail') && !r.textContent.includes('role'));
+    if (!row) errs.push('also row missing');
+    else {
+      if ([...row.querySelectorAll('button')].some(b => b.textContent.trim() === 'arm')) errs.push('also row offers the bone\\'s own role');
+      const spine = [...row.querySelectorAll('button')].find(b => b.textContent.trim() === 'spine');
+      spine.click(); if (DEFS.houndo.bones.find(b => b.id === 'uarmF').also?.sort().join() !== 'leg,spine') errs.push('also row add ' + DEFS.houndo.bones.find(b => b.id === 'uarmF').also);
+      spine.click(); if (DEFS.houndo.bones.find(b => b.id === 'uarmF').also?.join() !== 'leg') errs.push('also row remove ' + DEFS.houndo.bones.find(b => b.id === 'uarmF').also);
+    }
+    lay('character').panel = 'bones'; panels();
+    const trow = [...document.querySelectorAll('.btable tbody tr')].find(r => r.firstChild.textContent === 'uarmF');
+    const cell = trow.children[BONE_COLS.findIndex(c => c.k === 'also')];
+    if (cell.textContent !== 'leg') errs.push('also column ' + cell.textContent);
+    lay('character').panel = null; pickChar('stick'); panels(); }
   // debug: a popup from the menu bar (not in the side panel), with the engine version and the fighters of the shown fight, in any mode
   { setMode('play'); panels(); if (dbgInfo.isConnected || [...$('side').querySelectorAll('h3')].some(e => e.textContent.startsWith('Debug'))) errs.push('debug still in the side panel');
     debugBtn().click(); dbgT = 0; drawDebug();

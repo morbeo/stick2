@@ -783,8 +783,11 @@ CHAR_DEFS.houndo = { ...mapPoses({ ...stick, moves: retimed(0.85, 0.9) }, beastP
   bones: [
     { ...STICK_BONES[0], a: 90, min: 60, max: 120 },
     STICK_BONES[1], STICK_BONES[2], { ...STICK_BONES[3], len: 10 },
+    // the stick's arms become real front legs too (also: ['leg'], on top of their own role: arm): the gait and foot
+    // planting code key off ch.chains.leg, so they drive and plant all four the same way, no special-casing needed —
+    // and staying arms as well means a weapon still has a sensible hand to go in (weaponBones, src/rig.js)
     ...STICK_BONES.slice(4).map(b => b.role === 'arm'
-      ? { ...b, len: Math.round(b.len * 1.1), min: b.id.startsWith('uarm') ? -140 : -10, max: b.id.startsWith('uarm') ? 100 : 165 } : b),
+      ? { ...b, also: b.id.startsWith('uarm') ? ['leg'] : undefined, len: Math.round(b.len * 1.1), min: b.id.startsWith('uarm') ? -140 : -10, max: b.id.startsWith('uarm') ? 100 : 165 } : b),
     ...tail3(14, 3)],
   moves: { ...mapPoses({ ...stick, moves: retimed(0.85, 0.9) }, beastPose).moves, ...sig({
     // → P: tackles forward, teeth bared
