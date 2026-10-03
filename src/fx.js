@@ -128,6 +128,39 @@ const FX_DRAW = {
     }));
   },
 };
+// ---------- custom looks: one generic particle draw, parametrized (count/life/speed/spread/angle/gravity/size/shape) ----------
+// closed-form from (seed, t) like every look above (no stepped simulation), so the animate timeline can still scrub to any instant
+function drawCustom(preset, ctx, segs, rgb, k, t) {
+  const { count = 6, life = 0.5, speed = 60, spread = 40, angle = -90, gravity = 200, size0 = 3, size1 = 0, shape = 'dot' } = preset;
+  const rad = angle * Math.PI / 180, spreadRad = spread * Math.PI / 180;
+  segs.forEach(({ i: si, ...s }) => fxPoints(s, 14).forEach(([x, y], j) => {
+    for (let q = 0; q < count; q++) {
+      const r = fxRnd(si * 7 + q, j), r2 = fxRnd(si * 13 + q, j + 5);
+      const ph = (t / Math.max(0.05, life) + q / count + r * 0.3) % 1, age = ph * life;
+      const a = rad + (r2 - 0.5) * spreadRad, sp = speed * (0.7 + 0.6 * r) * k;
+      const at = d => [x + Math.cos(a) * sp * d, y + Math.sin(a) * sp * d + 0.5 * gravity * k * d * d];
+      const [px, py] = at(age), size = Math.max(0, size0 + (size1 - size0) * ph) * k, alpha = 1 - ph;
+      if (size <= 0.05) continue;
+      ctx.fillStyle = ctx.strokeStyle = `rgba(${rgb},${alpha})`;
+      if (shape === 'line') { const [bx, by] = at(Math.max(0, age - life * 0.08)); ctx.lineWidth = Math.max(0.5, size * 0.4); ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(px, py); ctx.stroke(); }
+      else if (shape === 'ring') { ctx.lineWidth = Math.max(0.5, size * 0.3); ctx.beginPath(); ctx.arc(px, py, size, 0, 7); ctx.stroke(); }
+      else dot(ctx, px, py, size);
+    }
+  }));
+}
+// ---------- my looks: custom presets built in the browser, saved as you go (same pattern as scenarios: myStore -> SCENARIOS) ----------
+const LOOK_STORE = 'stick2.looks';
+const myLooks = (() => { try { return JSON.parse(localStorage.getItem(LOOK_STORE)) || {}; } catch { return {}; } })();
+function registerLook(name, preset) {
+  FX_LOOKS[name] = `Custom: ${name}`; FX_DRAW[name] = (ctx, segs, rgb, k, t) => drawCustom(preset, ctx, segs, rgb, k, t);
+  FX_AUTO[name] = preset.col || 'white'; // a move using this look without its own colour falls back to the look's own default
+  if (preset.back) FX_BACK.add(name); else FX_BACK.delete(name);
+}
+for (const [name, preset] of Object.entries(myLooks)) registerLook(name, preset);
+function saveLook(name, preset) { myLooks[name] = preset; registerLook(name, preset); saveLooks(); }
+function deleteLook(name) { delete myLooks[name]; delete FX_LOOKS[name]; delete FX_DRAW[name]; delete FX_AUTO[name]; FX_BACK.delete(name); saveLooks(); }
+function renameLook(from, to) { if (!myLooks[from] || to === from || FX_LOOKS[to]) return; const p = myLooks[from]; deleteLook(from); saveLook(to, p); }
+function saveLooks() { try { localStorage.setItem(LOOK_STORE, JSON.stringify(myLooks)); } catch {} }
 // the effects of fxNow over the points P: the ones behind the body (back) or in front
 function drawFx(ctx, P, list, t, back) {
   for (const [e, bones] of list) if (FX_DRAW[e.look] && FX_BACK.has(e.look) === back) {

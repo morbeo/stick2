@@ -144,6 +144,26 @@ test('new fx looks (spiky aura, bubbles, sparks) draw without NaN, each on its o
   assert.deepEqual(r.auto, ['purple', 'cyan', 'gold']); assert.deepEqual(r.back, [true, false, false]);
 });
 
+test('a custom look (saveLook: the generic particle draw, drawCustom) registers into FX_LOOKS/FX_DRAW/FX_AUTO/FX_BACK and draws every shape without NaN', () => {
+  const r = JSON.parse(run(`(() => { const ch = CHARS.stick, P = fk(ch, ch.poses.stance, 1);
+    const draw = (name, back) => { const { ctx, st } = stubCtx(); drawFx(ctx, P, [[{ look: name }, ch.bones]], 0.37, back); return { calls: st.calls, bad: st.bad }; };
+    const results = {};
+    for (const shape of ['dot', 'line', 'ring']) {
+      const name = 'test_' + shape;
+      saveLook(name, { count: 5, life: 0.4, speed: 80, spread: 30, angle: -90, gravity: 150, size0: 3, size1: 0, shape, col: 'gold', back: shape === 'ring' });
+      results[shape] = { front: draw(name, false), back: draw(name, true), inLooks: name in FX_LOOKS, auto: FX_AUTO[name], isBack: FX_BACK.has(name) };
+    }
+    const before = Object.keys(FX_LOOKS).length; deleteLook('test_dot');
+    return JSON.stringify({ results, before, after: Object.keys(FX_LOOKS).length, goneFromDraw: !FX_DRAW.test_dot }); })()`));
+  for (const shape of ['dot', 'line', 'ring']) {
+    const r2 = r.results[shape], drawn = shape === 'ring' ? r2.back : r2.front, other = shape === 'ring' ? r2.front : r2.back;
+    assert.ok(drawn.calls > 0, `${shape} draws (back: ${shape === 'ring'})`); assert.deepEqual(drawn.bad, [], `${shape}: no NaN`);
+    assert.equal(other.calls, 0, `${shape} only draws on its own side`);
+    assert.ok(r2.inLooks, `${shape} is in FX_LOOKS`); assert.equal(r2.auto, 'gold'); assert.equal(r2.isBack, shape === 'ring');
+  }
+  assert.equal(r.after, r.before - 1, 'deleteLook removes it from FX_LOOKS'); assert.ok(r.goneFromDraw, 'and from FX_DRAW');
+});
+
 test('an effect\'s spd scales the time passed to its look (the preview tool\'s speed slider; unset: unchanged)', () => {
   const r = JSON.parse(run(`(() => { const ch = CHARS.stick, P = fk(ch, ch.poses.stance, 1), { ctx } = stubCtx();
     const orig = FX_DRAW.aura; let seen = null;

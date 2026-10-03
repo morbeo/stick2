@@ -181,6 +181,20 @@ The **panels** group → **table** puts every move in a table over the stage: ty
 - Edit values in place. Editing frames retimes that phase's keys.
 - Click a row to open the move in the keyframe editor; hover it to play the move next to the cursor.
 
+## Sounds and effects
+
+A key's **events** row (in its fold, under the key editor) picks what plays as that key is reached, drawing/sound only — the fight plays out the same with or without them: **spark** (a hit flash: hit, heavy, slash, blunt or none), **sound** (whoosh, hit, thud, block, none, or any custom sound), and **after** (after-images, for fast dashes and teleports). **key fx** below it stacks up to 4 looks (fire, aura, sparks…) on the move's striking limbs, the whole body, or a bone group, each with its own colour, size and speed; a move's own **fx** sets the default a key can inherit, override, or clear.
+
+Neither sounds nor looks are picked from a closed list — both can be designed from scratch.
+
+### Sounds
+
+**panels** → **sounds**. Every sound is synthesized live (WebAudio, no files): a noise layer (a filtered sweep) and/or a tone layer (an oscillator sweep), each with its own gain, over an attack and a decay. The 4 built-ins (whoosh, hit, thud, block) are read-only; **duplicate** one (or **new sound**) to get a tunable copy — a slider per parameter, a **test** button, rename, delete. A custom sound appears anywhere a sound is picked, including the key events row above.
+
+### Effects (looks)
+
+**panels** → **looks**. Built-in looks (fire, aura, lightning…) are hand-coded drawing and shown read-only. **new look** instead makes a custom one from a single generic particle effect, tuned by sliders: how many spawn per point, their lifetime, launch speed/spread/angle, gravity, size from birth to the end of its life, and a shape (a dot, a trailing streak, or a ring) — plus a default colour and whether it draws behind the body (like aura) or in front. A small preview animates live next to the sliders. A custom look appears anywhere a look is picked, including a move or key's fx.
+
 ## Movement layers
 
 **animate → move group → + → layer.** Every movement state can get a keyframed layer on top of its procedural / IK motion.
