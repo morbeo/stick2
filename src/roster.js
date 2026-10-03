@@ -728,7 +728,17 @@ const CENTAUR_MOVES = mapVals({ ...retimed(1.1, 1.2), tailWhip: TAIL_WHIP, ...si
     { d: 0.1, e: 'outExpo', p: { torso: 30, head: 10, afU: 100, afL: 10, abU: 90, abL: 15 }, active: true, lunge: 140 },
     { d: 0.08, p: { torso: 30, head: 10, afU: 100, afL: 10, abU: 90, abL: 15 }, active: true },
     { d: 0.26, e: 'inOutCubic', p: null }] },
-}) }, m => ({ ...m, hit: mapHit(m.hit, h => QUAD_HITS[h] || h) }));
+}),
+  // rearing-only (the stance below), written in raw bone angles (sig's fromOld only knows the old 10-joint notation,
+  // which has no idea about forelegs): standing reared up, both forelegs pummel forward like a boxing horse
+  rearStrike: attack({ power: 1.5, damage: 11, hit: ['hoofF', 'hoofB'], height: 'mid', knock: 320, launch: 80, kd: true, special: true },
+    [0.12, { foreThighF: -110, foreShinF: 100, foreThighB: -140, foreShinB: 110 }],
+    [0.1, { foreThighF: 20, foreShinF: -10, foreThighB: -10, foreShinB: 10 }], 0.1, 0.3),
+  // rearing-only: a single overhead hoof stomp with the lead foreleg
+  rearStomp: attack({ power: 1.3, damage: 9, hit: 'hoofF', height: 'mid', knock: 200, stun: 0.4, special: true },
+    [0.12, { foreThighF: -130, foreShinF: 110 }],
+    [0.12, { foreThighF: 40, foreShinF: -20 }], 0.1, 0.26),
+}, m => ({ ...m, hit: mapHit(m.hit, h => QUAD_HITS[h] || h) }));
 CHAR_DEFS.centaur = { ...mapPoses({ ...stick, moves: CENTAUR_MOVES }, quadLegs),
   name: 'centaur', speed: 1.1, weight: 1.4, jump: 0.9, dash: 1.4, turnaround: 0.45, traction: 0.75, airDodge: 0.6,
   bones: [{ id: 'barrel', len: 34, a: 90, role: 'spine', hurt: 13, thick: 11, lag: 0, min: 60, max: 120 },
@@ -741,8 +751,13 @@ CHAR_DEFS.centaur = { ...mapPoses({ ...stick, moves: CENTAUR_MOVES }, quadLegs),
   ...bind({ fwdPunch: 'trample', downKick: 'donkeyKick', upPunch: 'rearButt', backKick: 'tailWhip',
     special: 'trample', fwdSpecial: 'trample', downSpecial: 'donkeyKick', upSpecial: 'rearButt' }),
   // ↓ (held a moment): lowers into a charging crouch, quicker into the trample
+  // S+G (cycles with charge): rears up onto the hind (human) legs, barrel swung upright; the forelegs strike like hooves boxing
   stances: [{ name: 'charge', pose: quadLegs(fromOld({ torso: 20, lfU: 10, lfL: -10, lbU: -5, lbL: 5 })),
-    ...bind({ punch: 'trample', special: 'trample', kick: 'donkeyKick' }) }] };
+    ...bind({ punch: 'trample', special: 'trample', kick: 'donkeyKick' }) },
+    { name: 'rearing', pose: { barrel: 150, waist: 22, thighF: 25, shinF: -25, footF: 90, thighB: -18, shinB: 0, footB: 90,
+        foreThighF: -60, foreShinF: 60, hoofF: 90, foreThighB: -100, foreShinB: 80, hoofB: 90 },
+      body: { bones: { barrel: { min: 60, max: 185 } } },
+      ...bind({ punch: 'rearStrike', fwdPunch: 'rearStrike', special: 'rearStrike', kick: 'rearStomp' }) }] };
 
 // houndo: a quadruped beast fighting on all fours; the stick's arms become its front legs (torso turns horizontal the same
 // way the centaur's does), its own legs stay the hind legs. Pounces, claws low, rears up to bite, and howls to taunt
