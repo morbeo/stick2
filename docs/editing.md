@@ -42,6 +42,10 @@ The character panel shows a grid of drawings, all at one scale.
 - Edits are saved in the browser automatically. Only changed built-ins are stored, so a stored copy of an old built-in needs **revert** to get the new version.
 - Any move can be bound to an input (J, K with any direction, running, air, motions), so copied moves are playable.
 
+### Colour
+
+By default a fighter is coloured by which player it is (P1 black, P2 red, P3 blue…), the same for every character. The **colour** row gives a character its own colour instead — a preset swatch or any colour from the picker — used everywhere it's drawn, in a fight too, overriding the player slot. **auto** goes back to the player-slot colour.
+
 ### Stats
 
 Stats scale the fight settings for that character. Three groups, with group buttons and the body experiment:

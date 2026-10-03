@@ -293,7 +293,8 @@ function drawThumb(cv, ch, pose = ch.poses.stance, cw = 60, chh = 64) {
   let low = 0, x0 = 0, x1 = 0;
   for (const b of ch.bones) { const p = L[b.id], r = b.shape === 'circle' ? b.len : 0; low = Math.max(low, p[1] + r); x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); }
   c.translate(w / 2 - (x0 + x1) / 2 * s, hh - 3 * dpr - low * s); c.scale(s, s);
-  drawFigure(c, ch, L, INK[0], INK[1]);
+  const col = ch.col || INK;
+  drawFigure(c, ch, L, col[0], col[1]);
 }
 // a character as a card; by default clicking it makes it the one every mode edits
 function charCard(k, pick = pickChar, on = k => CURRENT === k) {
@@ -424,7 +425,22 @@ function charPanel() {
     onclick: () => popup(pick, h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k)))) }, cv, h('span', {}, name, info), ...rich(':expand_more:'));
   reg(pick, () => { const c = currentChar(); drawThumb(cv, c, undefined, 36, 40); name.textContent = CURRENT;
     info.textContent = `${CHAR_DEFS[CURRENT] ? 'built-in' : 'yours'} · ${c.bones.length} bones`; });
-  return [head, pick];
+  return [head, pick, colorRow()];
+}
+// a character's own colour (def.col): unset (auto) leaves it to the player slot in a fight (P1 black, P2 red…, as every
+// built-in does today); set, it is always drawn that way — in a fight too, overriding the slot. Preset swatches, or any
+// colour from the picker.
+const CHAR_COLS = { auto: null, black: '#222222', red: '#c0392b', blue: '#2c6fb0', green: '#2e8b57', purple: '#8e44ad', orange: '#b9770e' };
+const CHAR_COL_TIPS = { auto: 'No colour of its own: whichever player slot it fights in decides (P1 black, P2 red…)' };
+function colorRow() {
+  const cur = () => Object.keys(CHAR_COLS).find(k => CHAR_COLS[k] === (DEFS[CURRENT].col || null)) || '';
+  const set = v => edit(def => { if (v) def.col = v; else delete def.col; });
+  const picker = h('input', { type: 'color', tip: 'Any colour, not just the presets', onchange: e => set(e.target.value) });
+  reg(picker, () => { picker.value = DEFS[CURRENT].col || '#222222'; });
+  return h('div', { cls: 'row', tip: 'This character\'s own colour. Auto: coloured by player slot instead, like every character before this existed.' },
+    h('span', {}, ...rich(':palette: colour')), h('span', { cls: 'bar' },
+      seg(Object.keys(CHAR_COLS), cur, k => set(CHAR_COLS[k]), { ...Object.fromEntries(Object.keys(CHAR_COLS).map(k => [k, k === 'auto' ? CHAR_COL_TIPS.auto : `This character is always ${k}`])) }),
+      picker));
 }
 
 // ---------- pose presets: local angles per limb chain (index 0 = the bone at the root of the limb), by role ----------

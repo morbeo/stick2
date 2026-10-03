@@ -3,6 +3,16 @@ const test = require('node:test'), assert = require('node:assert/strict'), load 
 const { run } = load();
 run(require('./centaur'));
 
+test('a character\'s own colour (def.col) wins over the player slot; unset, the slot decides as before', () => {
+  const r = run(`(() => {
+    const ch = makeCharacter({ ...CHAR_DEFS.stick, col: '#2e8b57' });
+    const w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 400, period: 9 }, {}, 7, [ch, CHARS.stick]);
+    return { own: w.a.col[0], slotCol: COLS[1][0], stock: w.b.col[0] }; // w.a: the custom colour; w.b (slot 1, unset): the slot's own
+  })()`);
+  assert.equal(r.own, '#2e8b57', 'the custom colour overrode the slot');
+  assert.equal(r.stock, r.slotCol, 'unset: still the slot colour, as every character before this existed');
+});
+
 test('every built-in character compiles with poses, moves and a main stance', () => {
   for (const n of run('Object.keys(CHAR_DEFS)')) {
     const ch = run(`makeCharacter(CHAR_DEFS[${JSON.stringify(n)}])`);

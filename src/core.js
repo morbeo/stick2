@@ -241,6 +241,11 @@ const POWER = {
 
 // ---------- math ----------
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+// a hex colour lightened toward white by amt (0-1): the secondary (back-limb) shade from a character's own main colour,
+// the way the built-in COLS pairs already look (a saturated main, a pale tint of it)
+const tint = (hex, amt) => { const n = parseInt(hex.slice(1), 16), r = n >> 16, g = n >> 8 & 255, b = n & 255;
+  const up = c => Math.round(c + (255 - c) * amt);
+  return `#${[up(r), up(g), up(b)].map(c => c.toString(16).padStart(2, '0')).join('')}`; };
 const wrap180 = a => ((a + 180) % 360 + 360) % 360 - 180; // an angle difference in (-180, 180]
 const approach = (v, t, d) => v < t ? Math.min(v + d, t) : Math.max(v - d, t);
 // t seconds since an input still within a window: summed 1/60 steps carry float noise, so a press on the window's last frame always counts
