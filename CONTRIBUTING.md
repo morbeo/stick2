@@ -6,11 +6,14 @@ stick2 is an active, solo-built project — it needs feedback, testers and bug r
 
 The most valuable thing you can do is **play with it and say what happened**: what felt wrong, what crashed, what was confusing, what move or setting didn't behave the way the docs say it should. [Open an issue](https://github.com/morbeo/stick2/issues) for any of that — a vague "this felt off" report with a scenario or seed is still worth filing.
 
+The app has a **report a bug** button for this: the ⓘ debug popup in the top bar (or the Debug settings) has it next to **copy**. It copies a short report — build, engine version, settings changed from default, and the fight you're looking at — to your clipboard, and opens a new GitHub issue for you to paste it into.
+
 Useful things to include in a report:
 
+- The **report a bug** button's output, pasted into the issue's Attachments section.
 - What you were doing (which mode/tab, which character, which move or setting).
 - What you expected versus what happened.
-- A saved replay or scenario, if the bug is reproducible (see [Testing](docs/testing.md)) — replays are plain JSON and easy to attach.
+- A saved replay or scenario, if the bug is reproducible (see [Testing](docs/testing.md)) — replays are plain JSON and easy to attach, and the button's output reminds you to.
 - Your browser, since the project only targets evergreen Chrome/Firefox/Safari.
 
 ## Pull requests

@@ -658,6 +658,7 @@ function debugPanel(e, b) {
   popup(b, h('b', { textContent: 'debug' }), row('ghost'), row('boxes'), row('hud'), row('labels'),
     h('div', { cls: 'row', tip: SPEC.scope.tip }, h('span', { textContent: 'scope' }), h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v), Object.fromEntries(currentChar().ids.map(id => [id, `Plot the angle of ${id}`]))))),
     dbgInfo, h('div', { cls: 'bar' }, button(':content_copy: copy', 'Copy the debug information (for a bug report)', () => navigator.clipboard?.writeText(dbgInfo.textContent)),
+      button(':crisis_alert: report a bug', 'Copy a bug report (build, settings changed from default, the shown fight) and open a new GitHub issue to paste it into', reportBug),
       button(':restart_alt: reset settings', 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels) stay (⌘Z undoes)', () => { applyPreset('juicy'); mode().restart(); }),
       button(':delete: factory reset', 'Delete all local data: edited characters, settings, keys and macros, layout; then reload as new (asks first)', () => factoryReset())),
     h('p', { cls: 'note', textContent: 'monitor: the scope bone\'s target angle (grey) against the drawn one (red), with the stats of the shown or focused fight' }), scopeCv, stats);
@@ -683,6 +684,15 @@ function drawDebug() {
       ...w.fighters.map((f, i) => `P${i + 1} ${f.ch.name}: x ${f.x | 0} y ${f.y | 0} vx ${f.vx | 0} · hp ${Math.round(f.hp)} · ${frameState(f)} ${name(f)}`)] : [],
     `canvas ${canvas.width}×${canvas.height} @${dpr} · storage ${kb.toFixed(0)} KB · ${navigator.userAgent.match(/(Firefox|Chrome|Version)\/[\d.]+/)?.[0] || ''}`,
   ].join('\n');
+}
+// copies the debug info plus the actual settings changed from default (the count alone isn't actionable in a report),
+// and opens a new GitHub issue to paste it into; a saved replay (play: save replay) is the other half of a good report
+function reportBug() {
+  const settings = cfgData(), text = [dbgInfo.textContent,
+    Object.keys(settings).length ? 'settings changed from default: ' + JSON.stringify(settings) : 'settings: all default',
+    'attach a saved replay if you can reproduce it (play: the save replay button)'].join('\n');
+  navigator.clipboard?.writeText(text);
+  window.open('https://github.com/morbeo/stick2/issues/new?template=bug_report.md', '_blank');
 }
 
 // click focuses a cell; in breed / attacks a click breeds around it and Shift+click focuses
