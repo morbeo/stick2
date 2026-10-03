@@ -977,6 +977,25 @@ test('the powered stance (a DBZ-style power-up): charges up (mainToPowered), the
   assert.equal(r.hitCancel.stanceI, 0, 'exitOn hit cancels the power-up early, win or lose the charge-up');
 });
 
+test('air throw (P+G airborne, airGrab/airToss): only catches an airborne foe, holds it synced to the thrower (no falling out of the hold), then launches it on release', () => {
+  const r = JSON.parse(run(`(() => {
+    const grab = (fAir, oAir) => { const w = new World({ a: 'human', b: 'human2', ax: 330, bx: 372 }, {}, 7, [CHARS.stick, CHARS.stick]), f = w.a, o = w.b;
+      if (fAir) { f.grounded = false; f.y = -80; }
+      if (oAir) { o.grounded = false; o.y = -80; }
+      const during = []; let launched = false, action = null;
+      for (let i = 0; i < 90; i++) { w.advance(1 / 60, { ...NOIN, punch: i === 2, guard: i === 2 }, NOIN);
+        if (o.heldBy) { during.push(Math.abs(o.y - f.y) < 1); action ??= f.action?.name; } launched ||= o.vy < -100; }
+      return { caught: during.length > 0, synced: during.every(Boolean), launched, action };
+    };
+    return JSON.stringify({ bothAir: grab(true, true), groundedAttacker: grab(false, true), groundedVictim: grab(true, false) }); })()`));
+  assert.ok(r.bothAir.caught, 'an airborne attacker catches an airborne foe');
+  assert.ok(r.bothAir.synced, 'the held foe tracks the thrower\'s height the whole hold, never falling out of it');
+  assert.ok(r.bothAir.launched, 'releasing it launches the foe (negative vy)');
+  assert.equal(r.bothAir.action, 'airToss', 'the thrower plays airToss (seize starts its own throw field) right away');
+  assert.ok(!r.groundedAttacker.caught, 'a grounded attacker gets the normal ground grab instead, which whiffs on an airborne foe');
+  assert.ok(!r.groundedVictim.caught, 'an airborne attacker\'s air throw does not catch a foe standing on the ground');
+});
+
 test('the replay dummy plays back a recorded tape, mirrored to its own facing; a key macro presses its steps over the held keys', () => {
   const r = JSON.parse(run(`(() => {
     const rec = new World(SCENARIOS['you vs dummy'], {}, 7); rec.loop = false; rec.tape = [];

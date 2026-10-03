@@ -256,7 +256,8 @@ class Fighter {
       return [this.binds[slot], this.grounded && this.binds.special].find(m => this.ch.moves[m]) || null;
     }
     const B = P ? 'Punch' : 'Kick', has = s => this.ch.moves[this.binds[s]] ? this.binds[s] : null;
-    if (b === 'throw' || b === 'throw2') return this.grounded ? (b === 'throw' && i.right !== i.left && !fwd && has('backThrow')) || has(b) : null; // ← P+G: the back throw
+    // ← P+G: the back throw; in the air, P+G is the air throw instead (throw2 has no air mirror)
+    if (b === 'throw' || b === 'throw2') return this.grounded ? (b === 'throw' && i.right !== i.left && !fwd && has('backThrow')) || has(b) : b === 'throw' ? has('airThrow') : null;
     if (b === 'taunt') return this.grounded && this.ch.moves.taunt ? 'taunt' : null;
     const sp = this.grounded && motion?.map(k => has(k + B)).find(Boolean);
     if (sp) return sp;
@@ -575,7 +576,7 @@ class Fighter {
       this.grounded = false; this.airJumps = 0; this.airDodged = this.airDashed = false; this.dodgeT = this.airDashT = 0;
       this.vy = approach(this.vy, (inp.down - inp.up) * c('airSpeed'), c('airAccel') * dt);
       this.y = Math.min(0, this.y + this.vy * dt);
-    } else if (!this.grounded && this.splatT <= 0 && !this.rag) {
+    } else if (!this.grounded && this.splatT <= 0 && !this.rag && !this.heldBy) {
       if (this.airDashT > 0) this.vy = 0;
       else this.vy += c('gravity') * (this.kd && this.combo > 1 ? c('comboGravity') : 1) * dt; // comboGravity: juggles fall faster or float
       if (this.free && this.dodgeT <= 0) this.vy = Math.min(this.vy, c('fallSpeed')); // top falling speed (not when knocked flying)
@@ -758,7 +759,8 @@ class Fighter {
       const air = !!o.kd || !o.grounded;
       if (a.m.hits && !o.kd && !a.m.hits.includes(!o.grounded ? 'air' : o.crouching ? 'crouch' : 'stand')) continue; // the move's hits: the states it can hit
       if (air && c('jugglePoints') && o.jugUsed + (a.m.juggle ?? 1) > c('jugglePoints')) continue; // the juggle pool can't pay for it
-      if (a.m.throw && (!o.grounded || !o.free || o.heldBy || o.squatT > 0)) continue; // throws only catch a standing, free fighter
+      // throws only catch a standing, free fighter; an air throw (move flag air) is the mirror: only an airborne one
+      if (a.m.throw && ((a.m.air ? o.grounded : !o.grounded) || !o.free || o.heldBy || o.squatT > 0)) continue;
       const cl = this.clashWith(o, ss);
       if (cl) { this.w.clash(this, o, cl); break; }
       // several striking bones: the deepest overlap counts, one hit per foe per move
@@ -1031,6 +1033,7 @@ class Fighter {
     const t = this.heldBy;
     const to = t.x + t.dir * 30; // a back throw swings the victim round: it slides to the thrower's other side
     this.x = Math.abs(to - this.x) > 20 ? approach(this.x, to, 1200 * dt) : to; this.z = t.z; this.vx = 0;
+    this.y = t.y; this.vy = 0; // an air throw: held at the thrower's height, gravity held off (see update(), gated on heldBy)
     if (inp.punch && inp.guard && this.heldT > 0 && within(this.w.simT - this.heldAt, this.c('techWindow'), this.c('lastFrame'))) {
       this.heldBy = null; this.hurtT = 0; this.action = null; this.buffer = null; this.vx = t.dir * 250; this.say('BREAK');
       t.action = null; t.vx = -t.dir * 250; t.hurtT = 0.15;
