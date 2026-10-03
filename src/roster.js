@@ -794,17 +794,28 @@ CHAR_DEFS.houndo = { ...mapPoses({ ...stick, moves: retimed(0.85, 0.9) }, beastP
   stances: [{ name: 'prowl', pose: beastPose(fromOld({ torso: 10, lfU: 5, lfL: -5, lbU: -5, lbL: 5, afU: -10, afL: 10, abU: -5, abL: 15 })),
     ...bind({ punch: 'clawSwipe', special: 'clawSwipe', fwdPunch: 'bite' }) }] };
 
-// tako: shapeshifts into an octopus. The tentacles are always there, as short nubs at the waist in human form (every
-// move stays valid on the base skeleton, and no bone needs a destructive, one-way hide at the main level); the octopus
-// stance (S+G) hides the legs and grows the tentacles out full length. Main's own specials are an ink cloud and a
-// slippery dodge; the octopus form has its own tentacle slam and constricting grab
-const tentacle = (id, a, len = [16, 14, 12]) => [
-  { id, len: len[0], a, role: 'tail', thick: 5, lag: 0.5, dangle: 0.4 },
-  { id: id + 'Mid', parent: id, len: len[1], a: 10, role: 'tail', thick: 4, lag: 1.5, dangle: 0.5, stretch: 0.2, min: -90, max: 90 },
-  { id: id + 'End', parent: id + 'Mid', len: len[2], a: 10, role: 'tail', thick: 3, lag: 2.5, dangle: 0.6, stretch: 0.3, min: -90, max: 90 }];
-const TEN_FULL = { tenA: 16, tenAMid: 14, tenAEnd: 12, tenB: 16, tenBMid: 14, tenBEnd: 12, tenC: 16, tenCMid: 14, tenCEnd: 12, tenD: 16, tenDMid: 14, tenDEnd: 12 };
+// tako: a human who shapeshifts into an octopus. Two more legs and two more arms are always part of the skeleton, as
+// short nubs at the hips and shoulders in human form (every move stays valid on the base skeleton, and no bone needs a
+// destructive, one-way hide at the main level) — real 'arm' / 'leg' role bones throughout, so when the octopus stance
+// grows them out it walks on its own tentacles instead of drifting on hidden legs. The hands and feet also sprout an
+// extra tentacle-tip joint, and the torso shrinks to an octopus's small mantle. Main's own specials are an ink cloud
+// and a slippery dodge; the octopus form has its own tentacle slam (the extra arms) and constricting grab (the extra legs)
+const tenTip = (parent, a) => [
+  { id: parent + 'Tip', parent, len: 9, a, role: 'tail', thick: 3, lag: 1.5, dangle: 0.5, stretch: 0.2, min: -90, max: 90 },
+  { id: parent + 'TipEnd', parent: parent + 'Tip', len: 7, a: 15, role: 'tail', thick: 2, lag: 2.5, dangle: 0.6, stretch: 0.3, min: -90, max: 90 }];
+const extraLimb = (id, parent, role, a) => [
+  { id, parent, len: 3, a, role, side: id.endsWith('F') ? 'f' : 'b', hurt: 0, lag: 0.5, min: -180, max: 180 },
+  { id: id + 'Mid', parent: id, len: 3, role, side: id.endsWith('F') ? 'f' : 'b', hurt: 0, lag: 1.2, dangle: 0.3, stretch: 0.15, min: -90, max: 90 },
+  { id: id + 'End', parent: id + 'Mid', len: 2, role, side: id.endsWith('F') ? 'f' : 'b', hurt: 0, lag: 2, dangle: 0.5, stretch: 0.2, min: -90, max: 90 }];
+const EXTRA_FULL = {
+  extraArmF: { len: 20, hurt: 6 }, extraArmFMid: { len: 16, hurt: 5 }, extraArmFEnd: { len: 10, hurt: 4 },
+  extraArmB: { len: 20, hurt: 6 }, extraArmBMid: { len: 16, hurt: 5 }, extraArmBEnd: { len: 10, hurt: 4 },
+  extraLegF: { len: 22, hurt: 6 }, extraLegFMid: { len: 18, hurt: 5 }, extraLegFEnd: { len: 12, hurt: 4 },
+  extraLegB: { len: 22, hurt: 6 }, extraLegBMid: { len: 18, hurt: 5 }, extraLegBEnd: { len: 12, hurt: 4 },
+};
 CHAR_DEFS.tako = { ...stick, name: 'tako', speed: 0.95, weight: 0.95, jump: 0.9, airDodge: 1.2, springs: 1.1,
-  bones: [...STICK_BONES, ...tentacle('tenA', 20, [6, 5, 4]), ...tentacle('tenB', 60, [6, 5, 4]), ...tentacle('tenC', -60, [6, 5, 4]), ...tentacle('tenD', -20, [6, 5, 4])],
+  bones: [...STICK_BONES, ...extraLimb('extraArmF', 'chest', 'arm', 60), ...extraLimb('extraArmB', 'chest', 'arm', -60),
+    ...extraLimb('extraLegF', 'waist', 'leg', 150), ...extraLimb('extraLegB', 'waist', 'leg', -150)],
   moves: { ...retimed(1), ...sig({
     // ↓↘→ P: a cloud of ink, blinding and pushing the foe back
     inkCloud: { power: 1, damage: 6, hit: ['fh', 'bh'], height: 'mid', knock: 300, stun: 0.5, special: true, shot: { speed: 260, size: 18, life: 1.4, look: 'dark' }, fx: { look: 'smoke', on: 'arm' }, keys: [
@@ -818,17 +829,22 @@ CHAR_DEFS.tako = { ...stick, name: 'tako', speed: 0.95, weight: 0.95, jump: 0.9,
       { d: 0.1, p: { torso: -10, afU: 90, afL: 10 }, inv: true, active: true },
       { d: 0.15, e: 'inOutCubic', p: null }] },
   }),
-    // octopus-only (the stance below): a tentacle slam and a constricting grab, written as raw bone poses (no old notation for tentacles)
-    tentacleSlam: attack({ power: 1.6, damage: 13, hit: ['tenAEnd', 'tenBEnd'], height: 'mid', knock: 300, launch: 100, kd: true, special: true },
-      [0.1, { waist: 150, tenA: -40, tenAMid: 20, tenB: 100, tenBMid: -10 }],
-      [0.1, { waist: 190, tenA: 60, tenAMid: -30, tenB: -20, tenBMid: 40 }], 0.1, 0.3),
-    constrict: attack({ power: 1.3, damage: 9, hit: ['tenCEnd', 'tenDEnd'], height: 'low', knock: 60, stun: 0.6, special: true },
-      [0.12, { waist: 172, tenC: -90, tenD: -30 }],
-      [0.12, { waist: 172, tenC: -10, tenD: 70 }], 0.14, 0.28) },
+    // octopus-only (the stance below): the two extra arms slam down, the two extra legs wrap and constrict
+    tentacleSlam: attack({ power: 1.6, damage: 13, hit: ['extraArmFEnd', 'extraArmBEnd'], height: 'mid', knock: 300, launch: 100, kd: true, special: true },
+      [0.1, { waist: 150, extraArmF: -40, extraArmFMid: 20, extraArmB: 100, extraArmBMid: -10 }],
+      [0.1, { waist: 190, extraArmF: 60, extraArmFMid: -30, extraArmB: -20, extraArmBMid: 40 }], 0.1, 0.3),
+    constrict: attack({ power: 1.3, damage: 9, hit: ['extraLegFEnd', 'extraLegBEnd'], height: 'low', knock: 60, stun: 0.6, special: true },
+      [0.12, { waist: 172, extraLegF: -90, extraLegB: -30 }],
+      [0.12, { waist: 172, extraLegF: -10, extraLegB: 70 }], 0.14, 0.28) },
   ...bind({ fwdSpecial: 'inkCloud', backSpecial: 'slipAway', special: 'inkCloud' }),
-  // S+G: hides the legs, grows the tentacles out full length
-  stances: [{ name: 'octopus', pose: stylePose([172, 0], [0, 0], [35, 115], [15, 125], null, null),
-    body: { bones: { thighF: { hidden: true }, thighB: { hidden: true }, ...mapVals(TEN_FULL, len => ({ len })) } },
+  // S+G: the whole skeleton change described above
+  stances: [{ name: 'octopus', pose: { ...stylePose([172, 0], [0, 0], [35, 115], [15, 125], null, null),
+      // the four extra limbs fan out around the mantle so they read as tentacles, not a tangle at the shoulders/hips
+      extraArmF: -70, extraArmFMid: 45, extraArmFEnd: 35, extraArmB: 130, extraArmBMid: -45, extraArmBEnd: -35,
+      extraLegF: 160, extraLegFMid: 45, extraLegFEnd: 35, extraLegB: -170, extraLegBMid: -45, extraLegBEnd: -35 },
+    body: { bones: { chest: { len: 10 }, waist: { len: 8 }, ...EXTRA_FULL,
+        ...Object.fromEntries(['handF', 'handB', 'footF', 'footB'].map(id => [id, { thick: 4, dangle: 0.4, stretch: 0.2 }])) },
+      add: [...tenTip('handF', 20), ...tenTip('handB', -20), ...tenTip('footF', 20), ...tenTip('footB', -20)] },
     ...bind({ punch: 'tentacleSlam', fwdPunch: 'tentacleSlam', kick: 'constrict', special: 'tentacleSlam' }) }] };
 
 // the stick's second stance: boxing
