@@ -86,7 +86,9 @@ The move table shows hits, juggle and the flags.
 
 ### Ways to combo
 
-- **Chains:** authored routes, with a link on P / K / S or on a direction held with it (like 6P, or fwdSpecial / backSpecial / upSpecial / downSpecial for S), or a free 2-button magic series.
+- **Chains** (setting): **authored** plays only the routes a move's own **next** links name — P / K / S, or a direction held with it (6P, or fwdSpecial / backSpecial / upSpecial / downSpecial for S); **free** drops the authored routes and lets any move that hit chain into any other move not yet used this combo (a magic series); **none** turns chaining off (jump cancels, OTG and special-by-motion cancels still work).
+- A move's own **cancel** (move panel) sets which key opens its cancel window; unset, the window opens right after its last active key. This applies under every chains setting.
+- **specialCancel** (setting) lets a hit normal cancel into any special the fighter can play, once its cancel window is open — this works even under chains: none, and even for a move with no **next** links of its own.
 - **Specials by motion** cancel normals on hit:
 
 | Motion | Special |
