@@ -887,6 +887,24 @@ test('the damp filter: the drawn pose catches the keyframed one at dampRate, slo
   assert.ok(slow > fast * 2, `a low rate lags more: ${slow.toFixed(0)} vs ${fast.toFixed(0)}`);
 });
 
+test('a keyframe\'s len stretches a bone on purpose (a Dhalsim limb): it grows toward the active key, eases back after, and reaches further', () => {
+  const r = JSON.parse(run(`(() => {
+    const ch = JSON.parse(JSON.stringify(CHAR_DEFS.stick));
+    ch.moves = { ...ch.moves, stretchPunch: { power: 1, damage: 5, hit: 'handF', height: 'mid', knock: 50, keys: [
+      { d: 0.1, e: 'outQuad', p: { afU: -90, afL: 0 } },
+      { d: 0.15, e: 'outExpo', p: { afU: -90, afL: 0 }, active: true, len: { farmF: 4, handF: 4 } },
+      { d: 0.2, p: null } ] } };
+    const chC = makeCharacter(ch), w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 400, period: 9 }, {}, 7, [chC, CHARS.stick]), f = w.a;
+    const base = f.lens.farmF;
+    f.start('stretchPunch');
+    let peak = base;
+    for (let i = 0; i < 30; i++) { w.advance(1/60, NOIN); peak = Math.max(peak, f.lens.farmF); }
+    for (let i = 0; i < 30; i++) w.advance(1/60, NOIN);
+    return JSON.stringify({ base, peak, settled: f.lens.farmF }); })()`));
+  assert.ok(r.peak > r.base * 3.5, `len: 4 stretches farmF past 3.5x its base ${r.base}: peak ${r.peak}`);
+  assert.ok(Math.abs(r.settled - r.base) < 0.5, `it eases back to its base length after: ${r.settled} vs ${r.base}`);
+});
+
 test('the replay dummy plays back a recorded tape, mirrored to its own facing; a key macro presses its steps over the held keys', () => {
   const r = JSON.parse(run(`(() => {
     const rec = new World(SCENARIOS['you vs dummy'], {}, 7); rec.loop = false; rec.tape = [];

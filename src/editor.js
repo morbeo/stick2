@@ -338,6 +338,31 @@ function mirrorKey() {
 }
 const setKey = (k, v, key = null) => edit(def => { def.moves[anim.move].keys[anim.key][k] = v; }, key);
 const setMove = (k, v, key = null) => edit(def => { def.moves[anim.move][k] = v; }, key);
+// a key's per-bone multipliers (KEY_MULS: len, thick, alpha) tween the picked bones toward it, eased in from the key before
+// and back out after; 1 = no change. len also feeds the hurtbox and reach (a Dhalsim limb); thick and alpha are drawing only
+const KEY_MUL_ROWS = { len: ['stretch', 'Stretch', { min: 1, max: 6, step: 0.1 }, 2, 'How much the picked bones stretch at this key (× their normal length); it also reaches further.'],
+  thick: ['girth', 'Girth', { min: 0.2, max: 4, step: 0.1 }, 1.8, 'How much the picked bones thicken at this key (× their normal width); drawing only.'],
+  alpha: ['fade', 'Fade', { min: 0, max: 1, step: 0.05 }, 0.2, 'How visible the picked bones are at this key (0 invisible … 1 normal); drawing only.'] };
+function toggleMul(prop, id, def0) {
+  edit(def => {
+    const k = def.moves[anim.move].keys[anim.key], m = { ...k[prop] };
+    if (id in m) delete m[id]; else m[id] = def0;
+    k[prop] = Object.keys(m).length ? m : undefined;
+  });
+}
+function mulRow(prop) {
+  const [label, title, range, def0, tip] = KEY_MUL_ROWS[prop];
+  const k = () => curMove().keys[anim.key], ids = () => Object.keys(k()[prop] || {});
+  const boneB = id => { const b = button(id, `${title} ${id} during this key`, () => toggleMul(prop, id, def0)); reg(b, () => b.classList.toggle('on', ids().includes(id))); return b; };
+  const pickB = button('', `Pick which bones ${label.toLowerCase()} during this key`, (e, b) =>
+    popup(b, h('div', { cls: 'bar' }, h('span', { cls: 'seg' }, edChar().ids.map(boneB)))));
+  reg(pickB, () => setRich(pickB, ids().join(' ') || 'none'));
+  return h('div', { cls: 'row', tip }, h('span', { textContent: label }), h('span', { cls: 'bar' }, pickB,
+    ...ids().length ? [slider('×', range, () => k()[prop][ids()[0]], v => edit(def => {
+      const key = def.moves[anim.move].keys[anim.key]; for (const id of ids()) key[prop][id] = v;
+    }), tip)] : []));
+}
+function boneMulRows() { return Object.keys(KEY_MUL_ROWS).map(mulRow); }
 // the striking bones: only this one, or (add) add / remove it so several limbs strike at once
 function pickHit(id, add) {
   const cur = hitIds(curMove()), next = !add ? [id] : cur.includes(id) ? cur.filter(k => k !== id) : [...cur, id];
@@ -534,6 +559,7 @@ function keyPanel() {
       seg(Object.keys(EASE), () => k().e || 'linear', v => setKey('e', v), EASE_TIPS)),
     h('div', { cls: 'row', tip: 'Active: the keys during which the strike can hit (red on the frame meter)' }, h('span', { textContent: 'active' }),
       toggle(':my_location: hits', 'Active: the strike can connect during this key', () => !!k().active, v => setKey('active', v || undefined))),
+    ...boneMulRows(),
     h('div', { cls: 'row', tip: 'Key flags: what happens in a fight from this key (cancel, invincible, unblockable, armor, catch, warp, turn, shoot, rehit, spin)' }, h('span', { textContent: 'flags' }), h('span', { cls: 'bar' },
       toggle(':sync_alt: cancel', 'The cancel window opens at this key (chains, specials, jump). Unmarked: after the last active key.', () => !!k().cancel,
         v => edit(def => { def.moves[anim.move].keys.forEach((x, i) => { if (i === anim.key && v) x.cancel = true; else delete x.cancel; }); })),
