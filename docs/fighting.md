@@ -159,8 +159,8 @@ Hit stop, shake and zoom that grow with each combo hit; attacks, or the whole ga
 
 ### Recovery
 
-- **Air recover:** a fighter knocked flying recovers in the air with G, after airRecover.
-- **Tech:** G just before landing turns the fall into a quick get-up.
+- **Air recover:** a fighter knocked flying recovers in the air with G, after airRecover. ← / → held aims the recovery burst that way; unheld it just damps the existing momentum and pops up.
+- **Tech:** G just before landing turns the fall into a quick get-up. ← / → held as it lands sends it that way; unheld it recovers back and away from the foe, as before.
 
 ### The window's last frame
 

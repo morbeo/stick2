@@ -463,9 +463,10 @@ class Fighter {
         this.airDodged = true; this.dodgeT = c('airDodge'); this.flip = 0;
         if (x || y) { this.vx = x / n * 450; this.vy = y / n * 450; } else this.vy = Math.min(this.vy, 0) * 0.3;
       }
-      // air recovery: G a while into a knockdown flight flips the fighter back onto its feet
+      // air recovery: G a while into a knockdown flight flips the fighter back onto its feet; ← / → held aims the recovery that way
       if (this.kd === 'fly' && !this.ko && c('airRecover') && this.flyT >= c('airRecover') - 1e-9 && this.splatT <= 0) {
-        this.endRag(); this.kd = null; this.hurtT = 0; this.flip = -1; this.airT = 0; this.vy = Math.min(this.vy, -250); this.vx *= 0.3; this.say('RECOVER');
+        const x = inp.right - inp.left;
+        this.endRag(); this.kd = null; this.hurtT = 0; this.flip = -1; this.airT = 0; this.vy = Math.min(this.vy, -250); this.vx = x ? x * 450 : this.vx * 0.3; this.say('RECOVER');
       }
     }
     if (this.kd === 'fly') this.flyT += dt;
@@ -868,8 +869,10 @@ class Fighter {
       r.landed = true;
       const imp = Math.min(1, land / 800);
       if (this.gb) { this.gb = false; for (const q of ps) q.vy = Math.min(q.vy, -420); r.landed = false; this.say('BOUNCE'); this.w.trauma = Math.min(1, this.w.trauma + 0.25 * imp); }
+      // a tech (G just before landing): ← / → held aims it that way, otherwise it recovers back and away as before
       else if (!this.ko && c('techWindow') && within(this.w.simT - this.guardT, c('techWindow'), c('lastFrame'))) {
-        this.endRag(); this.kd = null; this.grounded = true; this.y = 0; this.start('getup'); this.hurtT = 0.3; this.vx = -this.dir * 150; this.say('TECH');
+        const x = this.inp.right - this.inp.left;
+        this.endRag(); this.kd = null; this.grounded = true; this.y = 0; this.start('getup'); this.hurtT = 0.3; this.vx = x ? x * 150 : -this.dir * 150; this.say('TECH');
         return;
       } else if (this.bounces < c('bounces') && land * c('floorBounce') > 150) { // a floor bounce (bounces setting): the whole body pops up
         this.bounces++; r.landed = false; for (const q of ps) q.vy = Math.min(q.vy, -land * c('floorBounce'));
