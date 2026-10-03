@@ -107,6 +107,8 @@ Turn these on under **show**:
 - **Frame meter:** startup, active, recovery, hitstun and hit stop, frame by frame.
 - **Input display:** your inputs in numpad notation.
 
+The **movelist** section of the side panel lists the played character's own moves — punches and kicks first, then specials, motions and throws — each with the input that plays it, fuzzy-filterable; it updates live as you switch stance or character.
+
 The **dummy** group records your inputs and lets the dummy replay them.
 
 **Rewind:** ⇧V goes one second back, C one frame back. It restores the last checkpoint before that point and replays the inputs from there, exactly as before, then pauses. Checkpoints are kept once a second, thinned to one every 10 s past the last minute.

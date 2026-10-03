@@ -220,6 +220,7 @@ function labRender() {
     selected: !play && !rag && !lab.zoom && (lab.mode === 'grid' && bred() ? c.parent && 'parent'
       : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) && 'current settings' : c === lab.focus && 'focused') }));
   if (lab.mode === 'grid' && lab.kind === 'attacks' && !lab.zoom) cells.forEach((c, i) => { c.btns = null; if (i === lab.hover) drawCellButtons(c, rects[i]); });
+  if (play && cells[0]) refreshMovelist(cells[0].w.a); // live: a mid-fight stance switch updates the side panel's movelist, not just on the next click
   if (play && lab.inputs && cells[0].w.ctl[0] === 'human') drawInputs(cells[0].w, 10 * dpr, 60 * dpr);
   if (play && cells[0].w.playback) drawPlayback(cells[0].w);
   if (play && lab.branch) text(`branch of ${lab.branch.reel.name} · you are P${lab.branch.side} · restart: back to the fork · keep it in the toolbar`, canvas.width / 2, 20 * dpr, '#b9770e', 12, 'bold', 'center');
@@ -602,6 +603,40 @@ const BASIC_CFG = new Set(['plant', 'plantStep', 'maxSpeed', 'jumpVel', 'gravity
   'comboStop', 'comboShake', 'comboSpeed', 'shake', 'zoomPunch', 'squash', 'sparks', 'slowmoT', 'punchIn', 'knockScale', 'impactFrames', ...DISPLAY]);
 // fuzzy match: every query letter appears in order (ignoring case and spaces)
 const fuzzy = (q, text) => { let i = 0; text = text.toLowerCase(); for (const c of q.toLowerCase().replace(/\s/g, '')) if ((i = text.indexOf(c, i) + 1) === 0) return false; return true; };
+
+// ---------- movelist (play): P1's current character and stance, every bound move with its input notation (slotTip) ----------
+// grouped normals first, then specials/motions/throws; several slots for the same move (e.g. special and qcfSpecial both
+// playing it) collapse into one row with every notation that reaches it
+function movelistEntries(ch, stanceI) {
+  const binds = ch.stances[stanceI]?.[bindsKey(CFG.plane)] || {}, byMove = new Map();
+  for (const [slot, m] of Object.entries(binds)) {
+    if (!m || !ch.moves[m]) continue;
+    const row = byMove.get(m) ?? byMove.set(m, { move: m, notes: [], special: /special|qcf|qcb|dp|^m\d+|throw/i.test(slot) }).get(m);
+    const note = slotTip(slot) || slot; if (!row.notes.includes(note)) row.notes.push(note);
+  }
+  return [...byMove.values()].sort((a, b) => a.special - b.special || a.move.localeCompare(b.move));
+}
+const movelist = { el: null, q: '', key: '' };
+// cheap: only touches the DOM when the played character, its stance or the filter actually changed; called every
+// render frame (labRender) so a mid-fight stance switch updates it live, not just after a click (syncAll)
+function refreshMovelist(f) {
+  if (!movelist.el?.isConnected || !f) return;
+  const key = `${f.ch.name}:${f.stanceI}:${movelist.q}`;
+  if (key === movelist.key) return; movelist.key = key;
+  const rows = movelistEntries(f.ch, f.stanceI).filter(r => !movelist.q || fuzzy(movelist.q, r.move));
+  const els = [];
+  let special = null; // a small label the first time the group changes (normals, then specials/motions/throws)
+  for (const r of rows) { if (r.special !== special) { special = r.special; els.push(h('div', { cls: 'note', textContent: special ? 'specials' : 'normals' })); }
+    els.push(h('div', { cls: 'bar' }, h('span', { textContent: r.notes.join(' / ') }), h('span', { textContent: r.move }))); }
+  movelist.el.replaceChildren(...els.length ? els : [h('div', { cls: 'note', textContent: 'no move matches' })]);
+}
+function movelistSection() {
+  const body = h('div'); movelist.el = body; movelist.key = ''; // force a fill on (re)mount
+  const q = h('input', { cls: 'macro', value: movelist.q, placeholder: 'filter moves…', tip: 'Fuzzy filter by move name',
+    onkeydown: e => e.stopPropagation(), oninput: e => { movelist.q = e.target.value; movelist.key = ''; refreshMovelist(lab.cells[0]?.w?.a); } });
+  return [heading('Movelist', "The played character's own moves, each with the input that plays it: punches and kicks first, then specials, motions and throws. Updates live as you switch stance or character.", ''),
+    h('div', { cls: 'bar' }, q), body];
+}
 function configPanel() {
   let title = '';
   const rows = SCHEMA.map((s, i) => {
@@ -622,7 +657,7 @@ function configPanel() {
       onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { e.target.value = lab.q = ''; filter(); } } }));
   filter();
   const first = rows.findIndex((r, i) => i && r.head);
-  return [search, heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes, hud, labels, timer) stay.', ''),
+  return [search, ...lab.mode === 'play' ? movelistSection() : [], heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes, hud, labels, timer) stay.', ''),
     h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(optLabel(n), PRESET_TIPS[n], () => applyPreset(n))),
       button(':restart_alt: reset', 'All settings back to their defaults (same as juicy); the view settings stay, ⌘Z undoes', () => applyPreset('juicy'))),
     heading('Power', 'How hard blows land and how far bodies fly and bounce (off the floor, the walls and the ceiling). Only those settings change.', ''),
@@ -788,7 +823,7 @@ const labMode = {
   render: labRender,
   ctxBar: labCtx,
   side: labSide,
-  get open() { return lab.mode === 'gallery' ? ['move', 'key'] : ['presets']; },
+  get open() { return lab.mode === 'gallery' ? ['move', 'key'] : lab.mode === 'play' ? ['presets', 'movelist'] : ['presets']; },
   mouse(type, x, y, e) {
     if (lab.mode === 'impact' && !e.shiftKey && impactMouse(type, x, y)) return;
     if (lab.mode === 'play' && stageOpen() === 'builder' && SCENARIOS[lab.scen]?.user && builderMouse(type, x, y)) return;
