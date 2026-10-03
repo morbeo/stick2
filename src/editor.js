@@ -875,14 +875,15 @@ function moveGrp() {
       Object.fromEntries(st.map((n, i) => [i, `Stance ${n}: the one the input and loop edits change and previews start in (stances are made in the character tab)`])), i => st[i]) : null);
 }
 function animCtx() {
-  return [moveGrp(), compareGrp(), showGrp(['boxes', 'ghost', 'colours']), panelsGrp(MOVE_PANELS, VIEW_TIPS)];
+  return [moveGrp(), showGrp(['boxes', 'ghost', 'colours']), panelsGrp(MOVE_PANELS, VIEW_TIPS)];
 }
 const CMP_TIPS = { off: 'Off: show only the move being edited', overlay: 'The compared move drawn over this one in amber, at the same moment',
   strip: 'Filmstrip: this move and the compared one frame by frame on one time scale, tinted by phase (click a frame to go there)' };
-function compareGrp() {
-  const pick = button('', 'The move to compare with', () => pickCompare(pick));
+// under the preview (there is a lot of empty space there), not the toolbar — it only matters while watching the preview
+function compareBar() {
+  const pick = button('', 'The move to compare with', () => pickCompare(pick), 'mini');
   reg(pick, () => setRich(pick, `:theaters: ${cmpMove() ? anim.cmp : 'pick'}`));
-  return grp('compare', 'Compare the move with another: drawn on top of each other or as two filmstrips', pick,
+  return h('div', { cls: 'over cmpbar' }, pick,
     seg(Object.keys(CMP_TIPS), () => anim.cmpView, v => { anim.cmpView = v; if (v === 'overlay' && !cmpMove()) pickCompare(pick); }, CMP_TIPS));
 }
 function pickCompare(anchor) {
@@ -947,7 +948,7 @@ const animMode = {
   split: () => true,
   side: movePanel,
   open: ['move', 'key'],
-  overlay: () => moveStage() ? [moveStage()()] : [timelineBar(), targetBar()],
+  overlay: () => moveStage() ? [moveStage()()] : [timelineBar(), compareBar(), targetBar()],
   mouse: animMouse,
   key: animKey,
   hint: () => 'drag a joint: IK · Alt+drag: one bone · timeline: click a key to select, drag it to reorder, drag its edge to retime, double-click to split, drag the ruler to scrub · , . frame step · Delete key',
