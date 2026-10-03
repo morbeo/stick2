@@ -703,7 +703,9 @@ class Fighter {
     let fy = 0; for (const b of ch.bones) fy = Math.max(fy, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
     ch.chains.leg.forEach((cn, i) => {
       const ai = cn.length >= 3 ? cn.length - 2 : cn.length - 1, a = cn[ai], th = cn[ai - 1], tip = cn[cn.length - 1];
-      if (!th || fy - Math.max(L[a.id][1], L[tip.id][1]) > 4) { this.feet[i] = null; return; } // lifted by the animation: it leads
+      // lifted by the animation: it leads · forcePlant (cn[0]) skips this for a leg that never reaches the body's own lowest point
+      // (a short or high-set extra leg), so it still steps instead of just swinging in place, uncorrected, forever "in the air"
+      if (!th || (!cn[0].forcePlant && fy - Math.max(L[a.id][1], L[tip.id][1]) > 4)) { this.feet[i] = null; return; }
       const wx = this.x + L[a.id][0] * k, f = this.feet[i] ??= { x: wx, from: wx, t: 1 }; // t < 1: stepping from from to x
       const far = Math.abs(f.x - wx), busy = this.feet.some(o => o && o !== f && o.t < 1);
       if (f.t >= 1 && far > c('plantStep') && (!busy || far > c('plantStep') * 2.5)) { f.from = f.x; f.t = 0; }
