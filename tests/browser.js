@@ -739,7 +739,7 @@ try {
       setPlayMovie(false); if (rp.mv || rp.playMovie) errs.push('movie stop');
       const shotsForExport = rp.movie.shots;
       afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
-        ui.clip = { ...clipSet(), fps: 15, aspect: 'view' }; rp.movie.shots = shotsForExport; await exportMovie(); saveClip = sc;
+        ui.clip = { ...clipSet(), fps: 15, aspect: 'view' }; rp.movie.shots = shotsForExport; panels(); await exportMovie(); saveClip = sc;
         let t = 0; for (const sh of shotsForExport) { const fr = rp.reels[sh.reel].rep.frames; for (let f = sh.a; f < Math.min(sh.b, fr.length); f++) t += fr[f][0]; }
         if (!got || Math.abs(got.length - t * 15) > 3) errs.push('movie export ' + (got && got.length) + ' vs ' + Math.round(t * 15)); });
       const proj = projectFile(), before = JSON.stringify(rp.movie.shots), nReels = rp.reels.length;
@@ -757,7 +757,7 @@ try {
       setPlayMovie(false);
       const transShots = rp.movie.shots;
       afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
-        ui.clip = { ...clipSet(), fps: 60, aspect: 'view' }; rp.movie.shots = transShots; await exportMovie(); saveClip = sc;
+        ui.clip = { ...clipSet(), fps: 60, aspect: 'view' }; rp.movie.shots = transShots; panels(); await exportMovie(); saveClip = sc;
         // 5 content frames + 2 transition frames + 5 content frames at 60fps
         if (!got || Math.abs(got.length - 12) > 2) errs.push('transition export ' + (got && got.length)); }); }
     // freeze frame: holds on a frame of the shot (zoomed, captioned), then the shot plays on from there
@@ -770,9 +770,34 @@ try {
       setPlayMovie(false);
       const freezeShots = rp.movie.shots;
       afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
-        ui.clip = { ...clipSet(), fps: 60, aspect: 'view' }; rp.movie.shots = freezeShots; await exportMovie(); saveClip = sc;
+        ui.clip = { ...clipSet(), fps: 60, aspect: 'view' }; rp.movie.shots = freezeShots; panels(); await exportMovie(); saveClip = sc;
         // 5 content frames + 2 held frames
         if (!got || Math.abs(got.length - 7) > 2) errs.push('freeze export ' + (got && got.length)); }); }
+    // speed: a rate paces how fast a shot's own frames play (double speed finishes in half the real time); reverse pre-renders
+    // the shot once, forward, then steps through the pictures back to front
+    { movieEdit(M => { M.shots = [{ reel: 0, a: 0, b: 10, speed: { rate: 2 } }, { reel: 0, a: 0, b: 3 }]; });
+      setPlayMovie(true);
+      for (let i = 0; i < 5; i++) mode().tick(1 / 60); // at rate 2, 10 frames finish in the real time 5 would normally take
+      if (!rp.mv || rp.mv.shotI !== 1) errs.push('speed rate ' + JSON.stringify(rp.mv && rp.mv.shotI));
+      setPlayMovie(false);
+      const rateShots = rp.movie.shots;
+      afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
+        ui.clip = { ...clipSet(), fps: 60, aspect: 'view' }; rp.movie.shots = rateShots; panels(); await exportMovie(); saveClip = sc;
+        // shot 0 at rate 2 takes half as long (10 frames / 2) + shot 1's 3 frames
+        if (!got || Math.abs(got.length - 8) > 2) errs.push('speed rate export ' + (got && got.length)); });
+      movieEdit(M => { M.shots = [{ reel: 0, a: 0, b: 5, speed: { reverse: true } }, { reel: 0, a: 0, b: 3 }]; });
+      setPlayMovie(true);
+      if (!rp.mv.rev || rp.mv.rev.imgs.length !== 5 || rp.mv.rev.i !== 0) errs.push('reverse start ' + JSON.stringify(rp.mv.rev && [rp.mv.rev.imgs.length, rp.mv.rev.i]));
+      for (let i = 0; i < 3; i++) mode().tick(1 / 60);
+      if (!rp.mv.rev || rp.mv.rev.i <= 0) errs.push('reverse steps through its pictures ' + (rp.mv.rev && rp.mv.rev.i));
+      for (let i = 0; i < 3; i++) mode().tick(1 / 60);
+      if (!rp.mv || rp.mv.shotI !== 1) errs.push('reverse ends, the next shot plays ' + JSON.stringify(rp.mv && rp.mv.shotI));
+      setPlayMovie(false);
+      const revShots = rp.movie.shots;
+      afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
+        ui.clip = { ...clipSet(), fps: 60, aspect: 'view' }; rp.movie.shots = revShots; panels(); await exportMovie(); saveClip = sc;
+        // 5 reversed frames + 3 normal frames; it must not throw, and must produce about that many frames
+        if (!got || Math.abs(got.length - 8) > 2) errs.push('reverse export ' + (got && got.length)); }); }
     // clips: the 1:1 aspect crops the subject to a square
     { ui.clip = { ...clipSet(), aspect: '1:1', fit: 'crop', size: 200 }; clip.key = null; clip.frames.length = 0; clip.last = 0; clipCapture(5e6, true);
       const f = clip.frames[0]?.c; if (!f || f.width !== 200 || f.height !== 200) errs.push('clip aspect ' + (f && [f.width, f.height]));

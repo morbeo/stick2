@@ -436,14 +436,15 @@ Click or drag to go to a moment; it snaps to events within 6 px (Alt: no snappin
 | reorder | drag a shot in the side panel's **movie** section |
 | trim | **[** / **]** on a shot start or end it at the playhead — edit that shot's own reel first (the **reel being edited** elsewhere in the list switches it) |
 | change its reel | the swap icon on a shot: pick from every loaded reel |
-| transition | the camera-filter icon on a shot (not the first): **cut** (instant, the default), **fade** (through black or white), **cross** (crossfade), **wipe** (a hard edge) or **slide** (pushes the old shot out), each with its own length; wipe and slide also pick which edge the new shot enters from |
+| transition | the film icon on a shot (not the first): **cut** (instant, the default), **fade** (through black or white), **cross** (crossfade), **wipe** (a hard edge) or **slide** (pushes the old shot out), each with its own length; wipe and slide also pick which edge the new shot enters from |
 | freeze frame | the pause icon on a shot: holds on one of its frames (its last, or **here** at the playhead while editing that shot's reel) for a length, optionally punched in (**zoom**) and captioned, before the shot's own frames play on from there |
+| speed | the speed icon on a shot: a constant **rate** it plays at (1 = normal; pick a different rate either side of a cut rather than ramping one shot), or **reversed** — shown back to front, since the engine can only simulate forward |
 | duplicate / delete | the icons on a shot |
-| preview | **movie → preview** (the toolbar toggle) plays the shots in turn in place of this reel, cut to cut, with their transitions and freezes; off goes back to this reel's own timeline and transport |
-| export | **movie → export**: the shots, their transitions and freezes rendered one after another as one clip (size and format as in footage → export) |
+| preview | **movie → preview** (the toolbar toggle) plays the shots in turn in place of this reel, with their transitions, freezes and speed; off goes back to this reel's own timeline and transport |
+| export | **movie → export**: the shots, their transitions, freezes and speed rendered one after another as one clip (size and format as in footage → export) |
 | save / open a project | the side panel's **save project** writes every loaded reel and the movie as one `.stick2-project.json` file; **open project** replaces them with one |
 
-A transition blends the previous shot's last frame into the new shot's first, frozen either side of it, for its own length; the new shot's own frames play once it ends. Speed ramps, camera moves and screen effects per shot, and text overlays, are planned next.
+A transition blends the previous shot's last frame into the new shot's first, frozen either side of it, for its own length; the new shot's own frames play once it ends. A reversed shot is rendered once, forward, then its pictures are shown back to front (a freeze on a reversed shot is skipped: its frame does not have a clean meaning once the order is flipped). Camera moves and screen effects per shot, and text overlays, are planned next.
 
 **Side panel**, from the top:
 
