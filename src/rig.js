@@ -838,7 +838,9 @@ function samplePose(ch, m, t, easing = CFG.easing, base = m.ref || ch.poses.stan
     const to = resolve(base, k.p);
     if (t < k.d) {
       const e = EASE[easing === 'authored' ? k.e || 'linear' : easing](t / k.d), p = {};
-      for (const j of ch.ids) p[j] = from[j] + (to[j] - from[j]) * e;
+      // base's own ids, not ch.ids: a shared movement layer (dashLayer etc.) is authored once for the stick's bones, so a
+      // character with extra ones (wings, a tail…) must not blend bones the layer's ref never defined (NaN: from/to undefined)
+      for (const j in base) p[j] = from[j] + (to[j] - from[j]) * e;
       return p;
     }
     t -= k.d; from = to;

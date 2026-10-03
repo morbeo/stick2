@@ -1135,3 +1135,20 @@ test('props (PROPS, scen.props): a crate breaks after enough hits, a reed only b
     return { reflected }; })()`);
   assert.ok(bouncy.reflected, 'a bouncy prop reverses a thrown weapon instead of letting it land or pass through');
 });
+
+test('samplePose (movement layers: dash/backDash/airDash/wallJump/run) never NaNs a character with bones the layer\'s ref doesn\'t know about', () => {
+  // a shared layer move (e.g. dashLayer) is authored once against the stick's own bones; a character with extra ones
+  // (wings, a tail, gloomo's extra arms, even hicco's small beard/cord/gourd) must not blend bones outside that ref
+  const r = run(`Object.keys(CHARS).filter(n => n !== 'stick').map(n => {
+    const w = new World(SCENARIOS['showcase'], {}, 7, [CHARS[n], CHARS.stick]);
+    w.loop = false;
+    let bad = null;
+    for (let i = 0; i < 320 && !bad; i++) {
+      w.advance(1/60, NOIN);
+      const P = w.a.body(), k = Object.keys(P).find(k => !isFinite(P[k][0]) || !isFinite(P[k][1]));
+      if (k) bad = n + ' ' + k + ' @' + i;
+    }
+    return bad;
+  }).filter(Boolean)`);
+  assert.deepEqual(r, [], `no NaN bones: ${r.join(', ')}`);
+});
