@@ -326,6 +326,15 @@ try {
     layReset('play'); if (document.body.classList.contains('noside') || lay().fold[k0] !== undefined) errs.push('layout reset tab');
     layUse('default'); if (!document.body.classList.contains('noside')) errs.push('layout switch');
     $('global').querySelector('button[data-tip^="Layout:"]').click(); const pb = t => [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes(t));
+    // hover-highlight: a shown part outlines its live element; a hidden one (the side panel, just turned off above) gets a dashed box over its container instead
+    { const theaterRow = pb('theater'), r1 = $('ctx').querySelector('[data-part="theater"]').getBoundingClientRect();
+      theaterRow.onmouseenter(); const hi = document.querySelector('.layhi');
+      if (!hi || hi.classList.contains('hidden') || Math.abs(hi.getBoundingClientRect().left - r1.left) > 1) errs.push('layout highlight shown ' + hi?.className);
+      theaterRow.onmouseleave(); if (document.querySelector('.layhi')) errs.push('layout highlight cleared');
+      const panelRow = [...document.querySelectorAll('.pop button')].find(b => b.textContent === 'panel');
+      panelRow.onmouseenter(); const hi2 = document.querySelector('.layhi');
+      if (!hi2 || !hi2.classList.contains('hidden')) errs.push('layout highlight hidden ' + hi2?.className);
+      panelRow.onmouseleave(); }
     if (!pb('mine') || pb('delete')) errs.push('layout popup'); pb('reset all').click();
     if (document.body.classList.contains('noside') || Object.keys(laySet().tabs).some(t => Object.keys(lay(t).fold).length)) errs.push('layout reset all');
     layUse('mine'); layDelete(); if (layouts.current !== 'default' || layouts.sets.mine) errs.push('layout delete'); closePop();

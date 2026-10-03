@@ -103,14 +103,27 @@ function panelsGrp(names, tips) {
 }
 const LAY_TIP = 'Layout: what each tab shows, remembered per tab as you go (toolbar groups and side sections and their order, sizes, overlays, folds, "more", the side panel); save it under a name, switch between layouts, reset a tab or all';
 // the layout popup (menu bar): what this tab shows, then the named layouts, save as, reset, delete
+// a box drawn over the page on hover, showing exactly what a layout toggle controls: solid on its live element if shown,
+// dashed over its container if hidden (there is nothing live to point at, but at least which area it would reappear in).
+// purely an overlay (fixed, pointer-events: none) — never a class or style on the target itself, so nothing else moves
+let hiBox = null;
+function layHighlight(rect, hidden) {
+  if (!rect) { hiBox?.remove(); hiBox = null; return; }
+  hiBox ??= document.body.appendChild(h('div', { cls: 'layhi' }));
+  hiBox.classList.toggle('hidden', !!hidden);
+  Object.assign(hiBox.style, { left: rect.x + 'px', top: rect.y + 'px', width: rect.width + 'px', height: rect.height + 'px' });
+}
+const layTarget = (kind, p) => (kind === 'ctx' ? document.querySelector(`#ctx [data-part="${CSS.escape(p)}"]`)
+  : [...document.querySelectorAll('#side > *')].find(s => s.fname === p)) || $(kind);
+const layHover = (kind, p) => ({ onmouseenter: () => layHighlight(layTarget(kind, p)?.getBoundingClientRect(), !layShown(kind + ':' + p)), onmouseleave: () => layHighlight(null) });
 function layoutPanel(e, b) {
   const tab = tabOf(app.mode), names = Object.keys(layouts.sets);
-  const re = () => { closePop(); layoutPanel(null, b); };
+  const re = () => { layHighlight(null); closePop(); layoutPanel(null, b); };
   // each part a toggle; drag one onto another to put it before that one (onto the row's label: last)
   let drag = null;
   const drop = (el, kind, q) => { el.ondragover = e => { if (drag?.kind === kind) e.preventDefault(); }; el.ondrop = e => { e.preventDefault(); layMove(kind, drag.p, q); re(); }; return el; };
   const part = (kind, title, p) => { const t = toggle(p, `Show "${p}" (${title}) on this tab · drag: move it before another`, () => layShown(kind + ':' + p), v => layShow(kind + ':' + p, v));
-    t.draggable = true; t.ondragstart = e => { drag = { kind, p }; e.dataTransfer.setData('text/plain', p); }; return drop(t, kind, p); };
+    t.draggable = true; t.ondragstart = e => { drag = { kind, p }; e.dataTransfer.setData('text/plain', p); }; Object.assign(t, layHover(kind, p)); return drop(t, kind, p); };
   const parts = (kind, title, tip, ...first) => h('div', { cls: 'row', tip: tip + ' · drag a part to reorder' }, drop(h('span', { textContent: title }), kind, null), h('div', { cls: 'bar' }, ...first,
     ...app.parts[kind].map(p => part(kind, title, p))));
   popup(b, h('b', { textContent: 'layout · ' + tab }),
@@ -118,7 +131,8 @@ function layoutPanel(e, b) {
       seg(Object.keys(MODES), () => app.mode, v => { setMode(v); re(); }, MODES)),
     parts('ctx', 'toolbar', 'The toolbar groups this tab shows'),
     parts('side', 'side panel', 'The side panel and its sections (hover a heading: × hides it too)',
-      toggle('panel', 'Show or hide the whole side panel on this tab' + keyTip('panel'), () => !lay().hide.side, togglePanel)),
+      Object.assign(toggle('panel', 'Show or hide the whole side panel on this tab' + keyTip('panel'), () => !lay().hide.side, togglePanel),
+        { onmouseenter: () => layHighlight($('side').getBoundingClientRect(), !!lay().hide.side), onmouseleave: () => layHighlight(null) })),
     app.shows.length ? h('div', { cls: 'row', tip: 'What is drawn over the fight' }, h('span', { textContent: 'overlays' }), h('div', { cls: 'bar' }, ...app.shows.map(k => SHOW[k]()))) : null,
     h('div', { cls: 'row', tip: 'The layout in use; changes are kept in it as you go' }, h('span', { textContent: 'use' }),
       seg(names, () => layouts.current, n => { layUse(n); re(); }, Object.fromEntries(names.map(n => [n, n === LAY_DEFAULT ? 'Switch to the default layout' : `Switch to the layout "${n}"`])))),
