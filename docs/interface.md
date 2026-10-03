@@ -14,7 +14,7 @@ Three rows, the same in every tab:
 |---|---|
 | menu bar | the tabs · undo / redo · clip / record · replay save / play · export / import · search, panel, layout, keys, debug, docs, hints, sound |
 | transport | pause, rewind, step back, step, restart, speed, scrub, loop (the same in every mode) |
-| toolbar | the mode's own tools in labelled groups, in the same order on every tab: view, what you work on (fight, fighters, moves…), the tab's tools, **show** (overlays), **panels** (tables over the stage: click again, × or Esc closes; each tab keeps its own) |
+| toolbar | the mode's own tools in labelled groups, in the same order on every tab: view, what you work on (scenario, fighters, moves…), the tab's tools, **show** (overlays), **panels** (tables over the stage: click again, × or Esc closes; each tab keeps its own) |
 
 ### Export and import
 
@@ -103,6 +103,10 @@ The docs button (ⓘ) in the top bar opens interactive docs over the app. ⌘K f
 - **Reference:** generated from the app's own tables: every setting group with its defaults, move flags and properties, heights, input slots, easing (an animated curve per curve type), and the keyboard as bound now.
 - Everything is searchable.
 
+| A guide topic, with its live demos |
+| --- |
+| ![A guide topic, with its live demos](img/docspanel.png) |
+
 Links:
 
 | Address | Opens |
@@ -133,6 +137,10 @@ The box at the top of the settings panel: fuzzy search over the variable names a
 ## Keys and macros
 
 The **keys** button (⌨) in the top bar shows every key and lets you rebind them, in collapsible groups: fight, transport, view, modes, animate, character. A search box fuzzy-filters the actions by name or tip. Saved in the browser.
+
+| The keys popup |
+| --- |
+| ![The keys popup](img/keys.png) |
 
 **Macros:** one key presses a sequence such as `2, 3, 6P`: numpad directions + P / K, with waits like `0.1`.
 

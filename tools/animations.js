@@ -18,6 +18,21 @@ const CLIPS = {
   'anim-wall-bounce': ['wall bounce', 2.4, [520, 395, 500, 200]],
   'anim-fireball': ['fireball', 2, [90, 395, 820, 200]],
   'anim-laser-beam': ['laser beam', 2, [90, 395, 820, 200]],
+  'anim-chase-jump': ['chase jump', 2.4, CROP],
+  'anim-catch': ['catch', 2.4, CROP],
+  'anim-roll-through': ['roll through', 2, CROP],
+  'anim-teleport': ['teleport', 2, CROP],
+  'anim-guard-cancel': ['guard cancel', 2, CROP],
+  'anim-push-block': ['push block', 2, CROP],
+  'anim-wake-up-attack': ['wake-up attack', 2.6, CROP],
+  'anim-wake-up-roll': ['wake-up roll', 2.6, CROP],
+  'anim-taunt': ['taunt', 1.6, CROP],
+  'anim-win-pose': ['win pose', 3, CROP],
+  'anim-pounce': ['pounce', 3, CROP],
+  'anim-flash-kick': ['flash kick', 2, CROP],
+  'anim-lightning-legs': ['lightning legs', 2, CROP],
+  'anim-pickup-slash': ['pick up & slash', 5, CROP],
+  'anim-weapon-clash': ['weapon clash', 2, CROP],
 };
 const FPS = 20, STEP = 60 / FPS; // the engine runs at 60: three engine frames per animation frame
 

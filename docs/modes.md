@@ -353,6 +353,8 @@ Using it:
 
 ## Replay
 
+![A recorded fight: the timeline, health and stun curves, and events per lane](img/replay.png)
+
 A recorded fight as a timeline of events and an event table. It opens the play fight (everything since its last restart) when you come to the tab, or a replay file.
 
 | Toolbar group | What it does |

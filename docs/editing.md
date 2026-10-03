@@ -16,6 +16,10 @@ Building fighters and their movesets. The editors themselves (dragging joints, t
 
 The character panel shows a grid of drawings, all at one scale.
 
+| Every character, drawn at one scale |
+| --- |
+| ![Every character, drawn at one scale](img/fighters.png) |
+
 ### The roster
 
 **stick** is the plain base. The dozen others are stereotypes, each with signature moves bound to every input, motions, a second stance, stats and a gait:
@@ -57,6 +61,10 @@ Stats scale the fight settings for that character. Three groups, with group butt
 | fight | health, toughness, tempo, springs, grab range |
 
 The **radar** above the stats draws the chosen stats: each axis runs from the stat's minimum to its maximum, the dashed ring is 1. Other characters can be overlaid to compare.
+
+| The stats radar |
+| --- |
+| ![The stats radar](img/statsradar.png) |
 
 ### Shadow
 
