@@ -2,10 +2,12 @@
 // ---------- config (every tunable is exposed in the side panel) ----------
 // groups: [title, what it does, keys]. vars: k, default v, range or opts, tip (hover text), optTips (per option)
 const SCHEMA = [
-  ['Debug', 'Inspection aids, then the debug information: the build (commit, branch, uncommitted changes), engine version, frame rate, the focused fight (seed, frame, state hash) and each fighter\'s position, health and state, with a copy button for bug reports; and the scope of one bone.', 'G ghost · B boxes'],
+  ['Debug', 'Inspection aids, then the debug information: the build (commit, branch, uncommitted changes), engine version, frame rate, the focused fight (seed, frame, state hash) and each fighter\'s position, health and state, with a report a bug button; and the scope (a bone\'s angle, health, stun or speed over time).', 'G ghost · B boxes'],
   { k: 'ghost', v: false, tip: 'Draw the keyframe (target) pose in blue behind the sprung pose.' },
   { k: 'boxes', v: false, tip: 'Draw hurtboxes (blue), held weapons (amber: they clash but are never hurt) and active strikes and flying weapons (red).' },
   { k: 'scope', v: 'uarmF', tip: 'Bone plotted in the sidebar scope: target (grey) vs drawn (red).' }, // a bone of the current character
+  { k: 'scopeKind', v: 'angle', opts: ['angle', 'health', 'stun', 'speed'], tip: 'What the sidebar scope plots: a bone\'s angle, both fighters\' health or stun meter (P1 grey, P2 red), or P1\'s horizontal speed.',
+    optTips: { angle: 'A bone\'s target (grey) vs drawn (red) angle: tune the spring filter.', health: 'Health over time: P1 grey, P2 red.', stun: 'The stun (dizzy) meter over time: P1 grey, P2 red.', speed: 'P1\'s horizontal speed (vx).' } },
   { k: 'hud', v: true, tip: 'Draw the health and stun bars, dizzy stars, callouts (PARRY, COUNTER, K.O.) and the hit counter over the fighters.' },
   { k: 'labels', v: true, tip: 'Draw each fight\'s label and its stats line (frozen %, hits, whiffs).' },
   ['Movement', 'How the body travels: ground speed ramps up and down, jumps start with an anticipation squat.', 'A/D move · Space jump · S crouch'],
@@ -223,7 +225,7 @@ const SCHEMA = [
 ];
 const CFG = {}, DEFAULTS = {}, SPEC = {};
 for (const s of SCHEMA) if (!Array.isArray(s)) { DEFAULTS[s.k] = CFG[s.k] = s.v; SPEC[s.k] = s; }
-const DISPLAY = ['ghost', 'boxes', 'scope', 'hud', 'labels']; // how fights are drawn, not how they play: kept out of presets, settings files and the undo stack
+const DISPLAY = ['ghost', 'boxes', 'scope', 'scopeKind', 'hud', 'labels']; // how fights are drawn, not how they play: kept out of presets, settings files and the undo stack
 
 const NOJUICE = { hitstop: 0, hitShake: 0, shake: 0, zoomPunch: 0, squash: 0, sparks: 0, trail: 0, flash: false, slowmo: false, jumpSquat: 0 };
 const PRESETS = {

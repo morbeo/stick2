@@ -801,46 +801,18 @@ function addButton() {
 // inherit: a key's, whose fx can also be "same" (as the keys before or the move say: undefined) or "none" (false)
 const FX_COL_TIPS = { auto: 'The look\'s own colour (aura blue, fire orange, lightning cyan, smoke grey)', ...mapVals(FX_COLS, () => 'This colour') };
 const fxOns = ch => ['strike', 'body', ...['arm', 'leg', 'head', 'tail', 'weapon'].filter(r => ch.chains[r].length)];
-// a live, enlarged loop of an effect stack, isolated from any fight: a bent two-bone reference "limb" (not one long straight
-// line: easier to see, and shows a look across a joint) with the stack drawn over it, exactly as drawFx would (back looks
-// first, then front), so a look and its size / speed / colour can be judged without attaching it to a move first.
-// Self-stopping: the popup owns no close hook, so the loop checks cv.isConnected itself
-const FX_PREVIEW = 200;
-function fxPreviewPopup(own, anchor) {
-  const cv = h('canvas'); cv.width = cv.height = FX_PREVIEW * dpr;
-  const g = cv.getContext('2d'); g.scale(dpr, dpr);
-  const P = { base: [FX_PREVIEW * 0.6, FX_PREVIEW - 20], mid: [FX_PREVIEW * 0.3, FX_PREVIEW * 0.55], tip: [FX_PREVIEW * 0.65, 20] },
-    bones = [{ id: 'mid', parent: 'base', thick: 10 }, { id: 'tip', parent: 'mid', thick: 7 }];
-  popup(anchor, h('b', { textContent: 'preview' }), h('div', { cls: 'fxpreview' }, cv));
-  const t0 = performance.now();
-  const loop = now => {
-    if (!cv.isConnected) return; // the popup closed (or was replaced): stop, no close hook to hang this off
-    g.clearRect(0, 0, FX_PREVIEW, FX_PREVIEW); g.fillStyle = '#f3f0e8'; g.fillRect(0, 0, FX_PREVIEW, FX_PREVIEW);
-    g.strokeStyle = '#ccc8be'; g.lineWidth = 3; g.lineCap = 'round'; g.lineJoin = 'round';
-    g.beginPath(); g.moveTo(...P.base); g.lineTo(...P.mid); g.lineTo(...P.tip); g.stroke(); // a plain bent reference limb
-    const t = (now - t0) / 1000, segs = fxSegs(P, bones);
-    g.save(); g.lineCap = g.lineJoin = 'round';
-    for (const back of [true, false]) for (const e of own()) if (FX_DRAW[e.look] && FX_BACK.has(e.look) === back)
-      FX_DRAW[e.look](g, segs, FX_COLS[e.col] || FX_COLS[FX_AUTO[e.look]], e.size ?? 1, t * (e.spd ?? 1));
-    g.restore();
-    requestAnimationFrame(loop);
-  };
-  requestAnimationFrame(loop);
-}
 function fxRows(tip, get, set, ons, inherit) {
   const own = () => fxList(get()), put = (l, key) => set(l.length > 1 ? l : l[0] || (inherit ? false : undefined), key);
   const fresh = l => ({ look: Object.keys(FX_LOOKS).find(k => !l.some(e => e.look === k)) || 'aura' }); // a look not used yet
   const add = crud({ new: [`Add an effect (up to ${FX_MAX}): they all draw at once, in this order`, () => {
     const l = inherit && get() === undefined ? inherit() : own(); if (l.length < FX_MAX) put([...l, fresh(l)]); }] });
   reg(add, () => { add.hidden = own().length >= FX_MAX; });
-  const preview = button(':visibility: preview', 'See this effect stack animate, enlarged, without a fight', (e, b) => fxPreviewPopup(own, b), 'mini');
-  reg(preview, () => { preview.hidden = !own().length; });
   const none = h('span', { cls: 'note', textContent: 'none' });
   reg(none, () => { none.hidden = own().length > 0; });
   const head = h('div', { cls: 'row', tip }, h('span', {}, ...rich(':auto_awesome: effect')), h('span', { cls: 'bar' },
     inherit ? seg(['same', 'none', 'own'], () => get() === undefined ? 'same' : own().length ? 'own' : 'none',
       v => v === 'same' ? set(undefined) : v === 'none' ? set(false) : !own().length && put(inherit().length ? inherit() : [fresh([])]),
-      { same: 'As the keys before (or the move) say', none: 'No effect from this key on', own: 'Its own effects from this key on (starting from the ones playing)' }) : none, preview, add));
+      { same: 'As the keys before (or the move) say', none: 'No effect from this key on', own: 'Its own effects from this key on (starting from the ones playing)' }) : none, add));
   const slot = i => {
     const e = () => own()[i], upd = (k, v, key) => put(own().map((x, j) => j === i ? { ...x, [k]: v } : x), key);
     const swap = d => { const l = own(), j = i + d; if (l[j]) { [l[i], l[j]] = [l[j], l[i]]; put(l); } };
