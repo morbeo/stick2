@@ -445,7 +445,9 @@ Click or drag to go to a moment; it snaps to events within 6 px (Alt: no snappin
 | export | **movie → export**: the shots and everything on them rendered one after another as one clip (size and format as in footage → export) |
 | save / open a project | the side panel's **save project** writes every loaded reel and the movie as one `.stick2-project.json` file; **open project** replaces them with one |
 
-A transition blends the previous shot's last frame into the new shot's first, frozen either side of it, for its own length; the new shot's own frames play once it ends. A reversed shot is rendered once, forward, then its pictures are shown back to front (a freeze on a reversed shot is skipped: its frame does not have a clean meaning once the order is flipped). Effects are drawn on a shot's own frames only, not over a freeze, a transition or a reversed shot's pictures. Keyframed camera moves and event-triggered text are planned next.
+A transition blends the previous shot's last frame into the new shot's first, frozen either side of it, for its own length; the new shot's own frames play once it ends. A reversed shot is rendered once, forward, then its pictures are shown back to front (a freeze on a reversed shot is skipped: its frame does not have a clean meaning once the order is flipped). Effects are drawn on a shot's own frames only, not over a freeze, a transition or a reversed shot's pictures.
+
+A shot has no camera of its own: it plays with whatever **camera** footage spans (above) are set on its own source reel, at the frames it covers. Keyframed camera moves and event-triggered text are planned next.
 
 **Side panel**, from the top:
 

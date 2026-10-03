@@ -811,6 +811,18 @@ try {
         ui.clip = { ...clipSet(), fps: 30, aspect: 'view' }; rp.movie.shots = letterShots; panels(); await exportMovie(); saveClip = sc;
         const c = got && got[0]?.c, g = c && c.getContext('2d'), px = g && g.getImageData(2, 2, 1, 1).data;
         if (!px || px[0] > 10 || px[1] > 10 || px[2] > 10) errs.push('fx letterbox ' + (px && [...px])); }); }
+    // camera: a shot has none of its own — it inherits whatever camera spans are on its source reel's footage
+    { const reel = rp.reels[0], w = replayWorld(reel.rep);
+      reel.rep.footage.spans.push({ kind: 'cam', a: 0, b: 10, zoom: 2, follow: 'P1' });
+      const cam = camAt(reel.rep, w, 5), outside = camAt(reel.rep, w, 20);
+      if (!cam || cam.zoom !== 2 || typeof cam.x !== 'number') errs.push('camAt in span ' + JSON.stringify(cam));
+      if (outside) errs.push('camAt outside span ' + JSON.stringify(outside));
+      movieEdit(M => { M.shots = [{ reel: 0, a: 0, b: 10 }]; });
+      const camShots = rp.movie.shots;
+      afterSync.push(async () => { let got = null; const sc = saveClip; saveClip = f => { got = f; };
+        ui.clip = { ...clipSet(), fps: 30, aspect: 'view' }; rp.movie.shots = camShots; panels(); await exportMovie(); saveClip = sc;
+        if (!got || !got.length) errs.push('camera export ' + (got && got.length));
+        reel.rep.footage.spans.length = 0; }); }
     // clips: the 1:1 aspect crops the subject to a square
     { ui.clip = { ...clipSet(), aspect: '1:1', fit: 'crop', size: 200 }; clip.key = null; clip.frames.length = 0; clip.last = 0; clipCapture(5e6, true);
       const f = clip.frames[0]?.c; if (!f || f.width !== 200 || f.height !== 200) errs.push('clip aspect ' + (f && [f.width, f.height]));
