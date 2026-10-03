@@ -4,6 +4,8 @@ A 2D stick-figure fighting engine and motion lab for the browser: procedural ske
 
 **[Play it on GitHub Pages](https://morbeo.github.io/stick2/)**, or open `index.html` directly. Full docs: [docs/](docs/README.md).
 
+This is an active, solo-built project and it needs feedback and testers. If you try it, please [open an issue](https://github.com/morbeo/stick2/issues) with what felt wrong, what broke, or what was confusing — even a short note helps. Pull requests are welcome too; see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ![A fight: knockdown, combo counter and frame meter](docs/img/play.png)
 
 ## Features
