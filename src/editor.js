@@ -801,20 +801,23 @@ function addButton() {
 // inherit: a key's, whose fx can also be "same" (as the keys before or the move say: undefined) or "none" (false)
 const FX_COL_TIPS = { auto: 'The look\'s own colour (aura blue, fire orange, lightning cyan, smoke grey)', ...mapVals(FX_COLS, () => 'This colour') };
 const fxOns = ch => ['strike', 'body', ...['arm', 'leg', 'head', 'tail', 'weapon'].filter(r => ch.chains[r].length)];
-// a live, enlarged loop of an effect stack, isolated from any fight: a reference "limb" (a plain line) with the stack drawn
-// over it, exactly as drawFx would (back looks first, then front), so a look and its size / speed / colour can be judged
-// without attaching it to a move first. Self-stopping: the popup owns no close hook, so the loop checks cv.isConnected itself
-const FX_PREVIEW = 160;
+// a live, enlarged loop of an effect stack, isolated from any fight: a bent two-bone reference "limb" (not one long straight
+// line: easier to see, and shows a look across a joint) with the stack drawn over it, exactly as drawFx would (back looks
+// first, then front), so a look and its size / speed / colour can be judged without attaching it to a move first.
+// Self-stopping: the popup owns no close hook, so the loop checks cv.isConnected itself
+const FX_PREVIEW = 200;
 function fxPreviewPopup(own, anchor) {
   const cv = h('canvas'); cv.width = cv.height = FX_PREVIEW * dpr;
   const g = cv.getContext('2d'); g.scale(dpr, dpr);
-  const P = { base: [FX_PREVIEW / 2, FX_PREVIEW - 16], tip: [FX_PREVIEW / 2, 16] }, bones = [{ id: 'tip', parent: 'base', thick: 8 }];
+  const P = { base: [FX_PREVIEW * 0.6, FX_PREVIEW - 20], mid: [FX_PREVIEW * 0.3, FX_PREVIEW * 0.55], tip: [FX_PREVIEW * 0.65, 20] },
+    bones = [{ id: 'mid', parent: 'base', thick: 10 }, { id: 'tip', parent: 'mid', thick: 7 }];
   popup(anchor, h('b', { textContent: 'preview' }), h('div', { cls: 'fxpreview' }, cv));
   const t0 = performance.now();
   const loop = now => {
     if (!cv.isConnected) return; // the popup closed (or was replaced): stop, no close hook to hang this off
     g.clearRect(0, 0, FX_PREVIEW, FX_PREVIEW); g.fillStyle = '#f3f0e8'; g.fillRect(0, 0, FX_PREVIEW, FX_PREVIEW);
-    g.strokeStyle = '#ccc8be'; g.lineWidth = 3; g.beginPath(); g.moveTo(...P.base); g.lineTo(...P.tip); g.stroke(); // a plain reference limb
+    g.strokeStyle = '#ccc8be'; g.lineWidth = 3; g.lineCap = 'round'; g.lineJoin = 'round';
+    g.beginPath(); g.moveTo(...P.base); g.lineTo(...P.mid); g.lineTo(...P.tip); g.stroke(); // a plain bent reference limb
     const t = (now - t0) / 1000, segs = fxSegs(P, bones);
     g.save(); g.lineCap = g.lineJoin = 'round';
     for (const back of [true, false]) for (const e of own()) if (FX_DRAW[e.look] && FX_BACK.has(e.look) === back)
