@@ -43,6 +43,14 @@ const OPT_ICONS = { cards: 'view_module', list: 'list', table: 'table_rows', inp
   raw: 'grain', tweened: 'animation', spring: 'waves', floaty: 'cloud', juicy: 'auto_awesome', overlay: 'layers', strip: 'theaters' };
 const optLabel = o => OPT_ICONS[o] ? `:${OPT_ICONS[o]}: ${o}` : String(o);
 const icon = (name, tip) => h('span', { cls: name === 'close' ? 'ic close' : 'ic', textContent: String.fromCodePoint(ICONS[name]), tip });
+// the favicon: drawn from the icon font itself (sports_martial_arts), not an image file, once the font is ready
+document.fonts.load('48px Icons').then(() => {
+  const cv = Object.assign(document.createElement('canvas'), { width: 64, height: 64 }), c = cv.getContext('2d');
+  c.fillStyle = '#f3f0e8'; c.beginPath(); c.arc(32, 32, 32, 0, 7); c.fill();
+  c.font = '48px Icons'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#222';
+  c.fillText(String.fromCodePoint(ICONS.sports_martial_arts), 32, 35);
+  (document.querySelector('link[rel=icon]') || document.head.appendChild(h('link', { rel: 'icon' }))).href = cv.toDataURL();
+}).catch(() => {});
 // text with icons: ':name:' and the arrows ← → ↑ ↓ ↖ ↗ ↙ ↘ become icon glyphs, the rest stays text
 function rich(text) {
   return String(text).split(/(:[a-z_]+:|[←→↑↓↖↗↙↘])/).filter(Boolean)
