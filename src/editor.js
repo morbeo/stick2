@@ -490,6 +490,21 @@ function throwRow() {
     h('span', { textContent: 'throw' }), h('span', { cls: 'bar' }, moveBtn,
       button(':add: new toss move', 'Make a new move for the thrower to play (starts as a copy of the built-in toss) and set it here', mk, 'mini')));
 }
+// counter (m.counter, a move name): a key marked catch answers a caught strike with this move at once, landing its damage
+// on the attacker (← S is catch, a counter stance, by default). Any move can be a counter: bind it like any other.
+function counterRow() {
+  const m = () => curMove(), names = () => Object.keys(currentChar().moves).filter(n => n !== anim.move);
+  const pick = (e, b) => popup(b, h('b', { textContent: 'counter: the move that answers a catch' }),
+    seg(['', ...names()], () => m().counter || '', v => { setMove('counter', v || undefined); closePop(); },
+      { '': 'Off: a catch key just no-sells the strike, with no reversal', ...Object.fromEntries(names().map(n => [n, `A caught strike is answered with ${n} at once, its damage landing on the attacker`])) }));
+  const moveBtn = button('', 'The move that answers a strike caught by a catch key · click: pick another', pick, 'mini');
+  reg(moveBtn, () => setRich(moveBtn, `:back_hand: ${m().counter || 'no reversal'}`));
+  const mk = () => { let n = anim.move + 'Reversal', i = 2; while (DEFS[CURRENT].moves[n]) n = anim.move + 'Reversal' + i++;
+    edit(def => { def.moves[n] = clone(CHAR_DEFS.stick.moves.reversal); def.moves[anim.move].counter = n; }); openMove(n); };
+  return h('div', { cls: 'row', tip: 'Counter: a key marked catch (keyPanel) answers a strike caught during it with the move picked here, at once — its damage lands on the attacker. No catch key: this has no effect.' },
+    h('span', { textContent: 'counter' }), h('span', { cls: 'bar' }, moveBtn,
+      button(':add: new counter move', 'Make a new reversal move (starts as a copy of the built-in reversal) and set it here', mk, 'mini')));
+}
 
 // what normalize returns to: the built-in move of the same name (copies like jab2: the move they were copied from)
 const builtInMove = () => (CHAR_DEFS[CURRENT] || CHAR_DEFS.stick).moves[anim.move.replace(/\d+$/, '')];
@@ -832,6 +847,7 @@ function movePanel() {
     ...MOVE_PROPS.map(p => { const r = slider(p.k, p, () => m()[p.k] ?? p.def ?? 0, v => setMove(p.k, v === (p.def ?? 0) ? undefined : v, 'm.' + p.k), p.tip); return MOVE_BASIC.includes(p.k) ? r : adv(r); }),
     h('div', { cls: 'bar' }, Object.entries(MOVE_FLAGS).map(([f, tip]) => toggle(f, tip, () => !!m()[f], v => setMove(f, v || undefined)))),
     throwRow(),
+    counterRow(),
     ...keyPanel(),
     ...charPanel(),
   ];

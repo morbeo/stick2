@@ -144,7 +144,7 @@ Hit stop, shake and zoom that grow with each combo hit; attacks, or the whole ga
 
 ### Catch
 
-**← S** is catch, a counter stance. Its catch key answers a mid strike from the front with **reversal**. The key's **catchH** lists the heights it catches.
+**← S** is catch, a counter stance. Its catch key answers a mid strike from the front with **reversal**. The key's **catchH** lists the heights it catches. Any move can catch: a key's **catch** flag, and the move panel's **counter** row picks which move answers (**new counter move** makes one, starting from the built-in reversal, and opens it) — its damage lands on the attacker at once.
 
 ### Recovery
 
