@@ -34,6 +34,9 @@ One fight on the full stage.
 
 - **P1 and P2** each get a character (or the one being edited), a controller, a start x, back turned and a shield (off, no damage or untouchable, as in the fighters group).
 - **Controllers:** you, AI, dummy, or a script like `0.2, 2P, hold up 0.2, K`.
+- **AI style** (AI controller only): balanced, rushdown, zoner, grappler or turtle — how it prefers to fight, separate from the aiLevel setting (how well). Overrides the aiStyle setting for this fighter only.
+- **skill** (AI controller only): fine-tune this fighter's reactions, guard, throw break, tech, anti-air and juggle chance individually, on top of the aiLevel setting.
+- **limits:** cap how many times this fighter (AI or you) can use specific moves this fight, or ban one outright at 0. Unlisted moves stay unlimited.
 - **restart** sets how often the fight starts over.
 - **settings:** add one by name, or **take my settings** to bring every setting you changed from the defaults.
 - Saved in this browser as you edit, and listed first in the picker.

@@ -457,6 +457,26 @@ test('AI difficulty: throw-break rates rise with aiLevel and do not depend on th
   assert.ok(Math.abs(rate('normal', 1 / 144)[1] - p[1]) < 0.2, 'same rate at 144 Hz');
 });
 
+test('aiStyle biases how the AI prefers to fight, separately from aiLevel: rushdown closes the distance, turtle keeps it', () => {
+  const avgDist = style => run(`(() => { let total = 0, n = 0;
+    for (let seed = 1; seed <= 20; seed++) { const w = new World({ a: 'ai', b: 'dummy', ax: 150, bx: 450 }, { aiStyle: '${style}' }, seed, [CHARS.stick, CHARS.stick]); w.loop = false;
+      for (let i = 0; i < 300; i++) { w.advance(1 / 60, NOIN); total += Math.abs(w.b.x - w.a.x); n++; } }
+    return total / n; })()`);
+  const rush = avgDist('rushdown'), turtle = avgDist('turtle'), balanced = avgDist('balanced');
+  assert.ok(rush < balanced && balanced < turtle, `rushdown closer, turtle farther, balanced between: ${rush} ${balanced} ${turtle}`);
+});
+
+test('move limits (over.limits, a fighter override) cap how many times a move can start; 0 bans it outright', () => {
+  const r = run(`(() => {
+    const press = [0.1, 'punch', 0.3, 'punch', 0.3, 'punch', 0.3, 'punch', 0.3, 'kick'];
+    const w = new World({ a: press, b: 'dummy', ax: 300, bx: 400, period: 9, aover: { limits: { jab: 2, kick: 0 } } }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    for (let i = 0; i < 400; i++) w.advance(1 / 60, NOIN);
+    return { jab: w.a.moveCount.jab, kick: w.a.moveCount.kick || 0, played: Object.keys(w.a.moveCount) }; })()`);
+  assert.equal(r.jab, 2, `jab capped at 2: ${r.jab}`);
+  assert.equal(r.kick, 0, `kick banned outright: ${r.kick}`);
+  assert.ok(!r.played.includes('kick'), 'a banned move never starts: ' + r.played);
+});
+
 test('holding P+G charges a weapon throw: it flies farther and hits harder', () => {
   const go = hold => run(`(() => { const w = new World({ a: ['punch+guard'${hold ? ", { hold: 'punchHeld+guard', t: 1 }" : ''}], aw: 'dagger', b: 'dummy', ax: 150, bx: 420 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
     let it = null, hp = w.b.hp, vx = 0, charge = 0;

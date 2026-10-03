@@ -75,6 +75,20 @@ const AI_LEVELS = {
   hard: { think: [0.08, 0.2], react: 0.08, guard: 0.6, brk: 0.6, tech: 0.6, antiAir: 0.7, juggle: 0.75 },
   expert: { think: [0.05, 0.12], react: 0.05, guard: 0.8, brk: 0.85, tech: 0.85, antiAir: 0.85, juggle: 0.9 },
 };
+// a skill level can be fine-tuned per fighter (over.aiSkill, a scenario override): only what differs from the level above
+// behaviour (aiStyle setting): how it prefers to fight, separate from how well — press: biases approach vs. retreat at
+// range and at close quarters, special: biases chains toward or away from ones that end in a special, grab: a dedicated
+// throw attempt up close, on top of the mixups every style already has
+const AI_STYLES = {
+  balanced: { press: 0, special: 0, grab: 0 },
+  rushdown: { press: 0.3, special: 0, grab: 0.1 },
+  zoner: { press: -0.3, special: 0.3, grab: -0.08 },
+  grappler: { press: 0.15, special: -0.15, grab: 0.35 },
+  turtle: { press: -0.4, special: -0.1, grab: -0.08 },
+};
+// a fighter's own skill (over.aiSkill overrides the level) and style (over.aiStyle overrides the aiStyle setting)
+const skillOf = f => ({ ...(AI_LEVELS[f.c('aiLevel')] || AI_LEVELS.normal), ...f.over.aiSkill });
+const styleOf = f => AI_STYLES[f.over.aiStyle || f.c('aiStyle')] || AI_STYLES.balanced;
 // the presses that make each scheme input (SPECIAL_SCHEMES), queued one after another
 const SCHEME_INPUTS = { G6: ['guard+fwd'], G4: ['guard+back'], dd: ['down', 'down+special'], qcf: ['down', 'down+fwd', 'fwd+special'],
   qcb: ['down', 'down+back', 'back+special'], dp: ['fwd', 'down', 'down+fwd+special'], bP: ['punch'], bK: ['kick'], b6S: ['fwd+special'], b4S: ['back+special'],
@@ -83,7 +97,7 @@ class Brain {
   constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0, held: null, brk: false, flying: false, tech: false, lying: false, wake: null, blocking: false, out: null, outT: 0 }); }
   input(f, o, h) {
     const inp = { ...NOIN }, dist = Math.abs(o.x - f.x) - (f.ch.extent[1] + o.ch.extent[1] - 38); // the gap as between two sticks (a centaur's body is long)
-    const L = AI_LEVELS[f.c('aiLevel')] || AI_LEVELS.normal;
+    const L = skillOf(f);
     if (!f.free) this.q = [];
     // a throw: decide once whether to break it, then press P+G after the reaction time
     if (f.heldBy !== this.held) { this.held = f.heldBy; this.brk = !!f.heldBy && this.rand() < L.brk; }
@@ -124,7 +138,7 @@ class Brain {
     this.q = SCHEME_INPUTS[t].slice(); this.qt = 0; return true;
   }
   think(f, o, dist) {
-    const r = this.rand(), L = AI_LEVELS[f.c('aiLevel')] || AI_LEVELS.normal;
+    const r = this.rand(), L = skillOf(f), S = styleOf(f);
     this.t = this.rand(...L.think); // reaction time
     this.plan = null;
     if (!f.free) return;
@@ -155,13 +169,16 @@ class Brain {
     if (o.kd === 'fly' && dist < 130 && r < L.juggle) { this.q = ['hop', 'kick']; this.qt = 0; return; }
     if (dist > 200 && r < 0.05 && this.special(f, 'teleport')) return; // appear behind
     if (dist > 220 && f.c('dash') && r < 0.3) { this.q = ['fwd', 'fwd']; this.qt = 0; this.plan = 'in'; return; } // dash, then run in
-    if (dist > 150) { this.plan = r < 0.25 ? 'dash' : 'in'; return; }
-    if (dist > 70) { this.plan = r < 0.85 ? 'in' : 'out'; return; }
+    if (dist > 150) { this.plan = r < clamp(0.25 + S.press * 0.5, 0.05, 0.6) ? 'dash' : 'in'; return; }
+    if (dist > 70) { this.plan = r < clamp(0.85 + S.press, 0.15, 0.98) ? 'in' : 'out'; return; } // style: rushdown presses in more, turtle holds back
     if (r < 0.03 && this.special(f, 'rollBack')) return;
-    if (r < 0.12) { this.plan = 'out'; return; }
+    if (S.grab && dist < 65 && r < Math.max(0, 0.08 + S.grab) && f.pick('throw', null)) { this.q = ['punch+guard']; this.qt = 0; return; } // a grappler reaches for the throw more often; balanced (0) matches today exactly
+    if (r < clamp(0.12 - S.press * 0.3, 0.02, 0.4)) { this.plan = 'out'; return; }
     if (r < 0.2) return; // hesitate
     if (o.guarding && r < 0.5) { this.q = [o.crouching ? 'up+punch' : dist < 60 && r < 0.3 ? 'punch+guard' : 'down+fwd+kick']; this.qt = 0; return; } // overhead vs a low guard; throw or low vs a standing one
-    this.q = CHAINS[Math.floor(this.rand() * CHAINS.length)].slice(); this.qt = 0;
+    // a chain to throw out: a zoner reaches for one ending in a special more often, a turtle less
+    const special = c => c.some(x => x.includes('special')), pool = S.special > 0.1 ? [...CHAINS, ...CHAINS.filter(special)] : S.special < -0.1 ? CHAINS.filter(c => !special(c)) : CHAINS;
+    this.q = (pool.length ? pool : CHAINS)[Math.floor(this.rand() * (pool.length || CHAINS.length))].slice(); this.qt = 0;
   }
 }
 

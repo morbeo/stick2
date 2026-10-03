@@ -167,6 +167,8 @@ const SCHEMA = [
   ['AI', 'How well the engine AI fights: how often it decides, how fast it reacts and how often it guards, breaks throws, techs landings, anti-airs and juggles.', ''],
   { k: 'aiLevel', v: 'normal', opts: ['easy', 'normal', 'hard', 'expert'], tip: 'Difficulty of the engine AI. A scenario can set its own.',
     optTips: { easy: 'Slow to decide, rarely guards; breaks 1 throw in 10.', normal: 'Guards about 2 attacks in 5; breaks about 1 throw in 3.', hard: 'Quick, guards most startups; breaks 3 throws in 5.', expert: 'Reacts within a few frames; breaks most throws and techs most landings.' } },
+  { k: 'aiStyle', v: 'balanced', opts: ['balanced', 'rushdown', 'zoner', 'grappler', 'turtle'], tip: 'How the engine AI prefers to fight (separate from aiLevel, which is how well). A scenario, or a fighter in one, can set its own.',
+    optTips: { balanced: 'No particular bias', rushdown: 'Presses forward more, rarely backs off', zoner: 'Hangs back, favours specials over plain chains', grappler: 'Reaches for throws more, specials less', turtle: 'Holds its ground and backs off more than it presses in' } },
   ['Plane (2D / 2.5D)', 'Fight on a line, on three sidestep lanes, or on a free depth belt. Stick figures are flat, so a strike connects only when both fighters stand at about the same depth.', ''],
   { k: 'plane', v: '2d', opts: ['2d', 'lanes', 'belt'], tip: 'Where the fight happens, and which moveset is used (2D and 2.5D have separate binds). 2D: ↑ or Space jumps. 2.5D: ↑ / ↓ move in depth, Space jumps.',
     optTips: { '2d': 'One line: ↑ jumps, ↓ crouches.', lanes: 'Three lanes: double tap ↑ / ↓ to sidestep a lane (dodges straight attacks), hold ↓ to crouch.',
