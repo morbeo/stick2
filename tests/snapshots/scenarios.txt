@@ -33,6 +33,7 @@ fireball clash hits 1 blocks 0 hp 100.0 91.0 x 220 604
 turnaround     hits 2 blocks 0 hp 95.0 91.0 x 323 393
 throw break    hits 0 blocks 0 hp 100.0 100.0 x 306 379
 catch          hits 1 blocks 0 hp 83.8 100.0 x 85 375
+substitution   hits 1 blocks 0 hp 100.0 90.0 x 330 270
 high counter   hits 1 blocks 0 hp 85.0 100.0 x 208 375
 low counter    hits 1 blocks 0 hp 86.3 100.0 x 234 375
 tech           hits 1 blocks 0 hp 100.0 90.0 x 330 434
@@ -44,12 +45,15 @@ tech inside    hits 1 blocks 0 hp 100.0 90.0 x 330 433
 roll through   hits 0 blocks 0 hp 100.0 100.0 x 444 372
 roll back      hits 0 blocks 0 hp 100.0 100.0 x 229 400
 teleport       hits 0 blocks 0 hp 100.0 100.0 x 435 375
+wall jump      hits 0 blocks 0 hp 100.0 100.0 x 84 640
+ninja run      hits 0 blocks 0 hp 100.0 100.0 x 676 760
 guard cancel   hits 1 blocks 1 hp 93.0 94.1 x 279 376
 push block     hits 0 blocks 1 hp 100.0 99.1 x 248 382
 just guard     hits 0 blocks 1 hp 100.0 100.0 x 316 375
 wake-up attack hits 1 blocks 0 hp 100.0 90.0 x 330 458
 wake-up roll   hits 1 blocks 0 hp 100.0 90.0 x 330 559
 taunt          hits 0 blocks 0 hp 100.0 100.0 x 330 375
+power up       hits 0 blocks 0 hp 100.0 100.0 x 330 375
 win pose       hits 1 blocks 0 hp 5.0 0.0 x 330 524
 pounce         hits 2 blocks 0 hp 100.0 81.9 x 437 475
 wall bounce    hits 2 blocks 0 hp 100.0 76.9 x 589 733

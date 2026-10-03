@@ -156,6 +156,10 @@ Hit stop, shake and zoom that grow with each combo hit; attacks, or the whole ga
 
 A counter doesn't have to be an attack. Sneeko's own **← S** (substituteCatch → substitute) is a ninja substitution: a strike caught during it answers by warping away (the **warp** key flag) and leaving a stationary decoy — a shot with speed 0 and a short life — right where it stood. No damage of its own, no retaliation: pure escape, like the ninjas in Samurai Shodown.
 
+| Substitution: a caught strike answers by warping away, a decoy left behind |
+| --- |
+| ![Substitution: a caught strike answers by warping away, a decoy left behind](img/anim-substitution.png) |
+
 | Catch: ← S answers a mid strike with reversal |
 | --- |
 | ![Catch: ← S answers a mid strike with reversal](img/anim-catch.png) |
@@ -255,6 +259,11 @@ The stick's third stance, **powered** (S+G cycles main → boxing → powered). 
 - **req.exitOn: ['hit']** cancels it early if the charge-up (or the powered stance itself) gets hit; **req.maxT** sends it back to main on its own.
 - Reverting (by either of those) is a **setStance(0, 'exit')**, which skips the transition move back — it just snaps back.
 - A character can make this part of its own moveset: a stance named anything, a **\<from\>To\<To\>** move for the charge-up, **req.exitOn** / **maxT** to limit it, **body.stats** for the buff.
+- Since S+G normally reaches powered by way of boxing, not main, its morph names the move explicitly (**move: 'mainToPowered'**) instead of relying on the auto-derived name — otherwise the charge-up would never play in a real fight.
+
+| Powering up: the aura builds, the screen shakes harder each key |
+| --- |
+| ![Powering up: the aura builds, the screen shakes harder each key](img/anim-power-up.png) |
 
 ### Attacking
 
@@ -491,6 +500,10 @@ Air settings: **wallJump**, **wallJumpPush**, **wallJumpReach** (and the usual j
 - Jumping next to a wall while airborne is a triangle jump: up at wallJump × jumpVel and away from the wall at wallJumpPush, giving back the air dodge and dash (not the extra jumps). 0 = off.
 - It plays **wallJumpLayer** (a movement layer, see [Movement layers](editing.md#movement-layers)): a push off the wall, kicking away from it, blended on top of the regular rise/fall for as long as the kick-off lasts.
 
+| Wall jump: a triangle jump kicks away from the wall |
+| --- |
+| ![Wall jump: a triangle jump kicks away from the wall](img/anim-wall-jump.png) |
+
 ### Foot planting
 
 Feet settings: **plant**, **plantStep**, **plantStepT**, **plantLift**; off by default.
@@ -509,6 +522,11 @@ Feet settings: **plant**, **plantStep**, **plantStepT**, **plantLift**; off by d
 - A four-legged character trots on diagonal pairs.
 - **walk & idle** in character tunes stride, lift, arm swing, lean, the idle style and amount, and breathing (group buttons, experiment).
 - **+ → idle loop / walk loop** in animate (the move group) turn the procedural cycle into keyframes to edit like a move. A move named **idle** or **walk** replaces the procedural one (**craneIdle** / **craneWalk** in a stance named crane); delete it to go back.
+- **runLayer** (a movement layer): a steep forward lean with both arms swept straight back, held for as long as the run lasts — a ninja run, instead of a sped-up walk cycle.
+
+| Ninja run: a steep forward lean, arms swept back |
+| --- |
+| ![Ninja run: a steep forward lean, arms swept back](img/anim-ninja-run.png) |
 
 ## Planes: 2D and 2.5D
 
