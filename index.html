@@ -62,6 +62,8 @@
   .blowbar.inpv { left: auto; right: 8px; max-width: calc(42% - 16px); justify-content: flex-end; }
   .blowbar .sep { width: 1px; height: 14px; background: #cfc8bb; margin: 0 3px; }
   .pvbar { right: 8px; bottom: 36px; max-width: calc(42% - 16px); justify-content: flex-end; }
+  .layhi { position: fixed; pointer-events: none; z-index: 20; border: 2px solid #c0392b; border-radius: 3px; background: rgba(192,57,43,0.06); }
+  .layhi.hidden { border-style: dashed; background: none; }
   #side { grid-area: side; overflow: auto; border-left: 1px solid #ddd7cb; padding: 8px; box-sizing: border-box; }
   #side h3 { display: flex; align-items: center; margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
   .row { display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 4px; margin: 2px 0; }
