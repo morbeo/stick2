@@ -46,9 +46,9 @@ class Fighter {
   // how: 'switch' (the stance key), 'exit' (its limits: no transition move), 'instant' (previews: no transition)
   setStance(i, how = 'switch') {
     const old = this.st, from = this.stancePose(), lens = Object.fromEntries(this.ch.ids.map(j => [j, this.lens[j]]));
-    if (this.stanceI) this.stanceCd[this.stanceI] = this.w.simT;
+    this.stanceCd[this.stanceI] = this.w.simT; // cooldown for the one being left (main's too: req.cooldown can gate a return to it)
     this.stanceI = i; this.stanceT = 0; this.morph = null;
-    if (i && this.st.req.once) this.stanceUsed.push(i);
+    if (this.st.req.once) this.stanceUsed.push(i);
     const ch = stanceChar(this.ch, i);
     if (ch !== this.ch) this.setChar(ch, true);
     const mo = (i ? this.st : old).morph;
@@ -80,9 +80,9 @@ class Fighter {
       && !(r.cooldown && i in this.stanceCd && this.w.simT - this.stanceCd[i] < r.cooldown - 1e-9);
   }
   // whether stance i can be switched to now: its requirements (where only when where is set: the switch itself checks it, a press
-  // in the air still lands into the stance) and the current stance's minT
+  // in the air still lands into the stance) and the current stance's minT (main's too: req.minT can hold it there a while)
   stanceOk(i, where = true) {
-    if (i === this.stanceI || this.stanceI && this.stanceT < this.st.req.minT - 1e-9) return false;
+    if (i === this.stanceI || this.stanceT < this.st.req.minT - 1e-9) return false;
     return this.reqMet(i, where);
   }
   // req.auto stances need no key: the first one whose requirements hold is taken, and left the moment they stop holding

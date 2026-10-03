@@ -441,6 +441,7 @@ The **plane** setting (lanes and belt are 2.5D):
 - A stance can have requirements and limits: where (ground / air), health, cooldown, min and max time, what sends it back to main (hit, knockdown, block, grab), once a round, which moves it allows, and **auto**: no key needed, it switches in and out on its own as the requirements hold or stop (see [Stance requirements](editing.md#stance-requirements)).
 - A stance can **fly**: it hovers instead of falling, gravity and the ground suspended, ↑ / ↓ flying up and down instead of jumping.
 - Switching can morph: the springs (the default), an automatic blend of the pose and the bone lengths over some frames, or a keyframed transition move (see [Stance transitions](editing.md#stance-transitions)).
+- Main (stance 0) is a stance like the others: it can have its own body, and its own requirements (where, health, cooldown, min time, once a round, moves — not max time, exit on or auto, which need somewhere other than main to send it) and fly, picked the same way with main selected. It has no key of its own: it's what pressing a stance's key again goes back to.
 - Edit one by picking the stance above the stance pose (character) or in the move group (animate). **group: stance** (and the table's stance column) shows which moves each stance adds.
 - More preset poses: southpaw, muay thai, tiger, crane, sumo, drunken.
 

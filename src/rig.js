@@ -563,6 +563,10 @@ const GAIT_VARS = [
 const STAT_OF = Object.fromEntries(CHAR_STATS.flatMap(s => s.cfg.map(k => [k, s])));
 function makeCharacter(def) {
   def = JSON.parse(JSON.stringify(def)); // the caller's definition stays untouched (it is what gets edited and saved)
+  // main's own body (def.main.body, see bodyDef) becomes the character's actual body; other stances' own body
+  // overrides then vary from this one, same as they'd vary from the character as authored when main has none.
+  // body is dropped once applied so a variant recompiled from this (already-baked) def doesn't apply it twice
+  if (def.main?.body) { def = bodyDef(def, def.main.body); delete def.main.body; }
   const by = {}, order = [];
   for (const b of def.bones) by[b.id] = { ...BONE, parent: null, ...b };
   const visit = b => { if (order.includes(b)) return; if (b.parent) visit(by[b.parent]); order.push(b); };
@@ -596,14 +600,17 @@ function makeCharacter(def) {
     // a character's own colour (def.col, a hex string), the back-limb shade tinted from it; unset: the fight assigns one
     // by player slot instead (P1 black, P2 red…, see COLS in world.js), same as every character before this existed
     col: def.col ? [def.col, tint(def.col, 0.6)] : null };
-  // stances: the main one plus any extra; each has its pose, its own binds over the main ones, the key that switches to it and
+  // stances: main (index 0) plus any extra; each has its pose, its own binds over the main ones, the key that switches to it and
   // its requirements (STANCE_REQ; req.moves 'own': only its own binds, a list: only those moves) and its transition (MORPH)
   // fly: the stance hovers instead of falling — ↑ / ↓ fly up / down, gravity and landing are suspended while in it
+  // main is a stance like the others, just with no key and no body/req/morph of its own unless def.main sets them (main: true marks it)
   const binds = (s, k) => { const m = s.req?.moves, b = m === 'own' ? { ...s[k] } : { ...ch[k], ...s[k] };
     return Array.isArray(m) ? Object.fromEntries(Object.entries(b).filter(([, n]) => m.includes(n))) : b; };
-  ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: ch.binds, binds25: ch.binds25, req: { ...STANCE_REQ }, morph: { ...MORPH }, fly: false },
+  const mainS = def.main || {};
+  ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: binds(mainS, 'binds'), binds25: binds(mainS, 'binds25'),
+      req: { ...STANCE_REQ, ...mainS.req }, morph: { ...MORPH, ...mainS.morph }, fly: !!mainS.fly, main: true },
     ...(def.stances || []).map(s => ({ name: s.name, key: stanceKey(s.key), pose: { ...ch.poses.stance, ...s.pose }, binds: binds(s, 'binds'), binds25: binds(s, 'binds25'),
-      req: { ...STANCE_REQ, ...s.req }, morph: { ...MORPH, ...s.morph }, fly: !!s.fly }))];
+      req: { ...STANCE_REQ, ...s.req }, morph: { ...MORPH, ...s.morph }, fly: !!s.fly, main: false }))];
   // armed (see armed): the weapon class's binds go over every stance's, where the move exists
   ch.def = def;
   if (def.weapon) {
@@ -702,12 +709,12 @@ function weaponBones(ch, type) {
   if (w.chain) return [{ ...b, id: 'weapon', parent, len: Math.round(w.len / 2), a: w.a }, { ...b, id: 'weaponTip', parent: 'weapon', len: Math.round(w.len / 2), a: 0, lag: 3, stiff: 0.6, damp: 0.5, react: 2 }];
   return [{ ...b, id: 'weapon', parent, len: w.len, a: w.a, back: w.back || 0 }];
 }
-// ---------- stance bodies: a stance can change the body (def.stances[i].body), compiled like a weapon ----------
+// ---------- stance bodies: a stance (or main) can change the body (def.stances[i].body / def.main.body), compiled like a weapon ----------
 // body: { bones: { id: { len, thick, shape, fx, hidden, … } } over the bones, add: [more bones], scale (× every length, thickness
 // and hurtbox), stats: { k: v } over the character's (not health), gait: { k: v }, chains: { move: next } (that move's links in it) }.
 // A hidden bone (and all below it) has no length, hurtbox or chain and isn't drawn
-function stanceDef(def, i) {
-  const b = def.stances[i - 1].body, k = b.scale || 1, over = b.bones || {};
+function bodyDef(def, b) {
+  const k = b.scale || 1, over = b.bones || {};
   const bones = [...def.bones, ...(b.add || [])].map(x => ({ ...x, ...over[x.id] })), by = Object.fromEntries(bones.map(x => [x.id, x]));
   const hid = x => !!x && (!!x.hidden || hid(by[x.parent]));
   const hidden = new Set(bones.filter(hid).map(x => x.id));
@@ -720,6 +727,7 @@ function stanceDef(def, i) {
   const stats = Object.fromEntries(Object.entries(b.stats || {}).filter(([s]) => s !== 'health' && CHAR_STATS.some(c => c.k === s)));
   return { ...def, bones, moves, ...stats, gait: { ...def.gait, ...b.gait } };
 }
+const stanceDef = (def, i) => bodyDef(def, def.stances[i - 1].body);
 // a character in stance i (its body, if the stance has one) holding a weapon (if any): compiled once and cached on the base character.
 // Every variant has all the stances, so stance indexes and loop names work in any of them
 function variant(ch, i, type) {

@@ -78,6 +78,7 @@ A stance can have its own body. Pick the stance under the stance pose and switch
 - Health stays the character's. **revert body** throws the stance's body away.
 - The editor and the preview show the stance picked. In a fight the switch keeps the running move; new bones grow in.
 - In the character JSON: `stances[i].body = { bones: { id: { len, … , hidden } }, add: [bones], scale, stats, gait, chains: { move: next } }`. Only what differs is stored.
+- **Main** (stance 0) can have a body of its own too, the same way: it becomes the character's actual body, and every other stance still varies from it as usual. In the JSON: `main.body`.
 
 ### Stance requirements
 
@@ -94,7 +95,9 @@ Under a stance's body row, **requirements** set when it can be taken and what en
 - **moves:** all (its binds over main's), own (only its own binds), or a list of the moves it allows.
 - A stance key whose stances are all blocked does nothing. In the JSON: `stances[i].req`, only what differs.
 
-Next to the stance's key, **fly** makes it hover instead of fall: gravity and the ground are suspended while in it, and ↑ / ↓ fly up / down instead of jumping. Leaving the stance (a key, `exitOn`, `maxT`, or a hit) hands it back to normal gravity wherever it is. In the JSON: `stances[i].fly`.
+**Main** gets requirements too, picked the same way: where, hp, cooldown, min time, once a round and moves all gate a switch *back* into main. Max time, exit on and auto are left out — they send a stance back to main on their own, and main has nowhere else to go. In the JSON: `main.req`.
+
+Next to the stance's key, **fly** makes it hover instead of fall: gravity and the ground are suspended while in it, and ↑ / ↓ fly up / down instead of jumping. Leaving the stance (a key, `exitOn`, `maxT`, or a hit) hands it back to normal gravity wherever it is. In the JSON: `stances[i].fly`; main can fly too, in `main.fly`.
 
 ### Stance transitions
 
