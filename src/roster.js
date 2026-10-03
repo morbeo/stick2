@@ -881,7 +881,9 @@ CHAR_DEFS.tako = { ...stick, name: 'tako', speed: 0.95, weight: 0.95, jump: 0.9,
 CHAR_DEFS.stick.stances = [{ name: 'boxing', pose: stylePose([176, 0], [0, 10], [-160, 140], [-170, 145], [20, -20, 90], [-15, 0, 90]),
   ...bind({ fwdPunch: 'hook', downFwdPunch: 'bodyHook', upPunch: 'overhand' }) },
   { name: 'powered', pose: fromOld({ torso: 12, afU: -100, afL: 50, abU: -90, abL: 50 }),
-    req: { exitOn: ['hit'], maxT: 8 }, body: { stats: { speed: 1.2, dash: 1.3, tempo: 1.25, springs: 1.3 } }, morph: { mode: 'move' } }];
+    // move (not just mode: 'move'): S+G cycles main -> boxing -> powered, so it's normally entered FROM boxing, not main;
+    // naming the move explicitly means the same charge-up always plays, instead of morphName looking for boxingToPowered
+    req: { exitOn: ['hit'], maxT: 8 }, body: { stats: { speed: 1.2, dash: 1.3, tempo: 1.25, springs: 1.3 } }, morph: { mode: 'move', move: 'mainToPowered' } }];
 const CHARS = mapVals(CHAR_DEFS, makeCharacter);
 let CURRENT = 'stick';
 const currentChar = () => CHARS[CURRENT];
