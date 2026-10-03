@@ -16,7 +16,7 @@ function toScen(u) {
     return Object.keys(o).length ? o : undefined; }; // invulnerability, AI style/skill and move limits: the fighter's own overrides (Fighter.c / allowed)
   return { a: ctl(p), b: ctl(q), ax: p.x, bx: q.x, aover: over(p), bover: over(q), chars: u.p.map(f => f.char),
     more: rest.length ? rest.map(f => ({ c: ctl(f), x: f.x, team: f.team ?? 1, over: over(f) })) : undefined,
-    cfg: { ...u.cfg }, period: u.period, user: true,
+    stage: u.stage, cfg: { ...u.cfg }, period: u.period, user: true,
     init: away.some(Boolean) ? w => { w.fighters.forEach((f, i) => { if (away[i]) { f.away = true; f.dir = -f.dir; } }); } : undefined };
 }
 // a new one from a scenario's fighters (its script, positions, characters, teams and settings); P3 on come from s.more
@@ -26,7 +26,7 @@ function fromScen(s, chars) {
     ...team !== undefined && { team }, ...o?.inv && { inv: o.inv }, ...o?.aiStyle && { aiStyle: o.aiStyle }, ...o?.aiSkill && { aiSkill: { ...o.aiSkill } }, ...o?.limits && { limits: { ...o.limits } } });
   const scripted = Array.isArray(s.a);
   return { p: [f(s.a, s.ax ?? (scripted ? 330 : 300), name(0), s.aover), f(s.b, s.bx ?? (scripted ? 375 : 500), name(1), s.bover),
-    ...(s.more || []).map((m, i) => f(m.c, m.x, name(i + 2), m.over, m.team ?? 1))], period: s.period || 0, cfg: { ...s.cfg } };
+    ...(s.more || []).map((m, i) => f(m.c, m.x, name(i + 2), m.over, m.team ?? 1))], stage: s.stage, period: s.period || 0, cfg: { ...s.cfg } };
 }
 function saveScens() {
   for (const k of Object.keys(SCENARIOS)) if (SCENARIOS[k].user && !myStore[k]) delete SCENARIOS[k];
@@ -124,7 +124,8 @@ function scenBuilder() {
       onkeydown: e => e.stopPropagation(), oninput: () => found.replaceChildren(...(find.value ? SCHEMA.filter(s => !Array.isArray(s) && !(s.k in u.cfg) && fuzzy(find.value, s.k)).slice(0, 12)
         .map(s => button(s.k, s.tip, () => { u.cfg[s.k] = CFG[s.k]; scenChanged(); fill(); }, 'mini')) : [])) });
     body.replaceChildren(h('div', { cls: 'bar' }, nm,
-      slider('restart', { min: 0, max: 10, step: 0.1 }, () => u.period, v => { u.period = v; scenChanged(); }, 'Restarts every this many seconds (0: plays on)')),
+      slider('restart', { min: 0, max: 10, step: 0.1 }, () => u.period, v => { u.period = v; scenChanged(); }, 'Restarts every this many seconds (0: plays on)'),
+      seg(Object.keys(STAGES), () => u.stage || 'plain', v => { u.stage = v === 'plain' ? undefined : v; scenChanged(); }, Object.fromEntries(Object.keys(STAGES).map(k => [k, STAGES[k].tip])))),
       ...u.p.map(fighter), h('div', { cls: 'bar' }, addActor), h('h4', { textContent: 'settings' }), ...over,
       h('div', { cls: 'bar' }, find, button(':tune: take my settings', 'Bring every setting you changed from the defaults, at its current value',
         () => { for (const k of changedCfg()) u.cfg[k] = CFG[k]; scenChanged(); fill(); }, 'mini')), found);

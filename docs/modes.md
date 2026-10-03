@@ -40,6 +40,7 @@ One fight on the full stage.
 - **skill** (AI controller only): fine-tune this fighter's reactions, guard, throw break, tech, anti-air and juggle chance individually, on top of the aiLevel setting.
 - **limits:** cap how many times this fighter (AI or you) can use specific moves this fight, or ban one outright at 0. Unlisted moves stay unlimited.
 - **restart** sets how often the fight starts over.
+- **stage** picks the background (plain, dusk, dojo…): a different floor and backdrop, purely visual.
 - **settings:** add one by name, or **take my settings** to bring every setting you changed from the defaults.
 - Saved in this browser as you edit, and listed first in the picker.
 - copy, export / import as JSON, delete.
