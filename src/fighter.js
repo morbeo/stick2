@@ -1185,16 +1185,17 @@ class Fighter {
       ctx.fillStyle = `rgba(230,180,34,${0.2 + 0.4 * q})`;
       for (const id of hitIds(a.m)) if (P[id]) { ctx.beginPath(); ctx.arc(P[id][0], P[id][1], 6 + 8 * q, 0, 7); ctx.fill(); }
     }
-    // health bar and callouts (PARRY, K.O.) over the head (setting hud)
+    // health bar and callouts (PARRY, K.O.) over the head (setting hud); hudPos 'top' draws health/stun at the
+    // top of the screen instead (World.render), so skip them here to avoid drawing both
     if (!this.c('hud')) return ctx.restore();
     let top = this.groundY; for (const k in P) top = Math.min(top, P[k][1]);
-    const hp = this.c('health');
-    if (hp > 0) {
+    const hp = this.c('health'), overHead = this.c('hudPos') !== 'top';
+    if (overHead && hp > 0) {
       ctx.fillStyle = 'rgba(0,0,0,.1)'; ctx.fillRect(this.x - 18, top - 16, 36, 4);
       ctx.fillStyle = this.col[0]; ctx.fillRect(this.x - 18, top - 16, 36 * this.hp / hp, 4);
     }
     const da = this.c('dizzyAt');
-    if (da && this.stunM > 0) { ctx.fillStyle = '#e6b422'; ctx.fillRect(this.x - 18, top - 11, 36 * Math.min(1, this.stunM / da), 2); }
+    if (overHead && da && this.stunM > 0) { ctx.fillStyle = '#e6b422'; ctx.fillRect(this.x - 18, top - 11, 36 * Math.min(1, this.stunM / da), 2); }
     if (this.dizzyT > 0) for (let i = 0; i < 3; i++) { // stars circling over the head
       const a = this.time * 5 + i * 2.1, sx = this.x + Math.cos(a) * 16, sy = top - 4 + Math.sin(a) * 4;
       ctx.fillStyle = '#e6b422'; ctx.beginPath();

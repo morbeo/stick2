@@ -9,6 +9,8 @@ const SCHEMA = [
   { k: 'scopeKind', v: 'angle', opts: ['angle', 'health', 'stun', 'speed'], tip: 'What the sidebar scope plots: a bone\'s angle, both fighters\' health or stun meter (P1 grey, P2 red), or P1\'s horizontal speed.',
     optTips: { angle: 'A bone\'s target (grey) vs drawn (red) angle: tune the spring filter.', health: 'Health over time: P1 grey, P2 red.', stun: 'The stun (dizzy) meter over time: P1 grey, P2 red.', speed: 'P1\'s horizontal speed (vx).' } },
   { k: 'hud', v: true, tip: 'Draw the health and stun bars, dizzy stars, callouts (PARRY, COUNTER, K.O.) and the hit counter over the fighters.' },
+  { k: 'hudPos', v: 'body', opts: ['body', 'top'], tip: 'Where the health and stun bars draw: over each fighter\'s head, or together at the top of the screen (classic versus-screen bars).',
+    optTips: { body: 'Over each fighter\'s own head, moving with it.', top: 'Together at the top of the screen: left-side fighters on the left, right-side on the right, like a classic versus screen.' } },
   { k: 'labels', v: true, tip: 'Draw each fight\'s label and its stats line (frozen %, hits, whiffs).' },
   { k: 'timer', v: false, tip: 'Draw an elapsed match clock (mm:ss), counting up from the round\'s start; useful in theater mode, set before you switch it on.' },
   ['Movement', 'How the body travels: ground speed ramps up and down, jumps start with an anticipation squat.', 'A/D move · Space jump · S crouch'],
@@ -226,7 +228,7 @@ const SCHEMA = [
 ];
 const CFG = {}, DEFAULTS = {}, SPEC = {};
 for (const s of SCHEMA) if (!Array.isArray(s)) { DEFAULTS[s.k] = CFG[s.k] = s.v; SPEC[s.k] = s; }
-const DISPLAY = ['ghost', 'boxes', 'scope', 'scopeKind', 'hud', 'labels', 'timer']; // how fights are drawn, not how they play: kept out of presets, settings files and the undo stack
+const DISPLAY = ['ghost', 'boxes', 'scope', 'scopeKind', 'hud', 'hudPos', 'labels', 'timer']; // how fights are drawn, not how they play: kept out of presets, settings files and the undo stack
 
 const NOJUICE = { hitstop: 0, hitShake: 0, shake: 0, zoomPunch: 0, squash: 0, sparks: 0, trail: 0, flash: false, slowmo: false, jumpSquat: 0 };
 const PRESETS = {

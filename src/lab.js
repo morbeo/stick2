@@ -570,10 +570,11 @@ function labCtx() {
   const panelNames = [...lab.mode !== 'play' ? ['compare'] : [], ...lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? ['builder'] : []];
   if (lab.mode !== 'gallery' && panelNames.length) els.push(panelsGrp(panelNames, { compare: CMP_PANEL_TIP, builder: BUILDER_TIP }));
   if (lab.mode === 'play') els.push(...trainingCtl(),
-    grp('theater', 'No toolbars, no side panel, just the fight — for streaming or recording. Set what still shows (health bars, frame meter, timer, labels) before switching it on: the toolbar goes away with everything else',
+    grp('theater', 'No toolbars, no side panel, just the fight — for streaming or recording. Set what still shows (health bars, their position, frame meter, timer, labels) before switching it on: the toolbar goes away with everything else',
       toggle(':crop_landscape: theater', 'Theater mode: no toolbars, no side panel, just the fight, and tries for fullscreen' + keyTip('theater') + ' (Esc, or the key again, leaves it)',
         () => app.theater, setTheater),
-      SHOW.hud(), SHOW.meter(), SHOW.timer(), SHOW.labels()));
+      SHOW.hud(), seg(SPEC.hudPos.opts, () => CFG.hudPos, v => setCfg({ hudPos: v }), SPEC.hudPos.optTips, v => v === 'top' ? ':vertical_align_top: top' : ':person: body'),
+      SHOW.meter(), SHOW.timer(), SHOW.labels()));
   return els;
 }
 

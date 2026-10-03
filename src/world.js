@@ -629,12 +629,25 @@ class World {
       ctx.save(); ctx.fillStyle = '#8a8580'; ctx.textAlign = 'right'; ctx.font = `bold ${Math.round(r.h / 28)}px ui-monospace, Menlo, monospace`;
       ctx.fillText(`${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`, r.x + r.w - r.h / 28, r.y + r.h / 14); ctx.restore();
     }
+    // hudPos 'top': health (and stun) bars together at the top, left-side fighters on the left growing inward, right-side
+    // on the right growing inward, like a classic versus screen, instead of over each fighter's own head (Fighter.draw)
+    if (cfg.hud && cfg.hudPos === 'top') {
+      const bw = Math.min(220, r.w * 0.32), bh = Math.round(r.h / 32), pad = r.h / 32, gap = bh * 0.6;
+      ctx.save();
+      [0, 1].forEach(side => this.fighters.filter((f, i) => !f.hidden && i % 2 === side).forEach((f, row) => {
+        const x = side === 0 ? r.x + pad : r.x + r.w - pad - bw, y = r.y + pad + row * (bh + gap * 2 + 4), hp = f.c('health'), da = f.c('dizzyAt');
+        ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.fillRect(x, y, bw, bh);
+        if (hp > 0) { const w = bw * clamp(f.hp / hp, 0, 1); ctx.fillStyle = f.col[0]; ctx.fillRect(side === 0 ? x + bw - w : x, y, w, bh); }
+        if (da && f.stunM > 0) { const w = bw * Math.min(1, f.stunM / da); ctx.fillStyle = '#e6b422'; ctx.fillRect(side === 0 ? x + bw - w : x, y + bh + gap * 0.4, w, gap * 0.5); }
+      }));
+      ctx.restore();
+    }
   }
 }
 
 // ---------- replay files: the fight's inputs (not its results), pinned to ENGINE_VERSION ----------
 // everything the simulation reads goes in: scenario, seed, every setting, the characters' definitions; sums = checkpoint checksums
-const REPLAY_FORMAT = 'stick2-replay', REPLAY_SKIP = ['boxes', 'hud', 'labels', 'timer']; // display settings stay live
+const REPLAY_FORMAT = 'stick2-replay', REPLAY_SKIP = ['boxes', 'hud', 'hudPos', 'labels', 'timer']; // display settings stay live
 function makeReplay(w, name) {
   const keys = Object.keys(NOIN);
   return { format: REPLAY_FORMAT, version: ENGINE_VERSION, scenario: name, scen: JSON.parse(JSON.stringify(w.scen)), seed: w.seed,

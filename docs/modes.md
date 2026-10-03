@@ -127,6 +127,7 @@ Both replay buttons are in the menu bar, next to undo / redo.
 **theater** in the toolbar (T, or Esc to leave) hides the toolbars and side panel and tries for fullscreen: just the fight, for streaming or recording.
 
 - Set what still shows — health bars (`hud`), frame meter, timer, labels — from the toggles in the **theater** group *before* switching it on: the toolbar (and these toggles with it) goes away along with everything else.
+- **body / top** picks where the health (and stun) bars draw: over each fighter's own head (the default), or together at the top of the screen, left-side fighters on the left and right-side on the right, growing inward — a classic versus-screen layout.
 - **timer** draws an elapsed match clock (mm:ss) in a corner, counting up from the round's start.
 
 ## Impact
