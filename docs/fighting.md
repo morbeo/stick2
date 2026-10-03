@@ -140,8 +140,10 @@ Hit stop, shake and zoom that grow with each combo hit; attacks, or the whole ga
 | P+G (J while holding guard) | throw |
 | K+G (K while holding guard) | throw2: clinch, into a suplex that lands the victim behind |
 | ← held, then P+G | backThrow: backGrab into backToss |
+| P+G in the air | airThrow: airGrab into airToss — only catches another airborne fighter |
 
-- A throw has short reach. It goes through guard but misses a crouching or airborne fighter.
+- A throw has short reach. It goes through guard but misses a crouching fighter, or (on the ground) an airborne one.
+- **Air throw:** P+G while airborne is the mirror of the ground throw: only an airborne fighter who is free, not already held, can be caught. A move's **air** flag marks it as the air mirror of **throw** — the check inverts (ground throws need a grounded victim, air throws need an airborne one) and the hold tracks the thrower's height too, so the pair falls together instead of the victim dropping out of the hold.
 - The grab names its throw animation, **toss** (a move: `m.throw`), which the THROWER plays (the victim hangs in a generic hurt pose, pinned in front of it); its damage lands on the victim once the hold ends.
 - **backToss**'s key marked **turn** swings the held victim round, sliding, to land behind the thrower.
 - **Aimed throws:** ← held as the grab actually connects (not just at the press) throws the victim behind instead, whichever grab move caught them — so a plain forward grab can still come out as a back throw if you hold back in time. Forward or neutral keeps the regular toss.
@@ -149,6 +151,7 @@ Hit stop, shake and zoom that grow with each combo hit; attacks, or the whole ga
 - **Break:** the victim presses P+G in time to break free (BREAK). Otherwise it's thrown down.
 - Any move can be a custom throw: in animate, the move panel's **throw** row picks which of the character's moves the thrower plays (**new toss move** makes one, starting from the built-in toss, and opens it). A throw move needs no active keys of its own. Bind it to any input, same as a strike.
 - **inputLeniency** setting: guard doesn't need to land on the exact same frame as the button — held, or pressed up to this long before it, still throws (S+G likewise, for taunt and stance switches). 0 is the exact same frame, as before.
+- **Combo throws:** a throw's own release lands through the normal hit code, so a toss move with **launch** pops the victim into the same juggleable **fly** state any launcher does — it can be followed up like one. Whether the thrower is free in time to do it is a matter of its own recovery against how long the victim stays airborne, same as any launcher: a quick-recovery grab with a generous launch combos more readily than a long, showy swing-around throw like toss or backToss. The stick's own airToss already leaves well over a second of hang time, plenty to chase with an air normal before the foe lands.
 
 ### Catch
 

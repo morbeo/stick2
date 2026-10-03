@@ -197,6 +197,17 @@ const STICK_MOVES = {
     { d: 0.08, e: 'outExpo', p: { torso: 30, afU: 140, afL: 10, abU: 130, abL: 20, lfU: 45, lfL: -30, lbU: -35, lbL: 0 } },
     { d: 0.3, e: 'inOutCubic', p: null },
   ] },
+  // P+G in the air: the air throw, mirroring grab/toss but only catching another airborne fighter (move flag air)
+  airGrab: { power: 1, damage: 0, hit: 'fh', height: 'mid', knock: 0, throw: 'airToss', air: true, keys: [
+    { d: 0.06, e: 'outQuad', p: { torso: 10, afU: 80, afL: 30, abU: 60, abL: 40 } },
+    { d: 0.08, e: 'outExpo', p: { torso: 15, afU: 95, afL: 10, abU: 80, abL: 15 }, active: true },
+    { d: 0.3, e: 'inOutCubic', p: null },
+  ] },
+  airToss: { power: 1.4, damage: 12, hit: 'fh', height: 'mid', knock: 280, launch: 400, kd: true, air: true, keys: [
+    { d: 0.16, e: 'outQuad', p: { torso: -10, afU: 60, afL: 90, abU: 50, abL: 100 } },
+    { d: 0.08, e: 'outExpo', p: { torso: 30, afU: 140, afL: 15, abU: 130, abL: 20 } },
+    { d: 0.26, e: 'inOutCubic', p: null },
+  ] },
   // ← S: a counter stance; a mid strike from the front landing during its catch key (catchH: the heights it catches) is caught
   // and answered by the counter move
   catch: { power: 1, special: true, counter: 'reversal', keys: [
@@ -527,13 +538,13 @@ const LAYERS = {
 const BINDS = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: 'palms', backKick: 'fadeKick',
   upPunch: 'hammer', upKick: 'turnKick', upFwdPunch: 'headbutt', upFwdKick: 'flyingKnee', upBackPunch: 'backfist', upBackKick: 'crescent',
   downPunch: 'launcher', downKick: 'sweep', downFwdPunch: 'bodyBlow', downFwdKick: 'lowKick', downBackPunch: 'crouchJab', downBackKick: 'backSweep',
-  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab', throw2: 'clinch', backThrow: 'backGrab',
+  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab', throw2: 'clinch', backThrow: 'backGrab', airThrow: 'airGrab',
   qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: 'charge', dpKick: 'risingKick',
   special: 'palmShot', fwdSpecial: 'shoulderCharge', backSpecial: 'catch', upSpecial: 'jumpKick', downSpecial: 'groundPunch', airSpecial: 'airSpin' };
 const BINDS_25 = { punch: 'jab', kick: 'kick', fwdPunch: 'elbow', fwdKick: 'pushKick', backPunch: 'palms', backKick: 'fadeKick',
   upPunch: 'hammer', upKick: 'turnKick', upFwdPunch: 'headbutt', upFwdKick: 'flyingKnee', upBackPunch: 'backfist', upBackKick: 'crescent',
   downPunch: 'launcher', downKick: 'sweep', downFwdPunch: 'bodyBlow', downFwdKick: 'lowKick', downBackPunch: 'crouchJab', downBackKick: 'backSweep',
-  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab', throw2: 'clinch', backThrow: 'backGrab',
+  dashPunch: 'dashPunch', airPunch: 'airPunch', airKick: 'airKick', airUpPunch: 'airUpper', airUpKick: 'airFlipKick', airDownPunch: 'airHammer', airDownKick: 'diveKick', throw: 'grab', throw2: 'clinch', backThrow: 'backGrab', airThrow: 'airGrab',
   qcfPunch: 'rush', dpPunch: 'rising', qcbKick: 'spin', qcfKick: 'stomp', qcbPunch: 'charge', dpKick: 'risingKick',
   special: 'palmShot', fwdSpecial: 'shoulderCharge', backSpecial: 'catch', upSpecial: 'jumpKick', downSpecial: 'groundPunch', airSpecial: 'airSpin' };
 // the table of a plane and where a character keeps its own binds for it
