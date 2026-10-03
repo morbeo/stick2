@@ -10,16 +10,22 @@ for (const k in DEFS) CHARS[k] = makeCharacter(DEFS[k]);
 if (DEFS[saved.current]) CURRENT = saved.current;
 // only edited built-ins are stored, so improved built-ins reach characters nobody changed
 const edited = () => Object.fromEntries(Object.entries(DEFS).filter(([k, d]) => !CHAR_DEFS[k] || JSON.stringify(d) !== JSON.stringify(CHAR_DEFS[k])));
-// debounced: a drag (a joint in animate, a slider) calls save() on every event, far more often than the JSON + localStorage write needs to happen
-let saveT = null;
-const saveNow = () => { try { localStorage.setItem(STORE, JSON.stringify({ defs: edited(), current: CURRENT })); } catch {} };
-const save = () => { clearTimeout(saveT); saveT = setTimeout(saveNow, 250); };
-if (typeof addEventListener === 'function') addEventListener('beforeunload', () => { if (saveT) { clearTimeout(saveT); saveNow(); } });
+// debounced: a drag (a joint in animate, a settings slider) can call a save on every event, far more often than the
+// JSON + localStorage write needs to happen; flush() forces it now (used on beforeunload, and where a caller needs the
+// write to have happened, like a test reading localStorage straight back)
+function debounce(fn, ms = 250) {
+  let t = null;
+  const d = () => { clearTimeout(t); t = setTimeout(fn, ms); };
+  d.flush = () => { if (t) { clearTimeout(t); t = null; fn(); } };
+  if (typeof addEventListener === 'function') addEventListener('beforeunload', d.flush);
+  return d;
+}
+const save = debounce(() => { try { localStorage.setItem(STORE, JSON.stringify({ defs: edited(), current: CURRENT })); } catch {} });
 // settings persist too: the ones changed from the defaults, checked on the way in (known, the right type, in range)
 const CFG_STORE = 'stick2.settings';
 // a value a setting can take: known, its type, one of its options; numbers any finite value (outside the usual range is only flagged, riskOf)
 const cfgOk = (k, v) => k in DEFAULTS && typeof v === typeof DEFAULTS[k] && (SPEC[k].opts ? SPEC[k].opts.includes(v) : typeof v !== 'number' || Number.isFinite(v));
-const saveCfg = () => { try { localStorage.setItem(CFG_STORE, JSON.stringify(Object.fromEntries(Object.keys(DEFAULTS).filter(k => CFG[k] !== DEFAULTS[k]).map(k => [k, CFG[k]])))); } catch {} };
+const saveCfg = debounce(() => { try { localStorage.setItem(CFG_STORE, JSON.stringify(Object.fromEntries(Object.keys(DEFAULTS).filter(k => CFG[k] !== DEFAULTS[k]).map(k => [k, CFG[k]])))); } catch {} });
 const loadCfg = () => { try { for (const [k, v] of Object.entries(JSON.parse(localStorage.getItem(CFG_STORE)) || {})) if (cfgOk(k, v)) CFG[k] = v; } catch {}
   if (!currentChar().by[CFG.scope]) CFG.scope = currentChar().ids[0]; };
 loadCfg();
