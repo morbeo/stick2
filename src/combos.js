@@ -14,7 +14,9 @@ const linkKey = (L, d) => L === 'S' ? SPECIAL_KEY[d] : d === 5 ? (L === 'P' ? 'p
 // an input slot in numpad notation (5P, 6K, j.2P…), from the input pads
 const SLOT_NOTE = Object.fromEntries(INPUT_PADS.flatMap(p => p.cells.filter(c => c.own).map(c => [c.chain[0], c.label])));
 const COMBO_TIPS = { tree: 'Every starter with its branches: the input that chains into each next move (P, K, S, or a direction with it like 6P / 6S); ✕ cuts a link, + P / + K / + S adds one',
-  table: 'One row per route from a starter to its end: inputs, damage (before combo scaling) and frames; click a step to change or cut it, hover one to play the combo up to it, + P / + K / + S extends the route' };
+  table: 'One row per route from a starter to its end: inputs, damage (before combo scaling) and frames; click a step to change or cut it, + P / + K / + S extends the route' };
+// a move's frame data for a combo-editor tooltip (startup / active / recovery, scaled by attackSpeed, in 60 fps frames)
+const frameTip = m => { const f = frameData(m, CFG.attackSpeed); return `${f.startup}f startup, ${f.active}f active, ${f.recovery}f recovery`; };
 // set (or with '' remove) the link from a move on a button (in a stance's body with this stance only: nextOf / setNext)
 function setLink(from, b, to) {
   edit(def => {
@@ -47,7 +49,7 @@ const addLinks = (from, done) => ['P', 'K', 'S'].flatMap(L => {
   return d ? [button(`:add: ${L}`, `Chain ${from} into a move on ${L} (or a direction with it, like 6${L})`, (e, el) => { e.stopPropagation(); pickLink(el, from, linkKey(L, d), done); }, 'mini')] : [];
 });
 // a move as a chip: click opens it in the editor, hover plays it (with a route: the route up to it)
-const moveChip = (n, route = [n]) => h('button', { cls: 'chip', tip: `${n} · Click: open it in the editor · hover: play ${route.length > 1 ? 'the combo up to it' : 'it'}`, textContent: n,
+const moveChip = (n, route = [n]) => h('button', { cls: 'chip', tip: `${n} · Click: open it in the editor · ${frameTip(viewChar().moves[n])}`, textContent: n,
   onclick: () => openMove(n), onmousemove: e => peekSeq(route, e), onmouseleave: unpeek });
 function comboView() {
   const wrap = h('div', { cls: 'mtable ctable' }), body = h('div'), count = h('span', { cls: 'note' });
@@ -60,7 +62,7 @@ function comboView() {
     const node = (n, path) => h('div', { cls: 'cnode' }, moveChip(n, path), ...addLinks(n, fill),
       ...linksOf(ch, n).map(([b, t]) => h('div', { cls: 'clink' },
         button(':close:', `Cut the link ${n} › ${linkName(b)} › ${t}`, () => { setLink(n, b, ''); fill(); }, 'mini'),
-        button(`${linkName(b)} ›`, `${linkName(b)} after ${n} chains into ${t} · click: change it`, (e, el) => pickLink(el, n, b, fill), 'mini'),
+        button(`${linkName(b)} ›`, `${linkName(b)} after ${n} chains into ${t} · click: change it · ${frameTip(ch.moves[t])}`, (e, el) => pickLink(el, n, b, fill), 'mini'),
         path.includes(t) ? h('span', { cls: 'note', tip: `${t} is earlier in this route: the chain loops`, textContent: `↺ ${t}` }) : node(t, [...path, t]))));
     const starters = Object.keys(ch.moves).filter(n => bound.has(n) && ch.moves[n].power && !roots.includes(n));
     const addStarter = button(':add: starter', 'Start a new chain from a move bound to an input that has no links yet', (e, el) => popup(el, h('b', { textContent: 'starter' }),
@@ -69,7 +71,7 @@ function comboView() {
     else body.replaceChildren(h('table', {}, h('thead', {}, h('tr', {}, ['route', 'inputs', 'damage', 'frames'].map(k => h('th', { textContent: k })))),
       h('tbody', {}, routes.map(r => h('tr', {},
         h('td', {}, ...r.moves.flatMap((n, i) => i ? [h('span', { cls: 'note', textContent: ' › ' }),
-          Object.assign(button(n, `${linkName(r.inputs[i])} after ${r.moves[i - 1]} chains into ${n} · click: change or cut it · hover: play the combo up to it`, (e, el) => pickLink(el, r.moves[i - 1], r.inputs[i], fill), 'mini'),
+          Object.assign(button(n, `${linkName(r.inputs[i])} after ${r.moves[i - 1]} chains into ${n} · click: change or cut it · ${frameTip(ch.moves[n])}`, (e, el) => pickLink(el, r.moves[i - 1], r.inputs[i], fill), 'mini'),
             { onmousemove: e => peekSeq(r.moves.slice(0, i + 1), e), onmouseleave: unpeek })] : [moveChip(n)]),
           ...addLinks(r.moves.at(-1), fill)),
         h('td', { textContent: [slot(r.moves[0]) || '—', ...r.inputs.slice(1).map(linkName)].join(' ') }),
