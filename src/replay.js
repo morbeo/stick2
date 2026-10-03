@@ -419,8 +419,9 @@ function rpRender() {
     else if (rp.mv?.freeze) { const fr = rp.mv.freeze;
       ctx.save(); ctx.beginPath(); ctx.rect(pv.x, pv.y, pv.w, pv.h); ctx.clip(); ctx.translate(pv.x, pv.y);
       drawFreeze(ctx, pv.w, pv.h, fr.img, fr.zoom, fr.text); ctx.restore(); }
+    else if (rp.mv?.rev) ctx.drawImage(rp.mv.rev.imgs[rp.mv.rev.i].img, pv.x, pv.y, pv.w, pv.h);
     else if (rp.mv) drawCell({ w: rp.mv.w, label: `shot ${rp.mv.shotI + 1}/${rp.movie.shots.length} · ${rp.reels[rp.movie.shots[rp.mv.shotI].reel]?.name || ''}` }, pv, { full: true, plot: false });
-    else text('No shots yet: add one in the movie section.', pv.x + pv.w / 2, pv.y + pv.h / 2, '#888', 13, '', 'center');
+    else text(rp.movie.shots.length ? 'The movie ended.' : 'No shots yet: add one in the movie section.', pv.x + pv.w / 2, pv.y + pv.h / 2, '#888', 13, '', 'center');
     return;
   }
   const c = rp.cmp, side = c && rp.cmpView === 'side', a = side ? { ...pv, w: Math.floor(pv.w / 2) - 2 * dpr } : pv;
@@ -756,15 +757,29 @@ function addShot() {
 function importReel() { pickReplay(r => { rp.reels.push({ rep: r, name: r.scenario, edits: 0 }); panels(); }); }
 // movie playback: a lightweight world of its own per shot (rp.reel / master / view are untouched, so editing the loaded reel still works).
 // transFrom: the previous shot's last frame, when this shot transitions in from it; a frozen blend plays before the shot's own frames do
+// shot.speed { rate, reverse }: rate paces how fast its own frames play (not the simulation itself); reverse pre-renders every
+// frame of the shot once (the engine can only play forward) and steps through the pictures backward. Freeze is skipped on a
+// reversed shot: its "at" frame does not have a clean meaning once the order is flipped
 function mvLoad(shotI, transFrom = null) {
   const sh = rp.movie.shots[shotI];
   if (!sh) { rp.mv = null; return false; }
   const reel = rp.reels[sh.reel];
   if (!reel) return mvLoad(shotI + 1, transFrom); // a shot whose reel was removed: skip it
   const w = replayWorld(reel.rep); w.loop = false; w.replaying = true;
-  const frames = w.playback.frames, N = Math.min(sh.b, frames.length), a = Math.min(sh.a, N);
+  const frames = w.playback.frames, N = Math.min(sh.b, frames.length), a = Math.min(sh.a, N), rate = sh.speed?.rate || 1;
   for (let f = 0; f < a; f++) { const [dt, inp, mq, inp2] = frames[f]; if (mq) w.macro = new Script(parseMacro(mq)); w.advance(dt, inp, inp2); }
-  rp.mv = { shotI, w, frames, n: a, N, a, T: frames.slice(a, N).reduce((arr, f) => (arr.push(arr[arr.length - 1] + f[0]), arr), [0]), t: 0, trans: null, freeze: null };
+  rp.mv = { shotI, w, frames, n: a, N, a, rate, T: frames.slice(a, N).reduce((arr, f) => (arr.push(arr[arr.length - 1] + f[0]), arr), [0]), t: 0, trans: null, freeze: null, rev: null };
+  if (sh.speed?.reverse) {
+    const pv = rpLayout().pv, imgs = [];
+    for (let f = a; f < N; f++) {
+      const [dt, inp, mq, inp2] = frames[f]; if (mq) w.macro = new Script(parseMacro(mq)); w.advance(dt, inp, inp2);
+      const c = document.createElement('canvas'); c.width = pv.w; c.height = pv.h;
+      const g = c.getContext('2d'); g.fillStyle = '#f3f0e8'; g.fillRect(0, 0, pv.w, pv.h); w.render(g, { x: 0, y: 0, w: pv.w, h: pv.h }, true);
+      imgs.push({ img: c, dt });
+    }
+    imgs.reverse(); // index 0 now plays first: the shot's last frame
+    rp.mv.rev = { imgs, i: 0, t: 0, T: imgs.reduce((arr, x) => (arr.push(arr[arr.length - 1] + x.dt), arr), [0]) };
+  }
   if (transFrom && sh.trans && sh.trans.kind !== 'cut') rp.mv.trans = { ...sh.trans, from: transFrom, to: mvSnapshot(), t: 0 };
   return true;
 }
@@ -787,7 +802,13 @@ function mvTick(dt) {
   const m = rp.mv;
   if (m.trans) { m.trans.t += dt; if (m.trans.t >= m.trans.dur) m.trans = null; return; } // the shot's own frames wait out the transition
   if (m.freeze) { m.freeze.t += dt; if (m.freeze.t >= m.freeze.hold) m.freeze = null; return; }
-  m.t += dt;
+  if (m.rev) {
+    m.rev.t += dt * m.rate;
+    while (m.rev.i < m.rev.imgs.length - 1 && m.rev.T[m.rev.i + 1] <= m.rev.t + 1e-9) m.rev.i++;
+    if (m.rev.i >= m.rev.imgs.length - 1 && !mvLoad(m.shotI + 1, m.rev.imgs[m.rev.imgs.length - 1].img)) app.paused = true;
+    return;
+  }
+  m.t += dt * m.rate;
   while (!m.freeze && m.n < m.N && m.T[m.n - m.a + 1] <= m.t + 1e-9) mvStepOnce();
   if (m.n >= m.N) { const img = mvSnapshot(); if (!mvLoad(m.shotI + 1, img)) app.paused = true; }
 }
@@ -814,10 +835,11 @@ async function exportMovie() {
         for (let k = 1; k <= n; k++) { const c = h2canvas(W2, H2), g = c.getContext('2d'); transDraw(g, W2, H2, lastImg, toImg, sh.trans, k / n); frames.push({ c, t: next * 1000 }); next += 1 / fps; lastImg = c; }
         t = next;
       }
-      const freezeAt = sh.freeze && sh.a + (sh.freeze.at ?? end - sh.a - 1);
+      const rate = sh.speed?.rate || 1, reverse = !!sh.speed?.reverse, startIdx = frames.length;
+      const freezeAt = sh.freeze && !reverse && sh.a + (sh.freeze.at ?? end - sh.a - 1); // freeze has no clean meaning once reversed
       for (let f = sh.a; f < end; f++) {
         const [dt, inp, mq, inp2] = fr[f]; if (mq) w.macro = new Script(parseMacro(mq));
-        const t1 = t + dt;
+        const t1 = t + dt / rate;
         if (next <= t1 - 1e-9) {
           const c = h2canvas(W2, H2), g = c.getContext('2d'), r = { x: 0, y: 0, w: W2, h: H2 };
           g.fillStyle = '#f3f0e8'; g.fillRect(0, 0, W2, H2);
@@ -834,6 +856,11 @@ async function exportMovie() {
           t = next;
         }
         if (++done % 30 === 0) { clip.busy = `render ${Math.round(100 * done / total)}%`; syncAll(); await new Promise(r => setTimeout(r)); }
+      }
+      if (reverse) { // the engine can only play forward: keep the timestamps, just show the pictures back to front
+        const pics = frames.slice(startIdx).map(x => x.c);
+        for (let k = startIdx; k < frames.length; k++) frames[k].c = pics[frames.length - 1 - k];
+        lastImg = frames[frames.length - 1]?.c ?? lastImg;
       }
     }
   } finally { CFG.hud = hud; clip.busy = ''; }
@@ -862,14 +889,14 @@ function loadProject(p) {
 function transBtn(j) {
   const cur = () => rp.movie.shots[j].trans || { kind: 'cut', dur: 0.4, col: 'black', dir: 'R' };
   const set = vals => movieEdit(M => { const t = { ...cur(), ...vals }; M.shots[j].trans = t.kind === 'cut' ? undefined : t; });
-  const b = button(':movie_filter:', 'How this shot transitions in from the one before it', (e, btn) => popup(btn, h('b', { textContent: 'transition in' }),
+  const b = button(':theaters:', 'How this shot transitions in from the one before it', (e, btn) => popup(btn, h('b', { textContent: 'transition in' }),
     h('div', { cls: 'row' }, h('span', { textContent: 'kind' }), seg(Object.keys(TRANS_KINDS), () => cur().kind, v => set({ kind: v }), TRANS_KINDS)),
     h('div', { cls: 'row' }, h('span', { textContent: 'for' }), slider('secs', { min: 0.1, max: 2, step: 0.05 }, () => cur().dur, v => set({ dur: v }), 'How long the transition takes')),
     (() => { const r = h('div', { cls: 'row' }, h('span', { textContent: 'colour' }), seg(['black', 'white'], () => cur().col, v => set({ col: v })));
       reg(r, () => { r.hidden = cur().kind !== 'fade'; }); return r; })(),
     (() => { const r = h('div', { cls: 'row' }, h('span', { textContent: 'enters' }), seg(Object.keys(TRANS_DIRS), () => cur().dir, v => set({ dir: v }), TRANS_DIRS));
       reg(r, () => { r.hidden = !['wipe', 'slide'].includes(cur().kind); }); return r; })()), 'mini');
-  reg(b, () => setRich(b, `:movie_filter: ${cur().kind}`));
+  reg(b, () => setRich(b, `:theaters: ${cur().kind}`));
   return b;
 }
 // a shot's freeze frame: holds on one of its frames (its last, or wherever the playhead was when "here" was clicked), zoomed and
@@ -877,8 +904,8 @@ function transBtn(j) {
 function freezeBtn(j) {
   const on = () => !!rp.movie.shots[j].freeze, cur = () => rp.movie.shots[j].freeze || { hold: 1, zoom: 1, text: '' };
   const set = vals => movieEdit(M => { M.shots[j].freeze = { ...cur(), ...vals }; });
-  const b = button(':pause_circle:', 'Hold on a frame of this shot before it plays on', (e, btn) => popup(btn, h('b', { textContent: 'freeze frame' }),
-    h('div', { cls: 'row' }, h('span', { textContent: 'freeze' }), toggle(':pause_circle: on', 'Hold on a frame, then play on', on,
+  const b = button(':pause:', 'Hold on a frame of this shot before it plays on', (e, btn) => popup(btn, h('b', { textContent: 'freeze frame' }),
+    h('div', { cls: 'row' }, h('span', { textContent: 'freeze' }), toggle(':pause: on', 'Hold on a frame, then play on', on,
       v => movieEdit(M => { if (v) M.shots[j].freeze = cur(); else delete M.shots[j].freeze; }))),
     h('div', { cls: 'row' }, h('span', { textContent: 'at' }), button(':my_location: here', 'Freeze at the playhead (edit this reel first)', () => set({ at: rp.n - rp.movie.shots[j].a }), 'mini'),
       h('span', { cls: 'note', textContent: cur().at !== undefined ? `frame ${cur().at} of the shot` : 'the last frame of the shot' })),
@@ -886,6 +913,17 @@ function freezeBtn(j) {
     h('div', { cls: 'row' }, h('span', { textContent: 'zoom' }), slider('×', { min: 1, max: 3, step: 0.1 }, () => cur().zoom, v => set({ zoom: v }), 'Punch in while held')),
     h('div', { cls: 'row' }, h('span', { textContent: 'caption' }), h('input', { cls: 'macro', value: cur().text, oninput: e2 => set({ text: e2.target.value }) }))), 'mini');
   reg(b, () => b.classList.toggle('on', on()));
+  return b;
+}
+// a shot's own speed: a constant rate (not a ramp: pick a different rate on either side of a cut for that), or reversed
+// (pre-rendered once, forward, then shown back to front, since the engine cannot simulate backward)
+function speedBtn(j) {
+  const cur = () => rp.movie.shots[j].speed || { rate: 1, reverse: false };
+  const set = vals => movieEdit(M => { const s = { ...cur(), ...vals }; M.shots[j].speed = s.rate === 1 && !s.reverse ? undefined : s; });
+  const b = button(':speed:', 'How fast this shot plays, or reversed', (e, btn) => popup(btn, h('b', { textContent: 'speed' }),
+    h('div', { cls: 'row' }, h('span', { textContent: 'rate' }), slider('×', { min: 0.1, max: 3, step: 0.05 }, () => cur().rate, v => set({ rate: v }), 'How fast the shot plays (1 = normal, under 1 slower, over 1 faster)')),
+    h('div', { cls: 'row' }, h('span', { textContent: 'reverse' }), toggle(':fast_rewind: reversed', 'Plays the shot back to front', () => cur().reverse, v => set({ reverse: v })))), 'mini');
+  reg(b, () => setRich(b, `:speed: ${cur().reverse ? 'reversed' : cur().rate + '×'}`));
   return b;
 }
 function shotRow(sh, j) {
@@ -902,7 +940,7 @@ function shotRow(sh, j) {
     button(':swap_horiz:', 'Use a different reel for this shot', (e, b) => popup(b, h('b', { textContent: 'pick a reel' }),
       h('div', { cls: 'bar col' }, rp.reels.map((r, i) => button(r.name, `Use "${r.name}" for this shot`, () => { movieEdit(M => { M.shots[j].reel = i; }); closePop(); })))), 'mini'),
     h('span', { cls: 'note', textContent: `${t(sh.a)} – ${t(sh.b)}` }),
-    inBtn, outBtn, j > 0 ? transBtn(j) : null, freezeBtn(j),
+    inBtn, outBtn, j > 0 ? transBtn(j) : null, freezeBtn(j), speedBtn(j),
     button(':content_copy:', 'Duplicate this shot', () => movieEdit(M => { M.shots.splice(j + 1, 0, { ...sh }); }), 'mini'),
     crud({ delete: ['Delete this shot', () => movieEdit(M => { M.shots.splice(j, 1); })] }));
 }
