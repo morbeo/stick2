@@ -46,6 +46,7 @@ The only asset is `fonts/icons.woff2`, a subset of [Material Symbols](https://gi
    - turn on the fullscreen button;
    - leave mobile friendly off.
 4. To publish a new version, commit and run `npm run itch:push`. It runs the tests, packs the zip and uploads it with [butler](https://itch.io/docs/butler/) to the `html` channel of `morbeo/stick2`, labelled with the commit. Set up butler once with `butler login`. Uploads after the first keep the "played in the browser" setting. `butler status morbeo/stick2` shows the live version.
+   - **If the live page shows a stale build** after `butler status` confirms the new one processed: check the project's edit page for more than one uploaded file marked "This file will be played in the browser" (e.g. an old manually-uploaded file alongside the one butler manages) — itch can serve the wrong one when two are flagged. Only the current upload should have it checked.
 5. **Promotional images** (all optional on itch.io): `npm run itch:assets` writes a favicon, a social media image, a 21:9 wide cover and a transparent horizontal logo to `out/itch/` — drawn from the app's own rendering code and icon font (`tools/itch-assets.js`, `tools/itch-render.html`), not external files or an image editor. It records a short AI-vs-AI fight and picks the frame where the camera shake peaks for the social image and cover; re-run it for a different moment.
 
 Notes for the itch.io page:
