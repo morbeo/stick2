@@ -442,6 +442,14 @@ const STICK_MOVES = {
     { d: 1.2, p: { torso: -8, head: -20, afU: 172, afL: 10, abU: 30, abL: 110 } },
     { d: 0.4, e: 'inOutCubic', p: null },
   ] },
+  // the powered stance's own transition move (morph: move): fists clench at the sides, then thrust up and out as the
+  // aura builds, the screen shaking harder with each key; it plays once, then settles into the stance's own pose
+  mainToPowered: { fx: { look: 'aura', on: 'body' }, keys: [
+    { d: 0.3, e: 'outQuad', p: { torso: 15, afU: -60, afL: 90, abU: -50, abL: 90 }, shake: 0.08 },
+    { d: 0.4, e: 'outQuad', p: { torso: 20, afU: -90, afL: 60, abU: -80, abL: 60 }, shake: 0.18 },
+    { d: 0.5, e: 'outExpo', p: { torso: 8, head: -15, afU: -140, afL: 25, abU: -130, abL: 25 }, shake: 0.4 },
+    { d: 0.3, e: 'inOutCubic', p: null },
+  ] },
 };
 STICK_MOVES.hammer.keys[0].armor = true;
 STICK_MOVES.guardCancel.keys.slice(0, 2).forEach(k => { k.inv = true; });
