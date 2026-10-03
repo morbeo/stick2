@@ -370,6 +370,15 @@ try {
     const x0 = anLayout().pv.x / dpr, k0 = anim.key; me('mousedown', x0); me('mousemove', x0 - 100); me('mouseup', x0 - 100);
     if (Math.abs(anLayout().pv.x / dpr - (x0 - 100)) > 1 || anim.key !== k0 || !JSON.parse(localStorage.getItem('stick2.layouts')).sets.default.tabs.animate.size.split) errs.push('split ' + anLayout().pv.x / dpr + ' ' + x0);
     setMode('character'); if (Math.abs(edLayout().pv.x / dpr - x0) > 1) errs.push('split per tab'); layReset(); setMode('play'); }
+  // theater mode (play only): hides the toolbars and the side panel; the key and Esc both leave it
+  { setMode('play'); panels();
+    const btn = [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('Theater mode'));
+    btn.click();
+    if (!app.theater || !document.body.classList.contains('theater') || $('top').offsetParent || $('side').offsetParent || $('help').offsetParent) errs.push('theater on ' + app.theater);
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true }));
+    if (app.theater || document.body.classList.contains('theater') || !$('top').offsetParent) errs.push('theater esc');
+    btn.click(); document.body.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT', shiftKey: true, bubbles: true })); // in a fight, letters are the fighter's: the shortcut takes ⇧
+    if (app.theater) errs.push('theater key toggles off'); }
   // compare settings: A and B (current, a preset, a file) differing in 3 settings give 3 rows; use B takes one (undoable), use all B every one; the text has - / + lines
   // (compare lives in grid, not play: no button for it there, and opening it from elsewhere lands in grid)
   { setMode('grid'); applyPreset('juicy'); const keep = { ...CFG };

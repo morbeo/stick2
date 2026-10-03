@@ -13,6 +13,7 @@ const ACTIONS = [
   ['restart', 'transport', ['KeyR'], 'Restart the fight(s) from the beginning'], ['scrub', 'transport', ['KeyM'], 'Scrub: the mouse sets the time'],
   ['panel', 'view', ['KeyH'], 'Hide / show the side panel'], ['ghost', 'view', ['KeyG'], 'Show a ghost of the keyframe pose over the fighter'], ['boxes', 'view', ['KeyB'], 'Show the hit and hurt boxes'],
   ['hints', 'view', ['Shift+Slash'], 'Show / hide the help line and the frame meter legend'],
+  ['theater', 'view', ['KeyT'], 'Theater mode: no toolbars, no side panel, just the fight, and tries for fullscreen — for streaming or recording (Esc, or the key again, leaves it)'],
   ['clip', 'view', ['KeyX'], 'Save a clip: the last seconds of the fight, the preview or the cell under the mouse'], ['record', 'view', ['KeyE'], 'Record a clip / stop and save it'],
   ['play', 'modes', ['Digit1'], 'Play mode'], ['grid', 'modes', ['Digit2'], 'Grid mode'], ['gallery', 'modes', ['Digit3'], 'Gallery mode'],
   ['character', 'modes', ['Digit4'], 'Character mode'], ['animate', 'modes', ['Digit5'], 'Animate mode'],
