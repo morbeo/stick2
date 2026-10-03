@@ -462,14 +462,18 @@ function replaySave() {
 }
 const replayFile = () => toggle(':theaters: replay', 'Play a saved replay file in play (inputs, settings and characters of a recorded fight); click again to stop. A file from another engine version plays out differently: it asks first, and the top line shows where it goes out of sync',
   () => !!lab.playback, v => v ? loadReplay() : (lab.playback = null, build()));
-// the blow buttons (impact's ragdoll, the creator's impact preview): what, how hard, from which side, and stand it up again
-const blowGrps = (w, reset) => [
-  grp('blow', 'Strike the body: a blow from nobody, on the bone at that height (no damage)',
-    Object.entries(BLOWS).map(([k, [, , tip]]) => button(k, tip, () => blow(w(), k)))),
-  grp('power', 'How hard and from where the blows come', seg(Object.keys(BLOW_POWER), () => lab.blowPower, v => { lab.blowPower = v; },
-    { light: 'Light blows: power × 0.6', normal: 'The move\'s own power', heavy: 'Heavy blows: power × 1.7' }),
+// the blow controls (impact's ragdoll, the creator's impact preview): what, how hard, from which side, and stand it up again
+// under the preview, not the toolbar — it is its own thing to play with, not a setting of the view
+// (inPv: the creator/animate split layout, where the preview is only the right-hand pane, not the whole canvas)
+function blowBar(w, reset, inPv) {
+  return h('div', { cls: 'over blowbar' + (inPv ? ' inpv' : '') },
+    ...Object.entries(BLOWS).map(([k, [, , tip]]) => button(k, tip, () => blow(w(), k), 'mini')),
+    h('span', { cls: 'sep' }),
+    seg(Object.keys(BLOW_POWER), () => lab.blowPower, v => { lab.blowPower = v; }, { light: 'Light blows: power × 0.6', normal: 'The move\'s own power', heavy: 'Heavy blows: power × 1.7' }),
     seg(['front', 'back'], () => lab.blowSide, v => { lab.blowSide = v; }, { front: 'Blows from in front of the body', back: 'Blows from behind it' }),
-    button(':restart_alt: stand up', 'Put the body back on its feet', reset))];
+    h('span', { cls: 'sep' }),
+    button(':restart_alt: stand up', 'Put the body back on its feet', reset, 'mini'));
+}
 // replay files (see makeReplay): download the play fight, or load one and play it in place of the scenario
 function saveReplay() {
   const w = lab.cells[0].w, name = lab.playback?.scenario || lab.scen;
@@ -514,7 +518,6 @@ function labCtx() {
     grp('kind', 'The nine scripted hits, or one body alone to strike', seg(['hits', 'ragdoll'], () => lab.impact, v => { lab.impact = v; build(); panels(); },
       { hits: 'Nine scripted hits on the character, struck by the stick fighter', ragdoll: 'One body alone, no attacker: strike it low, mid, high… with the buttons, or drag on it' },
       v => v === 'hits' ? ':grid_view: hits' : ':accessibility_new: ragdoll')),
-    ...lab.impact === 'ragdoll' ? blowGrps(() => lab.cells[0].w, build) : [],
     grp('falls', SPEC.falls.tip, seg(SPEC.falls.opts, () => CFG.falls, v => setCfg({ falls: v }), SPEC.falls.optTips)),
     showGrp(['meter', 'boxes', 'hud', 'labels'], lab.impact === 'ragdoll' ? null : toggle(':person_off: no attacker', 'Hide the attacker: only the struck body, its blows still land the same way (and drags strike it unobstructed)', () => lab.solo, v => { lab.solo = v; build(); })), zoomBack()];
   const els = [];
@@ -719,7 +722,8 @@ function impactMouse(type, x, y) {
 const labMode = {
   enter(m) { lab.mode = m; build(); },
   restart: build,
-  overlay: () => stageOpen() === 'compare' ? [compareView()] : stageOpen() === 'builder' && lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? [scenBuilder()] : [],
+  overlay: () => stageOpen() === 'compare' ? [compareView()] : stageOpen() === 'builder' && lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? [scenBuilder()] :
+    lab.mode === 'impact' && lab.impact === 'ragdoll' && lab.cells[0] ? [blowBar(() => lab.cells[0].w, build)] : [],
   worlds: () => (lab.mode === 'gallery' ? onScreen() : lab.cells).flatMap(c => [c.w, ...(c.extra || [])]),
   clipRects: () => { const r = labRects(); return shown().map((c, i) => ({ key: c, r: r[i] })); },
   render: labRender,

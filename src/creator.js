@@ -211,7 +211,6 @@ function creatorKey(e, a) {
 function creatorCtx() {
   return [movesGrp(),
     grp('preview', 'What the preview on the right plays', seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); panels(); }, mapVals(PREVIEWS, p => p[1]))),
-    ...creator.preview === 'impact' && !creator.expOn ? blowGrps(() => creator.w, () => creatorMode.restart()) : [],
     grp('experiment', 'Breed body variations: nine bodies at once, keep the best', toggle(':science: experiment', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
       () => creator.expOn && creator.exp.kind === 'body', on => setExp(on))),
     showGrp(['boxes', 'colours']), panelsGrp([...MOVE_PANELS, 'bones'], { ...VIEW_TIPS, bones: BONES_TIP }),
@@ -481,7 +480,8 @@ const creatorMode = {
   render: creatorRender,
   ctxBar: creatorCtx,
   side: () => creator.expOn ? expPanel() : bodyPanel(),
-  overlay: () => creator.expOn ? [] : stageOpen() === 'bones' ? [boneTable()] : moveStage() ? [moveStage()()] : [],
+  overlay: () => creator.expOn ? [] : creator.preview === 'impact' ? [blowBar(() => creator.w, () => creatorMode.restart(), true)] :
+    stageOpen() === 'bones' ? [boneTable()] : moveStage() ? [moveStage()()] : [],
   open: ['character', 'body', 'bone', 'stance pose', 'random characters', 'body experiment'],
   mouse: creatorMouse,
   key: creatorKey,

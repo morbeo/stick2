@@ -134,17 +134,21 @@ try {
   // impact without an attacker: it is not drawn or framed, its blows land as before
   { lab.solo = true; setMode('impact'); const w = lab.cells[0].w; for (let i = 0; i < 60; i++) w.advance(1/60, NOIN);
     if (!w.a.hidden || !w.hits) errs.push('impact solo ' + [w.a.hidden, w.hits]); lab.solo = false; }
-  // impact's ragdoll view: one body alone; a blow button strikes it (a sweep knocks it down), stand up resets it
+  // impact's ragdoll view: one body alone; a blow button (under the preview, not the toolbar) strikes it (a sweep knocks it down), stand up resets it
   { setMode('impact'); const btn = t => [...document.querySelectorAll('#ctx button')].find(b => b.textContent.trim().endsWith(t));
-    btn('ragdoll').click(); btn('sweep').click(); const w = lab.cells[0].w; let down = false; for (let i = 0; i < 40; i++) { w.advance(1/60, NOIN); down ||= !!w.b.rag || w.b.downT > 0; }
+    const blow = t => [...document.querySelectorAll('.blowbar button')].find(b => b.textContent.trim().endsWith(t));
+    btn('ragdoll').click(); if (document.querySelector('.blowbar.inpv')) errs.push('blow bar full width in lab');
+    blow('sweep').click(); const w = lab.cells[0].w; let down = false; for (let i = 0; i < 40; i++) { w.advance(1/60, NOIN); down ||= !!w.b.rag || w.b.downT > 0; }
     if (lab.cells.length !== 1 || !w.a.hidden || w.hits !== 1 || !down) errs.push('ragdoll blow ' + [lab.cells.length, w.a.hidden, w.hits, down]);
-    btn('stand up').click(); if (lab.cells[0].w === w || lab.cells[0].w.hits) errs.push('ragdoll stand up');
+    blow('stand up').click(); if (lab.cells[0].w === w || lab.cells[0].w.hits) errs.push('ragdoll stand up');
     btn('hits').click(); if (lab.cells.length !== Object.keys(IMPACTS).length) errs.push('impact hits ' + lab.cells.length); }
-  // the character tab's impact preview: the same lone body and blow buttons, on the character being built
+  // the character tab's impact preview: the same lone body and blow buttons (under the preview pane), on the character being built
   { setMode('character'); const btn = t => [...document.querySelectorAll('#ctx button')].find(b => b.textContent.trim().endsWith(t));
-    btn('impact').click(); btn('launcher').click(); const w = creator.w; for (let i = 0; i < 20; i++) w.advance(1/60, NOIN);
+    const blow = t => [...document.querySelectorAll('.blowbar button')].find(b => b.textContent.trim().endsWith(t));
+    btn('impact').click(); if (!document.querySelector('.blowbar.inpv')) errs.push('blow bar not in preview pane');
+    blow('launcher').click(); const w = creator.w; for (let i = 0; i < 20; i++) w.advance(1/60, NOIN);
     if (!w.a.hidden || w.b.ch !== currentChar() || w.hits !== 1) errs.push('creator impact ' + [w.a.hidden, w.b.ch.name, w.hits]);
-    btn('showcase').click(); if (btn('crumple')) errs.push('creator blow buttons stay'); }
+    btn('showcase').click(); if (document.querySelector('.blowbar')) errs.push('creator blow bar stays'); }
   // animate's move group: the current move opens the picker (filter focused), a card picks and closes it; cards / list is kept in the layout, apart from the stage panels; ‹ › step
   { setMode('animate'); pickChar('stick'); studio.stance = 0; anim.move = 'jab'; anim.filter = ''; panels();
     const cur = () => [...document.querySelectorAll('#ctx [data-part="move"] button')].find(b => b.textContent.includes('jab'));
