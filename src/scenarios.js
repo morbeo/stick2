@@ -9,20 +9,24 @@ const CTL_TIPS = { you: 'You on the keyboard', AI: 'The engine AI', dummy: 'Stan
 // a script as macro text: waits with a dot (0.2, 1.0), inputs in word form, holds as 'hold up 0.2'
 const scriptText = a => a.map(i => typeof i === 'number' ? (Number.isInteger(i) ? i.toFixed(1) : String(i)) : i.hold ? `hold ${i.hold} ${i.t}` : i).join(', ');
 function toScen(u) {
-  const [p, q] = u.p, ctl = f => f.ctl === 'script' ? parseMacro(f.script) : CTLS[f.ctl];
+  const [p, q, ...rest] = u.p, ctl = f => f.ctl === 'script' ? parseMacro(f.script) : CTLS[f.ctl];
   const away = u.p.map(f => f.away);
   const over = f => { const o = { ...f.inv && { inv: f.inv }, ...f.aiStyle && { aiStyle: f.aiStyle }, ...f.aiSkill && { aiSkill: f.aiSkill },
       ...f.limits && Object.keys(f.limits).length && { limits: f.limits } };
     return Object.keys(o).length ? o : undefined; }; // invulnerability, AI style/skill and move limits: the fighter's own overrides (Fighter.c / allowed)
-  return { a: ctl(p), b: ctl(q), ax: p.x, bx: q.x, aover: over(p), bover: over(q), chars: [p.char, q.char], cfg: { ...u.cfg }, period: u.period, user: true,
-    init: away.some(Boolean) ? w => { [w.a, w.b].forEach((f, i) => { if (away[i]) { f.away = true; f.dir = -f.dir; } }); } : undefined };
+  return { a: ctl(p), b: ctl(q), ax: p.x, bx: q.x, aover: over(p), bover: over(q), chars: u.p.map(f => f.char),
+    more: rest.length ? rest.map(f => ({ c: ctl(f), x: f.x, team: f.team ?? 1, over: over(f) })) : undefined,
+    cfg: { ...u.cfg }, period: u.period, user: true,
+    init: away.some(Boolean) ? w => { w.fighters.forEach((f, i) => { if (away[i]) { f.away = true; f.dir = -f.dir; } }); } : undefined };
 }
-// a new one from a scenario's two fighters (its script, positions, characters and settings)
+// a new one from a scenario's fighters (its script, positions, characters, teams and settings); P3 on come from s.more
 function fromScen(s, chars) {
-  const f = (c, x, ch, o) => ({ char: ch ?? null, ctl: Array.isArray(c) ? 'script' : Object.keys(CTLS).find(k => CTLS[k] === c) || 'dummy', script: Array.isArray(c) ? scriptText(c) : '', x, away: false,
-    ...o?.inv && { inv: o.inv }, ...o?.aiStyle && { aiStyle: o.aiStyle }, ...o?.aiSkill && { aiSkill: { ...o.aiSkill } }, ...o?.limits && { limits: { ...o.limits } } });
+  const names = s.chars || chars, name = i => names?.[i] ?? names?.at(-1);
+  const f = (c, x, ch, o, team) => ({ char: ch ?? null, ctl: Array.isArray(c) ? 'script' : Object.keys(CTLS).find(k => CTLS[k] === c) || 'dummy', script: Array.isArray(c) ? scriptText(c) : '', x, away: false,
+    ...team !== undefined && { team }, ...o?.inv && { inv: o.inv }, ...o?.aiStyle && { aiStyle: o.aiStyle }, ...o?.aiSkill && { aiSkill: { ...o.aiSkill } }, ...o?.limits && { limits: { ...o.limits } } });
   const scripted = Array.isArray(s.a);
-  return { p: [f(s.a, s.ax ?? (scripted ? 330 : 300), (s.chars || chars)?.[0], s.aover), f(s.b, s.bx ?? (scripted ? 375 : 500), (s.chars || chars)?.at(-1), s.bover)], period: s.period || 0, cfg: { ...s.cfg } };
+  return { p: [f(s.a, s.ax ?? (scripted ? 330 : 300), name(0), s.aover), f(s.b, s.bx ?? (scripted ? 375 : 500), name(1), s.bover),
+    ...(s.more || []).map((m, i) => f(m.c, m.x, name(i + 2), m.over, m.team ?? 1))], period: s.period || 0, cfg: { ...s.cfg } };
 }
 function saveScens() {
   for (const k of Object.keys(SCENARIOS)) if (SCENARIOS[k].user && !myStore[k]) delete SCENARIOS[k];
@@ -77,9 +81,22 @@ function scenBuilder() {
     if (!u) return closeStage();
     const nm = h('input', { cls: 'macro sname', value: name, tip: 'The scenario\'s name (any name the built-ins do not use)', onkeydown: e => e.stopPropagation(),
       onchange: () => { const v = nm.value.trim(); if (!v || v === name || SCENARIOS[v]) { nm.value = name; return; } myStore[v] = u; delete myStore[name]; lab.scen = v; scenChanged(); panels(); } });
+    // the character picker: a popup with a grid of cards (as play's fighters group), instead of a flat list of names
+    const charPick = (f, i) => {
+      const cv = h('canvas'), name = () => f.char ?? CURRENT;
+      const b = button('', `P${i + 1}'s character · click: pick from every character`, (e, el) => popup(el,
+        h('b', { textContent: `P${i + 1}` }),
+        h('div', { cls: 'bar' }, toggle(':edit: editor', `Follow the character being edited (now ${CURRENT})`, () => !f.char, () => { closePop(); f.char = null; scenChanged(); fill(); }),
+          button(':casino: random', 'A random character', () => { closePop(); const ks = Object.keys(DEFS); f.char = ks[Math.floor(Math.random() * ks.length)]; scenChanged(); fill(); })),
+        h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k, v => { closePop(); f.char = v; scenChanged(); fill(); }, k => (f.char ?? 'editor') === k)))));
+      b.classList.add('fpick');
+      reg(b, () => { b.replaceChildren(cv, h('span', { textContent: `P${i + 1} ${name()}` })); drawThumb(cv, CHARS[name()] || currentChar(), undefined, 20, 22); });
+      return b;
+    };
+    // extra actors (P3 on) default to P2's team (gang up on P1); 'own' gives each its own team (free-for-all)
+    const TEAM_TIPS = { P1: 'Fights alongside P1 (same team)', P2: "Fights alongside P2 (same team, the default)", own: "Its own team: a foe of everyone else" };
     const fighter = (f, i) => withData({ p: i }, h('div', { cls: 'bar' }, h('b', { textContent: `P${i + 1}` }),
-      seg(['editor', ...Object.keys(DEFS)], () => f.char ?? 'editor', v => { f.char = v === 'editor' ? null : v; scenChanged(); fill(); },
-        Object.fromEntries(['editor', ...Object.keys(DEFS)].map(k => [k, k === 'editor' ? 'The character being edited, whichever it is' : `P${i + 1} is ${k}`]))),
+      charPick(f, i),
       seg(Object.keys(CTLS), () => f.ctl, v => { f.ctl = v; scenChanged(); fill(); }, CTL_TIPS),
       f.ctl === 'script' ? h('input', { cls: 'macro script', value: f.script, tip: "Steps: '0.2, 2P, 0.12, K' (waits have a dot, inputs in numpad notation or words: down+punch, @move plays a move, hold up 0.2)",
         onkeydown: e => e.stopPropagation(), onchange: e => { f.script = e.target.value; scenChanged(); } }) : null,
@@ -88,10 +105,16 @@ function scenBuilder() {
       seg(['off', 'nodamage', 'untouchable'], () => f.inv || 'off', v => { if (v === 'off') delete f.inv; else f.inv = v; scenChanged(); },
         { off: `P${i + 1} can be hit and hurt`, nodamage: `P${i + 1} reacts to hits but loses no health`, untouchable: `Nothing hits P${i + 1}: strikes, shots and throws pass through` },
         v => v === 'off' ? ':shield: off' : v === 'nodamage' ? 'no damage' : v),
+      i >= 2 ? seg(['P1', 'P2', 'own'], () => f.team === 0 ? 'P1' : f.team === 1 || f.team === undefined ? 'P2' : 'own', v => { f.team = v === 'P1' ? 0 : v === 'P2' ? 1 : i; scenChanged(); }, TEAM_TIPS) : null,
       f.ctl === 'AI' ? seg(Object.keys(AI_STYLES), () => f.aiStyle || 'balanced', v => { if (v === 'balanced') delete f.aiStyle; else f.aiStyle = v; scenChanged(); },
         SPEC.aiStyle.optTips, v => optLabel(v)) : null,
       f.ctl === 'AI' ? button(':tune: skill', `Fine-tune P${i + 1}'s AI skill on top of the aiLevel setting`, (e, b) => skillPopup(f, b), 'mini') : null,
-      button(':block: limits', `Cap how many times P${i + 1} can use specific moves this fight (0: ban it outright)`, (e, b) => limitsPopup(f, b), 'mini')));
+      button(':block: limits', `Cap how many times P${i + 1} can use specific moves this fight (0: ban it outright)`, (e, b) => limitsPopup(f, b), 'mini'),
+      i >= 2 ? button(':content_copy:', `Add another actor copied from P${i + 1}`, () => { u.p.splice(i + 1, 0, { ...f, team: f.team ?? 1 }); scenChanged(); fill(); }, 'mini') : null,
+      i >= 2 ? button(':close:', `Remove P${i + 1}`, () => { u.p.splice(i, 1); scenChanged(); fill(); }, 'mini') : null));
+    const addActor = button(':add: add actor', 'Add another fighter to the scenario (P3 on), ganging up on P1 by default', () => {
+      u.p.push({ char: null, ctl: 'dummy', script: '', x: Math.min(W - 60, 160 + 80 * (u.p.length - 2)), away: false, team: 1 }); scenChanged(); fill();
+    }, 'mini');
     // settings: the overrides it brings, each editable; add one by name, or take every setting changed from the defaults now
     const over = Object.keys(u.cfg).filter(k => SPEC[k]).map(k => { const s = SPEC[k], set = v => { u.cfg[k] = v; scenChanged(); };
       return h('div', { cls: 'bar' }, s.opts ? h('span', { textContent: k }) : null,
@@ -102,7 +125,7 @@ function scenBuilder() {
         .map(s => button(s.k, s.tip, () => { u.cfg[s.k] = CFG[s.k]; scenChanged(); fill(); }, 'mini')) : [])) });
     body.replaceChildren(h('div', { cls: 'bar' }, nm,
       slider('restart', { min: 0, max: 10, step: 0.1 }, () => u.period, v => { u.period = v; scenChanged(); }, 'Restarts every this many seconds (0: plays on)')),
-      ...u.p.map(fighter), h('h4', { textContent: 'settings' }), ...over,
+      ...u.p.map(fighter), h('div', { cls: 'bar' }, addActor), h('h4', { textContent: 'settings' }), ...over,
       h('div', { cls: 'bar' }, find, button(':tune: take my settings', 'Bring every setting you changed from the defaults, at its current value',
         () => { for (const k of changedCfg()) u.cfg[k] = CFG[k]; scenChanged(); fill(); }, 'mini')), found);
   };
