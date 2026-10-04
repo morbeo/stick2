@@ -464,6 +464,12 @@ const STICK_MOVES = {
     { d: 0.5, e: 'outExpo', p: { torso: 8, head: -15, afU: -140, afL: 25, abU: -130, abL: 25 }, shake: 0.4 },
     { d: 0.3, e: 'inOutCubic', p: null },
   ] },
+  // teleport strike: vanish, appear behind the opponent with a strike
+  vanishingStrike: { power: 1.4, damage: 11, hit: 'bh', height: 'high', knock: 240, launch: 200, kd: true, special: true, keys: [
+    { d: 0.08, e: 'outQuad', p: { torso: -5, afU: 50, afL: 130, abU: 40, abL: 130 }, warp: true },
+    { d: 0.06, e: 'outExpo', p: { torso: 20, afU: 100, afL: 20, abU: 0, abL: 120, lfU: 45, lfL: -40, lbU: -35, lbL: 0 }, active: true, lunge: 180 },
+    { d: 0.18, e: 'inOutCubic', p: null },
+  ] },
 };
 STICK_MOVES.hammer.keys[0].armor = true;
 STICK_MOVES.guardCancel.keys.slice(0, 2).forEach(k => { k.inv = true; });
