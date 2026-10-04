@@ -34,7 +34,8 @@ function setMode(m) {
 function panels() {
   const views = VIEWS[tabOf(app.mode)];
   app.shows = [];
-  const ctx = layOrder('ctx', [...views ? [grp('view', 'What this tab shows', seg(views, () => app.mode, setMode, MODES, m => `:${MODE_ICONS[m]}: ${{ play: 'fight', animate: 'editor' }[m] || m}`))] : [], ...mode().ctxBar()], el => el.dataset.part);
+  const ctx = layOrder('ctx', [...views ? [grp('view', 'What this tab shows', seg(views, () => app.mode, setMode, MODES, m => `:${MODE_ICONS[m]}: ${{ play: 'fight', animate: 'editor' }[m] || m}`))] : [],
+    ...transportCtx(), ...mode().ctxBar()], el => el.dataset.part);
   $('side').classList.remove('searching');
   const side = layOrder('side', folds(mode().side().filter(Boolean), app.mode, mode().open || []), s => s.fname);
   app.parts = { ctx: [...new Set(ctx.map(el => el.dataset.part).filter(Boolean))], side: side.map(s => s.fname).filter(Boolean) };
@@ -81,12 +82,30 @@ const KEYS = [
   ['animate', 'drag a joint: IK · Alt+drag: rotate one bone · timeline: drag a key to reorder, its edge to retime, double-click to split · Delete removes the key'],
   ['replay', 'timeline: click or drag to go to a moment · click an event to select it · events table (panels): fuzzy filter, sort, click a row to go there · the types in the toolbar show and hide lanes and rows'],
 ];
+// playback and speed: present on every mode's toolbar (the main loop reads app.paused/speed/scrub regardless of mode),
+// rebuilt each panels() call like any other toolbar group so it's draggable and hideable the same way
+function transportCtx() {
+  const pause = button('', 'Pause or resume the fight(s)' + keyTip('pause'), () => { app.paused = !app.paused; }, 'playbtn');
+  reg(pause, () => { setRich(pause, app.paused ? ':play_arrow:' : ':pause:'); pause.classList.toggle('on', app.paused); });
+  return [
+    grp('playback', 'Playback', pause,
+      button(':fast_rewind:', 'Rewind one second: every fight is restored from its last checkpoint and replayed with the same inputs, so your own and the AI\'s fights rewind too; play on from there to try something else' + keyTip('rewind'), () => rewind(60)),
+      button(':skip_previous:', 'Back one frame and pause there' + keyTip('stepBack'), () => rewind(1)),
+      button(':skip_next:', 'Step: advance one 60 fps frame' + keyTip('step'), () => { app.paused = app.stepOnce = true; }),
+      button(':restart_alt:', 'Restart the fight(s) from the beginning' + keyTip('restart'), restart)),
+    grp('speed', 'Speed and time', seg([1, 0.5, 0.25, 0.1], () => app.speed, v => { app.speed = v; },
+      { 1: 'Real time', 0.5: 'Half speed', 0.25: 'Quarter speed', 0.1: 'One tenth: study single frames' }, v => ({ 1: '1×', 0.5: '½', 0.25: '¼', 0.1: '⅒' })[v]),
+      toggle(':mouse:', 'Scrub: mouse left/right over the view sets the time: every fight is re-simulated to that moment' + keyTip('scrub'), () => app.scrub, v => { app.scrub = v; app.scrubF = null; }),
+      toggle(':repeat:', 'Loop: scripted fights restart when their period ends; off = stop at the end', () => app.loop, v => {
+        app.loop = v;
+        for (const w of mode().worlds()) { w.loop = v; if (v && w.done) w.reset(); }
+      })),
+  ];
+}
 function buildTop() {
   const tabs = Object.keys(MODES).filter(m => tabOf(m) === m);
   $('modes').replaceChildren(seg(tabs, () => tabOf(app.mode), m => tabOf(app.mode) !== m && setMode(m),
     Object.fromEntries(tabs.map(m => [m, MODES[m] + (VIEWS[m] ? ` Also: ${VIEWS[m].slice(1).map(v => v + ': ' + MODES[v]).join(' ')}` : '')])), m => `:${MODE_ICONS[m]}: ${m}`));
-  const pause = button('', 'Pause or resume the fight(s)' + keyTip('pause'), () => { app.paused = !app.paused; });
-  reg(pause, () => { setRich(pause, app.paused ? ':play_arrow: play' : ':pause: pause'); pause.classList.toggle('on', app.paused); });
   const soundBtn = button('', 'Sound: whooshes, hits and blocks in play and in the animate preview, synthesized live (no sound files); off by default in automated browsers', toggleMute, 'tog');
   reg(soundBtn, () => { soundBtn.classList.toggle('on', !muted()); setRich(soundBtn, muted() ? ':volume_off:' : ':waves:'); });
   $('global').replaceChildren(
@@ -107,18 +126,6 @@ function buildTop() {
       button(':info:', 'Docs: how everything works, with live demo fights, and every setting, move flag, input and key explained; searchable (also in ⌘K)', () => openDocs()),
       toggle(':help:', 'Hints: the line of mouse and key help under the view and the frame meter\'s colour legend; off, they show for a few seconds on the first visit to each mode (?)', () => ui.hints, toggleHints),
       soundBtn, button(':bug_report:', 'Report a bug: shows the report (build, settings changed from default, the shown fight), to copy and paste into a new GitHub issue', (e, b) => reportBug(b), 'bugbtn')));
-  $('transport').replaceChildren(grp('', 'Playback', pause,
-    button(':fast_rewind:', 'Rewind one second: every fight is restored from its last checkpoint and replayed with the same inputs, so your own and the AI\'s fights rewind too; play on from there to try something else' + keyTip('rewind'), () => rewind(60)),
-    button(':skip_previous:', 'Back one frame and pause there' + keyTip('stepBack'), () => rewind(1)),
-    button(':skip_next:', 'Step: advance one 60 fps frame' + keyTip('step'), () => { app.paused = app.stepOnce = true; }),
-    button(':restart_alt:', 'Restart the fight(s) from the beginning' + keyTip('restart'), restart)),
-    grp('', 'Speed and time', seg([1, 0.5, 0.25, 0.1], () => app.speed, v => { app.speed = v; },
-      { 1: 'Real time', 0.5: 'Half speed', 0.25: 'Quarter speed', 0.1: 'One tenth: study single frames' }, v => ({ 1: '1×', 0.5: '½', 0.25: '¼', 0.1: '⅒' })[v]),
-    toggle(':mouse:', 'Scrub: mouse left/right over the view sets the time: every fight is re-simulated to that moment' + keyTip('scrub'), () => app.scrub, v => { app.scrub = v; app.scrubF = null; }),
-    toggle(':repeat:', 'Loop: scripted fights restart when their period ends; off = stop at the end', () => app.loop, v => {
-      app.loop = v;
-      for (const w of mode().worlds()) { w.loop = v; if (v && w.done) w.reset(); }
-    })));
 }
 
 function resize() {

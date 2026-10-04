@@ -441,6 +441,16 @@ try {
     if (!lab.meter || !JSON.parse(localStorage.getItem('stick2.layouts')).sets.default.tabs.play.show.meter) errs.push('meter saved');
     setDisplay('hud', false); setDisplay('labels', false); labRender(); setDisplay('hud', true); setDisplay('labels', true);
     layReset(); if (lab.meter) errs.push('reset clears overlays'); }
+  // playback/speed: regular toolbar groups (movable, hideable) on every tab, not a separate fixed bar; pause is icon-only and color-coded
+  { setMode('play'); const part = (k, p) => $(k).querySelector('[data-part="' + p + '"]');
+    if (!part('ctx', 'playback') || !part('ctx', 'speed') || !app.parts.ctx.includes('playback') || !app.parts.ctx.includes('speed')) errs.push('playback/speed are toolbar groups');
+    setMode('animate'); if (!part('ctx', 'playback') || !part('ctx', 'speed')) errs.push('playback/speed on every tab'); setMode('play');
+    const pauseBtn = part('ctx', 'playback').querySelector('button[data-tip^="Pause or resume"]');
+    if (!pauseBtn.classList.contains('ico') || !pauseBtn.classList.contains('playbtn') || /play|pause/.test(pauseBtn.textContent)) errs.push('pause not icon-only ' + pauseBtn.outerHTML);
+    app.paused = true; syncAll(); if (!pauseBtn.classList.contains('on')) errs.push('pause not color-coded when paused');
+    app.paused = false; syncAll(); if (pauseBtn.classList.contains('on')) errs.push('pause not color-coded when playing');
+    layShow('ctx:playback', false); if (part('ctx', 'playback')) errs.push('playback group hideable'); layShow('ctx:playback', true);
+    layShow('ctx:speed', false); if (part('ctx', 'speed')) errs.push('speed group hideable'); layShow('ctx:speed', true); layReset(); }
   // order: dragging a part in the layout popup onto another puts it before that one (onto the row's label: last); kept per tab, reset clears it
   { setMode('play'); const ids = k => [...$(k).children].map(el => k === 'ctx' ? el.dataset.part : el.fname).filter(Boolean);
     const c0 = app.parts.ctx, s0 = app.parts.side;

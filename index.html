@@ -39,13 +39,14 @@
   .stagehead { position: relative; padding-right: 20px; } .stagehead .closebtn { position: absolute; top: 0; right: 0; }
   button.mini { padding: 0 3px; font-size: 11px; height: 18px; line-height: 16px; } button.mini.ico { width: 18px; padding: 0; } button.mini .ic { font-size: 13px; vertical-align: -2px; }
   button.bugbtn { border-color: #c0392b; color: #c0392b; } button.bugbtn:hover { background: #f6d5d0; } button.bugbtn.on { background: #c0392b; border-color: #c0392b; }
+  button.playbtn { border-color: #2e7d32; color: #2e7d32; } button.playbtn:hover { background: #ddf0dd; } button.playbtn.on { background: #c0392b; border-color: #c0392b; color: #f3f0e8; }
   .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 3px 0; } .bar.col { flex-direction: column; align-items: stretch; }
   #top { grid-area: top; padding: 4px 10px; border-bottom: 1px solid #ddd7cb; }
   .trow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin: 2px 0; }
   #modes { margin-right: 10px; } #global { margin-left: auto; }
-  #global, #transport, #ctx { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; }
+  #global, #ctx { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; }
   .grp { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px; padding: 0 9px; border-left: 1px solid #ddd7cb; }
-  #transport > .grp:first-child { border-left: 0; padding-left: 0; } #global > .grp:last-child { padding-right: 0; }
+  #ctx > .grp:first-child { border-left: 0; padding-left: 0; } #global > .grp:last-child { padding-right: 0; }
   .grp .gl { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #aaa; margin-right: 2px; }
   .grp .gl[draggable] { cursor: grab; } .grp.dragging { opacity: .4; } .grp.dropto { box-shadow: inset 3px 0 0 #c0392b; }
   #top input[type=number] { width: 56px; }
@@ -190,7 +191,7 @@
 <body>
 <div id="top">
   <div class="trow"><span id="modes"></span><span id="global"></span></div>
-  <div class="trow"><span id="transport"></span><span id="ctx"></span></div>
+  <div class="trow"><span id="ctx"></span></div>
 </div>
 <div id="stage"><canvas id="c"></canvas><div id="over"></div></div>
 <div id="side"></div>
