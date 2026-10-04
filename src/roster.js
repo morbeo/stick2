@@ -826,10 +826,11 @@ CHAR_DEFS.houndo = { ...mapPoses({ ...stick, moves: retimed(0.85, 0.9) }, beastP
 
 // tako: a human who shapeshifts into an octopus. Two more legs and two more arms are always part of the skeleton, as
 // short nubs at the hips and shoulders in human form (every move stays valid on the base skeleton, and no bone needs a
-// destructive, one-way hide at the main level) — real 'arm' / 'leg' role bones throughout, so when the octopus stance
-// grows them out it walks on its own tentacles instead of drifting on hidden legs. The hands and feet also sprout an
-// extra tentacle-tip joint, and the torso shrinks to an octopus's small mantle. Main's own specials are an ink cloud
-// and a slippery dodge; the octopus form has its own tentacle slam (the extra arms) and constricting grab (the extra legs)
+// destructive, one-way hide at the main level) — real 'arm' / 'leg' role bones throughout, so they already have their
+// own working gait/IK chain before the stance ever grows them out. The octopus stance hides the human arms and legs
+// and grows the four extras into full tentacles, each tipped with its own extra joint, with the torso shrinking to
+// an octopus's small mantle. Main's own specials are an ink cloud and a slippery dodge; the octopus form has its own
+// tentacle slam (the extra arms) and constricting grab (the extra legs)
 const tenTip = (parent, a) => [
   { id: parent + 'Tip', parent, len: 9, a, role: 'tail', thick: 3, lag: 1.5, dangle: 0.5, stretch: 0.2, min: -90, max: 90 },
   { id: parent + 'TipEnd', parent: parent + 'Tip', len: 7, a: 15, role: 'tail', thick: 2, lag: 2.5, dangle: 0.6, stretch: 0.3, min: -90, max: 90 }];
@@ -869,14 +870,16 @@ CHAR_DEFS.tako = { ...stick, name: 'tako', speed: 0.95, weight: 0.95, jump: 0.9,
       [0.12, { waist: 172, extraLegF: -90, extraLegB: -30 }],
       [0.12, { waist: 172, extraLegF: -10, extraLegB: 70 }], 0.14, 0.28) },
   ...bind({ fwdSpecial: 'inkCloud', backSpecial: 'slipAway', special: 'inkCloud' }),
-  // S+G: the whole skeleton change described above
+  // S+G: the whole skeleton change described above — the human arms and legs retract (hidden) and the four
+  // always-present extra limbs grow out and take over both walking and fighting
   stances: [{ name: 'octopus', pose: { ...stylePose([172, 0], [0, 0], [35, 115], [15, 125], null, null),
       // the four extra limbs fan out around the mantle so they read as tentacles, not a tangle at the shoulders/hips
       extraArmF: -70, extraArmFMid: 45, extraArmFEnd: 35, extraArmB: 130, extraArmBMid: -45, extraArmBEnd: -35,
       extraLegF: 160, extraLegFMid: 45, extraLegFEnd: 35, extraLegB: -170, extraLegBMid: -45, extraLegBEnd: -35 },
     body: { bones: { chest: { len: 10 }, waist: { len: 8 }, ...EXTRA_FULL,
-        ...Object.fromEntries(['handF', 'handB', 'footF', 'footB'].map(id => [id, { thick: 4, dangle: 0.4, stretch: 0.2 }])) },
-      add: [...tenTip('handF', 20), ...tenTip('handB', -20), ...tenTip('footF', 20), ...tenTip('footB', -20)] },
+        ...Object.fromEntries(['thighF', 'shinF', 'footF', 'thighB', 'shinB', 'footB',
+          'uarmF', 'farmF', 'handF', 'uarmB', 'farmB', 'handB'].map(id => [id, { hidden: true }])) },
+      add: [...tenTip('extraArmFEnd', 20), ...tenTip('extraArmBEnd', -20), ...tenTip('extraLegFEnd', 20), ...tenTip('extraLegBEnd', -20)] },
     ...bind({ punch: 'tentacleSlam', fwdPunch: 'tentacleSlam', kick: 'constrict', special: 'tentacleSlam' }) }] };
 
 // clampo: a big, slow wrestler built around grabs, throws and holds — extended grab range, heavy, tanky. Its own throw
