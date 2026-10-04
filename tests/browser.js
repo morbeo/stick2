@@ -590,6 +590,21 @@ try {
     $('ctx').querySelector('[data-part="panels"] button[data-tip^="Edit this scenario"]').click(); if (!document.querySelector('.sbuild')) errs.push('panels seg opens the builder');
     [...document.querySelectorAll('.sbuild button')].find(b => b.dataset.tip === 'Delete this scenario').click(); if (SCENARIOS['jab vs sumo'] || myScens()['jab vs sumo'] || lab.scen === 'jab vs sumo') errs.push('builder delete ' + lab.scen);
     delete myScens()['copy of it']; delete SCENARIOS['copy of it']; lay('play').panel = null; keep === null ? localStorage.removeItem('stick2.scenarios') : localStorage.setItem('stick2.scenarios', keep); lab.scen = 'you vs dummy'; build(); panels(); }
+  // built-in scenarios: the builder opens on them too (revert, not delete); merely opening one changes nothing; an edit
+  // overrides it in place, keeps its own SCEN_GROUPS bucket (not "my scenarios"); revert restores the shipped values
+  { const keep = localStorage.getItem('stick2.scenarios'); setMode('play'); lab.scen = 'fireball'; build(); openStage('builder');
+    if (!document.querySelector('.sbuild')) errs.push('builtin builder opens');
+    if (!document.querySelector('.sbuild button[data-tip^="Restore"]')) errs.push('builtin shows revert, not delete');
+    closeStage();
+    if (SCENARIOS.fireball.user || myScens().fireball || JSON.parse(localStorage.getItem('stick2.scenarios') || '{}').fireball) errs.push('opening the builder alone changed it');
+    openStage('builder');
+    const xs = document.querySelector('.sbuild [data-p="0"] input[type="range"]'); xs.value = 125; xs.dispatchEvent(new Event('input'));
+    if (!SCENARIOS.fireball.user || SCENARIOS.fireball.ax !== 125 || !JSON.parse(localStorage.getItem('stick2.scenarios')).fireball) errs.push('builtin edit persists ' + JSON.stringify(SCENARIOS.fireball));
+    if (scenGroup('fireball') !== 'specials') errs.push('tuned builtin left its group ' + scenGroup('fireball'));
+    document.querySelector('.sbuild button[data-tip^="Restore"]').click();
+    if (SCENARIOS.fireball.user || SCENARIOS.fireball.ax !== 220 || myScens().fireball || JSON.parse(localStorage.getItem('stick2.scenarios') || '{}').fireball)
+      errs.push('builtin revert ' + JSON.stringify(SCENARIOS.fireball));
+    closeStage(); lay('play').panel = null; keep === null ? localStorage.removeItem('stick2.scenarios') : localStorage.setItem('stick2.scenarios', keep); lab.scen = 'you vs dummy'; build(); panels(); }
   // the tests view: a move against every target column (and opponent), checked; failing only; a cell isolated plays over the table and opens in animate with its setup
   { setMode('tests'); tests.move = 'jab'; rerunTests(); panels();
     for (let i = 0; i < 200 && tests.queue.length; i++) testMode.tick();

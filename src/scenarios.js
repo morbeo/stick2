@@ -1,9 +1,13 @@
 'use strict';
 // ---------- my scenarios: built in the browser (characters, controllers, scripts, positions, settings), saved as you go ----------
 // stored as { name: { p: [{ char, ctl, script, x, away, inv }, …], period, cfg } } and registered in SCENARIOS (flag user) for the picker and the grid
+// BASE_SCENARIOS/SCENARIOS: src/brain.js (the shipped defaults, never mutated, vs. the live table this file layers myStore's overrides onto)
 const SCEN_STORE = 'stick2.scenarios';
 const myStore = (() => { try { return JSON.parse(localStorage.getItem(SCEN_STORE)) || {}; } catch { return {}; } })();
 const myScens = () => myStore;
+// a built-in opened in the builder but not yet changed: shown from here, not myStore, so merely looking at one never
+// persists it or counts it as one of "my scenarios" anywhere myStore is read directly (the tests matrix, the export file…)
+let preview = null;
 const CTLS = { you: 'human', AI: 'ai', dummy: 'dummy', script: 'script' };
 const CTL_TIPS = { you: 'You on the keyboard', AI: 'The engine AI', dummy: 'Stands still', script: 'Plays the script below, the same every loop' };
 // a script as macro text: waits with a dot (0.2, 1.0), inputs in word form, holds as 'hold up 0.2'
@@ -30,7 +34,7 @@ function fromScen(s, chars) {
     props: (s.props || []).map(p => ({ type: p.type, x: p.x })), period: s.period || 0, cfg: { ...s.cfg } };
 }
 function saveScens() {
-  for (const k of Object.keys(SCENARIOS)) if (SCENARIOS[k].user && !myStore[k]) delete SCENARIOS[k];
+  for (const k of Object.keys(SCENARIOS)) if (!myStore[k]) { if (BASE_SCENARIOS[k]) SCENARIOS[k] = BASE_SCENARIOS[k]; else if (SCENARIOS[k].user) delete SCENARIOS[k]; }
   for (const [k, u] of Object.entries(myStore)) SCENARIOS[k] = toScen(u);
   try { localStorage.setItem(SCEN_STORE, JSON.stringify(myStore)); } catch {}
 }
@@ -42,8 +46,8 @@ function newScen() {
   myStore[name] = fromScen(withInv(SCENARIOS[lab.scen]), lab.chars.some(Boolean) ? lab.chars : null);
   saveScens(); lab.scen = name; build(); openStage('builder');
 }
-// every change saves and rebuilds the fight behind the builder
-const scenChanged = () => { saveScens(); build(); };
+// every change saves and rebuilds the fight behind the builder; a still-previewed built-in is promoted into myStore first
+const scenChanged = () => { if (preview?.name === lab.scen) { myStore[lab.scen] = preview.u; preview = null; } saveScens(); build(); };
 const exportScens = () => JSON.stringify(myStore, null, 1);
 function importScens(json) { Object.assign(myStore, JSON.parse(json)); saveScens(); panels(); }
 const withData = (d, el) => { Object.assign(el.dataset, d); return el; };
@@ -74,15 +78,20 @@ function skillPopup(f, anchor) {
   popup(anchor, h('b', { textContent: 'skill' }), h('p', {}, ...rich(`Fine-tune this fighter's skill on top of the aiLevel setting (now: ${CFG.aiLevel}). Only what you change here differs from it.`)),
     ...Object.entries(AI_SKILL_TIPS).map(([k, tip]) => slider(k, { min: 0, max: 1, step: 0.02 }, () => cur(k), v => set(k, v), tip)));
 }
-const BUILDER_TIP = 'Edit this scenario of yours: characters, controllers, script, positions, settings';
+const BUILDER_TIP = 'Edit this scenario: characters, controllers, script, positions, settings';
 function scenBuilder() {
   const wrap = h('div', { cls: 'mtable sbuild' }), body = h('div');
   const fill = () => {
-    const name = lab.scen, u = myStore[name];
-    if (!u) return closeStage();
+    const name = lab.scen;
+    let u = myStore[name];
+    if (!u) {
+      if (!SCENARIOS[name]) return closeStage();
+      if (preview?.name !== name) preview = { name, u: fromScen(withInv(SCENARIOS[name]), null) };
+      u = preview.u;
+    }
     u.props ??= [];
     const nm = h('input', { cls: 'macro sname', value: name, tip: 'The scenario\'s name (any name the built-ins do not use)', onkeydown: e => e.stopPropagation(),
-      onchange: () => { const v = nm.value.trim(); if (!v || v === name || SCENARIOS[v]) { nm.value = name; return; } myStore[v] = u; delete myStore[name]; lab.scen = v; scenChanged(); panels(); } });
+      onchange: () => { const v = nm.value.trim(); if (!v || v === name || SCENARIOS[v]) { nm.value = name; return; } myStore[v] = u; delete myStore[name]; if (preview?.u === u) preview = null; lab.scen = v; scenChanged(); panels(); } });
     // the character picker: a popup with a grid of cards (as play's fighters group), instead of a flat list of names
     const charPick = (f, i) => {
       const cv = h('canvas'), name = () => f.char ?? CURRENT;
@@ -149,7 +158,9 @@ function scenBuilder() {
     button(':content_copy: copy', 'A new scenario starting from this one', newScen),
     button(':download: export', 'Download all my scenarios as a JSON file', () => { const a = h('a', { href: URL.createObjectURL(new Blob([exportScens()], { type: 'application/json' })), download: 'stick2-scenarios.json' }); a.click(); }),
     button(':upload: import', 'Add scenarios from a JSON file (same names are replaced)', () => { const i = h('input', { type: 'file', accept: '.json', onchange: async () => importScens(await i.files[0].text()) }); i.click(); }),
-    button(':delete: delete', 'Delete this scenario', () => { delete myStore[lab.scen]; saveScens(); lab.scen = 'you vs dummy'; build(); closeStage(); })), body);
+    BASE_SCENARIOS[lab.scen]
+      ? button(':undo: revert', 'Restore this scenario to its shipped values', () => { delete myStore[lab.scen]; saveScens(); build(); fill(); })
+      : button(':delete: delete', 'Delete this scenario', () => { delete myStore[lab.scen]; saveScens(); lab.scen = 'you vs dummy'; build(); closeStage(); })), body);
   fill();
   return wrap;
 }

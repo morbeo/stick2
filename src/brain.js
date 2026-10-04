@@ -193,7 +193,7 @@ function makeCtl(spec, world) {
 }
 
 // a/b = controller specs, ax/bx = start x, period = seconds before the scenario restarts, chars = character names per slot (else the current one)
-const SCENARIOS = {
+const BASE_SCENARIOS = {
   'you vs dummy': { a: 'human', b: 'dummy' },
   'you vs ai': { a: 'human', b: 'ai' },
   'ai vs ai': { a: 'ai', b: 'ai' },
@@ -293,6 +293,9 @@ const SCENARIOS = {
   'walk': { a: [{ hold: 'fwd', t: 0.8 }, 0.3, { hold: 'back', t: 0.8 }], b: 'dummy', ax: 250, bx: 550, period: 2.4 },
   'jump': { a: ['hop', 0.7, 'fwd+hop', 0.1, { hold: 'fwd', t: 0.5 }], b: 'dummy', ax: 250, bx: 550, period: 2 },
 };
+// SCENARIOS: the live table (built-ins, each overridable from the builder, plus any custom ones); src/scenarios.js
+// applies myStore's overrides onto it (the headless engine and tests never do, so they always see the shipped values)
+const SCENARIOS = { ...BASE_SCENARIOS };
 
 // gallery: one looping cell per attack, forced with '@' so no input logic gets in the way, the target at the move's range (mv: the move)
 const GALLERY = ['jab', 'cross', 'uppercut', 'kick', 'roundhouse', 'sweep', 'dashPunch', 'airKick', 'airPunch', 'rush', 'rising', 'spin', 'stomp'];

@@ -383,7 +383,7 @@ function scenTip(s) {
 }
 // who fights, then the scripted tests by topic ([name, icon, tip, test]); a scenario goes in the first group that takes it
 const SCEN_GROUPS = [
-  ['my scenarios', 'person', 'Built by you in this browser (new scenario, or copy in the builder)', s => s.user],
+  ['my scenarios', 'person', 'Built by you in this browser (new scenario, or copy in the builder)', (s, k) => s.user && !BASE_SCENARIOS[k]],
   ['you', 'keyboard', 'You on the keyboard.', s => s.a === 'human'],
   ['engine AI', 'smart_toy', 'The built-in AI walks in and throws random chains.', s => !Array.isArray(s.a) && s.a !== 'human'],
   ['chains', 'timeline', 'Scripted: normals chaining into each other and into specials.', ['jab spam', 'J,J,J', 'K,K', 'J,J,K', 'J,K,K', 'sweep', 'dash punch', 'J→rush', 'J,K→spin', 'sandwich', 'showcase']],
@@ -394,7 +394,7 @@ const SCEN_GROUPS = [
   ['weapons', 'swords', 'Scripted: picking up, throwing and clashing weapons.', ['pick up & slash', 'weapon throw', 'disarm', 'weapon clash', 'deflect']],
   ['other tests', 'science', 'Scripted: repeatable inputs, the same fight every loop, ideal for the grid.', s => Array.isArray(s.a)],
 ];
-const scenGroup = k => SCEN_GROUPS.find(([, , , f]) => Array.isArray(f) ? f.includes(k) : f(SCENARIOS[k]))?.[0];
+const scenGroup = k => SCEN_GROUPS.find(([, , , f]) => Array.isArray(f) ? f.includes(k) : f(SCENARIOS[k], k))?.[0];
 function scenButton(onPick) {
   const b = button('', 'Choose who fights · scenarios grouped by who fights, scripted tests by topic', (e, b) => {
     const pick = k => { closePop(); onPick(k); }, rows = [];
@@ -568,7 +568,7 @@ function labCtx() {
     sortButton()));
   els.push(showGrp(['meter', ...lab.mode === 'play' ? ['inputs'] : [], 'boxes', 'ghost', 'hud', 'labels', 'timer']));
   // compare settings only in grid (it drives the grid's own compare kind); play just gets its scenario builder, if it has one
-  const panelNames = [...lab.mode !== 'play' ? ['compare'] : [], ...lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? ['builder'] : []];
+  const panelNames = [...lab.mode !== 'play' ? ['compare'] : [], ...lab.mode === 'play' ? ['builder'] : []];
   if (lab.mode !== 'gallery' && panelNames.length) els.push(panelsGrp(panelNames, { compare: CMP_PANEL_TIP, builder: BUILDER_TIP }));
   if (lab.mode === 'play') els.push(...trainingCtl(),
     grp('theater', 'No toolbars, no side panel, just the fight — for streaming or recording. Set what still shows (health bars, their position, frame meter, timer, labels) before switching it on: the toolbar goes away with everything else',
@@ -816,7 +816,7 @@ function builderMouse(type, x, y) {
 const labMode = {
   enter(m) { lab.mode = m; build(); },
   restart: build,
-  overlay: () => stageOpen() === 'compare' ? [compareView()] : stageOpen() === 'builder' && lab.mode === 'play' && SCENARIOS[lab.scen]?.user ? [scenBuilder()] :
+  overlay: () => stageOpen() === 'compare' ? [compareView()] : stageOpen() === 'builder' && lab.mode === 'play' ? [scenBuilder()] :
     lab.mode === 'impact' && lab.impact === 'ragdoll' && lab.cells[0] ? [blowBar(() => lab.cells[0].w, build)] : [],
   worlds: () => (lab.mode === 'gallery' ? onScreen() : lab.cells).flatMap(c => [c.w, ...(c.extra || [])]),
   clipRects: () => { const r = labRects(); return shown().map((c, i) => ({ key: c, r: r[i] })); },
@@ -826,7 +826,7 @@ const labMode = {
   get open() { return lab.mode === 'gallery' ? ['move', 'key'] : lab.mode === 'play' ? ['presets', 'movelist'] : ['presets']; },
   mouse(type, x, y, e) {
     if (lab.mode === 'impact' && !e.shiftKey && impactMouse(type, x, y)) return;
-    if (lab.mode === 'play' && stageOpen() === 'builder' && SCENARIOS[lab.scen]?.user && builderMouse(type, x, y)) return;
+    if (lab.mode === 'play' && stageOpen() === 'builder' && builderMouse(type, x, y)) return;
     if (type === 'down') labClick(x, y, e);
     lab.hover = hitRect(labRects(), x, y);
     const tip = shown()[lab.hover]?.tip; // a cell's tip (gallery movements, impacts) shows on hover
@@ -835,7 +835,7 @@ const labMode = {
   },
   wheel(dy) { const ms = maxScroll(); if (!ms) return false; lab.scroll = clamp(lab.scroll + dy * dpr, 0, ms); return true; },
   key(e) { if (e.code === 'Escape' && lab.zoom) { lab.zoom = false; return true; } },
-  hint: () => lab.mode === 'play' && stageOpen() === 'builder' && SCENARIOS[lab.scen]?.user ? 'drag a fighter or a prop on the stage to reposition it · ' + fightHint()
+  hint: () => lab.mode === 'play' && stageOpen() === 'builder' ? 'drag a fighter or a prop on the stage to reposition it · ' + fightHint()
     : lab.mode === 'play' ? fightHint()
     : lab.mode === 'impact' ? 'drag on a body: strike it there (direction and length = the blow, long = knockdown) · click a body: a medium blow · click beside: focus / back · Esc back'
     : lab.mode === 'grid' && bred() ? (lab.kind === 'attacks' ? 'click a cell: breed around it · its save / edit buttons: keep that attack · Shift+click: focus · Esc back' : 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back') : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',
