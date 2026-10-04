@@ -113,6 +113,8 @@ class World {
   itemNear(f) {
     let best = null;
     for (const it of this.items) if (it.rest && !it.taker && Math.abs(it.x - f.x) < 40 && Math.abs(it.z - f.z) < 20 && (!best || Math.abs(it.x - f.x) < Math.abs(best.x - f.x))) best = it;
+    // settled limbs are pickable like weapons
+    for (const limb of this.limbs) if (limb.vx === 0 && limb.vy === 0 && Math.abs(limb.x - f.x) < 40 && Math.abs((limb.z || 0) - f.z) < 20 && (!best || Math.abs(limb.x - f.x) < Math.abs(best.x - f.x))) best = limb;
     return best;
   }
   updateItems(h) {

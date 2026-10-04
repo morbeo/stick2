@@ -723,6 +723,7 @@ const WEAPONS = {
   nunchucks: { cls: 'blunt', look: 'stick', chain: true, len: 34, weight: 0.6, a: -100, tip: 'Nunchucks: two sticks on a chain, the outer one flails behind the swing' },
   hammer: { cls: '2h', look: 'hammer', len: 52, weight: 2, a: 40, grip2: 9, tip: 'War hammer: two-handed, very slow, crushing' },
   staff: { cls: 'pole', look: 'pole', len: 62, back: 34, weight: 1, a: -50, grip2: -24, tip: 'Staff: held along its length; the longest reach' },
+  limb: { cls: 'blunt', look: 'club', len: 24, weight: 0.9, a: 0, tip: 'Severed limb: a gruesome weapon of opportunity' },
 };
 const weaponPower = w => 0.8 + 0.4 * w.weight, weaponSpeed = w => 1.15 - 0.2 * w.weight;
 // a weapon move built on a stick move's key pose (move, key index), with the weapon's grip angle (undefined: the rest grip)

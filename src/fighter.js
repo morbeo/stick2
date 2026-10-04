@@ -344,7 +344,9 @@ class Fighter {
     const a = this.action, first = k === a.m.keys[0];
     if (this.taking && a.pick && (k.grip || first && !a.m.keys.some(x => x.grip))) {
       const it = this.taking; this.taking = null;
-      this.w.items.splice(this.w.items.indexOf(it), 1); this.wield(it.type); this.action = a; this.say(it.type.toUpperCase());
+      if (this.w.items.includes(it)) { this.w.items.splice(this.w.items.indexOf(it), 1); } // weapon item
+      else { this.w.limbs.splice(this.w.limbs.indexOf(it), 1); } // severed limb
+      this.wield('limb'); this.action = a; this.say('LIMB');
       for (const j of this.ch.ids) { a.from[j] ??= this.target[j]; for (const p of KEY_MULS) a.fromMul[p][j] ??= this.mul[p][j]; } // the weapon's bones join the tween where they are
     }
     if (k.warp) this.warp();
@@ -378,8 +380,10 @@ class Fighter {
     if (!hand) return;
     const a = this.action, keys = a.m.keys, g = Math.max(0, keys.findIndex(k => k.grip)), left = keys.slice(a.i, g + 1).reduce((s, k) => s + k.d, -a.t);
     const w = WEAPONS[it.type], half = (w.len - (w.back || 0)) / 2, rot = this.dir > 0 ? 0 : Math.PI, k = Math.min(1, dt / Math.max(dt, left)); // the rest of the way in the time left
-    it.rot += wrap180((rot - it.rot) / R) * R * k;
-    it.x += (hand[0] + Math.cos(it.rot) * half - it.x) * k;
+    if (it.rot !== undefined) { // weapon item (not a limb)
+      it.rot += wrap180((rot - it.rot) / R) * R * k;
+      it.x += (hand[0] + Math.cos(it.rot) * half - it.x) * k;
+    } // limbs stay in place, just held
   }
   // key flag turn: the fighter turns around over this key (its face sweeps through the profile in the key's time); turn: 2 is a
   // whole turn, the second half from the middle of the key (spinning kicks). Holding a throw victim it swings the victim round
@@ -1067,6 +1071,7 @@ class Fighter {
       const limb = collectLimbSegments(this.ch, hit.bone, P, this.col[0]);
       limb.vx = att.dir * Math.abs(this.vx) * 0.6 + this.w.rand(-60, 60);
       limb.vy = -Math.abs(this.vy) * 0.5 + this.w.rand(-80, -20);
+      limb.type = 'limb'; // pickable as a weapon
       this.w.limbs.push(limb);
       // sever: hide the struck bone and everything below it
       const severed = bodyDef(this.ch.def, { bones: { [hit.bone.id]: { hidden: true } } });
