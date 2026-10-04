@@ -3,14 +3,16 @@
 // so no object ever mixes the two realms.
 const fs = require('fs'), path = require('path'), engine = require('./engine');
 const ROOT = path.join(__dirname, '..');
-// scenarios.js: the user scenarios (toScen, saveScens) for profiles; it needs no DOM at load (localStorage is tried and skipped)
-const FILES = [...engine.ENGINE, 'scenarios'];
+// scenarios.js, sound.js, tracker.js: their data (my scenarios, sounds, tracks) for profiles and the sound/look/track tools;
+// none needs a DOM at load (localStorage, and sound.js/tracker.js's AudioContext, are only reached by calls this session never makes)
+const FILES = [...engine.ENGINE, 'scenarios', 'sound', 'tracker'];
 const KEEP_SIMS = 20;
 
 // runs in the engine context: defines MCP, the helpers the tools call
 function inside() {
   const clone = o => JSON.parse(JSON.stringify(o));
   const fail = msg => { throw new Error(msg); };
+  const obj = v => v && typeof v === 'object' && !Array.isArray(v);
   // a setting value that fits its spec (the same rule as the app's settings files): known, the right type, in range or one of the options
   const cfgProblem = (k, v) => {
     const s = SPEC[k];
@@ -71,6 +73,39 @@ function inside() {
     }
     return out;
   };
+
+  // sounds, looks, tracks: small flat presets, checked field by field (like checkDef, but simple enough for one pass each)
+  const checkSound = p => {
+    const bad = [], finite = (k, req) => { if (p[k] !== undefined) { if (!Number.isFinite(p[k])) bad.push(`${k}: a number`); } else if (req) bad.push(`${k}: a number is required`); };
+    if (!obj(p)) fail('a sound preset is an object');
+    if (p.noise !== undefined && !['bandpass', 'lowpass', 'highpass', 'none'].includes(p.noise)) bad.push('noise: bandpass | lowpass | highpass | none');
+    if (p.tone !== undefined && !['sine', 'square', 'sawtooth', 'triangle', 'none'].includes(p.tone)) bad.push('tone: sine | square | sawtooth | triangle | none');
+    for (const k of ['nf0', 'nf1', 'ngain', 'q', 'tf0', 'tf1', 'tgain', 'detune', 'attack']) finite(k, false);
+    finite('dur', true);
+    if (bad.length) fail(bad.join('; '));
+  };
+  const checkLook = p => {
+    const bad = [];
+    if (!obj(p)) fail('a look preset is an object');
+    if (p.shape !== undefined && !['dot', 'line', 'ring'].includes(p.shape)) bad.push('shape: dot | line | ring');
+    if (p.col !== undefined && !FX_COLS[p.col]) bad.push(`col: one of ${Object.keys(FX_COLS).join(', ')}`);
+    for (const k of ['count', 'life', 'speed', 'spread', 'angle', 'gravity', 'size0', 'size1']) if (p[k] !== undefined && !Number.isFinite(p[k])) bad.push(`${k}: a number`);
+    if (bad.length) fail(bad.join('; '));
+  };
+  const checkTrack = t => {
+    const bad = [];
+    if (!obj(t)) fail('a track is an object');
+    if (!(t.bpm > 0)) bad.push('bpm: a number > 0 is required');
+    if (![8, 16, 32].includes(t.steps)) bad.push('steps: 8, 16 or 32');
+    if (!Array.isArray(t.rows) || !t.rows.length) bad.push('rows: a non-empty list of { sound, cells } is required');
+    else for (const [i, r] of t.rows.entries()) {
+      if (!obj(r) || typeof r.sound !== 'string' || !SOUNDS[r.sound]) bad.push(`rows[${i}].sound: a sound name (list_sounds)`);
+      if (!Array.isArray(r.cells) || r.cells.length !== t.steps || r.cells.some(c => typeof c !== 'boolean')) bad.push(`rows[${i}].cells: ${t.steps} booleans (one per step)`);
+    }
+    if (bad.length) fail(bad.join('; '));
+  };
+  // a user scenario (already run through scenFrom), checked by actually building a fight from it (like checkDef compiles a character)
+  const checkScen = s => { try { new World(s, {}, 1, s.chars?.map(charOf)); } catch (e) { fail(`broken scenario: ${e.message}`); } };
 
   // a whole fight recorded, summed up: who won, when, the stats, the events (filtered), the end hash
   function summary(w, rec, o = {}) {
@@ -153,6 +188,28 @@ function inside() {
       ...(s.period ? { period: s.period } : {}), ...(s.chars ? { chars: s.chars } : {}), ...(s.cfg && Object.keys(s.cfg).length ? { cfg: s.cfg } : {}),
       ...(s.waves ? { waves: true } : {}), ...(s.survival ? { survival: true } : {}), ...(s.user ? { user: true } : {}),
       ...(Array.isArray(s.a) ? { script: scriptText(s.a) } : {}) })),
+    // a new "my scenario": checked by building a fight from it (a broken one changes nothing); a taken name gets a number unless replace is true
+    createScenario(scen, name, replace) {
+      const built = scenFrom(scen);
+      checkScen(built);
+      const base = name || 'scenario'; let n = base, i = 2;
+      if (!replace) while (SCENARIOS[n]) n = base + i++;
+      myStore[n] = fromScen(built, built.chars); saveScens();
+      return MCP.listScenarios().find(s => s.name === n);
+    },
+    // merge-patches an existing user scenario's own definition (stick2://schema/scenario); checked the same way
+    editScenario(name, patch) {
+      if (!myStore[name]) fail(`no user scenario "${name}" to edit (list_scenarios; only ones you made or loaded can be)`);
+      const built = scenFrom(merge(clone(SCENARIOS[name]), patch));
+      checkScen(built);
+      myStore[name] = fromScen(built, built.chars); saveScens();
+      return MCP.listScenarios().find(s => s.name === name);
+    },
+    deleteScenario(name) {
+      if (!myStore[name]) fail(`no user scenario "${name}" to delete (list_scenarios; built-ins can't be deleted)`);
+      delete myStore[name]; saveScens();
+      return { deleted: name };
+    },
     // o: { scenario | scen, chars, seed, frames, cfg, inputs (macro text for P1, who becomes human), events } → { replay, summary }
     simulate(o) {
       const base = o.scen ? scenFrom(o.scen) : SCENARIOS[o.scenario] || fail(`no scenario "${o.scenario}" (list_scenarios)`);
@@ -204,6 +261,71 @@ function inside() {
     },
     saveProfile: () => ({ format: 'stick2.everything', chars: MCP.defs, current: CURRENT,
       cfg: Object.fromEntries(Object.entries(changed()).filter(([k]) => !DISPLAY.includes(k))), scenarios: myStore }),
+    // sounds, looks and tracks live in their own storage (stick2.sounds / .looks / .tracks), in the app too: an "everything"
+    // profile (above) never carried them even before MCP, so there is nothing to add there for these three
+
+    // ---------- sounds: synthesized (noise + tone layers); built-ins are overridable, never deleted for good ----------
+    listSounds: () => Object.fromEntries(Object.entries(SOUNDS).map(([name, p]) => [name, { ...p, builtin: name in BASE_SOUNDS }])),
+    // a built-in name patches (and can be reverted with reset_sound); a new name creates one, starting from whoosh unless a full preset is given
+    saveSound(name, patch) {
+      const preset = merge(clone(SOUNDS[name] || BASE_SOUNDS.whoosh), patch);
+      checkSound(preset);
+      saveSound(name, preset);
+      return { name, preset, builtin: name in BASE_SOUNDS };
+    },
+    resetSound(name) {
+      if (!(name in SOUNDS)) fail(`no sound "${name}" (list_sounds)`);
+      const builtin = name in BASE_SOUNDS;
+      resetSound(name);
+      return builtin ? { reverted: name } : { deleted: name };
+    },
+    renameSound(from, to) {
+      if (!(from in SOUNDS) || from in BASE_SOUNDS) fail(`"${from}" is not a custom sound (list_sounds; built-ins can't be renamed)`);
+      if (to in SOUNDS) fail(`"${to}" is already a sound`);
+      renameSound(from, to);
+      return { name: to };
+    },
+
+    // ---------- fx looks: built-ins are hand-coded and read-only; a custom one is a generic particle preset ----------
+    listLooks: () => Object.fromEntries(Object.keys(FX_LOOKS).map(name => [name, name in myLooks ? { ...myLooks[name], builtin: false } : { builtin: true }])),
+    saveLook(name, patch) {
+      if (name in FX_LOOKS && !(name in myLooks)) fail(`"${name}" is a built-in, hand-coded look (not data-driven): pick another name for a custom one`);
+      const preset = merge(clone(myLooks[name] || { count: 6, life: 0.5, speed: 60, spread: 40, angle: -90, gravity: 200, size0: 3, size1: 0, shape: 'dot', col: 'white' }), patch);
+      checkLook(preset);
+      saveLook(name, preset);
+      return { name, preset };
+    },
+    deleteLook(name) {
+      if (!(name in myLooks)) fail(`no custom look "${name}" to delete (list_looks; built-ins can't be)`);
+      deleteLook(name);
+      return { deleted: name };
+    },
+    renameLook(from, to) {
+      if (!(from in myLooks)) fail(`"${from}" is not a custom look (list_looks; built-ins can't be renamed)`);
+      if (to in FX_LOOKS) fail(`"${to}" is already a look`);
+      renameLook(from, to);
+      return { name: to };
+    },
+
+    // ---------- tracker: a step sequencer built from the sounds above; playback itself makes no sense over MCP (no speaker) ----------
+    listTracks: () => myTracks,
+    saveTrack(name, patch) {
+      const t = merge(clone(myTracks[name] || { bpm: 120, steps: 16, rows: [] }), patch);
+      checkTrack(t);
+      saveTrack(name, t);
+      return { name, ...t };
+    },
+    deleteTrack(name) {
+      if (!myTracks[name]) fail(`no track "${name}" to delete (list_tracks)`);
+      deleteTrack(name);
+      return { deleted: name };
+    },
+    renameTrack(from, to) {
+      if (!myTracks[from]) fail(`no track "${from}" (list_tracks)`);
+      if (myTracks[to]) fail(`"${to}" is already a track`);
+      renameTrack(from, to);
+      return { name: to };
+    },
 
     // ---------- drawing without a browser: frames of a replay as SVG text (svg = tools/svg.js) ----------
     renderSvg(r, frames, w, h, opts, svg) {

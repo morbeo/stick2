@@ -104,10 +104,69 @@ test('run_checks: a move against every target state', async () => {
 test('resources: the docs and the schemas', async () => {
   const { resources } = (await s.rpc('resources/list')).result;
   assert.ok(resources.some(r => r.uri === 'stick2://docs/README.md') && resources.some(r => r.uri === 'stick2://schema/character'));
+  assert.ok(['sound', 'look', 'track'].every(k => resources.some(r => r.uri === `stick2://schema/${k}`)));
   const doc = (await s.rpc('resources/read', { uri: 'stick2://docs/README.md' })).result.contents[0];
   assert.ok(doc.text.startsWith('# stick2 docs'));
   assert.ok(JSON.parse((await s.rpc('resources/read', { uri: 'stick2://schema/settings' })).result.contents[0].text).length > 100);
+  assert.ok(JSON.parse((await s.rpc('resources/read', { uri: 'stick2://schema/track' })).result.contents[0].text).fields.rows);
   assert.ok((await s.rpc('resources/read', { uri: 'stick2://docs/../package.json' })).error);
+});
+
+test('scenarios: create a reusable one (checked by building a fight), edit it, simulate it, delete it; built-ins can\'t be deleted', async () => {
+  const before = (await s.call('list_scenarios')).json.length;
+  const bad = await s.call('create_scenario', { scen: { a: 'ai', b: 'dummy', chars: ['nope'] }, name: 'bad' });
+  assert.ok(bad.isError && /no character/.test(bad.content[0].text), bad.content[0].text);
+  const made = (await s.call('create_scenario', { scen: { a: 'ai', b: 'dummy', ax: 300, bx: 500, chars: ['stick'] }, name: 'my fight' })).json;
+  assert.equal(made.name, 'my fight');
+  assert.equal((await s.call('list_scenarios')).json.length, before + 1);
+  const edited = (await s.call('edit_scenario', { name: 'my fight', patch: { period: 5 } })).json;
+  assert.equal(edited.period, 5);
+  const sim = (await s.call('simulate', { scenario: 'my fight', frames: 30 })).json;
+  assert.ok(sim.outcome);
+  assert.equal((await s.call('delete_scenario', { name: 'my fight' })).json.deleted, 'my fight');
+  assert.equal((await s.call('list_scenarios')).json.length, before);
+  assert.ok((await s.call('delete_scenario', { name: 'duel' })).isError);
+});
+
+test('sounds: list the built-ins, tune one with a merge patch, revert it; a brand new one, renamed, then reset deletes it for good', async () => {
+  const sounds = (await s.call('list_sounds')).json;
+  assert.ok(sounds.whoosh.builtin && sounds.whoosh.dur > 0);
+  const tuned = (await s.call('save_sound', { name: 'whoosh', patch: { ngain: 0.9 } })).json;
+  assert.equal(tuned.preset.ngain, 0.9);
+  assert.equal((await s.call('list_sounds')).json.whoosh.ngain, 0.9);
+  await s.call('reset_sound', { name: 'whoosh' });
+  assert.notEqual((await s.call('list_sounds')).json.whoosh.ngain, 0.9);
+  const bad = await s.call('save_sound', { name: 'mine', patch: { noise: 'nope', dur: 0.2 } });
+  assert.ok(bad.isError && /noise/.test(bad.content[0].text), bad.content[0].text);
+  const made = (await s.call('save_sound', { name: 'mine', patch: { tone: 'square', dur: 0.2 } })).json;
+  assert.equal(made.preset.tone, 'square');
+  await s.call('rename_sound', { from: 'mine', to: 'mine2' });
+  const after = (await s.call('list_sounds')).json;
+  assert.ok(!after.mine && after.mine2);
+  assert.equal((await s.call('reset_sound', { name: 'mine2' })).json.deleted, 'mine2');
+});
+
+test('looks: built-ins are read-only hand-coded data; a custom one is tunable, renamed, then deleted', async () => {
+  const looks = (await s.call('list_looks')).json;
+  assert.ok(looks.fire.builtin === true && !looks.fire.shape);
+  assert.ok((await s.call('save_look', { name: 'fire', patch: { shape: 'ring' } })).isError);
+  const made = (await s.call('save_look', { name: 'mylook', patch: { shape: 'ring', col: 'cyan' } })).json;
+  assert.equal(made.preset.shape, 'ring');
+  await s.call('rename_look', { from: 'mylook', to: 'mylook2' });
+  const after = (await s.call('list_looks')).json;
+  assert.ok(!after.mylook && after.mylook2);
+  assert.equal((await s.call('delete_look', { name: 'mylook2' })).json.deleted, 'mylook2');
+});
+
+test('tracker: a track\'s rows must name a real sound and match its step count; a valid one round-trips, renamed, then deleted', async () => {
+  const bad = await s.call('save_track', { name: 'bad', patch: { bpm: 120, steps: 8, rows: [{ sound: 'nope', cells: [true] }] } });
+  assert.ok(bad.isError && /sound name/.test(bad.content[0].text), bad.content[0].text);
+  const made = (await s.call('save_track', { name: 'mytrack', patch: { bpm: 140, steps: 8, rows: [{ sound: 'hit', cells: [true, false, true, false, true, false, true, false] }] } })).json;
+  assert.equal(made.rows[0].cells.filter(Boolean).length, 4);
+  assert.equal((await s.call('list_tracks')).json.mytrack.bpm, 140);
+  await s.call('rename_track', { from: 'mytrack', to: 'mytrack2' });
+  assert.ok((await s.call('list_tracks')).json.mytrack2);
+  assert.equal((await s.call('delete_track', { name: 'mytrack2' })).json.deleted, 'mytrack2');
 });
 
 test('render_frame with the SVG renderer: the engine draws into SVG', async () => {

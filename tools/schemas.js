@@ -65,4 +65,34 @@ const scenario = {
     + "Macro text (parseMacro): comma-separated; numpad digits are directions relative to the opponent (2 down, 3 down-forward, 6 forward, 4 back, 8 up), "
     + "P / K / S / G the buttons, a number with a dot waits ('0.2, 2, 3, 6P'), 'hold up 0.2' holds, words pass through ('down+fwd+punch').",
 };
-module.exports = { character, scenario };
+
+const sound = {
+  about: 'A sound preset (src/sound.js): a noise layer and/or a tone layer, each swept over an attack and a decay. save_sound takes a merge patch of this shape; list_sounds shows the built-ins to start from.',
+  fields: {
+    noise: "bandpass | lowpass | highpass | none: the noise layer's filter (none: no noise layer)", nf0: 'noise filter start frequency (Hz)', nf1: 'noise filter end frequency (Hz), swept over dur',
+    ngain: 'noise layer volume 0-1', q: 'noise filter resonance (default 1): higher narrows and emphasises the band',
+    tone: "sine | square | sawtooth | triangle | none: the tone layer's oscillator (none: no tone layer)", tf0: 'tone start frequency (Hz)', tf1: 'tone end frequency (Hz), swept over dur',
+    tgain: 'tone layer volume 0-1', detune: 'tone pitch offset in cents (default 0; 100 = a semitone)',
+    attack: 'ramp-up time in seconds before the decay starts (default 0: an instant hard onset)', dur: 'total length in seconds (required on a brand new sound)',
+  },
+};
+
+const look = {
+  about: 'A custom fx look preset (src/fx.js drawCustom): one generic particle effect. Built-in looks (fire, aura…) are hand-coded drawing, not this shape. save_look takes a merge patch of this shape.',
+  fields: {
+    count: 'particles spawned per point, looping', life: 'one particle\'s lifetime in seconds before it loops', speed: 'launch speed (px/s)',
+    spread: 'random spread around the launch angle, in degrees', angle: 'launch angle in degrees (-90 = straight up, 0 = forward, along facing)',
+    gravity: 'downward acceleration (px/s²); negative floats upward', size0: 'size at birth', size1: 'size at the end of its life (0 = shrinks to nothing)',
+    shape: 'dot | line | ring', col: 'a default colour name (blue, cyan, red, orange, gold, purple, green, white, grey, dark); a move can still override it',
+    back: 'true: draws behind the body (like aura, smoke) instead of in front',
+  },
+};
+
+const track = {
+  about: 'A tracker track (src/tracker.js): a simple step sequencer built from your own sounds. save_track takes a merge patch of this shape. There is no play tool over MCP (no speaker on this end).',
+  fields: {
+    bpm: 'tempo, beats per minute (a step is a 16th note)', steps: '8, 16 or 32 steps in the loop',
+    rows: '[{ sound, cells }]: sound is a name from list_sounds; cells is one boolean per step (true: this row\'s sound plays on that step)',
+  },
+};
+module.exports = { character, scenario, sound, look, track };

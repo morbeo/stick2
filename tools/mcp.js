@@ -52,6 +52,12 @@ const TOOLS = {
 
   // ---------- fights ----------
   list_scenarios: { d: 'The scenarios: built-in and from a loaded profile. Each with its controllers (human / ai / dummy / script), period, characters and the settings it brings. The shape: stick2://schema/scenario.', run: () => S.call('listScenarios') },
+  create_scenario: { d: 'Save a new reusable "my scenario" (see stick2://schema/scenario; list_scenarios shows one to start from). Checked by building a fight from it: a broken one changes nothing. A taken name gets a number unless replace is true. It shows up in list_scenarios and simulate\'s scenario param right away.',
+    p: { scen: obj('the scenario (stick2://schema/scenario); controllers may be macro text'), name: str('name (default "scenario")'), replace: bool('replace a scenario of the same name (built-ins too, for this session)') }, req: ['scen'],
+    run: a => S.call('createScenario', a.scen, a.name, !!a.replace) },
+  edit_scenario: { d: 'Change a "my scenario" with a JSON merge patch of its definition (objects merge, null deletes a key, anything else replaces). Only scenarios you made or loaded can be edited, not built-ins. Checked the same way as create_scenario.',
+    p: { name: str('scenario name'), patch: obj('merge patch of the scenario') }, req: ['name', 'patch'], run: a => S.call('editScenario', a.name, a.patch) },
+  delete_scenario: { d: 'Remove a "my scenario" (built-ins can\'t be removed).', p: { name: str('scenario name') }, req: ['name'], run: a => S.call('deleteScenario', a.name) },
   simulate: { d: 'Run a fight headless and sum it up: outcome (ko, double ko, period, time) and winner, K.O. frame and time, each fighter\'s end state, stats per fighter (damage dealt, hits, blocks, parries, throws, best combo), the events (filterable), the end state hash (the same seed and inputs always give the same hash). The fight is kept under an id for replay_export, render_frame and render_gif. Fights are deterministic: seed picks the AI\'s choices.',
     p: { scenario: str('a scenario name (list_scenarios)'), scen: obj('a scenario as JSON instead (stick2://schema/scenario); controllers may be macro text'), name: str('a name for a JSON scenario'),
       chars: arr('character names per fighter slot, the last fills the rest (default: the scenario\'s, else stick)', { type: 'string' }), seed: int('random seed (default 1)'),
@@ -95,6 +101,25 @@ const TOOLS = {
       return image(g.first, { path: g.path, frames: g.frames, bytes: g.bytes });
     } },
 
+  // ---------- sounds, looks, tracker: cosmetic only (never read by the simulation); no play/render tool, there is no speaker on this end ----------
+  list_sounds: { d: 'Every sound (synthesized, no files): the 4 built-ins and any custom ones, with their full preset (noise/tone layers, gain, resonance, detune, attack, duration). The shape: a save_sound preset.', run: () => S.call('listSounds') },
+  save_sound: { d: 'Create or tune a sound with a JSON merge patch over its current preset (a built-in\'s shipped values, an existing custom one, or whoosh\'s shape for a brand new name). Fields: noise (bandpass|lowpass|highpass|none), nf0, nf1 (Hz), ngain (0-1), q (resonance, default 1), tone (sine|square|sawtooth|triangle|none), tf0, tf1 (Hz), tgain (0-1), detune (cents, default 0), attack (s, default 0), dur (s, required on a brand new sound). Checked field by field; a bad one changes nothing. Appears anywhere a sound is picked (a move\'s key events, a track\'s rows).',
+    p: { name: str('sound name (a built-in\'s name tunes an override of it)'), patch: obj('merge patch of the preset') }, req: ['name', 'patch'], run: a => S.call('saveSound', a.name, a.patch) },
+  reset_sound: { d: 'A built-in: back to its shipped values. A custom one: deleted entirely.', p: { name: str('sound name') }, req: ['name'], run: a => S.call('resetSound', a.name) },
+  rename_sound: { d: 'Rename a custom sound (built-ins can\'t be renamed).', p: { from: str('current name'), to: str('new name') }, req: ['from', 'to'], run: a => S.call('renameSound', a.from, a.to) },
+
+  list_looks: { d: 'Every fx look: built-ins (fire, aura, lightning…) are hand-coded drawing, shown as { builtin: true } with no data; custom ones are a generic particle preset. The shape: a save_look preset.', run: () => S.call('listLooks') },
+  save_look: { d: 'Create or tune a custom look with a JSON merge patch (a simple rising-dots default for a brand new name; built-ins can\'t be patched, pick a new name instead). Fields: count, life (s), speed (px/s), spread (deg), angle (deg, -90 = up), gravity (px/s²), size0, size1 (start/end size), shape (dot|line|ring), col (a colour name, e.g. cyan, gold; default white), back (true: draws behind the body, like aura). Checked field by field. Appears anywhere a look is picked (a move or key\'s fx).',
+    p: { name: str('look name'), patch: obj('merge patch of the preset') }, req: ['name', 'patch'], run: a => S.call('saveLook', a.name, a.patch) },
+  delete_look: { d: 'Remove a custom look (built-ins can\'t be).', p: { name: str('look name') }, req: ['name'], run: a => S.call('deleteLook', a.name) },
+  rename_look: { d: 'Rename a custom look (built-ins can\'t be renamed).', p: { from: str('current name'), to: str('new name') }, req: ['from', 'to'], run: a => S.call('renameLook', a.from, a.to) },
+
+  list_tracks: { d: 'Every tracker track: tempo, step count and rows (each a sound name and its on/off beats). The shape: a save_track preset.', run: () => S.call('listTracks') },
+  save_track: { d: 'Create or edit a track with a JSON merge patch (a bare 16-step, no-rows track for a brand new name). Fields: bpm (> 0), steps (8, 16 or 32 — changing it resizes every row\'s cells, keeping what fits), rows ([{ sound: a name from list_sounds, cells: one boolean per step }]). Checked field by field; a bad one changes nothing. There is no play tool: this is for building the pattern, not hearing it (no speaker over MCP).',
+    p: { name: str('track name'), patch: obj('merge patch: { bpm, steps, rows }') }, req: ['name', 'patch'], run: a => S.call('saveTrack', a.name, a.patch) },
+  delete_track: { d: 'Remove a tracker track entirely.', p: { name: str('track name') }, req: ['name'], run: a => S.call('deleteTrack', a.name) },
+  rename_track: { d: 'Rename a tracker track.', p: { from: str('current name'), to: str('new name') }, req: ['from', 'to'], run: a => S.call('renameTrack', a.from, a.to) },
+
   // ---------- the live bridge: the app open in a browser ----------
   start_bridge: { d: 'Serve the app over HTTP on 127.0.0.1 and wait for it to be opened: the page then takes commands from browser_state / browser_command (src/bridge.js). Same as starting with --serve PORT.',
     p: { port: int('port (default 0: a free one)') }, run: a => startBridge(a.port ?? 0) },
@@ -117,7 +142,10 @@ function resources() {
   return [...docs,
     { uri: 'stick2://schema/settings', name: 'settings schema', mimeType: 'application/json', description: 'Every setting: groups [title, about, keys] then { k, v (default), min, max, step | opts, tip }' },
     { uri: 'stick2://schema/character', name: 'character schema', mimeType: 'application/json', description: 'The shape of a character definition: bones, poses, moves, keys' },
-    { uri: 'stick2://schema/scenario', name: 'scenario schema', mimeType: 'application/json', description: 'The shape of a scenario and of script / macro steps' }];
+    { uri: 'stick2://schema/scenario', name: 'scenario schema', mimeType: 'application/json', description: 'The shape of a scenario and of script / macro steps' },
+    { uri: 'stick2://schema/sound', name: 'sound schema', mimeType: 'application/json', description: 'The shape of a sound preset (save_sound)' },
+    { uri: 'stick2://schema/look', name: 'look schema', mimeType: 'application/json', description: 'The shape of a custom fx look preset (save_look)' },
+    { uri: 'stick2://schema/track', name: 'track schema', mimeType: 'application/json', description: 'The shape of a tracker track (save_track)' }];
 }
 function readResource(uri) {
   const m = /^stick2:\/\/(docs|schema)\/(.+)$/.exec(uri), json = o => JSON.stringify(o, null, 2);

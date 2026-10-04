@@ -2,7 +2,7 @@
 
 [← docs index](README.md)
 
-`tools/mcp.js` runs stick2 as an [MCP](https://modelcontextprotocol.io) server, so an AI assistant can run fights, read and change settings and characters, check moves, play replays and look at frames. It speaks the stdio transport (JSON-RPC 2.0, one message per line) and has no dependencies.
+`tools/mcp.js` runs stick2 as an [MCP](https://modelcontextprotocol.io) server, so an AI assistant can run fights, read and change settings, characters, scenarios, sounds and fx looks, check moves, play replays and look at frames. It speaks the stdio transport (JSON-RPC 2.0, one message per line) and has no dependencies.
 
 ## Register it
 
@@ -30,12 +30,16 @@ Any other MCP client: run `node tools/mcp.js` (or `npm run mcp`) from the repo. 
 | `create_character`, `edit_character`, `edit_move` | add or change characters; checked by compiling them, so a broken one changes nothing. `edit_character` takes a JSON merge patch; bones can be patched by id |
 | `list_settings`, `get_settings`, `set_settings`, `reset_settings` | the settings by group, with defaults, ranges and tips; values are checked against their spec |
 | `list_scenarios` | built-in scenarios and those from a loaded profile |
+| `create_scenario`, `edit_scenario`, `delete_scenario` | save a reusable "my scenario" (checked by building a fight from it), change one with a merge patch, or remove it; built-ins can't be edited or deleted |
 | `simulate` | runs a fight headless: outcome, winner, K.O. time, stats, filtered events, the end hash. P1 can play a macro (`inputs`). The same seed gives the same fight |
 | `run_checks` | the move matrix of the tests view: each move against every target state, the failing cells and why. It stops at a time budget and lists the moves left |
 | `replay_export`, `replay_import` | a fight as a replay file, and a replay played back with a desync report |
 | `load_profile`, `save_profile` | the app's export files |
 | `render_frame` | a frame as a PNG (headless Chrome), or as SVG text without Chrome or with `renderer: "svg"` |
 | `render_gif` | a looping GIF of a stretch of a fight, written to `out/` (needs Chrome) |
+| `list_sounds`, `save_sound`, `reset_sound`, `rename_sound` | the synthesized sounds (noise + tone layers); tune one with a merge patch (built-ins included), revert or delete, rename a custom one |
+| `list_looks`, `save_look`, `delete_look`, `rename_look` | fx looks; built-ins are hand-coded and read-only, a custom one is a generic particle preset, tunable, deletable, renameable |
+| `list_tracks`, `save_track`, `delete_track`, `rename_track` | the tracker: a step sequencer built from the sounds above. No play tool — there's no speaker on the other end of an MCP call |
 | `start_bridge`, `browser_state`, `browser_command` | the live bridge, below |
 
 ## Resources
@@ -44,6 +48,7 @@ Any other MCP client: run `node tools/mcp.js` (or `npm run mcp`) from the repo. 
 - `stick2://schema/settings`: every setting, as in `src/core.js`.
 - `stick2://schema/character`: the shape of a character definition (bones, poses, moves, keys).
 - `stick2://schema/scenario`: the shape of a scenario, and of script and macro steps.
+- `stick2://schema/sound`, `/look`, `/track`: the shape of a sound, fx look and tracker track preset.
 
 ## Rendering
 
