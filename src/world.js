@@ -57,7 +57,7 @@ class World {
       { team: sp.team ?? i }));
     [this.a, this.b] = this.fighters;
     // weapons: one per fighter from the settings (on the floor in front, or in hand), plus the scenario's (items, aw / bw / more[].w = held)
-    this.items = []; this.shots = []; this.beams = [];
+    this.items = []; this.shots = []; this.beams = []; this.limbs = [];
     this.props = (s.props || []).map(p => ({ type: p.type, x: p.x, z: p.z || 0, hp: PROPS[p.type].hp, bendT: 0, bendDir: 0 }));
     const wt = this.cfg.weapon, pickW = () => wt === 'random' ? Object.keys(WEAPONS)[Math.floor(this.rand() * 7)] : wt;
     this.fighters.forEach((f, i) => {
@@ -144,6 +144,21 @@ class World {
         this.onHit(it.owner, o, hit, m, o.defend(it, m, null));
         it.live = false; it.vx *= -0.2; it.vy = -250; it.spin = 10;
         break;
+      }
+    }
+  }
+  updateLimbs(h) {
+    const cfg = this.cfg;
+    for (const limb of this.limbs) {
+      limb.vy += cfg.gravity * h;
+      limb.x += limb.vx * h;
+      limb.y += limb.vy * h;
+      limb.t += h;
+      if (limb.x < 20 || limb.x > W - 20) { limb.x = clamp(limb.x, 20, W - 20); limb.vx *= -0.4; }
+      if (limb.y >= this.groundY - 2) {
+        limb.y = this.groundY - 2;
+        if (limb.vy < 150) { limb.vx = limb.vy = 0; } // settle
+        else { limb.vy *= -0.3; limb.vx *= 0.5; this.dust(limb.x, this.groundY, 0.3, limb.z || 0); }
       }
     }
   }
@@ -260,6 +275,19 @@ class World {
       ctx.restore();
     }
   }
+  drawLimbs(ctx) {
+    for (const limb of this.limbs) {
+      ctx.save();
+      ctx.translate(0, (limb.z || 0) * ZS);
+      ctx.strokeStyle = limb.col || '#222';
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      for (const seg of limb.segs) {
+        const [x1, y1, x2, y2, thick] = seg;
+        ctx.lineWidth = thick; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
   foes(f) { return this.fighters.filter(o => o.team !== f.team && !o.ko); }
   nearestFoe(f) {
     let best = null;
@@ -328,7 +356,7 @@ class World {
     for (const k of Object.keys(s)) this[k] = cloneState(s[k], memo);
   }
   stateHash() {
-    return hashNums([this.rand.seed, this.hits, this.blocks, this.clashes, this.simT, ...this.items.flatMap(it => [it.x, it.y]), ...this.props.flatMap(p => [p.hp ?? 0, p.bendT]), ...this.shots.flatMap(s => [s.x, s.t]),
+    return hashNums([this.rand.seed, this.hits, this.blocks, this.clashes, this.simT, ...this.items.flatMap(it => [it.x, it.y]), ...this.limbs.flatMap(l => [l.x, l.y, l.t]), ...this.props.flatMap(p => [p.hp ?? 0, p.bendT]), ...this.shots.flatMap(s => [s.x, s.t]),
       ...this.beams.flatMap(b => [b.t, b.hit ? 1 : 0]), ...this.fighters.flatMap(f => [f.x, f.y, f.z, f.vx, f.vy, f.hp, f.dir, f.action?.i ?? -1, f.action?.t ?? 0])]);
   }
   // a running key macro (keys.js) presses its steps on top of the keys held
@@ -354,7 +382,7 @@ class World {
     this.zoom *= Math.exp(-h * 10);
     this.bank = Math.min(cfg.hitstopBudget, this.bank + h * cfg.hitstopBudget);
     if (this.frozen) this.frozenT += h;
-    this.updateParticles(h); this.updateItems(h); this.updateShots(h); this.updateBeams(h);
+    this.updateParticles(h); this.updateItems(h); this.updateLimbs(h); this.updateShots(h); this.updateBeams(h);
 
     const fs = this.fighters, tg = fs.map(f => this.nearestFoe(f));
     const ins = this.koT ? fs.map(() => NOIN) : this.ctl.map((c, i) => c === 'human' ? this.withMacro(inp, fs[i], tg[i], h) : c === 'human2' ? inp2 : !c || !tg[i] ? NOIN : c.input(fs[i], tg[i], h));
@@ -613,6 +641,7 @@ class World {
     for (const f of this.fighters.filter(f => !f.hidden).sort((a, b) => a.z - b.z)) // far ones first
       f.draw(ctx, f.freeze > 0 && f === this.victim ? Math.sin(T * 170) * cfg.hitShake : 0);
     this.drawItems(ctx);
+    this.drawLimbs(ctx);
     this.drawShots(ctx);
     this.drawBeams(ctx);
     this.drawParticles(ctx);

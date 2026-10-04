@@ -1171,3 +1171,44 @@ test('a bone chain can join more than one role (BONE.also): houndo\'s front legs
     return !bad; })()`);
   assert.ok(weapon, 'holding a weapon (weaponBones picks an arm chain, which a front leg still is) stays NaN-free');
 });
+
+test('dismemberment: a lethal slash severs the struck limb, spawns it as a falling object and hides the bone', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => {
+    // directly invoke a lethal slash hit: create a world, have one fighter hit another with slash, check limb spawning
+    const w = new World({ a: 'stick', b: 'stick', ax: 300, bx: 400, weapon: 'sword', weaponStart: 'held' }, { health: 1 }, 1);
+    w.loop = false;
+    const target = w.b.ch.by.farmF;
+    const m = { hit: 'weapon', weapon: 'slash', power: 100, damage: 200, stun: 0.4 };
+    w.b.hp = 100;
+    const limbsBefore = w.limbs.length;
+    const armHiddenBefore = target.hidden;
+    const chBefore = w.b.ch;
+    w.b.takeHit(w.a, m, { bone: target, pt: [400, 300] });
+    const limbsAfter = w.limbs.length, armHiddenAfter = w.b.ch.by.farmF.hidden;
+    const chChanged = w.b.ch !== chBefore;
+    return { limbsSpawned: limbsAfter - limbsBefore, bIsKO: w.b.ko, armHiddenBefore, armHiddenAfter, chChanged }; })())`));
+  assert.equal(r.limbsSpawned, 1, 'one severed limb spawned on lethal slash');
+  assert.ok(r.bIsKO, 'the defender is KO from lethal damage');
+  assert.equal(r.armHiddenBefore, undefined, 'the arm was not hidden before');
+  assert.ok(r.chChanged, 'the character was swapped to a new instance');
+  assert.ok(r.armHiddenAfter, 'the arm is hidden after dismemberment');
+});
+
+test('dismemberment only on lethal slash: non-lethal slash, blunt hits, and lethal non-slash do not sever', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => {
+    const w = new World({ a: { def: CHARS.stick.def, defs: CHARS.stick, binds: { Punch: ['3', 'J'], Kick: ['6', 'K'], Special: ['1', 'U'], Guard: ['4', 'L'] }, moves: { slash: { keys: [{d:10,active:true,hit:{bones:'uarmF'},weapon:'slash',power:1}] }, punch: { keys: [{d:10,active:true,hit:{bones:'uarmF'},power:9}] } } }, b: { def: CHARS.stick.def, defs: CHARS.stick, over: { health: 1 } }, ax: 300, bx: 500 }, {}, 2);
+    w.loop = false;
+    for (let i = 0; i < 20; i++) w.advance(1/60, { ...NOIN, right: true });
+    // non-lethal slash
+    for (let i = 0; i < 40; i++) w.advance(1/60, i === 10 ? { ...NOIN, punch: true } : NOIN);
+    const limbsAfterNonLethal = w.limbs.length, boneHiddenNonLethal = w.b.ch.by.farmF.hidden;
+    // lethal punch (not slash)
+    w.a.ko = false; w.b.ko = false; w.a.hp = 100; w.b.hp = 1;
+    w.a.x = 300;
+    for (let i = 0; i < 40; i++) w.advance(1/60, i === 10 ? { ...NOIN, punch: true } : NOIN);
+    const limbsAfterPunch = w.limbs.length;
+    return { limbsAfterNonLethal, boneHiddenNonLethal, limbsAfterPunch }; })())`));
+  assert.equal(r.limbsAfterNonLethal, 0, 'non-lethal slash does not spawn a severed limb');
+  assert.equal(r.boneHiddenNonLethal, undefined, 'the bone is not hidden after non-lethal slash');
+  assert.equal(r.limbsAfterPunch, 0, 'lethal punch does not spawn a severed limb (not a slash)');
+});

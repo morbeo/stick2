@@ -1061,6 +1061,23 @@ class Fighter {
     const combo = this.combo = (this.free ? 0 : this.combo) + 1, dmg = this.damageOf(m, combo) * ck, wasDizzy = this.dizzyT > 0;
     if (ck > 1) this.say('COUNTER');
     if (hurt && (this.hp -= dmg) <= 0) { this.hp = 0; this.ko = true; this.say('K.O.'); }
+    // dismemberment: a lethal slash severs the struck limb
+    if (this.ko && m.hit === 'weapon' && m.weapon === 'slash' && this.c('dismember') && hit.bone.role && ['arm', 'leg', 'tail', 'head'].includes(hit.bone.role)) {
+      const P = this.body();
+      const limb = collectLimbSegments(this.ch, hit.bone, P, this.col[0]);
+      limb.vx = att.dir * Math.abs(this.vx) * 0.6 + this.w.rand(-60, 60);
+      limb.vy = -Math.abs(this.vy) * 0.5 + this.w.rand(-80, -20);
+      this.w.limbs.push(limb);
+      // sever: hide the struck bone and everything below it
+      const severed = bodyDef(this.ch.def, { bones: { [hit.bone.id]: { hidden: true } } });
+      this.setChar(makeCharacter(severed), true);
+      // blood spray
+      for (let i = 0; i < 8; i++) {
+        const a = this.w.rand() * 6.283, sp = (80 + this.w.rand() * 120);
+        const life = 0.5 + this.w.rand() * 0.3;
+        this.w.parts.push({ t: 'spark', x: hit.pt[0], y: hit.pt[1], z: this.z, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, life, max: life, col: '#8a2d26' });
+      }
+    }
     this.dizzyT = 0; this.reelT = 0;
     this.stunM = wasDizzy ? 0 : this.stunM + dmg; // a hit wakes a dizzy fighter (and empties the meter)
     this.comboShown = combo; this.comboT = 1; this.comboPop = 1;

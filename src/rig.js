@@ -930,3 +930,14 @@ function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
     if (a < 1) ctx.restore();
   }
 }
+// collect all bones from rootBone down to leaves, with their world segments from pose P and character ch
+function collectLimbSegments(ch, rootBone, P, col) {
+  const walk = (b, out = []) => {
+    const o = P[b.parent || 'hip'], e = P[b.id];
+    const thick = b.thick || BONE.thick;
+    out.push([o[0], o[1], e[0], e[1], thick]);
+    for (const child of ch.bones.filter(x => x.parent === b.id)) walk(child, out);
+    return out;
+  };
+  return { segs: walk(rootBone), x: P[rootBone.id][0], y: P[rootBone.id][1], z: 0, col, t: 0 };
+}

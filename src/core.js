@@ -154,6 +154,7 @@ const SCHEMA = [
   { k: 'wallBounceSpeed', v: 500, min: 100, max: 1200, step: 20, tip: 'Speed (px/s) a fighter knocked into a wall by a wallbounce move (spin) bounces back out at, popped up, its juggle count reset for a follow-up.' },
   { k: 'ceiling', v: 0, min: 0, max: 1, step: 0.05, tip: 'A body knocked flying bounces off the top of the screen with this fraction of its speed. 0 = no ceiling: it flies out of view and falls back.' },
   { k: 'flail', v: 1, min: 0, max: 3, step: 0.1, tip: 'How much limbs flail while flying and on every bounce.' },
+  { k: 'dismember', v: true, tip: 'A lethal slash severs the limb it struck instead of a plain knockout fall.' },
   { k: 'falls', v: 'ragdoll', opts: ['ragdoll', 'pose'], tip: 'How a knocked-down body moves.',
     optTips: { ragdoll: 'Physics: the joints are masses joined by the bones, thrown by the blow (turning about where it landed), pulled by gravity, sliding and bouncing on the floor, held in shape by muscle tone and the joint limits.',
       pose: 'The fall pose on springs: the body stays upright in the air and lies down on landing.' } },
@@ -277,7 +278,7 @@ function makeRand(seed) {
 // ranges away), of the other sign than a range that never goes below zero, or not a number. Values are never limited, only flagged
 const riskOf = (v, min, max) => !Number.isFinite(v) ? 'danger' : min === undefined || v >= min && v <= max ? '' : min >= 0 && v < 0 || v < min - 10 * (max - min) || v > max + 10 * (max - min) ? 'danger' : 'warn';
 const RISK_TIPS = { warn: 'outside the usual range: it may look or play oddly', danger: 'far outside the usual range: the fight may become unstable (bodies flying off, jitter)' };
-const ENGINE_VERSION = 38;
+const ENGINE_VERSION = 39;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied

@@ -10,10 +10,11 @@ const FX_LOOKS = {
   smoke: 'Smoke: puffs rising and spreading from the bones (a vanish, a smouldering fist)',
   spikyAura: 'Spiky aura: a pulsing glow bristling with jagged spikes (a feral power-up, a dark aura)',
   bubbles: 'Bubbles: rising bubbles with a highlight, popping near the top (underwater, a toxic brew)',
-  sparks: 'Sparks: a shower of bright streaks flying out and falling (grinding metal, a shower of impact sparks)' };
+  sparks: 'Sparks: a shower of bright streaks flying out and falling (grinding metal, a shower of impact sparks)',
+  blood: 'Blood: a spray of droplets falling with gravity (a lethal slash)' };
 const FX_ON = { strike: 'The striking limbs (the move\'s hit bones, the whole limb)', body: 'The whole body', arm: 'The arms', leg: 'The legs', head: 'The head', tail: 'The tails', weapon: 'The weapon' };
 const FX_COLS = { blue: '60,140,240', cyan: '0,175,255', red: '220,50,35', orange: '240,110,30', gold: '230,170,30', purple: '160,80,220', green: '60,200,90', white: '235,235,240', grey: '130,125,120', dark: '45,35,55' };
-const FX_AUTO = { aura: 'blue', fire: 'orange', lightning: 'cyan', smoke: 'grey', spikyAura: 'purple', bubbles: 'cyan', sparks: 'gold' };
+const FX_AUTO = { aura: 'blue', fire: 'orange', lightning: 'cyan', smoke: 'grey', spikyAura: 'purple', bubbles: 'cyan', sparks: 'gold', blood: 'red' };
 const FX_BACK = new Set(['aura', 'smoke', 'spikyAura']); // these draw behind the body; the rest (fire, lightning, bubbles, sparks) in front
 const FX_MAX = 4, fxList = e => !e ? [] : [].concat(e).filter(Boolean).slice(0, FX_MAX);
 const fxRnd = (a, b) => { const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return x - Math.floor(x); };
