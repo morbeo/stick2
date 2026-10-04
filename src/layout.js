@@ -65,6 +65,7 @@ const SHOW = {
   ghost: () => cfgShow(':visibility:', 'ghost'),
   colours: () => colorsToggle(),
   hud: () => cfgShow(':heart_broken:', 'hud'),
+  hudNames: () => cfgShow(':face:', 'hudNames'),
   labels: () => cfgShow(':sort_by_alpha:', 'labels'),
   timer: () => cfgShow(':timer:', 'timer'),
 };

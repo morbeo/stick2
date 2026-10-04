@@ -15,10 +15,12 @@ const EVENTS = { type: ['object', 'boolean'], description: 'Which events to list
   properties: { types: arr('event types or kinds', { type: 'string' }), who: int('fighter id'), from: int('first frame'), to: int('last frame'), limit: int('at most this many (default 40)') } };
 const SIZE = { w: int('width px (default 640, at most 1600)'), h: int('height px (default 360, at most 900)') };
 const LOOK = { full: bool('the whole arena (default false: the camera follows the fighters, as in play)'), hud: bool('health bars, callouts and hit counters (default true)'),
-  boxes: bool('hurtboxes and active hitboxes'), zoom: num('camera zoom on the arena (1 = whole arena width; 2 = twice as close), with x'), x: num('world x the zoomed camera looks at (the stage is 800 wide)') };
+  boxes: bool('hurtboxes and active hitboxes'), zoom: num('camera zoom on the arena (1 = whole arena width; 2 = twice as close), with x'), x: num('world x the zoomed camera looks at (the stage is 800 wide)'),
+  hudPos: { type: 'string', enum: ['body', 'top'], description: 'Where health/stun bars draw (default: the hudPos setting): over each fighter\'s head, or together at the top of the screen' },
+  hudNames: bool('with hudPos top: each fighter\'s character name under their health bar (default: the hudNames setting)') };
 const replayOf = a => a.replay ? (typeof a.replay === 'string' ? JSON.parse(a.replay) : a.replay) : a.simulation ? S.sim(a.simulation).replay : (() => { throw new Error('give a simulation id (from simulate or replay_import) or a replay'); })();
 const size = a => ({ w: Math.max(16, Math.min(1600, a.w ?? 640)), h: Math.max(16, Math.min(900, a.h ?? 360)) });
-const look = a => Object.fromEntries(['full', 'hud', 'boxes', 'zoom', 'x', 'renderer'].filter(k => a[k] !== undefined).map(k => [k, a[k]]));
+const look = a => Object.fromEntries(['full', 'hud', 'boxes', 'zoom', 'x', 'renderer', 'hudPos', 'hudNames'].filter(k => a[k] !== undefined).map(k => [k, a[k]]));
 const image = (png, extra) => ({ content: [{ type: 'image', data: png, mimeType: 'image/png' }, ...extra ? [{ type: 'text', text: JSON.stringify(extra, null, 2) }] : []] });
 let bridge = null;
 const startBridge = async port => {
