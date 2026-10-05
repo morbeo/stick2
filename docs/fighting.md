@@ -415,6 +415,7 @@ Dagger, sword, axe, bat, nunchucks (the outer stick flails on a loose joint), wa
 - pickUp and weaponThrow are weapon moves edited in animate. Unmarked grip / release means the first key.
 - A knockdown, or a blow of at least **disarm** power, knocks the weapon loose.
 - A severed limb (**dismember**, below), once it settles on the floor, is pickable and throwable the same way.
+- A **moveable** prop (see [Modes: play](modes.md#play)) can be grabbed with the same P+G and thrown the same way — it carries no weapon moves, just a throw. A **breakable** one, destroyed, leaves debris behind: a weapon of opportunity from the wreckage, pickable and throwable too.
 
 | Picking up a sword, then slashing |
 | --- |

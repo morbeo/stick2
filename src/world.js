@@ -30,9 +30,12 @@ const CHECK = 60, KEEP = ['log', 'checkpoints', 'sums', 'playback', 'desync', 'r
 
 // a flying weapon's hit segment [end, end, radius]: its whole drawn length, the part behind the grip too (a staff is held along it)
 function itemSeg(it, r = 0) {
-  const w = WEAPONS[it.type], l = (w.len + (w.back || 0)) / 2, ux = Math.cos(it.rot) * l, uy = Math.sin(it.rot) * l;
+  const w = WEAPONS[it.type], l = it.kind === 'prop' ? PROPS[it.type].size : (w.len + (w.back || 0)) / 2, ux = Math.cos(it.rot) * l, uy = Math.sin(it.rot) * l;
   return [[it.x - ux, it.y - uy], [it.x + ux, it.y + uy], r];
 }
+// a thrown prop's one blow (see thrownMove, rig.js, for a weapon's): scaled by its own toughness if breakable, else
+// a flat modest hit (reed/spring, moveable but not breakable) — k: a charged throw's multiplier
+function thrownPropMove(type, k = 1) { const p = PROPS[type]; return { power: k, damage: Math.round((4 + (p.hp ?? 10) / 3) * k), knock: 150 * k, stun: 0.35, height: 'mid' }; }
 class World {
   // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, aTeam?, bTeam?, more?, period?, init?, chars? } (see brain.js)
   // aTeam/bTeam: a and b's own team (default 0 and 1); same team = allies, as for more's own team
@@ -118,6 +121,12 @@ class World {
     for (const limb of this.limbs) if (limb.vx === 0 && limb.vy === 0 && Math.abs(limb.x - f.x) < 40 && Math.abs((limb.z || 0) - f.z) < 20 && (!best || Math.abs(limb.x - f.x) < Math.abs(best.x - f.x))) best = limb;
     return best;
   }
+  // a standing moveable prop a fighter is next to, to grab and throw (Fighter.weaponGrab)
+  propNear(f) {
+    let best = null;
+    for (const p of this.props) if (PROPS[p.type].moveable && !p.taker && Math.abs(p.x - f.x) < 40 && Math.abs(p.z - f.z) < 20 && (!best || Math.abs(p.x - f.x) < Math.abs(best.x - f.x))) best = p;
+    return best;
+  }
   updateItems(h) {
     const cfg = this.cfg;
     for (const it of this.items) if (!it.rest) {
@@ -143,7 +152,7 @@ class World {
       for (const o of this.foes(it.owner)) if (Math.abs(o.z - it.z) <= cfg.zReach) {
         const hit = o.hurtAt(seg, false, false);
         if (!hit) continue;
-        const m = thrownMove(it.type, it.power);
+        const m = it.kind === 'prop' ? thrownPropMove(it.type, it.power) : thrownMove(it.type, it.power);
         this.onHit(it.owner, o, hit, m, o.defend(it, m, null));
         it.live = false; it.vx *= -0.2; it.vy = -250; it.spin = 10;
         break;
@@ -192,12 +201,20 @@ class World {
         (it.hitProps ??= new Set()).add(p);
         const dir = Math.sign(it.vx) || 1;
         let sparked = false;
-        if (t.breakable) { p.hp -= thrownMove(it.type, it.power).damage; this.spark('blunt', mid, p.z, dir); sparked = true; }
+        if (t.breakable) { p.hp -= (it.kind === 'prop' ? thrownPropMove(it.type, it.power) : thrownMove(it.type, it.power)).damage; this.spark('blunt', mid, p.z, dir); sparked = true; }
         if (t.moveable) { it.vx *= -0.6; it.vy = Math.min(it.vy, -200); if (!sparked) this.spark('blunt', mid, p.z, dir); }
       }
     }
+    // destroyed: dust, and debris left lying where it stood — pickable and throwable like any other floor item
+    // (Fighter.weaponGrab/letGoProp), a weapon of opportunity from the wreckage
     const gone = this.props.filter(p => PROPS[p.type].breakable && p.hp <= 0);
-    if (gone.length) { for (const p of gone) this.dust(p.x, this.groundY, 1.5, p.z); this.props = this.props.filter(p => !gone.includes(p)); }
+    if (gone.length) {
+      for (const p of gone) {
+        this.dust(p.x, this.groundY, 1.5, p.z);
+        this.items.push({ type: p.type, kind: 'prop', x: p.x, y: this.groundY - 2, z: p.z, rot: 0, vx: 0, vy: 0, spin: 0, live: false, rest: true });
+      }
+      this.props = this.props.filter(p => !gone.includes(p));
+    }
   }
   // toXY: a prop's local (x, y) is pixels from its own ground anchor (p.x, groundY), y negative = up; vars.sway:
   // the live -1..1 lean (bendDir × how far into its 0.08s decay), a swaying primitive's own `sway` field is its
@@ -277,11 +294,17 @@ class World {
   }
   drawItems(ctx) {
     for (const it of this.items) {
-      const w = WEAPONS[it.type], half = (w.len - (w.back || 0)) / 2, c = Math.cos(it.rot), s = Math.sin(it.rot);
       const lie = it.rest ? -2 : 0; // lying: its thickness above the floor line
       ctx.save(); ctx.translate(0, it.z * ZS + lie);
-      drawWeapon(ctx, { type: it.type, back: w.back || 0 }, [it.x - c * half, it.y - s * half], [it.x + c * (w.len - half), it.y + s * (w.len - half)], null);
-      if (this.cfg.boxes && it.live) { // a flying weapon's hitbox
+      if (it.kind === 'prop') { // no grip-to-tip axis: just spin its own shapes around where it's lying/flying
+        ctx.save(); ctx.translate(it.x, it.y); ctx.rotate(it.rot);
+        drawShapes(ctx, PROPS[it.type].shapes, (x, y) => [x, y], c => c || '#888', { sway: 0 });
+        ctx.restore();
+      } else {
+        const w = WEAPONS[it.type], half = (w.len - (w.back || 0)) / 2, c = Math.cos(it.rot), s = Math.sin(it.rot);
+        drawWeapon(ctx, { type: it.type, back: w.back || 0 }, [it.x - c * half, it.y - s * half], [it.x + c * (w.len - half), it.y + s * (w.len - half)], null);
+      }
+      if (this.cfg.boxes && it.live) { // a flying item's hitbox
         const [p, q] = itemSeg(it);
         ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = this.cfg.hitR * 2 + 7; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();

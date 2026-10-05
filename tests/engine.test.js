@@ -1156,6 +1156,23 @@ test('props (PROPS, scen.props): a crate breaks after enough hits, a reed only b
     return { bent, droppedHp, destroyed: w.props.length === 0 }; })()`);
   assert.ok(both.bent, 'moveable still sways even when the prop is also breakable');
   assert.ok(both.droppedHp && both.destroyed, 'breakable still takes damage and breaks even when the prop is also moveable');
+
+  // moveable: picked up and thrown (Fighter.weaponGrab/letGoProp) the same way a weapon is, as a floor item (kind: 'prop')
+  const thrown = json(`(() => { const w = new World({ a: [{ hold: 'fwd', t: 0.25 }, 0.1, 'punch+guard', 1.0, 'punch+guard'], b: 'dummy', ax: 290, bx: 420, props: [{ type: 'reed', x: 335 }], period: 5 }, {}, 7, [CHARS.stick, CHARS.stick]);
+    w.loop = false; let held = false;
+    for (let i = 0; i < 240; i++) { w.advance(1 / 60, NOIN); if (w.a.heldProp) held = true; }
+    return { held, propsLeft: w.props.length, items: w.items.map(it => ({ type: it.type, kind: it.kind })) }; })()`);
+  assert.ok(thrown.held, 'the reed was picked up ' + JSON.stringify(thrown));
+  assert.equal(thrown.propsLeft, 0, 'removed from the standing props once grabbed');
+  assert.ok(thrown.items.some(it => it.kind === 'prop' && it.type === 'reed'), 'thrown as a prop item ' + JSON.stringify(thrown.items));
+
+  // breakable: destroyed, it leaves debris behind — a pickable, throwable item, a weapon of opportunity from the wreckage
+  const debris = run(`(() => { const w = new World({ a: 'human', b: 'dummy', ax: 330, bx: 500, props: [{ type: 'crate', x: 372 }] }, {}, 7);
+    w.loop = false;
+    for (let i = 0; i < 150 && w.props.length; i++) w.advance(1 / 60, { ...NOIN, punch: i % 15 === 2 });
+    return { destroyed: w.props.length === 0, debris: w.items.some(it => it.kind === 'prop' && it.type === 'crate' && it.rest) }; })()`);
+  assert.ok(debris.destroyed, 'the crate breaks');
+  assert.ok(debris.debris, 'debris is left lying where it stood, pickable like a weapon');
 });
 
 test('samplePose (movement layers: dash/backDash/airDash/wallJump/run) never NaNs a character with bones the layer\'s ref doesn\'t know about', () => {

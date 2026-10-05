@@ -336,25 +336,49 @@ class Fighter {
     w.items.push(it);
     this.setChar(this.ch0);
   }
-  // P+G free on the ground: throw the held weapon (weaponThrow: it leaves the hand at the key marked release), or reach for the one
-  // at the feet (pickUp: the hand closes on its handle at the key marked grip); false = nothing to do, a grab instead
+  // the held prop leaves the hand the same way a weapon does, flying as a floor item (kind: 'prop' draws it from its
+  // own shapes and hits for its own, not a weapon's, damage); there's no held-prop bone to throw from, so it leaves
+  // from roughly where a hand would be instead of weaponAt()'s exact grip
+  letGoProp(live, charge = 0) {
+    const w = this.w, type = this.heldProp, it = { type, kind: 'prop', x: this.x + this.dir * 16, y: this.groundY + this.y - 55, z: this.z, rot: 0, owner: this, live, spin: 0, t: 0 };
+    const k = 1 + Math.min(1, charge / (this.c('throwChargeT') || 1)) * (this.c('throwCharge') - 1);
+    if (live) Object.assign(it, { x: it.x + this.dir * 10, vx: this.dir * this.c('throwSpeed') * k, vy: -60, spin: this.dir * 10 * k, rot: this.dir > 0 ? 0 : Math.PI, power: k });
+    else Object.assign(it, { vx: -this.dir * 120 + w.rand(-60, 60), vy: -320, spin: w.rand(-12, 12) });
+    if (live && k > 1 && k >= this.c('throwCharge')) this.say('POWER');
+    w.items.push(it);
+    this.heldProp = null;
+  }
+  // P+G free on the ground: throw whatever is held (a weapon: weaponThrow leaves the hand at the key marked release;
+  // a prop: the same move, letGoProp instead of letGo), or reach for a weapon/prop item at the feet (pickUp: the
+  // hand closes at the key marked grip) or a moveable prop standing nearby; false = nothing to do, a grab instead
   weaponGrab() {
     if (this.ch.weapon) { this.start(this.ch.moves.weaponThrow || WEAPON_MOVES.weaponThrow); this.action.toss = true; return true; }
+    if (this.heldProp) { this.start(this.ch.moves.weaponThrow || WEAPON_MOVES.weaponThrow); this.action.toss = true; this.action.propToss = true; return true; }
     const it = this.w.itemNear(this);
-    if (!it) return false;
-    it.taker = this; this.taking = it;
+    if (it) { it.taker = this; this.taking = it; this.start(this.ch0.moves.pickUp || WEAPON_MOVES.pickUp); this.action.pick = true; return true; }
+    const p = this.w.propNear(this);
+    if (!p) return false;
+    p.taker = this; this.takingProp = p;
     this.start(this.ch0.moves.pickUp || WEAPON_MOVES.pickUp); this.action.pick = true;
     return true;
   }
-  // a key of the running move reached its pose (wield and letGo change the character, the move goes on)
+  // a key of the running move reached its pose (wield, letGo(Prop) and holding a prop change the character/state, the move goes on)
   keyReached(k) {
-    const a = this.action, first = k === a.m.keys[0];
-    if (this.taking && a.pick && (k.grip || first && !a.m.keys.some(x => x.grip))) {
+    const a = this.action, first = k === a.m.keys[0], grip = k.grip || first && !a.m.keys.some(x => x.grip);
+    if (this.taking && a.pick && grip) {
       const it = this.taking; this.taking = null;
-      if (this.w.items.includes(it)) { this.w.items.splice(this.w.items.indexOf(it), 1); } // weapon item
+      if (this.w.items.includes(it)) { this.w.items.splice(this.w.items.indexOf(it), 1); } // weapon or prop item
       else { this.w.limbs.splice(this.w.limbs.indexOf(it), 1); } // severed limb
-      this.wield(it.type); this.action = a; this.say(it.type.toUpperCase());
-      for (const j of this.ch.ids) { a.from[j] ??= this.target[j]; for (const p of KEY_MULS) a.fromMul[p][j] ??= this.mul[p][j]; } // the weapon's bones join the tween where they are
+      if (it.kind === 'prop') { this.heldProp = it.type; this.action = a; this.say(it.type.toUpperCase()); }
+      else {
+        this.wield(it.type); this.action = a; this.say(it.type.toUpperCase());
+        for (const j of this.ch.ids) { a.from[j] ??= this.target[j]; for (const p of KEY_MULS) a.fromMul[p][j] ??= this.mul[p][j]; } // the weapon's bones join the tween where they are
+      }
+    }
+    if (this.takingProp && a.pick && grip) {
+      const p = this.takingProp; this.takingProp = null;
+      const i = this.w.props.indexOf(p); if (i >= 0) this.w.props.splice(i, 1); // gone already (destroyed meanwhile)? still fine to hold the type
+      this.heldProp = p.type; this.action = a; this.say(p.type.toUpperCase());
     }
     if (k.warp) this.warp();
     if (k.shoot) this.shoot(a);
@@ -362,6 +386,7 @@ class Fighter {
     if (k.shake) this.w.trauma = Math.min(1, this.w.trauma + k.shake); // key events: screen shake, a sound
     if (k.sound) this.w.sound(k.sound, this.x);
     if (this.ch.weapon && a.toss && (k.release || first && !a.m.keys.some(x => x.release))) { this.letGo(true, a.charge); this.action = a; }
+    if (this.heldProp && a.toss && (k.release || first && !a.m.keys.some(x => x.release))) { this.letGoProp(true, a.charge); this.action = a; }
   }
   // a shoot key: the move's projectile leaves from between its striking limbs (one at a time per fighter; shots setting)
   shoot(a) {
@@ -386,7 +411,7 @@ class Fighter {
     const hand = this.body()[(this.ch.chains.arm.find(c => c[0].side === 'f') || this.ch.chains.arm[0])?.at(-1).id];
     if (!hand) return;
     const a = this.action, keys = a.m.keys, g = Math.max(0, keys.findIndex(k => k.grip)), left = keys.slice(a.i, g + 1).reduce((s, k) => s + k.d, -a.t);
-    const w = WEAPONS[it.type], half = (w.len - (w.back || 0)) / 2, rot = this.dir > 0 ? 0 : Math.PI, k = Math.min(1, dt / Math.max(dt, left)); // the rest of the way in the time left
+    const w = WEAPONS[it.type], half = it.kind === 'prop' ? PROPS[it.type].size : (w.len - (w.back || 0)) / 2, rot = this.dir > 0 ? 0 : Math.PI, k = Math.min(1, dt / Math.max(dt, left)); // the rest of the way in the time left
     if (it.rot !== undefined) { // weapon item (not a limb)
       it.rot += wrap180((rot - it.rot) / R) * R * k;
       it.x += (hand[0] + Math.cos(it.rot) * half - it.x) * k;
@@ -1070,6 +1095,7 @@ class Fighter {
     this.exitOn('hit');
     // disarm: a knockdown or a blow hard enough knocks the weapon loose
     if (this.ch.weapon && !this.rag && this.w.items && (m.kd || m.power * this.c('powerScale') >= this.c('disarm'))) { this.letGo(false); this.say('DISARM'); }
+    if (this.heldProp && !this.rag && this.w.items && (m.kd || m.power * this.c('powerScale') >= this.c('disarm'))) { this.letGoProp(false); this.say('DISARM'); }
     // counter hit: caught in the startup or active frames of its own attack
     const ck = own && a.m.power && a.i < a.m.cancel ? this.c('counterHit') : 1;
     const combo = this.combo = (this.free ? 0 : this.combo) + 1, dmg = this.damageOf(m, combo) * ck, wasDizzy = this.dizzyT > 0;
@@ -1200,6 +1226,11 @@ class Fighter {
     if (this.flashT > 0 && this.c('flash')) { drawFigure(ctx, this.ch, P, '#111', '#111', 4); drawFigure(ctx, this.ch, P, '#fff', '#fff'); }
     else if (this.dodgeT > 0) { ctx.globalAlpha = 0.4; drawFigure(ctx, this.ch, P, this.col[0], this.col[1]); ctx.globalAlpha = 1; } // air dodge: see-through
     else drawFigure(ctx, this.ch, P, this.col[0], this.col[1], 0, null, this.mul);
+    if (this.heldProp) { // no held-prop bone (props aren't rigged like a weapon): a small version of it over the head instead
+      ctx.save(); ctx.translate(this.x, this.groundY + this.y - 95);
+      drawShapes(ctx, PROPS[this.heldProp].shapes, (x, y) => [x * 0.4, y * 0.4], c => c || '#888', { sway: 0 });
+      ctx.restore();
+    }
     drawFx(ctx, P, fxs, this.time, false);
     if (this.c('boxes')) this.drawBoxes(ctx);
     const a = this.action;
