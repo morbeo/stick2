@@ -202,15 +202,26 @@ function importChar(clip) {
   });
 }
 // ---------- suggest a character for the roster: no server and no sign-in beyond the contributor's own GitHub account ----------
-// opens GitHub's own "new file" page, pre-filled; GitHub forks the repo for you and offers "Propose changes" there, which
-// opens a real PR. The JSON also goes to the clipboard first, since the showcase replay makes this easy to run into the
-// URL's own length limit (see CONTRIBUTING.md for what a maintainer does with a PR like this)
+// opens GitHub's own "new file" page; GitHub forks the repo for you and offers "Propose changes" there, which opens a
+// real PR. The JSON always goes to the clipboard, which is the real mechanism: a character alone is ~70 KB, a GitHub
+// URL this long is outright refused (not just truncated) well before that, and the showcase replay roughly doubles
+// it - so the URL only attempts its own value= prefill on the rare character small enough to actually fit; normally
+// (always, in practice) the box opens empty and pasting is the expected step, not a fallback for an edge case
+// (see CONTRIBUTING.md for what a maintainer does with a PR like this)
+const GITHUB_URL_SAFE_LEN = 6000;
 function suggestCharPR() {
   const payload = { character: DEFS[CURRENT], showcase: showcaseReplay() }, path = `contrib/characters/${CURRENT}.json`;
+  const json = JSON.stringify(payload, null, 1);
   copyData(payload);
-  const q = new URLSearchParams({ filename: path, value: JSON.stringify(payload, null, 1), message: CHAR_DEFS[CURRENT] ? `Suggest a change to ${CURRENT}` : `Suggest adding ${CURRENT} to the roster` });
-  window.open(`https://github.com/morbeo/stick2/new/master?${q}`, '_blank');
-  notice('Suggestion opened on GitHub', `A new tab opened on GitHub with ${CURRENT}'s JSON (and a showcase replay, bookmarked at each move) pre-filled at ${path} — paste it from your clipboard instead if the box looks empty or cut off, which it probably will: this is bigger than plain character JSON.\n\nSign in if it asks: GitHub forks stick2 for you automatically. Then scroll down, click "Propose new file", and "Create pull request".`);
+  const message = CHAR_DEFS[CURRENT] ? `Suggest a change to ${CURRENT}` : `Suggest adding ${CURRENT} to the roster`;
+  const full = `https://github.com/morbeo/stick2/new/master?${new URLSearchParams({ filename: path, value: json, message })}`;
+  const fits = full.length <= GITHUB_URL_SAFE_LEN;
+  const url = fits ? full : `https://github.com/morbeo/stick2/new/master?${new URLSearchParams({ filename: path, message })}`;
+  window.open(url, '_blank');
+  notice('Suggestion opened on GitHub', (fits
+    ? `A new tab opened on GitHub with ${CURRENT}'s JSON (and a showcase replay, bookmarked at each move) pre-filled at ${path} — paste it from your clipboard instead if the box looks empty or cut off.`
+    : `A new tab opened on GitHub at ${path}. The box is empty — paste (Ctrl/Cmd+V) to fill it in: it's already on your clipboard. That's the normal way this works, not an error: a character alone is bigger than a URL can reliably carry.`
+  ) + '\n\nSign in if it asks: GitHub forks stick2 for you automatically. Then scroll down, click "Propose new file", and "Create pull request".');
 }
 // ---------- files (the menu bar): export / import the character, the settings, or everything (edited characters, settings, my scenarios, keys), to a file or the clipboard ----------
 const FILE_TIPS = { character: 'The character being edited: skeleton, poses, moves, binds',
