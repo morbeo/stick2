@@ -1282,6 +1282,10 @@ const title = process.env.COVERAGE ? await require('./browser-coverage')(chrome,
 const docsDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
   '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'docs.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 const docsOk = /class="docspage"/.test(docsDom) && docsDom.includes('id="docs"');
-console.log(title, docsOk ? '· docs.html OK' : '· docs.html FAILED');
-process.exit(title === 'OK' && docsOk ? 0 : 1);
+// random.html opens the app on a random embedded fight, in theater mode
+const randomDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
+  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'random.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+const randomOk = /\btheater\b/.test(randomDom);
+console.log(title, docsOk ? '· docs.html OK' : '· docs.html FAILED', randomOk ? '· random.html OK' : '· random.html FAILED');
+process.exit(title === 'OK' && docsOk && randomOk ? 0 : 1);
 })();
