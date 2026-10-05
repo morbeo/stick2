@@ -30,7 +30,7 @@ const scenGridFields = () => [
 ];
 // a plain text card for collections with no live thumbnail (sounds, tracks): name, a badge line, click to open
 function simpleCard(name, badge, onClick, isOn) {
-  const b = h('button', { cls: 'card', onclick: onClick }, h('span', { textContent: name }), h('span', { cls: 'gfield', textContent: badge }));
+  const b = h('button', { cls: 'card', onclick: onClick }, h('span', { textContent: name }), h('span', { cls: 'gbadge', textContent: badge }));
   reg(b, () => b.classList.toggle('on', isOn()));
   return b;
 }
@@ -49,13 +49,15 @@ const GRID_COLLECTIONS = {
   tracks: { tip: 'Your tracker patterns', items: () => Object.keys(myTracks), fields: () => [],
     card: k => simpleCard(k, `${myTracks[k].bpm} bpm · ${myTracks[k].steps} steps`, () => { trackSel = k; setMode('tracker'); }, () => trackSel === k) },
 };
-// appends the collection's chosen fields as small text lines under a card's name (charCard/moveCard both end in one
-// name <span>; appending more afterward is safe since their own reg() only ever touches the canvas and the .on class)
+// overlays the collection's chosen fields inside the card's own bounds, one per corner (cycling if more than
+// 4 are picked), instead of stacking them below the name and growing the cell (charCard/moveCard both end in
+// one name <span>; appending more afterward is safe since their own reg() only ever touches the canvas and the .on class)
+const GFIELD_CORNERS = ['tl', 'tr', 'bl', 'br'];
 function gridCard(card, key, fields) {
-  for (const k of gridState.fields[gridState.collection] || []) {
+  (gridState.fields[gridState.collection] || []).forEach((k, i) => {
     const f = fields.find(x => x.k === k);
-    if (f) card.append(h('span', { cls: 'gfield', textContent: `${k}: ${f.get(key)}` }));
-  }
+    if (f) card.append(h('span', { cls: `gfield ${GFIELD_CORNERS[i % 4]}`, textContent: `${k}: ${f.get(key)}` }));
+  });
   return card;
 }
 // type → fuzzy, ranked suggestions (paletteRank, palette.js) → click to add; the same idiom as the scenario

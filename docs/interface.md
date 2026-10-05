@@ -152,7 +152,7 @@ The **keys** button (⌨) in the top bar shows every key and lets you rebind the
 | Where | Letters belong to | Shortcuts |
 |---|---|---|
 | a fight (play) | the fighter | take ⇧: ⇧P pause, ⇧N step, ⇧V rewind, ⇧R restart, ⇧H panel, ⇧B boxes, ⇧G ghost; 1–6 switch modes |
-| the editors (gallery, impact, character, animate) | shortcuts | the plain key: P, N, R, H, `,` `.` frame, ⇧← ⇧→ key, Enter play, O onion, I aim, Del delete; fight keys and macros do nothing |
+| the editors (gallery, impact, character, animate) | shortcuts | the plain key: P, N, R, H, `,` `.` frame, ⇧← ⇧→ key, Space play, O onion, I aim, Del delete; fight keys and macros do nothing |
 
 - The keys panel heads each group with its context and marks keys that clash within one.
 - Keys never reach the fight while a slider or text field has focus.

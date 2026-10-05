@@ -20,7 +20,7 @@ const ACTIONS = [
   ['impact', 'modes', ['Digit6'], 'Impact mode'], ['replay', 'modes', ['Digit7'], 'Replay mode'],
   ['prevKey', 'animate', ['Shift+ArrowLeft'], 'Select the previous key of the move'], ['nextKey', 'animate', ['Shift+ArrowRight'], 'Select the next key of the move'],
   ['frameBack', 'animate', ['Comma'], 'Step the move back a frame'], ['frameFwd', 'animate', ['Period'], 'Step the move forward a frame'],
-  ['playMove', 'animate', ['Enter'], 'Play / pause the move'], ['onion', 'animate', ['KeyO'], 'Onion skin: ghosts of the previous and next keys'], ['aim', 'animate', ['KeyI'], 'Aim the striking limb at the cursor'],
+  ['playMove', 'animate', ['Space'], 'Play / pause the move'], ['onion', 'animate', ['KeyO'], 'Onion skin: ghosts of the previous and next keys'], ['aim', 'animate', ['KeyI'], 'Aim the striking limb at the cursor'],
   ['prevEvent', 'replay', ['BracketLeft'], 'Go to the previous shown event'], ['nextEvent', 'replay', ['BracketRight'], 'Go to the next shown event'],
   ['prevMark', 'replay', ['Shift+BracketLeft'], 'Go to the previous bookmark'], ['nextMark', 'replay', ['Shift+BracketRight'], 'Go to the next bookmark'],
   ['mark', 'replay', ['Backslash'], 'Add a bookmark at the playhead'],
