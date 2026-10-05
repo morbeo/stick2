@@ -212,11 +212,11 @@ function creatorKey(e, a) {
 // ---------- panels ----------
 function creatorCtx() {
   return [movesGrp(),
-    grp('vary', 'Breed body variations: nine bodies at once, keep the best', toggle(':science: vary body', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
-      () => creator.expOn && creator.exp.kind === 'body', on => setExp(on))),
     showGrp(['boxes', 'colours']), panelsGrp([...MOVE_PANELS, 'bones'], { ...VIEW_TIPS, bones: BONES_TIP }),
   ];
 }
+// vary body lives in the experiment tab (lab.kind 'body') now; a property's context menu can still jump straight there, pre-set to vary it
+function openBodyVary() { lab.kind = 'body'; setMode('experiment'); }
 // what the preview plays: under the preview (a lot of free space there), not the toolbar
 function previewBar() {
   const oppNames = ['self', ...Object.keys(CHARS)];
@@ -251,7 +251,7 @@ function bonePanel() {
   title.append(groupOps(BONE_PROPS, prop, dflt, vals => edit(def => {
     for (const b of selDefs(def)) for (const k in vals) if (own(k, b.id) === undefined && vals[k] === BONE[k]) delete b[k]; else b[k] = vals[k];
   }),
-    ['Experiment: nine bodies varying these properties; click the best to breed around it', () => { BONE_PROPS.forEach(p => creator.exp.vars.add(p.k)); setExp(true); }]));
+    ['Experiment: nine bodies varying these properties; click the best to breed around it', () => { BONE_PROPS.forEach(p => creator.exp.vars.add(p.k)); openBodyVary(); }]));
   return [title,
     row(':category: role', 'What the bone does in procedural motion', seg(Object.keys(ROLE_TIPS), () => prop('role'), v => edit(d => { for (const b of selDefs(d)) b.role = v; }), ROLE_TIPS)),
     row(':layers: also', 'A chain\'s own root bone can also join another role\'s chains, without losing its own: it gaits and plants as that role too (houndo\'s front legs: role arm, also leg — still a hand for a weapon, but driven and planted like the hind legs)',
@@ -273,7 +273,7 @@ function bonePanel() {
 }
 // clicking a variable's name: nine bodies varying only that variable
 const bodyExpLink = (row, k, preview) => expLink(row, `nine bodies varying ${k}; click the best to breed around it`,
-  () => { creator.exp.vars = new Set([k]); if (preview) creator.preview = preview; setExp(true); });
+  () => { creator.exp.vars = new Set([k]); if (preview) creator.preview = preview; openBodyVary(); });
 // ---------- radar: the character's chosen stats, other characters overlaid to compare ----------
 const radar = { vars: new Set(['speed', 'dash', 'traction', 'weight', 'jump', 'airSpeed', 'health', 'tempo']), chars: new Set() };
 const RADAR_COLS = ['#c0392b', '#2a6fb0', '#2e8b57', '#b8860b', '#7b4ea3', '#d35400', '#555'];
@@ -320,7 +320,7 @@ function statsPanel() {
     const specs = CHAR_STATS.filter(s => s.g === g && !(own && s.k === 'health'));
     const title = h('h3', { textContent: `${g} stats`, tip: `${STAT_GROUPS[g]}. Multipliers on the fight settings for this character only (1 = as the settings say)` });
     title.append(groupOps(specs, get, dflt, vals => edit(def => put(def, vals)),
-      [`Experiment: nine bodies varying the ${g} stats; click the best to breed around it`, () => { creator.exp.vars = new Set(specs.map(s => s.k)); setExp(true); }]));
+      [`Experiment: nine bodies varying the ${g} stats; click the best to breed around it`, () => { creator.exp.vars = new Set(specs.map(s => s.k)); openBodyVary(); }]));
     return [title, ...specs.map(s => bodyExpLink(slider(s.k, s, () => get(s.k), v => edit(def => put(def, { [s.k]: v }), 'stat:' + s.k), s.tip), s.k))];
   });
 }
@@ -331,7 +331,7 @@ function gaitPanel() {
   const set = vals => edit(def => { if (own) { const b = editBody(def); b.gait = { ...b.gait, ...vals }; } else def.gait = { ...def.gait, ...vals }; }, 'gait:' + Object.keys(vals).join());
   const title = h('h3', { textContent: 'walk & idle', tip: 'The procedural walk and idle of this character. Preview: walk shows the cycle. A keyframed idle or walk loop (animate) replaces them.' });
   title.append(groupOps(GAIT_VARS, get, dflt, set,
-    ['Experiment: nine bodies varying the walk and idle; click the best to breed around it', () => { creator.exp.vars = new Set(GAIT_VARS.filter(s => !s.opts).map(s => s.k)); creator.preview = 'walk'; setExp(true); }]));
+    ['Experiment: nine bodies varying the walk and idle; click the best to breed around it', () => { creator.exp.vars = new Set(GAIT_VARS.filter(s => !s.opts).map(s => s.k)); creator.preview = 'walk'; openBodyVary(); }]));
   const loops = ['idle', 'walk'].map(n => loopName(currentChar(), studio.stance, n)).filter(n => currentChar().moves[n]);
   return [title, loops.length ? h('div', { cls: 'note', textContent: `keyframed ${loops.join(' and ')} loop replaces the procedural one` }) : null,
     ...GAIT_VARS.map(s => s.opts ? h('div', { cls: 'row', tip: s.tip }, h('span', { textContent: s.k }), seg(s.opts, () => get(s.k), v => set({ [s.k]: v }), s.optTips))

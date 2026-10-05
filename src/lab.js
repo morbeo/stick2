@@ -86,11 +86,15 @@ function blow(w, k) {
 }
 
 const bred = () => lab.kind === 'breed' || lab.kind === 'attacks'; // the experiment kinds that breed cells (sweep and compare set settings)
+const bodyKind = () => lab.mode === 'experiment' && lab.kind === 'body'; // vary body: creator.js's own expOn grid, reused as-is
 // a gallery cell builds its fight when it is needed (scrolled into view) and drops it off screen, so it never runs a stale character
 const lazyCell = (mk, c) => Object.defineProperty(c, 'w', { get() { return this._w ??= mk(); }, enumerable: true });
 function build() {
   const scen = SCENARIOS[lab.scen];
   lab.cells = []; lab.cols = 3; lab.zoom = false; lab.scroll = 0;
+  // vary body (a character-editor feature) lives here as a kind now; leaving it turns its own expOn flag back off,
+  // so a later visit to the character tab itself doesn't still show its grid
+  if (!bodyKind()) creator.expOn = false;
   if (lab.mode === 'play') {
     const replay = lab.replay && lab.tape?.length && scen.a === 'human';
     lab.cells.push({ w: lab.branch ? lab.branch.make() : lab.playback ? Object.assign(replayWorld(lab.playback), { loop: app.loop }) : newWorld(withInv(replay ? { ...scen, b: { tape: lab.tape } } : scen), {}, 1, playChars()) });
@@ -99,6 +103,10 @@ function build() {
   else if (lab.mode === 'experiment' && lab.kind === 'impact' && lab.impact === 'ragdoll') { lab.cells.push({ w: ragdollWorld() }); lab.cols = 1; }
   else if (lab.mode === 'experiment' && lab.kind === 'impact') for (const [k, [tip, s]] of Object.entries(IMPACTS))
     lab.cells.push({ w: newWorld({ b: 'dummy', period: 3, ...s, init: w => { s.init?.(w); w.a.hidden = lab.solo; } }, {}, 7, [CHARS.stick, currentChar()]), label: k, tip });
+  else if (bodyKind()) { // nine body variations (creator.js's own buildExp/expPanel; its cells, render and side panel are reused as-is)
+    if (!creator.expOn) { creator.expOn = true; creator.exp.kind = 'body'; creator.exp.parent = null; }
+    buildExp();
+  }
   else if (lab.mode === 'gallery') {
     for (const m of galleryMoves()) lab.cells.push(lazyCell(() => newWorld({ ...galleryScen(m, undefined, currentChar().moves[m]), ...GALLERY_TARGETS[lab.target][1] }), { move: m, label: m }));
     for (const [k, [tip, s]] of Object.entries(MOVEMENTS)) lab.cells.push(lazyCell(() => newWorld({ period: 2.4, ...s }), { motion: true, label: k, tip: `${k}: ${tip}` }));
@@ -120,7 +128,7 @@ function build() {
     }
   }
   // extra seeds: the same cell fought again with other random rolls (AI, sparks); the stats average them
-  if (lab.mode === 'experiment' && lab.kind !== 'attacks' && lab.seeds > 1)
+  if (lab.mode === 'experiment' && lab.kind !== 'attacks' && lab.kind !== 'impact' && lab.kind !== 'body' && lab.seeds > 1)
     for (const c of lab.cells) c.extra = Array.from({ length: lab.seeds - 1 }, (_, i) => newWorld(c.w.scen, c.over, 8 + i));
   lab.focus = lab.cells[0];
 }
@@ -541,7 +549,7 @@ function labCtx() {
   if (lab.mode === 'play' && lab.branch) els.push(grp('branch', `A branch of the replay "${lab.branch.reel.name}" from ${lab.branch.n} frames in: you play P${lab.branch.side}`,
     button(':history: keep', 'Keep this branch: back to the replay tab, compared with its reel', keepBranch), button(':close: drop', 'Drop the branch: back to the normal fight', dropBranch)));
   if (lab.mode === 'experiment') els.push(grp('experiment', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
-  if ((lab.kind !== 'attacks' && lab.kind !== 'impact') || lab.mode === 'play') els.push(grp('scenario', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = lab.branch = null; build(); panels(); })));
+  if ((lab.kind !== 'attacks' && lab.kind !== 'impact' && lab.kind !== 'body') || lab.mode === 'play') els.push(grp('scenario', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = lab.branch = null; build(); panels(); })));
   if (lab.mode === 'play' && !SCENARIOS[lab.scen]?.user) els.push(grp('fighters', 'Who fights: P1 (you), P2 and any extra fighters of the scenario, each any character; unset = the one being edited (P3 on: as P2)',
     fighterPick(0), shieldButton(0), swapFighters(), fighterPick(1), shieldButton(1), Array.from({ length: fighterCount(SCENARIOS[lab.scen]) - 2 }, (_, i) => [fighterPick(i + 2), shieldButton(i + 2)])));
   if (lab.mode === 'play' && SCENARIOS[lab.scen]?.waves) els.push(grp('waves', SPEC.waves.tip + ' Changing it starts over at wave 1',
@@ -549,6 +557,7 @@ function labCtx() {
     toggle(':casino: mixed', SPEC.waveMix.tip, () => CFG.waveMix, v => { setCfg({ waveMix: v }); mode().restart(); })));
   if (lab.mode === 'experiment' && bred()) els.push(...breedCtx());
   else if (lab.mode === 'experiment' && lab.kind === 'compare') els.push(grp('sides', 'The settings of the two cells (the compare panel lists what differs)', cmpSource('a'), cmpSource('b')), zoomBack());
+  else if (bodyKind()) { /* its controls are the side panel, expPanel() */ }
   else if (lab.mode === 'experiment' && lab.kind === 'impact') els.push(
     grp('kind', 'The nine scripted hits, or one body alone to strike', seg(['hits', 'ragdoll'], () => lab.impact, v => { lab.impact = v; build(); panels(); },
       { hits: 'Nine scripted hits on the character, struck by the stick fighter', ragdoll: 'One body alone, no attacker: strike it low, mid, high… with the buttons, or drag on it' },
@@ -576,12 +585,12 @@ function labCtx() {
         Object.assign(lab.x, { k: 'lastFrame' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = EDGE_SCENS; build();
       }))))), adopt, back);
   }
-  if (lab.mode === 'experiment' && lab.kind !== 'attacks' && lab.kind !== 'impact') els.push(grp('stats', 'How the cells are measured and ordered',
+  if (lab.mode === 'experiment' && lab.kind !== 'attacks' && lab.kind !== 'impact' && lab.kind !== 'body') els.push(grp('stats', 'How the cells are measured and ordered',
     seg([1, 3, 5], () => lab.seeds, v => { lab.seeds = v; build(); }, { 1: 'One fight per cell', 3: 'Each cell fought with 3 seeds; stats averaged (AI fights differ per seed)', 5: '5 seeds per cell, averaged' }, v => `${v} seed${v > 1 ? 's' : ''}`),
     sortButton()));
   if (!(lab.mode === 'experiment' && lab.kind === 'impact')) els.push(showGrp(['meter', ...lab.mode === 'play' ? ['inputs'] : [], 'boxes', 'ghost', 'hud', 'labels', 'timer']));
   // compare settings only in experiment (it drives its own compare kind); play just gets its scenario builder, if it has one
-  const panelNames = [...lab.mode === 'experiment' && lab.kind !== 'impact' ? ['compare'] : [], ...lab.mode === 'play' ? ['builder'] : []];
+  const panelNames = [...lab.mode === 'experiment' && lab.kind !== 'impact' && lab.kind !== 'body' ? ['compare'] : [], ...lab.mode === 'play' ? ['builder'] : []];
   if (panelNames.length) els.push(panelsGrp(panelNames, { compare: CMP_PANEL_TIP, builder: BUILDER_TIP }));
   if (lab.mode === 'play') els.push(...trainingCtl(),
     grp('theater', 'No toolbars, no side panel, just the fight — for streaming or recording (Esc, or the key again, leaves it); health bars, frame meter, timer and labels are set in the show group',
@@ -829,15 +838,16 @@ function builderMouse(type, x, y) {
 const labMode = {
   enter(m) { lab.mode = m; build(); },
   restart: build,
-  overlay: () => stageOpen() === 'compare' ? [compareView()] : stageOpen() === 'builder' && lab.mode === 'play' ? [scenBuilder()] :
+  overlay: () => bodyKind() ? [] : stageOpen() === 'compare' ? [compareView()] : stageOpen() === 'builder' && lab.mode === 'play' ? [scenBuilder()] :
     lab.mode === 'experiment' && lab.kind === 'impact' && lab.impact === 'ragdoll' && lab.cells[0] ? [blowBar(() => lab.cells[0].w, build)] : [],
-  worlds: () => (lab.mode === 'gallery' ? onScreen() : lab.cells).flatMap(c => [c.w, ...(c.extra || [])]),
-  clipRects: () => { const r = labRects(); return shown().map((c, i) => ({ key: c, r: r[i] })); },
-  render: labRender,
+  worlds: () => bodyKind() ? creator.exp.cells.map(c => c.w) : (lab.mode === 'gallery' ? onScreen() : lab.cells).flatMap(c => [c.w, ...(c.extra || [])]),
+  clipRects: () => bodyKind() ? creatorMode.clipRects() : (() => { const r = labRects(); return shown().map((c, i) => ({ key: c, r: r[i] })); })(),
+  render: () => bodyKind() ? creatorRender() : labRender(),
   ctxBar: labCtx,
-  side: labSide,
-  get open() { return lab.mode === 'gallery' ? ['move', 'key'] : lab.mode === 'play' ? ['presets', 'movelist'] : ['presets']; },
+  side: () => bodyKind() ? expPanel() : labSide(),
+  get open() { return bodyKind() ? ['body experiment'] : lab.mode === 'gallery' ? ['move', 'key'] : lab.mode === 'play' ? ['presets', 'movelist'] : ['presets']; },
   mouse(type, x, y, e) {
+    if (bodyKind()) return creatorMouse(type, x, y, e);
     if (lab.mode === 'experiment' && lab.kind === 'impact' && !e.shiftKey && impactMouse(type, x, y)) return;
     if (lab.mode === 'play' && stageOpen() === 'builder' && builderMouse(type, x, y)) return;
     if (type === 'down') labClick(x, y, e);
@@ -847,8 +857,12 @@ const labMode = {
     cursor(lab.mode !== 'play' && (lab.zoom || hitRect(labRects(), x, y) >= 0) ? 'pointer' : 'default');
   },
   wheel(dy) { const ms = maxScroll(); if (!ms) return false; lab.scroll = clamp(lab.scroll + dy * dpr, 0, ms); return true; },
-  key(e) { if (e.code === 'Escape' && lab.zoom) { lab.zoom = false; return true; } },
-  hint: () => lab.mode === 'play' && stageOpen() === 'builder' ? 'drag a fighter or a prop on the stage to reposition it · ' + fightHint()
+  key(e) {
+    if (e.code === 'Escape' && bodyKind()) { lab.kind = 'sweep'; build(); panels(); return true; }
+    if (e.code === 'Escape' && lab.zoom) { lab.zoom = false; return true; }
+  },
+  hint: () => bodyKind() ? 'click a cell: breed around it · Esc: back to sweep'
+    : lab.mode === 'play' && stageOpen() === 'builder' ? 'drag a fighter or a prop on the stage to reposition it · ' + fightHint()
     : lab.mode === 'play' ? fightHint()
     : lab.mode === 'experiment' && lab.kind === 'impact' ? 'drag on a body: strike it there (direction and length = the blow, long = knockdown) · click a body: a medium blow · click beside: focus / back · Esc back'
     : lab.mode === 'experiment' && bred() ? (lab.kind === 'attacks' ? 'click a cell: breed around it · its save / edit buttons: keep that attack · Shift+click: focus · Esc back' : 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back') : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',

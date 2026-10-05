@@ -451,6 +451,20 @@ try {
     if (lab.cells.length !== 1 || !w.a.hidden || w.hits !== 1 || !down) errs.push('ragdoll blow ' + [lab.cells.length, w.a.hidden, w.hits, down]);
     blow('stand up').click(); if (lab.cells[0].w === w || lab.cells[0].w.hits) errs.push('ragdoll stand up');
     btn('hits').click(); if (lab.cells.length !== Object.keys(IMPACTS).length) errs.push('impact hits ' + lab.cells.length); }
+  // vary body: a kind of experiment now (creator.js's own grid, reused as-is), not the character tab's own toggle; a property's
+  // context menu can still jump straight there (openBodyVary), pre-set to vary it; Esc backs out to sweep
+  { pickChar('stick'); openBodyVary();
+    if (app.mode !== 'experiment' || lab.kind !== 'body' || !creator.expOn || lab.cells.length !== 0) errs.push('open body vary ' + [app.mode, lab.kind, creator.expOn, lab.cells.length]);
+    const cells = creator.exp.cells, parent0 = creator.exp.parent;
+    if (cells.length !== 9 || cells[0].label !== 'parent') errs.push('body cells ' + cells.length + ' ' + cells[0]?.label);
+    const heads = [...document.querySelectorAll('#side h3')].map(h => h.textContent);
+    if (!heads.some(t => t.startsWith('Body experiment'))) errs.push('body vary side panel ' + heads);
+    if (document.querySelector('#ctx [data-tip="What this tab shows"]')) errs.push('view toolbar shown for body kind');
+    const r = labRects(9)[1];
+    mode().mouse('down', r.x + r.w / 2, r.y + r.h / 2, {});
+    if (creator.exp.parent === parent0) errs.push('body: click a cell did not breed around it');
+    if (!labMode.key({ code: 'Escape' }) || lab.kind !== 'sweep' || creator.expOn) errs.push('body vary escape ' + [lab.kind, creator.expOn]);
+    lab.kind = 'sweep'; }
   // the character tab's preview picker and impact's blow buttons: both under the preview pane now, not the toolbar
   { setMode('character'); const pv = t => [...document.querySelectorAll('.pvbar button')].find(b => b.textContent.trim().endsWith(t));
     const blow = t => [...document.querySelectorAll('.blowbar button')].find(b => b.textContent.trim().endsWith(t));
