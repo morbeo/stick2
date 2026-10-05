@@ -415,6 +415,18 @@ try {
     setMode('character'); studio.sel = 'head'; panels(); adds()[0].click(); adds()[0].click();
     const hf = DEFS.stick.bones.find(b => b.id === 'head').fx; if (hf?.length !== 2 || fxNow(currentChar(), null).length !== 2) errs.push('bone effect stack ' + JSON.stringify(hf));
     undo(); if (DEFS.stick.bones.find(b => b.id === 'head').fx) errs.push('bone effect undo (one step: the bone edits merge)'); }
+  // the preview has its own clock: playing, it keeps advancing (and selecting a key for editing doesn't pause it); paused, it holds still
+  { pickChar('stick'); studio.stance = 0; setMode('animate'); anim.move = 'jab'; anim.playing = true; buildPreview(); panels();
+    const t0 = anim.pv.simT; for (const w of mode().worlds()) w.advance(1 / 60, NOIN); const t1 = anim.pv.simT;
+    if (t1 <= t0) errs.push('preview did not advance while playing ' + t0 + ' ' + t1);
+    selectKey(1); if (!anim.playing) errs.push('selecting a key paused the preview');
+    for (const w of mode().worlds()) w.advance(1 / 60, NOIN); const t2 = anim.pv.simT;
+    if (t2 <= t1) errs.push('preview stopped advancing after selecting a key while playing');
+    anim.playing = false; const held = anim.pv.simT;
+    if (mode().worlds().length) errs.push('a paused preview is still in worlds()');
+    for (let i = 0; i < 5; i++) for (const w of mode().worlds()) w.advance(1 / 60, NOIN);
+    if (anim.pv.simT !== held) errs.push('a paused preview kept advancing ' + held + ' ' + anim.pv.simT);
+    anim.playing = true; }
   // the shadow section: the shape buttons set def.shadow (only what differs from the default), body draws a frame, off draws none, back to ellipse saves none
   { setMode('character'); pickChar('stick'); panels(); const shp = t => [...document.querySelectorAll('#side button')].find(b => b.dataset.tip === SHADOW_SHAPES[t]);
     shp('circle').click(); const c = JSON.stringify(DEFS.stick.shadow); shp('body').click(); for (let i = 0; i < 5; i++) for (const w of mode().worlds()) w.advance(1/60, NOIN); mode().render?.();

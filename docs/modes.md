@@ -316,6 +316,8 @@ A live preview with springs and hit stop, against a **target**:
 - idle, in the air, lying or dizzy
 - facing toward or away
 
+The preview runs on its own clock: **Space** plays or pauses it, independently of whatever key you've selected or scrubbed to below (that only moves the editor's own cursor). **loop**, **fx** (hit stop, shake and juice; off for a clean look at the raw motion) and **speed** (¼ to 2×) are next to the target.
+
 ### The move group
 
 The toolbar's **move** group holds the move being edited:

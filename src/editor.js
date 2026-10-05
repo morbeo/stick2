@@ -1,6 +1,6 @@
 'use strict';
 // ---------- animate mode: pose keyframes by dragging joints (IK), retime them on a frame timeline, preview with springs ----------
-const anim = { move: 'jab', key: 1, t: 0, playing: true, onion: true, aim: false, aimId: null, reach: 'limb', drag: null, hover: null, anchor: null, pv: null, hold: false,
+const anim = { move: 'jab', key: 1, t: 0, playing: true, pvLoop: true, pvSpeed: 1, pvFx: true, onion: true, aim: false, aimId: null, reach: 'limb', drag: null, hover: null, anchor: null, pv: null, hold: false,
   target: { char: null, stance: 'stand', state: 'idle', facing: 'toward', dist: 'near' }, group: 'type', sort: 'order', filter: '',
   tfilter: '', tsort: { k: null, dir: 1 }, tscroll: 0, // the move table's filter, sort column and scroll
   cmp: null, cmpView: 'off' }; // the move compared with (compare group): drawn over this one or as filmstrips
@@ -242,7 +242,8 @@ function pickJoint(x, y) {
 function selectKey(i) {
   const m = curMove();
   anim.key = clamp(i, 0, m.keys.length - 1);
-  anim.t = keyEnd(m, anim.key); anim.playing = false;
+  anim.t = keyEnd(m, anim.key);
+  if (!anim.playing) previewAt(anim.t); // playing: the preview runs on its own clock, undisturbed by picking a key to edit
 }
 
 // ---------- preview: the real engine (springs, hit stop) playing the move against a target ----------
@@ -260,13 +261,21 @@ function pvScen() {
   s.init = w => { w.a.setStance(studio.stance, 'instant'); init(w); };
   return s;
 }
-function buildPreview() { anim.pv = Object.assign(newWorld(pvScen(), {}, 1, [currentChar(), CHARS[anim.target.char] || currentChar()]), { sfx: playSound }); }
+// rawAdvance: the real per-frame step, always at its natural rate — previewAt resimulates to an exact move
+// time and must land there regardless of pvSpeed; advance (what the generic frame loop calls while the
+// preview free-runs) is the one scaled by pvSpeed, so speed only affects live playback, not scrubbing
+function buildPreview() {
+  const w = newWorld(pvScen(), anim.pvFx ? {} : NOJUICE, 1, [currentChar(), CHARS[anim.target.char] || currentChar()]);
+  Object.assign(w, { sfx: playSound, loop: anim.pvLoop, rawAdvance: w.advance.bind(w) });
+  w.advance = (dt, inp) => w.rawAdvance(dt * anim.pvSpeed, inp);
+  anim.pv = w;
+}
 // re-simulate the preview up to move time t (deterministic, so this is what the fight would show)
 function previewAt(t) {
   const w = anim.pv, m = curMove();
   w.reset();
-  for (let g = 0; g < 240 && w.a.action?.m !== m; g++) w.advance(F, NOIN);
-  for (let i = 0; i < Math.round(t / CFG.attackSpeed * 60); i++) w.advance(F, NOIN);
+  for (let g = 0; g < 240 && w.a.action?.m !== m; g++) w.rawAdvance(F, NOIN);
+  for (let i = 0; i < Math.round(t / CFG.attackSpeed * 60); i++) w.rawAdvance(F, NOIN);
 }
 
 // ---------- mouse ----------
@@ -274,13 +283,13 @@ function animMouse(type, x, y, e) {
   const L = anLayout(), m = curMove(), inTl = y >= L.tl.y - 4 * dpr && x < L.ed.w, tl = L.tl, px = tl.w / total(m), ruler = inTl && y < tl.y + 18 * dpr;
   const tAt = () => clamp((x - tl.x) / px, 0, total(m) - 1e-6), edge = () => inTl && !ruler ? m.keys.findIndex((k, i) => Math.abs(x - tl.x - keyEnd(m, i) * px) < 6 * dpr) : -1;
   if (anim.cmpView === 'strip' && !inTl && x < L.ed.w) { // filmstrip: a click goes to that frame
-    if (type === 'down') { const { step, cw } = stripCells(L.ed); anim.playing = false; anim.t = Math.min(Math.floor(x / cw) * step, total(m) - 1e-6); anim.key = keyAt(m, anim.t); previewAt(anim.t); }
+    if (type === 'down') { const { step, cw } = stripCells(L.ed); anim.t = Math.min(Math.floor(x / cw) * step, total(m) - 1e-6); anim.key = keyAt(m, anim.t); if (!anim.playing) previewAt(anim.t); }
     return;
   }
   if (type === 'down') {
     if (anim.aim) { anim.aim = false; anim.aimId = null; studio.lastKey = null; return; }
     if (inTl) {
-      if (ruler) { anim.drag = { scrub: true }; anim.playing = false; }
+      if (ruler) { anim.drag = { scrub: true }; }
       else {
         const g = edge(); // grabbed a right edge?
         if (g >= 0) anim.drag = { key: g, x0: x, d0: m.keys[g].d, px };
@@ -306,7 +315,7 @@ function animMouse(type, x, y, e) {
     } else if (typeof d === 'string') poseTo(d, x, y, e.altKey);
     else if (anim.aim && x < L.ed.w && !inTl && aimBone()) { if (!anim.playing) selectKey(anim.key); poseTo(aimBone(), x, y, false); }
     else anim.hover = x < L.ed.w && !inTl ? pickJoint(x, y) : null;
-    if (d?.scrub) previewAt(anim.t);
+    if (d?.scrub && !anim.playing) previewAt(anim.t);
     cursor(d?.scrub || ruler ? 'col-resize' : d?.key !== undefined || edge() >= 0 ? 'ew-resize' : d?.order !== undefined || typeof d === 'string' ? 'grabbing'
       : inTl ? 'pointer' : anim.aim && x < L.ed.w ? 'crosshair' : anim.hover ? 'grab' : 'default');
   }
@@ -327,7 +336,7 @@ function animKey(e, a) {
   if (a === 'aim') { anim.aim = !anim.aim; anim.aimId = null; return true; }
 }
 
-function stepFrame(n) { anim.playing = false; anim.t = clamp(anim.t + n * F, 0, total(curMove()) - 1e-6); anim.key = keyAt(curMove(), anim.t); previewAt(anim.t); }
+function stepFrame(n) { anim.t = clamp(anim.t + n * F, 0, total(curMove()) - 1e-6); anim.key = keyAt(curMove(), anim.t); if (!anim.playing) previewAt(anim.t); }
 
 // ---------- key and move edits ----------
 // the key's pose with every front bone (id ending in F) swapped with its back twin (B)
@@ -1096,7 +1105,7 @@ function timelineBar() {
   const b = (l, tip, f) => button(l, tip, f, 'mini');
   return h('div', { cls: 'over tlbar' },
     b(':skip_previous:', 'Select the first key', () => selectKey(0)), b(':chevron_left:', 'Select the previous key' + keyTip('prevKey'), () => selectKey(anim.key - 1)),
-    b(':fast_rewind:', 'Step the preview back one 60 fps frame' + keyTip('frameBack'), () => stepFrame(-1)), play, b(':fast_forward:', 'Step the preview forward one 60 fps frame' + keyTip('frameFwd'), () => stepFrame(1)),
+    b(':fast_rewind:', 'Step back one 60 fps frame (paused, the preview follows along)' + keyTip('frameBack'), () => stepFrame(-1)), play, b(':fast_forward:', 'Step forward one 60 fps frame (paused, the preview follows along)' + keyTip('frameFwd'), () => stepFrame(1)),
     b(':chevron_right:', 'Select the next key' + keyTip('nextKey'), () => selectKey(anim.key + 1)), b(':skip_next:', 'Select the last key', () => selectKey(curMove().keys.length - 1)),
     h('span', { cls: 'sep' }),
     b(':add: key', 'Insert a key after the selected one, starting from its pose', addKey),
@@ -1116,7 +1125,12 @@ function targetBar() {
     popup(b, h('div', { cls: 'bar' }, seg([null, ...Object.keys(DEFS)], () => tg.char, v => { set('char', v); closePop(); }, { null: 'The character being edited' }, v => v ?? 'same'))), 'mini');
   reg(who, () => { setRich(who, ':person: ' + (tg.char && DEFS[tg.char] ? tg.char : 'same')); });
   const sg = (k, opts) => seg(opts, () => tg[k], v => set(k, v), TARGET_TIPS);
-  return h('div', { cls: 'over tgt', tip: 'The preview\'s target: who, how it stands, its state, facing and distance; changing it restarts the preview' }, who, sg('stance', Object.keys(STANCES)), sg('state', ['idle', 'air', 'down', 'dizzy']), sg('facing', ['toward', 'away']), sg('dist', ['near', 'far']));
+  const speedTips = { 0.25: 'Quarter speed', 0.5: 'Half speed', 1: 'Real time', 2: 'Double speed' };
+  return h('div', { cls: 'over tgt', tip: 'The preview\'s target: who, how it stands, its state, facing and distance; changing it restarts the preview' }, who, sg('stance', Object.keys(STANCES)), sg('state', ['idle', 'air', 'down', 'dizzy']), sg('facing', ['toward', 'away']), sg('dist', ['near', 'far']),
+    h('span', { cls: 'sep' }),
+    toggle(':repeat:', 'Loop the preview when the move ends; off: play once and hold the last frame', () => anim.pvLoop, v => { anim.pvLoop = v; anim.pv.loop = v; }),
+    toggle(':flash_on:', 'Hit stop, screen shake and juice in the preview; off: a clean, undisturbed look at the raw motion', () => anim.pvFx, v => { anim.pvFx = v; buildPreview(); }),
+    seg(Object.keys(speedTips).map(Number), () => anim.pvSpeed, v => { anim.pvSpeed = v; }, speedTips, v => ({ 0.25: '¼×', 0.5: '½×', 1: '1×', 2: '2×' })[v]));
 }
 
 const animMode = {
@@ -1124,15 +1138,11 @@ const animMode = {
   clipRects: () => [{ key: 'preview', r: anLayout().pv }],
   enter() { if (!curMove()) anim.move = Object.keys(currentChar().moves)[0]; selectKey(Math.min(anim.key, curMove().keys.length - 1)); anim.playing = true; buildPreview(); },
   restart() { anim.t = 0; buildPreview(); },
-  worlds: () => anim.hold ? [] : [anim.pv],
-  tick(dt) {
-    if (!anim.playing || anim.drag) return;
-    const m = curMove();
-    anim.t = (anim.t + dt * (m.power ? CFG.attackSpeed : 1)) % total(m);
-    anim.key = keyAt(m, anim.t);
-  },
-  // scrub: mouse x = time through the move; the preview is re-simulated to the same moment
-  scrub(f) { const m = curMove(); anim.playing = false; anim.t = f * (total(m) - 1e-6); anim.key = keyAt(m, anim.t); previewAt(anim.t); },
+  // playing/paused is the preview's own clock: it keeps looping (or holding, paused) regardless of which
+  // key you've selected or scrubbed to in the editor below it (that only moves the editor's own cursor)
+  worlds: () => (anim.hold || !anim.playing) ? [] : [anim.pv],
+  // scrub: mouse x = time through the move; paused, the preview re-simulates to the same moment; playing, it keeps running
+  scrub(f) { const m = curMove(); anim.t = f * (total(m) - 1e-6); anim.key = keyAt(m, anim.t); if (!anim.playing) previewAt(anim.t); },
   changed() { if (anim.drag) previewAt(anim.t); else buildPreview(); },
   render() { clear(); drawAnimEditor(); drawTimeline(); drawCell({ w: anim.pv, label: 'preview (springs + hit stop)' }, anLayout().pv, { plot: false }); },
   ctxBar: animCtx,
