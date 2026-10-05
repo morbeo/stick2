@@ -7,8 +7,16 @@
 const GRID_STORE = 'stick2.grid';
 const gridStore = (() => { try { return JSON.parse(localStorage.getItem(GRID_STORE)) || {}; } catch { return {}; } })();
 const gridState = { collection: gridStore.collection || 'characters', filter: '', cols: gridStore.cols || 4, soundAutoplay: gridStore.soundAutoplay ?? true,
-  fields: { characters: ['speed', 'weight', 'health'], moves: ['damage', 'startup', 'active'], ...gridStore.fields } };
-function saveGridStore() { try { localStorage.setItem(GRID_STORE, JSON.stringify({ collection: gridState.collection, cols: gridState.cols, soundAutoplay: gridState.soundAutoplay, fields: gridState.fields })); } catch {} }
+  fields: { characters: ['speed', 'weight', 'health'], moves: ['damage', 'startup', 'active'], ...gridStore.fields }, sort: { ...gridStore.sort } };
+function saveGridStore() { try { localStorage.setItem(GRID_STORE, JSON.stringify({ collection: gridState.collection, cols: gridState.cols, soundAutoplay: gridState.soundAutoplay, fields: gridState.fields, sort: gridState.sort })); } catch {} }
+// name, or any shown field: click picks it (ascending), click again reverses — the same idiom as the move table's headers
+function gridSort(items, fields, shownKeys) {
+  const s = gridState.sort[gridState.collection];
+  if (!s?.k) return items;
+  const val = k => s.k === 'name' ? k : fields.find(f => f.k === s.k)?.get(k);
+  return [...items].sort((a, b) => { const va = val(a), vb = val(b);
+    return s.dir * (typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))); });
+}
 
 // every character's own stats (CHAR_STATS, rig.js) plus a few basics, each a documented { k, tip, get(name) } —
 // no new registry: these are the exact tables the stats panel and radar graph already read from
@@ -87,7 +95,7 @@ function gridCards() {
   const col = GRID_COLLECTIONS[gridState.collection], items = col.items(), fields = col.fields(), shownKeys = gridState.fields[gridState.collection] || [];
   const q = gridState.filter.trim();
   const matches = k => !q || fuzzy(q, [k, ...shownKeys.map(fk => fields.find(f => f.k === fk)?.get(k))].join(' '));
-  return h('div', { cls: 'cards', style: `grid-template-columns: repeat(${gridState.cols}, 1fr)` }, items.filter(matches).map(col.card));
+  return h('div', { cls: 'cards', style: `grid-template-columns: repeat(${gridState.cols}, 1fr)` }, gridSort(items.filter(matches), fields, shownKeys).map(col.card));
 }
 function gridPanel() {
   const wrap = h('div', { cls: 'mtable' }), cardsWrap = h('div');
@@ -105,9 +113,14 @@ function gridSide() {
   return [heading(gridState.collection, col.tip), col.fields().length ? gridFieldPicker() : h('p', { cls: 'note', textContent: 'This collection has no pickable variables — just name and a badge.' })];
 }
 function gridCtx() {
+  const sortOpts = ['name', ...(gridState.fields[gridState.collection] || [])];
+  const sort = gridState.sort[gridState.collection] ??= { k: null, dir: 1 };
+  const sortLabel = v => v === null ? 'unsorted' : v + (sort.k === v ? (sort.dir > 0 ? ' ▲' : ' ▼') : '');
   return [grp('grid', 'Browse and search characters, moves, scenarios, sounds, looks and tracks; pick which variables show on each tile',
     seg(Object.keys(GRID_COLLECTIONS), () => gridState.collection, v => { gridState.collection = v; gridState.filter = ''; saveGridStore(); panels(); }, mapVals(GRID_COLLECTIONS, c => c.tip)),
     slider('cols', { min: 2, max: 8, step: 1 }, () => gridState.cols, v => { gridState.cols = v; saveGridStore(); panels(); }, 'Tiles per row'),
+    seg([null, ...sortOpts], () => sort.k, v => { if (sort.k === v) sort.dir *= -1; else { sort.k = v; sort.dir = 1; } saveGridStore(); panels(); },
+      { null: 'No sort: the order each collection lists them in', ...Object.fromEntries(sortOpts.map(k => [k, `Sort by ${k}; click again to reverse`])) }, sortLabel),
     gridState.collection === 'sounds' ? toggle(':volume_up:', 'Play a sound when you hover its card', () => gridState.soundAutoplay, v => { gridState.soundAutoplay = v; saveGridStore(); }) : null)];
 }
 const gridMode = {

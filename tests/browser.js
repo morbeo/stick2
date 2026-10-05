@@ -211,6 +211,14 @@ try {
     search.value = 'stick'; search.dispatchEvent(new Event('input'));
     if (cardsOf().length !== 1 || !cardsOf()[0].textContent.startsWith('stick')) errs.push('grid search ' + cardsOf().map(c => c.textContent).join(','));
     search.value = ''; search.dispatchEvent(new Event('input'));
+    // sort: by name ascending, then descending (click the same option again); back to unsorted after
+    const sortBtn = t => [...document.querySelectorAll('#ctx .seg button')].find(b => b.textContent.startsWith(t)), cardName = c => c.querySelector('span:not(.gfield)')?.textContent;
+    const namesSorted = Object.keys(DEFS).slice().sort((a, b) => a.localeCompare(b));
+    sortBtn('name').click();
+    if (JSON.stringify(cardsOf().map(cardName)) !== JSON.stringify(namesSorted)) errs.push('grid sort name asc ' + cardsOf().map(cardName).join(','));
+    sortBtn('name').click();
+    if (JSON.stringify(cardsOf().map(cardName)) !== JSON.stringify(namesSorted.slice().reverse())) errs.push('grid sort name desc ' + cardsOf().map(cardName).join(','));
+    [...document.querySelectorAll('#ctx .seg button')].find(b => b.textContent === 'unsorted').click();
     // moves collection: the current character's moves, same field-picker and card shape
     [...document.querySelectorAll('#ctx .seg button')].find(b => b.textContent === 'moves').click();
     if (cardsOf().length !== Object.keys(currentChar().moves).length) errs.push('grid moves count ' + cardsOf().length);
