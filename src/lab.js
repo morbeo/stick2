@@ -418,6 +418,14 @@ function scenButton(onPick) {
   reg(b, () => { setRich(b, `:sports_kabaddi: ${lab.scen}`); });
   return b;
 }
+// next/previous scenario hotkeys: step through the same flat order scenButton lists them in (grouped, then as entered)
+function stepScenario(d) {
+  if (mode() !== labMode) return;
+  const list = SCEN_GROUPS.flatMap(([g]) => Object.keys(SCENARIOS).filter(k => scenGroup(k) === g));
+  const i = list.indexOf(lab.scen);
+  lab.scen = list[(i + d + list.length) % list.length]; lab.playback = lab.branch = null; build(); panels();
+}
+const prevScenario = () => stepScenario(-1), nextScenario = () => stepScenario(1);
 // grid axis: pick a variable (grouped like the side panel) and its range
 function axisButton(ax, name) {
   const b = button('', `${name} axis: the variable swept across the cells`, (e, b) => {

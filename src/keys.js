@@ -11,6 +11,7 @@ const ACTIONS = [
   ['pause', 'transport', ['KeyP'], 'Pause or resume the fight(s)'], ['step', 'transport', ['KeyN'], 'Advance one 60 fps frame'],
   ['rewind', 'transport', ['KeyV'], 'Rewind one second (the fight replays its inputs up to there)'], ['stepBack', 'transport', ['KeyC'], 'Back one frame'],
   ['restart', 'transport', ['KeyR'], 'Restart the fight(s) from the beginning'], ['scrub', 'transport', ['KeyM'], 'Scrub: the mouse sets the time'],
+  ['prevScenario', 'play', ['Shift+Comma'], 'Switch to the previous scenario in the picker'], ['nextScenario', 'play', ['Shift+Period'], 'Switch to the next scenario in the picker'],
   ['panel', 'view', ['KeyH'], 'Hide / show the side panel'], ['ghost', 'view', ['KeyG'], 'Show a ghost of the keyframe pose over the fighter'], ['boxes', 'view', ['KeyB'], 'Show the hit and hurt boxes'],
   ['hints', 'view', ['Shift+Slash'], 'Show / hide the help line and the frame meter legend'],
   ['theater', 'view', ['KeyT'], 'Theater mode: no toolbars, no side panel, just the fight, and tries for fullscreen — for streaming or recording (Esc, or the key again, leaves it)'],

@@ -192,7 +192,7 @@ const SHORTCUTS = {
   pause: () => { app.paused = !app.paused; },
   step: () => { app.paused = app.stepOnce = true; },
   rewind: () => rewind(60), stepBack: () => rewind(1),
-  restart,
+  restart, prevScenario, nextScenario,
   panel: togglePanel, hints: toggleHints,
   ghost: () => setDisplay('ghost', !CFG.ghost),
   boxes: () => setDisplay('boxes', !CFG.boxes),
