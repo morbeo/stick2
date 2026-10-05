@@ -17,7 +17,7 @@ The full reference behind the [landing page](../README.md). The app has its own 
 - **Play a fight:** [Modes → Play](modes.md#play), then the keys in [Fighting → Buttons](fighting.md#buttons).
 - **Make a character:** [Modes → Character](modes.md#character), then [Editing → Characters](editing.md#characters).
 - **Make a move:** [Modes → Animate](modes.md#animate), then [Editing → Moves and inputs](editing.md#moves-and-inputs).
-- **Tune the feel:** [Modes → Grid](modes.md#grid).
+- **Tune the feel:** [Modes → Experiment](modes.md#experiment).
 - **Save or share your work:** [Interface → Export and import](interface.md#export-and-import).
 
 ## Pictures

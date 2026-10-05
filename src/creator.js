@@ -212,7 +212,7 @@ function creatorKey(e, a) {
 // ---------- panels ----------
 function creatorCtx() {
   return [movesGrp(),
-    grp('experiment', 'Breed body variations: nine bodies at once, keep the best', toggle(':science: experiment', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
+    grp('vary', 'Breed body variations: nine bodies at once, keep the best', toggle(':science: vary body', 'Grid of 9 random variations of the body (sizes, springs…). Click a cell to breed new variations around it; keep the one you like.',
       () => creator.expOn && creator.exp.kind === 'body', on => setExp(on))),
     showGrp(['boxes', 'colours']), panelsGrp([...MOVE_PANELS, 'bones'], { ...VIEW_TIPS, bones: BONES_TIP }),
   ];
@@ -464,9 +464,9 @@ function bodyPanel() {
     heading('Stance pose', 'Set the whole stance from a preset (per limb, so it works for any body), or turn a pose into attacks', ''),
     ...stanceRow(),
     h('div', { cls: 'bar' }, Object.entries(POSES).map(([k, p]) => button(k, p.tip, () => edit(def => Object.assign(editPose(def), presetPose(currentChar(), p)))))),
-    h('div', { cls: 'bar' }, button(':animation: pose → animation', 'Turn a pose into moves: nine attacks that strike into it from the main stance (each with its own anticipation and timing) in the attack grid; click one to breed variations, then save it or edit it in animate', (e, b) =>
+    h('div', { cls: 'bar' }, button(':animation: pose → animation', 'Turn a pose into moves: nine attacks that strike into it from the main stance (each with its own anticipation and timing) in the experiment tab; click one to breed variations, then save it or edit it in animate', (e, b) =>
       popup(b, h('div', { cls: 'bar' }, Object.entries(POSE_TARGETS(currentChar())).map(([n, t]) => button(n, t.tip, () => {
-        Object.assign(breed, { pose: n, atk: null }); breed.seed++; lab.kind = 'attacks'; setMode('grid');
+        Object.assign(breed, { pose: n, atk: null }); breed.seed++; lab.kind = 'attacks'; setMode('experiment');
       })))))),
     ...radarPanel(),
     ...statsPanel(),

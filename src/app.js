@@ -10,7 +10,7 @@ function setTheater(v) {
 }
 const MODES = {
   play: 'Fight in one arena. Pick who fights: you, the AI, scripted combos, crowds.',
-  grid: 'Nine copies of one fight side by side, each with different settings. Click a cell to focus it.',
+  experiment: 'Nine copies of one fight side by side, each with different settings (or a bred variation, or two settings compared). Click a cell to focus it.',
   gallery: 'Every move of the character looping, with its keyframe timeline and frame data, then every movement (walk, run, dash, jump, flip, guard, hit, knockdown, dizzy…) with its speed and height. Only the cells on screen run (scroll for more).',
   impact: 'Hit reactions and falls: standard hits on the character side by side; drag on a body to strike it anywhere.',
   character: 'Build the fighter: drag joints, add limbs, tune bones. The preview fights with it live.',
@@ -24,7 +24,7 @@ const MODES = {
 const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode, replay: replayMode, fx: fxMode, sounds: soundsMode, tracker: trackerMode })[app.mode] || labMode;
 // the top bar's tabs: impact is a view of play, gallery and tests views of animate, sounds and tracker of fx, picked first in their toolbar
 const VIEWS = { play: ['play', 'impact'], animate: ['animate', 'gallery', 'tests'], fx: ['fx', 'sounds', 'tracker'] };
-const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', gallery: 'animation', impact: 'crisis_alert', tests: 'science', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', sounds: 'waves', tracker: 'view_module', replay: 'history' };
+const MODE_ICONS = { play: 'sports_kabaddi', experiment: 'science', gallery: 'animation', impact: 'crisis_alert', tests: 'science', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', sounds: 'waves', tracker: 'view_module', replay: 'history' };
 const tabOf = m => Object.keys(VIEWS).find(t => VIEWS[t].includes(m)) || m;
 
 function setMode(m) {
@@ -79,8 +79,8 @@ const KEYS = [
   ['combos', 'chains: P,P,P · K,K · P,K · P,P,K · run+P dash punch · air P/K, air P,K\ndirections × P / K: 6P elbow · 6K push kick · 8P hammer (overhead) · 8K turn kick (2D: ↑ with P / K together) · 4K fade kick (steps back) · 2P launcher · 2K sweep · 1P crouch jab · 3P body blow · 1K back sweep · 3K low kick\nair: j.8P upper · j.8K flip kick (launch) · j.2P hammer (spikes, bounces) · j.2K dive kick · j.S air spin\nspecials (cancel normals that hit): 236P rush · 623P rising · 214K spin · 236K stomp (hits a fighter on the floor) · 214P charge (unblockable) · 623K rising kick (invincible start)\n66 dash · 44 back dash · 66 and hold: run'],
   ['guard', 'hold L: guard, front only (not from behind) · ↓+L low guard · tap L just before a hit: parry · highs pass over a crouching fighter\nU special: S spin · → S rush · ↑ S rising · ↓ S stomp · ← S catch (counters a strike)\nJ+L throw, K+L second throw (P+G breaks them) · U+L (with a direction): switch stance · L while knocked flying: recover in the air · L just before landing: tech'],
   ['2.5D', 'plane setting: 2D (↑ jumps) / lanes / belt · 2D and 2.5D have separate movesets (input in animate) · 2.5D: ↑ ↓ move in depth (lanes: double tap = sidestep), 9P headbutt · 7P backfist · 7K crescent (overhead) · 9K flying knee · Space jumps in every plane, with ← / → a ninja flip'],
-  ['fixed', '⌘K find anything · ⌘Z undo · ⇧⌘Z redo (character and moves) · Esc back / close · click a panel heading: fold it · ? hints · in a fight (play, grid) a shortcut letter takes ⇧ (⇧P pause, ⇧R restart, ⇧H panel); in the editor modes the plain letter, and the fight keys do nothing'],
-  ['grid', 'click a cell: focus it and use its settings, ⌘Z undoes (breed / attacks: breed around it) · Shift+click: only focus'],
+  ['fixed', '⌘K find anything · ⌘Z undo · ⇧⌘Z redo (character and moves) · Esc back / close · click a panel heading: fold it · ? hints · in a fight (play) a shortcut letter takes ⇧ (⇧P pause, ⇧R restart, ⇧H panel); in the editor modes the plain letter, and the fight keys do nothing'],
+  ['experiment', 'click a cell: focus it and use its settings, ⌘Z undoes (breed / attacks: breed around it) · Shift+click: only focus'],
   ['character', 'drag a joint: length + angle · Shift+drag: angle only · drag the hip (square): move the waist over the feet'],
   ['animate', 'drag a joint: IK · Alt+drag: rotate one bone · timeline: drag a key to reorder, its edge to retime, double-click to split · Delete removes the key'],
   ['replay', 'timeline: click or drag to go to a moment · click an event to select it · events table (panels): fuzzy filter, sort, click a row to go there · the types in the toolbar show and hide lanes and rows'],

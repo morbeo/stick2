@@ -2,14 +2,15 @@
 
 [← docs index](README.md)
 
-The top bar has five tabs: **play**, **grid**, **character**, **animate** and **replay**. Some of them have more views inside (impact, gallery, tests), picked under **view** in the toolbar.
+The top bar has six tabs: **play**, **experiment**, **character**, **animate**, **fx** and **replay**. Some of them have more views inside (impact, gallery, tests, sounds, tracker), picked under **view** in the toolbar.
 
 | Tab | Views | What it's for |
 |---|---|---|
 | [play](#play) | fight · [impact](#impact) | fight, train, watch hit reactions |
-| [grid](#grid) | | compare one fight across many settings |
+| [experiment](#experiment) | | compare one fight across many settings, bred variations, or two settings side by side |
 | [character](#character) | | build a body |
 | [animate](#animate) | [gallery](#gallery) · [tests](#tests) | build moves, check them all |
+| [fx](#fx) | sounds · tracker | design looks, sounds and a step sequencer |
 | [replay](#replay) | | go through a recorded fight event by event |
 
 ## Play
@@ -30,7 +31,7 @@ One fight on the full stage.
 
 ![The scenario builder](img/builder.png)
 
-**new scenario** in the picker copies the current scenario into a builder over the stage. **scenario** in the **panels** group (shown for your own scenarios) opens and closes it. **test in grid** jumps to the [grid](#grid) with this scenario as its one row, to sweep it across settings.
+**new scenario** in the picker copies the current scenario into a builder over the stage. **scenario** in the **panels** group (shown for your own scenarios) opens and closes it. **test in experiment** jumps to the [experiment tab](#experiment) with this scenario as its one row, to sweep it across settings.
 
 Drag a fighter or a prop on the stage itself to reposition it — the same thing the x slider does, just quicker.
 
@@ -161,9 +162,9 @@ Nine bodies, each struck by the stick fighter: jab, kick, sweep, roundhouse, lau
 
 The same body and buttons are in the character editor as the **impact** preview.
 
-## Grid
+## Experiment
 
-![Grid: one fight, nine hit stop values](img/grid.png)
+![Experiment: one fight, nine hit stop values](img/experiment.png)
 
 A 3 × 3 sweep of any setting (or X × Y). Every cell replays the same seeded fight, so the only difference is the setting.
 
@@ -177,7 +178,7 @@ A 3 × 3 sweep of any setting (or X × Y). Every cell replays the same seeded fi
 
 - Hover a cell for its own **save** (as a move) and **edit** (in animate) buttons. Saving the same attack twice keeps one name.
 - Pick the striking **limb** (any, arm, leg, head, tail…) and **height** (any, high, mid, low) of new attacks.
-- **pose → animation:** pick a preset pose or another stance to strike into. The limb that moves most strikes, after an anticipation the other way. The character editor's pose → animation button opens the grid on a pose.
+- **pose → animation:** pick a preset pose or another stance to strike into. The limb that moves most strikes, after an anticipation the other way. The character editor's pose → animation button opens the experiment tab on a pose.
 
 ### Compare A and B
 
@@ -186,7 +187,7 @@ A 3 × 3 sweep of any setting (or X × Y). Every cell replays the same seeded fi
 - **compare** in the **panels** group opens the list of what differs over the cells, so you can read and watch together.
 - Click a cell to use its settings (⌘Z undoes); Shift+click only focuses it.
 
-### Testing in the grid
+### Testing in the experiment tab
 
 - 1, 3 or 5 seeds per cell, with averaged hits, whiffs and frozen %; sort cells by a metric.
 - **collision test:** every hitTest mode × three fights.
@@ -235,9 +236,9 @@ The **panels** group → **bones** puts every bone in a table over the stage: id
 - Edit values in place. An edit in a selected row goes to every selected bone.
 - Click a row to select it; ⌘/Ctrl/Shift+click adds it to the selection.
 
-### Experiment
+### Body experiment
 
-**experiment** breeds a 3 × 3 grid of body variations around the cell you click. With **limbs** on, variations also add, drop or extend limbs.
+**vary body** breeds a 3 × 3 grid of body variations around the cell you click. With **limbs** on, variations also add, drop or extend limbs.
 
 ### Moves
 

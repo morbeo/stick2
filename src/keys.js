@@ -15,7 +15,7 @@ const ACTIONS = [
   ['hints', 'view', ['Shift+Slash'], 'Show / hide the help line and the frame meter legend'],
   ['theater', 'view', ['KeyT'], 'Theater mode: no toolbars, no side panel, just the fight, and tries for fullscreen — for streaming or recording (Esc, or the key again, leaves it)'],
   ['clip', 'view', ['KeyX'], 'Save a clip: the last seconds of the fight, the preview or the cell under the mouse'], ['record', 'view', ['KeyE'], 'Record a clip / stop and save it'],
-  ['play', 'modes', ['Digit1'], 'Play mode'], ['grid', 'modes', ['Digit2'], 'Grid mode'], ['gallery', 'modes', ['Digit3'], 'Gallery mode'],
+  ['play', 'modes', ['Digit1'], 'Play mode'], ['experiment', 'modes', ['Digit2'], 'Experiment mode'], ['gallery', 'modes', ['Digit3'], 'Gallery mode'],
   ['character', 'modes', ['Digit4'], 'Character mode'], ['animate', 'modes', ['Digit5'], 'Animate mode'],
   ['impact', 'modes', ['Digit6'], 'Impact mode'], ['replay', 'modes', ['Digit7'], 'Replay mode'],
   ['prevKey', 'animate', ['Shift+ArrowLeft'], 'Select the previous key of the move'], ['nextKey', 'animate', ['Shift+ArrowRight'], 'Select the next key of the move'],
@@ -31,6 +31,7 @@ const keyStore = (() => { try { return JSON.parse(localStorage.getItem(KEY_STORE
 const DEFAULT_MACROS = [{ key: 'KeyO', seq: '2, 3, 6P' }, { key: 'KeyY', seq: '6, 2, 3P' }];
 const keymap = { ...Object.fromEntries(ACTIONS.map(([a, , k]) => [a, k])), ...keyStore.map };
 if (keyStore.map?.jump) { keymap.up = keymap.jump; delete keymap.jump; } // 'jump' became 'up' (Space jumps)
+if (keyStore.map?.grid) { keymap.experiment = keyStore.map.grid; delete keymap.grid; } // 'grid' (sweep/breed/attacks/compare) became 'experiment'
 const macros = keyStore.macros || clone(DEFAULT_MACROS);
 // custom binds: a key for any app function paletteEntries() (palette.js) lists, not just ACTIONS. paletteEntries() builds fresh
 // closures every call (it reads live DOM/state), so only { kind, name, key } is stored; the matching entry is found again when the key fires
@@ -38,10 +39,10 @@ const custom = keyStore.custom || [];
 const saveKeys = () => { try { localStorage.setItem(KEY_STORE, JSON.stringify({ map: keymap, macros, custom })); } catch {} };
 
 const combo = e => (e.altKey ? 'Alt+' : '') + (e.shiftKey ? 'Shift+' : '') + e.code;
-// contexts: in a fight (play, grid) the letters belong to the fighter, so a shortcut on a plain letter takes Shift (⇧P pause);
+// contexts: in a fight (play) the letters belong to the fighter, so a shortcut on a plain letter takes Shift (⇧P pause);
 // in the editor modes shortcuts take the plain keys and the fight keys do nothing. Fight keys and macros work in fights only,
 // animate and character shortcuts in the editor only, transport, view and mode keys in both
-const FIGHT_MODES = ['play', 'grid'];
+const FIGHT_MODES = ['play'];
 const inFight = () => FIGHT_MODES.includes(app.mode);
 const CTX_OF = { fight: ['fight'], macro: ['fight'], animate: ['editor'], character: ['editor'], replay: ['editor'] };
 const ctxOf = g => CTX_OF[g] || ['fight', 'editor'];
@@ -130,7 +131,7 @@ let keysQuery = ''; // the search box text; kept across refreshKeys() rebuilds (
 function keysContent() {
   const groups = [...new Set(ACTIONS.map(a => a[1]))], clash = keyClashes();
   const CLASH = ' · shares its key with another action in the same context: only the first one fires';
-  const where = g => g === 'fight' ? 'in a fight (play, grid)' : CTX_OF[g] ? 'in the editor modes' : 'everywhere; a letter takes ⇧ in a fight';
+  const where = g => g === 'fight' ? 'in a fight (play)' : CTX_OF[g] ? 'in the editor modes' : 'everywhere; a letter takes ⇧ in a fight';
   // fuzzy on the name (an action's id), plain substring on its tip, same split as the settings search (lab.js configPanel)
   const match = (name, tip) => { const q = keysQuery.trim().toLowerCase(); return !q || fuzzy(q, name) || (tip || '').toLowerCase().includes(q); };
 
@@ -157,7 +158,7 @@ function keysContent() {
       oninput: e => { keysQuery = e.target.value; applyFilter(); },
       onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { e.target.value = keysQuery = ''; applyFilter(); } } }));
 
-  const macroSec = subFold('macros · in a fight (play, grid)', [
+  const macroSec = subFold('macros · in a fight (play)', [
     h('p', { cls: 'note', textContent: 'One key presses a sequence. Steps: numpad directions (2 down, 3 down-forward, 6 forward…) with P / K / S / G, or waits like 0.1.' }),
     ...macros.map((m, i) => h('div', { cls: clash.has('macro ' + (i + 1)) ? 'bar warn' : 'bar' },
       keyChip(() => m.key, v => { m.key = v || ''; }, 'The key that plays this macro in a fight' + (clash.has('macro ' + (i + 1)) ? CLASH : ''), 'macro'),
@@ -196,7 +197,7 @@ function keysContent() {
 
   applyFilter();
   return [
-    h('p', { cls: 'note', textContent: 'In a fight (play, grid) the letters are the fighter\'s: a shortcut on a letter takes ⇧ there (⇧P pause, ⇧R restart). In the editor modes (gallery, impact, character, animate) shortcuts take the plain key and the fight keys do nothing.' }),
+    h('p', { cls: 'note', textContent: 'In a fight (play) the letters are the fighter\'s: a shortcut on a letter takes ⇧ there (⇧P pause, ⇧R restart). In every other mode shortcuts take the plain key and the fight keys do nothing.' }),
     search,
     ...groupSecs.map(x => x.sec),
     macroSec, customSec,

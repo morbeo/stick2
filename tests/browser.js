@@ -176,8 +176,8 @@ try {
     if (myTracks[name].rows.length !== 1) errs.push('tracker remove row ' + myTracks[name].rows.length);
     deleteTrack(name); if (name in myTracks) errs.push('tracker delete ' + name);
     setMode('fx'); panels(); }
-  // the attack grid: a hovered cell's own save button keeps that attack (once, however often it is pressed), without breeding
-  lab.kind = 'attacks'; setMode('grid'); lab.hover = 4; labRender();
+  // the attack grid (experiment tab): a hovered cell's own save button keeps that attack (once, however often it is pressed), without breeding
+  lab.kind = 'attacks'; setMode('experiment'); lab.hover = 4; labRender();
   const cell = lab.cells[4], sb = cell.btns.find(b => !b.open), seed = breed.seed, nMoves = Object.keys(DEFS[CURRENT].moves).length;
   for (let i = 0; i < 2; i++) labClick(sb.x + 2, sb.y + 2, {});
   const dm = DEFS[CURRENT].moves; if (Object.keys(dm).length !== nMoves + 1 || JSON.stringify(dm[cell.saved]) !== JSON.stringify(cell.gen) || breed.seed !== seed) errs.push('cell save ' + [Object.keys(dm).length, nMoves, cell.saved, breed.seed, seed]);
@@ -451,7 +451,7 @@ try {
   // visibility: toolbar groups and side sections hide per tab (popup, heading ×, ⌘K); the overlays sit in one order, meter / inputs / colours kept per tab
   { setMode('play'); const part = (k, p) => $(k).querySelector('[data-part="' + p + '"]');
     layShow('ctx:scenario', false); if (part('ctx', 'scenario') || !app.parts.ctx.includes('scenario')) errs.push('hide toolbar group');
-    setMode('impact'); if (part('ctx', 'scenario')) errs.push('hidden group is per tab, not per view'); if (lay('grid').hide['ctx:scenario']) errs.push('hidden group on another tab'); setMode('play');
+    setMode('impact'); if (part('ctx', 'scenario')) errs.push('hidden group is per tab, not per view'); if (lay('experiment').hide['ctx:scenario']) errs.push('hidden group on another tab'); setMode('play');
     const sec = app.parts.side[0]; $('side').querySelector('.fold h3 .hidebtn').click();
     if ([...$('side').querySelectorAll('.fold')].some(f => f.fname === sec) || layShown('side:' + sec)) errs.push('heading hides its section');
     layoutPanel(null, $('global').querySelector('button[data-tip^="Layout:"]'));
@@ -460,7 +460,7 @@ try {
     paletteEntries().find(e => e.name === 'hide toolbar group: scenario')?.run(); if (part('ctx', 'scenario')) errs.push('hide in ⌘K'); layShow('ctx:scenario', true);
     const tips = [...part('ctx', 'show').querySelectorAll('button')].map(b => b.dataset.tip.split(/[ :]/)[0]).join();
     if (tips !== 'Frame,Input,Boxes,Ghost,Hud,Labels,Timer') errs.push('show order ' + tips);
-    lab.meter = true; setMode('grid'); if (lab.meter) errs.push('meter per tab'); setMode('play');
+    lab.meter = true; setMode('experiment'); if (lab.meter) errs.push('meter per tab'); setMode('play');
     if (!lab.meter || !JSON.parse(localStorage.getItem('stick2.layouts')).sets.default.tabs.play.show.meter) errs.push('meter saved');
     setDisplay('hud', false); setDisplay('labels', false); labRender(); setDisplay('hud', true); setDisplay('labels', true);
     layReset(); if (lab.meter) errs.push('reset clears overlays'); }
@@ -483,7 +483,7 @@ try {
     dnd(tg(c0.at(-1)), tg(c0[0])); dnd(tg(s0[0]), [...pop.querySelectorAll('.row > span')].find(x => x.textContent === 'side panel'));
     const c1 = ids('ctx'), s1 = ids('side');
     if (c1[0] !== c0.at(-1) || c1.slice(1).join() !== c0.slice(0, -1).join() || s1.at(-1) !== s0[0] || app.parts.side.join() !== s1.join()) errs.push('reorder ' + c1 + ' / ' + s1);
-    setMode('grid'); if (lay().order) errs.push('order per tab'); setMode('play'); if (ids('ctx')[0] !== c0.at(-1)) errs.push('order kept');
+    setMode('experiment'); if (lay().order) errs.push('order per tab'); setMode('play'); if (ids('ctx')[0] !== c0.at(-1)) errs.push('order kept');
     closePop(); layReset('play'); if (ids('ctx').join() !== c0.join() || ids('side').join() !== s0.join()) errs.push('reset order'); }
   // sizes: the grip sets the side panel's width (220–560, per tab, double-click: default); the editor / preview boundary drags (animate, character)
   { setMode('play'); const g = $('grip'), pe = (t, x) => (t === 'pointerdown' ? g : window).dispatchEvent(new PointerEvent(t, { clientX: x, bubbles: true }));
@@ -506,8 +506,8 @@ try {
     btn.click(); document.body.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT', shiftKey: true, bubbles: true })); // in a fight, letters are the fighter's: the shortcut takes ⇧
     if (app.theater) errs.push('theater key toggles off'); }
   // compare settings: A and B (current, a preset, a file) differing in 3 settings give 3 rows; use B takes one (undoable), use all B every one; the text has - / + lines
-  // (compare lives in grid, not play: no button for it there, and opening it from elsewhere lands in grid)
-  { setMode('grid'); applyPreset('juicy'); const keep = { ...CFG };
+  // (compare lives in experiment, not play: no button for it there, and opening it from elsewhere lands in experiment)
+  { setMode('experiment'); applyPreset('juicy'); const keep = { ...CFG };
     cmp.a = { name: 'current' }; cmp.b = { name: 'f', cfg: { ...cfgFrom({}), hitstop: 0.2, gravity: 999, easing: 'step' } }; cmp.all = false; cmp.q = '';
     paletteEntries().find(e => e.name === 'compare settings').run();
     const rows = () => [...document.querySelectorAll('.cmptable tbody tr')], cell = (r, i) => r.children[i].textContent;
@@ -521,7 +521,7 @@ try {
     undo(); cmp.a = { name: 'raw' }; cmp.b = { name: 'juicy' }; panels(); if (!rows().some(r => cell(r, 1) === 'easing')) errs.push('compare presets');
     setMode('play'); if (document.querySelector('.cmptable')) errs.push('compare per tab');
     if ([...document.querySelectorAll('#ctx button')].some(b => b.dataset.tip?.startsWith(CMP_PANEL_TIP))) errs.push('compare button in play');
-    setMode('grid'); if (!document.querySelector('.cmptable')) errs.push('compare back in grid'); closeStage(); if (document.querySelector('.cmptable')) errs.push('compare close'); }
+    setMode('experiment'); if (!document.querySelector('.cmptable')) errs.push('compare back in experiment'); closeStage(); if (document.querySelector('.cmptable')) errs.push('compare close'); }
   // survival: the side panel has the Survival settings, the fight draws with its time counter
   { setMode('play'); lab.scen = 'survival'; build(); panels(); const w = lab.cells[0].w; for (let i = 0; i < 200; i++) w.advance(1/60, NOIN); labRender();
     if (!w.scen.survival || w.survT < 3 || ![...document.querySelectorAll('#side h3')].some(e => e.textContent.includes('Survival'))) errs.push('survival ' + w.survT);
@@ -532,13 +532,13 @@ try {
     syncAll(); if (CFG.survHp !== -1 || hpv.value !== '-1' || !hpv.classList.contains('danger') || w2.b.c('health') !== 1) errs.push('survHp typed ' + CFG.survHp + ' ' + w2.fighters.map(f => f.c('health')));
     undo(); if (CFG.survHp !== 0.5) errs.push('survHp typed undo ' + CFG.survHp);
     lab.scen = 'you vs dummy'; build(); panels(); }
-  // the grid's compare kind: two cells with A's and B's settings, the same seed; a click on B takes its settings (undoable); the panels seg opens the diff over it
-  { const keep = { ...CFG }; cmp.a = { name: 'current' }; cmp.b = { name: 'juicy' }; lab.kind = 'compare'; setMode('grid');
+  // the experiment tab's compare kind: two cells with A's and B's settings, the same seed; a click on B takes its settings (undoable); the panels seg opens the diff over it
+  { const keep = { ...CFG }; cmp.a = { name: 'current' }; cmp.b = { name: 'juicy' }; lab.kind = 'compare'; setMode('experiment');
     const [A, B] = lab.cells, J = cmpCfg({ name: 'juicy' });
-    if (lab.cells.length !== 2 || lab.cols !== 2 || B.label !== 'B · juicy' || A.over.hitstop !== keep.hitstop || B.over.hitstop !== J.hitstop || A.w.seed !== B.w.seed) errs.push('grid compare cells ' + lab.cells.map(c => c.label));
+    if (lab.cells.length !== 2 || lab.cols !== 2 || B.label !== 'B · juicy' || A.over.hitstop !== keep.hitstop || B.over.hitstop !== J.hitstop || A.w.seed !== B.w.seed) errs.push('experiment compare cells ' + lab.cells.map(c => c.label));
     const r = labRects()[1]; labClick(r.x + r.w / 2, r.y + r.h / 2, {});
-    if (CFG.hitstop !== J.hitstop || !lab.zoom) errs.push('grid compare adopt ' + CFG.hitstop); undo(); if (CFG.hitstop !== keep.hitstop) errs.push('grid compare undo');
-    [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith(CMP_PANEL_TIP)).click(); if (!document.querySelector('#over > .cmptable')) errs.push('grid compare diff');
+    if (CFG.hitstop !== J.hitstop || !lab.zoom) errs.push('experiment compare adopt ' + CFG.hitstop); undo(); if (CFG.hitstop !== keep.hitstop) errs.push('experiment compare undo');
+    [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith(CMP_PANEL_TIP)).click(); if (!document.querySelector('#over > .cmptable')) errs.push('experiment compare diff');
     closeStage(); lab.kind = 'sweep'; setMode('play'); }
   // settings persist: a change is stored (only what differs from the defaults), comes back on load, bad values are dropped; reset settings brings back the defaults
   { setCfg({ hitstop: 0.2, easing: 'step' }); setDisplay('boxes', true); saveCfg.flush(); const st = JSON.parse(localStorage.getItem('stick2.settings'));
@@ -609,11 +609,11 @@ try {
       if (Math.round(u().p[0].x) !== Math.round(x0 + 40)) errs.push('builder drag actor ' + u().p[0].x + ' vs ' + (x0 + 40)); }
     propRow().querySelector('button[data-tip="Remove this prop"]').click();
     if (u().props.length !== 0 || w().props.length !== 0) errs.push('builder remove prop ' + JSON.stringify(u().props));
-    // test in grid: jumps to grid mode, sweeping settings with this scenario as the one row
-    [...document.querySelectorAll('.sbuild button')].find(b => b.textContent.includes('test in grid')).click();
-    if (app.mode !== 'grid' || lab.y.k !== 'scenario' || JSON.stringify(lab.rows) !== JSON.stringify(['jab vs sumo']) || lab.kind !== 'sweep') errs.push('test in grid ' + app.mode + ' ' + lab.y.k + ' ' + JSON.stringify(lab.rows));
+    // test in experiment: jumps to experiment mode, sweeping settings with this scenario as the one row
+    [...document.querySelectorAll('.sbuild button')].find(b => b.textContent.includes('test in experiment')).click();
+    if (app.mode !== 'experiment' || lab.y.k !== 'scenario' || JSON.stringify(lab.rows) !== JSON.stringify(['jab vs sumo']) || lab.kind !== 'sweep') errs.push('test in experiment ' + app.mode + ' ' + lab.y.k + ' ' + JSON.stringify(lab.rows));
     setMode('play'); lab.scen = 'jab vs sumo'; build(); openStage('builder');
-    if (!document.querySelector('.sbuild')) errs.push('builder reopen after grid test');
+    if (!document.querySelector('.sbuild')) errs.push('builder reopen after experiment test');
     sb().click(); const g = [...document.querySelectorAll('.pop h4')].find(e => e.textContent.includes('my scenarios'));
     if (!g || g.nextSibling.textContent !== 'jab vs sumo') errs.push('builder group'); closePop();
     const json = exportScens(); importScens(json.replace('jab vs sumo', 'copy of it')); if (!SCENARIOS['copy of it']) errs.push('builder import');
@@ -774,11 +774,11 @@ try {
     unbind('KeyP', 'animate'); if (keymap.pause.includes('KeyP')) errs.push('an editor key did not take the pause key');
     keymap.pause = ['KeyP'];
     // custom binds: any paletteEntries() function (not just ACTIONS), stored as { kind, name, key } and resolved fresh when the key fires
-    setMode('animate'); custom.push({ kind: 'mode', name: 'grid', key: 'KeyZ' });
-    kd('KeyZ'); if (app.mode !== 'grid') errs.push('custom bind did not run');
+    setMode('animate'); custom.push({ kind: 'mode', name: 'experiment', key: 'KeyZ' });
+    kd('KeyZ'); if (app.mode !== 'experiment') errs.push('custom bind did not run');
     setMode('animate'); custom.pop();
-    kd('KeyZ'); if (app.mode === 'grid') errs.push('deleted custom bind still ran');
-    custom.push({ kind: 'mode', name: 'grid', key: 'KeyH' }); // same raw key as the 'panel' action: both resolve everywhere, so this must clash
+    kd('KeyZ'); if (app.mode === 'experiment') errs.push('deleted custom bind still ran');
+    custom.push({ kind: 'mode', name: 'experiment', key: 'KeyH' }); // same raw key as the 'panel' action: both resolve everywhere, so this must clash
     if (!keyClashes().has('panel') || !keyClashes().has('custom 1')) errs.push('custom bind clash not flagged');
     custom.pop();
     setMode('play'); }

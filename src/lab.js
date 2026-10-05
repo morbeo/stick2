@@ -85,7 +85,7 @@ function blow(w, k) {
   w.strike(vic, bone, mid(bone), m, side);
 }
 
-const bred = () => lab.kind === 'breed' || lab.kind === 'attacks'; // the grid kinds that breed cells (sweep and compare set settings)
+const bred = () => lab.kind === 'breed' || lab.kind === 'attacks'; // the experiment kinds that breed cells (sweep and compare set settings)
 // a gallery cell builds its fight when it is needed (scrolled into view) and drops it off screen, so it never runs a stale character
 const lazyCell = (mk, c) => Object.defineProperty(c, 'w', { get() { return this._w ??= mk(); }, enumerable: true });
 function build() {
@@ -120,7 +120,7 @@ function build() {
     }
   }
   // extra seeds: the same cell fought again with other random rolls (AI, sparks); the stats average them
-  if (lab.mode === 'grid' && lab.kind !== 'attacks' && lab.seeds > 1)
+  if (lab.mode === 'experiment' && lab.kind !== 'attacks' && lab.seeds > 1)
     for (const c of lab.cells) c.extra = Array.from({ length: lab.seeds - 1 }, (_, i) => newWorld(c.w.scen, c.over, 8 + i));
   lab.focus = lab.cells[0];
 }
@@ -217,9 +217,9 @@ function labRender() {
   const cells = shown(), play = lab.mode === 'play', rag = lab.mode === 'impact' && lab.impact === 'ragdoll', rects = labRects(cells.length);
   if (lab.mode === 'gallery' && !cells.length) text('no move matches the filter', canvas.width / 2, canvas.height / 2, '#999', 13, '', 'center');
   cells.forEach((c, i) => !(rects[i].y + rects[i].h > 0 && rects[i].y < canvas.height) ? delete c._w : drawCell(c, rects[i], { full: play || rag, plot: !play && lab.mode !== 'impact', meter: lab.meter,
-    selected: !play && !rag && !lab.zoom && (lab.mode === 'grid' && bred() ? c.parent && 'parent'
+    selected: !play && !rag && !lab.zoom && (lab.mode === 'experiment' && bred() ? c.parent && 'parent'
       : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) && 'current settings' : c === lab.focus && 'focused') }));
-  if (lab.mode === 'grid' && lab.kind === 'attacks' && !lab.zoom) cells.forEach((c, i) => { c.btns = null; if (i === lab.hover) drawCellButtons(c, rects[i]); });
+  if (lab.mode === 'experiment' && lab.kind === 'attacks' && !lab.zoom) cells.forEach((c, i) => { c.btns = null; if (i === lab.hover) drawCellButtons(c, rects[i]); });
   if (play && cells[0]) refreshMovelist(cells[0].w.a); // live: a mid-fight stance switch updates the side panel's movelist, not just on the next click
   if (play && lab.inputs && cells[0].w.ctl[0] === 'human') drawInputs(cells[0].w, 10 * dpr, 60 * dpr);
   if (play && cells[0].w.playback) drawPlayback(cells[0].w);
@@ -392,7 +392,7 @@ const SCEN_GROUPS = [
   ['specials', 'bolt', 'Scripted: specials, projectiles and the roster\'s signature moves.', ['specials (S)', 'fireball', 'fireball clash', 'laser beam', 'flash kick', 'lightning legs', 'turnaround', 'roll through', 'roll back', 'teleport', 'taunt', 'win pose']],
   ['movement', 'directions_run', 'Scripted: walking, jumping, dashes and the 2.5D sidestep.', ['walk', 'jump', 'air kick', 'sidestep', 'ninja flip', 'dash & run']],
   ['weapons', 'swords', 'Scripted: picking up, throwing and clashing weapons.', ['pick up & slash', 'weapon throw', 'disarm', 'weapon clash', 'deflect']],
-  ['other tests', 'science', 'Scripted: repeatable inputs, the same fight every loop, ideal for the grid.', s => Array.isArray(s.a)],
+  ['other tests', 'science', 'Scripted: repeatable inputs, the same fight every loop, ideal for the experiment tab.', s => Array.isArray(s.a)],
 ];
 const scenGroup = k => SCEN_GROUPS.find(([, , , f]) => Array.isArray(f) ? f.includes(k) : f(SCENARIOS[k], k))?.[0];
 function scenButton(onPick) {
@@ -420,7 +420,7 @@ function scenButton(onPick) {
 }
 // grid axis: pick a variable (grouped like the side panel) and its range
 function axisButton(ax, name) {
-  const b = button('', `${name} axis: the variable swept across the grid`, (e, b) => {
+  const b = button('', `${name} axis: the variable swept across the cells`, (e, b) => {
     const groups = [];
     for (const s of SCHEMA) {
       if (Array.isArray(s)) groups.push([s[0], []]);
@@ -533,20 +533,20 @@ function labCtx() {
   const els = [];
   if (lab.mode === 'play' && lab.branch) els.push(grp('branch', `A branch of the replay "${lab.branch.reel.name}" from ${lab.branch.n} frames in: you play P${lab.branch.side}`,
     button(':history: keep', 'Keep this branch: back to the replay tab, compared with its reel', keepBranch), button(':close: drop', 'Drop the branch: back to the normal fight', dropBranch)));
-  if (lab.mode === 'grid') els.push(grp('grid', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
+  if (lab.mode === 'experiment') els.push(grp('experiment', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
   if (lab.kind !== 'attacks' || lab.mode === 'play') els.push(grp('scenario', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = lab.branch = null; build(); panels(); })));
   if (lab.mode === 'play' && !SCENARIOS[lab.scen]?.user) els.push(grp('fighters', 'Who fights: P1 (you), P2 and any extra fighters of the scenario, each any character; unset = the one being edited (P3 on: as P2)',
     fighterPick(0), shieldButton(0), swapFighters(), fighterPick(1), shieldButton(1), Array.from({ length: fighterCount(SCENARIOS[lab.scen]) - 2 }, (_, i) => [fighterPick(i + 2), shieldButton(i + 2)])));
   if (lab.mode === 'play' && SCENARIOS[lab.scen]?.waves) els.push(grp('waves', SPEC.waves.tip + ' Changing it starts over at wave 1',
     seg(SPEC.waves.opts, () => CFG.waves, v => { setCfg({ waves: v }); mode().restart(); }, SPEC.waves.optTips),
     toggle(':casino: mixed', SPEC.waveMix.tip, () => CFG.waveMix, v => { setCfg({ waveMix: v }); mode().restart(); })));
-  if (lab.mode === 'grid' && bred()) els.push(...breedCtx());
-  else if (lab.mode === 'grid' && lab.kind === 'compare') els.push(grp('sides', 'The settings of the two cells (the compare panel lists what differs)', cmpSource('a'), cmpSource('b')), zoomBack());
-  else if (lab.mode === 'grid') {
+  if (lab.mode === 'experiment' && bred()) els.push(...breedCtx());
+  else if (lab.mode === 'experiment' && lab.kind === 'compare') els.push(grp('sides', 'The settings of the two cells (the compare panel lists what differs)', cmpSource('a'), cmpSource('b')), zoomBack());
+  else if (lab.mode === 'experiment') {
     const adopt = button(':check: use these values', 'Copy the focused cell\'s values into the settings (side panel)', () => setCfg(lab.focus.over));
     const back = zoomBack();
     reg(adopt, () => { adopt.hidden = !lab.zoom; });
-    els.push(grp('axes', 'The variables swept across the grid', axisButton(lab.x, 'X'), axisButton(lab.y, 'Y')),
+    els.push(grp('axes', 'The variables swept across the cells', axisButton(lab.x, 'X'), axisButton(lab.y, 'Y')),
       grp('tests', 'Ready-made comparisons', button(':science: tests :expand_more:', 'Ready-made comparisons: collision modes, chain rules, combo effects, planes', (e, tb) => popup(tb, h('div', { cls: 'bar col', onclick: closePop }, button(':target: collision test', 'Every hitTest mode (columns) on three fights (rows): compare hits and whiffs of the collision modes', () => {
         Object.assign(lab.x, { k: 'hitTest' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = null; build();
       }),
@@ -563,13 +563,13 @@ function labCtx() {
         Object.assign(lab.x, { k: 'lastFrame' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = EDGE_SCENS; build();
       }))))), adopt, back);
   }
-  if (lab.mode === 'grid' && lab.kind !== 'attacks') els.push(grp('stats', 'How the cells are measured and ordered',
+  if (lab.mode === 'experiment' && lab.kind !== 'attacks') els.push(grp('stats', 'How the cells are measured and ordered',
     seg([1, 3, 5], () => lab.seeds, v => { lab.seeds = v; build(); }, { 1: 'One fight per cell', 3: 'Each cell fought with 3 seeds; stats averaged (AI fights differ per seed)', 5: '5 seeds per cell, averaged' }, v => `${v} seed${v > 1 ? 's' : ''}`),
     sortButton()));
   els.push(showGrp(['meter', ...lab.mode === 'play' ? ['inputs'] : [], 'boxes', 'ghost', 'hud', 'labels', 'timer']));
-  // compare settings only in grid (it drives the grid's own compare kind); play just gets its scenario builder, if it has one
-  const panelNames = [...lab.mode !== 'play' ? ['compare'] : [], ...lab.mode === 'play' ? ['builder'] : []];
-  if (lab.mode !== 'gallery' && panelNames.length) els.push(panelsGrp(panelNames, { compare: CMP_PANEL_TIP, builder: BUILDER_TIP }));
+  // compare settings only in experiment (it drives its own compare kind); play just gets its scenario builder, if it has one
+  const panelNames = [...lab.mode === 'experiment' ? ['compare'] : [], ...lab.mode === 'play' ? ['builder'] : []];
+  if (panelNames.length) els.push(panelsGrp(panelNames, { compare: CMP_PANEL_TIP, builder: BUILDER_TIP }));
   if (lab.mode === 'play') els.push(...trainingCtl(),
     grp('theater', 'No toolbars, no side panel, just the fight — for streaming or recording (Esc, or the key again, leaves it); health bars, frame meter, timer and labels are set in the show group',
       toggle(':crop_landscape: theater', 'Theater mode: no toolbars, no side panel, just the fight, and tries for fullscreen' + keyTip('theater') + ' (Esc, or the key again, leaves it)',
@@ -687,15 +687,15 @@ function groupHeading(s, i) {
   const el = heading(...s), ks = groupKeys(i).filter(k => k !== 'scope');
   if (s[0] === 'Debug') return el;
   el.append(groupOps(ks.map(k => SPEC[k]), k => CFG[k], k => SPEC[k].v, vals => setCfg(vals),
-    ['Experiment: breed the group\'s variables in the grid, click the best cell to breed around it', () => {
-      lab.kind = 'breed'; breed.vars = new Set(ks); breed.cfg = null; setMode('grid');
+    ['Experiment: breed the group\'s variables in the experiment tab, click the best cell to breed around it', () => {
+      lab.kind = 'breed'; breed.vars = new Set(ks); breed.cfg = null; setMode('experiment');
     }]));
   return el;
 }
-// clicking a variable's name sweeps it across the grid
+// clicking a variable's name sweeps it across the cells, in the experiment tab
 function gridLink(row, s) {
   return expLink(row, `test ${s.k} in a grid, one value per cell`,
-    () => { lab.kind = 'sweep'; Object.assign(lab.x, { k: s.k, lo: s.min, hi: s.max }); lab.y.k = ''; setMode('grid'); });
+    () => { lab.kind = 'sweep'; Object.assign(lab.x, { k: s.k, lo: s.min, hi: s.max }); lab.y.k = ''; setMode('experiment'); });
 }
 const labSide = () => lab.mode === 'gallery' ? moveSide() : configPanel();
 // the debug popup (menu bar): the Debug settings, the debug information, copy and factory reset, the monitor
@@ -761,8 +761,8 @@ function labClick(x, y, e) {
   lab.focus = lab.cells[i];
   if (lab.mode === 'gallery') followMove(lab.focus.move);
   // a pick in a settings experiment also sets those settings (⌘Z undoes it); Shift+click only looks
-  if (lab.mode === 'grid' && !e.shiftKey && lab.focus.over) setCfg(lab.focus.over);
-  if (lab.mode === 'grid' && bred() && !e.shiftKey) breedFrom(lab.cells[i]); else lab.zoom = true;
+  if (lab.mode === 'experiment' && !e.shiftKey && lab.focus.over) setCfg(lab.focus.over);
+  if (lab.mode === 'experiment' && bred() && !e.shiftKey) breedFrom(lab.cells[i]); else lab.zoom = true;
 }
 
 // impact: drag from a point on a body to strike it there; a plain click is a medium blow from the front
@@ -838,5 +838,5 @@ const labMode = {
   hint: () => lab.mode === 'play' && stageOpen() === 'builder' ? 'drag a fighter or a prop on the stage to reposition it · ' + fightHint()
     : lab.mode === 'play' ? fightHint()
     : lab.mode === 'impact' ? 'drag on a body: strike it there (direction and length = the blow, long = knockdown) · click a body: a medium blow · click beside: focus / back · Esc back'
-    : lab.mode === 'grid' && bred() ? (lab.kind === 'attacks' ? 'click a cell: breed around it · its save / edit buttons: keep that attack · Shift+click: focus · Esc back' : 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back') : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',
+    : lab.mode === 'experiment' && bred() ? (lab.kind === 'attacks' ? 'click a cell: breed around it · its save / edit buttons: keep that attack · Shift+click: focus · Esc back' : 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back') : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',
 };

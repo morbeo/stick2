@@ -35,13 +35,13 @@ Three rows, the same in every tab:
 
 ![Compare settings](img/compare.png)
 
-The **compare** stage panel (the **panels** group in grid, **import → compare…**, or ⌘K **compare settings**) lists two sets of settings side by side.
+The **compare** stage panel (the **panels** group in experiment, **import → compare…**, or ⌘K **compare settings**) lists two sets of settings side by side.
 
 - **A** and **B** are each the current settings, a preset, or a settings or everything file (only its settings are read).
 - Each row is a setting that differs: its group, name (hover for what it does), A, B, B − A for numbers, and the default. **all** lists every setting; the filter finds settings by name or group.
 - **use A** / **use B** on a row sets that value, and **use all A** / **use all B** takes a whole side. ⌘Z undoes.
 - **copy** puts the differences on the clipboard as text: `- key: A` and `+ key: B` lines.
-- To watch the difference, the grid's **compare** kind plays the same fight with A and with B side by side ([modes](modes.md#compare-a-and-b)).
+- To watch the difference, the experiment tab's **compare** kind plays the same fight with A and with B side by side ([modes](modes.md#compare-a-and-b)).
 
 ### Interface scale
 
@@ -151,7 +151,7 @@ The **keys** button (⌨) in the top bar shows every key and lets you rebind the
 
 | Where | Letters belong to | Shortcuts |
 |---|---|---|
-| a fight (play, grid) | the fighter | take ⇧: ⇧P pause, ⇧N step, ⇧V rewind, ⇧R restart, ⇧H panel, ⇧B boxes, ⇧G ghost; 1–6 switch modes |
+| a fight (play) | the fighter | take ⇧: ⇧P pause, ⇧N step, ⇧V rewind, ⇧R restart, ⇧H panel, ⇧B boxes, ⇧G ghost; 1–6 switch modes |
 | the editors (gallery, impact, character, animate) | shortcuts | the plain key: P, N, R, H, `,` `.` frame, ⇧← ⇧→ key, Enter play, O onion, I aim, Del delete; fight keys and macros do nothing |
 
 - The keys panel heads each group with its context and marks keys that clash within one.
@@ -191,17 +191,17 @@ Every group of variables (settings, the selected bone, the move, the selected ke
 | dice | randomize |
 | reset | back to defaults (the built-in values) |
 | ▲ / ▼ | empower / diminish |
-| flask | experiment with them in a grid (settings and bones) |
+| flask | experiment with them in a grid of cells (settings and bones) |
 
-- Grid experiments (breed, attacks, body) give each cell a distinct value of every varied variable, spread evenly over the range. **exaggerate** ×2 / ×4 makes the differences stand out.
-- Every variable's name is a link (dotted underline, a flask on hover). Click it to experiment with that one variable: settings sweep it across the grid; bone properties, stats and walk & idle open nine bodies varying only it.
+- These cell experiments (breed, attacks, body) give each cell a distinct value of every varied variable, spread evenly over the range. **exaggerate** ×2 / ×4 makes the differences stand out.
+- Every variable's name is a link (dotted underline, a flask on hover). Click it to experiment with that one variable: a setting sweeps it in the experiment tab; bone properties, stats and walk & idle open nine bodies varying only it.
 - Every setting has a hover tooltip; each group's ⓘ explains it and lists its keys.
 
 ## Time
 
 - **Pause** shows a large PAUSED sign over the preview.
 - **Scrub** (transport, M): move the mouse left / right to set the time in any view. The seeded fights are re-simulated to that moment.
-- **Undo** (⌘Z, ⇧⌘Z redo): sliders, presets, group buttons and grid picks, on the same stack as character edits. Clicking a sweep or breed cell also applies its values (Shift+click only focuses).
+- **Undo** (⌘Z, ⇧⌘Z redo): sliders, presets, group buttons and cell picks, on the same stack as character edits. Clicking a sweep or breed cell also applies its values (Shift+click only focuses).
 
 ## Clips
 
@@ -213,7 +213,7 @@ Save what you watch as an animated GIF or a WebM video.
 | record (⇧E / E) | films until you press it again (at most 20 s), then saves |
 | ▾ | format (GIF / WebM), length (3, 5, 10 s), width (320, 480, 720 px), frame rate (15, 30, 50), aspect (the view's, 16:9, 4:3, 1:1, 9:16) and fit (crop or letterbox) |
 
-- It films the part of the view you watch: the fight in play, the cell under the mouse in the grid, gallery, impact and the body experiment, the preview in animate and character, the watched fight in tests.
+- It films the part of the view you watch: the fight in play, the cell under the mouse in experiment, gallery, impact and the body experiment, the preview in animate and character, the watched fight in tests.
 - Moving the mouse to another cell starts the buffer again. A recording stays on the cell it started on.
 - Paused time is left out. Slow motion stays slow.
 - A GIF loops by itself and has 255 colours. A WebM is smaller and keeps every colour, but saving it takes as long as the clip.

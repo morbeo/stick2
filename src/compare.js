@@ -1,6 +1,6 @@
 'use strict';
 // ---------- compare settings: two sets side by side (A and B: the current ones, a preset or a file), the differences listed, either side taken per setting or all at once ----------
-// a stage panel of the play and grid tabs, and the grid's compare kind (two cells, A and B); a source is { name, cfg } with cfg only for a file (the current settings and presets are read when shown)
+// a stage panel of the play and experiment tabs, and the experiment tab's compare kind (two cells, A and B); a source is { name, cfg } with cfg only for a file (the current settings and presets are read when shown)
 const cmp = { a: { name: 'current' }, b: { name: 'juicy' }, all: false, q: '' };
 const CMP_PANEL_TIP = 'Compare settings: the current ones, a preset or a file, side by side; take either side per setting or all at once';
 // a source's settings, without the debug views
@@ -27,12 +27,12 @@ function cmpFile(side, then) {
     cmp[side] = { name: name.replace(/\.json$/, ''), cfg: cfgFrom(d.cfg) }; then?.();
   });
 }
-// compare… in the import menu and ⌘K: the current settings against a file, over the grid tab (play has no compare panel)
+// compare… in the import menu and ⌘K: the current settings against a file, over the experiment tab
 function compareFile() { cmpFile('b', () => { cmp.a = { name: 'current' }; openCompare(); }); }
-function openCompare() { if (mode() !== labMode || lab.mode === 'play' || lab.mode === 'gallery') setMode('grid'); openStage('compare'); }
-// the A or B button: the current settings, a preset or a file; the grid's compare cells follow
+function openCompare() { if (mode() !== labMode || lab.mode !== 'experiment') setMode('experiment'); openStage('compare'); }
+// the A or B button: the current settings, a preset or a file; the experiment tab's compare cells follow
 function cmpSource(side) {
-  const S = side.toUpperCase(), set = s => { cmp[side] = s; if (lab.mode === 'grid' && lab.kind === 'compare') build(); panels(); };
+  const S = side.toUpperCase(), set = s => { cmp[side] = s; if (lab.mode === 'experiment' && lab.kind === 'compare') build(); panels(); };
   const b = button('', `${S}: the current settings, a preset or a file`, (e, b) => popup(b, h('div', { cls: 'bar' },
     seg(['current', ...Object.keys(PRESETS)], () => cmp[side].cfg ? null : cmp[side].name, n => { closePop(); set({ name: n }); },
       { current: 'The settings in use now', ...PRESET_TIPS }),

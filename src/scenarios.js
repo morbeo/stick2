@@ -1,6 +1,6 @@
 'use strict';
 // ---------- my scenarios: built in the browser (characters, controllers, scripts, positions, settings), saved as you go ----------
-// stored as { name: { p: [{ char, ctl, script, x, away, inv }, …], period, cfg } } and registered in SCENARIOS (flag user) for the picker and the grid
+// stored as { name: { p: [{ char, ctl, script, x, away, inv }, …], period, cfg } } and registered in SCENARIOS (flag user) for the picker and the experiment tab
 // BASE_SCENARIOS/SCENARIOS: src/brain.js (the shipped defaults, never mutated, vs. the live table this file layers myStore's overrides onto)
 const SCEN_STORE = 'stick2.scenarios';
 const myStore = (() => { try { return JSON.parse(localStorage.getItem(SCEN_STORE)) || {}; } catch { return {}; } })();
@@ -152,8 +152,8 @@ function scenBuilder() {
         () => { for (const k of changedCfg()) u.cfg[k] = CFG[k]; scenChanged(); fill(); }, 'mini')), found);
   };
   wrap.append(stageHead('scenario', BUILDER_TIP, h('span', { cls: 'note', textContent: 'saved in this browser as you edit' }),
-    button(':grid_view: test in grid', 'Open this scenario in the grid, one row, to sweep it across settings', () => {
-      lab.kind = 'sweep'; lab.x = { k: 'hitstop' }; lab.y = { k: 'scenario' }; lab.rows = [lab.scen]; setMode('grid');
+    button(':science: test in experiment', 'Open this scenario in the experiment tab, one row, to sweep it across settings', () => {
+      lab.kind = 'sweep'; lab.x = { k: 'hitstop' }; lab.y = { k: 'scenario' }; lab.rows = [lab.scen]; setMode('experiment');
     }),
     button(':content_copy: copy', 'A new scenario starting from this one', newScen),
     button(':download: export', 'Download all my scenarios as a JSON file', () => { const a = h('a', { href: URL.createObjectURL(new Blob([exportScens()], { type: 'application/json' })), download: 'stick2-scenarios.json' }); a.click(); }),

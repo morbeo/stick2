@@ -122,7 +122,7 @@ Scenario: chase jump.
 
 Hit stop, shake and zoom that grow with each combo hit; attacks, or the whole game, speeding up (or slowing) along a combo.
 
-### In the grid
+### In the experiment tab
 
 - **cancel test** compares chain rules on combo fights.
 - **combo fx test** shows each escalation effect on the same air combo.
@@ -174,7 +174,7 @@ A counter doesn't have to be an attack. Sneeko's own **← S** (substituteCatch 
 
 ### The window's last frame
 
-**lastFrame** (on by default) lets a press on the tech window's last frame still break or tech. techWindow 0.25 = 15 frames gives 16 chances; with lastFrame off, exactly 15. **window edge test** in the grid compares them side by side.
+**lastFrame** (on by default) lets a press on the tech window's last frame still break or tech. techWindow 0.25 = 15 frames gives 16 chances; with lastFrame off, exactly 15. **window edge test** in the experiment tab compares them side by side.
 
 **Scenarios:** throw, back throw, throw break, catch, tech, air recover; break / tech edge and inside (a press on the window's last frame, or one frame before).
 
@@ -548,7 +548,7 @@ The **plane** setting (lanes and belt are 2.5D):
 - **Dash:** double tap → / ←. A dash passes through opponents for the first **dashPass** seconds, and on through a body it's already inside while the dash lasts, so it crosses a foe backed against the wall. Two fighters level at a wall are pushed apart by which way they move or face, and never into it.
 - **Run:** hold on after a dash.
 - **AI:** lines up in depth and sidesteps.
-- **2.5D test** in the grid runs every plane on sidestep, flip, dash and AI fights.
+- **2.5D test** in the experiment tab runs every plane on sidestep, flip, dash and AI fights.
 
 ## Stances and styles
 
