@@ -6,13 +6,15 @@ A practical path through the tools for anyone who wants to help build out the 16
 
 ## What help is needed
 
-Every built-in character already clears the bar the tests enforce: at least four signature moves of its own and a second stance ([Editing → Characters](editing.md#characters) has the full roster table). Concretely open, today:
+Every built-in character already clears the bar the tests enforce: at least four signature moves of its own and a second stance ([Editing → Characters](editing.md#characters) has the full roster table). That's a floor, not a target — the roster as a whole could use polish in three directions:
 
+- **Richer movesets.** Four signature moves is the enforced minimum. A character's full input table ([Editing → Input table](editing.md#input-table)) has far more slots than that — most still fall back to the stick's plain moves. Filling more of them with something that fits the character (and linking them into its combos, [Editing → Combos](editing.md#combos)) makes it feel like its own fighter rather than a reskin.
+- **More distinctive skeleton rigs.** Most of the roster is the stick's own skeleton with proportions and stats changed. A few (centaur, houndo, gloomo, tako) go further — a quadruped body, extra limbs, a shapeshift — and read far more like a character because of it. Adding limbs, tails or alternate body shapes to others ([Editing → Characters](editing.md#characters), the **+ arm / + leg / + tail / + head** buttons) is open ground.
+- **More polished animation.** Beyond gait sliders for walk/idle feel, a movement layer ([Editing → Movement layers](editing.md#movement-layers)) for a character's own run, dash, guard or hit reaction — plus more deliberate easing, follow-through and secondary motion on its signature moves ([Modes → Animate](modes.md#animate)) — goes a long way toward making a character feel hand-animated instead of procedurally generic.
 - **A third stance or form for any character.** Every one of the 16 stops at exactly two stances (main plus one alt) — nothing stops a character from having three or more, it's just that none does yet.
-- **More signature moves.** Four is the enforced minimum, not a target — any character could use a deeper moveset.
 - **A new character entirely.** The roster isn't a fixed size; see [Editing → Your own](editing.md#your-own) for how one starts (copy, or the random generator), then [Suggesting a character](../CONTRIBUTING.md#suggesting-a-character) for how to submit it.
 
-If you're not sure something is worth building, [open an issue first and ask](../CONTRIBUTING.md).
+None of this needs to land in one PR — a single new move, one extra limb, or a run animation for one character is still a welcome contribution on its own. If you're not sure something is worth building, [open an issue first and ask](../CONTRIBUTING.md).
 
 ## The contribution workflow
 
