@@ -91,13 +91,15 @@ The **show** group in the toolbar holds the overlays, always in this order; each
 
 ![The debug popup](img/debug.png)
 
-The debug button (a chart icon) opens the debug popup, in any tab:
+The debug button (the red chart icon, upper right, in every tab) opens the debug popup:
 
-- the **ghost**, **boxes**, **hud** and **labels** switches, and the **scope** bone;
-- the build, engine version, frame rate, and the shown fight's seed, frame, state hash and fighters, with **copy** for bug reports;
+- the **ghost**, **boxes**, **hud** and **labels** switches;
+- the build, engine version, frame rate, and the shown fight's seed, frame, state hash and fighters;
+- **report a bug**: copies that plus the settings changed from default, and opens a new GitHub issue to paste it into;
 - **reset settings**: every setting back to its default (⌘Z undoes);
-- **factory reset**;
-- the **monitor**: the scope bone's target angle (grey) against the drawn one (red), with the fight's stats.
+- **factory reset**.
+
+The **scope** bone and the **monitor** (the scope bone's target angle, grey, against the drawn one, red, or health / stun / speed over time, with the fight's stats) moved to the [experiment](modes.md#experiment) tab's side panel — they're for watching a curve change as you sweep or breed a setting, not for debugging as such.
 
 ## In-app docs
 

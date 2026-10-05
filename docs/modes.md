@@ -186,6 +186,14 @@ The same body and buttons are in the character editor as the **impact** preview.
 
 A 3 × 3 sweep of any setting (or X × Y). Every cell replays the same seeded fight, so the only difference is the setting.
 
+### Monitor
+
+The side panel's **monitor** is an oscilloscope over the focused cell's last few seconds — for watching a curve change as you sweep or breed a setting, not just reading an end state:
+
+- **angle:** a bone (**scope**, pick any) target angle (grey, the keyframe) against what's actually drawn (red, after springs, damping and follow-through). The gap between them is overshoot, wobble or lag — tune a spring setting and watch it tighten or loosen.
+- **health / stun:** both fighters' meters over the fight (P1 grey, P2 red) — whether one drains steadily or a combo snowballs it down.
+- **speed:** P1's horizontal velocity — a clean curve or a jitter on a dash, a knockback, a slide.
+
 ### Breed
 
 **breed** gives the cells random values of the settings you pick, around a parent. Click the best cell to breed around it.

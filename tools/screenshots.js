@@ -44,7 +44,7 @@ const SHOTS = {
   menubar: [`setMode('play'); panels(); ${run(30)} [...document.querySelectorAll('#global button')].find(b => b.dataset.tip?.startsWith('Export')).click();`, [0, 0, 1400, 160]],
   // a popup is placed to fit the small capture window: put it back where it opens in the full page
   layout: [`setMode('play'); panels(); ${run(30)} $('global').querySelector('button[data-tip^="Layout:"]').click(); Object.assign(pop.style, { left: '560px', top: '32px', maxHeight: 'none' });`, [540, 20, 460, 540]],
-  debug: [`setMode('play'); panels(); ${run(90)} debugBtn().click(); Object.assign(pop.style, { left: '955px', top: '32px', maxHeight: 'none' }); dbgT = 0; drawDebug(); drawScope();`, [940, 20, 400, 540]],
+  debug: [`setMode('play'); panels(); ${run(90)} debugBtn().click(); Object.assign(pop.style, { left: '955px', top: '32px', maxHeight: 'none' }); dbgT = 0; drawDebug();`, [940, 20, 400, 540]],
   palette: [`setMode('play'); panels(); ${run(30)} openPalette(); const i = document.querySelector('#palette input'); i.value = 'table'; i.dispatchEvent(new Event('input'));`, [250, 0, 900, 520]],
   // the stats radar, scrolled into view in the side panel
   statsradar: [`setMode('character'); pickChar('stick'); panels(); ${run(5)}
