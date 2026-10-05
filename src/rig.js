@@ -855,7 +855,10 @@ function bodyDef(def, b) {
   const moves = { ...def.moves };
   for (const [n, next] of Object.entries(b.chains || {})) if (moves[n]) moves[n] = { ...moves[n], next };
   const stats = Object.fromEntries(Object.entries(b.stats || {}).filter(([s]) => s !== 'health' && CHAR_STATS.some(c => c.k === s)));
-  return { ...def, bones, moves, ...stats, gait: { ...def.gait, ...b.gait } };
+  // shadow merges field by field (a stance can change just its alpha, say); colour replaces outright, including back
+  // to auto (the builder deletes def.col rather than nulling it, so 'in' - not ?? - tells "unset" from "set to falsy")
+  return { ...def, bones, moves, ...stats, gait: { ...def.gait, ...b.gait },
+    shadow: { ...def.shadow, ...b.shadow }, ...('col' in b ? { col: b.col } : {}) };
 }
 const stanceDef = (def, i) => bodyDef(def, def.stances[i - 1].body);
 // a character in stance i (its body, if the stance has one) holding a weapon (if any): compiled once and cached on the base character.

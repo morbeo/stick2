@@ -348,11 +348,15 @@ const SHADOW_VARS = [
   { k: 'skew', min: -2, max: 2, step: 0.05, only: ['body'], tip: 'Body only: how far the shadow leans, per px of height (the light from the side; 0 = straight down)' },
 ];
 function shadowPanel() {
-  const get = k => ({ ...SHADOW, ...DEFS[CURRENT].shadow })[k], dflt = k => ({ ...SHADOW, ...CHAR_DEFS[CURRENT]?.shadow })[k];
+  const own = stanceOnly();
+  const get = k => ({ ...SHADOW, ...DEFS[CURRENT].shadow, ...(own && stanceBody()?.shadow) })[k];
+  // "back to defaults" means back to the character's own shadow when editing a stance's, else back to the shipped one
+  const dflt = k => own ? ({ ...SHADOW, ...DEFS[CURRENT].shadow })[k] : ({ ...SHADOW, ...CHAR_DEFS[CURRENT]?.shadow })[k];
   const set = vals => edit(def => {
-    const sh = { ...def.shadow, ...vals };
-    for (const k in sh) if (sh[k] === SHADOW[k]) delete sh[k];
-    if (Object.keys(sh).length) def.shadow = sh; else delete def.shadow; // a character without its own shadow saves none
+    const target = own ? editBody(def) : def, base = own ? { ...SHADOW, ...def.shadow } : SHADOW;
+    const sh = { ...target.shadow, ...vals };
+    for (const k in sh) if (sh[k] === base[k]) delete sh[k];
+    if (Object.keys(sh).length) target.shadow = sh; else delete target.shadow; // nothing of its own (here) saves none
   }, 'shadow:' + Object.keys(vals).join());
   const title = h('h3', { textContent: 'shadow', tip: 'The shadow under this character in a fight: its shape, size, darkness, colour and place. Drawing only, the fight is the same.' });
   title.append(groupOps(SHADOW_VARS, get, dflt, set));

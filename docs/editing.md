@@ -95,7 +95,7 @@ A stance can have its own body. Pick the stance under the stance pose and switch
 - **size** scales the whole body in the stance: every length, thickness and hurtbox.
 - Health stays the character's. **revert body** throws the stance's body away.
 - The editor and the preview show the stance picked. In a fight the switch keeps the running move; new bones grow in.
-- In the character JSON: `stances[i].body = { bones: { id: { len, … , alpha } }, add: [bones], scale, stats, gait, chains: { move: next } }`. Only what differs is stored.
+- In the character JSON: `stances[i].body = { bones: { id: { len, … , alpha } }, add: [bones], scale, stats, gait, chains: { move: next }, shadow, col }`. Only what differs is stored. `shadow` merges field by field (change just its alpha, say); `col` replaces outright, including back to auto.
 - **Main** (stance 0) can have a body of its own too, the same way: it becomes the character's actual body, and every other stance still varies from it as usual. In the JSON: `main.body`.
 
 ### Stance requirements

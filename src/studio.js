@@ -472,10 +472,11 @@ function charPanel() {
 const CHAR_COLS = { auto: null, black: '#222222', red: '#c0392b', blue: '#2c6fb0', green: '#2e8b57', purple: '#8e44ad', orange: '#b9770e' };
 const CHAR_COL_TIPS = { auto: 'No colour of its own: whichever player slot it fights in decides (P1 black, P2 red…)' };
 function colorRow() {
-  const cur = () => Object.keys(CHAR_COLS).find(k => CHAR_COLS[k] === (DEFS[CURRENT].col || null)) || '';
-  const set = v => edit(def => { if (v) def.col = v; else delete def.col; });
+  const curCol = () => { const b = stanceOnly() && stanceBody(); return (b && 'col' in b ? b.col : DEFS[CURRENT].col) || null; };
+  const cur = () => Object.keys(CHAR_COLS).find(k => CHAR_COLS[k] === curCol()) || '';
+  const set = v => edit(def => { const target = stanceOnly() ? editBody(def) : def; if (v) target.col = v; else delete target.col; });
   const picker = h('input', { type: 'color', tip: 'Any colour, not just the presets', onchange: e => set(e.target.value) });
-  reg(picker, () => { picker.value = DEFS[CURRENT].col || '#222222'; });
+  reg(picker, () => { picker.value = curCol() || '#222222'; });
   return h('div', { cls: 'row', tip: 'This character\'s own colour. Auto: coloured by player slot instead, like every character before this existed.' },
     h('span', {}, ...rich(':palette: colour')), h('span', { cls: 'bar' },
       seg(Object.keys(CHAR_COLS), cur, k => set(CHAR_COLS[k]), { ...Object.fromEntries(Object.keys(CHAR_COLS).map(k => [k, k === 'auto' ? CHAR_COL_TIPS.auto : `This character is always ${k}`])) }),
