@@ -39,9 +39,13 @@ function thrownPropMove(type, k = 1) { const p = PROPS[type]; return { power: k,
 class World {
   // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, aTeam?, bTeam?, more?, period?, init?, chars? } (see brain.js)
   // aTeam/bTeam: a and b's own team (default 0 and 1); same team = allies, as for more's own team
-  // chars: character per fighter slot (the last one fills the rest); default = the current character; a scenario's chars (names) win
+  // chars: character per fighter slot (the last one fills the rest); default = the current character; a scenario's chars (names) win;
+  // 'random' in a slot: a character picked from the roster, seeded off this fight's own seed (same seed, same pick, every time)
   constructor(scen, over = {}, seed = 1, chars = null) {
-    if (scen.chars) chars = scen.chars.map(n => CHARS[n] || currentChar()); // null: the character being edited
+    if (scen.chars) {
+      const names = Object.keys(CHARS), rand = makeRand(seed);
+      chars = scen.chars.map(n => n === 'random' ? CHARS[names[Math.floor(rand() * names.length)]] : CHARS[n] || currentChar());
+    }
     Object.assign(this, { scen, over, seed, chars, groundY: GROUND, loop: true, camW: 420 });
     this.cfg = Object.assign(Object.create(CFG), scen.cfg, over); // a scenario can bring its own settings (plane …)
     this.reset();

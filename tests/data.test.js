@@ -30,7 +30,7 @@ test('presets, power presets and scenario settings: real settings with values th
     for (const [n, p] of Object.entries(POWER)) check('power ' + n, p);
     for (const [n, s] of Object.entries(SCENARIOS)) {
       check('scenario ' + n, s.cfg);
-      for (const c of s.chars || []) if (c && !CHARS[c]) bad.push('scenario ' + n + ': no character ' + c);
+      for (const c of s.chars || []) if (c && c !== 'random' && !CHARS[c]) bad.push('scenario ' + n + ': no character ' + c);
     }`), []);
 });
 
