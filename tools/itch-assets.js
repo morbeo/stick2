@@ -5,17 +5,22 @@ const fs = require('fs'), path = require('path'), url = require('url'), chrome =
 const OUT = path.join(__dirname, '..', 'out', 'itch');
 const PAGE = url.pathToFileURL(path.join(__dirname, 'itch-render.html')).href;
 
-// a short ai vs ai fight, recorded as a replay; the frame where the camera shake (trauma) peaks is the most dramatic moment
+// a free-for-all between four of the roster's own characters (not just two stick recolours), recorded as a replay;
+// picks the frame with the best mix of high trauma (camera shake: a real hit, not just movement) and all four
+// fighters actually close together (a wide spread makes a messy, empty-feeling composition) - seed 2 is hand-picked
+// from a handful tried for landing a tight, early clash; the shot's zoom/x centres the camera on that cluster, since
+// the full arena (tried first) leaves most of the frame as empty sky above the action
 function dramaticMoment() {
   const { run } = engine();
   return JSON.parse(run(`JSON.stringify((() => {
-    const w = new World(SCENARIOS['ai vs ai'], {}, 3); w.loop = false;
-    let bestFrame = 0, bestTrauma = 0;
-    for (let i = 0; i < 300 && !w.done; i++) {
+    const w = new World({ ...SCENARIOS['ai free-for-all'], chars: ['hadoo', 'grumbo', 'sneeko', 'gloomo'] }, {}, 2); w.loop = false;
+    let best = null;
+    for (let i = 0; i < 600 && !w.done; i++) {
       w.advance(1 / 60, NOIN);
-      if (w.trauma > bestTrauma) { bestTrauma = w.trauma; bestFrame = w.log.length; }
+      const xs = w.fighters.map(f => f.x), spread = Math.max(...xs) - Math.min(...xs), score = w.trauma - spread / 400;
+      if (!best || score > best.score) best = { frame: w.log.length, score, x: xs.reduce((a, b) => a + b) / xs.length };
     }
-    return { replay: makeReplay(w, 'itch promo'), frame: bestFrame };
+    return { replay: makeReplay(w, 'itch promo'), frame: best.frame, x: best.x };
   })())`));
 }
 
@@ -29,12 +34,15 @@ function writePng(dataUrl, file) {
   const p = await chrome.launch(PAGE);
   try {
     for (let i = 0; i < 100 && !(await p.js('typeof renderPromo === "function"')); i++) await new Promise(r => setTimeout(r, 50));
-    const { replay, frame } = dramaticMoment();
+    const { replay, frame, x } = dramaticMoment();
     const rep = JSON.stringify(replay);
+    // hud off: with four fighters clustered this close, their health bars and hit/counter callouts collide and
+    // overlap illegibly - a clean action pose reads better as a poster than a cluttered one anyway
+    const shot = `{ zoom: 2.6, x: ${x}, hud: false }`;
     // social media image: 1200x630 (the common OG/Twitter card size)
-    writePng(await p.js(`renderPromo(${rep}, ${frame}, 1200, 630, {})`), path.join(OUT, 'social.png'));
+    writePng(await p.js(`renderPromo(${rep}, ${frame}, 1200, 630, ${shot})`), path.join(OUT, 'social.png'));
     // wide cover: itch.io asks for 21:9
-    writePng(await p.js(`renderPromo(${rep}, ${frame}, 2100, 900, {})`), path.join(OUT, 'cover-wide.png'));
+    writePng(await p.js(`renderPromo(${rep}, ${frame}, 2100, 900, ${shot})`), path.join(OUT, 'cover-wide.png'));
     // favicon: square, the same mark the app's own tab icon uses (src/ui.js)
     writePng(await p.js('renderMark(512)'), path.join(OUT, 'favicon.png'));
     // logo: transparent, horizontal, legible on light or dark (itch.io overlays it on promo modules)
