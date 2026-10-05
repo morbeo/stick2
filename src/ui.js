@@ -56,8 +56,16 @@ function rich(text) {
   return String(text).split(/(:[a-z_]+:|[←→↑↓↖↗↙↘])/).filter(Boolean)
     .map(p => ARROWS[p] ? icon(ARROWS[p]) : p[0] === ':' && ICONS[p.slice(1, -1)] ? icon(p.slice(1, -1)) : p);
 }
-// a button whose label is only an icon gets the compact square style (ico)
-const setRich = (el, text) => { if (el.dataset.rich !== text) { el.dataset.rich = text; el.replaceChildren(...rich(text)); if (el.tagName === 'BUTTON') el.classList.toggle('ico', /^\s*:[a-z_]+:\s*$/.test(text)); } };
+// a button whose label is only an icon gets the compact square style (ico); so does one with both an icon and text
+// when ui.iconOnly drops the text — dataset.rich keeps the authored text (other code reads it), the extra _iconOnly
+// flag is what actually catches a later toggle of the setting with the same text
+const setRich = (el, text) => {
+  if (el.dataset.rich === text && el._iconOnly === ui.iconOnly) return;
+  el.dataset.rich = text; el._iconOnly = ui.iconOnly;
+  const parts = rich(text), hasIcon = parts.some(p => typeof p !== 'string');
+  el.replaceChildren(...(ui.iconOnly && hasIcon ? parts.filter(p => typeof p !== 'string') : parts));
+  if (el.tagName === 'BUTTON') el.classList.toggle('ico', hasIcon && (ui.iconOnly || /^\s*:[a-z_]+:\s*$/.test(text)));
+};
 
 function h(tag, props = {}, ...kids) {
   const e = document.createElement(tag);
@@ -140,6 +148,9 @@ function heading(title, info, keys) {
 const UI_STORE = 'stick2.ui';
 const ui = (() => { try { return JSON.parse(localStorage.getItem(UI_STORE)) || {}; } catch { return {}; } })();
 ui.seen ??= {};
+// icon-only buttons: every button that has both an icon and text drops the text (the full name still shows on hover);
+// buttons with only one or the other are unaffected — there would be nothing left to show
+ui.iconOnly ??= false;
 // interface scale: the whole page zoomed, not the canvas (dpr handles that separately) — applied at once, before first paint
 ui.scale ??= 1;
 document.documentElement.style.zoom = ui.scale;

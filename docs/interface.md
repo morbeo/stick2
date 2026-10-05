@@ -51,10 +51,11 @@ The magnifying-glass button in the menu bar zooms the whole page bigger or small
 
 ![The layout popup](img/layout.png)
 
-The layout button (four squares) in the menu bar. Each tab remembers its own layout as you go: which toolbar groups and side sections are shown and in what order, which overlays are on, which side sections are folded, which show **more**, whether the side panel is shown, and the sizes (below).
+The layout button (four squares) in the menu bar. Each tab remembers its own layout as you go: which toolbar groups and side sections are shown and in what order, which overlays are on, which side sections are folded, which show **more**, whether the side panel is shown, and the sizes (below). **buttons**, at the top, is the one row that isn't per-tab: it's the whole app.
 
 | Row or button | Does |
 |---|---|
+| buttons | **icon and text** (every button as authored) or **icon only** (text dropped from any button that has both an icon and text; the full name still shows on hover). Applies everywhere, including the menu bar |
 | toolbar | shows or hides each toolbar group of this tab; drag one onto another to put it before that one, or onto **toolbar** to put it last |
 | side panel | shows or hides the whole side panel, and each of its sections; hovering a section heading shows a **×** that hides it too; drag to reorder, as for the toolbar |
 | overlays | the same overlay toggles as the toolbar's **show** group |

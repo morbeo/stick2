@@ -464,11 +464,11 @@ function trainingCtl() {
 }
 // the menu bar's replay buttons: save the play fight (play only), play a replay file (switches to play)
 function replaySave() {
-  const b = button(':save: replay', `Save the play fight so far as a replay file: its inputs, settings and characters, pinned to engine v${ENGINE_VERSION} (other versions play it out differently)`, saveReplay);
+  const b = button(':save: save', `Save the play fight so far as a replay file: its inputs, settings and characters, pinned to engine v${ENGINE_VERSION} (other versions play it out differently)`, saveReplay);
   reg(b, () => { b.disabled = app.mode !== 'play' || !lab.cells[0]?.w.log.length; });
   return b;
 }
-const replayFile = () => toggle(':theaters: replay', 'Play a saved replay file in play (inputs, settings and characters of a recorded fight); click again to stop. A file from another engine version plays out differently: it asks first, and the top line shows where it goes out of sync',
+const replayFile = () => toggle(':theaters: file', 'Play a saved replay file in play (inputs, settings and characters of a recorded fight); click again to stop. A file from another engine version plays out differently: it asks first, and the top line shows where it goes out of sync',
   () => !!lab.playback, v => v ? loadReplay() : (lab.playback = null, build()));
 // the blow controls (impact's ragdoll, the creator's impact preview): what, how hard, from which side, and stand it up again
 // under the preview, not the toolbar — it is its own thing to play with, not a setting of the view

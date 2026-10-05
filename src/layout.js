@@ -129,6 +129,11 @@ function layoutPanel(e, b) {
   const parts = (kind, title, tip, ...first) => h('div', { cls: 'row', tip: tip + ' · drag a part to reorder' }, drop(h('span', { textContent: title }), kind, null), h('div', { cls: 'bar' }, ...first,
     ...app.parts[kind].map(p => part(kind, title, p))));
   popup(b, h('b', { textContent: 'layout · ' + tab }),
+    h('div', { cls: 'row', tip: 'Every button\'s label, everywhere in the app — not just this tab' }, h('span', { textContent: 'buttons' }),
+      seg(['text', 'icon'], () => ui.iconOnly ? 'icon' : 'text', v => {
+        ui.iconOnly = v === 'icon'; saveUi(); buildTop(); panels(); layHighlight(null);
+        layoutPanel(null, [...document.querySelectorAll('#global button')].find(x => x.dataset.tip?.startsWith('Layout:')));
+      }, { text: 'Icon and text, as authored', icon: 'Icon only; hover a button for its full name' })),
     h('div', { cls: 'row', tip: 'Edit another tab\'s layout without closing this' }, h('span', { textContent: 'tab' }),
       seg(Object.keys(MODES), () => app.mode, v => { setMode(v); re(); }, MODES)),
     parts('ctx', 'toolbar', 'The toolbar groups this tab shows'),

@@ -549,6 +549,17 @@ try {
     layReset('play'); if (document.body.classList.contains('noside') || lay().fold[k0] !== undefined) errs.push('layout reset tab');
     layUse('default'); if (!document.body.classList.contains('noside')) errs.push('layout switch');
     $('global').querySelector('button[data-tip^="Layout:"]').click(); const pb = t => [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes(t));
+    // buttons: icon/text is global (every tab, the menu bar included), not part of any one tab's layout; toggling it
+    // hides (and restores) the text on a button that has both, like the menu bar's own export button
+    { const findSeg = () => [...pop.querySelectorAll('.row')].find(r => r.textContent.startsWith('buttons')).querySelector('.seg');
+      const click = v => [...findSeg().querySelectorAll('button')].find(b => b.textContent.trim().toLowerCase() === v).click();
+      const exportBtn = () => [...document.querySelectorAll('#global button')].find(b => b.dataset.tip?.startsWith('Export'));
+      const before = exportBtn().textContent;
+      click('icon');
+      if (exportBtn().textContent === before || !exportBtn().classList.contains('ico')) errs.push('icon-only setting: export still has text ' + exportBtn().textContent);
+      if (!document.querySelector('.pop')) errs.push('layout popup should survive the global rebuild');
+      click('text');
+      if (exportBtn().textContent !== before || exportBtn().classList.contains('ico')) errs.push('icon-only setting did not restore text ' + exportBtn().textContent); }
     // hover-highlight: a shown part outlines its live element; a hidden one (the side panel, just turned off above) gets a dashed box over its container instead
     { const theaterRow = pb('theater'), r1 = $('ctx').querySelector('[data-part="theater"]').getBoundingClientRect();
       theaterRow.onmouseenter(); const hi = document.querySelector('.layhi');
