@@ -966,14 +966,17 @@ function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
     if (a < 1) ctx.restore();
   }
 }
-// collect all bones from rootBone down to leaves, with their world segments from pose P and character ch
+// collect all bones from rootBone down to leaves, as segments relative to rootBone's own position (x, y) at the
+// moment of the hit — so World.drawLimbs can just translate by the tracked, physically-updated (x, y) as it falls,
+// instead of the segments staying frozen at their world pose forever while only the (unseen) physics moved
 function collectLimbSegments(ch, rootBone, P, col) {
+  const [ax, ay] = P[rootBone.id];
   const walk = (b, out = []) => {
     const o = P[b.parent || 'hip'], e = P[b.id];
     const thick = b.thick || BONE.thick;
-    out.push([o[0], o[1], e[0], e[1], thick]);
+    out.push([o[0] - ax, o[1] - ay, e[0] - ax, e[1] - ay, thick]);
     for (const child of ch.bones.filter(x => x.parent === b.id)) walk(child, out);
     return out;
   };
-  return { segs: walk(rootBone), x: P[rootBone.id][0], y: P[rootBone.id][1], z: 0, col, t: 0 };
+  return { segs: walk(rootBone), x: ax, y: ay, z: 0, col, t: 0 };
 }

@@ -1101,9 +1101,11 @@ class Fighter {
     const combo = this.combo = (this.free ? 0 : this.combo) + 1, dmg = this.damageOf(m, combo) * ck, wasDizzy = this.dizzyT > 0;
     if (ck > 1) this.say('COUNTER');
     if (hurt && (this.hp -= dmg) <= 0) { this.hp = 0; this.ko = true; this.say('K.O.'); }
-    // dismemberment: a lethal slash severs the struck limb
-    if (this.ko && m.hit === 'weapon' && m.weapon === 'slash' && this.c('dismember') && hit.bone.role && ['arm', 'leg', 'tail', 'head'].includes(hit.bone.role)) {
-      const P = this.body();
+    // dismemberment: a lethal slash severs the struck limb — or, on the spine, a full cleave: everything above the
+    // hit (chest/neck/head, both arms) comes off as one piece, same mechanism, just a bigger one. Either way the
+    // fighter's own remaining bones (always including the hip and both legs) carry on into the normal K.O. fall
+    if (this.ko && m.hit === 'weapon' && m.weapon === 'slash' && this.c('dismember') && hit.bone.role && ['arm', 'leg', 'tail', 'head', 'spine'].includes(hit.bone.role)) {
+      const P = this.body(), cleave = hit.bone.role === 'spine';
       const limb = collectLimbSegments(this.ch, hit.bone, P, this.col[0]);
       limb.vx = att.dir * Math.abs(this.vx) * 0.6 + this.w.rand(-60, 60);
       limb.vy = -Math.abs(this.vy) * 0.5 + this.w.rand(-80, -20);
@@ -1112,8 +1114,8 @@ class Fighter {
       // sever: hide the struck bone and everything below it
       const severed = bodyDef(this.ch.def, { bones: { [hit.bone.id]: { hidden: true } } });
       this.setChar(makeCharacter(severed), true);
-      // blood spray
-      for (let i = 0; i < 8; i++) {
+      // blood spray: more of it for a full cleave than a single limb
+      for (let i = 0; i < (cleave ? 16 : 8); i++) {
         const a = this.w.rand() * 6.283, sp = (80 + this.w.rand() * 120);
         const life = 0.5 + this.w.rand() * 0.3;
         this.w.parts.push({ t: 'spark', x: hit.pt[0], y: hit.pt[1], z: this.z, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, life, max: life, col: '#8a2d26' });

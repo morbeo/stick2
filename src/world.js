@@ -318,7 +318,7 @@ class World {
   drawLimbs(ctx) {
     for (const limb of this.limbs) {
       ctx.save();
-      ctx.translate(0, (limb.z || 0) * ZS);
+      ctx.translate(limb.x, limb.y + (limb.z || 0) * ZS); // segs are relative to the anchor now, so this is what actually moves it
       ctx.strokeStyle = limb.col || '#222';
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       for (const seg of limb.segs) {

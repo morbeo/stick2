@@ -1251,3 +1251,25 @@ test('dismemberment only on lethal slash: non-lethal slash, blunt hits, and leth
   assert.equal(r.boneHiddenNonLethal, undefined, 'the bone is not hidden after non-lethal slash');
   assert.equal(r.limbsAfterPunch, 0, 'lethal punch does not spawn a severed limb (not a slash)');
 });
+
+test('dismemberment, a spine hit: full cleave — everything above comes off as one piece, hip and legs carry on, no NaN after', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => {
+    const w = new World({ a: 'stick', b: 'stick', ax: 300, bx: 400, weapon: 'sword', weaponStart: 'held' }, { health: 1 }, 1);
+    w.loop = false;
+    const target = w.b.ch.by.chest;
+    const m = { hit: 'weapon', weapon: 'slash', power: 100, damage: 200, knock: 300, stun: 0.4 };
+    w.b.hp = 100;
+    w.b.takeHit(w.a, m, { bone: target, pt: [400, 300] });
+    const by = w.b.ch.by, segs = w.limbs[0].segs.length;
+    let bad = null;
+    for (let i = 0; i < 90 && !bad; i++) { w.advance(1/60, NOIN);
+      const P = w.b.body(); if (Object.values(P).some(p => !isFinite(p[0]) || !isFinite(p[1]))) bad = i;
+      if (w.limbs[0] && (!isFinite(w.limbs[0].x) || !isFinite(w.limbs[0].y))) bad = 'limb:' + i; }
+    return { limbs: w.limbs.length, segs, chestHidden: by.chest.hidden, neckHidden: by.neck.hidden, headHidden: by.head.hidden,
+      armHidden: by.uarmF.hidden, hipHidden: by.hip?.hidden, legHidden: by.thighF.hidden, bad }; })())`));
+  assert.equal(r.limbs, 1, 'one piece spawned from the cleave');
+  assert.ok(r.segs > 1, 'the piece carries more than one bone (chest + everything above it) ' + r.segs);
+  assert.ok(r.chestHidden && r.neckHidden && r.headHidden && r.armHidden, 'chest, neck, head and the arm are all gone from the remaining body');
+  assert.ok(!r.hipHidden && !r.legHidden, 'the hip and legs stay, carrying on into the normal fall');
+  assert.equal(r.bad, null, 'no NaN while it falls: ' + r.bad);
+});

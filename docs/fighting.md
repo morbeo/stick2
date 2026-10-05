@@ -459,7 +459,7 @@ The boxes view shows held weapons in amber and flying ones in red.
 
 ### Dismemberment
 
-The **dismember** setting (on by default): a lethal slash severs the limb it struck — arm, leg, tail or head — instead of a plain knockout fall. The severed limb falls and tumbles on its own; once it settles it's pickable and throwable like a weapon (above).
+The **dismember** setting (on by default): a lethal slash severs the limb it struck — arm, leg, tail or head — instead of a plain knockout fall. A hit on the spine goes further: a full cleave, taking everything above it (chest, arms, head) off in one piece, while the hip and legs fall on their own. Either way, the severed piece falls on its own; once it settles it's pickable and throwable like a weapon (above).
 
 ## Power
 
