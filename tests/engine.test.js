@@ -851,6 +851,21 @@ test('a throw can be aimed by holding back as the grab lands, even from the plai
   assert.equal(side(true), -1, 'held back as it lands: thrown behind instead, like a back throw');
 });
 
+test('a toss move\'s holdPose/holdAt author the victim\'s held pose and position; unset, both match today exactly', () => {
+  const go = (holdPose, holdAt, plane) => JSON.parse(run(`(() => {
+    const d = { ...CHAR_DEFS.stick, moves: { ...CHAR_DEFS.stick.moves, toss: { ...CHAR_DEFS.stick.moves.toss${holdPose ? `, holdPose: ${JSON.stringify(holdPose)}` : ''}${holdAt ? `, holdAt: ${JSON.stringify(holdAt)}` : ''} } } };
+    const w = new World({ a: [0.1, '@grab'], b: 'dummy', ax: 330, bx: 372, cfg: { plane: ${JSON.stringify(plane || '2d')} } }, {}, 7, [makeCharacter(d), CHARS.stick]); w.loop = false;
+    let pose = null, rel = null;
+    for (let i = 0; i < 20; i++) { w.advance(1/60, NOIN); if (w.b.heldBy) { pose = { ...w.b.target }; rel = { x: w.b.x - w.a.x, y: w.b.y - w.a.y, z: w.b.z - w.a.z }; } else if (pose) break; }
+    return JSON.stringify({ pose, rel });
+  })()`));
+  const base = go(null, null);
+  assert.equal(base.rel.x, 30, 'default: the fixed 30px offset, unchanged'); assert.equal(base.rel.y, 0); assert.equal(base.rel.z, 0);
+  const custom = go({ waist: 220 }, { dx: 60, dy: -30, dz: 5 }, 'belt');
+  assert.equal(custom.pose.waist, 220, 'holdPose replaces the generic hurt pose exactly, no randomized flinch');
+  assert.equal(custom.rel.x, 60, 'holdAt.dx replaces the fixed offset'); assert.equal(custom.rel.y, -30, 'holdAt.dy lifts/lowers the victim'); assert.equal(custom.rel.z, 5, 'holdAt.dz offsets depth (plane: belt, where z is in play)');
+});
+
 test('armor: a hit during an armored key (the hammer wind-up) does its damage but the move goes on and lands', () => {
   const go = d => JSON.parse(run(`(() => { const w = new World({ a: ['punch'], b: [${d}, '@hammer'], ax: 330, bx: 385 }, {}, 7); w.loop = false; const L = new Set();
     for (let i = 0; i < 70; i++) { w.advance(1/60, NOIN); if (w.b.labelT > 0) L.add(w.b.label); }

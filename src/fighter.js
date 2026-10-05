@@ -1073,18 +1073,20 @@ class Fighter {
   seize(o) {
     o.exitOn('grab');
     o.heldBy = this; o.heldT = this.c('techWindow'); o.heldAt = this.w.simT; o.buffer = null; o.guarding = false; o.blockT = 0; o.dir = -this.dir; o.away = false;
-    o.start(makeHurt(o.ch.hurt.mid[0], 9, this.w.rand, o.st.pose)); o.hurtT = 9;
     const backGrab = (this.inp.right - this.inp.left) * this.dir < 0 && this.ch.moves[this.binds.backThrow];
     const toss = (backGrab && this.ch.moves[backGrab.throw]) || this.ch.moves[this.action.m.throw];
     o.heldM = toss || this.action.m;
+    const hold = o.heldM.holdPose; // toss.holdPose: hang in an authored pose instead of the generic randomized flinch
+    o.start(hold ? { hurt: true, keys: [{ d: 0.08, e: 'outExpo', p: hold }, { d: 9, e: 'linear', p: hold }] } : makeHurt(o.ch.hurt.mid[0], 9, this.w.rand, o.st.pose));
+    o.hurtT = 9;
     if (toss) this.start(toss);
   }
-  // held in a throw: pinned in front of the thrower; P+G inside the window breaks free, else the throw lands
+  // held in a throw: pinned in front of the thrower (or at toss.holdAt's offset); P+G inside the window breaks free, else the throw lands
   held(dt, inp) {
-    const t = this.heldBy;
-    const to = t.x + t.dir * 30; // a back throw swings the victim round: it slides to the thrower's other side
-    this.x = Math.abs(to - this.x) > 20 ? approach(this.x, to, 1200 * dt) : to; this.z = t.z; this.vx = 0;
-    this.y = t.y; this.vy = 0; // an air throw: held at the thrower's height, gravity held off (see update(), gated on heldBy)
+    const t = this.heldBy, at = this.heldM?.holdAt;
+    const to = t.x + t.dir * (at?.dx ?? 30); // a back throw swings the victim round: it slides to the thrower's other side
+    this.x = Math.abs(to - this.x) > 20 ? approach(this.x, to, 1200 * dt) : to; this.z = t.z + (at?.dz ?? 0); this.vx = 0;
+    this.y = t.y + (at?.dy ?? 0); this.vy = 0; // an air throw: held at the thrower's height, gravity held off (see update(), gated on heldBy)
     if (inp.punch && inp.guard && this.heldT > 0 && within(this.w.simT - this.heldAt, this.c('techWindow'), this.c('lastFrame'))) {
       this.heldBy = null; this.hurtT = 0; this.action = null; this.buffer = null; this.vx = t.dir * 250; this.say('BREAK');
       t.action = null; t.vx = -t.dir * 250; t.hurtT = 0.15;

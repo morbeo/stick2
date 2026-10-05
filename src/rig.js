@@ -700,7 +700,7 @@ function makeCharacter(def) {
 // hit: one striking bone or a list of them (both fists, a kick and the tail…); each is its own hitbox
 const hitIds = m => m?.hit ? [].concat(m.hit) : [];
 const mapHit = (h, f) => Array.isArray(h) ? h.map(f) : f(h);
-const oldMove = m => ({ ...m, hit: mapHit(m.hit, h => HITS[h] || h), keys: m.keys.map(k => ({ ...k, p: fromOld(k.p) })) });
+const oldMove = m => ({ ...m, hit: mapHit(m.hit, h => HITS[h] || h), keys: m.keys.map(k => ({ ...k, p: fromOld(k.p) })), ...(m.holdPose ? { holdPose: fromOld(m.holdPose) } : {}) });
 const mapVals = (o, f) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, f(v)]));
 // built-in definitions (plain JSON: what the creator edits, saves and reverts to); CHARS = compiled
 // movement layers (LAYERS, written in raw bone angles: a layer's ref is its own procedural-pose snapshot, which oldMove's
