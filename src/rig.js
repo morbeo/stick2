@@ -718,18 +718,35 @@ const CHAR_DEFS = {
     moves: { ...mapVals(STICK_MOVES, oldMove), ...MOVEMENT_LAYERS }, hurt: mapVals(STICK_HURT, set => set.map(fromOld)) },
 };
 // ---------- weapons: an extra bone in the front hand; while held, its class's moves go over P, → P and ↓ P ----------
-// look: how it is drawn · a: grip angle relative to the hand · back: length behind the hand (a staff is held along it)
+// shapes: how it is drawn (src/shapes.js) — primitives in (distance along the blade from the grip, perpendicular
+// offset) · a: grip angle relative to the hand · back: length behind the hand (a staff is held along it)
 // grip2: two-handed, the back hand holds it this far along it from the front hand (− behind)
 // weight: heavier hits harder (power, damage and knockback × weaponPower) but its moves play slower (× weaponSpeed)
+// a shape's x can reach for 'len' (this weapon's own len, so the blade still reaches the tip under a slight live
+// stretch) or 'len-4' etc; grip/guard sizes are plain numbers (a short dagger's guard isn't scaled down with it)
+const BLADE_SHAPES = [ // dagger, sword: grip, guard, a pointed blade to the tip
+  { kind: 'line', x1: -3, y1: 0, x2: 4, y2: 0, w: 3, col: 'wood' },
+  { kind: 'polygon', pts: [[3, -5], [3, 5], [4.5, 5], [4.5, -5]], col: 'metal', stroke: 'metal' },
+  { kind: 'polygon', pts: [[5, -2], [5, 2], ['len-4', 1.5], ['len', 0], ['len-4', -1.5]], col: 'metal', stroke: 'metal' },
+];
+const CLUB_SHAPES = [{ kind: 'polygon', pts: [[-3, -1.5], [-3, 1.5], ['len', 3.5], ['len', -3.5]], col: 'wood', stroke: 'wood' }]; // bat, limb
 const WEAPONS = {
-  dagger: { cls: 'pierce', look: 'blade', len: 20, weight: 0.3, a: 0, tip: 'Dagger: short and quick; stabs, and flies straight when thrown' },
-  sword: { cls: 'slash', look: 'blade', len: 46, weight: 0.8, a: 10, tip: 'Sword: long blade, slashes and chops' },
-  axe: { cls: 'slash', look: 'axe', len: 36, weight: 1.3, a: 40, tip: 'Axe: a heavy head on a handle; slower, harder chops' },
-  bat: { cls: 'blunt', look: 'club', len: 40, weight: 0.9, a: 40, tip: 'Bat: blunt swings that knock back' },
-  nunchucks: { cls: 'blunt', look: 'stick', chain: true, len: 34, weight: 0.6, a: -100, tip: 'Nunchucks: two sticks on a chain, the outer one flails behind the swing' },
-  hammer: { cls: '2h', look: 'hammer', len: 52, weight: 2, a: 40, grip2: 9, tip: 'War hammer: two-handed, very slow, crushing' },
-  staff: { cls: 'pole', look: 'pole', len: 62, back: 34, weight: 1, a: -50, grip2: -24, tip: 'Staff: held along its length; the longest reach' },
-  limb: { cls: 'blunt', look: 'club', len: 24, weight: 0.9, a: 0, tip: 'Severed limb: a gruesome weapon of opportunity' },
+  dagger: { cls: 'pierce', shapes: BLADE_SHAPES, len: 20, weight: 0.3, a: 0, tip: 'Dagger: short and quick; stabs, and flies straight when thrown' },
+  sword: { cls: 'slash', shapes: BLADE_SHAPES, len: 46, weight: 0.8, a: 10, tip: 'Sword: long blade, slashes and chops' },
+  axe: { cls: 'slash', len: 36, weight: 1.3, a: 40, tip: 'Axe: a heavy head on a handle; slower, harder chops', shapes: [
+    { kind: 'line', x1: -3, y1: 0, x2: 'len', y2: 0, w: 3, col: 'wood' },
+    { kind: 'polygon', pts: [['len-12', 0], ['len-15', 10], ['len+1', 12], ['len-2', 0]], col: 'metal', stroke: 'metal' },
+  ] },
+  bat: { cls: 'blunt', shapes: CLUB_SHAPES, len: 40, weight: 0.9, a: 40, tip: 'Bat: blunt swings that knock back' },
+  nunchucks: { cls: 'blunt', chain: true, len: 34, weight: 0.6, a: -100, tip: 'Nunchucks: two sticks on a chain, the outer one flails behind the swing',
+    shapes: [{ kind: 'line', x1: -2, y1: 0, x2: 'len', y2: 0, w: 4, col: 'wood' }] },
+  hammer: { cls: '2h', len: 52, weight: 2, a: 40, grip2: 9, tip: 'War hammer: two-handed, very slow, crushing', shapes: [
+    { kind: 'line', x1: -3, y1: 0, x2: 'len', y2: 0, w: 3.5, col: 'wood' },
+    { kind: 'polygon', pts: [['len-6', -7], ['len-6', 9], ['len+4', 9], ['len+4', -7]], col: 'metal', stroke: 'metal' },
+  ] },
+  staff: { cls: 'pole', len: 62, back: 34, weight: 1, a: -50, grip2: -24, tip: 'Staff: held along its length; the longest reach',
+    shapes: [{ kind: 'line', x1: -36, y1: 0, x2: 'len', y2: 0, w: 3, col: 'wood' }] },
+  limb: { cls: 'blunt', shapes: CLUB_SHAPES, len: 24, weight: 0.9, a: 0, tip: 'Severed limb: a gruesome weapon of opportunity' },
 };
 const weaponPower = w => 0.8 + 0.4 * w.weight, weaponSpeed = w => 1.15 - 0.2 * w.weight;
 // a weapon move built on a stick move's key pose (move, key index), with the weapon's grip angle (undefined: the rest grip)
@@ -788,7 +805,7 @@ function weaponBones(ch, type) {
   // no arms (a houndo, all fours): the nearest thing to a hand is a front leg's own tip instead of the root bone
   const w = WEAPONS[type], limb = ch.chains.arm.find(c => c[0].side === 'f') || ch.chains.arm[0] || ch.chains.leg.find(c => c[0].side === 'f') || ch.chains.leg[0];
   const parent = limb ? limb[limb.length - 1].id : ch.bones[0].id;
-  const b = { role: 'weapon', side: 'f', look: w.look, thick: 3, hurt: 0, lag: 0.3, react: 0.3, sway: 0 };
+  const b = { role: 'weapon', side: 'f', type, thick: 3, hurt: 0, lag: 0.3, react: 0.3, sway: 0 };
   if (w.chain) return [{ ...b, id: 'weapon', parent, len: Math.round(w.len / 2), a: w.a }, { ...b, id: 'weaponTip', parent: 'weapon', len: Math.round(w.len / 2), a: 0, lag: 3, stiff: 0.6, damp: 0.5, react: 2 }];
   return [{ ...b, id: 'weapon', parent, len: w.len, a: w.a, back: w.back || 0 }];
 }
@@ -914,14 +931,10 @@ function fk(ch, p, dir, lens, wa = {}) {
 // a weapon bone from o (the hand) to e (the tip), in wood and metal unless col gives it one colour
 const METAL = '#7f8a93', WOOD = '#9b7653';
 function drawWeapon(ctx, b, o, e, col, extra = 0) {
-  const l = Math.hypot(e[0] - o[0], e[1] - o[1]) || 1, ux = (e[0] - o[0]) / l, uy = (e[1] - o[1]) / l, at = (d, s = 0) => [o[0] + ux * d - uy * s, o[1] + uy * d + ux * s];
-  const line = (d0, d1, w, c, s = 0) => { const p = at(d0, s), q = at(d1, s); ctx.strokeStyle = col || c; ctx.lineWidth = w + extra; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); };
-  const poly = (pts, c) => { ctx.fillStyle = col || c; ctx.strokeStyle = col || c; ctx.lineWidth = 1 + extra; ctx.beginPath(); pts.forEach(([d, s], i) => ctx[i ? 'lineTo' : 'moveTo'](...at(d, s))); ctx.closePath(); ctx.fill(); ctx.stroke(); };
-  if (b.look === 'blade') { line(-3, 4, 3, WOOD); poly([[3, -5], [3, 5], [4.5, 5], [4.5, -5]], METAL); poly([[5, -2], [5, 2], [l - 4, 1.5], [l, 0], [l - 4, -1.5]], METAL); } // grip, guard, blade
-  else if (b.look === 'club') poly([[-3, -1.5], [-3, 1.5], [l, 3.5], [l, -3.5]], WOOD);
-  else if (b.look === 'axe') { line(-3, l, 3, WOOD); poly([[l - 12, 0], [l - 15, 10], [l + 1, 12], [l - 2, 0]], METAL); }
-  else if (b.look === 'hammer') { line(-3, l, 3.5, WOOD); poly([[l - 6, -7], [l - 6, 9], [l + 4, 9], [l + 4, -7]], METAL); }
-  else line(-(b.back || 0) - 2, l, b.look === 'pole' ? 3 : 4, WOOD); // pole, nunchuck stick
+  const l = Math.hypot(e[0] - o[0], e[1] - o[1]) || 1, ux = (e[0] - o[0]) / l, uy = (e[1] - o[1]) / l;
+  const toXY = (d, s) => [o[0] + ux * d - uy * s, o[1] + uy * d + ux * s];
+  const resolveCol = raw => col || (raw === 'wood' ? WOOD : raw === 'metal' ? METAL : raw);
+  drawShapes(ctx, WEAPONS[b.type].shapes, toXY, resolveCol, { len: l }, extra);
 }
 // mul: a fighter's live per-bone key.thick / key.alpha multipliers (mid-move), or null outside one
 function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {

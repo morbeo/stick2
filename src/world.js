@@ -269,7 +269,7 @@ class World {
       const w = WEAPONS[it.type], half = (w.len - (w.back || 0)) / 2, c = Math.cos(it.rot), s = Math.sin(it.rot);
       const lie = it.rest ? -2 : 0; // lying: its thickness above the floor line
       ctx.save(); ctx.translate(0, it.z * ZS + lie);
-      drawWeapon(ctx, { ...w, back: w.back || 0 }, [it.x - c * half, it.y - s * half], [it.x + c * (w.len - half), it.y + s * (w.len - half)], null);
+      drawWeapon(ctx, { type: it.type, back: w.back || 0 }, [it.x - c * half, it.y - s * half], [it.x + c * (w.len - half), it.y + s * (w.len - half)], null);
       if (this.cfg.boxes && it.live) { // a flying weapon's hitbox
         const [p, q] = itemSeg(it);
         ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = this.cfg.hitR * 2 + 7; ctx.lineCap = 'round';
