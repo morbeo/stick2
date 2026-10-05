@@ -92,3 +92,4 @@ centaur showcase hits 3 blocks 0 hp 100.0 67.0 x 454 648
 houndo showcase hits 1 blocks 0 hp 95.0 86.0 x 380 469
 tako showcase  hits 1 blocks 0 hp 100.0 94.0 x 320 450
 clampo showcase hits 2 blocks 0 hp 120.0 98.0 x 470 510
+stick showcase hits 3 blocks 0 hp 100.0 76.0 x 478 577

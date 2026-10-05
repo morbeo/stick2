@@ -322,6 +322,23 @@ for (const [name, moves] of Object.entries(SIGNATURE_MOVES)) BASE_SCENARIOS[`${n
   a: moves.flatMap(m => [...CHARS[name].moves[m].air ? ['hop', 0.15] : [], '@' + m, 1]),
   b: 'dummy', chars: [name], ax: 320, bx: 400, period: moves.length + 1.5,
 };
+// the stick's own showcase: the flagship/base character gets the full tour, not just a few signature moves - a walk
+// and a jump first, then every move bound to its main stance in both planes (gallery.js's own GALLERY order first,
+// since that's the order the rest of the app already treats as "the important ones"), then its specials, counters,
+// rolls and reversals
+const STICK_SHOWCASE_MOVES = [
+  // the gallery's own order (GALLERY below), spelled out here since it isn't declared until after this runs
+  'jab', 'cross', 'uppercut', 'kick', 'roundhouse', 'sweep', 'dashPunch', 'airKick', 'airPunch', 'rush', 'rising', 'spin', 'stomp',
+  'elbow', 'pushKick', 'palms', 'fadeKick', 'hammer', 'turnKick', 'headbutt', 'flyingKnee', 'backfist', 'crescent',
+  'launcher', 'bodyBlow', 'lowKick', 'crouchJab', 'backSweep', 'airUpper', 'airFlipKick', 'airHammer', 'diveKick',
+  'grab', 'clinch', 'backGrab', 'airGrab', 'charge', 'risingKick', 'palmShot', 'shoulderCharge', 'jumpKick', 'groundPunch', 'airSpin',
+  'catch', 'teleport', 'taunt', 'pounce', 'rollFwd', 'rollBack', 'highCounter', 'lowCounter', 'guardCancel', 'pushBlock', 'getupAttack',
+];
+BASE_SCENARIOS['stick showcase'] = {
+  a: [{ hold: 'fwd', t: 0.5 }, 0.1, 'hop', 0.3, { hold: 'fwd', t: 0.3 }, 0.3,
+    ...STICK_SHOWCASE_MOVES.flatMap(m => [...CHARS.stick.moves[m].air ? ['hop', 0.15] : [], '@' + m, 0.9])],
+  b: 'dummy', chars: ['stick'], ax: 320, bx: 400, period: STICK_SHOWCASE_MOVES.length + 6,
+};
 // SCENARIOS: the live table (built-ins, each overridable from the builder, plus any custom ones); src/scenarios.js
 // applies myStore's overrides onto it (the headless engine and tests never do, so they always see the shipped values)
 const SCENARIOS = { ...BASE_SCENARIOS };
