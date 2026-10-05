@@ -285,9 +285,12 @@ const BASE_SCENARIOS = {
   // endless waves (Waves settings): enemies keep coming, wave after wave
   'endless waves': { a: 'human', b: 'ai', waves: true },
   'ai vs waves': { a: 'ai', b: 'ai', waves: true },
-  // one-vs-many power fantasy: a horde (WAVES.horde = 4 at once, mixed characters) of one-hit mooks (1 hp, before its
-  // own health stat scales it) against a player who shrugs off every hit (inv nodamage: still staggers, never loses health)
-  'godlike vs horde': { a: 'human', b: 'ai', waves: true, aover: { inv: 'nodamage' }, bover: { health: 1 }, cfg: { waves: 'horde', waveMix: true } },
+  // one-vs-many power fantasy: survival's own spawn-every-survEvery-seconds-while-under-survMax (and almost at once if
+  // it ever hits zero) with survHp 0 (an enemy's own tip: "every enemy falls to one hit, all along") and no growth
+  // over time or kills - mixed, passive (turtle) mooks against a player who shrugs off every hit (inv nodamage:
+  // still staggers, never loses health)
+  'one vs many': { a: 'human', b: 'ai', survival: true, aover: { inv: 'nodamage' }, bover: { aiStyle: 'turtle' },
+    cfg: { waveMix: true, survHp: 0, survHpTime: 0, survHpKill: 0, survEvery: 3, survMax: 8 } },
   // survival (Survival settings): one enemy after another without end, tougher over time and with every one down
   'survival': { a: 'human', b: 'ai', survival: true },
   'ai survival': { a: 'ai', b: 'ai', survival: true },
