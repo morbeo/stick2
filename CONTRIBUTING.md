@@ -18,6 +18,8 @@ Useful things to include in a report:
 
 ## Suggesting a character
 
+Looking for what to work on, or how to use the character/animate/experiment tools to build one? See [Contributing to the roster](docs/roster-contributing.md). This section is just the mechanics of the button that submits it.
+
 The character tab has a **suggest** button (next to export) for proposing a roster character — your own edit of a built-in, or a brand new one — without using git at all.
 
 It copies the character's full JSON to your clipboard, then opens GitHub's "new file" page for this repo, pre-filled with that JSON at `contrib/characters/<name>.json` (if the box looks empty or cut off — very large characters can hit the URL's own length limit — paste it yourself, it's already on your clipboard). Sign in if asked; GitHub forks the repo for you automatically. From there: scroll down, click **Propose new file**, then **Create pull request**.

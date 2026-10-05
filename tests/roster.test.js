@@ -1,10 +1,10 @@
-// the built-in roster: the stick plus a dozen stereotypes, each with its own signature moves bound to inputs
+// the built-in roster: the stick plus sixteen stereotypes, each with its own signature moves bound to inputs
 const test = require('node:test'), assert = require('node:assert/strict'), load = require('./load');
 const { run } = load();
 const json = code => JSON.parse(run(`JSON.stringify(${code})`));
 const ROSTER = ['hadoo', 'grumbo', 'jabbo', 'sneeko', 'zippa', 'hicco', 'lumpo', 'sarj', 'noodo', 'gogili', 'pollo', 'gloomo', 'centaur', 'houndo', 'tako', 'clampo'];
 
-test('the roster: the stick and twelve fighters, each with a second stance', () => {
+test('the roster: the stick and sixteen fighters, each with a second stance', () => {
   assert.deepEqual(run('Object.keys(CHARS)'), ['stick', ...ROSTER]);
   for (const n of ROSTER) assert.ok(json(`CHARS.${n}.stances.length`) >= 2, n);
 });

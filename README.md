@@ -10,7 +10,7 @@ This is an active, solo-built project and it needs feedback and testers. If you 
 
 ## Features
 
-**Fight.** You, the engine AI (four difficulty levels), a dummy or scripted scenarios; 12 characters with chains, motion specials, throws, counters, projectiles, weapons, juggles and ragdoll falls; 2D or 2.5D lanes; endless waves. A frame meter and input display for training. → [Fighting](docs/fighting.md)
+**Fight.** You, the engine AI (four difficulty levels), a dummy or scripted scenarios; 16 characters with chains, motion specials, throws, counters, projectiles, weapons, juggles and ragdoll falls; 2D or 2.5D lanes; endless waves. A frame meter and input display for training. → [Fighting](docs/fighting.md)
 
 **Tune the feel.** Hundreds of settings (hit stop, shake, zoom, springs, gravity, knockback) with presets, and an experiment tab that replays the same seeded fight side by side with one setting swept.
 

@@ -7,6 +7,7 @@ The full reference behind the [landing page](../README.md). The app has its own 
 | [Modes](modes.md) | what each tab and view does: play, impact, grid, character, animate, gallery, tests |
 | [Fighting](fighting.md) | the engine: guard, combos, throws, specials, projectiles, weapons, power, falls, 2D / 2.5D, stances |
 | [Editing](editing.md) | the roster, stats, the move table, movement layers, the input table, combos |
+| [Contributing to the roster](roster-contributing.md) | what help is needed, the contribution workflow, and where to learn the tools (animate, movement, physics, combos) |
 | [Interface](interface.md) | the top bar, export / import, debug, ⌘K, keys and macros, panels, undo, sound |
 | [Development](development.md) | code layout, build info, the screenshot and animation tools, the icon font |
 | [Testing](testing.md) | `npm test`, snapshots, replays, the browser test, seeds, the move matrix, fuzzing |
@@ -19,6 +20,7 @@ The full reference behind the [landing page](../README.md). The app has its own 
 - **Make a move:** [Modes → Animate](modes.md#animate), then [Editing → Moves and inputs](editing.md#moves-and-inputs).
 - **Tune the feel:** [Modes → Experiment](modes.md#experiment).
 - **Save or share your work:** [Interface → Export and import](interface.md#export-and-import).
+- **Contribute to the roster:** [Contributing to the roster](roster-contributing.md).
 
 ## Pictures
 
