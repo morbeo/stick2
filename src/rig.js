@@ -739,6 +739,11 @@ const BASE_WEAPONS = {
     { kind: 'line', x1: -3, y1: 0, x2: 'len', y2: 0, w: 3, col: 'wood' },
     { kind: 'polygon', pts: [['len-12', 0], ['len-15', 10], ['len+1', 12], ['len-2', 0]], col: 'metal', stroke: 'metal' },
   ] },
+  lightsaber: { cls: 'slash', len: 50, weight: 0.4, a: 10, tip: 'Lightsaber: a humming blade of pure light, slashes and chops', shapes: [
+    { kind: 'line', x1: -4, y1: 0, x2: 9, y2: 0, w: 5, col: 'metal' }, // hilt
+    { kind: 'line', x1: 9, y1: 0, x2: 'len', y2: 0, w: 10, col: 'rgba(90,190,255,0.3)' }, // glow
+    { kind: 'line', x1: 9, y1: 0, x2: 'len', y2: 0, w: 3, col: '#cdf3ff' }, // bright core
+  ] },
   bat: { cls: 'blunt', shapes: clubShapes(), len: 40, weight: 0.9, a: 40, tip: 'Bat: blunt swings that knock back' },
   nunchucks: { cls: 'blunt', chain: true, len: 34, weight: 0.6, a: -100, tip: 'Nunchucks: two sticks on a chain, the outer one flails behind the swing',
     shapes: [{ kind: 'line', x1: -2, y1: 0, x2: 'len', y2: 0, w: 4, col: 'wood' }] },

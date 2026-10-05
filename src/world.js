@@ -63,7 +63,10 @@ class World {
     // weapons: one per fighter from the settings (on the floor in front, or in hand), plus the scenario's (items, aw / bw / more[].w = held)
     this.items = []; this.shots = []; this.beams = []; this.limbs = [];
     this.props = (s.props || []).map(p => ({ type: p.type, x: p.x, z: p.z || 0, hp: PROPS[p.type].hp, bendT: 0, bendDir: 0 }));
-    const wt = this.cfg.weapon, pickW = () => wt === 'random' ? Object.keys(WEAPONS)[Math.floor(this.rand() * 7)] : wt;
+    // the random pool: the built-in arsenal, minus the synthetic 'limb' (a severed-limb weapon, never a starting pick)
+    // and 'lightsaber' (a bonus weapon, picked on purpose, not handed out at random) — named explicitly, not by
+    // position in WEAPONS, so a new built-in or a custom one never shifts who gets what for the same seed
+    const wt = this.cfg.weapon, pool = Object.keys(BASE_WEAPONS).filter(k => k !== 'limb' && k !== 'lightsaber'), pickW = () => wt === 'random' ? pool[Math.floor(this.rand() * pool.length)] : wt;
     this.fighters.forEach((f, i) => {
       const held = [s.aw, s.bw][i] ?? specs[i].w;
       if (held) f.wield(held);
