@@ -17,6 +17,7 @@ const SHOTS = {
   experiment: [`lab.scen = 'J,J,K'; setMode('experiment'); lab.kind = 'sweep'; lab.x = { k: 'hitstop' }; build(); panels(); ${run(48)}`, [0, 80, 1100, 600]],
   // the content-manager grid tab: characters, its default collection, with its default variables shown per card
   grid: [`setMode('grid'); panels(); mode().render();`, [0, 80, 1100, 600]],
+  fx: [`setMode('fx'); panels(); mode().render();`, [0, 80, 1100, 600]],
   tests: [`setMode('tests'); tests.move = null; rerunTests(); panels(); for (let i = 0; i < 400 && tests.queue.length; i++) testMode.tick(); panels();
     isolate(Object.keys(tests.res).find(k => failed(tests.res[k]))); ${run(45)}`, [0, 80, 1100, 600]],
   impact: [`setMode('impact'); panels(); ${run(25)}`, [0, 80, 1100, 600]],

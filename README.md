@@ -20,6 +20,10 @@ This is an active, solo-built project and it needs feedback and testers. If you 
 
 ![Characters, with speed, weight and health shown on each card](docs/img/grid.png)
 
+**Design looks and sounds.** Fire, lightning, smoke, blood and more as tunable particle looks with a live preview; sounds synthesized live (no files) with a waveform preview; a tracker (step sequencer) built from them. → [Modes: fx](docs/modes.md#fx)
+
+![A gallery of fx looks](docs/img/fx.png)
+
 **Animate moves.** Pose keyframes by dragging joints (IK), retime them on a timeline, and watch the move with springs and hit stop against a target in any state. A gallery loops every move, a move table edits them all at once, and a combo tree links them into chains. → [Editing](docs/editing.md)
 
 ![The move editor: keyframes, timeline and live preview](docs/img/animate.png)

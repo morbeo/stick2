@@ -11,7 +11,7 @@ How fights play. Each system here has its own setting group in the side panel.
 | [Throws, counters and recovery](#throws-counters-and-recovery) | throws, breaks, catch, air recover, tech |
 | [Specials](#specials) | rolls, teleport, guard cancel, push block, wake-up, taunt… |
 | [Strikes](#strikes) | headbutts, tails, turning moves, projectiles, rising and multi-hit keys |
-| [Weapons](#weapons) | picking up, throwing, weapon moves, clashes |
+| [Weapons](#weapons) | picking up, throwing, weapon moves, clashes, dismemberment |
 | [Power](#power) | power presets and power scale |
 | [Cinema](#cinema) | slow motion, camera, punch-in, knockback scale, film effects |
 | [Falls](#falls) | ragdoll and pose falls |
@@ -412,6 +412,7 @@ Dagger, sword, axe, bat, nunchucks (the outer stick flails on a loose joint), wa
 - A thrown weapon flies, hits its thrower's foes once along its whole drawn length (a staff behind the grip too), then drops.
 - pickUp and weaponThrow are weapon moves edited in animate. Unmarked grip / release means the first key.
 - A knockdown, or a blow of at least **disarm** power, knocks the weapon loose.
+- A severed limb (**dismember**, below), once it settles on the floor, is pickable and throwable the same way.
 
 | Picking up a sword, then slashing |
 | --- |
@@ -452,6 +453,10 @@ The boxes view shows held weapons in amber and flying ones in red.
 | Weapon clash: two strikes meet, both recoil |
 | --- |
 | ![Weapon clash: two strikes meet, both recoil](img/anim-weapon-clash.png) |
+
+### Dismemberment
+
+The **dismember** setting (on by default): a lethal slash severs the limb it struck — arm, leg, tail or head — instead of a plain knockout fall. The severed limb falls and tumbles on its own; once it settles it's pickable and throwable like a weapon (above).
 
 ## Power
 
