@@ -1,24 +1,26 @@
 'use strict';
 // ---------- props and weapons editor: both are built from the same primitive shapes (src/shapes.js) ----------
 // a thin, utilitarian editor over shared data (BASE_PROPS/PROPS, src/stage.js; BASE_WEAPONS/WEAPONS, src/rig.js):
-// pick a built-in or custom one, tune its own fields and its shape list, revert or delete — same pattern as sounds
-let propSel = null, weaponSel = null;
+// pick a built-in or custom one (side panel: a card grid or a table), tune its own fields and its shape list
+// (overlay), revert or delete — same pattern as sounds
+let propSel = null, weaponSel = null, propView = 'cards', weaponView = 'cards';
 const numInput = (v, set, title) => h('input', { type: 'number', value: fmt(v), tip: title, style: 'flex:none;width:52px',
   onkeydown: e => e.stopPropagation(), onchange: e => { const n = parseFloat(e.target.value); if (Number.isFinite(n)) set(n); } });
 // a weapon coordinate can be a plain number or 'len' / 'len-4' (reaches for the live blade length); props never use that
 const coordInput = (v, set, title) => h('input', { cls: 'macro', value: String(v), tip: title, style: 'flex:none;width:56px',
   onkeydown: e => e.stopPropagation(), onchange: e => { const s = e.target.value.trim(); const n = parseFloat(s); set(/^-?\d+(\.\d+)?$/.test(s) ? n : s); } });
-const colorInput = (v, set) => h('input', { type: 'color', value: /^#/.test(v) ? v : '#888888', tip: 'Colour', style: 'flex:none;width:28px;padding:0',
+const colorInput = (v, set, title) => h('input', { type: 'color', value: /^#/.test(v) ? v : '#888888', tip: title || 'Colour', style: 'flex:none;width:28px;padding:0',
   onchange: e => set(e.target.value) });
-// rows for one primitive's own fields; weapon: coordInput (numbers or 'len'-relative text) and a wood/metal/custom colour seg;
-// prop: numInput (plain pixels) and a colour picker. set(patch) merges a partial update into this shape and re-renders
+// rows for one primitive's own fields; weapon: coordInput (numbers or 'len'-relative text); prop: numInput (plain
+// pixels). Colour: wood/metal quick picks (weapon only) plus a real swatch either way, so any exact colour works too.
+// set(patch) merges a partial update into this shape and re-renders
 function shapeRows(s, set, weapon) {
   const num = (k, title) => numInput(s[k], v => set({ [k]: v }), title);
   const coord = (k, title) => coordInput(s[k], v => set({ [k]: v }), title);
   const field = weapon ? coord : num;
-  const col = (k = 'col') => weapon
-    ? seg(['wood', 'metal', 'custom'], () => s[k] === 'wood' || s[k] === 'metal' ? s[k] : 'custom', v => set({ [k]: v === 'custom' ? '#888888' : v }), {}, v => v)
-    : colorInput(s[k] || '#888888', v => set({ [k]: v }));
+  const col = (k = 'col') => h('span', { cls: 'bar' },
+    weapon ? seg(['wood', 'metal'], () => s[k], v => set({ [k]: v }), { wood: 'Wood colour', metal: 'Metal colour' }) : null,
+    colorInput(s[k], v => set({ [k]: v }), weapon ? 'Pick any exact colour (overrides wood/metal)' : 'Colour'));
   const rows = [];
   if (s.kind === 'line') rows.push(
     h('div', { cls: 'bar' }, h('span', { textContent: weapon ? 'from' : 'x1,y1' }), field('x1', weapon ? 'Distance along the blade, from the grip' : 'x'), field('y1', weapon ? 'Perpendicular offset' : 'y')),
@@ -52,14 +54,88 @@ function shapeList(shapes, onChange, weapon) {
   fill();
   return h('div', {}, wrap, h('div', { cls: 'bar' }, ...SHAPE_KINDS.map(k => button(`:add: ${k}`, `Add a ${k}: ${SHAPE_KIND_TIPS[k]}`, () => { shapes.push(newShape(k)); onChange(); fill(); }, 'mini'))));
 }
+// a gallery or a table of every entry in a collection; shared by props and weapons — cols: [key, label] pairs beyond
+// name/badge, read from each entry directly (p => p.field or a formatter); both views show a real-size thumbnail
+// (thumb), so a tiny prop and a tall one are visibly different, not squeezed into the same apparent box
+function pickerList(view, names, sel, onPick, thumb, isBuilt, cols) {
+  if (view === 'cards') return h('div', { cls: 'cards' }, names.map(n => h('button', { cls: 'card' + (sel === n ? ' on' : ''), onclick: () => onPick(n) },
+    thumb(n), h('span', { textContent: n }), h('span', { cls: 'gbadge', textContent: isBuilt(n) ? 'built-in' : 'custom' }))));
+  return h('div', { cls: 'mtable' }, h('table', {}, h('thead', {}, h('tr', {}, h('th', {}), h('th', {}), ...cols.map(([, label]) => h('th', { textContent: label })))),
+    h('tbody', {}, names.map(n => h('tr', { cls: sel === n ? 'on' : '', onclick: () => onPick(n) },
+      h('td', {}, thumb(n)), h('td', { textContent: n }), ...cols.map(([get]) => h('td', { textContent: get(n) })))))));
+}
+// the real size of every prop/weapon only varies within one short list each — a shared scale (biggest one nearly
+// fills its thumbnail) makes every thumbnail's apparent size a true comparison, not an arbitrary per-item fit
+function propsScale() {
+  let maxH = 1, maxW = 1;
+  for (const n in PROPS) { const e = shapeExtent(PROPS[n].shapes, { sway: 0 }); maxH = Math.max(maxH, -e.minY); maxW = Math.max(maxW, e.maxX - e.minX); }
+  return Math.min(56 / maxH, 84 / maxW);
+}
+function weaponsScale() {
+  let maxLen = 1, maxW = 1;
+  for (const n in WEAPONS) { const w = WEAPONS[n], e = shapeExtent(w.shapes, { len: w.len }); maxLen = Math.max(maxLen, w.len, e.maxX); maxW = Math.max(maxW, (e.maxY - e.minY)); }
+  return Math.min(80 / maxLen, 36 / maxW);
+}
 // ---------- props ----------
 function propCanvas(name) {
   const cv = h('canvas', { width: 90 * dpr, height: 64 * dpr, cls: 'scenthumb' });
   const p = PROPS[name]; if (!p) return cv;
-  const ctx = cv.getContext('2d'), gy = cv.height - 8 * dpr, s = dpr * 0.9;
+  const ctx = cv.getContext('2d'), gy = cv.height - 8 * dpr, s = dpr * propsScale();
   drawShapes(ctx, p.shapes, (x, y) => [cv.width / 2 + x * s, gy + y * s], c => c || '#888', { sway: 0 });
   ctx.strokeStyle = '#cfc8bb'; ctx.lineWidth = dpr; ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(cv.width, gy); ctx.stroke();
   return cv;
+}
+// a shape's own draggable points, in its local space: position (and, for circle/box, one size handle) — enough to
+// reposition and roughly resize by eye; exact values still come from the number fields below. get() reads the
+// shape live (so two handles on the same shape, e.g. a box's corner and its size, never go stale against each
+// other); set(x, y) returns the patch to apply
+const round = v => Math.round(v);
+function shapeHandles(s) {
+  if (s.kind === 'line') return [['x1', 'y1'], ['x2', 'y2']].map(([xk, yk]) => ({ get: () => [s[xk], s[yk]], set: (x, y) => ({ [xk]: round(x), [yk]: round(y) }) }));
+  if (s.kind === 'circle') return [{ get: () => [s.cx, s.cy], set: (x, y) => ({ cx: round(x), cy: round(y) }) },
+    { get: () => [s.cx + s.rx, s.cy], set: x => ({ rx: round(Math.max(1, x - s.cx)) }) }];
+  if (s.kind === 'box') return [{ get: () => [s.x, s.y], set: (x, y) => ({ x: round(x), y: round(y) }) },
+    { get: () => [s.x + s.w, s.y + s.h], set: (x, y) => ({ w: round(Math.max(1, x - s.x)), h: round(Math.max(1, y - s.y)) }) }];
+  return s.pts.map((_, i) => ({ get: () => s.pts[i], set: (x, y) => { const pts = s.pts.map(p => [...p]); pts[i] = [round(x), round(y)]; return { pts }; } }));
+}
+const EDIT_W = 240, EDIT_H = 170;
+// the same fit used to draw and to hit-test a drag: biggest dimension nearly fills the canvas, ground-anchored
+function fitBox(shapes) {
+  const e = shapeExtent(shapes, { sway: 0 }), w = Math.max(e.maxX - e.minX, 20), hh = Math.max(-e.minY, 20);
+  return { s: Math.min((EDIT_W * dpr - 24 * dpr) / w, (EDIT_H * dpr - 24 * dpr) / hh), gy: EDIT_H * dpr - 12 * dpr, cx: EDIT_W * dpr / 2 };
+}
+// a bigger, interactive version of propCanvas for the detail view: every shape's handles are draggable dots; drag
+// updates the shape and redraws locally (so the drag itself is smooth and never rebuilds this canvas mid-gesture),
+// and onChange (persisting + refilling the rest of the panel) only fires once, on release
+function propEditCanvas(shapes, onChange) {
+  const cv = h('canvas', { cls: 'shapeedit', width: EDIT_W * dpr, height: EDIT_H * dpr, style: `width:${EDIT_W}px;height:${EDIT_H}px;background:#1a1a1a;border-radius:4px;touch-action:none` });
+  const ctx = cv.getContext('2d');
+  let drag = null;
+  const toXY = (x, y) => { const { s, gy, cx } = fitBox(shapes); return [cx + x * s, gy + y * s]; };
+  const fromXY = (px, py) => { const { s, gy, cx } = fitBox(shapes); return [(px - cx) / s, (py - gy) / s]; };
+  function draw() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    drawShapes(ctx, shapes, toXY, c => c || '#888', { sway: 0 });
+    const { gy } = fitBox(shapes);
+    ctx.strokeStyle = '#444'; ctx.lineWidth = dpr; ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(cv.width, gy); ctx.stroke();
+    ctx.fillStyle = '#4af';
+    for (const s of shapes) for (const hd of shapeHandles(s)) { const [x, y] = toXY(...hd.get()); ctx.beginPath(); ctx.arc(x, y, 4 * dpr, 0, 7); ctx.fill(); }
+  }
+  function pick(px, py) {
+    for (const shape of shapes) for (const hd of shapeHandles(shape)) { const [x, y] = toXY(...hd.get()); if (Math.hypot(x - px, y - py) < 8 * dpr) return { shape, hd }; }
+    return null;
+  }
+  const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * dpr, (e.clientY - r.top) * dpr]; };
+  cv.onpointerdown = e => { const [px, py] = pos(e); drag = pick(px, py); if (drag) { cv.setPointerCapture(e.pointerId); cv.style.cursor = 'grabbing'; } };
+  cv.onpointermove = e => { if (!drag) return; const [px, py] = pos(e); const [x, y] = fromXY(px, py); Object.assign(drag.shape, drag.hd.set(x, y)); draw(); };
+  cv.onpointerup = () => { if (drag) { drag = null; cv.style.cursor = 'default'; onChange(); } };
+  draw();
+  return cv;
+}
+const PROP_COLS = [[n => PROPS[n].size, 'size'], [n => PROPS[n].h, 'h'], [n => PROPS[n].layer || 'mid', 'layer'],
+  [n => PROPS[n].moveable ? '✓' : '', 'move'], [n => PROPS[n].breakable ? (PROPS[n].hp ?? '✓') : '', 'break']];
+function propPicker() {
+  return pickerList(propView, Object.keys(PROPS), propSel, n => { propSel = n; panels(); }, propCanvas, n => n in BASE_PROPS, PROP_COLS);
 }
 function propFields(name, refill) {
   const p = PROPS[name], built = name in BASE_PROPS, set = patch => { saveProp(name, { ...PROPS[name], ...patch }); refill(); };
@@ -69,36 +145,50 @@ function propFields(name, refill) {
     h('div', { cls: 'bar' }, nm, built ? h('span', { cls: 'note', textContent: 'built-in — tunable, revert to go back' }) : null,
       button(built ? ':restart_alt: revert' : ':delete: delete', built ? `Back to ${name}'s shipped values` : `Delete ${name}`,
         () => { resetProp(name); if (!built) propSel = null; refill(); })),
-    propCanvas(name),
+    propEditCanvas(p.shapes, () => set({ shapes: p.shapes })),
+    h('p', { cls: 'note', textContent: 'drag a dot to reposition or resize a shape' }),
     h('div', { cls: 'bar' }, h('span', { textContent: 'size / height' }), numInput(p.size, v => set({ size: v }), 'Hit-test half-width'), numInput(p.h, v => set({ h: v }), 'Collidable height from the floor')),
     h('div', { cls: 'bar' }, h('span', { textContent: 'layer' }), seg(['back', 'mid', 'front'], () => p.layer || 'mid', v => set({ layer: v === 'mid' ? undefined : v }),
       { back: 'Behind everything', mid: 'Where fighters are (default)', front: 'In front of everything' })),
-    h('div', { cls: 'bar' }, toggle(':sync_alt: moveable', 'Sways on a strike (a shape opts in with its own "sways" toggle) and bounces a thrown weapon back', () => !!p.moveable, v => set({ moveable: v })),
-      toggle('breakable', 'Has hit points; destroyed once they run out', () => !!p.breakable, v => set({ breakable: v })),
+    h('div', { cls: 'bar' }, toggle(':sync_alt: moveable', 'Sways on a strike (a shape opts in with its own "sways" toggle), bounces a thrown weapon back, and can be picked up and thrown itself', () => !!p.moveable, v => set({ moveable: v })),
+      toggle('breakable', 'Has hit points; destroyed once they run out, dropping debris usable as a weapon', () => !!p.breakable, v => set({ breakable: v })),
       p.breakable ? numInput(p.hp ?? 10, v => set({ hp: v }), 'Hit points') : null),
     h('h4', { textContent: 'shapes' }), shapeList(p.shapes, () => set({ shapes: p.shapes })));
 }
 function propsPanel() {
   const wrap = h('div', { cls: 'mtable' }), body = h('div');
-  const fill = () => {
-    if (propSel && !PROPS[propSel]) propSel = null;
-    const row = n => h('button', { cls: 'card' + (propSel === n ? ' on' : ''), onclick: () => { propSel = n; fill(); } },
-      propCanvas(n), h('span', { textContent: n }), h('span', { cls: 'gbadge', textContent: n in BASE_PROPS ? 'built-in' : 'custom' }));
-    body.replaceChildren(h('div', { cls: 'cards' }, Object.keys(PROPS).map(row)), h('h4', { textContent: propSel || 'pick a prop' }),
-      propSel ? propFields(propSel, fill) : h('p', { cls: 'note', textContent: 'click a prop above to tune it, or make a new one' }));
-  };
-  wrap.append(h('div', { cls: 'bar stagehead' }, h('b', { textContent: 'props', tip: 'Scenery: fixed or moveable, breakable or not, drawn from simple shapes (line, circle, box, polygon). Used by the scenario builder.' }),
-    button(':add: new prop', 'A new prop, copied from crate', () => { propSel = duplicateProp('crate'); fill(); })), body);
-  fill();
+  if (propSel && !PROPS[propSel]) propSel = null;
+  body.replaceChildren(propSel ? propFields(propSel, () => panels()) : h('p', { cls: 'note', textContent: 'pick a prop in the side panel to tune it, or make a new one' }));
+  wrap.append(h('div', { cls: 'bar stagehead' }, h('b', { textContent: propSel || 'props' })), body);
   return wrap;
+}
+function propsSide() {
+  return [heading('props', 'Scenery: fixed or moveable, breakable or not, drawn from simple shapes (line, circle, box, polygon). Used by the scenario builder.'),
+    h('div', { cls: 'bar' }, seg(['cards', 'table'], () => propView, v => { propView = v; panels(); }, { cards: 'A grid of thumbnails', table: 'A compact table' }),
+      button(':add: new prop', 'A new prop, copied from crate', () => { propSel = duplicateProp('crate'); panels(); })),
+    propPicker()];
 }
 // ---------- weapons ----------
 function weaponCanvas(name) {
   const cv = h('canvas', { width: 100 * dpr, height: 50 * dpr, cls: 'scenthumb' });
   const w = WEAPONS[name]; if (!w) return cv;
-  const ctx = cv.getContext('2d'), y = cv.height / 2, pad = 10 * dpr, len = (cv.width - pad * 2);
-  drawShapes(ctx, w.shapes, (d, s) => [pad + d / w.len * len, y + s * dpr], raw => raw === 'wood' ? WOOD : raw === 'metal' ? METAL : raw, { len: len / dpr });
+  const ctx = cv.getContext('2d'), y = cv.height / 2, pad = 8 * dpr, s = dpr * weaponsScale();
+  drawShapes(ctx, w.shapes, (d, p) => [pad + d * s, y + p * s], raw => raw === 'wood' ? WOOD : raw === 'metal' ? METAL : raw, { len: w.len });
   return cv;
+}
+// a character (the one being edited, or the class's own default) holding it, in its normal stance pose — the variant
+// cache (src/rig.js variant()) is keyed by stance + weapon name only, so it must be cleared first or a live edit
+// (length, a shape) would keep showing whatever was compiled the first time this weapon was ever previewed
+function weaponHandPreview(name) {
+  const ch = currentChar(), base = ch.base || ch; base.variants = {};
+  const held = armed(ch, name), cv = h('canvas');
+  drawThumb(cv, held, held.poses.stance, 110, 130);
+  return cv;
+}
+const WEAPON_COLS = [[n => WEAPON_CLASSES[WEAPONS[n].cls]?.weapon === n ? WEAPONS[n].cls + ' ★' : WEAPONS[n].cls, 'class'], [n => WEAPONS[n].len, 'len'], [n => WEAPONS[n].weight, 'weight'],
+  [n => WEAPONS[n].breakable ? (WEAPONS[n].durability ?? '✓') : '', 'durability']];
+function weaponPicker() {
+  return pickerList(weaponView, Object.keys(WEAPONS), weaponSel, n => { weaponSel = n; panels(); }, weaponCanvas, n => n in BASE_WEAPONS, WEAPON_COLS);
 }
 function weaponFields(name, refill) {
   const w = WEAPONS[name], built = name in BASE_WEAPONS, set = patch => { saveWeapon(name, { ...WEAPONS[name], ...patch }); refill(); };
@@ -108,30 +198,31 @@ function weaponFields(name, refill) {
     h('div', { cls: 'bar' }, nm, built ? h('span', { cls: 'note', textContent: 'built-in — tunable, revert to go back' }) : null,
       button(built ? ':restart_alt: revert' : ':delete: delete', built ? `Back to ${name}'s shipped values` : `Delete ${name}`,
         () => { resetWeapon(name); if (!built) weaponSel = null; refill(); })),
-    weaponCanvas(name),
+    h('div', { cls: 'bar' }, weaponCanvas(name), weaponHandPreview(name)),
     h('div', { cls: 'bar' }, h('span', { textContent: 'class' }), seg(Object.keys(WEAPON_CLASSES), () => w.cls, v => set({ cls: v }), mapVals(WEAPON_CLASSES, c => c.tip))),
     h('div', { cls: 'bar' }, h('span', { textContent: 'length / weight' }), numInput(w.len, v => set({ len: v }), 'How long it is, in px'), numInput(w.weight, v => set({ weight: v }), 'Heavier hits harder but swings slower')),
     h('div', { cls: 'bar' }, h('span', { textContent: 'grip angle' }), numInput(w.a, v => set({ a: v }), 'Angle in the hand, relative to the fist'),
       numInput(w.back ?? 0, v => set({ back: v || undefined }), 'Length held behind the hand (a staff)')),
     h('div', { cls: 'bar' }, toggle(':sync_alt: two-handed (chain)', 'Two segments on a loose joint (nunchucks); unrelated to the 2h class', () => !!w.chain, v => set({ chain: v || undefined })),
       numInput(w.grip2 ?? 0, v => set({ grip2: v || undefined }), 'Two-handed: where the back hand grips, from the front hand (− behind)')),
+    h('div', { cls: 'bar' }, toggle('breakable', 'Clashing and landed hits wear it down; it snaps and drops once durability runs out', () => !!w.breakable, v => set({ breakable: v })),
+      w.breakable ? numInput(w.durability ?? 20, v => set({ durability: v }), 'How much clashing it takes before it snaps') : null),
     h('h4', { textContent: 'shapes' }), shapeList(w.shapes, () => set({ shapes: w.shapes }), true));
 }
 function weaponsPanel() {
   const wrap = h('div', { cls: 'mtable' }), body = h('div');
-  const fill = () => {
-    if (weaponSel && !WEAPONS[weaponSel]) weaponSel = null;
-    const row = n => h('button', { cls: 'card' + (weaponSel === n ? ' on' : ''), onclick: () => { weaponSel = n; fill(); } },
-      weaponCanvas(n), h('span', { textContent: n }), h('span', { cls: 'gbadge', textContent: n in BASE_WEAPONS ? 'built-in' : 'custom' }));
-    body.replaceChildren(h('div', { cls: 'cards' }, Object.keys(WEAPONS).map(row)), h('h4', { textContent: weaponSel || 'pick a weapon' }),
-      weaponSel ? weaponFields(weaponSel, fill) : h('p', { cls: 'note', textContent: 'click a weapon above to tune it, or make a new one' }));
-  };
-  wrap.append(h('div', { cls: 'bar stagehead' }, h('b', { textContent: 'weapons', tip: 'Held or thrown, drawn along the grip-to-tip axis from simple shapes (line, circle, box, polygon). A custom weapon reuses an existing class\'s moveset.' }),
-    button(':add: new weapon', 'A new weapon, copied from sword', () => { weaponSel = duplicateWeapon('sword'); fill(); })), body);
-  fill();
+  if (weaponSel && !WEAPONS[weaponSel]) weaponSel = null;
+  body.replaceChildren(weaponSel ? weaponFields(weaponSel, () => panels()) : h('p', { cls: 'note', textContent: 'pick a weapon in the side panel to tune it, or make a new one' }));
+  wrap.append(h('div', { cls: 'bar stagehead' }, h('b', { textContent: weaponSel || 'weapons' })), body);
   return wrap;
 }
-const propsMode = { enter() {}, restart() {}, worlds: () => [], render: clear, ctxBar: () => [], side: () => [], overlay: () => [propsPanel()],
-  hint: () => 'click a prop to tune it: size, layer, moveable, breakable, and its shapes' };
-const weaponsMode = { enter() {}, restart() {}, worlds: () => [], render: clear, ctxBar: () => [], side: () => [], overlay: () => [weaponsPanel()],
-  hint: () => 'click a weapon to tune it: class, length, weight, grip, and its shapes' };
+function weaponsSide() {
+  return [heading('weapons', 'Held or thrown weapons, drawn along the grip-to-tip axis from the same simple shapes as props. A custom one reuses an existing class\'s moveset.'),
+    h('div', { cls: 'bar' }, seg(['cards', 'table'], () => weaponView, v => { weaponView = v; panels(); }, { cards: 'A grid of thumbnails', table: 'A compact table' }),
+      button(':add: new weapon', 'A new weapon, copied from sword', () => { weaponSel = duplicateWeapon('sword'); panels(); })),
+    weaponPicker()];
+}
+const propsMode = { enter() {}, restart() {}, worlds: () => [], render: clear, ctxBar: () => [], side: propsSide, overlay: () => [propsPanel()],
+  hint: () => 'pick a prop in the side panel to tune it: size, layer, moveable, breakable, and its shapes' };
+const weaponsMode = { enter() {}, restart() {}, worlds: () => [], render: clear, ctxBar: () => [], side: weaponsSide, overlay: () => [weaponsPanel()],
+  hint: () => 'pick a weapon in the side panel to tune it: class, length, weight, grip, and its shapes' };

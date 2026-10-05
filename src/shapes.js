@@ -49,6 +49,14 @@ function drawShape(ctx, s, toXY, resolveCol, vars = {}, extra = 0) {
   }
 }
 function drawShapes(ctx, shapes, toXY, resolveCol, vars, extra) { for (const s of shapes) drawShape(ctx, s, toXY, resolveCol, vars, extra); }
+// the real local-space extent of a shape set (toXY not applied) — lets the editor scale prop/weapon thumbnails by
+// their actual real size instead of squeezing every one into the same box; 0 is always included so the anchor
+// point itself (ground for a prop, grip for a weapon) counts even for a shape set that doesn't reach it
+function shapeExtent(shapes, vars) {
+  let minX = 0, maxX = 0, minY = 0, maxY = 0;
+  for (const s of shapes) for (const [x, y] of shapePts(s, vars)) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+  return { minX, maxX, minY, maxY };
+}
 // a deep-enough copy for editing: a polygon's own pts array (and its [x,y] pairs) must never alias the original,
 // or moving a point on a duplicated prop/weapon would silently move it on the one it was copied from too
 const cloneShapes = shapes => shapes.map(s => s.kind === 'polygon' ? { ...s, pts: s.pts.map(p => [...p]) } : { ...s });

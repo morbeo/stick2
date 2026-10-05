@@ -132,12 +132,24 @@ try {
     if (cards().length !== Object.keys(PROPS).length) errs.push('props gallery ' + cards().length);
     cards().find(c => c.textContent.startsWith('crate')).click();
     if (!document.querySelector('.shaperow')) errs.push('crate has no shapes shown');
+    // dragging a shape's handle on the edit canvas moves it (and, like any field edit, makes the built-in a custom
+    // override); the drag position is computed from the real fitBox()/shapeHandles() the canvas itself uses, not
+    // guessed pixels, so this stays correct if the canvas size or fit math ever changes
+    { const box = PROPS.crate.shapes[0], [lx, ly] = shapeHandles(box)[0].get(), { s, gy, cx } = fitBox(PROPS.crate.shapes);
+      const cv = document.querySelector('canvas.shapeedit'), r = cv.getBoundingClientRect();
+      const clientX = r.left + (cx + lx * s) / dpr, clientY = r.top + (gy + ly * s) / dpr;
+      const opts = { clientX, clientY, pointerId: 1, bubbles: true };
+      cv.dispatchEvent(new PointerEvent('pointerdown', opts));
+      cv.dispatchEvent(new PointerEvent('pointermove', { ...opts, clientX: clientX + 20, clientY: clientY + 10 }));
+      cv.dispatchEvent(new PointerEvent('pointerup', opts));
+      if (box.x === -20 || box.y === -48) errs.push('shape drag did not move the handle ' + JSON.stringify(box));
+      if (!('crate' in myProps)) errs.push('shape drag did not persist as an override'); }
     if (!tog('breakable')?.classList.contains('on') || tog('moveable')?.classList.contains('on')) errs.push('crate flags ' + tog('breakable')?.className + ' ' + tog('moveable')?.className);
     tog('moveable').click(); // breakable and moveable are independent now
     if (!PROPS.crate.moveable || !('crate' in myProps)) errs.push('crate moveable toggle ' + JSON.stringify(PROPS.crate));
     [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('revert')).click();
     if (PROPS.crate.moveable || 'crate' in myProps) errs.push('crate revert ' + JSON.stringify(PROPS.crate));
-    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('new prop')).click();
+    [...document.querySelectorAll('#side button')].find(b => b.textContent.includes('new prop')).click();
     const pname = Object.keys(myProps).find(n => n.startsWith('crate') && n !== 'crate');
     if (!pname || !(pname in PROPS) || PROPS[pname].shapes === PROPS.crate.shapes) errs.push('new prop not created, or shares shapes with crate ' + pname);
     [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('line')).click(); // + line
@@ -148,15 +160,27 @@ try {
     if (PROPS[pname].shapes.length !== 1) errs.push('remove shape ' + PROPS[pname].shapes.length);
     [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('delete')).click();
     if (pname in PROPS || pname in myProps) errs.push('prop delete ' + pname);
+    cards().find(c => c.textContent.startsWith('crate')).click();
+    // every shape has a real colour picker, not just built-in presets
+    if (!document.querySelector('.shaperow input[type=color]')) errs.push('prop shape has no colour picker');
+    // the gallery's table view shows the same items, each with its own real-size thumbnail
+    [...document.querySelectorAll('#side button')].find(b => b.dataset.tip === 'A compact table').click();
+    const rows = () => [...document.querySelectorAll('#side .mtable tbody tr')];
+    if (rows().length !== Object.keys(PROPS).length || !rows()[0].querySelector('canvas.scenthumb')) errs.push('props table view ' + rows().length);
+    rows().find(r => r.textContent.startsWith('crate')).click();
+    if (propSel !== 'crate') errs.push('props table row click ' + propSel);
+    [...document.querySelectorAll('#side button')].find(b => b.dataset.tip === 'A grid of thumbnails').click();
     setMode('weapons'); panels();
     if (cards().length !== Object.keys(WEAPONS).length) errs.push('weapons gallery ' + cards().length);
     cards().find(c => c.textContent.startsWith('sword')).click();
+    // a preview of the weapon held in a character's hand, next to the flat blade-shape thumbnail
+    if (document.querySelectorAll('.mtable canvas').length < 2) errs.push('weapon hand preview missing');
     const lenBase = BASE_WEAPONS.sword.len, lenInput = document.querySelector('.mtable input[type=number]');
     lenInput.value = lenBase + 10; lenInput.dispatchEvent(new Event('change'));
     if (WEAPONS.sword.len !== lenBase + 10 || !('sword' in myWeapons)) errs.push('weapon field edit ' + JSON.stringify(WEAPONS.sword));
     [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('revert')).click();
     if (WEAPONS.sword.len !== lenBase || 'sword' in myWeapons) errs.push('weapon revert ' + JSON.stringify(WEAPONS.sword));
-    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('new weapon')).click();
+    [...document.querySelectorAll('#side button')].find(b => b.textContent.includes('new weapon')).click();
     const wname = Object.keys(myWeapons).find(n => n.startsWith('sword') && n !== 'sword');
     if (!wname || !(wname in WEAPONS) || WEAPONS[wname].shapes === WEAPONS.sword.shapes) errs.push('new weapon not created, or shares shapes with sword ' + wname);
     [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('delete')).click();
