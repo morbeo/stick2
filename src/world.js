@@ -34,7 +34,8 @@ function itemSeg(it, r = 0) {
   return [[it.x - ux, it.y - uy], [it.x + ux, it.y + uy], r];
 }
 class World {
-  // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, more?, period?, init?, chars? } (see brain.js)
+  // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, aTeam?, bTeam?, more?, period?, init?, chars? } (see brain.js)
+  // aTeam/bTeam: a and b's own team (default 0 and 1); same team = allies, as for more's own team
   // chars: character per fighter slot (the last one fills the rest); default = the current character; a scenario's chars (names) win
   constructor(scen, over = {}, seed = 1, chars = null) {
     if (scen.chars) chars = scen.chars.map(n => CHARS[n] || currentChar()); // null: the character being edited
@@ -49,7 +50,7 @@ class World {
       pend: null, adv: null, macro: null, combo: 1, nid: 0, fi: 0, shakeK: 1, hist: { tgt: [], disp: [], vx: [], y: [], hpA: [], hpB: [], stunA: [], stunB: [], fs: [] }, whiffs: 0, acts: [], inputs: [] });
     if (!this.replaying) { this.log = []; this.checkpoints = []; this.sums = {}; this.desync = null; } // every frame since the start: [dt, input, macro], for rewind and replays
     // a vs b, plus any extra fighters: { c: controller, x, team, over }; over: the fighter's own settings (aover / bover for a and b: inv, aiStyle, limits, aiSkill …)
-    const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: 0, over: s.aover }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: 1, over: s.bover }, ...(s.more || [])];
+    const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: s.aTeam ?? 0, over: s.aover }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: s.bTeam ?? 1, over: s.bover }, ...(s.more || [])];
     if (s.waves || s.survival) specs.length = 1; // the enemies come in waves (nextWave) or one by one (spawn)
     const chars = this.chars || [currentChar()];
     this.fighters = specs.map((sp, i) => Object.assign(

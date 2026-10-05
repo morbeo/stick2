@@ -19,17 +19,19 @@ function toScen(u) {
       ...f.limits && Object.keys(f.limits).length && { limits: f.limits } };
     return Object.keys(o).length ? o : undefined; }; // invulnerability, AI style/skill and move limits: the fighter's own overrides (Fighter.c / allowed)
   return { a: ctl(p), b: ctl(q), ax: p.x, bx: q.x, aover: over(p), bover: over(q), chars: u.p.map(f => f.char),
+    aTeam: p.team !== 0 ? p.team : undefined, bTeam: q.team !== 1 ? q.team : undefined,
     more: rest.length ? rest.map(f => ({ c: ctl(f), x: f.x, team: f.team ?? 1, over: over(f) })) : undefined,
     stage: u.stage, props: u.props?.length ? u.props.map(p => ({ type: p.type, x: p.x })) : undefined, cfg: { ...u.cfg }, period: u.period, user: true,
     init: away.some(Boolean) ? w => { w.fighters.forEach((f, i) => { if (away[i]) { f.away = true; f.dir = -f.dir; } }); } : undefined };
 }
 // a new one from a scenario's fighters (its script, positions, characters, teams and settings); P3 on come from s.more
+// every actor gets an explicit team (P1: 0 "T1", P2: 1 "T2" by default); same team = allies, its own team = a foe of everyone else
 function fromScen(s, chars) {
   const names = s.chars || chars, name = i => names?.[i] ?? names?.at(-1);
-  const f = (c, x, ch, o, team) => ({ char: ch ?? null, ctl: Array.isArray(c) ? 'script' : Object.keys(CTLS).find(k => CTLS[k] === c) || 'dummy', script: Array.isArray(c) ? scriptText(c) : '', x, away: false,
-    ...team !== undefined && { team }, ...o?.inv && { inv: o.inv }, ...o?.aiStyle && { aiStyle: o.aiStyle }, ...o?.aiSkill && { aiSkill: { ...o.aiSkill } }, ...o?.limits && { limits: { ...o.limits } } });
+  const f = (c, x, ch, o, team) => ({ char: ch ?? null, ctl: Array.isArray(c) ? 'script' : Object.keys(CTLS).find(k => CTLS[k] === c) || 'dummy', script: Array.isArray(c) ? scriptText(c) : '', x, away: false, team,
+    ...o?.inv && { inv: o.inv }, ...o?.aiStyle && { aiStyle: o.aiStyle }, ...o?.aiSkill && { aiSkill: { ...o.aiSkill } }, ...o?.limits && { limits: { ...o.limits } } });
   const scripted = Array.isArray(s.a);
-  return { p: [f(s.a, s.ax ?? (scripted ? 330 : 300), name(0), s.aover), f(s.b, s.bx ?? (scripted ? 375 : 500), name(1), s.bover),
+  return { p: [f(s.a, s.ax ?? (scripted ? 330 : 300), name(0), s.aover, s.aTeam ?? 0), f(s.b, s.bx ?? (scripted ? 375 : 500), name(1), s.bover, s.bTeam ?? 1),
     ...(s.more || []).map((m, i) => f(m.c, m.x, name(i + 2), m.over, m.team ?? 1))], stage: s.stage,
     props: (s.props || []).map(p => ({ type: p.type, x: p.x })), period: s.period || 0, cfg: { ...s.cfg } };
 }
@@ -104,8 +106,20 @@ function scenBuilder() {
       reg(b, () => { b.replaceChildren(cv, h('span', { textContent: `P${i + 1} ${name()}` })); drawThumb(cv, CHARS[name()] || currentChar(), undefined, 20, 22); });
       return b;
     };
-    // extra actors (P3 on) default to P2's team (gang up on P1); 'own' gives each its own team (free-for-all)
-    const TEAM_TIPS = { P1: 'Fights alongside P1 (same team)', P2: "Fights alongside P2 (same team, the default)", own: "Its own team: a foe of everyone else" };
+    // T1, T2… by number, not by player: P1 and P2 start on their own (T1, T2) but any actor can join another's team,
+    // start a fresh one (empty for now, others can join it later), or go solo — a popup, since the number of teams
+    // and who's on each is open-ended, not a fixed few choices
+    const teamPicker = f => {
+      const used = () => [...new Set(u.p.map(p => p.team))].sort((a, b) => a - b);
+      const label = t => `T${t + 1}`, who = t => u.p.map((p, j) => p.team === t ? `P${j + 1}` : null).filter(Boolean).join(', ');
+      const b = button('', 'Team: who this actor fights alongside · click: change', (e, el) => popup(el, h('b', { textContent: 'team' }),
+        h('div', { cls: 'bar col', onclick: closePop },
+          ...used().map(t => button(label(t), `Join ${label(t)}: fights alongside ${who(t)}`, () => { f.team = t; scenChanged(); })),
+          button(':add: new team', 'Start a fresh team, empty for now (others can join it later)', () => { f.team = Math.max(...used()) + 1; scenChanged(); }),
+          button(':person: solo', 'Its own team: a foe of everyone else', () => { f.team = Math.max(...used()) + 1; scenChanged(); }))), 'mini');
+      reg(b, () => setRich(b, `${label(f.team)} :expand_more:`));
+      return b;
+    };
     const fighter = (f, i) => withData({ p: i }, h('div', { cls: 'bar' }, h('b', { textContent: `P${i + 1}` }),
       charPick(f, i),
       seg(Object.keys(CTLS), () => f.ctl, v => { f.ctl = v; scenChanged(); fill(); }, CTL_TIPS),
@@ -116,7 +130,7 @@ function scenBuilder() {
       seg(['off', 'nodamage', 'untouchable'], () => f.inv || 'off', v => { if (v === 'off') delete f.inv; else f.inv = v; scenChanged(); },
         { off: `P${i + 1} can be hit and hurt`, nodamage: `P${i + 1} reacts to hits but loses no health`, untouchable: `Nothing hits P${i + 1}: strikes, shots and throws pass through` },
         v => v === 'off' ? ':shield: off' : v === 'nodamage' ? 'no damage' : v),
-      i >= 2 ? seg(['P1', 'P2', 'own'], () => f.team === 0 ? 'P1' : f.team === 1 || f.team === undefined ? 'P2' : 'own', v => { f.team = v === 'P1' ? 0 : v === 'P2' ? 1 : i; scenChanged(); }, TEAM_TIPS) : null,
+      teamPicker(f),
       f.ctl === 'AI' ? seg(Object.keys(AI_STYLES), () => f.aiStyle || 'balanced', v => { if (v === 'balanced') delete f.aiStyle; else f.aiStyle = v; scenChanged(); },
         SPEC.aiStyle.optTips, v => optLabel(v)) : null,
       f.ctl === 'AI' ? button(':tune: skill', `Fine-tune P${i + 1}'s AI skill on top of the aiLevel setting`, (e, b) => skillPopup(f, b), 'mini') : null,

@@ -722,11 +722,15 @@ try {
     // actor CRUD (P3 on): add defaults to P2's team, its own character picker, team switch, then remove it again
     [...document.querySelectorAll('.sbuild button')].find(b => b.textContent.includes('add actor')).click();
     if (u().p.length !== 3 || u().p[2].team !== 1 || w().fighters.length !== 3) errs.push('builder add actor ' + JSON.stringify(u().p));
-    bb('P1', row(2)).click(); if (u().p[2].team !== 0) errs.push('builder actor team ' + u().p[2].team);
+    row(2).querySelector('button[data-tip^="Team:"]').click(); pb('T1').click(); if (u().p[2].team !== 0) errs.push('builder actor team ' + u().p[2].team);
     row(2).querySelector('button.fpick').click(); pb('sarj').click();
     if (u().p[2].char !== 'sarj' || w().fighters[2].ch !== CHARS.sarj) errs.push('builder actor char ' + u().p[2].char);
     row(2).querySelector('button[data-tip^="Remove"]').click();
     if (u().p.length !== 2 || w().fighters.length !== 2) errs.push('builder remove actor ' + u().p.length);
+    // P1 and P2 themselves have a team too now (not hardcoded 0/1): P1 can join P2's
+    row(0).querySelector('button[data-tip^="Team:"]').click(); pb('T2').click();
+    if (u().p[0].team !== 1 || w().a.team !== w().b.team) errs.push('builder P1 joins P2 team ' + u().p[0].team + ' ' + w().a.team + ' ' + w().b.team);
+    u().p[0].team = 0; u().p[1].team = 1; scenChanged(); // back to the default split for the rest of this scenario's tests
     const sc = row(0).querySelector('input.script'); sc.value = '0.2, 2P'; sc.dispatchEvent(new Event('change'));
     const nm = document.querySelector('.sbuild input.sname'); nm.value = 'jab vs sumo'; nm.dispatchEvent(new Event('change'));
     if (lab.scen !== 'jab vs sumo' || !SCENARIOS['jab vs sumo'] || SCENARIOS[name] || w().a.ch !== CHARS.jabbo || w().b.ch !== CHARS.lumpo || !(w().ctl[1] instanceof Brain) || JSON.stringify(w().scen.a) !== JSON.stringify([0.2, 'down+punch'])) errs.push('builder edit ' + lab.scen + ' ' + JSON.stringify(w().scen.a));

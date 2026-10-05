@@ -39,7 +39,8 @@ Drag a fighter or a prop on the stage itself to reposition it — the same thing
 - **P1 and P2** each get a character (or the one being edited), a controller, a start x, back turned and a shield (off, no damage or untouchable, as in the fighters group).
 - **Character:** click a fighter's thumbnail for the same card-grid picker as the fighters group — **editor** (the one being edited), **random**, or any character.
 - **Controllers:** you, AI, dummy, or a script like `0.2, 2P, hold up 0.2, K`.
-- **add actor** brings in P3, P4… each with its own character, controller and position, ganging up on P2's side by default; its **P1 / P2 / own** picks whose team it fights on (own: a foe of everyone). Each extra actor can be duplicated or removed.
+- **add actor** brings in P3, P4… each with its own character, controller and position, ganging up on P2's team by default. Each extra actor can be duplicated or removed.
+- **team:** every actor, P1 and P2 included, has one (T1, T2… by number, not by player — P1 and P2 start on their own). Click it to join another actor's team (same team = allies), start a fresh one, or go solo (its own team: a foe of everyone else).
 - **AI style** (AI controller only): balanced, rushdown, zoner, grappler or turtle — how it prefers to fight, separate from the aiLevel setting (how well). Overrides the aiStyle setting for this fighter only.
 - **skill** (AI controller only): fine-tune this fighter's reactions, guard, throw break, tech, anti-air and juggle chance individually, on top of the aiLevel setting.
 - **limits:** cap how many times this fighter (AI or you) can use specific moves this fight, or ban one outright at 0. Unlisted moves stay unlimited.
