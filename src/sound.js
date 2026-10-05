@@ -14,6 +14,15 @@ const BASE_SOUNDS = {
   hit: { noise: 'lowpass', nf0: 3000, nf1: 900, ngain: 0.5, tone: 'sine', tf0: 180, tf1: 90, tgain: 0.5, attack: 0, dur: 0.09 },
   thud: { noise: 'lowpass', nf0: 1200, nf1: 300, ngain: 0.45, tone: 'sine', tf0: 110, tf1: 40, tgain: 0.8, attack: 0, dur: 0.22 },
   block: { noise: 'highpass', nf0: 2500, nf1: 1800, ngain: 0.3, tone: 'sine', tf0: 900, tf1: 700, tgain: 0.15, attack: 0, dur: 0.06 },
+  // a small drum-machine kit and a couple of melodic instruments, for the tracker
+  kick: { noise: 'none', nf0: 100, nf1: 100, ngain: 0, tone: 'sine', tf0: 150, tf1: 40, tgain: 0.9, attack: 0, dur: 0.18 },
+  snare: { noise: 'highpass', nf0: 1800, nf1: 1200, ngain: 0.5, tone: 'triangle', tf0: 200, tf1: 150, tgain: 0.3, attack: 0, dur: 0.12 },
+  hihat: { noise: 'highpass', nf0: 6000, nf1: 5000, ngain: 0.3, tone: 'none', tf0: 0, tf1: 0, tgain: 0, attack: 0, dur: 0.04 },
+  openhat: { noise: 'highpass', nf0: 6000, nf1: 4500, ngain: 0.3, tone: 'none', tf0: 0, tf1: 0, tgain: 0, attack: 0, dur: 0.22 },
+  clap: { noise: 'bandpass', nf0: 1500, nf1: 1200, ngain: 0.45, tone: 'none', tf0: 0, tf1: 0, tgain: 0, attack: 0.01, dur: 0.15 },
+  tom: { noise: 'lowpass', nf0: 800, nf1: 200, ngain: 0.25, tone: 'sine', tf0: 200, tf1: 90, tgain: 0.6, attack: 0, dur: 0.25 },
+  click: { noise: 'highpass', nf0: 4000, nf1: 4000, ngain: 0.25, tone: 'square', tf0: 1000, tf1: 1000, tgain: 0.15, attack: 0, dur: 0.02 },
+  bell: { noise: 'none', nf0: 0, nf1: 0, ngain: 0, tone: 'sine', tf0: 900, tf1: 850, tgain: 0.4, detune: 5, attack: 0.005, dur: 0.6 },
 };
 // ---------- my sounds: edits to a built-in, or wholly new ones, saved as you go (same pattern as scenarios: myStore -> SCENARIOS) ----------
 const SOUND_STORE = 'stick2.sounds';

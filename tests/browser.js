@@ -235,6 +235,7 @@ try {
     setMode('grid'); panels();
     pick('sounds');
     if (cardsOf().length !== Object.keys(SOUNDS).length || document.querySelector('#over input[placeholder="add a variable…"]')) errs.push('grid sounds ' + cardsOf().length);
+    if (!cardsOf()[0].querySelector('canvas.wave') || !document.querySelector('[data-tip="Play a sound when you hover its card"]')) errs.push('grid sound card waveform / autoplay toggle missing');
     cardsOf().find(c => c.textContent.startsWith('hit')).click();
     if (soundSel !== 'hit' || app.mode !== 'sounds') errs.push('grid sound card click ' + soundSel + ' ' + app.mode);
     setMode('grid'); panels();

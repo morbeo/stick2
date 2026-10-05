@@ -6,9 +6,9 @@
 // these are static data to browse, not animating effects (see src/fxlab.js for the canvas-gallery pattern used there)
 const GRID_STORE = 'stick2.grid';
 const gridStore = (() => { try { return JSON.parse(localStorage.getItem(GRID_STORE)) || {}; } catch { return {}; } })();
-const gridState = { collection: gridStore.collection || 'characters', filter: '', cols: gridStore.cols || 4,
+const gridState = { collection: gridStore.collection || 'characters', filter: '', cols: gridStore.cols || 4, soundAutoplay: gridStore.soundAutoplay ?? true,
   fields: { characters: ['speed', 'weight', 'health'], moves: ['damage', 'startup', 'active'], ...gridStore.fields } };
-function saveGridStore() { try { localStorage.setItem(GRID_STORE, JSON.stringify({ collection: gridState.collection, cols: gridState.cols, fields: gridState.fields })); } catch {} }
+function saveGridStore() { try { localStorage.setItem(GRID_STORE, JSON.stringify({ collection: gridState.collection, cols: gridState.cols, soundAutoplay: gridState.soundAutoplay, fields: gridState.fields })); } catch {} }
 
 // every character's own stats (CHAR_STATS, rig.js) plus a few basics, each a documented { k, tip, get(name) } —
 // no new registry: these are the exact tables the stats panel and radar graph already read from
@@ -42,7 +42,10 @@ const GRID_COLLECTIONS = {
   scenarios: { tip: 'Built-in and your own scenarios', items: () => Object.keys(SCENARIOS), fields: scenGridFields,
     card: k => gridCard(simpleCard(k, k in BASE_SCENARIOS ? 'built-in' : 'yours', () => { lab.scen = k; setMode('play'); }, () => lab.scen === k), k, scenGridFields()) },
   sounds: { tip: 'Every sound (built-in and custom)', items: () => Object.keys(SOUNDS), fields: () => [],
-    card: k => simpleCard(k, k in BASE_SOUNDS ? 'built-in' : 'custom', () => { soundSel = k; setMode('sounds'); }, () => soundSel === k) },
+    card: k => { const b = h('button', { cls: 'card', onclick: () => { soundSel = k; setMode('sounds'); },
+        onmouseenter: () => { if (gridState.soundAutoplay) playSound(k); } },
+      soundWave(k), h('span', { textContent: k }), h('span', { cls: 'gbadge', textContent: k in BASE_SOUNDS ? 'built-in' : 'custom' }));
+      reg(b, () => b.classList.toggle('on', soundSel === k)); return b; } },
   looks: { tip: 'Every fx look (built-in and custom)', items: () => Object.keys(FX_LOOKS), fields: () => [],
     card: k => { const b = h('button', { cls: 'card', onclick: () => { fxState.sel = k; fxState.zoom = true; setMode('fx'); } }, fxCanvas(60, k), h('span', { textContent: k }));
       reg(b, () => b.classList.toggle('on', fxState.sel === k)); return b; } },
@@ -99,7 +102,8 @@ function gridPanel() {
 function gridCtx() {
   return [grp('grid', 'Browse and search characters, moves, scenarios, sounds, looks and tracks; pick which variables show on each tile',
     seg(Object.keys(GRID_COLLECTIONS), () => gridState.collection, v => { gridState.collection = v; gridState.filter = ''; saveGridStore(); panels(); }, mapVals(GRID_COLLECTIONS, c => c.tip)),
-    slider('cols', { min: 2, max: 8, step: 1 }, () => gridState.cols, v => { gridState.cols = v; saveGridStore(); panels(); }, 'Tiles per row'))];
+    slider('cols', { min: 2, max: 8, step: 1 }, () => gridState.cols, v => { gridState.cols = v; saveGridStore(); panels(); }, 'Tiles per row'),
+    gridState.collection === 'sounds' ? toggle(':volume_up:', 'Play a sound when you hover its card', () => gridState.soundAutoplay, v => { gridState.soundAutoplay = v; saveGridStore(); }) : null)];
 }
 const gridMode = {
   enter() {}, restart() {}, worlds: () => [], render: clear, ctxBar: gridCtx, side: () => [],
