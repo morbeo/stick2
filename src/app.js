@@ -25,7 +25,7 @@ const MODES = {
 const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode, replay: replayMode, fx: fxMode, sounds: soundsMode, tracker: trackerMode, grid: gridMode })[app.mode] || labMode;
 // the top bar's tabs: impact is a view of play, gallery and tests views of animate, sounds and tracker of fx, picked first in their toolbar
 const VIEWS = { play: ['play', 'impact'], animate: ['animate', 'gallery', 'tests'], fx: ['fx', 'sounds', 'tracker'] };
-const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', experiment: 'science', gallery: 'animation', impact: 'crisis_alert', tests: 'science', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', sounds: 'waves', tracker: 'view_module', replay: 'history' };
+const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', experiment: 'science', gallery: 'animation', impact: 'crisis_alert', tests: 'fact_check', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', sounds: 'waves', tracker: 'view_module', replay: 'history' };
 const tabOf = m => Object.keys(VIEWS).find(t => VIEWS[t].includes(m)) || m;
 
 function setMode(m) {
