@@ -861,16 +861,16 @@ const LOOK_SHAPE_TIPS = { dot: 'A filled circle', line: 'A short trailing streak
 const LOOK_FIELD_TIPS = { count: 'Particles spawned per point along the wrapped bones, looping', life: 'One particle\'s lifetime in seconds before it loops',
   speed: 'Launch speed (px/s)', spread: 'Random spread around the launch angle, in degrees', angle: 'Launch angle, in degrees (-90: straight up, 0: forward, along facing)',
   gravity: 'Downward acceleration (px/s²); negative floats upward', size0: 'Size at birth', size1: 'Size at the end of its life (0: shrinks to nothing)' };
-// a small self-animating preview: the look drawn on a single fixed segment, independent of any character
+// a self-animating preview: the look drawn on a single fixed segment, larger and independent of any character
 function lookPreview(name) {
-  const cv = h('canvas', { width: 140, height: 140 }), t0 = performance.now();
+  const cv = h('canvas', { width: 280, height: 280 }), t0 = performance.now();
   const loop = () => {
     if (!cv.isConnected) return;
     const ctx = cv.getContext('2d'), t = (performance.now() - t0) / 1000;
-    ctx.clearRect(0, 0, 140, 140); ctx.save(); ctx.translate(70, 110);
-    ctx.strokeStyle = '#ccc'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -50); ctx.stroke();
+    ctx.clearRect(0, 0, 280, 280); ctx.save(); ctx.translate(140, 210);
+    ctx.strokeStyle = '#ccc'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -80); ctx.stroke();
     const p = myLooks[name];
-    if (p) FX_DRAW[name]?.(ctx, [{ i: fxSeed(name), w: 4, a: [0, 0], b: [0, -50] }], FX_COLS[p.col] || FX_COLS.white, 1, t);
+    if (p) FX_DRAW[name]?.(ctx, [{ i: fxSeed(name), w: 4, a: [0, 0], b: [0, -80] }], FX_COLS[p.col] || FX_COLS.white, 1.5, t);
     ctx.restore(); requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
@@ -881,6 +881,44 @@ function lookFields(name, refill) {
   const p = myLooks[name], set = (k, v) => { saveLook(name, { ...myLooks[name], [k]: v }); refill(); };
   const nm = h('input', { cls: 'macro', value: name, tip: 'Rename this look', onkeydown: e => e.stopPropagation(),
     onchange: () => { const v = nm.value.trim(); if (!v || v === name || FX_LOOKS[v]) { nm.value = name; return; } renameLook(name, v); lookSel = v; refill(); } });
+  // draggable sliders: save last dragged variable for grid experiments
+  let lastDragged = null;
+  const draggableSlider = (label, opts, get, set, tip) => {
+    const sl = slider(label, opts, get, (v) => { set(v); lastDragged = label; }, tip);
+    sl.onmousedown = () => { lastDragged = label; };
+    return sl;
+  };
+  // grid: experiment with the last dragged variable
+  const gridPick = lastDragged || 'count';
+  const gridOpts = Object.entries(LOOK_FIELD_TIPS).find(([k]) => k === gridPick)?.[0];
+  const gridSpec = { count: { min: 1, max: 20, step: 1 }, life: { min: 0.1, max: 2, step: 0.05 }, speed: { min: 0, max: 300, step: 5 },
+    spread: { min: 0, max: 360, step: 5 }, angle: { min: -180, max: 180, step: 5 }, gravity: { min: -400, max: 600, step: 10 },
+    size0: { min: 0, max: 12, step: 0.5 }, size1: { min: 0, max: 12, step: 0.5 } };
+  const gridVals = gridSpec[gridPick] ? [
+    gridSpec[gridPick].min,
+    gridSpec[gridPick].min + (gridSpec[gridPick].max - gridSpec[gridPick].min) * 0.33,
+    gridSpec[gridPick].min + (gridSpec[gridPick].max - gridSpec[gridPick].min) * 0.66,
+    gridSpec[gridPick].max
+  ] : [];
+  const grid = h('div', { cls: 'bar col' },
+    h('span', { textContent: `Try ${gridPick}: drag sliders to pick which to experiment` }),
+    h('div', { cls: 'bar' }, ...gridVals.map(v => {
+      const preview = h('div', { cls: 'cell', style: { width: '64px', height: '64px', border: '1px solid #ddd', position: 'relative' } });
+      const cv = h('canvas', { width: 64, height: 64 });
+      preview.append(cv);
+      const t0 = performance.now();
+      const loop = () => {
+        if (!cv.isConnected) return;
+        const ctx = cv.getContext('2d'), t = (performance.now() - t0) / 1000;
+        ctx.clearRect(0, 0, 64, 64); ctx.save(); ctx.translate(32, 48);
+        const test = { ...p, [gridPick]: Math.round(v * 100) / 100 };
+        if (FX_DRAW[name]) FX_DRAW[name]?.(ctx, [{ i: fxSeed(name), w: 2, a: [0, 0], b: [0, -30] }], FX_COLS[test.col] || FX_COLS.white, 0.8, t);
+        ctx.restore(); requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+      return preview;
+    }))
+  );
   return h('div', { cls: 'bar' },
     h('div', {}, lookPreview(name)),
     h('div', {},
@@ -888,14 +926,15 @@ function lookFields(name, refill) {
       h('div', { cls: 'bar' }, h('span', { textContent: 'shape' }), seg(Object.keys(LOOK_SHAPE_TIPS), () => p.shape, v => set('shape', v), LOOK_SHAPE_TIPS),
         h('span', { textContent: 'colour' }), seg(Object.keys(FX_COLS), () => p.col || 'white', v => set('col', v), Object.fromEntries(Object.keys(FX_COLS).map(c => [c, `Default colour: ${c} (a move can still override it)`]))),
         toggle(':layers: behind', 'Draws behind the body (like aura, smoke) instead of in front', () => !!p.back, v => set('back', v || undefined))),
-      slider('count', { min: 1, max: 20, step: 1 }, () => p.count, v => set('count', v), LOOK_FIELD_TIPS.count),
-      slider('life', { min: 0.1, max: 2, step: 0.05 }, () => p.life, v => set('life', v), LOOK_FIELD_TIPS.life),
-      slider('speed', { min: 0, max: 300, step: 5 }, () => p.speed, v => set('speed', v), LOOK_FIELD_TIPS.speed),
-      slider('spread', { min: 0, max: 360, step: 5 }, () => p.spread, v => set('spread', v), LOOK_FIELD_TIPS.spread),
-      slider('angle', { min: -180, max: 180, step: 5 }, () => p.angle, v => set('angle', v), LOOK_FIELD_TIPS.angle),
-      slider('gravity', { min: -400, max: 600, step: 10 }, () => p.gravity, v => set('gravity', v), LOOK_FIELD_TIPS.gravity),
-      slider('size start', { min: 0, max: 12, step: 0.5 }, () => p.size0, v => set('size0', v), LOOK_FIELD_TIPS.size0),
-      slider('size end', { min: 0, max: 12, step: 0.5 }, () => p.size1, v => set('size1', v), LOOK_FIELD_TIPS.size1)));
+      draggableSlider('count', { min: 1, max: 20, step: 1 }, () => p.count, v => set('count', v), LOOK_FIELD_TIPS.count),
+      draggableSlider('life', { min: 0.1, max: 2, step: 0.05 }, () => p.life, v => set('life', v), LOOK_FIELD_TIPS.life),
+      draggableSlider('speed', { min: 0, max: 300, step: 5 }, () => p.speed, v => set('speed', v), LOOK_FIELD_TIPS.speed),
+      draggableSlider('spread', { min: 0, max: 360, step: 5 }, () => p.spread, v => set('spread', v), LOOK_FIELD_TIPS.spread),
+      draggableSlider('angle', { min: -180, max: 180, step: 5 }, () => p.angle, v => set('angle', v), LOOK_FIELD_TIPS.angle),
+      draggableSlider('gravity', { min: -400, max: 600, step: 10 }, () => p.gravity, v => set('gravity', v), LOOK_FIELD_TIPS.gravity),
+      draggableSlider('size start', { min: 0, max: 12, step: 0.5 }, () => p.size0, v => set('size0', v), LOOK_FIELD_TIPS.size0),
+      draggableSlider('size end', { min: 0, max: 12, step: 0.5 }, () => p.size1, v => set('size1', v), LOOK_FIELD_TIPS.size1),
+      gridVals.length ? grid : null));
 }
 function looksPanel() {
   const wrap = h('div', { cls: 'mtable' }), body = h('div');
