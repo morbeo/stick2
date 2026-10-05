@@ -290,6 +290,10 @@ const BASE_SCENARIOS = {
   'deflect': { a: [0.3, 'punch+guard'], aw: 'dagger', b: [0.45, 'punch'], bw: 'sword', ax: 250, bx: 450, period: 2.4 },
   'sword vs staff ai': { a: 'ai', b: 'ai', aw: 'sword', bw: 'staff' },
   'weapons ai': { a: 'ai', b: 'ai', items: [{ type: 'axe', x: 330 }, { type: 'nunchucks', x: 470 }] },
+  'weapons room': { a: 'human', b: 'dummy', ax: 50, bx: 750, items: [{ type: 'dagger', x: 100 }, { type: 'sword', x: 200 }, { type: 'axe', x: 300 }, { type: 'bat', x: 400 }, { type: 'nunchucks', x: 500 }, { type: 'hammer', x: 600 }, { type: 'staff', x: 700 }] },
+  // props (PROPS, src/stage.js): breakable ones to smash for debris, moveable ones to grab and throw (P+G, same as a weapon)
+  'breakable props': { a: 'human', b: 'dummy', ax: 50, bx: 760, props: [{ type: 'crate', x: 150 }, { type: 'chair', x: 280 }, { type: 'table', x: 410 }, { type: 'door', x: 540 }, { type: 'window', x: 670 }] },
+  'prop throw': { a: 'human', b: 'dummy', ax: 50, bx: 750, props: [{ type: 'reed', x: 200 }, { type: 'spring', x: 400 }] },
   'walk': { a: [{ hold: 'fwd', t: 0.8 }, 0.3, { hold: 'back', t: 0.8 }], b: 'dummy', ax: 250, bx: 550, period: 2.4 },
   'jump': { a: ['hop', 0.7, 'fwd+hop', 0.1, { hold: 'fwd', t: 0.5 }], b: 'dummy', ax: 250, bx: 550, period: 2 },
 };
