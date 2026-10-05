@@ -124,9 +124,17 @@ try {
       if (data && [...data].some(v => !Number.isFinite(v))) errs.push('renderSound non-finite');
       resetSound('hit'); }
     openStage(null); panels(); });
-  // looks panel: lists every look, a built-in is read-only (hand-coded), new look makes a tunable generic-particle one,
-  // a slider edits it live, delete removes it from FX_LOOKS/FX_DRAW
+  // looks panel: lists every look; a built-in (hand-coded) is directly tunable too (revert undoes it); new look makes a
+  // wholly custom generic-particle one, a slider edits it live, delete removes it from FX_LOOKS/FX_DRAW
   { setMode('animate'); openStage('looks'); panels();
+    const rows = () => [...document.querySelectorAll('.mtable .bar:not(.stagehead)')];
+    rows().find(r => r.textContent.startsWith('aura')).click(); // a built-in
+    if (!document.querySelector('.mtable input[type=range]')) errs.push('built-in look has no sliders');
+    const auraGapBase = BASE_BUILTIN.aura.params.gap;
+    const sl0 = document.querySelector('.mtable input[type=range]'); sl0.value = auraGapBase + 5; sl0.dispatchEvent(new Event('input'));
+    if (FX_BUILTIN.aura.params.gap !== auraGapBase + 5 || !('aura' in builtinFx)) errs.push('built-in look slider ' + JSON.stringify(FX_BUILTIN.aura));
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('revert')).click();
+    if (FX_BUILTIN.aura.params.gap !== auraGapBase || 'aura' in builtinFx) errs.push('built-in look revert ' + JSON.stringify(FX_BUILTIN.aura));
     const before = Object.keys(FX_LOOKS).length;
     [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('new look')).click();
     const name = Object.keys(myLooks)[0];
@@ -134,6 +142,9 @@ try {
     const sliders = document.querySelectorAll('.mtable input[type=range]');
     sliders[2].value = 200; sliders[2].dispatchEvent(new Event('input')); // speed (count, life, speed, …)
     if (myLooks[name].speed !== 200) errs.push('look slider ' + JSON.stringify(myLooks[name]));
+    // the experiment grid previews the clicked slider's name without mutating the saved preset
+    [...document.querySelectorAll('.mtable .vname')].find(n => n.textContent === 'count').click();
+    if (myLooks[name].speed !== 200) errs.push('grid pick mutated the preset ' + JSON.stringify(myLooks[name]));
     deleteLook(name); if (name in FX_LOOKS || Object.keys(FX_LOOKS).length !== before) errs.push('look delete ' + name + ' ' + Object.keys(FX_LOOKS).length);
     openStage(null); panels(); }
   // tracker panel: new track starts a 16-step row; cells toggle (even clicked out of order, each against the live state,

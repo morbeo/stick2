@@ -14,8 +14,8 @@ const FX_LOOKS = {
   blood: 'Blood: a spray of droplets falling with gravity (a lethal slash)' };
 const FX_ON = { strike: 'The striking limbs (the move\'s hit bones, the whole limb)', body: 'The whole body', arm: 'The arms', leg: 'The legs', head: 'The head', tail: 'The tails', weapon: 'The weapon' };
 const FX_COLS = { blue: '60,140,240', cyan: '0,175,255', red: '220,50,35', orange: '240,110,30', gold: '230,170,30', purple: '160,80,220', green: '60,200,90', white: '235,235,240', grey: '130,125,120', dark: '45,35,55' };
-const FX_AUTO = { aura: 'blue', fire: 'orange', lightning: 'cyan', smoke: 'grey', spikyAura: 'purple', bubbles: 'cyan', sparks: 'gold', blood: 'red' };
-const FX_BACK = new Set(['aura', 'smoke', 'spikyAura']); // these draw behind the body; the rest (fire, lightning, bubbles, sparks) in front
+const FX_AUTO = {}; // every look's default colour; built-ins fill theirs in below (applyBuiltin), customs on registerLook
+const FX_BACK = new Set(); // looks that draw behind the body; built-ins fill in below, customs on registerLook
 const FX_MAX = 4, fxList = e => !e ? [] : [].concat(e).filter(Boolean).slice(0, FX_MAX);
 const fxRnd = (a, b) => { const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return x - Math.floor(x); };
 // the effects playing at key i: the last key up to i that sets them (its list replaces the move's), else the move's
@@ -51,84 +51,158 @@ function fxStroke(ctx, segs, w) {
   }
 }
 const dot = (ctx, x, y, r) => { ctx.beginPath(); ctx.arc(x, y, Math.max(0.1, r), 0, 7); ctx.fill(); };
-// each look: (ctx, segments, rgb, size, time)
-const FX_DRAW = {
-  aura(ctx, segs, rgb, k, t) {
-    const p = 1 + 0.15 * Math.sin(t * 9);
-    for (const [w, a] of [[18, 0.12], [10, 0.18], [5, 0.28]]) { ctx.strokeStyle = ctx.fillStyle = `rgba(${rgb},${a})`; fxStroke(ctx, segs, w * k * p); }
-    segs.forEach(({ i: si, ...s }) => fxPoints(s, 14).forEach(([x, y], j) => {
-      const r = fxRnd(si, j), ph = (t * 0.9 + r) % 1;
-      ctx.fillStyle = `rgba(${rgb},${0.7 * (1 - ph)})`; dot(ctx, x + (r - 0.5) * 16 * k, y - ph * 32 * k, 1.6 * k);
-    }));
-  },
-  fire(ctx, segs, rgb, k, t) {
-    // a tongue of flame: round at the base, bending to a tip that sways
-    const tongue = (x, y, w, h, sway) => { ctx.beginPath(); ctx.moveTo(x - w, y); ctx.quadraticCurveTo(x - w, y - h * 0.55, x + sway, y - h); ctx.quadraticCurveTo(x + w, y - h * 0.55, x + w, y); ctx.arc(x, y, w, 0, Math.PI); ctx.fill(); };
-    segs.forEach(({ i: si, ...s }) => fxPoints(s, 6).forEach(([x, y], j) => {
-      const r = fxRnd(si, j), f = 0.65 + 0.35 * Math.sin(t * (13 + 6 * r) + r * 40), h = (13 + 9 * r) * k * f, sway = Math.sin(t * 9 + r * 20) * 4 * k;
-      ctx.fillStyle = `rgba(${rgb},0.5)`; tongue(x, y, 4 * k, h, sway);
-      ctx.fillStyle = 'rgba(255,215,70,0.65)'; tongue(x, y, 2.2 * k, h * 0.55, sway * 0.6);
-      const ph = (t * (1.2 + r) + r * 3) % 1; // an ember rising off the top
-      if (r > 0.6) { ctx.fillStyle = `rgba(${rgb},${0.8 * (1 - ph)})`; dot(ctx, x + sway * 2 * ph, y - h - ph * 18 * k, 1.3 * k); }
-    }));
-  },
-  lightning(ctx, segs, rgb, k, t) {
-    const q = Math.floor(t * 24); // the bolts jump to new places 24 times a second
-    ctx.strokeStyle = ctx.fillStyle = `rgba(${rgb},0.16)`; fxStroke(ctx, segs, 7 * k);
-    segs.forEach(({ i: si, ...s }) => fxPoints(s, 16).forEach(([x, y], j) => {
-      if (fxRnd(q + si, j) > 0.5) return;
-      const a = fxRnd(q * 3 + si, j + 9) * 6.283, len = (10 + 16 * fxRnd(q, si * 5 + j)) * k, pts = [[x, y]];
-      for (let n = 1; n <= 4; n++) pts.push([x + Math.cos(a) * len * n / 4 + (fxRnd(q + n, j + si) - 0.5) * 9 * k, y + Math.sin(a) * len * n / 4 + (fxRnd(q - n, j + si) - 0.5) * 9 * k]);
-      for (const [w, c] of [[3.5 * k, `rgba(${rgb},0.85)`], [1.2 * k, 'rgba(255,255,255,0.95)']]) {
-        ctx.lineWidth = w; ctx.strokeStyle = c; ctx.beginPath(); for (const [px, py] of pts) ctx.lineTo(px, py); ctx.stroke();
-      }
-    }));
-  },
-  smoke(ctx, segs, rgb, k, t) {
-    segs.forEach(({ i: si, ...s }) => fxPoints(s, 10).forEach(([x, y], j) => {
-      for (let q = 0; q < 2; q++) {
-        const r = fxRnd(si * 5 + q, j + 3), ph = (t * (0.5 + 0.4 * r) + r) % 1;
-        ctx.fillStyle = `rgba(${rgb},${0.3 * (1 - ph) * Math.min(1, ph * 5)})`;
-        dot(ctx, x + (r - 0.5) * 18 * k * ph + Math.sin(t * 2 + r * 9) * 3 * k, y - ph * 36 * k, (3 + 9 * ph) * k);
-      }
-    }));
-  },
-  spikyAura(ctx, segs, rgb, k, t) {
-    const p = 1 + 0.15 * Math.sin(t * 9);
-    for (const [w, a] of [[14, 0.1], [7, 0.18]]) { ctx.strokeStyle = ctx.fillStyle = `rgba(${rgb},${a})`; fxStroke(ctx, segs, w * k * p); }
-    segs.forEach(({ i: si, ...s }) => {
-      // outward: the segment's own perpendicular (a limb), or straight out from the centre (a ring bone)
-      const dx = s.c ? 0 : s.b[0] - s.a[0], dy = s.c ? 0 : s.b[1] - s.a[1], len0 = Math.hypot(dx, dy) || 1, nx = -dy / len0, ny = dx / len0;
-      fxPoints(s, 11).forEach(([x, y], j) => {
-        const r = fxRnd(si, j), side = fxRnd(si + 50, j) > 0.5 ? 1 : -1;
-        const [rx, ry] = s.c ? [(x - s.c[0]) / s.r, (y - s.c[1]) / s.r] : [nx * side, ny * side];
-        const ph = (t * 1.4 + r) % 1, spike = (7 + 9 * r) * k * (1 - ph * 0.3), tx = -ry, ty = rx, bw = 1.6 * k;
-        ctx.fillStyle = `rgba(${rgb},${0.65 * (1 - ph)})`;
-        ctx.beginPath(); ctx.moveTo(x - tx * bw, y - ty * bw); ctx.lineTo(x + rx * spike, y + ry * spike); ctx.lineTo(x + tx * bw, y + ty * bw); ctx.closePath(); ctx.fill();
-      });
-    });
-  },
-  bubbles(ctx, segs, rgb, k, t) {
-    segs.forEach(({ i: si, ...s }) => fxPoints(s, 9).forEach(([x, y], j) => {
-      const r = fxRnd(si, j), ph = (t * (0.5 + 0.3 * r) + r) % 1, rad = (2 + 4 * r) * k * (0.5 + 0.5 * Math.sin(ph * Math.PI));
-      const bx = x + Math.sin(t * 2 + r * 15) * 5 * k * ph, by = y - ph * 30 * k;
-      ctx.fillStyle = `rgba(${rgb},${0.45 * (1 - ph * 0.7)})`; dot(ctx, bx, by, rad);
-      ctx.fillStyle = 'rgba(255,255,255,0.5)'; dot(ctx, bx - rad * 0.35, by - rad * 0.35, rad * 0.3);
-    }));
-  },
-  sparks(ctx, segs, rgb, k, t) {
-    segs.forEach(({ i: si, ...s }) => fxPoints(s, 13).forEach(([x, y], j) => {
-      for (let q = 0; q < 2; q++) {
-        const r = fxRnd(si * 7 + q, j), ph = (t * (2 + r) + r * 3) % 0.6; // a brief flight, most of the cycle: gone
-        const ang = fxRnd(si + q, j + 5) * 6.283, speed = (20 + 30 * r) * k;
-        const at = d => [x + Math.cos(ang) * speed * d, y + Math.sin(ang) * speed * d + 40 * k * d * d]; // a little gravity arcs it down
-        const [px, py] = at(ph), [tx, ty] = at(Math.max(0, ph - 0.08));
-        ctx.strokeStyle = `rgba(${rgb},${0.9 * (1 - ph / 0.6)})`; ctx.lineWidth = 1.3 * k;
-        ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(px, py); ctx.stroke();
-      }
-    }));
-  },
+// ---------- built-in looks: hand-coded draws, each with a few tunable constants, editable + revertible like built-in sounds ----------
+// BASE_BUILTIN holds the shipped defaults (never mutated); FX_BUILTIN is the live table (shipped + any saved override) that
+// every FX_DRAW function below reads; BUILTIN_SLIDERS gives the looks panel each knob's range and tip (see sound.js BASE_SOUNDS/SOUNDS)
+const BASE_BUILTIN = {
+  aura: { col: 'blue', back: true, params: { gap: 14, pulseSpeed: 9, riseSpeed: 0.9, reach: 16, size: 1.6 } },
+  fire: { col: 'orange', back: false, params: { gap: 6, height: 13, sway: 4, flicker: 13 } },
+  lightning: { col: 'cyan', back: false, params: { gap: 16, rate: 24, length: 16, jitter: 9 } },
+  smoke: { col: 'grey', back: true, params: { gap: 10, speed: 0.5, size: 9, rise: 36 } },
+  spikyAura: { col: 'purple', back: true, params: { gap: 11, pulseSpeed: 9, rotSpeed: 1.4, spikeLen: 9 } },
+  bubbles: { col: 'cyan', back: false, params: { gap: 9, speed: 0.5, size: 4, rise: 30 } },
+  sparks: { col: 'gold', back: false, params: { gap: 13, speed: 2, reach: 30, gravity: 40 } },
+  blood: { col: 'red', back: false, params: { gap: 12, speed: 1.5, size: 3, gravity: 250 } },
 };
+const BUILTIN_SLIDERS = {
+  aura: [['gap', { min: 4, max: 30, step: 1 }, 'Spacing between sparkle points along the bones (px); lower = denser'],
+    ['pulseSpeed', { min: 1, max: 20, step: 0.5 }, 'How fast the glow pulses (Hz)'],
+    ['riseSpeed', { min: 0.1, max: 3, step: 0.05 }, 'How fast sparkles rise'],
+    ['reach', { min: 4, max: 40, step: 1 }, 'How far sparkles spread sideways and rise (px)'],
+    ['size', { min: 0.5, max: 5, step: 0.1 }, 'Sparkle size']],
+  fire: [['gap', { min: 2, max: 20, step: 1 }, 'Spacing between flame tongues (px); lower = denser'],
+    ['height', { min: 4, max: 30, step: 1 }, 'Flame height (px)'],
+    ['sway', { min: 0, max: 12, step: 0.5 }, 'Side-to-side sway (px)'],
+    ['flicker', { min: 4, max: 30, step: 1 }, 'Flicker speed (Hz)']],
+  lightning: [['gap', { min: 6, max: 30, step: 1 }, 'Spacing between bolt origins along the bones (px)'],
+    ['rate', { min: 4, max: 48, step: 1 }, 'How often bolts jump to new places (Hz)'],
+    ['length', { min: 2, max: 40, step: 1 }, 'Bolt length (px)'],
+    ['jitter', { min: 0, max: 20, step: 1 }, 'Bolt jaggedness (px)']],
+  smoke: [['gap', { min: 4, max: 24, step: 1 }, 'Spacing between puffs along the bones (px)'],
+    ['speed', { min: 0.1, max: 2, step: 0.05 }, 'How fast puffs rise'],
+    ['size', { min: 2, max: 20, step: 0.5 }, 'Puff size'],
+    ['rise', { min: 10, max: 80, step: 2 }, 'How far puffs rise before looping (px)']],
+  spikyAura: [['gap', { min: 4, max: 24, step: 1 }, 'Spacing between spikes along the bones (px)'],
+    ['pulseSpeed', { min: 1, max: 20, step: 0.5 }, 'How fast the glow pulses (Hz)'],
+    ['rotSpeed', { min: 0.2, max: 4, step: 0.1 }, 'How fast spikes cycle'],
+    ['spikeLen', { min: 2, max: 24, step: 1 }, 'Spike length (px)']],
+  bubbles: [['gap', { min: 4, max: 20, step: 1 }, 'Spacing between bubbles along the bones (px)'],
+    ['speed', { min: 0.1, max: 2, step: 0.05 }, 'How fast bubbles rise'],
+    ['size', { min: 1, max: 12, step: 0.5 }, 'Bubble size'],
+    ['rise', { min: 8, max: 60, step: 2 }, 'How far bubbles rise before popping (px)']],
+  sparks: [['gap', { min: 4, max: 26, step: 1 }, 'Spacing between spark points along the bones (px)'],
+    ['speed', { min: 0.5, max: 6, step: 0.1 }, 'How fast sparks fly out'],
+    ['reach', { min: 5, max: 60, step: 1 }, 'How far sparks fly (px)'],
+    ['gravity', { min: 0, max: 120, step: 5 }, 'Downward pull on sparks (px/s²)']],
+  blood: [['gap', { min: 4, max: 24, step: 1 }, 'Spacing between droplet points along the bones (px)'],
+    ['speed', { min: 0.3, max: 4, step: 0.1 }, 'How fast droplets fly out and fall'],
+    ['size', { min: 1, max: 8, step: 0.5 }, 'Droplet size'],
+    ['gravity', { min: 50, max: 600, step: 10 }, 'Downward pull on droplets (px/s²)']],
+};
+const BUILTIN_STORE = 'stick2.builtinFx';
+const builtinFx = (() => { try { return JSON.parse(localStorage.getItem(BUILTIN_STORE)) || {}; } catch { return {}; } })();
+const FX_BUILTIN = {};
+function applyBuiltin(name) {
+  const o = builtinFx[name] || {}, base = BASE_BUILTIN[name];
+  FX_BUILTIN[name] = { col: o.col ?? base.col, back: o.back ?? base.back, params: { ...base.params, ...o.params } };
+  FX_AUTO[name] = FX_BUILTIN[name].col;
+  if (FX_BUILTIN[name].back) FX_BACK.add(name); else FX_BACK.delete(name);
+}
+for (const name in BASE_BUILTIN) applyBuiltin(name);
+function saveBuiltinFx(name, patch) {
+  builtinFx[name] = { ...builtinFx[name], ...patch, params: { ...builtinFx[name]?.params, ...patch.params } };
+  applyBuiltin(name); saveBuiltinFxStore();
+}
+function resetBuiltinFx(name) { delete builtinFx[name]; applyBuiltin(name); saveBuiltinFxStore(); }
+function saveBuiltinFxStore() { try { localStorage.setItem(BUILTIN_STORE, JSON.stringify(builtinFx)); } catch {} }
+// wraps a built-in's draw with its live (tunable) params, merged with an optional override (the looks panel's experiment grid previews a
+// value without saving it); a move's own fx still just calls FX_DRAW[name](ctx, segs, rgb, k, t) with no override, unaffected
+function builtinDraw(name, draw) { FX_DRAW[name] = (ctx, segs, rgb, k, t, override) => draw(ctx, segs, rgb, k, t, { ...FX_BUILTIN[name].params, ...override }); }
+// each look: (ctx, segments, rgb, size, time)
+const FX_DRAW = {};
+builtinDraw('aura', (ctx, segs, rgb, k, t, pm) => {
+  const p = 1 + 0.15 * Math.sin(t * pm.pulseSpeed);
+  for (const [w, a] of [[18, 0.12], [10, 0.18], [5, 0.28]]) { ctx.strokeStyle = ctx.fillStyle = `rgba(${rgb},${a})`; fxStroke(ctx, segs, w * k * p); }
+  segs.forEach(({ i: si, ...s }) => fxPoints(s, pm.gap).forEach(([x, y], j) => {
+    const r = fxRnd(si, j), ph = (t * pm.riseSpeed + r) % 1;
+    ctx.fillStyle = `rgba(${rgb},${0.7 * (1 - ph)})`; dot(ctx, x + (r - 0.5) * pm.reach * k, y - ph * pm.reach * 2 * k, pm.size * k);
+  }));
+});
+builtinDraw('fire', (ctx, segs, rgb, k, t, pm) => {
+  // a tongue of flame: round at the base, bending to a tip that sways
+  const tongue = (x, y, w, h, sway) => { ctx.beginPath(); ctx.moveTo(x - w, y); ctx.quadraticCurveTo(x - w, y - h * 0.55, x + sway, y - h); ctx.quadraticCurveTo(x + w, y - h * 0.55, x + w, y); ctx.arc(x, y, w, 0, Math.PI); ctx.fill(); };
+  segs.forEach(({ i: si, ...s }) => fxPoints(s, pm.gap).forEach(([x, y], j) => {
+    const r = fxRnd(si, j), f = 0.65 + 0.35 * Math.sin(t * (pm.flicker + 6 * r) + r * 40), h = (pm.height + 9 * r) * k * f, sway = Math.sin(t * 9 + r * 20) * pm.sway * k;
+    ctx.fillStyle = `rgba(${rgb},0.5)`; tongue(x, y, 4 * k, h, sway);
+    ctx.fillStyle = 'rgba(255,215,70,0.65)'; tongue(x, y, 2.2 * k, h * 0.55, sway * 0.6);
+    const ph = (t * (1.2 + r) + r * 3) % 1; // an ember rising off the top
+    if (r > 0.6) { ctx.fillStyle = `rgba(${rgb},${0.8 * (1 - ph)})`; dot(ctx, x + sway * 2 * ph, y - h - ph * 18 * k, 1.3 * k); }
+  }));
+});
+builtinDraw('lightning', (ctx, segs, rgb, k, t, pm) => {
+  const q = Math.floor(t * pm.rate); // the bolts jump to new places this many times a second
+  ctx.strokeStyle = ctx.fillStyle = `rgba(${rgb},0.16)`; fxStroke(ctx, segs, 7 * k);
+  segs.forEach(({ i: si, ...s }) => fxPoints(s, pm.gap).forEach(([x, y], j) => {
+    if (fxRnd(q + si, j) > 0.5) return;
+    const a = fxRnd(q * 3 + si, j + 9) * 6.283, len = (10 + pm.length * fxRnd(q, si * 5 + j)) * k, pts = [[x, y]];
+    for (let n = 1; n <= 4; n++) pts.push([x + Math.cos(a) * len * n / 4 + (fxRnd(q + n, j + si) - 0.5) * pm.jitter * k, y + Math.sin(a) * len * n / 4 + (fxRnd(q - n, j + si) - 0.5) * pm.jitter * k]);
+    for (const [w, c] of [[3.5 * k, `rgba(${rgb},0.85)`], [1.2 * k, 'rgba(255,255,255,0.95)']]) {
+      ctx.lineWidth = w; ctx.strokeStyle = c; ctx.beginPath(); for (const [px, py] of pts) ctx.lineTo(px, py); ctx.stroke();
+    }
+  }));
+});
+builtinDraw('smoke', (ctx, segs, rgb, k, t, pm) => {
+  segs.forEach(({ i: si, ...s }) => fxPoints(s, pm.gap).forEach(([x, y], j) => {
+    for (let q = 0; q < 2; q++) {
+      const r = fxRnd(si * 5 + q, j + 3), ph = (t * (pm.speed + 0.4 * r) + r) % 1;
+      ctx.fillStyle = `rgba(${rgb},${0.3 * (1 - ph) * Math.min(1, ph * 5)})`;
+      dot(ctx, x + (r - 0.5) * 18 * k * ph + Math.sin(t * 2 + r * 9) * 3 * k, y - ph * pm.rise * k, (3 + pm.size * ph) * k);
+    }
+  }));
+});
+builtinDraw('spikyAura', (ctx, segs, rgb, k, t, pm) => {
+  const p = 1 + 0.15 * Math.sin(t * pm.pulseSpeed);
+  for (const [w, a] of [[14, 0.1], [7, 0.18]]) { ctx.strokeStyle = ctx.fillStyle = `rgba(${rgb},${a})`; fxStroke(ctx, segs, w * k * p); }
+  segs.forEach(({ i: si, ...s }) => {
+    // outward: the segment's own perpendicular (a limb), or straight out from the centre (a ring bone)
+    const dx = s.c ? 0 : s.b[0] - s.a[0], dy = s.c ? 0 : s.b[1] - s.a[1], len0 = Math.hypot(dx, dy) || 1, nx = -dy / len0, ny = dx / len0;
+    fxPoints(s, pm.gap).forEach(([x, y], j) => {
+      const r = fxRnd(si, j), side = fxRnd(si + 50, j) > 0.5 ? 1 : -1;
+      const [rx, ry] = s.c ? [(x - s.c[0]) / s.r, (y - s.c[1]) / s.r] : [nx * side, ny * side];
+      const ph = (t * pm.rotSpeed + r) % 1, spike = (7 + pm.spikeLen * r) * k * (1 - ph * 0.3), tx = -ry, ty = rx, bw = 1.6 * k;
+      ctx.fillStyle = `rgba(${rgb},${0.65 * (1 - ph)})`;
+      ctx.beginPath(); ctx.moveTo(x - tx * bw, y - ty * bw); ctx.lineTo(x + rx * spike, y + ry * spike); ctx.lineTo(x + tx * bw, y + ty * bw); ctx.closePath(); ctx.fill();
+    });
+  });
+});
+builtinDraw('bubbles', (ctx, segs, rgb, k, t, pm) => {
+  segs.forEach(({ i: si, ...s }) => fxPoints(s, pm.gap).forEach(([x, y], j) => {
+    const r = fxRnd(si, j), ph = (t * (pm.speed + 0.3 * r) + r) % 1, rad = (2 + pm.size * r) * k * (0.5 + 0.5 * Math.sin(ph * Math.PI));
+    const bx = x + Math.sin(t * 2 + r * 15) * 5 * k * ph, by = y - ph * pm.rise * k;
+    ctx.fillStyle = `rgba(${rgb},${0.45 * (1 - ph * 0.7)})`; dot(ctx, bx, by, rad);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'; dot(ctx, bx - rad * 0.35, by - rad * 0.35, rad * 0.3);
+  }));
+});
+builtinDraw('sparks', (ctx, segs, rgb, k, t, pm) => {
+  segs.forEach(({ i: si, ...s }) => fxPoints(s, pm.gap).forEach(([x, y], j) => {
+    for (let q = 0; q < 2; q++) {
+      const r = fxRnd(si * 7 + q, j), ph = (t * (pm.speed + r) + r * 3) % 0.6; // a brief flight, most of the cycle: gone
+      const ang = fxRnd(si + q, j + 5) * 6.283, sp = (20 + pm.reach * r) * k;
+      const at = d => [x + Math.cos(ang) * sp * d, y + Math.sin(ang) * sp * d + pm.gravity * k * d * d]; // a little gravity arcs it down
+      const [px, py] = at(ph), [tx, ty] = at(Math.max(0, ph - 0.08));
+      ctx.strokeStyle = `rgba(${rgb},${0.9 * (1 - ph / 0.6)})`; ctx.lineWidth = 1.3 * k;
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(px, py); ctx.stroke();
+    }
+  }));
+});
+builtinDraw('blood', (ctx, segs, rgb, k, t, pm) => {
+  segs.forEach(({ i: si, ...s }) => fxPoints(s, pm.gap).forEach(([x, y], j) => {
+    const r = fxRnd(si, j), ph = (t * pm.speed + r) % 1;
+    const ang = fxRnd(si + 3, j) * 6.283, sp = (40 + 60 * r) * k;
+    const px = x + Math.cos(ang) * sp * ph, py = y + Math.sin(ang) * sp * ph + pm.gravity * k * ph * ph;
+    ctx.fillStyle = `rgba(${rgb},${0.8 * (1 - ph)})`; dot(ctx, px, py, pm.size * k * (1 - ph * 0.5));
+  }));
+});
 // ---------- custom looks: one generic particle draw, parametrized (count/life/speed/spread/angle/gravity/size/shape) ----------
 // closed-form from (seed, t) like every look above (no stepped simulation), so the animate timeline can still scrub to any instant
 function drawCustom(preset, ctx, segs, rgb, k, t) {
@@ -153,7 +227,9 @@ function drawCustom(preset, ctx, segs, rgb, k, t) {
 const LOOK_STORE = 'stick2.looks';
 const myLooks = (() => { try { return JSON.parse(localStorage.getItem(LOOK_STORE)) || {}; } catch { return {}; } })();
 function registerLook(name, preset) {
-  FX_LOOKS[name] = `Custom: ${name}`; FX_DRAW[name] = (ctx, segs, rgb, k, t) => drawCustom(preset, ctx, segs, rgb, k, t);
+  FX_LOOKS[name] = `Custom: ${name}`;
+  // override: the looks panel's experiment grid previews a value without saving it (same signature as builtinDraw)
+  FX_DRAW[name] = (ctx, segs, rgb, k, t, override) => drawCustom({ ...preset, ...override }, ctx, segs, rgb, k, t);
   FX_AUTO[name] = preset.col || 'white'; // a move using this look without its own colour falls back to the look's own default
   if (preset.back) FX_BACK.add(name); else FX_BACK.delete(name);
 }

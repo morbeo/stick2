@@ -692,7 +692,7 @@ const VIEW_TIPS = { cards: 'A drawing of each move (hover to play it)', list: 'C
   inputs: 'Every input over the stage: direction pads per button show which directions have no move of their own, and a table of all inputs; click one to give it a move',
   combos: 'The combos over the stage: the chain links (P / K, or a direction with it like 6P, after a move chains into the next, chains setting authored) as a tree per starter or a table of routes with damage and frames; add, change and cut links in place',
   sounds: 'Design sounds: every built-in and custom sound, a slider over every synth parameter, a test button; duplicate a built-in to tune your own',
-  looks: 'Design fx looks: a generic particle effect tuned by sliders (count, life, speed, spread, angle, gravity, size, shape), with a live preview; built-ins stay hand-coded, read-only',
+  looks: 'Design fx looks: every built-in and custom look, a live preview and an experiment grid; a new look is a generic particle effect tuned by sliders (count, life, speed, spread, angle, gravity, size, shape)',
   tracker: 'A simple step sequencer: rows of sounds, a grid of beats, play it as a loop at a tempo' };
 // ---------- move table: every move of the character, sortable, fuzzy-filtered, values edited in place ----------
 // startup / active / recovery edits retime that phase's keys; height opens its options; hovering a row plays the move by the cursor
@@ -850,102 +850,90 @@ function soundsPanel() {
   fill();
   return wrap;
 }
-// ---------- looks: design new fx looks (a generic particle draw, sliders over it), built-ins are hand-coded, not editable here ----------
-let lookSel = null;
+// ---------- looks: design fx looks, with a live preview and a grid to compare values of whichever slider you clicked ----------
+// built-ins (aura, fire, …) are hand-coded draws with a few tunable constants each (editable + revertible, like built-in
+// sounds); new looks use one generic particle draw tuned by 8 sliders (count/life/speed/spread/angle/gravity/size/shape)
+let lookSel = null, lookGridKey = null; // lookGridKey: the slider last clicked to experiment with in the grid below it
 const DEFAULT_LOOK = { count: 6, life: 0.5, speed: 60, spread: 40, angle: -90, gravity: 200, size0: 3, size1: 0, shape: 'dot', col: 'white', back: false };
 function newLook() {
   let n = 1; while (FX_LOOKS['custom' + n]) n++;
-  const name = 'custom' + n; saveLook(name, { ...DEFAULT_LOOK }); lookSel = name; return name;
+  const name = 'custom' + n; saveLook(name, { ...DEFAULT_LOOK }); lookSel = name; lookGridKey = null; return name;
 }
 const LOOK_SHAPE_TIPS = { dot: 'A filled circle', line: 'A short trailing streak (sparks, speed lines)', ring: 'A stroked ring (an expanding shockwave)' };
-const LOOK_FIELD_TIPS = { count: 'Particles spawned per point along the wrapped bones, looping', life: 'One particle\'s lifetime in seconds before it loops',
-  speed: 'Launch speed (px/s)', spread: 'Random spread around the launch angle, in degrees', angle: 'Launch angle, in degrees (-90: straight up, 0: forward, along facing)',
-  gravity: 'Downward acceleration (px/s²); negative floats upward', size0: 'Size at birth', size1: 'Size at the end of its life (0: shrinks to nothing)' };
-// a self-animating preview: the look drawn on a single fixed segment, larger and independent of any character
-function lookPreview(name) {
-  const cv = h('canvas', { width: 280, height: 280 }), t0 = performance.now();
+// a custom look's own knobs: [key, { min, max, step }, tip, label?]
+const CUSTOM_SLIDERS = [
+  ['count', { min: 1, max: 20, step: 1 }, 'Particles spawned per point along the wrapped bones, looping'],
+  ['life', { min: 0.1, max: 2, step: 0.05 }, 'One particle\'s lifetime in seconds before it loops'],
+  ['speed', { min: 0, max: 300, step: 5 }, 'Launch speed (px/s)'],
+  ['spread', { min: 0, max: 360, step: 5 }, 'Random spread around the launch angle, in degrees'],
+  ['angle', { min: -180, max: 180, step: 5 }, 'Launch angle, in degrees (-90: straight up, 0: forward, along facing)'],
+  ['gravity', { min: -400, max: 600, step: 10 }, 'Downward acceleration (px/s²); negative floats upward'],
+  ['size0', { min: 0, max: 12, step: 0.5 }, 'Size at birth', 'size start'],
+  ['size1', { min: 0, max: 12, step: 0.5 }, 'Size at the end of its life (0: shrinks to nothing)', 'size end'],
+];
+// a self-animating preview on a single fixed segment, independent of any character; override previews one variable's grid
+// value without saving it (both builtinDraw and registerLook's FX_DRAW wrappers in fx.js accept this 6th argument)
+function lookCanvas(name, size, segLen, k, override) {
+  const cv = h('canvas', { width: size, height: size }), t0 = performance.now();
   const loop = () => {
     if (!cv.isConnected) return;
     const ctx = cv.getContext('2d'), t = (performance.now() - t0) / 1000;
-    ctx.clearRect(0, 0, 280, 280); ctx.save(); ctx.translate(140, 210);
-    ctx.strokeStyle = '#ccc'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -80); ctx.stroke();
-    const p = myLooks[name];
-    if (p) FX_DRAW[name]?.(ctx, [{ i: fxSeed(name), w: 4, a: [0, 0], b: [0, -80] }], FX_COLS[p.col] || FX_COLS.white, 1.5, t);
+    ctx.clearRect(0, 0, size, size); ctx.save(); ctx.translate(size / 2, size * 0.75);
+    const col = name in BASE_BUILTIN ? FX_BUILTIN[name].col : myLooks[name]?.col;
+    FX_DRAW[name]?.(ctx, [{ i: fxSeed(name), w: 4, a: [0, 0], b: [0, -segLen] }], FX_COLS[col] || FX_COLS.white, k, t, override);
     ctx.restore(); requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
   return cv;
 }
+function lookPreview(name) { return lookCanvas(name, 280, 80, 1.5); }
 function lookFields(name, refill) {
-  if (!(name in myLooks)) return h('p', { cls: 'note', textContent: `${name} is a built-in, hand-coded look — only custom looks (new look) are tunable here.` });
-  const p = myLooks[name], set = (k, v) => { saveLook(name, { ...myLooks[name], [k]: v }); refill(); };
-  const nm = h('input', { cls: 'macro', value: name, tip: 'Rename this look', onkeydown: e => e.stopPropagation(),
-    onchange: () => { const v = nm.value.trim(); if (!v || v === name || FX_LOOKS[v]) { nm.value = name; return; } renameLook(name, v); lookSel = v; refill(); } });
-  // draggable sliders: save last dragged variable for grid experiments
-  let lastDragged = null;
-  const draggableSlider = (label, opts, get, set, tip) => {
-    const sl = slider(label, opts, get, (v) => { set(v); lastDragged = label; }, tip);
-    sl.onmousedown = () => { lastDragged = label; };
-    return sl;
-  };
-  // grid: experiment with the last dragged variable
-  const gridPick = lastDragged || 'count';
-  const gridOpts = Object.entries(LOOK_FIELD_TIPS).find(([k]) => k === gridPick)?.[0];
-  const gridSpec = { count: { min: 1, max: 20, step: 1 }, life: { min: 0.1, max: 2, step: 0.05 }, speed: { min: 0, max: 300, step: 5 },
-    spread: { min: 0, max: 360, step: 5 }, angle: { min: -180, max: 180, step: 5 }, gravity: { min: -400, max: 600, step: 10 },
-    size0: { min: 0, max: 12, step: 0.5 }, size1: { min: 0, max: 12, step: 0.5 } };
-  const gridVals = gridSpec[gridPick] ? [
-    gridSpec[gridPick].min,
-    gridSpec[gridPick].min + (gridSpec[gridPick].max - gridSpec[gridPick].min) * 0.33,
-    gridSpec[gridPick].min + (gridSpec[gridPick].max - gridSpec[gridPick].min) * 0.66,
-    gridSpec[gridPick].max
-  ] : [];
+  const built = name in BASE_BUILTIN;
+  const p = built ? FX_BUILTIN[name].params : myLooks[name];
+  const col = built ? FX_BUILTIN[name].col : (myLooks[name].col || 'white');
+  const back = built ? FX_BUILTIN[name].back : !!myLooks[name].back;
+  const set = (k, v) => { if (built) saveBuiltinFx(name, { params: { [k]: v } }); else saveLook(name, { ...myLooks[name], [k]: v }); refill(); };
+  const setCol = v => { if (built) saveBuiltinFx(name, { col: v }); else saveLook(name, { ...myLooks[name], col: v }); refill(); };
+  const setBack = v => { if (built) saveBuiltinFx(name, { back: v }); else saveLook(name, { ...myLooks[name], back: v || undefined }); refill(); };
+  // a built-in keeps its name (other moves/keys/bones already reference it by that name); only a custom one can rename or go away for good
+  const nm = built ? h('b', { textContent: name }) : h('input', { cls: 'macro', value: name, tip: 'Rename this look', onkeydown: e => e.stopPropagation(),
+    onchange: () => { const v = nm.value.trim(); if (!v || v === name || FX_LOOKS[v]) { nm.value = name; return; } renameLook(name, v); lookSel = v; lookGridKey = null; refill(); } });
+
+  const fieldSpecs = built ? BUILTIN_SLIDERS[name] : CUSTOM_SLIDERS;
+  if (!fieldSpecs.some(([k]) => k === lookGridKey)) lookGridKey = fieldSpecs[0][0];
+  // clicking a slider's name (like gridLink does for settings, lab.js) experiments with it in the grid below
+  const sliders = fieldSpecs.map(([key, opts, tip, label]) =>
+    expLink(slider(label || key, opts, () => p[key], v => set(key, v), tip), `experiment with ${label || key} in the grid below`, () => { lookGridKey = key; refill(); }));
+
+  const [, gridOpts] = fieldSpecs.find(([k]) => k === lookGridKey);
+  const vals = [0, 1 / 3, 2 / 3, 1].map(f => Math.round((gridOpts.min + (gridOpts.max - gridOpts.min) * f) / gridOpts.step) * gridOpts.step);
   const grid = h('div', { cls: 'bar col' },
-    h('span', { textContent: `Try ${gridPick}: drag sliders to pick which to experiment` }),
-    h('div', { cls: 'bar' }, ...gridVals.map(v => {
-      const preview = h('div', { cls: 'cell', style: { width: '64px', height: '64px', border: '1px solid #ddd', position: 'relative' } });
-      const cv = h('canvas', { width: 64, height: 64 });
-      preview.append(cv);
-      const t0 = performance.now();
-      const loop = () => {
-        if (!cv.isConnected) return;
-        const ctx = cv.getContext('2d'), t = (performance.now() - t0) / 1000;
-        ctx.clearRect(0, 0, 64, 64); ctx.save(); ctx.translate(32, 48);
-        const test = { ...p, [gridPick]: Math.round(v * 100) / 100 };
-        if (FX_DRAW[name]) FX_DRAW[name]?.(ctx, [{ i: fxSeed(name), w: 2, a: [0, 0], b: [0, -30] }], FX_COLS[test.col] || FX_COLS.white, 0.8, t);
-        ctx.restore(); requestAnimationFrame(loop);
-      };
-      requestAnimationFrame(loop);
-      return preview;
-    }))
-  );
+    h('p', { cls: 'note', textContent: `${lookGridKey}: ${vals.map(fmt).join(' · ')} (click another slider's name to experiment with it instead)` }),
+    h('div', { cls: 'bar' }, ...vals.map(v => lookCanvas(name, 64, 24, 0.8, { [lookGridKey]: v }))));
+
   return h('div', { cls: 'bar' },
     h('div', {}, lookPreview(name)),
     h('div', {},
-      h('div', { cls: 'bar' }, nm, button(':delete: delete', `Delete ${name}`, () => { deleteLook(name); lookSel = null; refill(); })),
-      h('div', { cls: 'bar' }, h('span', { textContent: 'shape' }), seg(Object.keys(LOOK_SHAPE_TIPS), () => p.shape, v => set('shape', v), LOOK_SHAPE_TIPS),
-        h('span', { textContent: 'colour' }), seg(Object.keys(FX_COLS), () => p.col || 'white', v => set('col', v), Object.fromEntries(Object.keys(FX_COLS).map(c => [c, `Default colour: ${c} (a move can still override it)`]))),
-        toggle(':layers: behind', 'Draws behind the body (like aura, smoke) instead of in front', () => !!p.back, v => set('back', v || undefined))),
-      draggableSlider('count', { min: 1, max: 20, step: 1 }, () => p.count, v => set('count', v), LOOK_FIELD_TIPS.count),
-      draggableSlider('life', { min: 0.1, max: 2, step: 0.05 }, () => p.life, v => set('life', v), LOOK_FIELD_TIPS.life),
-      draggableSlider('speed', { min: 0, max: 300, step: 5 }, () => p.speed, v => set('speed', v), LOOK_FIELD_TIPS.speed),
-      draggableSlider('spread', { min: 0, max: 360, step: 5 }, () => p.spread, v => set('spread', v), LOOK_FIELD_TIPS.spread),
-      draggableSlider('angle', { min: -180, max: 180, step: 5 }, () => p.angle, v => set('angle', v), LOOK_FIELD_TIPS.angle),
-      draggableSlider('gravity', { min: -400, max: 600, step: 10 }, () => p.gravity, v => set('gravity', v), LOOK_FIELD_TIPS.gravity),
-      draggableSlider('size start', { min: 0, max: 12, step: 0.5 }, () => p.size0, v => set('size0', v), LOOK_FIELD_TIPS.size0),
-      draggableSlider('size end', { min: 0, max: 12, step: 0.5 }, () => p.size1, v => set('size1', v), LOOK_FIELD_TIPS.size1),
-      gridVals.length ? grid : null));
+      h('div', { cls: 'bar' }, nm, built ? h('span', { cls: 'note', textContent: 'built-in — tunable, revert to go back' }) : null,
+        button(built ? ':restart_alt: revert' : ':delete: delete', built ? `Back to ${name}'s shipped values` : `Delete ${name}`,
+          () => { if (built) resetBuiltinFx(name); else { deleteLook(name); lookSel = null; } lookGridKey = null; refill(); })),
+      h('div', { cls: 'bar' },
+        !built && h('span', { textContent: 'shape' }), !built && seg(Object.keys(LOOK_SHAPE_TIPS), () => p.shape, v => set('shape', v), LOOK_SHAPE_TIPS),
+        h('span', { textContent: 'colour' }), seg(Object.keys(FX_COLS), () => col, setCol, Object.fromEntries(Object.keys(FX_COLS).map(c => [c, `Default colour: ${c} (a move can still override it)`]))),
+        toggle(':layers: behind', 'Draws behind the body (like aura, smoke) instead of in front', () => back, setBack)),
+      ...sliders,
+      grid));
 }
 function looksPanel() {
   const wrap = h('div', { cls: 'mtable' }), body = h('div');
   const fill = () => {
     if (lookSel && !FX_LOOKS[lookSel]) lookSel = null;
-    const row = n => h('div', { cls: 'bar' + (lookSel === n ? ' on' : ''), onclick: () => { lookSel = n; fill(); } },
+    const row = n => h('div', { cls: 'bar' + (lookSel === n ? ' on' : ''), onclick: () => { if (lookSel !== n) lookGridKey = null; lookSel = n; fill(); } },
       h('b', { textContent: n }), n in myLooks ? null : h('span', { cls: 'note', textContent: 'built-in' }));
     body.replaceChildren(...Object.keys(FX_LOOKS).map(row), h('h4', { textContent: lookSel || 'pick a look' }),
-      lookSel ? lookFields(lookSel, fill) : h('p', { cls: 'note', textContent: 'click a look above; new look starts a tunable custom one' }));
+      lookSel ? lookFields(lookSel, fill) : h('p', { cls: 'note', textContent: 'click a look above: tune a built-in directly, or new look starts a custom one' }));
   };
-  wrap.append(stageHead('looks', 'Design new fx looks: a generic particle effect tuned by sliders (count, life, speed, spread, angle, gravity, size, shape). Built-in looks are hand-coded JS and shown read-only. A custom look appears anywhere looks are picked (a move or key\'s fx).',
+  wrap.append(stageHead('looks', 'Design fx looks, each with a live preview and a grid comparing 4 values of whichever slider you last clicked. Built-ins (aura, fire, …) are hand-coded with a few tunable knobs each — revert undoes your changes. A new look uses one generic particle effect tuned by 8 sliders (count, life, speed, spread, angle, gravity, size, shape). A custom look appears anywhere looks are picked (a move, key or bone\'s fx).',
     button(':add: new look', 'A new custom look, starting from simple rising dots', () => { newLook(); fill(); })), body);
   fill();
   return wrap;

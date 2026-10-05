@@ -193,7 +193,7 @@ Neither sounds nor looks are picked from a closed list — both can be designed 
 
 ### Effects (looks)
 
-**panels** → **looks**. Built-in looks (fire, aura, lightning…) are hand-coded drawing and shown read-only. **new look** instead makes a custom one from a single generic particle effect, tuned by sliders: how many spawn per point, their lifetime, launch speed/spread/angle, gravity, size from birth to the end of its life, and a shape (a dot, a trailing streak, or a ring) — plus a default colour and whether it draws behind the body (like aura) or in front. A small preview animates live next to the sliders. A custom look appears anywhere a look is picked, including a move or key's fx.
+**panels** → **looks**. Every look is tunable, built-ins (fire, aura, lightning…) included — each is hand-coded drawing with a handful of its own knobs (spacing, speed, reach, size…); **revert** puts a built-in back to its shipped values (it keeps its name, since moves already pick it by name). **new look** instead makes a custom one from a single generic particle effect, tuned by sliders: how many spawn per point, their lifetime, launch speed/spread/angle, gravity, size from birth to the end of its life, and a shape (a dot, a trailing streak, or a ring) — plus a default colour and whether it draws behind the body (like aura) or in front, free to rename or delete. A live preview animates next to the sliders; click a slider's name to compare 4 of its values side by side in a small grid below. A custom look appears anywhere a look is picked, including a move or key's fx.
 
 ### Tracker
 
