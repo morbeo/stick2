@@ -2,7 +2,7 @@
 // ---------- fx mode: a gallery of every look (built-ins + custom), a big zoomed preview, a tunable side panel
 // (sliders with per-variable and all-at-once randomize, colour/behind, revert/delete) and a two-variable experiment grid.
 // Pure drawing, like the looks themselves: nothing here is part of the simulation (mode().worlds() is empty) ----------
-const fxState = { sel: null, zoom: false, scroll: 0, char: 'self', part: 'segment', bg: '#f3f0e8', gx: null, gy: null };
+const fxState = { sel: null, zoom: false, scroll: 0, char: 'self', part: 'segment', bg: '#f3f0e8', gx: null, gy: null, gridDock: 'bottom' };
 const fxChar = () => fxState.char === 'self' ? currentChar() : (CHARS[fxState.char] || currentChar());
 // preview targets: a plain fixed segment (no character needed), the whole body, or one role's chains (only if the character has one)
 const fxParts = ch => ['segment', 'body', ...['arm', 'leg', 'head', 'tail', 'weapon'].filter(r => ch.chains[r]?.length)];
@@ -82,22 +82,56 @@ function fxClick(x, y) {
   panels(); // the side panel now shows this look's editor
 }
 
+// the standard character picker (studio.js: charPanel's .charpick + a popup of charCard tiles), pointed at fxState.char
+// instead of the globally-edited CURRENT character; a hand-built "self" card stands in for "whatever you're editing"
+function fxCharButton() {
+  const cv = h('canvas'), label = h('b');
+  const selfCard = () => {
+    const b = h('button', { cls: 'card', tip: 'The character you\'re editing or playing', onclick: () => { fxState.char = 'self'; closePop(); syncAll(); } }, h('canvas'), h('span', { textContent: 'self' }));
+    reg(b, () => { drawThumb(b.firstChild, currentChar()); b.classList.toggle('on', fxState.char === 'self'); });
+    return b;
+  };
+  const pick = h('button', { cls: 'charpick', tip: 'The character to preview the look on · click: pick another',
+    onclick: () => popup(pick, h('div', { cls: 'cards' }, selfCard(), Object.keys(DEFS).map(k => charCard(k, kk => { fxState.char = kk; closePop(); }, kk => fxState.char === kk)))) },
+    cv, label, ...rich(':expand_more:'));
+  reg(pick, () => { drawThumb(cv, fxChar(), undefined, 36, 40); label.textContent = fxState.char === 'self' ? 'self' : fxState.char; });
+  return pick;
+}
 // ---------- side panel: preview target/background, then (a look selected) its editor ----------
 function fxPreviewSide() {
   const ch = fxChar(), parts = fxParts(ch);
-  const charNames = ['self', ...Object.keys(CHARS)];
   return [
     heading('Preview', 'What the gallery and the zoomed preview draw the look on, and a preview-only background colour (never saved with the look).', ''),
-    h('div', { cls: 'bar' }, h('span', { textContent: 'character' }),
-      seg(charNames, () => fxState.char, v => { fxState.char = v; }, Object.fromEntries(charNames.map(n => [n, n === 'self' ? 'The character you\'re editing or playing' : `Preview on ${n}`])))),
     h('div', { cls: 'bar' }, h('span', { textContent: 'on' }),
-      seg(parts, () => fxState.part, v => { fxState.part = v; },
+      seg(parts, () => fxState.part, v => { fxState.part = v; panels(); }, // panels(): the character row only shows for a non-segment part
         { segment: 'A plain fixed line, no character (the classic preview)', body: 'The whole body', arm: 'The arms', leg: 'The legs', head: 'The head', tail: 'The tails', weapon: 'The weapon' })),
+    fxState.part !== 'segment' ? h('div', { cls: 'bar' }, h('span', { textContent: 'character' }), fxCharButton()) : null,
     h('div', { cls: 'bar' }, h('span', { textContent: 'background' }),
       h('input', { type: 'color', value: fxState.bg, tip: 'Preview-only background colour (not saved with the look)', oninput: e => { fxState.bg = e.target.value; } }),
-      ...['#f3f0e8', '#ffffff', '#222222', '#17304a'].map(c => button('', `Background ${c}`, () => { fxState.bg = c; }, 'mini'))),
+      ...['#f3f0e8', '#ffffff', '#222222', '#17304a'].map(c => {
+        // setRich (ui.js) auto-toggles .ico based on the label being a pure icon code; an empty label doesn't match
+        // that and would strip it right back off, so it's added after button() returns instead of passed as a class
+        const b = button('', `Background ${c}`, () => { fxState.bg = c; }, 'mini');
+        b.classList.add('ico');
+        b.style.backgroundColor = c;
+        return b;
+      })),
   ];
 }
+// a colour picker like seg(), but each option shows a swatch of its actual colour, not just its name
+function fxColorSeg(get, set) {
+  return h('span', { cls: 'seg' }, Object.keys(FX_COLS).map(c => {
+    const b = button('', `Default colour: ${c} (a move can still override it)`, () => set(c), 'mini');
+    b.prepend(h('span', { cls: 'swatch', style: `background:rgb(${FX_COLS[c]})` }));
+    reg(b, () => b.classList.toggle('on', get() === c));
+    return b;
+  }));
+}
+// a look's live data, read fresh on every call: saveBuiltinFx/saveLook each replace FX_BUILTIN[name] or myLooks[name]
+// wholesale (applyBuiltin, fx.js), so any value captured once in a closure goes stale the moment something else is saved
+// — every get() below must be a function that re-reads these, not a snapshot, or toggles/segs stop reflecting changes
+const fxLive = name => name in BASE_BUILTIN ? FX_BUILTIN[name] : myLooks[name];
+const fxParams = name => name in BASE_BUILTIN ? fxLive(name).params : fxLive(name);
 // X / Y axis pickers for the experiment grid, among this look's own fields
 function fxAxisButton(label, fields, get, set) {
   const b = button('', `${label} axis: a variable swept across the grid below`, (e, b) => {
@@ -109,24 +143,28 @@ function fxAxisButton(label, fields, get, set) {
   return b;
 }
 const fxAxisVals = opts => [0, 1 / 3, 2 / 3, 1].map(f => Math.round((opts.min + (opts.max - opts.min) * f) / opts.step) * opts.step);
-function fxGridSection(name, fields) {
+const DOCK_ICONS = { bottom: 'arrow_downward', top: 'arrow_upward', left: 'arrow_back', right: 'arrow_forward' };
+// the experiment grid: a dockable panel over the stage (like the replay editor's events table, or the scenario builder),
+// next to the preview rather than buried in the scrolling side panel — only shown with a look open (fxState.sel, zoomed)
+function fxGridPanel(name) {
+  const fields = fxFields(name);
   if (!fields.some(([k]) => k === fxState.gx)) fxState.gx = fields[0][0];
   if (fxState.gy && !fields.some(([k]) => k === fxState.gy)) fxState.gy = null;
   const specOf = k => fields.find(([fk]) => fk === k)[1];
   const xs = fxAxisVals(specOf(fxState.gx)), ys = fxState.gy ? fxAxisVals(specOf(fxState.gy)) : [undefined];
   const cells = [];
   for (const yv of ys) for (const xv of xs) cells.push(fxCanvas(60, name, fxState.gy ? { [fxState.gx]: xv, [fxState.gy]: yv } : { [fxState.gx]: xv }));
-  return h('div', { cls: 'bar col' },
-    h('p', { cls: 'note', textContent: 'Experiment: compare 4 values of one variable across (X), optionally crossed with 4 of another (Y).' }),
-    h('div', { cls: 'bar' }, fxAxisButton('X', fields, () => fxState.gx, k => { fxState.gx = k; }), fxAxisButton('Y', fields, () => fxState.gy, k => { fxState.gy = k; })),
+  return h('div', { cls: 'fxgrid ' + fxState.gridDock },
+    h('div', { cls: 'bar' }, h('b', { textContent: 'experiment' }),
+      seg(Object.keys(DOCK_ICONS), () => fxState.gridDock, v => { fxState.gridDock = v; panels(); },
+        { bottom: 'Dock under the preview', top: 'Dock above the preview', left: 'Dock left of the preview', right: 'Dock right of the preview' },
+        v => `:${DOCK_ICONS[v]}:`),
+      fxAxisButton('X', fields, () => fxState.gx, k => { fxState.gx = k; panels(); }), fxAxisButton('Y', fields, () => fxState.gy, k => { fxState.gy = k; panels(); })),
     h('p', { cls: 'note', textContent: `columns (${fxState.gx}): ${xs.map(fmt).join(' · ')}` + (fxState.gy ? ` · rows (${fxState.gy}): ${ys.map(fmt).join(' · ')}` : '') }),
     h('div', { cls: 'bar', style: `display:grid; grid-template-columns: repeat(${xs.length}, 60px); gap: 3px` }, ...cells));
 }
 function fxLookSide(name) {
   const built = name in BASE_BUILTIN;
-  const p = built ? FX_BUILTIN[name].params : myLooks[name];
-  const col = built ? FX_BUILTIN[name].col : (myLooks[name].col || 'white');
-  const back = built ? FX_BUILTIN[name].back : !!myLooks[name].back;
   const set = (k, v) => { if (built) saveBuiltinFx(name, { params: { [k]: v } }); else saveLook(name, { ...myLooks[name], [k]: v }); };
   const setCol = v => { if (built) saveBuiltinFx(name, { col: v }); else saveLook(name, { ...myLooks[name], col: v }); };
   const setBack = v => { if (built) saveBuiltinFx(name, { back: v }); else saveLook(name, { ...myLooks[name], back: v || undefined }); };
@@ -138,7 +176,8 @@ function fxLookSide(name) {
   const randomAll = () => { for (const f of fields) randomOne(f); };
   const sliders = fields.map(f => {
     const [key, opts, tip, label] = f;
-    const row = slider(label || key, opts, () => p[key], v => set(key, v), tip);
+    const row = slider(label || key, opts, () => fxParams(name)[key], v => set(key, v), tip);
+    row.classList.add('dice'); // a 4th column for the randomize button (plain .row is 3 columns, built for label/slider/value only)
     row.append(button(':casino:', `Randomize ${label || key}`, () => randomOne(f), 'mini'));
     return row;
   });
@@ -152,12 +191,11 @@ function fxLookSide(name) {
       button(built ? ':restart_alt: revert' : ':delete: delete', built ? `Back to ${name}'s shipped values` : `Delete ${name}`,
         () => { if (built) resetBuiltinFx(name); else { deleteLook(name); fxState.sel = null; fxState.zoom = false; } panels(); })),
     h('div', { cls: 'bar' },
-      !built && isParticle && h('span', { textContent: 'shape' }), !built && isParticle && seg(Object.keys(LOOK_SHAPE_TIPS), () => p.shape, v => set('shape', v), LOOK_SHAPE_TIPS),
-      h('span', { textContent: 'colour' }), seg(Object.keys(FX_COLS), () => col, setCol, Object.fromEntries(Object.keys(FX_COLS).map(c => [c, `Default colour: ${c} (a move can still override it)`]))),
-      toggle(':layers: behind', 'Draws behind the body (like aura, smoke) instead of in front', () => back, setBack)),
+      !built && isParticle && h('span', { textContent: 'shape' }), !built && isParticle && seg(Object.keys(LOOK_SHAPE_TIPS), () => fxParams(name).shape, v => set('shape', v), LOOK_SHAPE_TIPS),
+      h('span', { textContent: 'colour' }), fxColorSeg(() => fxLive(name).col, setCol),
+      toggle(':layers: behind', 'Draws behind the body (like aura, smoke) instead of in front', () => !!fxLive(name).back, setBack)),
     !built && !isParticle ? h('p', { cls: 'note', textContent: `Duplicated from ${fxAlgo(name)}: the same hand-coded algorithm, its own independent knobs.` }) : null,
     ...sliders,
-    fxGridSection(name, fields),
   ];
 }
 function fxSide() {
@@ -178,6 +216,7 @@ const fxMode = {
   render: fxRender,
   ctxBar: fxCtx,
   side: fxSide,
+  overlay: () => fxState.zoom && fxState.sel ? [fxGridPanel(fxState.sel)] : [],
   open: ['preview', 'look'],
   mouse(type, x, y) { if (type === 'down') fxClick(x, y); else cursor(fxState.zoom || hitRect(fxRects(), x, y) >= 0 ? 'pointer' : 'default'); },
   wheel(dy) { const ms = fxMaxScroll(); if (!ms) return false; fxState.scroll = clamp(fxState.scroll + dy * dpr, 0, ms); return true; },

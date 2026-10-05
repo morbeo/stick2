@@ -138,6 +138,22 @@ try {
     if (FX_BUILTIN.aura.params.gap !== auraGapBase + 5 || !('aura' in builtinFx)) errs.push('built-in look slider ' + JSON.stringify(FX_BUILTIN.aura));
     [...document.querySelectorAll('#side button')].find(b => b.textContent.includes('revert')).click();
     if (FX_BUILTIN.aura.params.gap !== auraGapBase || 'aura' in builtinFx) errs.push('built-in look revert ' + JSON.stringify(FX_BUILTIN.aura));
+    // the behind toggle must reflect live state (it used to read a value captured once when the panel was built, so a
+    // second click re-applied the same stale target instead of actually alternating — regression test for that bug)
+    const behindBtn = () => [...document.querySelectorAll('#side button.tog')].find(b => b.textContent.includes('behind'));
+    const backBase = FX_BUILTIN.aura.back;
+    behindBtn().click(); if (FX_BUILTIN.aura.back === backBase || behindBtn().classList.contains('on') === (backBase)) errs.push('behind toggle 1 ' + FX_BUILTIN.aura.back);
+    behindBtn().click(); if (FX_BUILTIN.aura.back !== backBase || behindBtn().classList.contains('on') !== !!backBase) errs.push('behind toggle 2 ' + FX_BUILTIN.aura.back);
+    // colour swatches (both the look's own colour seg and the background presets) show their actual colour, not just a name
+    const colourSwatch = [...document.querySelectorAll('#side .seg .swatch')][0];
+    if (!colourSwatch || !colourSwatch.style.background) errs.push('colour swatch has no colour');
+    const bgSwatch = [...document.querySelectorAll('#side button.ico')].find(b => b.style.backgroundColor);
+    if (!bgSwatch) errs.push('background swatch has no colour');
+    // the character picker only makes sense (and only shows) when previewing on a character, not the plain segment
+    if (document.querySelector('#side .charpick')) errs.push('charpick shown for segment preview');
+    [...document.querySelectorAll('#side .seg button')].find(b => b.textContent.includes('body')).click();
+    if (!document.querySelector('#side .charpick')) errs.push('charpick missing for body preview');
+    [...document.querySelectorAll('#side .seg button')].find(b => b.textContent.includes('segment')).click();
     // duplicate: an independent copy of a built-in using the same algorithm, so tuning it never touches the original
     [...document.querySelectorAll('#side button')].find(b => b.textContent.includes('duplicate')).click();
     const dup = fxState.sel;
@@ -151,14 +167,18 @@ try {
     if (!name || !(name in FX_LOOKS) || !FX_DRAW[name]) errs.push('new look not created ' + name);
     sliders()[2].value = 200; sliders()[2].dispatchEvent(new Event('input')); // speed (count, life, speed, …)
     if (myLooks[name].speed !== 200) errs.push('look slider ' + JSON.stringify(myLooks[name]));
-    const cellsBefore = document.querySelectorAll('#side canvas').length; // the experiment grid: 4 cells, one variable (X only)
-    [...document.querySelectorAll('#side button')].find(b => b.textContent.startsWith('Y:')).click();
+    const cellsBefore = document.querySelectorAll('#over .fxgrid canvas').length; // the experiment grid: 4 cells, one variable (X only)
+    [...document.querySelectorAll('#over .fxgrid button')].find(b => b.textContent.startsWith('Y:')).click();
     [...document.querySelectorAll('.pop button')].find(b => b.textContent === 'life').click();
-    const cellsAfter = document.querySelectorAll('#side canvas').length; // now a 4×4 grid: 12 more cells
+    const cellsAfter = document.querySelectorAll('#over .fxgrid canvas').length; // now a 4×4 grid: 12 more cells
     if (cellsAfter - cellsBefore !== 12) errs.push('fx grid Y axis ' + cellsBefore + ' -> ' + cellsAfter);
     if (myLooks[name].speed !== 200) errs.push('grid pick mutated the preset ' + JSON.stringify(myLooks[name]));
+    // the experiment grid can dock to any of the preview's four borders, next to it rather than buried in the side panel
+    if (!document.querySelector('#over .fxgrid.bottom')) errs.push('fx grid default dock');
+    document.querySelector('#over .fxgrid [data-tip="Dock left of the preview"]').click();
+    if (!document.querySelector('#over .fxgrid.left') || fxState.gridDock !== 'left') errs.push('fx grid dock left');
     deleteLook(name); if (name in FX_LOOKS || Object.keys(FX_LOOKS).length !== before) errs.push('look delete ' + name + ' ' + Object.keys(FX_LOOKS).length);
-    fxState.sel = null; fxState.zoom = false; panels(); }
+    fxState.sel = null; fxState.zoom = false; fxState.gridDock = 'bottom'; fxState.part = 'segment'; panels(); }
   // tracker view (fx tab): new track starts a 16-step row; cells toggle (even clicked out of order, each against the live state,
   // not a stale snapshot from before the last redraw), steps resizes every row's cells, rows add/remove, delete removes the track
   { setMode('tracker'); panels();
