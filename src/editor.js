@@ -891,16 +891,29 @@ function trackFields(name, refill) {
   const set = (k, v) => { saveTrack(name, { ...myTracks[name], [k]: v }); refill(); };
   const setRow = (i, k, v) => { saveTrack(name, { ...myTracks[name], rows: myTracks[name].rows.map((r, j) => j === i ? { ...r, [k]: v } : r) }); refill(); };
   const setSteps = n => { const live = myTracks[name];
-    saveTrack(name, { ...live, steps: n, rows: live.rows.map(r => ({ ...r, cells: Array.from({ length: n }, (_, i) => r.cells[i] || false) })) }); refill(); };
+    saveTrack(name, { ...live, steps: n, rows: live.rows.map(r => ({ ...r, cells: Array.from({ length: n }, (_, i) => r.cells[i] ?? null) })) }); refill(); };
   const nm = h('input', { cls: 'macro', value: name, tip: 'Rename this track', onkeydown: e => e.stopPropagation(),
     onchange: () => { const v = nm.value.trim(); if (!v || v === name || myTracks[v]) { nm.value = name; return; } renameTrack(name, v); trackSel = v; refill(); } });
-  const grid = h('div', { cls: 'trk' });
-  grid.replaceChildren(...t.rows.map((row, i) => h('div', { cls: 'bar' },
-    button(row.sound, 'Sound for this row (click to change)', (e, el) => popup(el, seg(Object.keys(SOUNDS), () => row.sound, v => { closePop(); setRow(i, 'sound', v); },
-      Object.fromEntries(Object.keys(SOUNDS).map(s => [s, s])))), 'mini'),
-    ...row.cells.map((on, c) => { const b = button('', `${row.sound} · step ${c + 1} (click to toggle, playing: highlighted)`,
-      () => setRow(i, 'cells', myTracks[name].rows[i].cells.map((v, k) => k === c ? !v : v)), 'mini cell' + (on ? ' on' : '')); b.dataset.col = c; return b; }),
-    button(':delete:', 'Remove this row', () => { saveTrack(name, { ...myTracks[name], rows: myTracks[name].rows.filter((_, j) => j !== i) }); refill(); }, 'mini'))));
+  const grid = h('table', { cls: 'trk' });
+  const rowTr = (row, i) => h('tr', {},
+    h('td', {}, button(row.sound, 'Sound for this row (click to change)', (e, el) => popup(el, seg(Object.keys(SOUNDS), () => row.sound, v => { closePop(); setRow(i, 'sound', v); },
+      Object.fromEntries(Object.keys(SOUNDS).map(s => [s, s])))), 'mini')),
+    ...row.cells.map((v, c) => { const on = v != null;
+      const b = button(on && v ? (v > 0 ? `+${v}` : `${v}`) : '', `${row.sound} · step ${c + 1} (click: toggle, scroll over it: pitch, playing: highlighted)`,
+        () => setRow(i, 'cells', myTracks[name].rows[i].cells.map((x, k) => k === c ? (x == null ? 0 : null) : x)), 'mini cell' + (on ? ' on' : ''));
+      b.dataset.col = c;
+      b.onwheel = e => { if (myTracks[name].rows[i].cells[c] == null) return; e.preventDefault();
+        const cs = myTracks[name].rows[i].cells.slice(); cs[c] = clamp((cs[c] || 0) - Math.sign(e.deltaY), -12, 12); setRow(i, 'cells', cs); };
+      return h('td', {}, b);
+    }),
+    h('td', { cls: 'bar' },
+      button(':select_all:', row.cells.every(v => v != null) ? 'Turn every step in this row off' : 'Turn every step in this row on',
+        () => { const allOn = row.cells.every(v => v != null); setRow(i, 'cells', row.cells.map(v => allOn ? null : (v ?? 0))); }, 'mini'),
+      button(':swap_horiz:', 'Invert this row: on steps off, off steps on', () => setRow(i, 'cells', row.cells.map(v => v == null ? 0 : null)), 'mini'),
+      button(':casino:', 'Randomize this row (keeps each step\'s pitch, picks which are on)', () => setRow(i, 'cells', row.cells.map(v => Math.random() < 0.5 ? (v ?? 0) : null)), 'mini'),
+      button(':delete:', 'Remove this row', () => { saveTrack(name, { ...myTracks[name], rows: myTracks[name].rows.filter((_, j) => j !== i) }); refill(); }, 'mini')));
+  grid.append(h('thead', {}, h('tr', {}, h('th', {}), ...Array.from({ length: t.steps }, (_, c) => h('th', { cls: 'stepnum', textContent: c + 1 })), h('th', {}))),
+    h('tbody', {}, t.rows.map(rowTr)));
   const paint = () => { if (!grid.isConnected) return; const cur = curStep(myTracks[name] || t);
     for (const c of grid.querySelectorAll('.cell')) c.classList.toggle('cur', +c.dataset.col === cur);
     if (playingThis()) requestAnimationFrame(paint); };
@@ -909,6 +922,7 @@ function trackFields(name, refill) {
     h('div', { cls: 'bar' }, nm,
       button(playingThis() ? ':stop: stop' : ':play_arrow: play', playingThis() ? `Stop ${name}` : `Play ${name} on a loop`,
         () => { playingThis() ? stopTrack() : playTrack(name); refill(); }),
+      button(':content_copy: duplicate', `Duplicate ${name}`, () => { trackSel = duplicateTrack(name); refill(); }),
       button(':delete: delete', `Delete ${name}`, () => { deleteTrack(name); trackSel = null; refill(); })),
     slider('tempo', { min: 60, max: 220, step: 1 }, () => t.bpm, v => set('bpm', v), 'Beats per minute'),
     h('div', { cls: 'bar' }, h('span', { textContent: 'steps' }), seg([8, 16, 32], () => t.steps, setSteps,
@@ -920,11 +934,18 @@ function trackerPanel() {
   const wrap = h('div', { cls: 'mtable' }), body = h('div');
   const fill = () => {
     if (trackSel && !myTracks[trackSel]) trackSel = null;
-    const row = n => h('div', { cls: 'bar' + (trackSel === n ? ' on' : ''), onclick: () => { trackSel = n; fill(); } },
-      h('b', { textContent: n }),
-      button(tracker.playing && tracker.name === n ? ':stop:' : ':play_arrow:', tracker.playing && tracker.name === n ? `Stop ${n}` : `Play ${n}`,
-        e => { e.stopPropagation(); tracker.playing && tracker.name === n ? stopTrack() : playTrack(n); fill(); }, 'mini'));
-    body.replaceChildren(...Object.keys(myTracks).map(row), h('h4', { textContent: trackSel || 'pick a track' }),
+    const names = Object.keys(myTracks);
+    const tr = n => { const t = myTracks[n], playing = tracker.playing && tracker.name === n;
+      return h('tr', { cls: trackSel === n ? 'on' : '', onclick: () => { trackSel = n; fill(); } },
+        h('td', { textContent: n }), h('td', { textContent: t.bpm }), h('td', { textContent: t.steps }), h('td', { textContent: t.rows.length }),
+        h('td', { cls: 'bar' },
+          button(playing ? ':stop:' : ':play_arrow:', playing ? `Stop ${n}` : `Play ${n} on a loop`, e => { e.stopPropagation(); playing ? stopTrack() : playTrack(n); fill(); }, 'mini'),
+          button(':content_copy:', `Duplicate ${n}`, e => { e.stopPropagation(); trackSel = duplicateTrack(n); fill(); }, 'mini'),
+          button(':delete:', `Delete ${n}`, e => { e.stopPropagation(); deleteTrack(n); if (trackSel === n) trackSel = null; fill(); }, 'mini'))); };
+    body.replaceChildren(
+      h('table', {}, h('thead', {}, h('tr', {}, ...['name', 'bpm', 'steps', 'rows', ''].map(k => h('th', { textContent: k })))),
+        h('tbody', {}, names.length ? names.map(tr) : h('tr', {}, h('td', { colSpan: 5, cls: 'note', textContent: 'no tracks yet' })))),
+      h('h4', { textContent: trackSel || 'pick a track' }),
       trackSel ? trackFields(trackSel, fill) : h('p', { cls: 'note', textContent: 'new track starts a 16-step pattern; its rows pick from your sounds' }));
   };
   // a fx-tab view (src/fxlab.js), not a toggleable stage panel: no close button, there's nothing to close to

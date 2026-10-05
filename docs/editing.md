@@ -197,7 +197,9 @@ Looks (fire, aura, lightning…) are designed in their own tab, not a panel over
 
 ### Tracker
 
-The tracker view (a view of the [Fx](modes.md#fx) tab). A simple step sequencer built from your own sounds: a track has a tempo and a number of steps (8, 16 or 32), and any number of rows, each picking a sound and a grid of beats it plays on. **play** loops it, highlighting the step currently sounding. **new track** (or **+ row**) starts one; delete a row or the whole track, rename it freely.
+The tracker view (a view of the [Fx](modes.md#fx) tab). Your tracks are listed in a table (tempo, steps, row count, play / duplicate / delete); pick one to edit it. A simple step sequencer built from your own sounds: a track has a tempo and a number of steps (8, 16 or 32), and any number of rows, each picking a sound and a grid of beats it plays on, also a table, numbered every step. **play** loops it, highlighting the step currently sounding.
+
+A step is off, or on at a pitch: click toggles it, scroll over it shifts the pitch ±12 semitones (shown on the step once it's off zero), shifting both the sound's noise and tone layers together. Each row also has **turn all on / off**, **invert** and **randomize**, besides remove; **new track** (or **+ row**) starts one, **duplicate** copies a whole track, rename it freely.
 
 ## Movement layers
 

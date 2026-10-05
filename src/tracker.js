@@ -1,10 +1,18 @@
 'use strict';
 // ---------- tracker: a simple step sequencer that plays existing sounds on a beat, like a tiny drum machine ----------
-// a track: { name, bpm, steps, rows: [{ sound, cells: [bool, …] }] }; saved the same way as sounds/looks (myStore -> live table)
+// a track: { name, bpm, steps, rows: [{ sound, cells: [cell, …] }] }; a cell is null (off) or a semitone offset
+// (0: on, at the sound's own pitch) — saved the same way as sounds/looks (myStore -> live table)
 const TRACK_STORE = 'stick2.tracks';
 const myTracks = (() => { try { return JSON.parse(localStorage.getItem(TRACK_STORE)) || {}; } catch { return {}; } })();
 function saveTracks() { try { localStorage.setItem(TRACK_STORE, JSON.stringify(myTracks)); } catch {} }
-function newRow(sound = Object.keys(SOUNDS)[0], steps = 16) { return { sound, cells: Array(steps).fill(false) }; }
+function newRow(sound = Object.keys(SOUNDS)[0], steps = 16) { return { sound, cells: Array(steps).fill(null) }; }
+// shift every frequency (noise filter and tone) by `semitones`, equal temperament — a sound's own detune (cents)
+// only moves the tone layer, so a real pitch change needs to scale both layers together
+function pitchedSound(s, semitones) {
+  if (!semitones) return s;
+  const r = 2 ** (semitones / 12);
+  return { ...s, nf0: s.nf0 * r, nf1: s.nf1 * r, tf0: s.tf0 * r, tf1: s.tf1 * r };
+}
 function saveTrack(name, t) { myTracks[name] = t; saveTracks(); }
 function deleteTrack(name) { delete myTracks[name]; if (tracker.name === name) stopTrack(); saveTracks(); }
 function renameTrack(from, to) { if (!myTracks[from] || to === from || myTracks[to]) return; myTracks[to] = myTracks[from]; delete myTracks[from];
@@ -21,7 +29,8 @@ function playTrack(name) {
   tracker.timer = setInterval(() => {
     const t = myTracks[tracker.name]; if (!t) return stopTrack();
     while (tracker.nextTime < c.currentTime + STEP_LOOKAHEAD) {
-      if (!muted()) for (const row of t.rows) if (row.cells[tracker.nextStep % t.steps] && SOUNDS[row.sound]) synthSound(c, tracker.nextTime, SOUNDS[row.sound], c.destination);
+      if (!muted()) for (const row of t.rows) { const pitch = row.cells[tracker.nextStep % t.steps];
+        if (pitch != null && SOUNDS[row.sound]) synthSound(c, tracker.nextTime, pitchedSound(SOUNDS[row.sound], pitch), c.destination); }
       tracker.nextTime += stepDur(t); tracker.nextStep++;
     }
   }, 25);

@@ -256,14 +256,29 @@ try {
     if (!name || myTracks[name].rows.length !== 1 || myTracks[name].rows[0].cells.length !== 16) errs.push('new track not created ' + JSON.stringify(myTracks[name]));
     const cells = () => [...document.querySelectorAll('.trk button.cell')];
     cells()[0].click(); cells()[2].click(); cells()[4].click(); cells()[6].click(); // grabbed once, each click redraws the rest: must still land on the right cell
-    if (myTracks[name].rows[0].cells.filter(Boolean).length !== 4 || [0, 2, 4, 6].some(i => !myTracks[name].rows[0].cells[i])) errs.push('tracker cells ' + JSON.stringify(myTracks[name].rows[0].cells));
+    if (myTracks[name].rows[0].cells.filter(v => v != null).length !== 4 || [0, 2, 4, 6].some(i => myTracks[name].rows[0].cells[i] == null)) errs.push('tracker cells ' + JSON.stringify(myTracks[name].rows[0].cells));
+    cells()[0].dispatchEvent(new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
+    if (myTracks[name].rows[0].cells[0] !== 1) errs.push('tracker pitch wheel ' + myTracks[name].rows[0].cells[0]);
     [...document.querySelectorAll('.mtable .bar')].flatMap(b => [...b.querySelectorAll('.seg button')]).find(b => b.textContent === '8').click();
     if (myTracks[name].steps !== 8 || myTracks[name].rows[0].cells.length !== 8) errs.push('tracker steps ' + JSON.stringify(myTracks[name]));
+    const rowBtn = ic => [...document.querySelectorAll('.trk button')].find(b => b.dataset.rich === ic);
+    rowBtn(':swap_horiz:').click(); // invert: the 4 on steps (incl. the pitched one) go off, the other 4 go on at pitch 0
+    if (myTracks[name].rows[0].cells.filter(v => v != null).length !== 4 || [0, 2, 4, 6].some(i => myTracks[name].rows[0].cells[i] != null)) errs.push('tracker invert ' + JSON.stringify(myTracks[name].rows[0].cells));
+    rowBtn(':select_all:').click(); // not all on yet: turns every step on
+    if (myTracks[name].rows[0].cells.some(v => v == null)) errs.push('tracker select all (on) ' + JSON.stringify(myTracks[name].rows[0].cells));
+    rowBtn(':select_all:').click(); // all on: turns every step off
+    if (myTracks[name].rows[0].cells.some(v => v != null)) errs.push('tracker select all (off) ' + JSON.stringify(myTracks[name].rows[0].cells));
+    rowBtn(':casino:').click();
+    if (myTracks[name].rows[0].cells.length !== 8 || myTracks[name].rows[0].cells.some(v => v !== null && typeof v !== 'number')) errs.push('tracker random ' + JSON.stringify(myTracks[name].rows[0].cells));
     [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('row')).click();
     if (myTracks[name].rows.length !== 2 || myTracks[name].rows[1].cells.length !== 8) errs.push('tracker add row ' + JSON.stringify(myTracks[name].rows));
-    [...document.querySelectorAll('.trk button')].find(b => b.dataset.rich === ':delete:').click();
+    rowBtn(':delete:').click();
     if (myTracks[name].rows.length !== 1) errs.push('tracker remove row ' + myTracks[name].rows.length);
-    deleteTrack(name); if (name in myTracks) errs.push('tracker delete ' + name);
+    if (![...document.querySelectorAll('.mtable table thead th')].some(th => th.textContent === 'bpm') || !document.querySelector('.mtable table tbody tr')) errs.push('tracks table missing');
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('duplicate')).click();
+    const dup = Object.keys(myTracks).find(n => n !== name);
+    if (!dup || myTracks[dup].rows.length !== myTracks[name].rows.length) errs.push('tracker duplicate ' + dup);
+    deleteTrack(dup); deleteTrack(name); if (name in myTracks || dup in myTracks) errs.push('tracker delete ' + name);
     setMode('fx'); panels(); }
   // the attack grid (experiment tab): a hovered cell's own save button keeps that attack (once, however often it is pressed), without breeding
   lab.kind = 'attacks'; setMode('experiment'); lab.hover = 4; labRender();
