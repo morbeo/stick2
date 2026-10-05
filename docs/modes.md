@@ -406,7 +406,7 @@ A recorded fight as a timeline of events and an event table. It opens the play f
 |---|---|
 | reel | **from play** takes the play fight again · **open** a replay file · **save** it |
 | types | show or hide each event type, in the timeline and the table · **all** |
-| movie | **+ shot**, the **preview** toggle, **export** (the side panel's **movie** section has the rest) |
+| movie | **+ shot**, the **preview** toggle, **export movie** (the side panel's **movie** section has the rest) |
 | panels | **events**: the table |
 
 The events are found by playing the replay once. Recording them changes nothing in the fight.
@@ -461,9 +461,9 @@ Click or drag to go to a moment; it snaps to events within 6 px (Alt: no snappin
 | camera | **+ cam**: zoom 1.25× to 3× on P1, P2 or both |
 | label | **+ label**: a caption over the picture |
 | change a span | drag it in the timeline's footage row, its ends to resize (hover tells which); in the side panel's footage section: type its start and length in seconds (in and out too), its settings, **[** / **]** start or end it at the playhead, − / + a quarter second shorter or longer, delete (Delete removes the selected one) |
-| preview | the eye toggle shows the footage in the view, or the plain fight |
+| preview footage | the eye toggle shows the footage in the view, or the plain fight |
 
-**export** renders the in–out range with its slow motion, camera and labels, drawn at the size you pick so it stays sharp: GIF or WebM, 15 / 30 / 50 fps, aspect (the arena's, 16:9, 4:3, 1:1, 9:16), width 320 to 1920 px, crop or letterbox, and what to show over it (health bars, labels, input display, frame meter). The popup shows the range, the length out and the size.
+**export footage** renders the in–out range with its slow motion, camera and labels, drawn at the size you pick so it stays sharp: GIF or WebM, 15 / 30 / 50 fps, aspect (the arena's, 16:9, 4:3, 1:1, 9:16), width 320 to 1920 px, crop or letterbox, and what to show over it (health bars, labels, input display, frame meter). The popup shows the range, the length out and the size.
 
 **Branches.** **branch → P1 / P2** takes you to play at the playhead's moment, playing that side live. The other side keeps its recorded inputs if it was a person, or goes on as the AI. Restart goes back to the fork. In play, **keep** brings the fight back as a branch of the reel and compares it; **drop** throws it away.
 
@@ -472,7 +472,7 @@ Click or drag to go to a moment; it snaps to events within 6 px (Alt: no snappin
 - Events only B has are amber outlines in the timeline; A's own get an amber underline. The table says "only in A / B", and the stats get a B table.
 - A branch's replay file plays back in sync. Taking over a side the AI played is saved in it, so the switch happens at the same frame.
 
-**Highlights.** The side panel's **highlights** lists the best moments, best first: combos of three hits or more, K.O.s, parries, counter hits, wall hits, throws, clashes. Each is a window from a little before to a little after; windows that overlap merge. The five best are picked; pick others with their score toggle, go to one with its button. **slow finish** slows each finishing blow to a quarter speed, **titles** shows each moment's name over its first second. **export** (or export → what: highlights) joins the picked moments in fight order, at the footage export's size and format. **make movie** adds the picked moments as movie shots (below), in fight order.
+**Highlights.** The side panel's **highlights** lists the best moments, best first: combos of three hits or more, K.O.s, parries, counter hits, wall hits, throws, clashes. Each is a window from a little before to a little after; windows that overlap merge. The five best are picked; pick others with their score toggle, go to one with its button. **slow finish** slows each finishing blow to a quarter speed, **titles** shows each moment's name over its first second. **export highlights** joins the picked moments in fight order, at the footage export's size and format. **make movie** adds the picked moments as movie shots (below), in fight order.
 
 **Movie.** Cut shots from any loaded reel — this one, a branch, or one imported just to pull shots from — into a sequence played one after another. A fresh reel starts with one shot: its footage in–out range (the whole fight, until trimmed).
 
@@ -489,7 +489,7 @@ Click or drag to go to a moment; it snaps to events within 6 px (Alt: no snappin
 | effects | the sparkle icon on a shot: **shake** (camera jitter), **vignette** (darkened edges), a colour **tint** (a swatch and how strong), **letterbox** bars, and a **caption** — shown throughout the shot, or **timed** to a window (**here** starts it at the playhead, while editing that shot's reel) |
 | duplicate / delete | the icons on a shot |
 | preview | **movie → preview** (the toolbar toggle) plays the shots in turn in place of this reel, with their transitions, freezes, speed and effects; off goes back to this reel's own timeline and transport |
-| export | **movie → export**: the shots and everything on them rendered one after another as one clip (size and format as in footage → export) |
+| export | **movie → export movie**: the shots and everything on them rendered one after another as one clip (size and format as in footage → export) |
 | save / open a project | the side panel's **save project** writes every loaded reel and the movie as one `.stick2-project.json` file; **open project** replaces them with one |
 
 A transition blends the previous shot's last frame into the new shot's first, frozen either side of it, for its own length; the new shot's own frames play once it ends. A reversed shot is rendered once, forward, then its pictures are shown back to front (a freeze on a reversed shot is skipped: its frame does not have a clean meaning once the order is flipped). Effects are drawn on a shot's own frames only, not over a freeze, a transition or a reversed shot's pictures.
@@ -505,7 +505,7 @@ A shot has no camera of its own: it plays with whatever **camera** footage spans
 | selection | what you picked and when; zoom to it, slow motion / camera / label / bookmark over it, delete selected inputs |
 | types | per event type: show or hide, how many, a strip of where they fall in the fight (click it to go there), previous / next |
 | footage, bookmarks, stats | the footage spans, the bookmarks, the stats per fighter |
-| movie | the shots, in order; add, reorder (drag), trim, change a shot's reel, duplicate, delete; import a reel, preview, export, save / open a project |
+| movie | the shots, in order; add, reorder (drag), trim, change a shot's reel, duplicate, delete; import a reel, preview, export movie, save / open a project |
 | reels | this reel, its branches and any imported for the movie: edit one, compare it with the one you edit, delete a branch or an imported reel |
 
 **Event table:** time and frame, type, who, event, details (target, damage, combo, height, span length). The filter is fuzzy, a column heading sorts, and a click on a row goes there. The row of the last event before the playhead is marked.
