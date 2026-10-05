@@ -136,6 +136,8 @@ Both replay buttons are in the menu bar, next to undo / redo.
 
 ## Grid
 
+![Characters, with speed, weight and health shown on each card](img/grid.png)
+
 A content manager: browse and search characters, moves, scenarios, sounds, looks and tracks as tiles — a thin layer over the actual editors, not a second place to edit them. Click a tile to open it where it's really edited (the character tab, animate, the fx tab's sounds/tracker views, or play for a scenario).
 
 - **cards** (toolbar) picks the collection; **cols** sets tiles per row. Both are remembered.

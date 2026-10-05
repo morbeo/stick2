@@ -12,9 +12,13 @@ This is an active, solo-built project and it needs feedback and testers. If you 
 
 **Fight.** You, the engine AI (four difficulty levels), a dummy or scripted scenarios; 12 characters with chains, motion specials, throws, counters, projectiles, weapons, juggles and ragdoll falls; 2D or 2.5D lanes; endless waves. A frame meter and input display for training. → [Fighting](docs/fighting.md)
 
-**Tune the feel.** Hundreds of settings (hit stop, shake, zoom, springs, gravity, knockback) with presets, and a grid that replays the same seeded fight side by side with one setting swept.
+**Tune the feel.** Hundreds of settings (hit stop, shake, zoom, springs, gravity, knockback) with presets, and an experiment tab that replays the same seeded fight side by side with one setting swept.
 
-![Grid: one fight, nine hit stop values](docs/img/grid.png)
+![Experiment: one fight, nine hit stop values](docs/img/experiment.png)
+
+**Browse everything.** The grid tab is a content manager: characters, moves, scenarios, sounds, looks and tracks as searchable tiles, with the variables you pick shown on each one; click a tile to open it where it's really edited. → [Modes: grid](docs/modes.md#grid)
+
+![Characters, with speed, weight and health shown on each card](docs/img/grid.png)
 
 **Animate moves.** Pose keyframes by dragging joints (IK), retime them on a timeline, and watch the move with springs and hit stop against a target in any state. A gallery loops every move, a move table edits them all at once, and a combo tree links them into chains. → [Editing](docs/editing.md)
 
