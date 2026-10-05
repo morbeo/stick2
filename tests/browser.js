@@ -674,10 +674,12 @@ try {
     if (!lab.meter || !JSON.parse(localStorage.getItem('stick2.layouts')).sets.default.tabs.play.show.meter) errs.push('meter saved');
     setDisplay('hud', false); setDisplay('labels', false); labRender(); setDisplay('hud', true); setDisplay('labels', true);
     layReset(); if (lab.meter) errs.push('reset clears overlays'); }
-  // playback/speed: regular toolbar groups (movable, hideable) on every tab, not a separate fixed bar; pause is icon-only and color-coded
+  // playback/speed: regular toolbar groups (movable, hideable) on every tab but fx (no live world there to play,
+  // pause or rewind), not a separate fixed bar; pause is icon-only and color-coded
   { setMode('play'); const part = (k, p) => $(k).querySelector('[data-part="' + p + '"]');
     if (!part('ctx', 'playback') || !part('ctx', 'speed') || !app.parts.ctx.includes('playback') || !app.parts.ctx.includes('speed')) errs.push('playback/speed are toolbar groups');
     setMode('animate'); if (!part('ctx', 'playback') || !part('ctx', 'speed')) errs.push('playback/speed on every tab'); setMode('play');
+    setMode('fx'); if (part('ctx', 'playback') || part('ctx', 'speed')) errs.push('playback/speed should not show on fx'); setMode('play');
     const pauseBtn = part('ctx', 'playback').querySelector('button[data-tip^="Pause or resume"]');
     if (!pauseBtn.classList.contains('ico') || !pauseBtn.classList.contains('playbtn') || /play|pause/.test(pauseBtn.textContent)) errs.push('pause not icon-only ' + pauseBtn.outerHTML);
     app.paused = true; syncAll(); if (!pauseBtn.classList.contains('on')) errs.push('pause not color-coded when paused');

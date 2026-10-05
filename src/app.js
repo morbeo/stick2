@@ -41,7 +41,8 @@ function panels() {
   const views = VIEWS[tabOf(app.mode)];
   app.shows = [];
   const ctx = layOrder('ctx', [...views ? [grp('view', 'What this tab shows', seg(views, () => app.mode, setMode, MODES, m => `:${MODE_ICONS[m]}: ${{ animate: 'editor' }[m] || m}`))] : [],
-    ...transportCtx(), ...mode().ctxBar()], el => el.dataset.part);
+    // fx (and its sounds/tracker/props/weapons views) has no live world to play, pause or rewind: skip the clutter
+    ...(tabOf(app.mode) === 'fx' ? [] : transportCtx()), ...mode().ctxBar()], el => el.dataset.part);
   $('side').classList.remove('searching');
   const side = layOrder('side', folds(mode().side().filter(Boolean), app.mode, mode().open || []), s => s.fname);
   app.parts = { ctx: [...new Set(ctx.map(el => el.dataset.part).filter(Boolean))], side: side.map(s => s.fname).filter(Boolean) };
