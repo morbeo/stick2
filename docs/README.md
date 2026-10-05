@@ -24,4 +24,4 @@ The full reference behind the [landing page](../README.md). The app has its own 
 
 ## Pictures
 
-The screenshots in [img/](img/) come from `node tools/screenshots.js`, and the animations (`anim-*.png`) from `node tools/animations.js`. Both use headless Chrome; rerun them after a visible change.
+The screenshots in [img/](img/) come from `node tools/screenshots.js`, and the animations (`anim-*.png`) from `node tools/animations.js`. Both use headless Chrome; rerun them after a visible change. `node tools/social.js` composites a few of those screenshots into `img/social.png`, the GitHub repo's social preview (Settings → General → Social preview) — rerun it after regenerating the shots it uses (play, animate, experiment, character, fx, gallery).

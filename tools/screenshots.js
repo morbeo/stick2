@@ -11,8 +11,6 @@ const SHOTS = {
   play: [`lab.scen = 'ai vs ai'; setMode('play'); lab.meter = true; build(); panels(); ${run(150)}`, [0, 400, 1100, 370]],
   // the itch.io cover image (630 × 500)
   cover: [`lab.scen = 'ai vs ai'; setMode('play'); lab.meter = true; build(); panels(); ${run(150)}`, [440, 268, 630, 500]],
-  // the GitHub repo's social preview image (1280 × 640, Settings → General → Social preview): theater mode, no UI chrome
-  social: [`lab.scen = 'ai vs ai'; setMode('play'); lab.meter = true; build(); panels(); setTheater(true); ${run(150)}`, [60, 160, 1280, 640]],
   animate: [`setMode('animate'); anim.move = 'roundhouse'; animMode.enter(); panels(); anim.t = 0.35; anim.playing = false; previewAt(anim.t); mode().render();`, [0, 80, 1100, 720]],
   character: [`setMode('character'); panels(); ${run(30)}`, [0, 80, 1400, 720]],
   gallery: [`setMode('gallery'); panels(); ${run(40)}`, [0, 80, 1100, 600]],
