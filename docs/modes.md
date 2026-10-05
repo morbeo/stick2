@@ -2,11 +2,12 @@
 
 [← docs index](README.md)
 
-The top bar has six tabs: **play**, **experiment**, **character**, **animate**, **fx** and **replay**. Some of them have more views inside (impact, gallery, tests, sounds, tracker), picked under **view** in the toolbar.
+The top bar has seven tabs: **play**, **grid**, **experiment**, **character**, **animate**, **fx** and **replay**. Some of them have more views inside (impact, gallery, tests, sounds, tracker), picked under **view** in the toolbar.
 
 | Tab | Views | What it's for |
 |---|---|---|
 | [play](#play) | fight · [impact](#impact) | fight, train, watch hit reactions |
+| [grid](#grid) | | browse and search characters, moves, scenarios, sounds, looks and tracks |
 | [experiment](#experiment) | | compare one fight across many settings, bred variations, or two settings side by side |
 | [character](#character) | | build a body |
 | [animate](#animate) | [gallery](#gallery) · [tests](#tests) | build moves, check them all |
@@ -132,6 +133,15 @@ Both replay buttons are in the menu bar, next to undo / redo.
 - Set what still shows — health bars (`hud`), frame meter, timer, labels — from the toggles in the **theater** group *before* switching it on: the toolbar (and these toggles with it) goes away along with everything else.
 - **body / top** picks where the health (and stun) bars draw: over each fighter's own head (the default), or together at the top of the screen, left-side fighters on the left and right-side on the right, growing inward — a classic versus-screen layout.
 - **timer** draws an elapsed match clock (mm:ss) in a corner, counting up from the round's start.
+
+## Grid
+
+A content manager: browse and search characters, moves, scenarios, sounds, looks and tracks as tiles — a thin layer over the actual editors, not a second place to edit them. Click a tile to open it where it's really edited (the character tab, animate, the fx tab's sounds/tracker views, or play for a scenario).
+
+- **cards** (toolbar) picks the collection; **cols** sets tiles per row. Both are remembered.
+- **characters** and **moves** (the current character's) can show chosen variables under each name — type into **add a variable…** for a fuzzy, ranked search over every documented stat (characters) or move property and frame-data column (moves); click a suggestion to add it, × on its chip to remove it. Nothing new to maintain: these are the same tables the stats panel, the radar graph and the move table already read from.
+- **scenarios**, **sounds**, **looks** and **tracks** are simpler — name, a built-in/custom badge (looks also get a live preview), no variable picker.
+- The search box filters by name and by any variable currently shown.
 
 ## Impact
 

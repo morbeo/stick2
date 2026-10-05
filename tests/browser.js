@@ -224,6 +224,28 @@ try {
     const mv = Object.keys(currentChar().moves)[0];
     cardsOf().find(c => c.textContent.startsWith(mv)).click();
     if (anim.move !== mv || app.mode !== 'animate') errs.push('grid move card click ' + anim.move + ' ' + app.mode);
+    // the 4 simpler collections: no field picker (nothing to pick), just count + click-through to where each is edited
+    setMode('grid'); panels();
+    const pick = col => { [...document.querySelectorAll('#ctx .seg button')].find(b => b.textContent === col).click(); };
+    pick('scenarios');
+    if (cardsOf().length !== Object.keys(SCENARIOS).length || !document.querySelector('#over input[placeholder="add a variable…"]')) errs.push('grid scenarios ' + cardsOf().length);
+    const scen = Object.keys(SCENARIOS).find(k => k !== lab.scen);
+    cardsOf().find(c => c.textContent.startsWith(scen)).click();
+    if (lab.scen !== scen || app.mode !== 'play') errs.push('grid scenario card click ' + lab.scen + ' ' + app.mode);
+    setMode('grid'); panels();
+    pick('sounds');
+    if (cardsOf().length !== Object.keys(SOUNDS).length || document.querySelector('#over input[placeholder="add a variable…"]')) errs.push('grid sounds ' + cardsOf().length);
+    cardsOf().find(c => c.textContent.startsWith('hit')).click();
+    if (soundSel !== 'hit' || app.mode !== 'sounds') errs.push('grid sound card click ' + soundSel + ' ' + app.mode);
+    setMode('grid'); panels();
+    pick('looks');
+    if (cardsOf().length !== Object.keys(FX_LOOKS).length || !cardsOf()[0].querySelector('canvas')) errs.push('grid looks ' + cardsOf().length);
+    cardsOf().find(c => c.textContent.startsWith('aura')).click();
+    if (fxState.sel !== 'aura' || !fxState.zoom || app.mode !== 'fx') errs.push('grid look card click ' + fxState.sel + ' ' + app.mode);
+    fxState.sel = null; fxState.zoom = false;
+    setMode('grid'); panels();
+    pick('tracks');
+    if (cardsOf().length !== Object.keys(myTracks).length) errs.push('grid tracks ' + cardsOf().length);
     setMode('play'); }
   // tracker view (fx tab): new track starts a 16-step row; cells toggle (even clicked out of order, each against the live state,
   // not a stale snapshot from before the last redraw), steps resizes every row's cells, rows add/remove, delete removes the track

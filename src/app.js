@@ -10,7 +10,7 @@ function setTheater(v) {
 }
 const MODES = {
   play: 'Fight in one arena. Pick who fights: you, the AI, scripted combos, crowds.',
-  grid: 'Browse and search characters or moves as tiles, each showing whichever variables you pick (an autocomplete over every documented stat and move property). Click a tile to open it where it\'s edited.',
+  grid: 'Browse and search characters, moves, scenarios, sounds, looks and tracks as tiles. For characters and moves, pick which variables show on each one (an autocomplete over every documented stat and move property). Click a tile to open it where it\'s edited.',
   experiment: 'Nine copies of one fight side by side, each with different settings (or a bred variation, or two settings compared). Click a cell to focus it.',
   gallery: 'Every move of the character looping, with its keyframe timeline and frame data, then every movement (walk, run, dash, jump, flip, guard, hit, knockdown, dizzy…) with its speed and height. Only the cells on screen run (scroll for more).',
   impact: 'Hit reactions and falls: standard hits on the character side by side; drag on a body to strike it anywhere.',

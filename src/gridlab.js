@@ -21,11 +21,33 @@ const charFields = () => [...CHAR_BASE_FIELDS, ...CHAR_STATS.map(s => ({ k: s.k,
 // the current character's own moves: every move-table column (TABLE_COLS, editor.js) is already a documented getter
 const moveFields = () => TABLE_COLS.filter(c => c.k !== 'name').map(c => ({ k: c.k, tip: c.tip, get: n => { const ch = currentChar(); return c.get(ch.moves[n], n, ch); } }));
 
+// a scenario's own few fields: its group (same grouping the picker popup uses), length, and each side's controller
+const scenGridFields = () => [
+  { k: 'group', tip: 'Which group it\'s listed under in the picker', get: k => scenGroup(k) },
+  { k: 'period', tip: 'Scripted length in seconds (it loops); 0 = free play, not scripted', get: k => SCENARIOS[k].period ?? 0 },
+  { k: 'a', tip: 'Fighter 1\'s controller', get: k => typeof SCENARIOS[k].a === 'string' ? SCENARIOS[k].a : 'script' },
+  { k: 'b', tip: 'Fighter 2\'s controller', get: k => typeof SCENARIOS[k].b === 'string' ? SCENARIOS[k].b : 'script' },
+];
+// a plain text card for collections with no live thumbnail (sounds, tracks): name, a badge line, click to open
+function simpleCard(name, badge, onClick, isOn) {
+  const b = h('button', { cls: 'card', onclick: onClick }, h('span', { textContent: name }), h('span', { cls: 'gfield', textContent: badge }));
+  reg(b, () => b.classList.toggle('on', isOn()));
+  return b;
+}
 const GRID_COLLECTIONS = {
   characters: { tip: 'Every built-in and custom character', items: () => Object.keys(DEFS), fields: charFields,
     card: k => gridCard(charCard(k, kk => { pickChar(kk); setMode('character'); }, kk => CURRENT === kk), k, charFields()) },
   moves: { tip: 'The current character\'s moves', items: () => Object.keys(currentChar().moves), fields: moveFields,
     card: n => gridCard(moveCard(n, `Open ${n} in the keyframe editor`, openMove), n, moveFields()) },
+  scenarios: { tip: 'Built-in and your own scenarios', items: () => Object.keys(SCENARIOS), fields: scenGridFields,
+    card: k => gridCard(simpleCard(k, k in BASE_SCENARIOS ? 'built-in' : 'yours', () => { lab.scen = k; setMode('play'); }, () => lab.scen === k), k, scenGridFields()) },
+  sounds: { tip: 'Every sound (built-in and custom)', items: () => Object.keys(SOUNDS), fields: () => [],
+    card: k => simpleCard(k, k in BASE_SOUNDS ? 'built-in' : 'custom', () => { soundSel = k; setMode('sounds'); }, () => soundSel === k) },
+  looks: { tip: 'Every fx look (built-in and custom)', items: () => Object.keys(FX_LOOKS), fields: () => [],
+    card: k => { const b = h('button', { cls: 'card', onclick: () => { fxState.sel = k; fxState.zoom = true; setMode('fx'); } }, fxCanvas(60, k), h('span', { textContent: k }));
+      reg(b, () => b.classList.toggle('on', fxState.sel === k)); return b; } },
+  tracks: { tip: 'Your tracker patterns', items: () => Object.keys(myTracks), fields: () => [],
+    card: k => simpleCard(k, `${myTracks[k].bpm} bpm · ${myTracks[k].steps} steps`, () => { trackSel = k; setMode('tracker'); }, () => trackSel === k) },
 };
 // appends the collection's chosen fields as small text lines under a card's name (charCard/moveCard both end in one
 // name <span>; appending more afterward is safe since their own reg() only ever touches the canvas and the .on class)
@@ -67,12 +89,13 @@ function gridPanel() {
   const fill = () => cardsWrap.replaceChildren(gridCards());
   const search = h('input', { cls: 'macro', value: gridState.filter, placeholder: 'search…', tip: 'Fuzzy filter by name or any shown variable\'s value',
     oninput: e => { gridState.filter = e.target.value; fill(); }, onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { search.value = gridState.filter = ''; fill(); } } });
-  wrap.append(h('div', { cls: 'bar' }, h('b', { textContent: gridState.collection }), search), gridFieldPicker(), cardsWrap);
+  const hasFields = GRID_COLLECTIONS[gridState.collection].fields().length > 0;
+  wrap.append(h('div', { cls: 'bar' }, h('b', { textContent: gridState.collection }), search), hasFields ? gridFieldPicker() : null, cardsWrap);
   fill();
   return wrap;
 }
 function gridCtx() {
-  return [grp('grid', 'Browse and search characters and moves; pick which variables show on each tile',
+  return [grp('grid', 'Browse and search characters, moves, scenarios, sounds, looks and tracks; pick which variables show on each tile',
     seg(Object.keys(GRID_COLLECTIONS), () => gridState.collection, v => { gridState.collection = v; gridState.filter = ''; saveGridStore(); panels(); }, mapVals(GRID_COLLECTIONS, c => c.tip)),
     slider('cols', { min: 2, max: 8, step: 1 }, () => gridState.cols, v => { gridState.cols = v; saveGridStore(); panels(); }, 'Tiles per row'))];
 }
