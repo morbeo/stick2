@@ -66,7 +66,11 @@ function saveScens() {
 saveScens();
 // ---------- embed: #embed=<slug|JSON> in the URL hash (src/docs.js readHash), for dropping the app in an <iframe> pre-loaded with a fight ----------
 const EMBED_SLUGS = { vsdummy: 'you vs dummy', vsai: 'you vs ai', vs2ai: 'you vs 2 ai', vs3dummies: 'you vs 3 dummies', waves: 'endless waves',
-  arai: 'random AI vs random AI', arp: 'random player vs random player', arpai: 'random player vs random AI' };
+  arai: 'random AI vs random AI', arp: 'random player vs random player', arpai: 'random player vs random AI',
+  // the same built-ins, hyphenated: easier to read in a URL, and a slug for everyone every existing one didn't cover
+  'player-vs-dummy': 'you vs dummy', 'player-vs-ai': 'you vs ai', 'player-vs-2ai': 'you vs 2 ai', 'player-vs-3dummies': 'you vs 3 dummies',
+  'ai-vs-dummy': 'ai vs dummy', 'ai-vs-ai': 'ai vs ai', 'ai-2v2': 'ai 2v2', 'ai-1v3': 'ai 1v3', 'ai-ffa': 'ai free-for-all',
+  'endless-waves': 'endless waves', 'ai-waves': 'ai vs waves', 'ai-survival': 'ai survival', 'godlike-vs-horde': 'godlike vs horde' };
 // scenarios a lone embedder could plausibly want at random: solo (you vs something), not a move test or an AI-only demo
 const EMBED_RANDOM_POOL = ['you vs dummy', 'you vs ai', 'you vs 2 ai', 'you vs 3 dummies', 'endless waves', 'survival'];
 // an embed is a passive demo for whoever's watching, not a real match: more of these (you vs 2 ai, 3 dummies, waves,

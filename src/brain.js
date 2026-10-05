@@ -280,6 +280,7 @@ const BASE_SCENARIOS = {
   'you vs 2 ai': { a: 'human', b: 'ai', bx: 520, more: [{ c: 'ai', x: 640, team: 1 }] },
   'you vs 3 dummies': { a: 'human', b: 'dummy', bx: 420, more: [{ c: 'dummy', x: 520, team: 1 }, { c: 'dummy', x: 160, team: 1 }] },
   'ai 2v2': { a: 'ai', b: 'ai', more: [{ c: 'ai', x: 200, team: 0 }, { c: 'ai', x: 600, team: 1 }] },
+  'ai 1v3': { a: 'ai', b: 'ai', bx: 520, more: [{ c: 'ai', x: 640, team: 1 }, { c: 'ai', x: 680, team: 1 }] },
   'ai free-for-all': { a: 'ai', b: 'ai', more: [{ c: 'ai', x: 150, team: 2 }, { c: 'ai', x: 650, team: 3 }] },
   // endless waves (Waves settings): enemies keep coming, wave after wave
   'endless waves': { a: 'human', b: 'ai', waves: true },
