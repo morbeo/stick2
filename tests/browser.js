@@ -397,7 +397,7 @@ try {
   // the menu bar's files: export / import character, settings or everything; settings round-trip, out-of-range values fall back to the default
   { setMode('play'); const top = t => [...document.querySelectorAll('#global button')].find(b => b.textContent.includes(t)), got = [], dl = download, of = openFile;
     top('export').click(); const menu = [...document.querySelectorAll('.pop button')].map(b => b.textContent).join(); closePop();
-    if (menu !== 'character,settings,everything,replay' || !top('import')) errs.push('file menu ' + menu);
+    if (menu !== 'character,copy,settings,copy,everything,copy,replay' || !top('import')) errs.push('file menu ' + menu);
     download = (n, d) => got.push(JSON.parse(JSON.stringify(d))); let feed; openFile = f => f(feed);
     setCfg({ hitstop: 0.12 }); exportFile('settings'); setCfg({ hitstop: DEFAULTS.hitstop }); feed = got[0]; importFile('settings');
     if (CFG.hitstop !== 0.12) errs.push('settings import ' + CFG.hitstop);
@@ -405,7 +405,7 @@ try {
     exportFile('everything'); if (got[1]?.format !== 'stick2.everything' || got[1].current !== CURRENT) errs.push('everything export');
     download = dl; openFile = of;
     top('import').click(); const imenu = [...document.querySelectorAll('.pop button')].map(b => b.textContent).join(); closePop();
-    if (imenu !== 'character,settings,everything,replay,compare…') errs.push('import menu ' + imenu);
+    if (imenu !== 'character,paste,settings,paste,everything,paste,replay,compare…') errs.push('import menu ' + imenu);
     // the replay group: a loaded file's own stop button is disabled until one is playing, not a toggle
     const stopBtn = () => [...document.querySelectorAll('#global button')].find(b => b.dataset.tip?.startsWith('Stop playing this replay'));
     if (!stopBtn().disabled) errs.push('stop replay should start disabled');

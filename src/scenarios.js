@@ -216,7 +216,9 @@ function scenBuilder() {
     }),
     button(':content_copy: copy', 'A new scenario starting from this one', newScen),
     button(':download: export', 'Download all my scenarios as a JSON file', () => { const a = h('a', { href: URL.createObjectURL(new Blob([exportScens()], { type: 'application/json' })), download: 'stick2-scenarios.json' }); a.click(); }),
+    button(':content_copy: copy all', 'Copy all my scenarios as JSON to the clipboard', () => navigator.clipboard?.writeText(exportScens()), 'mini'),
     button(':upload: import', 'Add scenarios from a JSON file (same names are replaced)', () => { const i = h('input', { type: 'file', accept: '.json', onchange: async () => importScens(await i.files[0].text()) }); i.click(); }),
+    button(':content_copy: paste all', 'Add scenarios from JSON on the clipboard (same names are replaced)', async () => { try { importScens(await navigator.clipboard.readText()); } catch {} }, 'mini'),
     button(':content_copy: embed link', 'Copy a link that embeds just this fight, pre-loaded (paste as an <iframe> src)', () => navigator.clipboard?.writeText(embedLink(curU()))),
     BASE_SCENARIOS[lab.scen]
       ? button(':undo: revert', 'Restore this scenario to its shipped values', () => { delete myStore[lab.scen]; saveScens(); build(); fill(); })

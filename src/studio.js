@@ -195,22 +195,13 @@ async function deleteChar() {
   delete DEFS[CURRENT]; delete CHARS[CURRENT];
   pickChar('stick');
 }
-function exportChar() {
-  const a = h('a', { href: URL.createObjectURL(new Blob([JSON.stringify(DEFS[CURRENT], null, 1)], { type: 'application/json' })), download: CURRENT + '.json' });
-  a.click(); URL.revokeObjectURL(a.href);
+function exportChar(clip) { (clip ? copyData : d => download(CURRENT + '.json', d))(DEFS[CURRENT]); }
+function importChar(clip) {
+  (clip ? pasteJSON : openFile)((def, name) => {
+    try { makeCharacter(def); addChar(def, name.replace(/\.json$/, '')); } catch (err) { notice('Not a character file', err.message); }
+  });
 }
-function importChar() {
-  const inp = h('input', { type: 'file', accept: '.json,application/json' });
-  inp.onchange = async () => {
-    try {
-      const def = JSON.parse(await inp.files[0].text());
-      makeCharacter(def); // throws on a broken file before it touches anything
-      addChar(def, inp.files[0].name.replace(/\.json$/, ''));
-    } catch (err) { notice('Not a character file', err.message); }
-  };
-  inp.click();
-}
-// ---------- files (the menu bar): export / import the character, the settings, or everything (edited characters, settings, my scenarios, keys) ----------
+// ---------- files (the menu bar): export / import the character, the settings, or everything (edited characters, settings, my scenarios, keys), to a file or the clipboard ----------
 const FILE_TIPS = { character: 'The character being edited: skeleton, poses, moves, binds',
   settings: 'Every setting changed from its default (debug views left out)',
   everything: 'Your edited and new characters, the settings, your scenarios and your keys and macros' };
@@ -218,10 +209,16 @@ function download(name, data) {
   const a = h('a', { href: URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' })), download: name });
   a.click(); URL.revokeObjectURL(a.href);
 }
+const copyData = data => navigator.clipboard?.writeText(JSON.stringify(data, null, 1));
 function openFile(f) {
   const inp = h('input', { type: 'file', accept: '.json,application/json' });
   inp.onchange = async () => { let d; try { d = JSON.parse(await inp.files[0].text()); } catch (err) { return notice('Not a JSON file', err.message); } f(d, inp.files[0].name); syncAll(); };
   inp.click();
+}
+async function pasteJSON(f) {
+  let text; try { text = await navigator.clipboard.readText(); } catch { return notice('Clipboard unavailable', 'Allow the browser to read the clipboard, or use a file instead'); }
+  let d; try { d = JSON.parse(text); } catch (err) { return notice('Not JSON', err.message); }
+  await f(d, 'clipboard'); syncAll();
 }
 const cfgData = () => Object.fromEntries(changedCfg().map(k => [k, CFG[k]]));
 // settings from a file over the defaults: known ones of the right type and in range only (the debug views stay)
@@ -229,14 +226,15 @@ function cfgFrom(o = {}) {
   const base = Object.keys(DEFAULTS).filter(k => !DISPLAY.includes(k)).map(k => [k, DEFAULTS[k]]);
   return Object.fromEntries([...base, ...Object.entries(o).filter(([k, v]) => cfgOk(k, v))]);
 }
-function exportFile(kind) {
-  if (kind === 'character') return exportChar();
-  if (kind === 'settings') return download('stick2-settings.json', { format: 'stick2.settings', cfg: cfgData() });
-  download('stick2-everything.json', { format: 'stick2.everything', chars: edited(), current: CURRENT, cfg: cfgData(), scenarios: myStore, keys: { map: keymap, macros } });
+function exportFile(kind, clip) {
+  if (kind === 'character') return exportChar(clip);
+  const put = clip ? copyData : d => download(`stick2-${kind}.json`, d);
+  if (kind === 'settings') return put({ format: 'stick2.settings', cfg: cfgData() });
+  put({ format: 'stick2.everything', chars: edited(), current: CURRENT, cfg: cfgData(), scenarios: myStore, keys: { map: keymap, macros } });
 }
-function importFile(kind) {
-  if (kind === 'character') return importChar();
-  openFile(async d => {
+function importFile(kind, clip) {
+  if (kind === 'character') return importChar(clip);
+  (clip ? pasteJSON : openFile)(async d => {
     if (d.format !== 'stick2.' + kind) return notice('Wrong file', `Not a${kind === 'everything' ? 'n everything' : ' settings'} file`);
     if (kind === 'settings') { setCfg(cfgFrom(d.cfg)); return mode().restart(); }
     if (!await askYes('Load everything in this file?', 'Characters with the same names, the settings, scenarios with the same names and your keys are replaced (⌘Z undoes only the settings).', ':restart_alt: replace')) return;
@@ -250,7 +248,10 @@ function importFile(kind) {
   });
 }
 const fileMenu = (verb, f, ...extra) => (e, b) => popup(b, h('b', { textContent: verb }),
-  h('div', { cls: 'bar col', onclick: closePop }, Object.entries(FILE_TIPS).map(([k, tip]) => button(k, `${verb} ${k}: ${tip}`, () => f(k))), ...extra));
+  h('div', { cls: 'bar col', onclick: closePop }, Object.entries(FILE_TIPS).map(([k, tip]) => h('div', { cls: 'bar' },
+    button(k, `${verb} ${k} ${verb === 'export' ? 'to' : 'from'} a file: ${tip}`, () => f(k)),
+    button(verb === 'export' ? 'copy' : 'paste', `${verb} ${k} ${verb === 'export' ? 'to' : 'from'} the clipboard: ${tip}`, () => f(k, true), 'mini'))),
+    ...extra));
 
 // a random character: the stick's skeleton with random proportions and thickness, maybe extra limbs, a stance preset;
 // its moves are retimed to its size (bigger = slower and harder)
