@@ -8,7 +8,8 @@ const snap = (name, text) => {
   assert.equal(text, fs.readFileSync(f, 'utf8'));
 };
 
-test('scenarios', () => snap('scenarios', run(`Object.keys(SCENARIOS).filter(n => SCENARIOS[n].a !== 'human').map(n => {
+// a scenario with a 'random' character slot is excluded: it picks a fresh one each time by design, so it can't be snapshotted
+test('scenarios', () => snap('scenarios', run(`Object.keys(SCENARIOS).filter(n => SCENARIOS[n].a !== 'human' && !SCENARIOS[n].chars?.includes('random')).map(n => {
   const w = new World(SCENARIOS[n], {}, 7); w.loop = false;
   for (let i = 0; i < 360 && !w.done; i++) w.advance(1/60, NOIN);
   return [n.padEnd(14), 'hits', w.hits, 'blocks', w.blocks, 'hp', w.a.hp.toFixed(1), w.b.hp.toFixed(1), 'x', w.a.x.toFixed(0), w.b.x.toFixed(0)].join(' ');
