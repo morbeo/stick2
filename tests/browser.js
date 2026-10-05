@@ -177,6 +177,11 @@ try {
     if (!document.querySelector('#over .fxgrid.bottom')) errs.push('fx grid default dock');
     document.querySelector('#over .fxgrid [data-tip="Dock left of the preview"]').click();
     if (!document.querySelector('#over .fxgrid.left') || fxState.gridDock !== 'left') errs.push('fx grid dock left');
+    if (!document.querySelector('#over .fxresize.left')) errs.push('fx grid resize handle missing');
+    // cell size (zoom): picking a bigger size resizes the canvases and the grid's own column tracks
+    [...document.querySelectorAll('#over .fxgrid button')].find(b => b.textContent === '90').click();
+    if (fxState.cellSize !== 90 || document.querySelector('#over .fxgrid canvas').width !== 90) errs.push('fx grid cell size ' + fxState.cellSize);
+    [...document.querySelectorAll('#over .fxgrid button')].find(b => b.textContent === '60').click();
     deleteLook(name); if (name in FX_LOOKS || Object.keys(FX_LOOKS).length !== before) errs.push('look delete ' + name + ' ' + Object.keys(FX_LOOKS).length);
     fxState.sel = null; fxState.zoom = false; fxState.gridDock = 'bottom'; fxState.part = 'segment'; panels(); }
   // tracker view (fx tab): new track starts a 16-step row; cells toggle (even clicked out of order, each against the live state,

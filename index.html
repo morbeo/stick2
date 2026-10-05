@@ -65,11 +65,16 @@
   .blowbar .sep { width: 1px; height: 14px; background: #cfc8bb; margin: 0 3px; }
   .pvbar { right: 8px; bottom: 36px; max-width: calc(42% - 16px); justify-content: flex-end; }
   .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.25); }
-  #over > .fxgrid { display: block; overflow: auto; background: #f3f0e8; padding: 8px; box-sizing: border-box; }
-  #over > .fxgrid.bottom { inset: auto 0 0 0; max-height: 42%; border-top: 1px solid #ccc; }
-  #over > .fxgrid.top { inset: 0 0 auto 0; max-height: 42%; border-bottom: 1px solid #ccc; }
-  #over > .fxgrid.left { inset: 0 auto 0 0; width: 42%; border-right: 1px solid #ccc; }
-  #over > .fxgrid.right { inset: 0 0 0 auto; width: 42%; border-left: 1px solid #ccc; }
+  #over > .fxgrid { display: block; overflow: auto; background: #f3f0e8; padding: 8px; box-sizing: border-box; } /* max-height/width set inline (fxState.gridSize), resized by .fxresize */
+  #over > .fxgrid.bottom { inset: auto 0 0 0; border-top: 1px solid #ccc; }
+  #over > .fxgrid.top { inset: 0 0 auto 0; border-bottom: 1px solid #ccc; }
+  #over > .fxgrid.left { inset: 0 auto 0 0; border-right: 1px solid #ccc; }
+  #over > .fxgrid.right { inset: 0 0 0 auto; border-left: 1px solid #ccc; }
+  .fxresize { position: absolute; z-index: 2; }
+  .fxresize.bottom { top: -4px; left: 0; right: 0; height: 7px; cursor: ns-resize; }
+  .fxresize.top { bottom: -4px; left: 0; right: 0; height: 7px; cursor: ns-resize; }
+  .fxresize.left { top: 0; bottom: 0; right: -4px; width: 7px; cursor: ew-resize; }
+  .fxresize.right { top: 0; bottom: 0; left: -4px; width: 7px; cursor: ew-resize; }
   .layhi { position: fixed; pointer-events: none; z-index: 20; border: 2px solid #c0392b; border-radius: 3px; background: rgba(192,57,43,0.06); }
   .layhi.hidden { border-style: dashed; background: none; }
   #side { grid-area: side; overflow: auto; border-left: 1px solid #ddd7cb; padding: 8px; box-sizing: border-box; }

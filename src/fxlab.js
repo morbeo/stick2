@@ -2,7 +2,7 @@
 // ---------- fx mode: a gallery of every look (built-ins + custom), a big zoomed preview, a tunable side panel
 // (sliders with per-variable and all-at-once randomize, colour/behind, revert/delete) and a two-variable experiment grid.
 // Pure drawing, like the looks themselves: nothing here is part of the simulation (mode().worlds() is empty) ----------
-const fxState = { sel: null, zoom: false, scroll: 0, char: 'self', part: 'segment', bg: '#f3f0e8', gx: null, gy: null, gridDock: 'bottom' };
+const fxState = { sel: null, zoom: false, scroll: 0, char: 'self', part: 'segment', bg: '#f3f0e8', gx: null, gy: null, gridDock: 'bottom', gridSize: 0.26, cellSize: 60 };
 const fxChar = () => fxState.char === 'self' ? currentChar() : (CHARS[fxState.char] || currentChar());
 // preview targets: a plain fixed segment (no character needed), the whole body, or one role's chains (only if the character has one)
 const fxParts = ch => ['segment', 'body', ...['arm', 'leg', 'head', 'tail', 'weapon'].filter(r => ch.chains[r]?.length)];
@@ -146,6 +146,23 @@ const fxAxisVals = opts => [0, 1 / 3, 2 / 3, 1].map(f => Math.round((opts.min + 
 const DOCK_ICONS = { bottom: 'arrow_downward', top: 'arrow_upward', left: 'arrow_back', right: 'arrow_forward' };
 // the experiment grid: a dockable panel over the stage (like the replay editor's events table, or the scenario builder),
 // next to the preview rather than buried in the scrolling side panel — only shown with a look open (fxState.sel, zoomed)
+const CELL_SIZES = [40, 60, 90, 130];
+// a drag handle on the panel's inner edge (the one next to the preview); mirrors $('grip')'s side-panel-width drag
+function fxResizeHandle(dock, panel, sizeProp) {
+  const grip = h('div', { cls: 'fxresize ' + dock, tip: 'Drag: resize this panel' });
+  grip.onpointerdown = e => {
+    e.preventDefault();
+    const r = canvas.getBoundingClientRect();
+    const calc = e => clamp(
+      dock === 'bottom' ? (r.bottom - e.clientY) / r.height : dock === 'top' ? (e.clientY - r.top) / r.height
+        : dock === 'left' ? (e.clientX - r.left) / r.width : (r.right - e.clientX) / r.width,
+      0.15, 0.7);
+    const move = e => { panel.style[sizeProp] = (calc(e) * 100) + '%'; };
+    const up = e => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); fxState.gridSize = calc(e); };
+    addEventListener('pointermove', move); addEventListener('pointerup', up);
+  };
+  return grip;
+}
 function fxGridPanel(name) {
   const fields = fxFields(name);
   if (!fields.some(([k]) => k === fxState.gx)) fxState.gx = fields[0][0];
@@ -153,15 +170,21 @@ function fxGridPanel(name) {
   const specOf = k => fields.find(([fk]) => fk === k)[1];
   const xs = fxAxisVals(specOf(fxState.gx)), ys = fxState.gy ? fxAxisVals(specOf(fxState.gy)) : [undefined];
   const cells = [];
-  for (const yv of ys) for (const xv of xs) cells.push(fxCanvas(60, name, fxState.gy ? { [fxState.gx]: xv, [fxState.gy]: yv } : { [fxState.gx]: xv }));
-  return h('div', { cls: 'fxgrid ' + fxState.gridDock },
+  for (const yv of ys) for (const xv of xs) cells.push(fxCanvas(fxState.cellSize, name, fxState.gy ? { [fxState.gx]: xv, [fxState.gy]: yv } : { [fxState.gx]: xv }));
+  const dock = fxState.gridDock, sizeProp = (dock === 'left' || dock === 'right') ? 'width' : 'maxHeight';
+  const panel = h('div', { cls: 'fxgrid ' + dock, style: `${sizeProp}:${fxState.gridSize * 100}%` },
     h('div', { cls: 'bar' }, h('b', { textContent: 'experiment' }),
-      seg(Object.keys(DOCK_ICONS), () => fxState.gridDock, v => { fxState.gridDock = v; panels(); },
+      seg(Object.keys(DOCK_ICONS), () => dock, v => { fxState.gridDock = v; panels(); },
         { bottom: 'Dock under the preview', top: 'Dock above the preview', left: 'Dock left of the preview', right: 'Dock right of the preview' },
         v => `:${DOCK_ICONS[v]}:`),
-      fxAxisButton('X', fields, () => fxState.gx, k => { fxState.gx = k; panels(); }), fxAxisButton('Y', fields, () => fxState.gy, k => { fxState.gy = k; panels(); })),
-    h('p', { cls: 'note', textContent: `columns (${fxState.gx}): ${xs.map(fmt).join(' · ')}` + (fxState.gy ? ` · rows (${fxState.gy}): ${ys.map(fmt).join(' · ')}` : '') }),
-    h('div', { cls: 'bar', style: `display:grid; grid-template-columns: repeat(${xs.length}, 60px); gap: 3px` }, ...cells));
+      ...rich(':zoom_in:'), seg(CELL_SIZES, () => fxState.cellSize, v => { fxState.cellSize = v; panels(); },
+        Object.fromEntries(CELL_SIZES.map(v => [v, `${v}px cells`])), String)),
+    h('div', { cls: 'bar' }, fxAxisButton('X', fields, () => fxState.gx, k => { fxState.gx = k; panels(); }), fxAxisButton('Y', fields, () => fxState.gy, k => { fxState.gy = k; panels(); })),
+    h('p', { cls: 'note', textContent: `columns (${fxState.gx}): ${xs.map(fmt).join(' · ')}` }),
+    fxState.gy ? h('p', { cls: 'note', textContent: `rows (${fxState.gy}): ${ys.map(fmt).join(' · ')}` }) : null,
+    h('div', { cls: 'bar', style: `display:grid; grid-template-columns: repeat(${xs.length}, ${fxState.cellSize}px); gap: 3px` }, ...cells));
+  panel.prepend(fxResizeHandle(dock, panel, sizeProp));
+  return panel;
 }
 function fxLookSide(name) {
   const built = name in BASE_BUILTIN;
