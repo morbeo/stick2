@@ -12,6 +12,22 @@ const CTLS = { you: 'human', AI: 'ai', dummy: 'dummy', script: 'script' };
 const CTL_TIPS = { you: 'You on the keyboard', AI: 'The engine AI', dummy: 'Stands still', script: 'Plays the script below, the same every loop' };
 // a script as macro text: waits with a dot (0.2, 1.0), inputs in word form, holds as 'hold up 0.2'
 const scriptText = a => a.map(i => typeof i === 'number' ? (Number.isInteger(i) ? i.toFixed(1) : String(i)) : i.hold ? `hold ${i.hold} ${i.t}` : i).join(', ');
+// a scripted scenario's own script, as replay bookmarks: one per action, at the frame it starts (for showcaseReplay)
+function scriptBookmarks(a) {
+  let f = 0; const marks = [];
+  for (const step of a) {
+    if (typeof step === 'number') f += step * 60;
+    else if (step?.hold) { marks.push({ f: Math.round(f), name: `hold ${step.hold}` }); f += step.t * 60; }
+    else marks.push({ f: Math.round(f), name: step.replace(/^!/, '').replace(/\+/g, ' + ') });
+  }
+  return marks;
+}
+// the current character performing the 'showcase' scenario, as a replay file with a bookmark at each of its beats
+function showcaseReplay() {
+  const w = new World(SCENARIOS.showcase, {}, 1); w.loop = false;
+  for (let i = 0, n = (SCENARIOS.showcase.period || 8) * 60; i < n; i++) w.advance(1 / 60, NOIN);
+  return { ...makeReplay(w, 'showcase'), marks: scriptBookmarks(SCENARIOS.showcase.a) };
+}
 function toScen(u) {
   const [p, q, ...rest] = u.p, ctl = f => f.ctl === 'script' ? parseMacro(f.script) : CTLS[f.ctl];
   const away = u.p.map(f => f.away);

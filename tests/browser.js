@@ -438,11 +438,12 @@ try {
     pickChar('hadoo'); lab.chars = ['hadoo', null]; build(); panels(); labRender();
     if (!rowsText().some(t => t.includes('kiBlast'))) errs.push('movelist not live on character switch ' + rowsText().slice(0, 3));
     pickChar('stick'); lab.chars = [null, null]; build(); }
+  const setImpact = () => { setMode('experiment'); lab.kind = 'impact'; build(); panels(); };
   // impact without an attacker: it is not drawn or framed, its blows land as before
-  { lab.solo = true; setMode('impact'); const w = lab.cells[0].w; for (let i = 0; i < 60; i++) w.advance(1/60, NOIN);
+  { lab.solo = true; setImpact(); const w = lab.cells[0].w; for (let i = 0; i < 60; i++) w.advance(1/60, NOIN);
     if (!w.a.hidden || !w.hits) errs.push('impact solo ' + [w.a.hidden, w.hits]); lab.solo = false; }
   // impact's ragdoll view: one body alone; a blow button (under the preview, not the toolbar) strikes it (a sweep knocks it down), stand up resets it
-  { setMode('impact'); const btn = t => [...document.querySelectorAll('#ctx button')].find(b => b.textContent.trim().endsWith(t));
+  { setImpact(); const btn = t => [...document.querySelectorAll('#ctx button')].find(b => b.textContent.trim().endsWith(t));
     const blow = t => [...document.querySelectorAll('.blowbar button')].find(b => b.textContent.trim().endsWith(t));
     btn('ragdoll').click(); if (document.querySelector('.blowbar.inpv')) errs.push('blow bar full width in lab');
     if (!paletteEntries().some(e => e.kind === 'tool' && e.name === 'sweep')) errs.push('blow bar not in palette');
@@ -477,10 +478,10 @@ try {
     labClick(r.x + r.w / 2, r.y + r.h / 2, {}); if (!sideMove() || anim.move !== 'sweep') errs.push('gallery move panel ' + anim.move);
     lab.zoom = false; setMode('tests'); isolate('kick|' + CURRENT + '|0'); if (!sideMove() || anim.move !== 'kick') errs.push('tests move panel ' + anim.move);
     isolate(null); anim.move = 'jab'; setMode('animate'); }
-  // seven tabs (play, grid, experiment, character, animate, fx, replay): impact is a view of experiment, gallery of animate, picked in the toolbar's view group
-  { setMode('impact'); const tabs = [...document.querySelectorAll('#modes button')], on = tabs.find(b => b.classList.contains('on'));
+  // seven tabs (play, grid, experiment, character, animate, fx, replay): gallery is a view of animate, impact a kind of experiment (not a view: no toolbar for one option)
+  { setImpact(); const tabs = [...document.querySelectorAll('#modes button')], on = tabs.find(b => b.classList.contains('on'));
     if (tabs.length !== 7 || !on?.textContent.includes('experiment')) errs.push('tabs ' + tabs.length + ' ' + on?.textContent);
-    [...document.querySelectorAll('#ctx button')].find(b => b.textContent.includes('experiment')).click(); if (app.mode !== 'experiment') errs.push('view experiment ' + app.mode);
+    if (document.querySelector('#ctx [data-tip="What this tab shows"]')) errs.push('view toolbar shown for a single-view tab');
     setMode('gallery'); tabs.find(b => b.textContent.includes('animate')).click(); if (app.mode !== 'gallery') errs.push('tab keeps its view ' + app.mode); }
   // combos: the table lists routes; + P on a route's end adds a link (the route gets longer), clicking that step and cut removes it; the tree shows starters
   { setMode('animate'); pickChar('stick'); studio.stance = 0; lay('animate').panel = 'combos'; combos.view = 'table'; panels();
@@ -675,12 +676,12 @@ try {
     if (document.body.classList.contains('noside') || Object.keys(laySet().tabs).some(t => Object.keys(lay(t).fold).length)) errs.push('layout reset all');
     layUse('mine'); layDelete(); if (layouts.current !== 'default' || layouts.sets.mine) errs.push('layout delete'); closePop();
     paletteEntries().find(e => e.name === 'layout: default')?.run(); if (layouts.current !== 'default') errs.push('layout in ⌘K');
-    layouts.fresh = true; ui.fold = { 'impact:presets': true, 'gallery:power': true }; layInit(); // folds saved before layouts move to their tab
-    if (lay('experiment').fold['impact:presets'] !== true || lay('animate').fold['gallery:power'] !== true || ui.fold) errs.push('layout migration'); layReset(); });
+    layouts.fresh = true; ui.fold = { 'sounds:presets': true, 'gallery:power': true }; layInit(); // folds saved before layouts move to their tab
+    if (lay('fx').fold['sounds:presets'] !== true || lay('animate').fold['gallery:power'] !== true || ui.fold) errs.push('layout migration'); layReset(); });
   // visibility: toolbar groups and side sections hide per tab (popup, heading ×, ⌘K); the overlays sit in one order, meter / inputs / colours kept per tab
   { setMode('play'); const part = (k, p) => $(k).querySelector('[data-part="' + p + '"]');
     layShow('ctx:scenario', false); if (part('ctx', 'scenario') || !app.parts.ctx.includes('scenario')) errs.push('hide toolbar group');
-    setMode('impact'); if (part('ctx', 'scenario')) errs.push('hidden group is per tab, not per view'); if (lay('experiment').hide['ctx:scenario']) errs.push('hidden group on another tab'); setMode('play');
+    setImpact(); if (part('ctx', 'scenario')) errs.push('hidden group is per tab, not per kind'); if (lay('experiment').hide['ctx:scenario']) errs.push('hidden group on another tab'); setMode('play');
     const sec = app.parts.side[0]; $('side').querySelector('.fold h3 .hidebtn').click();
     if ([...$('side').querySelectorAll('.fold')].some(f => f.fname === sec) || layShown('side:' + sec)) errs.push('heading hides its section');
     layoutPanel(null, $('global').querySelector('button[data-tip^="Layout:"]'));

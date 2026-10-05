@@ -13,7 +13,6 @@ const MODES = {
   grid: 'Browse and search characters, moves, scenarios, sounds, looks and tracks as tiles. For characters and moves, pick which variables show on each one (an autocomplete over every documented stat and move property). Click a tile to open it where it\'s edited.',
   experiment: 'Nine copies of one fight side by side, each with different settings (or a bred variation, or two settings compared). Click a cell to focus it.',
   gallery: 'Every move of the character looping, with its keyframe timeline and frame data, then every movement (walk, run, dash, jump, flip, guard, hit, knockdown, dizzy…) with its speed and height. Only the cells on screen run (scroll for more).',
-  impact: 'Hit reactions and falls: standard hits on the character side by side; drag on a body to strike it anywhere.',
   character: 'Build the fighter: drag joints, add limbs, tune bones. The preview fights with it live.',
   tests: 'Every move tried against every target: standing, crouching, guarding high and low, in the air, on the floor, dizzy; facing it or turned away; near and far; against the character itself or every one. Red cells did not do what they should (hover for why); click one to watch it and open it in animate to fix it. Your scenarios are played through too.',
   animate: 'Pose keyframes by dragging joints, retime them on the timeline, and watch the move with springs and hit stop.',
@@ -25,9 +24,10 @@ const MODES = {
   replay: 'A recorded fight (the play fight or a replay file) as a timeline of colour-coded events and an event table: filter by type, find a moment, go there.',
 };
 const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode, replay: replayMode, fx: fxMode, sounds: soundsMode, tracker: trackerMode, grid: gridMode, props: propsMode, weapons: weaponsMode })[app.mode] || labMode;
-// the top bar's tabs: impact is a view of experiment, gallery and tests views of animate, sounds and tracker of fx, picked first in their toolbar
-const VIEWS = { experiment: ['experiment', 'impact'], animate: ['animate', 'gallery', 'tests'], fx: ['fx', 'sounds', 'tracker', 'props', 'weapons'] };
-const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', experiment: 'science', gallery: 'animation', impact: 'crisis_alert', tests: 'fact_check', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', sounds: 'waves', tracker: 'view_module', replay: 'history', props: 'category', weapons: 'swords' };
+// the top bar's tabs: gallery and tests are views of animate, sounds/tracker/props/weapons of fx, picked first in their toolbar
+// (impact used to be a view of experiment; it is now one of its kinds, alongside sweep/breed/attacks/compare — see BREED_TIPS)
+const VIEWS = { animate: ['animate', 'gallery', 'tests'], fx: ['fx', 'sounds', 'tracker', 'props', 'weapons'] };
+const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', experiment: 'science', gallery: 'animation', tests: 'fact_check', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', sounds: 'waves', tracker: 'view_module', replay: 'history', props: 'category', weapons: 'swords' };
 const tabOf = m => Object.keys(VIEWS).find(t => VIEWS[t].includes(m)) || m;
 
 function setMode(m) {

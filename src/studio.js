@@ -203,14 +203,14 @@ function importChar(clip) {
 }
 // ---------- suggest a character for the roster: no server and no sign-in beyond the contributor's own GitHub account ----------
 // opens GitHub's own "new file" page, pre-filled; GitHub forks the repo for you and offers "Propose changes" there, which
-// opens a real PR. The JSON also goes to the clipboard first, since a big character can run into the URL's own length limit
-// (see CONTRIBUTING.md for what a maintainer does with a PR like this)
+// opens a real PR. The JSON also goes to the clipboard first, since the showcase replay makes this easy to run into the
+// URL's own length limit (see CONTRIBUTING.md for what a maintainer does with a PR like this)
 function suggestCharPR() {
-  const json = JSON.stringify(DEFS[CURRENT], null, 1), path = `contrib/characters/${CURRENT}.json`;
-  copyData(DEFS[CURRENT]);
-  const q = new URLSearchParams({ filename: path, value: json, message: CHAR_DEFS[CURRENT] ? `Suggest a change to ${CURRENT}` : `Suggest adding ${CURRENT} to the roster` });
+  const payload = { character: DEFS[CURRENT], showcase: showcaseReplay() }, path = `contrib/characters/${CURRENT}.json`;
+  copyData(payload);
+  const q = new URLSearchParams({ filename: path, value: JSON.stringify(payload, null, 1), message: CHAR_DEFS[CURRENT] ? `Suggest a change to ${CURRENT}` : `Suggest adding ${CURRENT} to the roster` });
   window.open(`https://github.com/morbeo/stick2/new/master?${q}`, '_blank');
-  notice('Suggestion opened on GitHub', `A new tab opened on GitHub with ${CURRENT}'s JSON pre-filled at ${path} (it's also on your clipboard now — paste with Ctrl/Cmd+V if the box looks empty or cut off).\n\nSign in if it asks: GitHub forks stick2 for you automatically. Then scroll down, click "Propose new file", and "Create pull request".`);
+  notice('Suggestion opened on GitHub', `A new tab opened on GitHub with ${CURRENT}'s JSON (and a showcase replay, bookmarked at each move) pre-filled at ${path} — paste it from your clipboard instead if the box looks empty or cut off, which it probably will: this is bigger than plain character JSON.\n\nSign in if it asks: GitHub forks stick2 for you automatically. Then scroll down, click "Propose new file", and "Create pull request".`);
 }
 // ---------- files (the menu bar): export / import the character, the settings, or everything (edited characters, settings, my scenarios, keys), to a file or the clipboard ----------
 const FILE_TIPS = { character: 'The character being edited: skeleton, poses, moves, binds',

@@ -18,6 +18,7 @@ const BREED_TIPS = {
   breed: 'Cells get random values of the variables you pick, around a parent. Click the best cell to breed around it.',
   attacks: 'Nine random attacks for the current character. Click one to breed variations of it, then save it or open it in animate.',
   compare: 'Two cells: the same fight with the settings A and with B (the current ones, a preset or a file); the compare panel lists what differs. Click a cell to use its settings.',
+  impact: 'Nine scripted hits on the current character, or one body alone (ragdoll) to strike yourself: low, mid, high… with the buttons, or drag on it.',
 };
 
 // numbers move by their level (see levels) × spread × their range; options and switches change with probability 2 × spread
