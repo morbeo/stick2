@@ -49,11 +49,8 @@ window.renderLogo = async (w, h, { fg = '#f3f0e8' } = {}) => {
   return c.toDataURL('image/png');
 };
 
-// a promo image: one replay frame (frames.js, the app's own draw code), a bottom gradient band, the wordmark over it
-window.renderPromo = async (r, frame, w, h, opts = {}) => {
-  await ready();
-  const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
-  drawFrames(r, [frame], w, h, opts, () => x);
+// the wordmark over a bottom gradient band, for a promo image meant to be shared with its own caption/title elsewhere
+function wordmarkBand(x, w, h) {
   const bandH = h * 0.22, grad = x.createLinearGradient(0, h - bandH, 0, h);
   grad.addColorStop(0, 'rgba(20,16,10,0)'); grad.addColorStop(1, 'rgba(20,16,10,0.72)');
   x.fillStyle = grad; x.fillRect(0, h - bandH, w, bandH);
@@ -62,6 +59,34 @@ window.renderPromo = async (r, frame, w, h, opts = {}) => {
   x.font = `${mh}px Icons`; x.fillText(markText, pad, baseline);
   const markW = x.measureText(markText).width;
   x.font = `bold ${mh}px ui-monospace, Menlo, monospace`; x.fillText('stick2', pad + markW + w * 0.012, baseline);
+}
+
+// a promo image: one replay frame (frames.js, the app's own draw code), a bottom gradient band, the wordmark over it
+window.renderPromo = async (r, frame, w, h, opts = {}) => {
+  await ready();
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
+  drawFrames(r, [frame], w, h, opts, () => x);
+  wordmarkBand(x, w, h);
+  return c.toDataURL('image/png');
+};
+
+// an atmosphere image: the same replay frame, blurred and darkened into something to sit behind other content rather
+// than be looked at directly — itch.io's page background and embed background both want this, not a sharp action shot
+window.renderScene = async (r, frame, w, h, opts = {}) => {
+  await ready();
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
+  drawFrames(r, [frame], w, h, opts, () => x);
+  if (opts.blur) {
+    const c2 = document.createElement('canvas'); c2.width = w; c2.height = h; const x2 = c2.getContext('2d');
+    x2.filter = `blur(${opts.blur}px)`; x2.drawImage(c, 0, 0);
+    x.clearRect(0, 0, w, h); x.drawImage(c2, 0, 0);
+  }
+  if (opts.darken) { x.fillStyle = `rgba(20,16,10,${opts.darken})`; x.fillRect(0, 0, w, h); }
+  if (opts.vignette) {
+    const g = x.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.25, w / 2, h / 2, Math.max(w, h) * 0.8);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(10,8,5,${opts.vignette})`);
+    x.fillStyle = g; x.fillRect(0, 0, w, h);
+  }
   return c.toDataURL('image/png');
 };
 </script>

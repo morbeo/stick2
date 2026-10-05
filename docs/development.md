@@ -24,7 +24,7 @@ How the code is laid out, and the tools that build its generated files.
 | `node tools/mcp.js [--serve PORT]` | the MCP server (`npm run mcp`): fights, settings, characters, scenarios, sounds, fx looks, the tracker, replays and pictures over MCP; `--serve` also serves the app for the live bridge (see [MCP server](mcp.md)) |
 | `npm run itch` | packs `dist/stick2-itch.zip` for itch.io: `index.html`, `docs.html`, `src/`, `fonts/` and `LICENSE` (see [Publishing on itch.io](#publishing-on-itchio)) |
 | `npm run itch:push` | runs the tests, packs the zip and uploads it with butler to `morbeo/stick2:html`, versioned by the commit (refuses uncommitted changes) |
-| `npm run itch:assets` | writes a favicon, a social image, a cover and a logo to `out/itch/`, drawn from the app's own code (see [Publishing on itch.io](#publishing-on-itchio)) |
+| `npm run itch:assets` | writes a cover, banner, page/embed backgrounds, a favicon and a logo to `out/itch/`, drawn from the app's own code (see [Publishing on itch.io](#publishing-on-itchio)) |
 | `python tools/icons.py MaterialSymbolsOutlined.ttf` | rebuilds the icon font subset (needs fonttools + brotli) |
 
 Rerun the screenshots and animations after a visible change. Both find Chrome on their own; `CHROME=/path/to/chrome` overrides it.
@@ -48,7 +48,16 @@ The only asset is `fonts/icons.woff2`, a subset of [Material Symbols](https://gi
    - leave mobile friendly off.
 4. To publish a new version, commit and run `npm run itch:push`. It runs the tests, packs the zip and uploads it with [butler](https://itch.io/docs/butler/) to the `html` channel of `morbeo/stick2`, labelled with the commit. Set up butler once with `butler login`. Uploads after the first keep the "played in the browser" setting. `butler status morbeo/stick2` shows the live version.
    - **If the live page shows a stale build** after `butler status` confirms the new one processed: check the project's edit page for more than one uploaded file marked "This file will be played in the browser" (e.g. an old manually-uploaded file alongside the one butler manages) — itch can serve the wrong one when two are flagged. Only the current upload should have it checked.
-5. **Promotional images** (all optional on itch.io): `npm run itch:assets` writes a favicon, a social media image, a 21:9 wide cover and a transparent horizontal logo to `out/itch/` — drawn from the app's own rendering code and icon font (`tools/itch-assets.js`, `tools/itch-render.html`), not external files or an image editor. It records a short AI-vs-AI fight and picks the frame where the camera shake peaks for the social image and cover; re-run it for a different moment.
+5. **Promotional images** (all optional on itch.io): `npm run itch:assets` writes the images below to `out/itch/` — drawn from the app's own rendering code and icon font (`tools/itch-assets.js`, `tools/itch-render.html`), not external files or an image editor. It records a couple of short AI free-for-alls and picks the frame where the camera shake peaks; re-run it for different moments.
+
+   | File | Use |
+   |---|---|
+   | `social.png` (1200×630) | general social-media sharing (not an itch.io upload) |
+   | `cover-wide.png` (2100×900, 21:9) | the game's **Cover image** |
+   | `banner.png` (1600×500) | a wide crop for sharing elsewhere (forum posts, a profile header…); a different matchup than the cover, so it isn't just the same picture again |
+   | `background.png` (1920×1080) | the page's **Edit theme → Background image**; blurred and darkened to sit behind page content, not be looked at directly |
+   | `embed-bg.png` (1920×1080) | **Embed options**' background image, shown around the game's 1400×800 viewport on wider screens |
+   | `favicon.png`, `logo.png` | the tab icon mark, and a transparent horizontal wordmark for promo modules |
 
 Notes for the itch.io page:
 - The game runs in an iframe, so the player clicks it before keys work. In fullscreen, the browser may take Esc.

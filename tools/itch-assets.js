@@ -7,13 +7,13 @@ const PAGE = url.pathToFileURL(path.join(__dirname, 'itch-render.html')).href;
 
 // a free-for-all between four of the roster's own characters (not just two stick recolours), recorded as a replay;
 // picks the frame with the best mix of high trauma (camera shake: a real hit, not just movement) and all four
-// fighters actually close together (a wide spread makes a messy, empty-feeling composition) - seed 2 is hand-picked
+// fighters actually close together (a wide spread makes a messy, empty-feeling composition) - the seed is hand-picked
 // from a handful tried for landing a tight, early clash; the shot's zoom/x centres the camera on that cluster, since
 // the full arena (tried first) leaves most of the frame as empty sky above the action
-function dramaticMoment() {
+function dramaticMoment(chars, seed) {
   const { run } = engine();
   return JSON.parse(run(`JSON.stringify((() => {
-    const w = new World({ ...SCENARIOS['ai free-for-all'], chars: ['hadoo', 'grumbo', 'sneeko', 'gloomo'] }, {}, 2); w.loop = false;
+    const w = new World({ ...SCENARIOS['ai free-for-all'], chars: ${JSON.stringify(chars)} }, {}, ${seed}); w.loop = false;
     let best = null;
     for (let i = 0; i < 600 && !w.done; i++) {
       w.advance(1 / 60, NOIN);
@@ -34,7 +34,7 @@ function writePng(dataUrl, file) {
   const p = await chrome.launch(PAGE);
   try {
     for (let i = 0; i < 100 && !(await p.js('typeof renderPromo === "function"')); i++) await new Promise(r => setTimeout(r, 50));
-    const { replay, frame, x } = dramaticMoment();
+    const { replay, frame, x } = dramaticMoment(['hadoo', 'grumbo', 'sneeko', 'gloomo'], 2);
     const rep = JSON.stringify(replay);
     // hud off: with four fighters clustered this close, their health bars and hit/counter callouts collide and
     // overlap illegibly - a clean action pose reads better as a poster than a cluttered one anyway
@@ -43,6 +43,19 @@ function writePng(dataUrl, file) {
     writePng(await p.js(`renderPromo(${rep}, ${frame}, 1200, 630, ${shot})`), path.join(OUT, 'social.png'));
     // wide cover: itch.io asks for 21:9
     writePng(await p.js(`renderPromo(${rep}, ${frame}, 2100, 900, ${shot})`), path.join(OUT, 'cover-wide.png'));
+    // banner: a wide, shareable crop (forum posts, a profile header…) with a different matchup than the cover/social
+    // shot above, so anyone seeing both doesn't just get the same picture cropped differently
+    const bannerMoment = dramaticMoment(['centaur', 'tako', 'houndo', 'hicco'], 2);
+    const bannerShot = `{ zoom: 2.2, x: ${bannerMoment.x}, hud: false }`;
+    writePng(await p.js(`renderPromo(${JSON.stringify(bannerMoment.replay)}, ${bannerMoment.frame}, 1600, 500, ${bannerShot})`), path.join(OUT, 'banner.png'));
+    // background: itch.io's page-theme background (Edit theme → Background image) sits behind the whole page, so it
+    // needs to read as atmosphere, not a picture to look at - the same cluster centred (full arena left it a tiny,
+    // off-centre blob in an empty frame), blurred, darkened and vignetted at the edges
+    writePng(await p.js(`renderScene(${rep}, ${frame}, 1920, 1080, { zoom: 1.6, x: ${x}, hud: false, blur: 14, darken: 0.5, vignette: 0.4 })`), path.join(OUT, 'background.png'));
+    // embed background: itch.io's embed options can show an image around the game's iframe (viewport is 1400x800,
+    // see docs/development.md) on screens wider than that - same source fight as the background above for a
+    // consistent look, cropped tighter and lighter-touch so it frames the game rather than competing with it
+    writePng(await p.js(`renderScene(${rep}, ${frame}, 1920, 1080, { zoom: 1.4, x: ${x}, hud: false, blur: 6, darken: 0.35, vignette: 0.25 })`), path.join(OUT, 'embed-bg.png'));
     // favicon: square, the same mark the app's own tab icon uses (src/ui.js)
     writePng(await p.js('renderMark(512)'), path.join(OUT, 'favicon.png'));
     // logo: transparent, horizontal, legible on light or dark (itch.io overlays it on promo modules)
