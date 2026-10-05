@@ -116,6 +116,24 @@ test('the scenario builder can recreate every built-in scenario: fromScen/toScen
   assert.deepEqual(bad, []);
 });
 
+test('props and weapons: every shape is well-formed and draws without NaN or throwing', () => {
+  assert.deepEqual(problems(`
+    const check = (kind, name, shapes, vars) => {
+      if (!shapes || !shapes.length) { bad.push(kind + ' ' + name + ': no shapes'); return; }
+      for (const s of shapes) {
+        if (!SHAPE_KINDS.includes(s.kind)) bad.push(kind + ' ' + name + ': unknown shape kind ' + s.kind);
+        if (s.kind === 'polygon' && (!s.pts || s.pts.length < 3)) bad.push(kind + ' ' + name + ': polygon needs 3+ points');
+      }
+      let nan = false;
+      const ctx = new Proxy({}, { get: () => (...a) => { for (const v of a) if (typeof v === 'number' && !isFinite(v)) nan = true; } });
+      try { drawShapes(ctx, shapes, (x, y) => [x, y], c => c || '#888', vars); } catch (e) { bad.push(kind + ' ' + name + ': threw ' + e.message); }
+      if (nan) bad.push(kind + ' ' + name + ': NaN while drawing');
+    };
+    for (const [name, p] of Object.entries(BASE_PROPS)) { if (!p.tip) bad.push('prop ' + name + ': no tooltip'); check('prop', name, p.shapes, { sway: 1 }); }
+    for (const [name, w] of Object.entries(BASE_WEAPONS)) { if (!w.tip) bad.push('weapon ' + name + ': no tooltip'); check('weapon', name, w.shapes, { len: w.len }); }
+  `), []);
+});
+
 test('stances and binds: every bound input names a move the character has; stance keys are real inputs', () => {
   assert.deepEqual(problems(`
     for (const [n, ch] of Object.entries(CHARS)) for (const s of ch.stances) {

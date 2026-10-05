@@ -1134,6 +1134,16 @@ test('props (PROPS, scen.props): a crate breaks after enough hits, a reed only b
     for (let i = 0; i < 60; i++) { w.advance(1/60, NOIN); const it = w.items.find(x => x.live); if (it && it.vx < 0) reflected = true; }
     return { reflected }; })()`);
   assert.ok(bouncy.reflected, 'a bouncy prop reverses a thrown weapon instead of letting it land or pass through');
+
+  // moveable and breakable are independent flags now (not one-of-three archetypes): a prop can be both at once
+  const both = run(`(() => { PROPS.sign = { size: 10, h: 90, moveable: true, breakable: true, hp: 10, shapes: [{ kind: 'line', x1: 0, y1: 0, x2: 0, y2: -40, w: 4, col: '#888', sway: 20 }] };
+    const w = new World({ a: 'human', b: 'dummy', ax: 330, bx: 500, props: [{ type: 'sign', x: 372 }] }, {}, 7);
+    w.loop = false; const hp0 = w.props[0].hp; let bent = false, droppedHp = false;
+    for (let i = 0; i < 150 && w.props.length; i++) { w.advance(1/60, { ...NOIN, punch: i % 15 === 2 });
+      if (w.props[0]) { if (w.props[0].bendT > 0) bent = true; if (w.props[0].hp < hp0) droppedHp = true; } }
+    return { bent, droppedHp, destroyed: w.props.length === 0 }; })()`);
+  assert.ok(both.bent, 'moveable still sways even when the prop is also breakable');
+  assert.ok(both.droppedHp && both.destroyed, 'breakable still takes damage and breaks even when the prop is also moveable');
 });
 
 test('samplePose (movement layers: dash/backDash/airDash/wallJump/run) never NaNs a character with bones the layer\'s ref doesn\'t know about', () => {

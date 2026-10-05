@@ -124,6 +124,44 @@ try {
       if (data && [...data].some(v => !Number.isFinite(v))) errs.push('renderSound non-finite');
       resetSound('hit'); }
     setMode('fx'); panels(); });
+  // props and weapons views (fx tab): same built-in/custom, revert/delete pattern as sounds, plus a shared shape-list
+  // editor (add/remove a line, circle, box or polygon; tune its fields) — this is what crate/reed/spring and the 8
+  // built-in weapons are drawn from now, so editing one's fields (and reverting) must round-trip through PROPS/WEAPONS
+  { setMode('props'); panels();
+    const cards = () => [...document.querySelectorAll('.cards .card')], tog = t => [...document.querySelectorAll('.mtable button.tog')].find(b => b.textContent.includes(t));
+    if (cards().length !== Object.keys(PROPS).length) errs.push('props gallery ' + cards().length);
+    cards().find(c => c.textContent.startsWith('crate')).click();
+    if (!document.querySelector('.shaperow')) errs.push('crate has no shapes shown');
+    if (!tog('breakable')?.classList.contains('on') || tog('moveable')?.classList.contains('on')) errs.push('crate flags ' + tog('breakable')?.className + ' ' + tog('moveable')?.className);
+    tog('moveable').click(); // breakable and moveable are independent now
+    if (!PROPS.crate.moveable || !('crate' in myProps)) errs.push('crate moveable toggle ' + JSON.stringify(PROPS.crate));
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('revert')).click();
+    if (PROPS.crate.moveable || 'crate' in myProps) errs.push('crate revert ' + JSON.stringify(PROPS.crate));
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('new prop')).click();
+    const pname = Object.keys(myProps).find(n => n.startsWith('crate') && n !== 'crate');
+    if (!pname || !(pname in PROPS) || PROPS[pname].shapes === PROPS.crate.shapes) errs.push('new prop not created, or shares shapes with crate ' + pname);
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('line')).click(); // + line
+    if (PROPS[pname].shapes.length !== 2) errs.push('add shape ' + PROPS[pname].shapes.length);
+    const sizeInput = document.querySelector('.mtable input[type=number]'); sizeInput.value = 99; sizeInput.dispatchEvent(new Event('change'));
+    if (PROPS[pname].size !== 99) errs.push('prop field edit ' + PROPS[pname].size);
+    [...document.querySelectorAll('.mtable button')].find(b => b.dataset.tip === 'Remove this shape').click();
+    if (PROPS[pname].shapes.length !== 1) errs.push('remove shape ' + PROPS[pname].shapes.length);
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('delete')).click();
+    if (pname in PROPS || pname in myProps) errs.push('prop delete ' + pname);
+    setMode('weapons'); panels();
+    if (cards().length !== Object.keys(WEAPONS).length) errs.push('weapons gallery ' + cards().length);
+    cards().find(c => c.textContent.startsWith('sword')).click();
+    const lenBase = BASE_WEAPONS.sword.len, lenInput = document.querySelector('.mtable input[type=number]');
+    lenInput.value = lenBase + 10; lenInput.dispatchEvent(new Event('change'));
+    if (WEAPONS.sword.len !== lenBase + 10 || !('sword' in myWeapons)) errs.push('weapon field edit ' + JSON.stringify(WEAPONS.sword));
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('revert')).click();
+    if (WEAPONS.sword.len !== lenBase || 'sword' in myWeapons) errs.push('weapon revert ' + JSON.stringify(WEAPONS.sword));
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('new weapon')).click();
+    const wname = Object.keys(myWeapons).find(n => n.startsWith('sword') && n !== 'sword');
+    if (!wname || !(wname in WEAPONS) || WEAPONS[wname].shapes === WEAPONS.sword.shapes) errs.push('new weapon not created, or shares shapes with sword ' + wname);
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('delete')).click();
+    if (wname in WEAPONS || wname in myWeapons) errs.push('weapon delete ' + wname);
+    setMode('fx'); panels(); }
   // fx tab: a gallery tile for every look; clicking one opens + zooms it; a built-in (hand-coded) is directly tunable
   // too (revert undoes it); new look makes a wholly custom generic-particle one, a slider edits it live, delete removes
   // it from FX_LOOKS/FX_DRAW; the experiment grid's Y axis crosses a second variable in, 4×4 cells instead of 4

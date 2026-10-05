@@ -82,7 +82,7 @@ function propsPanel() {
   const wrap = h('div', { cls: 'mtable' }), body = h('div');
   const fill = () => {
     if (propSel && !PROPS[propSel]) propSel = null;
-    const row = n => h('div', { cls: 'bar' + (propSel === n ? ' on' : ''), onclick: () => { propSel = n; fill(); } },
+    const row = n => h('button', { cls: 'card' + (propSel === n ? ' on' : ''), onclick: () => { propSel = n; fill(); } },
       propCanvas(n), h('span', { textContent: n }), h('span', { cls: 'gbadge', textContent: n in BASE_PROPS ? 'built-in' : 'custom' }));
     body.replaceChildren(h('div', { cls: 'cards' }, Object.keys(PROPS).map(row)), h('h4', { textContent: propSel || 'pick a prop' }),
       propSel ? propFields(propSel, fill) : h('p', { cls: 'note', textContent: 'click a prop above to tune it, or make a new one' }));
@@ -121,7 +121,7 @@ function weaponsPanel() {
   const wrap = h('div', { cls: 'mtable' }), body = h('div');
   const fill = () => {
     if (weaponSel && !WEAPONS[weaponSel]) weaponSel = null;
-    const row = n => h('div', { cls: 'bar' + (weaponSel === n ? ' on' : ''), onclick: () => { weaponSel = n; fill(); } },
+    const row = n => h('button', { cls: 'card' + (weaponSel === n ? ' on' : ''), onclick: () => { weaponSel = n; fill(); } },
       weaponCanvas(n), h('span', { textContent: n }), h('span', { cls: 'gbadge', textContent: n in BASE_WEAPONS ? 'built-in' : 'custom' }));
     body.replaceChildren(h('div', { cls: 'cards' }, Object.keys(WEAPONS).map(row)), h('h4', { textContent: weaponSel || 'pick a weapon' }),
       weaponSel ? weaponFields(weaponSel, fill) : h('p', { cls: 'note', textContent: 'click a weapon above to tune it, or make a new one' }));
