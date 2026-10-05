@@ -40,12 +40,30 @@ function fromScen(s, chars) {
     props: (s.props || []).map(p => ({ type: p.type, x: p.x })), items: (s.items || []).map(it => ({ type: it.type, x: it.x })),
     mode: s.waves ? 'waves' : s.survival ? 'survival' : 'normal', period: s.period || 0, cfg: { ...s.cfg } };
 }
+// a name/slug never saves to myStore or localStorage: it's for the page it's embedded on, not "my scenarios" in this browser
+const EMBED_KEY = '__embed__';
 function saveScens() {
-  for (const k of Object.keys(SCENARIOS)) if (!myStore[k]) { if (BASE_SCENARIOS[k]) SCENARIOS[k] = BASE_SCENARIOS[k]; else if (SCENARIOS[k].user) delete SCENARIOS[k]; }
+  for (const k of Object.keys(SCENARIOS)) if (!myStore[k] && k !== EMBED_KEY) { if (BASE_SCENARIOS[k]) SCENARIOS[k] = BASE_SCENARIOS[k]; else if (SCENARIOS[k].user) delete SCENARIOS[k]; }
   for (const [k, u] of Object.entries(myStore)) SCENARIOS[k] = toScen(u);
   try { localStorage.setItem(SCEN_STORE, JSON.stringify(myStore)); } catch {}
 }
 saveScens();
+// ---------- embed: #embed=<slug|JSON> in the URL hash (src/docs.js readHash), for dropping the app in an <iframe> pre-loaded with a fight ----------
+const EMBED_SLUGS = { vsdummy: 'you vs dummy', vsai: 'you vs ai', vs2ai: 'you vs 2 ai', vs3dummies: 'you vs 3 dummies', waves: 'endless waves',
+  arai: 'random AI vs random AI', arp: 'random player vs random player', arpai: 'random player vs random AI' };
+// scenarios a lone embedder could plausibly want at random: solo (you vs something), not a move test or an AI-only demo
+const EMBED_RANDOM_POOL = ['you vs dummy', 'you vs ai', 'you vs 2 ai', 'you vs 3 dummies', 'endless waves', 'survival'];
+function loadEmbedScenario(raw) {
+  let name = EMBED_SLUGS[raw] || (SCENARIOS[raw] ? raw : null);
+  if (raw === 'random') { name = EMBED_RANDOM_POOL[Math.floor(Math.random() * EMBED_RANDOM_POOL.length)];
+    SCENARIOS[EMBED_KEY] = { ...SCENARIOS[name], chars: ['random', 'random', 'random', 'random'] }; name = EMBED_KEY; }
+  if (!name) { // not a known scenario or slug: a custom one, exported from the builder (same JSON as the export/import file, one entry)
+    let u; try { u = JSON.parse(raw); } catch { return console.error(`stick2: bad #embed value "${raw}"`); }
+    SCENARIOS[EMBED_KEY] = toScen(u); name = EMBED_KEY;
+  }
+  lab.scen = name; lab.playback = null; setMode('play'); setTheater(true); build();
+}
+function embedLink(u) { return `${location.origin}${location.pathname}#embed=${encodeURIComponent(JSON.stringify(u))}`; }
 function newScen() {
   let n = 1;
   while (SCENARIOS[`my scenario ${n}`]) n++;
@@ -56,6 +74,18 @@ function newScen() {
 // every change saves and rebuilds the fight behind the builder; a still-previewed built-in is promoted into myStore first
 const scenChanged = () => { if (preview?.name === lab.scen) { myStore[lab.scen] = preview.u; preview = null; } saveScens(); build(); };
 const exportScens = () => JSON.stringify(myStore, null, 1);
+// the scenario now open in the builder, in its editable (u) form: from myStore, or a built-in previewed but not yet changed
+function curU() {
+  const name = lab.scen;
+  let u = myStore[name];
+  if (!u) {
+    if (!SCENARIOS[name]) return null;
+    if (preview?.name !== name) preview = { name, u: fromScen(withInv(SCENARIOS[name]), null) };
+    u = preview.u;
+  }
+  u.props ??= []; u.items ??= [];
+  return u;
+}
 function importScens(json) { Object.assign(myStore, JSON.parse(json)); saveScens(); panels(); }
 const withData = (d, el) => { Object.assign(el.dataset, d); return el; };
 const changedCfg = () => Object.keys(DEFAULTS).filter(k => CFG[k] !== DEFAULTS[k] && !DISPLAY.includes(k));
@@ -90,13 +120,8 @@ function scenBuilder() {
   const wrap = h('div', { cls: 'mtable sbuild' }), body = h('div');
   const fill = () => {
     const name = lab.scen;
-    let u = myStore[name];
-    if (!u) {
-      if (!SCENARIOS[name]) return closeStage();
-      if (preview?.name !== name) preview = { name, u: fromScen(withInv(SCENARIOS[name]), null) };
-      u = preview.u;
-    }
-    u.props ??= []; u.items ??= [];
+    const u = curU();
+    if (!u) return closeStage();
     const nm = h('input', { cls: 'macro sname', value: name, tip: 'The scenario\'s name (any name the built-ins do not use)', onkeydown: e => e.stopPropagation(),
       onchange: () => { const v = nm.value.trim(); if (!v || v === name || SCENARIOS[v]) { nm.value = name; return; } myStore[v] = u; delete myStore[name]; if (preview?.u === u) preview = null; lab.scen = v; scenChanged(); panels(); } });
     // the character picker: a popup with a grid of cards (as play's fighters group), instead of a flat list of names
@@ -192,6 +217,7 @@ function scenBuilder() {
     button(':content_copy: copy', 'A new scenario starting from this one', newScen),
     button(':download: export', 'Download all my scenarios as a JSON file', () => { const a = h('a', { href: URL.createObjectURL(new Blob([exportScens()], { type: 'application/json' })), download: 'stick2-scenarios.json' }); a.click(); }),
     button(':upload: import', 'Add scenarios from a JSON file (same names are replaced)', () => { const i = h('input', { type: 'file', accept: '.json', onchange: async () => importScens(await i.files[0].text()) }); i.click(); }),
+    button(':content_copy: embed link', 'Copy a link that embeds just this fight, pre-loaded (paste as an <iframe> src)', () => navigator.clipboard?.writeText(embedLink(curU()))),
     BASE_SCENARIOS[lab.scen]
       ? button(':undo: revert', 'Restore this scenario to its shipped values', () => { delete myStore[lab.scen]; saveScens(); build(); fill(); })
       : button(':delete: delete', 'Delete this scenario', () => { delete myStore[lab.scen]; saveScens(); lab.scen = 'you vs dummy'; build(); closeStage(); })), body);

@@ -161,9 +161,10 @@ function docsFrame() {
   for (const k of docs.curves || []) drawCurve(k, now);
   requestAnimationFrame(docsFrame);
 }
-// the address: #docs or #docs=topic opens the docs page, #mode=animate a mode
+// the address: #docs or #docs=topic opens the docs page, #mode=animate a mode, #embed=<slug|JSON> loads a fight for an <iframe> (src/scenarios.js)
 function readHash() {
   const p = new URLSearchParams(location.hash.slice(1));
   if (p.has('mode') && MODES[p.get('mode')]) setMode(p.get('mode'));
   if (p.has('docs')) openDocs(p.get('docs') || null, true);
+  if (p.has('embed')) loadEmbedScenario(p.get('embed'));
 }
