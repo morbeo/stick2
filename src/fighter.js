@@ -709,7 +709,11 @@ class Fighter {
     // stream back from a run and lift in a fall; wa: world angles of the drawn pose, parents first (|| 0: a restored checkpoint has no -0)
     const wa = {}, dd = c('dangleDrag'), blow = Math.atan2(-this.vx * this.dir / dd || 0, 1 - this.vy / dd) / R, gust = this.rag ? 0 : c('dangle');
     for (const b of this.ch.bones) {
-      const j = b.id, wp = b.parent ? wa[b.parent] : 0, t = this.target[j], x = b.dangle && gust ? t + clamp(b.dangle * gust, 0, 1) * wrap180(blow - wp - t) : t;
+      const j = b.id, wp = b.parent ? wa[b.parent] : 0, t = this.target[j];
+      let x = b.dangle && gust ? t + clamp(b.dangle * gust, 0, 1) * wrap180(blow - wp - t) : t;
+      // whip: lags behind a fast-turning parent (its angular velocity, already updated this frame), so a nunchuck's
+      // tip bends back out of a swing and springs past straight into the next one instead of staying rigid
+      if (b.whip && !this.rag) x -= clamp((this.flt[b.parent]?.yd || 0) * b.whip * c('whip'), -140, 140);
       this.prev[j] = this.disp[j];
       if (mode === 'spring') this.disp[j] = this.flt[j].update(dt, x, c('freq') * b.stiff * c('followThru') ** b.lag, c('zeta') * b.damp, c('response'));
       else {

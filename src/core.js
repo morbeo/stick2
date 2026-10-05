@@ -49,6 +49,7 @@ const SCHEMA = [
   { k: 'response', v: 2, min: -3, max: 4, step: 0.1, tip: 'Initial response. <0 anticipates (starts the wrong way), >1 overshoots early.' },
   { k: 'dangle', v: 1, min: 0, max: 2, step: 0.05, tip: 'Bones with dangle (tails, the scarf, a beard) hang like a rope, turned toward gravity plus the drag of the body\'s motion: they droop at rest, stream back from a run and lift in a fall. × each bone\'s dangle, 0 = off.' },
   { k: 'dangleDrag', v: 300, min: 50, max: 1000, step: 10, tip: 'The speed (px/s) at which the drag on dangling bones equals gravity (blown halfway to level): lower = they stream out at a walk.' },
+  { k: 'whip', v: 1, min: 0, max: 2, step: 0.05, tip: 'Bones with whip (a nunchuck\'s flailing stick) lag behind a fast-turning parent joint, bending away from its spin, then spring back past straight. × each bone\'s whip, 0 = rigid.' },
   { k: 'followThru', v: 0.8, min: 0.3, max: 1, step: 0.01, tip: "Per-bone frequency × followThru^lag, so hands, heads and tails trail the torso. 1 = everything moves together." },
   ['Feet', 'Foot planting (Sumotori-style): a foot on the floor stays where it landed while the body moves over it, the leg bending to reach it; a foot left too far from where the animation puts it steps there. Off: the feet follow the animation (and slide).', ''],
   { k: 'plant', v: false, tip: 'Plant the feet: a foot on the floor stays put and the leg bends to reach it; it steps when left too far behind. Drawing and hit tests use the planted legs.' },
@@ -278,7 +279,7 @@ function makeRand(seed) {
 // ranges away), of the other sign than a range that never goes below zero, or not a number. Values are never limited, only flagged
 const riskOf = (v, min, max) => !Number.isFinite(v) ? 'danger' : min === undefined || v >= min && v <= max ? '' : min >= 0 && v < 0 || v < min - 10 * (max - min) || v > max + 10 * (max - min) ? 'danger' : 'warn';
 const RISK_TIPS = { warn: 'outside the usual range: it may look or play oddly', danger: 'far outside the usual range: the fight may become unstable (bodies flying off, jitter)' };
-const ENGINE_VERSION = 41;
+const ENGINE_VERSION = 42;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied

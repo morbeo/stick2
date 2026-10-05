@@ -18,6 +18,7 @@ const BONE = {
   stiff: 1, damp: 1,   // multipliers on the spring frequency / damping
   react: 1, sway: 1,   // secondary motion: how hard blows and bounces jolt the bone; how much it drifts while idle
   dangle: 0,           // how much the bone swings with the body's motion: trails behind a run, lifts in a fall (tails, scarves)
+  whip: 0,             // how much it lags behind a fast-turning parent joint, then springs back past straight (flails, nunchucks)
   alpha: 1,            // visibility: 0 hides it (and everything below it: no draw, no hurtbox, no part in chains), between draws it translucent
 };
 // a bone (or an ancestor) at alpha 0, or flagged hidden directly (older data): no draw, no hurtbox, no part in chains
@@ -822,7 +823,7 @@ function weaponBones(ch, type) {
   const w = WEAPONS[type], limb = ch.chains.arm.find(c => c[0].side === 'f') || ch.chains.arm[0] || ch.chains.leg.find(c => c[0].side === 'f') || ch.chains.leg[0];
   const parent = limb ? limb[limb.length - 1].id : ch.bones[0].id;
   const b = { role: 'weapon', side: 'f', type, thick: 3, hurt: 0, lag: 0.3, react: 0.3, sway: 0 };
-  if (w.chain) return [{ ...b, id: 'weapon', parent, len: Math.round(w.len / 2), a: w.a }, { ...b, id: 'weaponTip', parent: 'weapon', len: Math.round(w.len / 2), a: 0, lag: 3, stiff: 0.6, damp: 0.5, react: 2 }];
+  if (w.chain) return [{ ...b, id: 'weapon', parent, len: Math.round(w.len / 2), a: w.a }, { ...b, id: 'weaponTip', parent: 'weapon', len: Math.round(w.len / 2), a: 0, lag: 2, stiff: 0.7, damp: 0.4, react: 2, whip: 0.045 }];
   return [{ ...b, id: 'weapon', parent, len: w.len, a: w.a, back: w.back || 0 }];
 }
 // ---------- stance bodies: a stance (or main) can change the body (def.stances[i].body / def.main.body), compiled like a weapon ----------
