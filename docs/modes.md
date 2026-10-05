@@ -378,7 +378,7 @@ Each cell shows **H** hit, **B** blocked or **·** whiff, and is checked:
 
 Using it:
 
-- Red cells fail; hover for why. **failing only** (in the **rows** group) hides the rest.
+- Red cells fail; hover for why. **failing only** (in the **against** group) hides the rest.
 - Click a cell to watch it looping over the table; the side panel then edits its move. **open in animate** edits the move with that exact target (the preview target has near / far too).
 - My scenarios are played through as cases too (NaN, stage, stuck 5 s).
 - Cells run in the background, a few per frame, and rerun when the character or a setting changes.
