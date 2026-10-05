@@ -120,6 +120,7 @@ Links:
 | `docs.html` | the docs as a page of their own (same as `index.html#docs`) |
 | `docs.html#weapons` | one topic |
 | `index.html#mode=animate` | a mode |
+| `kitchen-sink.html` | every shared UI component on one page (same as `index.html#kitchensink`), for checking a theme change or hunting a visual bug |
 
 ## Search
 

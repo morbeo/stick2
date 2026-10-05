@@ -213,6 +213,14 @@
   .dbody dt { font-weight: bold; display: flex; align-items: center; gap: 3px; } .dbody dt.hit { background: #f6e7b0; } .dbody dd { margin: 0; color: #444; } .dbody canvas.ease { display: block; margin: 2px 0; }
   body.docspage { display: block; } body.docspage > :not(#docs, .tip, .pop) { display: none; }
   body.docspage #docs { position: static; background: none; height: 100vh; } body.docspage .dbox { width: 100%; height: 100%; border: 0; border-radius: 0; box-shadow: none; }
+  body.sinkpage { display: block; } body.sinkpage > :not(#sink, .tip, .pop) { display: none; }
+  #sink { max-width: 1100px; margin: 0 auto; padding: 16px 20px 80px; }
+  #sink h1 { font-size: 20px; margin: 0 0 4px; } #sink > .note { margin-bottom: 16px; }
+  #sink section { margin: 28px 0; padding-top: 10px; border-top: 1px solid #ddd7cb; }
+  #sink section > h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #999; margin: 0 0 10px; }
+  #sink .swatches { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  #sink .row-demo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+  #sink table.demo-table { width: 100%; }
   .tip { position: fixed; z-index: 20; display: none; pointer-events: none; max-width: 320px; padding: 4px 7px;
     background: #222; color: #f3f0e8; border-radius: 3px; font-size: 11px; white-space: pre-wrap; }
 </style>
@@ -257,6 +265,7 @@
 <script src="src/scenarios.js"></script>
 <script src="src/compare.js"></script>
 <script src="src/docs.js"></script>
+<script src="src/kitchensink.js"></script>
 <script src="src/clip.js"></script>
 <script src="src/events.js"></script>
 <script src="src/replay.js"></script>

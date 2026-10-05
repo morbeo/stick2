@@ -1067,6 +1067,13 @@ try {
     if (!paletteEntries().some(e => e.kind === 'docs' && e.name === 'Key events')) errs.push('docs palette');
     location.hash = 'docs=weapons'; readHash(); if (!document.body.classList.contains('docspage') || docs.topic !== 'weapons') errs.push('docs page'); closeDocs();
     if (document.body.classList.contains('docspage')) errs.push('docs page close'); }
+  // kitchen sink: every shared component renders without throwing, as its own full page, reachable from ⌘K
+  { location.hash = 'kitchensink'; readHash();
+    if (!document.body.classList.contains('sinkpage') || !$('sink')) errs.push('kitchensink page');
+    if ($('sink').querySelectorAll('section').length < 10) errs.push('kitchensink sections ' + $('sink').querySelectorAll('section').length);
+    closeKitchenSink(); if (document.body.classList.contains('sinkpage') || $('sink')) errs.push('kitchensink close');
+    paletteEntries().find(e => e.name === 'kitchen sink')?.run(); if (!$('sink')) errs.push('kitchen sink palette');
+    closeKitchenSink(); }
   // replay tab: the play fight comes in with its events; the table filters (fuzzy) and a row goes to its frame; types hide lanes;
   // the timeline seeks; rewind steps back from a checkpoint
   { lab.scen = 'you vs ai'; setMode('play'); const w = lab.cells[0].w;
@@ -1307,6 +1314,10 @@ const docsOk = /class="docspage"/.test(docsDom) && docsDom.includes('id="docs"')
 const randomDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
   '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'random.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 const randomOk = /\btheater\b/.test(randomDom);
-console.log(title, docsOk ? '· docs.html OK' : '· docs.html FAILED', randomOk ? '· random.html OK' : '· random.html FAILED');
-process.exit(title === 'OK' && docsOk && randomOk ? 0 : 1);
+// kitchen-sink.html opens the app as the kitchen-sink page
+const sinkDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
+  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'kitchen-sink.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+const sinkOk = /class="sinkpage"/.test(sinkDom) && sinkDom.includes('id="sink"');
+console.log(title, docsOk ? '· docs.html OK' : '· docs.html FAILED', randomOk ? '· random.html OK' : '· random.html FAILED', sinkOk ? '· kitchen-sink.html OK' : '· kitchen-sink.html FAILED');
+process.exit(title === 'OK' && docsOk && randomOk && sinkOk ? 0 : 1);
 })();
