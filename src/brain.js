@@ -284,6 +284,9 @@ const BASE_SCENARIOS = {
   // endless waves (Waves settings): enemies keep coming, wave after wave
   'endless waves': { a: 'human', b: 'ai', waves: true },
   'ai vs waves': { a: 'ai', b: 'ai', waves: true },
+  // one-vs-many power fantasy: a horde (WAVES.horde = 4 at once, mixed characters) of one-hit mooks (1 hp, before its
+  // own health stat scales it) against a player who shrugs off every hit (inv nodamage: still staggers, never loses health)
+  'godlike vs horde': { a: 'human', b: 'ai', waves: true, aover: { inv: 'nodamage' }, bover: { health: 1 }, cfg: { waves: 'horde', waveMix: true } },
   // survival (Survival settings): one enemy after another without end, tougher over time and with every one down
   'survival': { a: 'human', b: 'ai', survival: true },
   'ai survival': { a: 'ai', b: 'ai', survival: true },
