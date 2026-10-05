@@ -35,6 +35,7 @@ function paletteEntries() {
     { kind: 'table', name: 'compare settings', tip: CMP_PANEL_TIP, run: openCompare },
     { kind: 'action', name: 'reset settings', tip: 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels, timer) stay (⌘Z undoes)', run: () => { applyPreset('juicy'); mode().restart(); } },
     { kind: 'action', name: 'factory reset', tip: 'Delete all local data (characters, settings, keys, macros, layout) and reload; asks first', run: () => factoryReset() },
+    { kind: 'action', name: 'suggest this character', tip: 'Propose the current character for the roster as a pull request: opens a pre-filled GitHub page, no local git needed (see CONTRIBUTING.md)', run: suggestCharPR },
     ...Object.keys(DEFS).map(c => ({ kind: 'character', name: c, tip: 'Use this character in every mode', run: () => pickChar(c) })),
     ...Object.keys(currentChar().moves).map(n => ({ kind: 'move', name: n, tip: 'Open it in the animate editor', run: () => openMove(n) })),
     ...SCHEMA.filter(s => !Array.isArray(s)).map(s => ({ kind: 'setting', name: s.k, tip: s.tip, run: DISPLAY.includes(s.k) ? () => debugPanel(null, debugBtn()) : () => {
