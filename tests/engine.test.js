@@ -1056,6 +1056,38 @@ test('projectiles: a shoot key fires the move\'s shot from its striking limb; it
   assert.equal(go(['@fireball'], 'dummy', { shots: false }).seen, 0, 'shots off: no projectile');
 });
 
+test('projectiles: angle/gravity/bounce arc and land (grenade), pierce hits more than one foe (multiShot), durability survives a clash (the tougher shot punches through), count/spread fans out, shot.maxAlive allows more than one at a time, and a parry reflects one back (reflectShots)', () => {
+  const sim = (scen, over, more, n) => JSON.parse(run(`(() => { const w = new World(${JSON.stringify(scen)}, ${JSON.stringify(over || {})}, 7${more ? ', ' + JSON.stringify(more) : ''}); w.loop = false;
+    let miny = 999, bounced = false, lastVy = 0, most = 0;
+    for (let i = 0; i < ${n || 160}; i++) { w.advance(1/60, NOIN); most = Math.max(most, w.shots.length);
+      for (const s of w.shots) { miny = Math.min(miny, s.y); if (lastVy < 0 && s.vy >= 0) bounced = true; lastVy = s.vy ?? lastVy; } }
+    return JSON.stringify({ miny, bounced, most, hp: w.fighters.map(f => f.hp), clashes: w.clashes, parries: w.parries }); })()`));
+  const g = sim({ a: ['@grenade'], b: 'dummy', ax: 220, bx: 460 });
+  assert.ok(g.miny < 340, 'arcs up off the ground: ' + g.miny), assert.ok(g.bounced, 'bounces at least once'), assert.ok(g.hp[1] < 100, 'lands eventually: ' + g.hp[1]);
+
+  const sp = sim({ a: ['@multiShot'], b: 'dummy', ax: 220, bx: 460 }, {}, null, 90);
+  assert.equal(sp.most, 3, 'count/spread: three shots fanned out at once');
+
+  const p = sim({ a: ['@multiShot'], b: 'dummy', ax: 220, bx: 460, more: [{ c: 'dummy', x: 560, team: 1 }] }, {}, null, 120);
+  assert.deepEqual(p.hp, [100, 95, 95], 'pierce: the level shot hits both foes in its path');
+
+  const d = sim({ a: ['@multiShot'], b: ['@fireball'], ax: 220, bx: 460 }, {}, null, 120);
+  assert.ok(d.clashes >= 1, 'the shots clash'), assert.equal(d.hp[0], 100, 'the weaker fireball (durability 1) is destroyed in the clash'),
+  assert.ok(d.hp[1] < 100, 'the tougher multiShot (durability 2) survives and goes on to hit its shooter: ' + d.hp[1]);
+
+  const r = sim(JSON.parse(run("JSON.stringify(SCENARIOS['fireball reflect'])")));
+  assert.ok(r.parries >= 1, 'the fireball is parried'), assert.ok(r.hp[0] < 100, 'reflected: it flies back and hits its own shooter'), assert.equal(r.hp[1], 100, 'the parrier takes no damage');
+
+  const max = JSON.parse(run(`(() => {
+    const ch = makeCharacter({ ...CHAR_DEFS.stick, moves: { ...CHAR_DEFS.stick.moves, fireball: { ...CHAR_DEFS.stick.moves.fireball, shot: { ...CHAR_DEFS.stick.moves.fireball.shot, maxAlive: 3 } } }, binds: { special: 'fireball' } });
+    const base = makeCharacter({ ...CHAR_DEFS.stick, binds: { special: 'fireball' } });
+    const go2 = c => { const w = new World({ a: ['special', 0.65, 'special', 0.65, 'special'], b: 'dummy', ax: 250, bx: 700 }, {}, 7, [c, CHARS.stick]); w.loop = false;
+      let most = 0; for (let i = 0; i < 220; i++) { w.advance(1/60, NOIN); most = Math.max(most, w.shots.filter(s => s.owner === w.a).length); } return most; };
+    return JSON.stringify({ raised: go2(ch), plain: go2(base) });
+  })()`));
+  assert.equal(max.plain, 1, 'default shot.maxAlive: one at a time'), assert.ok(max.raised >= 2, 'a raised maxAlive keeps more than one alive: ' + max.raised);
+});
+
 test('beams: a beam key holds a straight line out from the striking limb; it hits once from range, is blocked, and is one at a time', () => {
   const go = (a, b, cfg = {}, n = 60) => JSON.parse(run(`(() => { const w = new World({ a: ${JSON.stringify(a)}, b: ${JSON.stringify(b)}, ax: 250, bx: 560, cfg: ${JSON.stringify(cfg)} }, {}, 7); w.loop = false;
     let most = 0, seen = 0; const hp0 = w.b.hp;

@@ -319,22 +319,30 @@ Key flag **turn**; the **turn** / **spin** toggles in animate.
 
 ### Projectiles
 
-The **shots** setting; key flag **shoot**; in animate the shoot toggle and the shot row (look: ki, fire, dark, wave, star; speed, size, life).
+The **shots** setting; key flag **shoot**; in animate the shoot toggle and the shot row (look: ki, fire, dark, wave, star; speed, size, life, and under advanced: angle, gravity, bounce, pierce, durability, count, spread, max alive).
 
-- As the shoot key is reached, the move's shot leaves from between its striking limbs and flies straight.
+- As the shoot key is reached, the move's shot leaves from between its striking limbs.
 - It hits with the move's own power, damage, height and stun.
 - It's blocked from the side it comes from. A counter can't catch it, and the shooter gets no hit stop.
-- Two shots that meet cancel each other.
-- It fizzles at the walls, or when its life runs out.
-- One shot per fighter at a time.
+- **angle** (degrees above level) and **gravity** (px/s²) arc it: launched up, it falls back under gravity instead of flying dead level forever. **bounce** (0–1) is how much speed an arcing shot keeps bouncing off the floor; 0 pops it on landing.
+- **pierce** is how many different foes one shot can hit (each only once) before it's spent; the default, 1, pops on the first.
+- Two opposing shots that touch clash: each loses one **durability** (default 1, so by default both pop, as before); whichever runs out disappears, so a tougher shot can punch through a weaker one.
+- **count** fires that many shots at once, fanned across **spread** degrees of angle (a shotgun-style spread, up/down since the fight plays out sideways).
+- A parry **reflects** it (the **reflectShots** setting): it reverses direction and owner instead of just staggering the shooter, so a well-timed parry sends it back at whoever threw it.
+- It fizzles at the walls, when its life runs out, or (unless it bounces) on touching the floor.
+- One shot per fighter at a time, unless its **shot.maxAlive** says otherwise.
 - The boxes view rings its hitbox.
-- The stick's S is **palmShot** (one palm). Its library also has **fireball** (both palms pushed out).
+- The stick's S is **palmShot** (one palm). Its library also has **fireball** (both palms pushed out), **grenade** (an arcing, bouncing lob) and **multiShot** (a three-shot spread).
 
-Scenarios: fireball, fireball clash.
+Scenarios: fireball, fireball clash, fireball reflect, grenade, multi shot.
 
-| A projectile: the fireball |
-| --- |
-| ![A projectile: the fireball](img/anim-fireball.png) |
+| A projectile: the fireball | An arc: the grenade bounces once |
+| --- | --- |
+| ![A projectile: the fireball](img/anim-fireball.png) | ![An arc: the grenade bounces once](img/anim-grenade.png) |
+
+| A spread: three shots fanned up and down | A parry reflects a fireball back |
+| --- | --- |
+| ![A spread: three shots fanned up and down](img/anim-multi-shot.png) | ![A parry reflects a fireball back](img/anim-fireball-reflect.png) |
 
 ### Beams
 

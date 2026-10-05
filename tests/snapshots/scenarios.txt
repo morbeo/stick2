@@ -30,6 +30,9 @@ laser beam     hits 1 blocks 0 hp 100.0 90.0 x 250 563
 flash kick     hits 1 blocks 0 hp 110.0 85.0 x 331 491
 lightning legs hits 5 blocks 0 hp 95.0 87.7 x 330 380
 fireball clash hits 1 blocks 0 hp 100.0 91.0 x 220 604
+grenade        hits 1 blocks 0 hp 100.0 92.0 x 220 480
+multi shot     hits 0 blocks 1 hp 100.0 99.5 x 220 563
+fireball reflect hits 1 blocks 0 hp 91.0 100.0 x 197 560
 turnaround     hits 2 blocks 0 hp 95.0 91.0 x 323 393
 throw break    hits 0 blocks 0 hp 100.0 100.0 x 306 379
 catch          hits 1 blocks 0 hp 83.8 100.0 x 85 375

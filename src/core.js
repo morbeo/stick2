@@ -122,8 +122,9 @@ const SCHEMA = [
   { k: 'rolls', v: true, tip: 'Rolls: a tumble forward through the foe or back away from it, invincible for rollInv.' },
   { k: 'rollInv', v: 0.3, min: 0, max: 0.6, step: 0.01, tip: 'Seconds from the start of a roll (move flag roll) that it is invincible and passes through fighters.' },
   { k: 'teleport', v: true, tip: 'Teleport: vanish and reappear behind the foe (the key marked warp), leaving after-images.' },
-  { k: 'shots', v: true, tip: 'Projectiles: a move with a key marked shoot fires its shot (fireball) as that key is reached; it flies, hits or is blocked like the move, and two shots meet and cancel. One shot per fighter at a time.' },
+  { k: 'shots', v: true, tip: "Projectiles: a move with a key marked shoot fires its shot (fireball) as that key is reached; it flies, hits or is blocked like the move. One shot per fighter at a time, unless its shot.maxAlive says otherwise. Shot fields: speed/size/life/look, gravity/angle/bounce (an arc that falls and can bounce), pierce (foes it can hit before it's spent), durability (clashes with an opposing shot it survives), count/spread (a fan of several at once)." },
   { k: 'beams', v: true, tip: 'Beams: a move with a key marked beam holds out a straight line from the striking limbs as that key is reached, hitting once wherever it touches a foe. One beam per fighter at a time.' },
+  { k: 'reflectShots', v: true, tip: 'A parried shot reverses direction and owner instead of just staggering the shooter: catch a fireball on a parry and it flies back.' },
   { k: 'turnBack', v: true, tip: 'Turnaround: ↗ S (9S) turns your back to the foe (the key marked turn). Back turned you cannot guard; a direction, or any move without turns, faces it again.' },
   { k: 'teleportDist', v: 60, min: 20, max: 200, step: 5, tip: 'How far (px) behind the foe a teleport lands.' },
   { k: 'guardCancel', v: true, tip: 'Guard cancel: in blockstun, P (guard scheme) or → S (motion) strikes back at once (guardCancel, invincible as it starts) for guardCancelCost health.' },
@@ -279,7 +280,7 @@ function makeRand(seed) {
 // ranges away), of the other sign than a range that never goes below zero, or not a number. Values are never limited, only flagged
 const riskOf = (v, min, max) => !Number.isFinite(v) ? 'danger' : min === undefined || v >= min && v <= max ? '' : min >= 0 && v < 0 || v < min - 10 * (max - min) || v > max + 10 * (max - min) ? 'danger' : 'warn';
 const RISK_TIPS = { warn: 'outside the usual range: it may look or play oddly', danger: 'far outside the usual range: the fight may become unstable (bodies flying off, jitter)' };
-const ENGINE_VERSION = 42;
+const ENGINE_VERSION = 43;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied

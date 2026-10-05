@@ -248,6 +248,23 @@ const STICK_MOVES = {
     { d: 0.05, e: 'outExpo', beam: true, p: { torso: 15, afU: 95, afL: 10, abU: 85, abL: 15, lfU: 35, lfL: -30, lbU: -25, lbL: 0 } },
     { d: 0.2, p: { torso: 15, afU: 95, afL: 10, abU: 85, abL: 15, lfU: 35, lfL: -30, lbU: -25, lbL: 0 } },
     { d: 0.2, e: 'inOutCubic', p: null }] },
+  // a lobbed shot (shoot key): the same push as fireball, but thrown up and out so gravity arcs it down, bouncing
+  // once before it fizzles (move field shot: angle, gravity, bounce — an arc instead of flying dead level)
+  grenade: { power: 1.1, damage: 8, hit: ['fh', 'bh'], height: 'mid', knock: 200, stun: 0.4, special: true,
+    shot: { speed: 420, size: 11, life: 2.2, look: 'fire', angle: 50, gravity: 1300, bounce: 0.4 }, keys: [
+    { d: 0.13, e: 'outQuad', p: { torso: -10, afU: -40, afL: 120, abU: -50, abL: 120, lfU: 35, lfL: -40, lbU: -25, lbL: -10 } },
+    { d: 0.06, e: 'outExpo', shoot: true, p: { torso: 18, afU: 90, afL: 5, abU: 80, abL: 10, lfU: 40, lfL: -35, lbU: -30, lbL: 0 } },
+    { d: 0.16, p: { torso: 18, afU: 90, afL: 5, abU: 80, abL: 10, lfU: 40, lfL: -35, lbU: -30, lbL: 0 } },
+    { d: 0.22, e: 'inOutCubic', p: null }] },
+  // several shots at once (shoot key): count fires that many, fanned across spread degrees; pierce lets each hit
+  // more than one foe before it's spent, durability lets it survive more than one clash (move fields: count, spread,
+  // pierce, durability)
+  multiShot: { power: 0.8, damage: 5, hit: ['fh', 'bh'], height: 'mid', knock: 140, stun: 0.3, special: true,
+    shot: { speed: 400, size: 9, life: 1.4, look: 'star', count: 3, spread: 36, pierce: 2, durability: 2 }, keys: [
+    { d: 0.1, e: 'outQuad', p: { torso: -8, afU: -20, afL: 110, abU: -30, abL: 110, lfU: 30, lfL: -30, lbU: -20, lbL: -10 } },
+    { d: 0.05, e: 'outExpo', shoot: true, p: { torso: 15, afU: 70, afL: 10, abU: 60, abL: 15, lfU: 35, lfL: -25, lbU: -25, lbL: 0 } },
+    { d: 0.1, p: { torso: 15, afU: 70, afL: 10, abU: 60, abL: 15, lfU: 35, lfL: -25, lbU: -25, lbL: 0 } },
+    { d: 0.2, e: 'inOutCubic', p: null }] },
   // the rest of the direction table (see BINDS): 4K steps back as it kicks, 1P a quick crouching poke, 3P a lunging body blow,
   // 1K a sweep with the back leg; ↑ diagonals: 7P backfist, 7K crescent (overhead), 9K flying knee
   fadeKick: attack({ power: 1.2, damage: 8, hit: 'ff', height: 'mid', knock: 300, stun: 0.36, lunge: -180 },

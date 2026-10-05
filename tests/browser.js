@@ -635,7 +635,7 @@ try {
     if (names.length !== Object.keys(SCENARIOS).length || new Set(names).size !== names.length) errs.push('scenario picker lists ' + names.length);
     const q = document.querySelector('.pop input'); q.value = 'fireb'; q.dispatchEvent(new Event('input'));
     const shown = [...document.querySelectorAll('.pop .bar button')].filter(b => !b.hidden && !b.parentNode.querySelector('input')).map(b => b.textContent);
-    if (shown.join() !== 'fireball,fireball clash' || [...document.querySelectorAll('.pop h4')].filter(e => !e.hidden).length !== 1) errs.push('scenario filter ' + shown);
+    if (shown.join() !== 'fireball,fireball clash,fireball reflect' || [...document.querySelectorAll('.pop h4')].filter(e => !e.hidden).length !== 1) errs.push('scenario filter ' + shown);
     q.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); if (lab.scen !== 'fireball' || document.querySelector('.pop')) errs.push('scenario filter enter ' + lab.scen);
     lab.scen = 'you vs dummy'; build(); }
   // layouts: folds and the side panel are kept per tab in the current layout; save as copies it, switching swaps them, reset clears a tab or all

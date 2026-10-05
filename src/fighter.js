@@ -388,12 +388,20 @@ class Fighter {
     if (this.ch.weapon && a.toss && (k.release || first && !a.m.keys.some(x => x.release))) { this.letGo(true, a.charge); this.action = a; }
     if (this.heldProp && a.toss && (k.release || first && !a.m.keys.some(x => x.release))) { this.letGoProp(true, a.charge); this.action = a; }
   }
-  // a shoot key: the move's projectile leaves from between its striking limbs (one at a time per fighter; shots setting)
+  // a shoot key: the move's projectile (or a count/spread fan of several) leaves from between its striking limbs
+  // (shot.maxAlive per fighter at a time, default 1; shots setting)
   shoot(a) {
-    if (!this.c('shots') || this.w.shots.some(s => s.owner === this)) return;
+    const max = a.m.shot?.maxAlive ?? 1;
+    if (!this.c('shots') || this.w.shots.filter(s => s.owner === this).length >= max) return;
     const k = this.chargeMul(a.m, a.charge), m = this.chargedHit(a.m, a.charge), o = m.shot || {}, P = this.body(), ps = hitIds(m).map(id => P[id]).filter(Boolean);
     const pt = ps.length ? [ps.reduce((s, p) => s + p[0], 0) / ps.length, ps.reduce((s, p) => s + p[1], 0) / ps.length] : [this.x + this.dir * 30, this.groundY + this.y - 60];
-    this.w.shots.push({ x: pt[0], y: pt[1], z: this.z, vx: this.dir * (o.speed ?? 360) * k, dir: this.dir, r: (o.size ?? 12) * k, life: o.life ?? 2, t: 0, look: o.look || 'ki', owner: this, m });
+    const n = o.count || 1, sp = (o.speed ?? 360) * k; // a spread fans count shots evenly across spread degrees, centred on angle
+    for (let i = 0; i < n; i++) {
+      const ang = ((o.angle || 0) + (n > 1 ? (i / (n - 1) - 0.5) * (o.spread || 0) : 0)) * R;
+      this.w.shots.push({ x: pt[0], y: pt[1], z: this.z, vx: this.dir * sp * Math.cos(ang), vy: -sp * Math.sin(ang),
+        gravity: o.gravity || 0, bounce: o.bounce || 0, dir: this.dir, r: (o.size ?? 12) * k, life: o.life ?? 2, t: 0,
+        look: o.look || 'ki', owner: this, m, pierce: o.pierce || 1, dur: o.durability || 1, hits: [], passed: [] });
+    }
     a.hit = true; // fired: not a whiff
   }
   // a beam key: a straight line held out from the striking limbs for its duration, hitting once wherever it touches a foe (beams setting)

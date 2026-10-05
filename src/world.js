@@ -231,16 +231,36 @@ class World {
   // ---------- projectiles (Fighter.shoot): fly straight until they hit, meet a foe's shot, leave the arena or run out of life ----------
   updateShots(h) {
     const cfg = this.cfg, gone = new Set(), pop = (s, col) => { gone.add(s); this.parts.push({ t: 'ring', x: s.x, y: s.y, z: s.z, life: 0.2, max: 0.2, col, big: true }); };
-    for (const s of this.shots) { s.x += s.vx * h; s.t += h; if (s.t > s.life || s.x < 20 || s.x > W - 20) pop(s, '#aaa'); }
-    for (const s of this.shots) for (const o of this.shots) if (s !== o && !gone.has(s) && !gone.has(o) && s.owner.team !== o.owner.team
-      && Math.abs(s.x - o.x) < s.r + o.r && Math.abs(s.y - o.y) < s.r + o.r && Math.abs(s.z - o.z) <= cfg.zReach) { pop(s, '#d68c14'); pop(o, '#d68c14'); this.clashes++; }
-    for (const s of this.shots) if (!gone.has(s)) for (const o of this.foes(s.owner)) if (Math.abs(o.z - s.z) <= cfg.zReach && !(s.m.height === 'high' && o.crouching)) { // a high shot flies over a crouch
-      const hit = o.hurtAt([[s.x - s.vx * h, s.y], [s.x, s.y], s.r], false, false);
+    for (const s of this.shots) {
+      if (s.gravity) s.vy += s.gravity * h;
+      s.x += s.vx * h; s.y += (s.vy || 0) * h; s.t += h;
+      if (s.vy > 0 && s.y >= this.groundY - s.r) { // an arcing shot (move field shot.gravity) falls back to earth
+        s.y = this.groundY - s.r;
+        if (s.bounce > 0 && s.vy > 60) { s.vy *= -s.bounce; this.dust(s.x, this.groundY, 0.2, s.z); } else pop(s, '#aaa');
+      }
+      if (s.t > s.life || s.x < 20 || s.x > W - 20) pop(s, '#aaa');
+    }
+    // clashing shots wear each other's durability down (move field shot.durability); each pair only ever clashes
+    // once (s.passed), so two shots overlapping for several frames don't grind each other down frame by frame
+    for (const s of this.shots) for (const o of this.shots) if (s !== o && !gone.has(s) && !gone.has(o) && !s.passed.includes(o) && s.owner.team !== o.owner.team
+      && Math.abs(s.x - o.x) < s.r + o.r && Math.abs(s.y - o.y) < s.r + o.r && Math.abs(s.z - o.z) <= cfg.zReach) {
+      this.clashes++; s.passed.push(o); o.passed.push(s);
+      if (--s.dur <= 0) pop(s, '#d68c14');
+      if (--o.dur <= 0) pop(o, '#d68c14');
+    }
+    for (const s of this.shots) if (!gone.has(s)) for (const o of this.foes(s.owner)) if (!s.hits.includes(o) && Math.abs(o.z - s.z) <= cfg.zReach && !(s.m.height === 'high' && o.crouching)) { // a high shot flies over a crouch
+      const hit = o.hurtAt([[s.x - s.vx * h, s.y - (s.vy || 0) * h], [s.x, s.y], s.r], false, false);
       if (!hit) continue;
       const def = o.defend(s, s.m, null), fr = s.owner.freeze; // blocked from the side it comes from; a counter can't catch it
+      if (def === 'parry' && cfg.reflectShots) { // reflected: flies back at its old owner instead of despawning
+        this.onHit(s.owner, o, hit, s.m, def); s.owner.freeze = fr;
+        s.vx = -s.vx; s.vy = -(s.vy || 0); s.dir = -s.dir; s.owner = o; s.t = 0; s.hits = []; break;
+      }
       this.onHit(s.owner, o, hit, s.m, def === 'catch' ? 'block' : def);
       s.owner.freeze = fr; // the shooter is far away: no hit stop for it
-      gone.add(s); break;
+      s.hits.push(o); // pierce (move field shot.pierce): keeps flying until it has hit this many foes
+      if (def || s.hits.length >= s.pierce) gone.add(s);
+      break;
     }
     if (gone.size) this.shots = this.shots.filter(s => !gone.has(s));
   }
@@ -396,7 +416,7 @@ class World {
     for (const k of Object.keys(s)) this[k] = cloneState(s[k], memo);
   }
   stateHash() {
-    return hashNums([this.rand.seed, this.hits, this.blocks, this.clashes, this.simT, ...this.items.flatMap(it => [it.x, it.y]), ...this.limbs.flatMap(l => [l.x, l.y, l.t]), ...this.props.flatMap(p => [p.hp ?? 0, p.bendT]), ...this.shots.flatMap(s => [s.x, s.t]),
+    return hashNums([this.rand.seed, this.hits, this.blocks, this.clashes, this.simT, ...this.items.flatMap(it => [it.x, it.y]), ...this.limbs.flatMap(l => [l.x, l.y, l.t]), ...this.props.flatMap(p => [p.hp ?? 0, p.bendT]), ...this.shots.flatMap(s => [s.x, s.y, s.t, s.dur]),
       ...this.beams.flatMap(b => [b.t, b.hit ? 1 : 0]), ...this.fighters.flatMap(f => [f.x, f.y, f.z, f.vx, f.vy, f.hp, f.dir, f.action?.i ?? -1, f.action?.t ?? 0])]);
   }
   // a running key macro (keys.js) presses its steps on top of the keys held

@@ -235,6 +235,10 @@ const BASE_SCENARIOS = {
   'flash kick': { a: [0.2, 'up+special'], b: 'dummy', chars: ['sarj', 'stick'], ax: 330, bx: 380, period: 2 },
   'lightning legs': { a: [0.2, 'special'], b: 'dummy', chars: ['zippa', 'stick'], ax: 330, bx: 372, period: 2 },
   'fireball clash': { a: [0.2, '@fireball', 0.9, '@fireball'], b: [0.2, '@fireball', 0.7, { hold: 'guard', t: 0.8 }], ax: 220, bx: 580, period: 2.6 },
+  'grenade': { a: [0.2, '@grenade'], b: 'dummy', ax: 220, bx: 460, period: 2.6 },
+  'multi shot': { a: [0.2, '@multiShot'], b: [{ hold: 'guard', t: 2 }], ax: 220, bx: 560, period: 2 },
+  // a parried fireball reverses direction and owner (reflectShots setting) and flies back at whoever threw it
+  'fireball reflect': { a: [0.2, '@fireball'], b: [1.05, 'guard'], ax: 220, bx: 560, period: 2.2 },
   'turnaround': { a: [0.2, 'up+fwd+special', 0.6, { hold: 'guard', t: 0.6 }, 'kick'], b: [0.7, '!punch'], ax: 330, bx: 400, period: 3 },
   'throw break': { a: [0.2, 'punch+guard'], b: [0.38, 'punch+guard'], ax: 330, bx: 372, period: 2.4 },
   'catch': { a: [0.3, 'kick'], b: [0.15, 'back+special'], period: 2.4 },
