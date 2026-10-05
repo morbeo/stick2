@@ -16,6 +16,14 @@ Useful things to include in a report:
 - A saved replay or scenario, if the bug is reproducible (see [Testing](docs/testing.md)) — replays are plain JSON and easy to attach, and the button's output reminds you to.
 - Your browser, since the project only targets evergreen Chrome/Firefox/Safari.
 
+## Suggesting a character
+
+The character tab has a **suggest** button (next to export) for proposing a roster character — your own edit of a built-in, or a brand new one — without using git at all.
+
+It copies the character's full JSON to your clipboard, then opens GitHub's "new file" page for this repo, pre-filled with that JSON at `contrib/characters/<name>.json` (if the box looks empty or cut off — very large characters can hit the URL's own length limit — paste it yourself, it's already on your clipboard). Sign in if asked; GitHub forks the repo for you automatically. From there: scroll down, click **Propose new file**, then **Create pull request**.
+
+A PR like this is a staged suggestion, not a finished change: the `contrib/characters/` file is the character's compiled JSON (bones, poses, moves — the same format the export/import buttons use), not the hand-written `src/roster.js` form the roster actually ships in. Merging it means hand-folding it into `src/roster.js` (or importing the JSON locally to look it over first, with the import button's "from the clipboard" option) and deleting the staging file in the same commit — plain review, same as any other PR.
+
 ## Pull requests
 
 PRs are welcome too: bug fixes, new fx looks, roster characters, docs fixes, anything. A few things that keep review quick:

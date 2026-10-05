@@ -201,6 +201,17 @@ function importChar(clip) {
     try { makeCharacter(def); addChar(def, name.replace(/\.json$/, '')); } catch (err) { notice('Not a character file', err.message); }
   });
 }
+// ---------- suggest a character for the roster: no server and no sign-in beyond the contributor's own GitHub account ----------
+// opens GitHub's own "new file" page, pre-filled; GitHub forks the repo for you and offers "Propose changes" there, which
+// opens a real PR. The JSON also goes to the clipboard first, since a big character can run into the URL's own length limit
+// (see CONTRIBUTING.md for what a maintainer does with a PR like this)
+function suggestCharPR() {
+  const json = JSON.stringify(DEFS[CURRENT], null, 1), path = `contrib/characters/${CURRENT}.json`;
+  copyData(DEFS[CURRENT]);
+  const q = new URLSearchParams({ filename: path, value: json, message: CHAR_DEFS[CURRENT] ? `Suggest a change to ${CURRENT}` : `Suggest adding ${CURRENT} to the roster` });
+  window.open(`https://github.com/morbeo/stick2/new/master?${q}`, '_blank');
+  notice('Suggestion opened on GitHub', `A new tab opened on GitHub with ${CURRENT}'s JSON pre-filled at ${path} (it's also on your clipboard now — paste with Ctrl/Cmd+V if the box looks empty or cut off).\n\nSign in if it asks: GitHub forks stick2 for you automatically. Then scroll down, click "Propose new file", and "Create pull request".`);
+}
 // ---------- files (the menu bar): export / import the character, the settings, or everything (edited characters, settings, my scenarios, keys), to a file or the clipboard ----------
 const FILE_TIPS = { character: 'The character being edited: skeleton, poses, moves, binds',
   settings: 'Every setting changed from its default (debug views left out)',
@@ -434,7 +445,8 @@ function charPanel() {
     delete: ['Delete this character (only your own ones; asks first, cannot be undone)', deleteChar],
     import: ['Load a character JSON file as a new character', importChar],
     export: ['Download this character as a JSON file', exportChar],
-  }, button(':tune:', 'What the random characters are drawn from, and an experiment grid of them', (e, b) => popup(b, ...randomPanel()), 'mini')));
+  }, button(':tune:', 'What the random characters are drawn from, and an experiment grid of them', (e, b) => popup(b, ...randomPanel()), 'mini'),
+    button(':upload: suggest', 'Propose this character for the roster as a pull request: opens a pre-filled GitHub page, no local git needed (see CONTRIBUTING.md)', suggestCharPR, 'mini')));
   // the current character only; the others in a popup grid (picking one is rare next to editing it)
   const cv = h('canvas'), name = h('b'), info = h('span', { cls: 'note' });
   const pick = h('button', { cls: 'charpick', tip: 'The character every mode uses · click: pick another',
