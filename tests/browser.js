@@ -191,14 +191,15 @@ try {
     if (cardsOf().length !== Object.keys(DEFS).length) errs.push('grid characters count ' + cardsOf().length + ' vs ' + Object.keys(DEFS).length);
     if (!cardsOf()[0].querySelector('.gfield')) errs.push('grid character card has no fields shown');
     // field picker: typing finds a fuzzy, ranked suggestion; clicking it adds a chip and a .gfield line on every card
-    const fpInput = () => document.querySelector('#over input[placeholder="add a variable…"]');
+    if (!document.querySelector('#side h3')?.textContent.includes('characters')) errs.push('grid side heading missing');
+    const fpInput = () => document.querySelector('#side input[placeholder="add a variable…"]');
     fpInput().value = 'jump'; fpInput().dispatchEvent(new Event('input'));
-    const sugg = [...document.querySelectorAll('#over .pitem')].find(p => p.textContent.startsWith('jump'));
+    const sugg = [...document.querySelectorAll('#side .pitem')].find(p => p.textContent.startsWith('jump'));
     if (!sugg) errs.push('grid field picker no suggestion for jump');
     else { sugg.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
       if (!gridState.fields.characters.includes('jump')) errs.push('grid field picker did not add jump');
       if (![...cardsOf()[0].querySelectorAll('.gfield')].some(s => s.textContent.startsWith('jump'))) errs.push('grid card missing jump field'); }
-    [...document.querySelectorAll('#over .chip')].find(c => c.textContent.startsWith('jump'))?.querySelector('button').click();
+    [...document.querySelectorAll('#side .chip')].find(c => c.textContent.startsWith('jump'))?.querySelector('button').click();
     if (gridState.fields.characters.includes('jump')) errs.push('grid field picker did not remove jump');
     // cols: the slider resizes the CSS grid's own column count
     const colsSlider = [...document.querySelectorAll('#ctx input[type=range]')].find(s => +s.max === 8);
@@ -228,13 +229,13 @@ try {
     setMode('grid'); panels();
     const pick = col => { [...document.querySelectorAll('#ctx .seg button')].find(b => b.textContent === col).click(); };
     pick('scenarios');
-    if (cardsOf().length !== Object.keys(SCENARIOS).length || !document.querySelector('#over input[placeholder="add a variable…"]')) errs.push('grid scenarios ' + cardsOf().length);
+    if (cardsOf().length !== Object.keys(SCENARIOS).length || !document.querySelector('#side input[placeholder="add a variable…"]')) errs.push('grid scenarios ' + cardsOf().length);
     const scen = Object.keys(SCENARIOS).find(k => k !== lab.scen);
     cardsOf().find(c => c.textContent.startsWith(scen)).click();
     if (lab.scen !== scen || app.mode !== 'play') errs.push('grid scenario card click ' + lab.scen + ' ' + app.mode);
     setMode('grid'); panels();
     pick('sounds');
-    if (cardsOf().length !== Object.keys(SOUNDS).length || document.querySelector('#over input[placeholder="add a variable…"]')) errs.push('grid sounds ' + cardsOf().length);
+    if (cardsOf().length !== Object.keys(SOUNDS).length || document.querySelector('#side input[placeholder="add a variable…"]')) errs.push('grid sounds ' + cardsOf().length);
     if (!cardsOf()[0].querySelector('canvas.wave') || !document.querySelector('[data-tip="Play a sound when you hover its card"]')) errs.push('grid sound card waveform / autoplay toggle missing');
     cardsOf().find(c => c.textContent.startsWith('hit')).click();
     if (soundSel !== 'hit' || app.mode !== 'sounds') errs.push('grid sound card click ' + soundSel + ' ' + app.mode);

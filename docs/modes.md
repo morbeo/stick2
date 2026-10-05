@@ -141,8 +141,9 @@ Both replay buttons are in the menu bar, next to undo / redo.
 A content manager: browse and search characters, moves, scenarios, sounds, looks and tracks as tiles — a thin layer over the actual editors, not a second place to edit them. Click a tile to open it where it's really edited (the character tab, animate, the fx tab's sounds/tracker views, or play for a scenario).
 
 - **cards** (toolbar) picks the collection; **cols** sets tiles per row. Both are remembered.
-- **characters** and **moves** (the current character's) can show chosen variables under each name — type into **add a variable…** for a fuzzy, ranked search over every documented stat (characters) or move property and frame-data column (moves); click a suggestion to add it, × on its chip to remove it. Nothing new to maintain: these are the same tables the stats panel, the radar graph and the move table already read from.
-- **scenarios**, **sounds**, **looks** and **tracks** are simpler — name, a built-in/custom badge (looks also get a live preview), no variable picker.
+- The side panel holds what the collection is (the heading's info button) and, where it applies, the variable picker.
+- **characters**, **moves** (the current character's) and **scenarios** can show chosen variables, overlaid on a tile's corners — type into **add a variable…** for a fuzzy, ranked search over every documented stat (characters), move property and frame-data column (moves), or group / length / controller (scenarios); click a suggestion to add it, × on its chip to remove it. Nothing new to maintain: these are the same tables the stats panel, the radar graph and the move table already read from.
+- **sounds**, **looks** and **tracks** are simpler — name, a built-in/custom badge (looks also get a live preview, sounds their waveform and a hover-to-play toggle), no variable picker.
 - The search box filters by name and by any variable currently shown.
 
 ## Impact

@@ -94,10 +94,15 @@ function gridPanel() {
   const fill = () => cardsWrap.replaceChildren(gridCards());
   const search = h('input', { cls: 'macro', value: gridState.filter, placeholder: 'search…', tip: 'Fuzzy filter by name or any shown variable\'s value',
     oninput: e => { gridState.filter = e.target.value; fill(); }, onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { search.value = gridState.filter = ''; fill(); } } });
-  const hasFields = GRID_COLLECTIONS[gridState.collection].fields().length > 0;
-  wrap.append(h('div', { cls: 'bar' }, h('b', { textContent: gridState.collection }), search), hasFields ? gridFieldPicker() : null, cardsWrap);
+  wrap.append(h('div', { cls: 'bar' }, search), cardsWrap);
   fill();
   return wrap;
+}
+// the side panel: what this collection is (a description, behind the heading's info button, as everywhere else) and,
+// where it applies, the variable picker — the overlay above the cards used to hold both, leaving the side panel empty
+function gridSide() {
+  const col = GRID_COLLECTIONS[gridState.collection];
+  return [heading(gridState.collection, col.tip), col.fields().length ? gridFieldPicker() : h('p', { cls: 'note', textContent: 'This collection has no pickable variables — just name and a badge.' })];
 }
 function gridCtx() {
   return [grp('grid', 'Browse and search characters, moves, scenarios, sounds, looks and tracks; pick which variables show on each tile',
@@ -106,7 +111,8 @@ function gridCtx() {
     gridState.collection === 'sounds' ? toggle(':volume_up:', 'Play a sound when you hover its card', () => gridState.soundAutoplay, v => { gridState.soundAutoplay = v; saveGridStore(); }) : null)];
 }
 const gridMode = {
-  enter() {}, restart() {}, worlds: () => [], render: clear, ctxBar: gridCtx, side: () => [],
+  enter() {}, restart() {}, worlds: () => [], render: clear, ctxBar: gridCtx, side: gridSide,
+  get open() { return [gridState.collection]; },
   overlay: () => [gridPanel()],
   hint: () => 'click a tile to open it where it\'s edited · type to search · pick variables to show below each name',
 };
