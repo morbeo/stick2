@@ -238,6 +238,11 @@ try {
     const pick = col => { [...document.querySelectorAll('#ctx .seg button')].find(b => b.textContent === col).click(); };
     pick('scenarios');
     if (cardsOf().length !== Object.keys(SCENARIOS).length || !document.querySelector('#side input[placeholder="add a variable…"]')) errs.push('grid scenarios ' + cardsOf().length);
+    // scenario cards: a static thumbnail of the starting positions, and icon badges for who fights (you/AI/dummy/script, counted)
+    const aiVsAi = cardsOf().find(c => c.textContent.startsWith('ai vs ai'));
+    if (!aiVsAi.querySelector('canvas.scenthumb') || !aiVsAi.querySelector('.actors')?.textContent.includes('2')) errs.push('grid scenario thumbnail / actors badge ' + aiVsAi.querySelector('.actors')?.textContent);
+    const sandwich = cardsOf().find(c => c.textContent.startsWith('sandwich')); // a script + 2 dummies: two different badges
+    if (!sandwich.querySelector('.actors')?.textContent.includes('1') || !sandwich.querySelector('.actors')?.textContent.includes('2')) errs.push('grid scenario actors mixed ' + sandwich.querySelector('.actors')?.textContent);
     const scen = Object.keys(SCENARIOS).find(k => k !== lab.scen);
     cardsOf().find(c => c.textContent.startsWith(scen)).click();
     if (lab.scen !== scen || app.mode !== 'play') errs.push('grid scenario card click ' + lab.scen + ' ' + app.mode);

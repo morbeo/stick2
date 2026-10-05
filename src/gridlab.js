@@ -42,13 +42,35 @@ function simpleCard(name, badge, onClick, isOn) {
   reg(b, () => b.classList.toggle('on', isOn()));
   return b;
 }
+// a static snapshot of the scenario's starting positions (stage, props, every fighter's idle pose) — drawn once
+// (not kept live: replaying every scenario in the grid at once would be slow and distracting), reusing the exact
+// same World/render a real fight uses, just never advanced a single frame
+function scenThumb(k) {
+  const cv = h('canvas', { width: 100 * dpr, height: 56 * dpr, cls: 'scenthumb' });
+  try { newWorld(SCENARIOS[k], {}, 1, null).render(cv.getContext('2d'), { x: 0, y: 0, w: cv.width, h: cv.height }, true); } catch { /* a broken custom scenario: a blank thumbnail, not a broken grid */ }
+  return cv;
+}
+// who fights, as small icon + count badges (you / AI / dummy / script), so the grid tells a 1v1 from a free-for-all at a glance
+const CTL_ICONS = { you: 'keyboard', AI: 'smart_toy', dummy: 'person', script: 'timeline' };
+function scenActors(k) {
+  const s = SCENARIOS[k], who = [s.a, s.b, ...(s.more || []).map(m => m.c)].map(ctlName);
+  const counts = new Map(); for (const w of who) counts.set(w, (counts.get(w) || 0) + 1);
+  return h('span', { cls: 'gbadge actors', tip: [...counts].map(([w, n]) => `${n} ${w}`).join(' · ') },
+    ...[...counts].flatMap(([w, n]) => [...rich(`:${CTL_ICONS[w]}:`), `${n} `]));
+}
+function scenCard(k) {
+  const b = h('button', { cls: 'card', onclick: () => { lab.scen = k; setMode('play'); } },
+    scenThumb(k), h('span', { textContent: k }), h('span', { cls: 'gbadge', textContent: k in BASE_SCENARIOS ? 'built-in' : 'yours' }), scenActors(k));
+  reg(b, () => b.classList.toggle('on', lab.scen === k));
+  return b;
+}
 const GRID_COLLECTIONS = {
   characters: { tip: 'Every built-in and custom character', items: () => Object.keys(DEFS), fields: charFields,
     card: k => gridCard(charCard(k, kk => { pickChar(kk); setMode('character'); }, kk => CURRENT === kk), k, charFields()) },
   moves: { tip: 'The current character\'s moves', items: () => Object.keys(currentChar().moves), fields: moveFields,
     card: n => gridCard(moveCard(n, `Open ${n} in the keyframe editor`, openMove), n, moveFields()) },
   scenarios: { tip: 'Built-in and your own scenarios', items: () => Object.keys(SCENARIOS), fields: scenGridFields,
-    card: k => gridCard(simpleCard(k, k in BASE_SCENARIOS ? 'built-in' : 'yours', () => { lab.scen = k; setMode('play'); }, () => lab.scen === k), k, scenGridFields()) },
+    card: k => gridCard(scenCard(k), k, scenGridFields()) },
   sounds: { tip: 'Every sound (built-in and custom)', items: () => Object.keys(SOUNDS), fields: () => [],
     card: k => { const b = h('button', { cls: 'card', onclick: () => { soundSel = k; setMode('sounds'); },
         onmouseenter: () => { if (gridState.soundAutoplay) playSound(k); } },

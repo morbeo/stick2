@@ -143,6 +143,7 @@ A content manager: browse and search characters, moves, scenarios, sounds, looks
 - **cards** (toolbar) picks the collection; **cols** sets tiles per row; **sort** orders them by name or any shown variable, click again to reverse. All three are remembered, per collection.
 - The side panel holds what the collection is (the heading's info button) and, where it applies, the variable picker.
 - **characters**, **moves** (the current character's) and **scenarios** can show chosen variables, overlaid on a tile's corners — type into **add a variable…** for a fuzzy, ranked search over every documented stat (characters), move property and frame-data column (moves), or group / length / controller (scenarios); click a suggestion to add it, × on its chip to remove it. Nothing new to maintain: these are the same tables the stats panel, the radar graph and the move table already read from.
+- **scenarios** also show a static thumbnail of the starting positions (stage, props, every fighter's idle pose — not a live replay, which across every scenario at once would be slow and distracting) and icon badges for who fights: a keyboard (you), the AI's icon, a figure (dummy) or a timeline (a script), each counted.
 - **sounds**, **looks** and **tracks** are simpler — name, a built-in/custom badge (looks also get a live preview, sounds their waveform and a hover-to-play toggle), no variable picker.
 - The search box filters by name and by any variable currently shown.
 
