@@ -23,8 +23,8 @@ const MODES = {
   replay: 'A recorded fight (the play fight or a replay file) as a timeline of colour-coded events and an event table: filter by type, find a moment, go there.',
 };
 const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode, replay: replayMode, fx: fxMode, sounds: soundsMode, tracker: trackerMode, grid: gridMode })[app.mode] || labMode;
-// the top bar's tabs: impact is a view of play, gallery and tests views of animate, sounds and tracker of fx, picked first in their toolbar
-const VIEWS = { play: ['play', 'impact'], animate: ['animate', 'gallery', 'tests'], fx: ['fx', 'sounds', 'tracker'] };
+// the top bar's tabs: impact is a view of experiment, gallery and tests views of animate, sounds and tracker of fx, picked first in their toolbar
+const VIEWS = { experiment: ['experiment', 'impact'], animate: ['animate', 'gallery', 'tests'], fx: ['fx', 'sounds', 'tracker'] };
 const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', experiment: 'science', gallery: 'animation', impact: 'crisis_alert', tests: 'fact_check', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', sounds: 'waves', tracker: 'view_module', replay: 'history' };
 const tabOf = m => Object.keys(VIEWS).find(t => VIEWS[t].includes(m)) || m;
 
@@ -38,7 +38,7 @@ function setMode(m) {
 function panels() {
   const views = VIEWS[tabOf(app.mode)];
   app.shows = [];
-  const ctx = layOrder('ctx', [...views ? [grp('view', 'What this tab shows', seg(views, () => app.mode, setMode, MODES, m => `:${MODE_ICONS[m]}: ${{ play: 'fight', animate: 'editor' }[m] || m}`))] : [],
+  const ctx = layOrder('ctx', [...views ? [grp('view', 'What this tab shows', seg(views, () => app.mode, setMode, MODES, m => `:${MODE_ICONS[m]}: ${{ animate: 'editor' }[m] || m}`))] : [],
     ...transportCtx(), ...mode().ctxBar()], el => el.dataset.part);
   $('side').classList.remove('searching');
   const side = layOrder('side', folds(mode().side().filter(Boolean), app.mode, mode().open || []), s => s.fname);

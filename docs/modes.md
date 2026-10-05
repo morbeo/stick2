@@ -6,9 +6,9 @@ The top bar has seven tabs: **play**, **grid**, **experiment**, **character**, *
 
 | Tab | Views | What it's for |
 |---|---|---|
-| [play](#play) | fight · [impact](#impact) | fight, train, watch hit reactions |
+| [play](#play) | | fight, train |
 | [grid](#grid) | | browse and search characters, moves, scenarios, sounds, looks and tracks |
-| [experiment](#experiment) | | compare one fight across many settings, bred variations, or two settings side by side |
+| [experiment](#experiment) | experiment · [impact](#impact) | compare one fight across many settings, bred variations, or two settings side by side; watch hit reactions |
 | [character](#character) | | build a body |
 | [animate](#animate) | [gallery](#gallery) · [tests](#tests) | build moves, check them all |
 | [fx](#fx) | sounds · tracker | design looks, sounds and a step sequencer |
@@ -149,7 +149,7 @@ A content manager: browse and search characters, moves, scenarios, sounds, looks
 
 ![Impact: nine hit reactions side by side](img/impact.png)
 
-**play → view impact** (key 6). Hit reactions and falls side by side.
+**experiment → view impact** (key 6). Hit reactions and falls side by side.
 
 ### Hits
 
