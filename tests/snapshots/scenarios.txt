@@ -76,3 +76,19 @@ sword vs staff ai hits 8 blocks 0 hp 78.3 53.2 x 396 440
 weapons ai     hits 8 blocks 0 hp 100.0 40.8 x 760 699
 walk           hits 0 blocks 0 hp 100.0 100.0 x 250 550
 jump           hits 0 blocks 0 hp 100.0 100.0 x 450 550
+hadoo showcase hits 1 blocks 0 hp 100.0 91.0 x 239 424
+grumbo showcase hits 2 blocks 0 hp 125.0 91.0 x 324 283
+jabbo showcase hits 2 blocks 0 hp 105.0 80.0 x 639 677
+sneeko showcase hits 2 blocks 0 hp 90.0 73.0 x 147 189
+zippa showcase hits 0 blocks 0 hp 95.0 95.0 x 266 400
+hicco showcase hits 1 blocks 0 hp 105.0 94.0 x 505 582
+lumpo showcase hits 5 blocks 0 hp 120.0 81.9 x 482 548
+sarj showcase  hits 1 blocks 0 hp 110.0 101.0 x 408 446
+noodo showcase hits 2 blocks 0 hp 90.0 75.0 x 493 420
+gogili showcase hits 6 blocks 0 hp 105.0 62.2 x 537 624
+pollo showcase hits 1 blocks 0 hp 110.0 92.0 x 387 580
+gloomo showcase hits 4 blocks 0 hp 130.0 95.6 x 605 504
+centaur showcase hits 3 blocks 0 hp 100.0 67.0 x 454 648
+houndo showcase hits 1 blocks 0 hp 95.0 86.0 x 380 469
+tako showcase  hits 1 blocks 0 hp 100.0 94.0 x 320 450
+clampo showcase hits 2 blocks 0 hp 120.0 98.0 x 470 510

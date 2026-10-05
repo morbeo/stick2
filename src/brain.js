@@ -305,6 +305,23 @@ const BASE_SCENARIOS = {
   'walk': { a: [{ hold: 'fwd', t: 0.8 }, 0.3, { hold: 'back', t: 0.8 }], b: 'dummy', ax: 250, bx: 550, period: 2.4 },
   'jump': { a: ['hop', 0.7, 'fwd+hop', 0.1, { hold: 'fwd', t: 0.5 }], b: 'dummy', ax: 250, bx: 550, period: 2 },
 };
+// a "<name> showcase" scenario per roster character: a few of its own signature moves, forced with '@' (gallery.js's
+// trick) one after another against a dummy. An air move gets a hop first; CHARS, not CHAR_DEFS, since .air is only
+// resolved on the compiled move (src/roster.js runs before this file)
+const SIGNATURE_MOVES = {
+  hadoo: ['kiBlast', 'shoryu', 'tatsu', 'airTatsu'], grumbo: ['spinGrab', 'hugGrab', 'spinLariat'],
+  jabbo: ['dashStraight', 'dashUpper', 'rushFlurry'], sneeko: ['shuriken', 'airShuriken', 'vanishKick', 'substitute'],
+  zippa: ['lightningLegs', 'birdKick', 'headStomp', 'craneKick'], hicco: ['tipsyRoll', 'swayStrike', 'stumbleFist', 'fallingKick'],
+  lumpo: ['hundredSlap', 'torpedo', 'beltGrab', 'sumoSplash'], sarj: ['sonicBoom', 'flashKick', 'spinKnuckle', 'kneeBazooka'],
+  noodo: ['yogaFire', 'drillKick', 'yogaWarp', 'longJab'], gogili: ['rollingBall', 'verticalBall', 'electricity', 'biteGrab'],
+  pollo: ['swingGrab', 'waistLock', 'dropkick', 'plancha'], gloomo: ['darkOrb', 'psychoDash', 'warpClaw', 'skullDive'],
+  centaur: ['trample', 'donkeyKick', 'rearButt', 'rearStrike'], houndo: ['tackle', 'clawSwipe', 'bite', 'hindKick'],
+  tako: ['inkCloud', 'slipAway', 'tentacleSlam', 'constrict'], clampo: ['bearHug', 'legLock', 'tackle', 'splash'],
+};
+for (const [name, moves] of Object.entries(SIGNATURE_MOVES)) BASE_SCENARIOS[`${name} showcase`] = {
+  a: moves.flatMap(m => [...CHARS[name].moves[m].air ? ['hop', 0.15] : [], '@' + m, 1]),
+  b: 'dummy', chars: [name], ax: 320, bx: 400, period: moves.length + 1.5,
+};
 // SCENARIOS: the live table (built-ins, each overridable from the builder, plus any custom ones); src/scenarios.js
 // applies myStore's overrides onto it (the headless engine and tests never do, so they always see the shipped values)
 const SCENARIOS = { ...BASE_SCENARIOS };
