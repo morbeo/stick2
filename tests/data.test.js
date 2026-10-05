@@ -70,6 +70,35 @@ test('moves: valid heights and hits, striking bones that exist, poses of real bo
     }`), []);
 });
 
+test('character stats and gait vars: unique keys, a tooltip, sane ranges — the fields the stats panel, radar graph and grid tab all read from', () => {
+  assert.deepEqual(problems(`
+    for (const [table, list] of [['CHAR_STATS', CHAR_STATS], ['GAIT_VARS', GAIT_VARS]]) {
+      const seen = new Set();
+      for (const s of list) {
+        if (seen.has(s.k)) bad.push(table + '.' + s.k + ': listed twice'); seen.add(s.k);
+        if (!s.tip) bad.push(table + '.' + s.k + ': no tooltip');
+        if (!s.opts && !(s.min < s.max && s.step > 0)) bad.push(table + '.' + s.k + ': range ' + s.min + '…' + s.max + ' step ' + s.step);
+        for (const o in s.optTips || {}) if (!s.opts?.includes(o)) bad.push(table + '.' + s.k + ': a tip for option ' + o + ', which it does not have');
+      }
+    }`), []);
+});
+
+// MOVE_PROPS/MOVE_FLAGS live in src/editor.js (a DOM-dependent UI file), not the headless engine list every other test
+// in this file shares — loaded here on its own, isolated context so a UI-only dependency can't affect the other tests
+test('move properties and flags: unique keys, a tooltip, sane ranges — the fields the move table and grid tab read from', () => {
+  const { run: runEditor } = load(['core', 'rig', 'fx', 'roster', 'fighter', 'world', 'stage', 'brain', 'checks', 'events', 'editor']);
+  const bad = JSON.parse(runEditor(`JSON.stringify((() => { const bad = [];
+    const seen = new Set();
+    for (const p of MOVE_PROPS) {
+      if (seen.has(p.k)) bad.push('MOVE_PROPS.' + p.k + ': listed twice'); seen.add(p.k);
+      if (!p.tip) bad.push('MOVE_PROPS.' + p.k + ': no tooltip');
+      if (!(p.min < p.max && p.step > 0)) bad.push('MOVE_PROPS.' + p.k + ': range ' + p.min + '…' + p.max + ' step ' + p.step);
+    }
+    for (const [f, tip] of Object.entries(MOVE_FLAGS)) if (!tip) bad.push('MOVE_FLAGS.' + f + ': no tooltip');
+    return bad; })())`));
+  assert.deepEqual(bad, []);
+});
+
 test('stances and binds: every bound input names a move the character has; stance keys are real inputs', () => {
   assert.deepEqual(problems(`
     for (const [n, ch] of Object.entries(CHARS)) for (const s of ch.stances) {
