@@ -1003,9 +1003,15 @@ try {
   { setMode('play'); panels(); if (dbgInfo.isConnected || [...$('side').querySelectorAll('h3')].some(e => e.textContent.startsWith('Debug'))) errs.push('debug still in the side panel');
     debugBtn().click(); dbgT = 0; drawDebug();
     if (!dbgInfo.isConnected || !dbgInfo.textContent.includes('engine v' + ENGINE_VERSION) || !/P2 /.test(dbgInfo.textContent)) errs.push('debug info ' + dbgInfo.textContent.slice(0, 80));
-    closePop(); setMode('animate'); panels(); debugBtn().click(); dbgT = 0; drawDebug(); drawScope();
-    if (!dbgInfo.textContent.includes('animate') || !/P1 /.test(dbgInfo.textContent) || !stats.textContent.startsWith('animate')) errs.push('debug in animate ' + dbgInfo.textContent.slice(0, 120));
+    closePop(); setMode('animate'); panels(); debugBtn().click(); dbgT = 0; drawDebug();
+    if (!dbgInfo.textContent.includes('animate') || !/P1 /.test(dbgInfo.textContent)) errs.push('debug in animate ' + dbgInfo.textContent.slice(0, 120));
     closePop(); setMode('play'); panels(); }
+  // the scope/monitor moved out of the debug popup into the experiment tab's side panel (not in play's)
+  { setMode('play'); panels(); if (scopeCv.isConnected) errs.push('scope should not be in play');
+    setMode('experiment'); lab.kind = 'sweep'; lab.x = { k: 'hitstop' }; lab.y = {}; build(); panels();
+    if (!scopeCv.isConnected) errs.push('scope should be in experiment');
+    dbgT = 0; drawScope(); if (!stats.textContent.trim()) errs.push('monitor stats empty in experiment');
+    setMode('play'); panels(); }
   // keys by context: in a fight a shortcut letter takes ⇧ and the letters are the fighter's; in the editor modes the plain key
   // is the shortcut and fight keys do nothing; a focused slider keeps its keys; a clicked button lets go of focus; clashes are flagged
   { const kd = (code, o = {}, t = document.body) => { t.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, ...o })); t.dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true, ...o })); };

@@ -2,7 +2,7 @@
 // ---------- config (every tunable is exposed in the side panel) ----------
 // groups: [title, what it does, keys]. vars: k, default v, range or opts, tip (hover text), optTips (per option)
 const SCHEMA = [
-  ['Debug', 'Inspection aids, then the debug information: the build (commit, branch, uncommitted changes), engine version, frame rate, the focused fight (seed, frame, state hash) and each fighter\'s position, health and state, with a report a bug button; and the scope (a bone\'s angle, health, stun or speed over time).', 'G ghost · B boxes'],
+  ['Debug', 'Inspection aids, then the debug information: the build (commit, branch, uncommitted changes), engine version, frame rate, the focused fight (seed, frame, state hash) and each fighter\'s position, health and state, with a report a bug button. The scope (a bone\'s angle, health, stun or speed over time) is in the experiment tab.', 'G ghost · B boxes'],
   { k: 'ghost', v: false, tip: 'Draw the keyframe (target) pose in blue behind the sprung pose.' },
   { k: 'boxes', v: false, tip: 'Draw hurtboxes (blue), held weapons (amber: they clash but are never hurt) and active strikes and flying weapons (red).' },
   { k: 'scope', v: 'uarmF', tip: 'Bone plotted in the sidebar scope: target (grey) vs drawn (red).' }, // a bone of the current character

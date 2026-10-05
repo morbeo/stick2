@@ -659,13 +659,26 @@ function movelistSection() {
   return [heading('Movelist', "The played character's own moves, each with the input that plays it: punches and kicks first, then specials, motions and throws. Updates live as you switch stance or character.", ''),
     h('div', { cls: 'bar' }, q), body];
 }
+// the scope: an oscilloscope over the focused cell's last few seconds, for the experiment tab specifically - watching
+// a curve as you sweep a setting across cells (or breed, or compare A/B) catches things a single end-state number
+// hides: a spring that overshoots and rings instead of settling, a stun meter that spikes instead of draining, which
+// seed in a sweep made the AI's speed swing wildly. Reading it off one fight after the fact is possible but tedious;
+// this is for watching it happen as you turn a dial.
+function scopePanel() {
+  return [heading('Monitor', "An oscilloscope over the focused cell's last few seconds. angle: a bone's keyframe target (grey) against what's actually drawn (red) after springs, damping and follow-through - the gap between them is overshoot, wobble or lag, which a hit stop or stun number alone won't show you. health / stun: both fighters' meters over time (P1 grey, P2 red) - whether one drains steadily or gets ground down by a snowballing combo. speed: P1's horizontal velocity - whether a dash or knockback is a clean curve or a jitter. Most useful paired with a sweep or breed below: change a setting, watch the shape change.", ''),
+    h('div', { cls: 'row', tip: SPEC.scopeKind.tip }, h('span', { textContent: 'scope' }), h('div', { cls: 'bar' }, seg(SPEC.scopeKind.opts, () => CFG.scopeKind, v => setDisplay('scopeKind', v), SPEC.scopeKind.optTips))),
+    (() => { const r = h('div', { cls: 'row', tip: SPEC.scope.tip }, h('span', { textContent: 'bone' }), h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v), Object.fromEntries(currentChar().ids.map(id => [id, `Plot the angle of ${id}`])))));
+      reg(r, () => { r.hidden = CFG.scopeKind !== 'angle'; }); return r; })(),
+    scopeCv, stats];
+}
 function configPanel() {
   let title = '';
   const rows = SCHEMA.map((s, i) => {
     if (Array.isArray(s)) { title = s[0]; return { el: groupHeading(s, i), head: true }; }
-    const el = s.k === 'scope' ? cfgControl(s) : gridLink(cfgControl(s), s);
+    if (s.k === 'scope' || s.k === 'scopeKind') return null; // their own panel now, experiment tab only: scopePanel()
+    const el = gridLink(cfgControl(s), s);
     return { el: BASIC_CFG.has(s.k) ? el : adv(el), name: `${s.k} ${title}`, tip: (s.tip || '').toLowerCase() };
-  });
+  }).filter(Boolean);
   const filter = () => {
     const q = lab.q || '';
     // fuzzy on the name and group title; tooltips only by plain substring (a loose fuzzy match there hits everything)
@@ -679,7 +692,7 @@ function configPanel() {
       onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { e.target.value = lab.q = ''; filter(); } } }));
   filter();
   const first = rows.findIndex((r, i) => i && r.head);
-  return [search, ...lab.mode === 'play' ? movelistSection() : [], heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes, hud, labels, timer) stay.', ''),
+  return [search, ...lab.mode === 'play' ? movelistSection() : [], ...lab.mode === 'experiment' ? scopePanel() : [], heading('Presets', 'Whole sets of settings at once: from raw (no smoothing) to juicy (the defaults). Your view settings (ghost, boxes, hud, labels, timer) stay.', ''),
     h('div', { cls: 'bar' }, Object.keys(PRESETS).map(n => button(optLabel(n), PRESET_TIPS[n], () => applyPreset(n))),
       button(':restart_alt: reset', 'All settings back to their defaults (same as juicy); the view settings stay, ⌘Z undoes', () => applyPreset('juicy'))),
     heading('Power', 'How hard blows land and how far bodies fly and bounce (off the floor, the walls and the ceiling). Only those settings change.', ''),
@@ -720,17 +733,14 @@ function gridLink(row, s) {
     () => { lab.kind = 'sweep'; Object.assign(lab.x, { k: s.k, lo: s.min, hi: s.max }); lab.y.k = ''; setMode('experiment'); });
 }
 const labSide = () => lab.mode === 'gallery' ? moveSide() : configPanel();
-// the debug popup (menu bar): the Debug settings, the debug information, copy and factory reset, the monitor
+// the debug popup (menu bar): the Debug settings, the debug information, report a bug, reset and factory reset
+// (the scope bone and the monitor live in the experiment tab now - see scopePanel)
 function debugPanel(e, b) {
   const row = k => h('div', { cls: 'row', tip: SPEC[k].tip }, h('span', { textContent: k }), toggle(CFG[k] ? 'on' : 'off', SPEC[k].tip, () => CFG[k], v => setCfg({ [k]: v }, 'cfg.' + k)));
   popup(b, h('b', { textContent: 'debug' }), row('ghost'), row('boxes'), row('hud'), row('labels'),
-    h('div', { cls: 'row', tip: SPEC.scopeKind.tip }, h('span', { textContent: 'scope' }), h('div', { cls: 'bar' }, seg(SPEC.scopeKind.opts, () => CFG.scopeKind, v => setDisplay('scopeKind', v), SPEC.scopeKind.optTips))),
-    (() => { const r = h('div', { cls: 'row', tip: SPEC.scope.tip }, h('span', { textContent: 'bone' }), h('div', { cls: 'bar' }, seg(currentChar().ids, () => CFG.scope, v => setDisplay('scope', v), Object.fromEntries(currentChar().ids.map(id => [id, `Plot the angle of ${id}`])))));
-      reg(r, () => { r.hidden = CFG.scopeKind !== 'angle'; }); return r; })(),
     dbgInfo, h('div', { cls: 'bar' }, button(':bug_report: report a bug', 'Shows the report (build, settings changed from default, the shown fight), to copy and paste into a new GitHub issue', (e, b) => reportBug(b), 'bugbtn'),
       button(':restart_alt: reset settings', 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels, timer) stay (⌘Z undoes)', () => { applyPreset('juicy'); mode().restart(); }),
-      button(':delete: factory reset', 'Delete all local data: edited characters, settings, keys and macros, layout; then reload as new (asks first)', () => factoryReset())),
-    h('p', { cls: 'note', textContent: 'monitor: scopeKind plotted over the shown or focused fight (angle: grey target vs red drawn · health / stun: P1 grey vs P2 red · speed: P1\'s vx), with its stats' }), scopeCv, stats);
+      button(':delete: factory reset', 'Delete all local data: edited characters, settings, keys and macros, layout; then reload as new (asks first)', () => factoryReset())));
   pop.classList.add('dbgpop'); dbgT = 0; drawDebug();
 }
 const debugBtn = () => [...$('global').querySelectorAll('button')].find(b => b.dataset.tip?.startsWith('Debug:'));

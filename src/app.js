@@ -129,10 +129,9 @@ function buildTop() {
       button(':zoom_in:', 'Interface scale: the whole page bigger or smaller (not the fight itself, which always fills its own space)', (e, b) => popup(b,
         slider('scale', { min: 0.6, max: 1.8, step: 0.05 }, () => ui.scale, setUiScale, 'The whole interface, zoomed'))),
       button(':keyboard:', 'Keys: rebind any action, set up macros, and help', keysPanel),
-      button(':ssid_chart:', 'Debug: ghost, boxes, hud, labels and the scope bone, the build and engine version, frame rate and the shown fight\'s state (copy for a bug report), reset settings, factory reset, and the monitor', debugPanel),
       button(':info:', 'Docs: how everything works, with live demo fights, and every setting, move flag, input and key explained; searchable (also in ⌘K)', () => openDocs()),
       toggle(':help:', 'Hints: the line of mouse and key help under the view and the frame meter\'s colour legend; off, they show for a few seconds on the first visit to each mode (?)', () => ui.hints, toggleHints),
-      soundBtn, button(':bug_report:', 'Report a bug: shows the report (build, settings changed from default, the shown fight), to copy and paste into a new GitHub issue', (e, b) => reportBug(b), 'bugbtn')));
+      soundBtn, button(':ssid_chart:', 'Debug: the build and engine version, frame rate and the shown fight\'s state, report a bug, ghost, boxes, hud and labels, reset settings, and factory reset', debugPanel, 'bugbtn')));
 }
 
 function resize() {
