@@ -311,8 +311,15 @@ class Fighter {
   }
 
   // ---------- weapons (see WEAPONS): held = the character compiled with the weapon bone (armed) ----------
-  wield(type) { this.setChar(armed(this.ch0, type)); }
+  wield(type) { this.setChar(armed(this.ch0, type)); this.weaponDur = WEAPONS[type].durability; }
   get weapon() { return WEAPONS[this.ch.weapon]; }
+  // a clash or a landed hit wears a breakable weapon down (durability); at 0 it snaps and is gone — not dropped,
+  // there being nothing simple left to show lying on the floor, unlike a destroyed prop's debris
+  wearWeapon(n = 1) {
+    if (!this.ch.weapon || !this.weapon.breakable) return;
+    this.weaponDur -= n;
+    if (this.weaponDur <= 0) { const at = this.weaponAt(); this.w.spark('blunt', [at.x, at.y], this.z, this.dir); this.setChar(this.ch0); this.say('BREAK'); }
+  }
   // where the held weapon's bones are, as a lying item would be: its centre and angle
   weaponAt() {
     const P = this.body(), b = this.ch.by.weapon, o = P[b.parent], e = P[this.ch.by.weaponTip ? 'weaponTip' : 'weapon'];
@@ -408,6 +415,7 @@ class Fighter {
   // a weapon move's blow, by the weight of the weapon held
   weaponHit(m) {
     const w = m.weapon && this.weapon, k = w ? weaponPower(w) : 1;
+    if (w) this.wearWeapon();
     return k === 1 ? m : { ...m, power: m.power * k, damage: m.damage * k, knock: m.knock * k };
   }
   // a chargeable move's current power multiplier (move field charge: dur, timeout, min, max; charge = seconds held)
@@ -940,13 +948,15 @@ class Fighter {
   }
   // the held weapon's shapes (as if it struck), for clashes and the boxes view
   weaponShapes() { return this.ch.weapon ? this.strikeShapes({ hit: 'weapon' }) : []; }
-  // active strikes that meet: the meeting point, or null (clash setting: only when a weapon is in it, or any strikes)
+  // active strikes that meet: the meeting point and which side(s) met it with a weapon (so a clash can wear a
+  // breakable one down), or null (clash setting: only when a weapon is in it, or any strikes)
   clashWith(o, ss) {
     const mode = this.c('clash'), oa = o.action;
     if (mode === 'off' || this.action.m.throw || !oa?.m.keys[oa.i]?.active || oa.m.throw || oa.hits.includes(this)) return null;
     const wpn = (f, s) => f.ch.by[s.id]?.role === 'weapon', half = (f, s) => (f.ch.by[s.id]?.thick ?? BONE.thick) / 2;
     for (const s of ss) for (const t of o.strikeShapes(oa.m))
-      if ((mode === 'all' || wpn(this, s) || wpn(o, t)) && distSegSeg(s[0], s[1], t[0], t[1]) < s[2] + t[2] + half(this, s) + half(o, t)) return [(s[1][0] + t[1][0]) / 2, (s[1][1] + t[1][1]) / 2];
+      if ((mode === 'all' || wpn(this, s) || wpn(o, t)) && distSegSeg(s[0], s[1], t[0], t[1]) < s[2] + t[2] + half(this, s) + half(o, t))
+        return { pt: [(s[1][0] + t[1][0]) / 2, (s[1][1] + t[1][1]) / 2], aWeapon: wpn(this, s), bWeapon: wpn(o, t) };
     return null;
   }
   // the hurt bone the strike overlaps most, or null

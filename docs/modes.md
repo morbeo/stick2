@@ -48,7 +48,7 @@ Drag a fighter or a prop on the stage itself to reposition it — the same thing
 - **restart** sets how often the fight starts over.
 - **stage** picks the background (plain, dusk, dojo…): a different floor and backdrop, purely visual.
 - The fight's **mode**: a **normal** fight, **waves** (P2 is the first enemy, then new ones keep coming — the Waves settings tune them) or **survival** (one enemy after another without end, tougher over time — the Survival settings tune it).
-- **add prop** places scenery: the built-in **crate** (breaks), **reed** (bends) or **spring** (bounces a thrown weapon back), or any of your own (made in [fx → props](modes.md#fx)). Each has its own x; **remove** takes it out.
+- **add prop** places scenery: the built-in **crate**, **chair**, **table**, **door** or **window** (all breakable), **reed** (bends) or **spring** (bounces a thrown weapon back), or any of your own (made in [fx → props](modes.md#fx)). Each has its own x; **remove** takes it out.
 - **add weapon** places one lying on the floor, free for anyone to pick up (P+G near it); same x and remove as props.
 - **settings:** add one by name, or **take my settings** to bring every setting you changed from the defaults.
 - Saved in this browser as you edit, and listed first in the picker.

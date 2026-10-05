@@ -523,13 +523,16 @@ class World {
   ev(f, type, name, data) { if (this.rec && !this.replaying) this.rec({ f: this.log.length - 1, type, who: f.id, name, data }); }
   // a sound (sound.js) for the live fight only: rewinds, replays and the other cells stay silent
   sound(n, x) { if (this.sfx && !this.replaying) this.sfx(n, x / W); }
-  // two active strikes met (see Fighter.clashWith): both moves stop, both recoil apart in a short stun, sparks
-  clash(a, b, pt) {
-    const cfg = this.cfg, stun = cfg.clashStun;
+  // two active strikes met (see Fighter.clashWith): both moves stop, both recoil apart in a short stun, sparks,
+  // and a breakable weapon on either side wears down (cl.aWeapon / cl.bWeapon: which side met it with one)
+  clash(a, b, cl) {
+    const cfg = this.cfg, stun = cfg.clashStun, pt = cl.pt;
     for (const [f, o] of [[a, b], [b, a]]) {
       f.buffer = null; f.start(makeHurt(f.ch.hurt.high[0], stun, this.rand, f.st.pose)); f.hurtT = stun;
       f.vx = Math.sign(f.x - o.x || -f.dir) * cfg.clashPush; f.freeze = cfg.hitstop * 1.5; f.say('CLASH');
     }
+    if (cl.aWeapon) a.wearWeapon();
+    if (cl.bWeapon) b.wearWeapon();
     this.clashes++;
     this.trauma = Math.min(1, this.trauma + 0.2);
     this.parts.push({ t: 'ring', x: pt[0], y: pt[1], z: a.z, life: 0.2, max: 0.2, col: '#d68c14' });

@@ -49,6 +49,21 @@ const BASE_PROPS = {
     { kind: 'line', x1: 0, y1: 0, x2: 0, y2: -44, w: 4, col: '#6a8a4a', sway: 22 } ] },
   spring: { size: 16, h: 90, moveable: true, tip: 'A spring: bounces thrown weapons back', shapes: [
     { kind: 'circle', cx: 0, cy: -4, rx: 16, ry: 6, col: '#c0392b', stroke: '#7a2015', lw: 2 } ] },
+  chair: { size: 14, h: 90, breakable: true, hp: 18, tip: 'A chair: breaks after enough hits', shapes: [
+    { kind: 'line', x1: -10, y1: -20, x2: -10, y2: 0, w: 4, col: '#8a5a2b' },
+    { kind: 'line', x1: 10, y1: -20, x2: 10, y2: 0, w: 4, col: '#8a5a2b' },
+    { kind: 'box', x: -12, y: -24, w: 24, h: 6, col: '#a9793f', stroke: '#6b4a26', lw: 2 },
+    { kind: 'box', x: -12, y: -54, w: 5, h: 32, col: '#a9793f', stroke: '#6b4a26', lw: 2 },
+    { kind: 'box', x: -12, y: -54, w: 24, h: 5, col: '#a9793f', stroke: '#6b4a26', lw: 2 } ] },
+  table: { size: 28, h: 90, breakable: true, hp: 26, tip: 'A table: breaks after enough hits', shapes: [
+    { kind: 'line', x1: -24, y1: -28, x2: -24, y2: 0, w: 5, col: '#8a5a2b' },
+    { kind: 'line', x1: 24, y1: -28, x2: 24, y2: 0, w: 5, col: '#8a5a2b' },
+    { kind: 'box', x: -28, y: -34, w: 56, h: 8, col: '#b08a52', stroke: '#7a5c34', lw: 2 } ] },
+  door: { size: 8, h: 90, breakable: true, hp: 22, tip: 'A door: breaks after enough hits', shapes: [
+    { kind: 'box', x: -16, y: -120, w: 32, h: 120, col: '#8a6238', stroke: '#5c4024', lw: 2, cross: true },
+    { kind: 'circle', cx: 10, cy: -60, rx: 3, ry: 3, col: '#d8b84a' } ] },
+  window: { size: 10, h: 90, breakable: true, hp: 14, tip: 'A window: breaks after enough hits', shapes: [
+    { kind: 'box', x: -18, y: -130, w: 36, h: 46, col: '#bcd9e8', stroke: '#5c4024', lw: 2, cross: true } ] },
 };
 // my props: edits to a built-in, or wholly new ones (same pattern as sounds: myStore -> live table)
 const PROP_STORE = 'stick2.props';

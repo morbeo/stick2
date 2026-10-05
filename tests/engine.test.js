@@ -431,6 +431,18 @@ test('two weapon strikes that meet clash: no hit, both recoil; with clash off th
   assert.equal(off.c, 0), assert.ok(off.h >= 1);
 });
 
+test('a breakable weapon (WEAPONS: breakable, durability) wears down on a clash and snaps once it runs out', () => {
+  const r = dur => json(`(() => { WEAPONS.breaky = { ...WEAPONS.sword, breakable: true, durability: ${dur} };
+    const w = new World({ a: [0.3, 'punch'], b: [0.3, 'punch'], aw: 'breaky', bw: 'breaky', ax: 300, bx: 400, period: 2 }, { clash: 'weapons' }, 7, [CHARS.stick, CHARS.stick]);
+    w.loop = false;
+    for (let i = 0; i < 60; i++) w.advance(1 / 60, NOIN);
+    return { c: w.clashes, aArmed: !!w.a.ch.weapon, bArmed: !!w.b.ch.weapon }; })()`);
+  const frail = r(1), sturdy = r(100);
+  assert.equal(frail.c, 1, 'a clash happens');
+  assert.ok(!frail.aArmed && !frail.bArmed, 'durability 1: both weapons snap on the first clash ' + JSON.stringify(frail));
+  assert.ok(sturdy.aArmed && sturdy.bArmed, 'durability 100: a single clash does not break it yet');
+});
+
 test('two jabs landing on the same frame trade: both hit, whoever is first in the list', () => {
   const r = json(`(() => { const w = new World({ a: [0.3, 'punch'], b: [0.3, 'punch'], ax: 300, bx: 360, period: 2 }, { clash: 'off', health: 100 }, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
     for (let i = 0; i < 60; i++) w.advance(1 / 60, NOIN); return { h: w.hits, a: w.a.hp, b: w.b.hp }; })()`);

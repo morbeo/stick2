@@ -404,6 +404,7 @@ Dagger, sword, axe, bat, nunchucks (the outer stick flails on a loose joint), wa
 - Heavier weapons hit harder and swing slower.
 - A staff or war hammer is held in both hands. **grip2:** the back hand holds it that far along from the front hand (two-bone IK), letting go where it can't reach.
 - Every weapon (built-in or custom) is tunable and recreatable, drawn from a short list of shapes — see [Modes: fx](modes.md#fx).
+- A weapon can be made **breakable**, with its own **durability**: a clash or a landed hit wears it down, and once it runs out it snaps — gone, not dropped.
 
 ### Picking up and throwing
 
