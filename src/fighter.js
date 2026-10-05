@@ -346,7 +346,7 @@ class Fighter {
       const it = this.taking; this.taking = null;
       if (this.w.items.includes(it)) { this.w.items.splice(this.w.items.indexOf(it), 1); } // weapon item
       else { this.w.limbs.splice(this.w.limbs.indexOf(it), 1); } // severed limb
-      this.wield('limb'); this.action = a; this.say('LIMB');
+      this.wield(it.type); this.action = a; this.say(it.type.toUpperCase());
       for (const j of this.ch.ids) { a.from[j] ??= this.target[j]; for (const p of KEY_MULS) a.fromMul[p][j] ??= this.mul[p][j]; } // the weapon's bones join the tween where they are
     }
     if (k.warp) this.warp();

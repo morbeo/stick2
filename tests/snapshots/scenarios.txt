@@ -64,12 +64,12 @@ ai vs waves    hits 5 blocks 0 hp 52.2 100.0 x 446 534
 ai survival    hits 6 blocks 0 hp 50.5 50.0 x 496 533
 sandwich       hits 5 blocks 0 hp 100.0 77.4 x 330 637
 showcase       hits 5 blocks 0 hp 100.0 54.4 x 754 715
-pick up & slash hits 2 blocks 0 hp 100.0 75.6 x 412 450
+pick up & slash hits 3 blocks 0 hp 100.0 65.3 x 413 466
 weapon throw   hits 1 blocks 0 hp 100.0 93.0 x 250 492
 disarm         hits 1 blocks 0 hp 100.0 90.0 x 330 395
 weapon clash   hits 0 blocks 0 hp 100.0 100.0 x 267 433
 deflect        hits 0 blocks 0 hp 100.0 100.0 x 250 450
 sword vs staff ai hits 8 blocks 0 hp 78.3 53.2 x 396 440
-weapons ai     hits 5 blocks 0 hp 62.9 92.0 x 250 310
+weapons ai     hits 8 blocks 0 hp 100.0 40.8 x 760 699
 walk           hits 0 blocks 0 hp 100.0 100.0 x 250 550
 jump           hits 0 blocks 0 hp 100.0 100.0 x 450 550
