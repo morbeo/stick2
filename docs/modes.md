@@ -41,12 +41,15 @@ Drag a fighter or a prop on the stage itself to reposition it — the same thing
 - **Controllers:** you, AI, dummy, or a script like `0.2, 2P, hold up 0.2, K`.
 - **add actor** brings in P3, P4… each with its own character, controller and position, ganging up on P2's team by default. Each extra actor can be duplicated or removed.
 - **team:** every actor, P1 and P2 included, has one (T1, T2… by number, not by player — P1 and P2 start on their own). Click it to join another actor's team (same team = allies), start a fresh one, or go solo (its own team: a foe of everyone else).
+- **weapon** (P1 and P2 only): starts holding one, or empty-handed.
 - **AI style** (AI controller only): balanced, rushdown, zoner, grappler or turtle — how it prefers to fight, separate from the aiLevel setting (how well). Overrides the aiStyle setting for this fighter only.
 - **skill** (AI controller only): fine-tune this fighter's reactions, guard, throw break, tech, anti-air and juggle chance individually, on top of the aiLevel setting.
 - **limits:** cap how many times this fighter (AI or you) can use specific moves this fight, or ban one outright at 0. Unlisted moves stay unlimited.
 - **restart** sets how often the fight starts over.
 - **stage** picks the background (plain, dusk, dojo…): a different floor and backdrop, purely visual.
+- The fight's **mode**: a **normal** fight, **waves** (P2 is the first enemy, then new ones keep coming — the Waves settings tune them) or **survival** (one enemy after another without end, tougher over time — the Survival settings tune it).
 - **add prop** places collidable scenery: a **crate** (breaks after enough hits), a **reed** (bends when struck, never breaks) or a **spring** (bounces a thrown weapon back instead of landing it). Each has its own x; **remove** takes it out.
+- **add weapon** places one lying on the floor, free for anyone to pick up (P+G near it); same x and remove as props.
 - **settings:** add one by name, or **take my settings** to bring every setting you changed from the defaults.
 - Saved in this browser as you edit, and listed first in the picker.
 - copy, export / import as JSON, delete.

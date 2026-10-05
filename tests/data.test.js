@@ -99,6 +99,23 @@ test('move properties and flags: unique keys, a tooltip, sane ranges — the fie
   assert.deepEqual(bad, []);
 });
 
+// fromScen/toScen (src/scenarios.js, the builder's own data round-trip) must be able to recreate every built-in
+// scenario, field for field — otherwise the builder silently can't reproduce something only BASE_SCENARIOS can say
+test('the scenario builder can recreate every built-in scenario: fromScen/toScen round-trips every field', () => {
+  const { run: runScen } = load(['core', 'rig', 'fx', 'roster', 'fighter', 'world', 'stage', 'brain', 'checks', 'events', 'scenarios']);
+  const bad = JSON.parse(runScen(`JSON.stringify((() => { const bad = [];
+    for (const [name, s] of Object.entries(BASE_SCENARIOS)) {
+      const back = toScen(fromScen(s, null));
+      if ((back.aw || null) !== (s.aw || null)) bad.push(name + ': aw ' + back.aw + ' vs ' + s.aw);
+      if ((back.bw || null) !== (s.bw || null)) bad.push(name + ': bw ' + back.bw + ' vs ' + s.bw);
+      if (JSON.stringify(back.items || null) !== JSON.stringify(s.items || null)) bad.push(name + ': items ' + JSON.stringify(back.items) + ' vs ' + JSON.stringify(s.items));
+      if (!!back.waves !== !!s.waves) bad.push(name + ': waves');
+      if (!!back.survival !== !!s.survival) bad.push(name + ': survival');
+    }
+    return bad; })())`));
+  assert.deepEqual(bad, []);
+});
+
 test('stances and binds: every bound input names a move the character has; stance keys are real inputs', () => {
   assert.deepEqual(problems(`
     for (const [n, ch] of Object.entries(CHARS)) for (const s of ch.stances) {
