@@ -184,6 +184,47 @@ try {
     [...document.querySelectorAll('#over .fxgrid button')].find(b => b.textContent === '60').click();
     deleteLook(name); if (name in FX_LOOKS || Object.keys(FX_LOOKS).length !== before) errs.push('look delete ' + name + ' ' + Object.keys(FX_LOOKS).length);
     fxState.sel = null; fxState.zoom = false; fxState.gridDock = 'bottom'; fxState.part = 'segment'; panels(); }
+  // grid tab: a content-manager browser, link-out only (no editing here) — characters and moves as cards, a field
+  // picker to add/remove which variables show on each, cols and search, click a card to open it where it's edited
+  { setMode('grid'); panels();
+    const cardsOf = () => [...document.querySelectorAll('#over .cards .card')];
+    if (cardsOf().length !== Object.keys(DEFS).length) errs.push('grid characters count ' + cardsOf().length + ' vs ' + Object.keys(DEFS).length);
+    if (!cardsOf()[0].querySelector('.gfield')) errs.push('grid character card has no fields shown');
+    // field picker: typing finds a fuzzy, ranked suggestion; clicking it adds a chip and a .gfield line on every card
+    const fpInput = () => document.querySelector('#over input[placeholder="add a variable…"]');
+    fpInput().value = 'jump'; fpInput().dispatchEvent(new Event('input'));
+    const sugg = [...document.querySelectorAll('#over .pitem')].find(p => p.textContent.startsWith('jump'));
+    if (!sugg) errs.push('grid field picker no suggestion for jump');
+    else { sugg.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      if (!gridState.fields.characters.includes('jump')) errs.push('grid field picker did not add jump');
+      if (![...cardsOf()[0].querySelectorAll('.gfield')].some(s => s.textContent.startsWith('jump'))) errs.push('grid card missing jump field'); }
+    [...document.querySelectorAll('#over .chip')].find(c => c.textContent.startsWith('jump'))?.querySelector('button').click();
+    if (gridState.fields.characters.includes('jump')) errs.push('grid field picker did not remove jump');
+    // cols: the slider resizes the CSS grid's own column count
+    const colsSlider = [...document.querySelectorAll('#ctx input[type=range]')].find(s => +s.max === 8);
+    colsSlider.value = 6; colsSlider.dispatchEvent(new Event('input'));
+    if (gridState.cols !== 6 || getComputedStyle(document.querySelector('#over .cards')).gridTemplateColumns.split(' ').length !== 6) errs.push('grid cols ' + gridState.cols);
+    colsSlider.value = 4; colsSlider.dispatchEvent(new Event('input'));
+    // search: fuzzy-filters by name (and any shown field's value)
+    const search = document.querySelector('#over input[placeholder="search…"]');
+    search.value = 'stick'; search.dispatchEvent(new Event('input'));
+    if (cardsOf().length !== 1 || !cardsOf()[0].textContent.startsWith('stick')) errs.push('grid search ' + cardsOf().map(c => c.textContent).join(','));
+    search.value = ''; search.dispatchEvent(new Event('input'));
+    // moves collection: the current character's moves, same field-picker and card shape
+    [...document.querySelectorAll('#ctx .seg button')].find(b => b.textContent === 'moves').click();
+    if (cardsOf().length !== Object.keys(currentChar().moves).length) errs.push('grid moves count ' + cardsOf().length);
+    if (!cardsOf()[0].querySelector('.gfield')) errs.push('grid move card has no fields shown');
+    // click-through: a character card switches CURRENT and opens the character tab; a move card opens it in animate
+    [...document.querySelectorAll('#ctx .seg button')].find(b => b.textContent === 'characters').click();
+    const otherChar = Object.keys(DEFS).find(k => k !== CURRENT);
+    cardsOf().find(c => c.textContent.startsWith(otherChar)).click();
+    if (CURRENT !== otherChar || app.mode !== 'character') errs.push('grid character card click ' + CURRENT + ' ' + app.mode);
+    setMode('grid'); panels();
+    [...document.querySelectorAll('#ctx .seg button')].find(b => b.textContent === 'moves').click();
+    const mv = Object.keys(currentChar().moves)[0];
+    cardsOf().find(c => c.textContent.startsWith(mv)).click();
+    if (anim.move !== mv || app.mode !== 'animate') errs.push('grid move card click ' + anim.move + ' ' + app.mode);
+    setMode('play'); }
   // tracker view (fx tab): new track starts a 16-step row; cells toggle (even clicked out of order, each against the live state,
   // not a stale snapshot from before the last redraw), steps resizes every row's cells, rows add/remove, delete removes the track
   { setMode('tracker'); panels();
@@ -296,9 +337,9 @@ try {
     labClick(r.x + r.w / 2, r.y + r.h / 2, {}); if (!sideMove() || anim.move !== 'sweep') errs.push('gallery move panel ' + anim.move);
     lab.zoom = false; setMode('tests'); isolate('kick|' + CURRENT + '|0'); if (!sideMove() || anim.move !== 'kick') errs.push('tests move panel ' + anim.move);
     isolate(null); anim.move = 'jab'; setMode('animate'); }
-  // six tabs (play, grid, character, animate, fx, replay): impact is a view of play, gallery of animate, picked in the toolbar's view group
+  // seven tabs (play, grid, experiment, character, animate, fx, replay): impact is a view of play, gallery of animate, picked in the toolbar's view group
   { setMode('impact'); const tabs = [...document.querySelectorAll('#modes button')], on = tabs.find(b => b.classList.contains('on'));
-    if (tabs.length !== 6 || !on?.textContent.includes('play')) errs.push('tabs ' + tabs.length + ' ' + on?.textContent);
+    if (tabs.length !== 7 || !on?.textContent.includes('play')) errs.push('tabs ' + tabs.length + ' ' + on?.textContent);
     [...document.querySelectorAll('#ctx button')].find(b => b.textContent.includes('fight')).click(); if (app.mode !== 'play') errs.push('view fight ' + app.mode);
     setMode('gallery'); tabs.find(b => b.textContent.includes('animate')).click(); if (app.mode !== 'gallery') errs.push('tab keeps its view ' + app.mode); }
   // combos: the table lists routes; + P on a route's end adds a link (the route gets longer), clicking that step and cut removes it; the tree shows starters
