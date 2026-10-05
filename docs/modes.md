@@ -2,7 +2,7 @@
 
 [← docs index](README.md)
 
-The top bar has seven tabs: **play**, **grid**, **experiment**, **character**, **animate**, **fx** and **replay**. Some of them have more views inside (impact, gallery, tests, sounds, tracker), picked under **view** in the toolbar.
+The top bar has seven tabs: **play**, **grid**, **experiment**, **character**, **animate**, **fx** and **replay**. Some of them have more views inside (impact, gallery, tests, sounds, tracker, props, weapons), picked under **view** in the toolbar.
 
 | Tab | Views | What it's for |
 |---|---|---|
@@ -11,7 +11,7 @@ The top bar has seven tabs: **play**, **grid**, **experiment**, **character**, *
 | [experiment](#experiment) | experiment · [impact](#impact) | compare one fight across many settings, bred variations, or two settings side by side; watch hit reactions |
 | [character](#character) | | build a body |
 | [animate](#animate) | [gallery](#gallery) · [tests](#tests) | build moves, check them all |
-| [fx](#fx) | sounds · tracker | design looks, sounds and a step sequencer |
+| [fx](#fx) | sounds · tracker · props · weapons | design looks, sounds, a step sequencer, scenery and weapons |
 | [replay](#replay) | | go through a recorded fight event by event |
 
 ## Play
@@ -48,7 +48,7 @@ Drag a fighter or a prop on the stage itself to reposition it — the same thing
 - **restart** sets how often the fight starts over.
 - **stage** picks the background (plain, dusk, dojo…): a different floor and backdrop, purely visual.
 - The fight's **mode**: a **normal** fight, **waves** (P2 is the first enemy, then new ones keep coming — the Waves settings tune them) or **survival** (one enemy after another without end, tougher over time — the Survival settings tune it).
-- **add prop** places collidable scenery: a **crate** (breaks after enough hits), a **reed** (bends when struck, never breaks) or a **spring** (bounces a thrown weapon back instead of landing it). Each has its own x; **remove** takes it out.
+- **add prop** places scenery: the built-in **crate** (breaks), **reed** (bends) or **spring** (bounces a thrown weapon back), or any of your own (made in [fx → props](modes.md#fx)). Each has its own x; **remove** takes it out.
 - **add weapon** places one lying on the floor, free for anyone to pick up (P+G near it); same x and remove as props.
 - **settings:** add one by name, or **take my settings** to bring every setting you changed from the defaults.
 - Saved in this browser as you edit, and listed first in the picker.
@@ -401,6 +401,8 @@ A gallery of every look (see [Effects](#effects)), built-in or custom, one tile 
 A custom look (new or duplicated) appears anywhere a look is picked, right alongside the built-ins — a move or key's fx, a bone's fx.
 
 The tab's view switcher also has **sounds** and **tracker**: every sound is synthesized live (no files) — a slider per parameter, built-ins tunable and revertible too, **new sound** (or duplicate) makes a wholly new one; the tracker is a simple step sequencer built from your own sounds (a tempo, a step count, rows each picking a sound and a grid of beats). See [Editing](editing.md#sounds).
+
+**Props** and **weapons** are the other two views, built the same tunable/revertible way: pick one, built-in or custom, to edit its own fields (a prop: size, height, **layer** — back, mid or front of the fighters — **moveable** and **breakable**, independent of each other; a weapon: class, length, weight, grip) and its **shapes** — a short list of primitives (line, circle, box, polygon), each with its own points and colour — which is what it's actually drawn from. A line can **sway** on a struck moveable prop (a reed's bend, generalized: any line on any prop can do it). A weapon's shapes run along its own grip-to-tip axis, so the whole thing rotates and stretches with the live held pose; a coordinate can say `len` (or `len-4`) to always reach the tip. **new prop** / **new weapon** duplicates a starting point with its own independent shapes, free to tune, rename or delete.
 
 ## Replay
 
