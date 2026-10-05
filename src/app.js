@@ -17,12 +17,14 @@ const MODES = {
   tests: 'Every move tried against every target: standing, crouching, guarding high and low, in the air, on the floor, dizzy; facing it or turned away; near and far; against the character itself or every one. Red cells did not do what they should (hover for why); click one to watch it and open it in animate to fix it. Your scenarios are played through too.',
   animate: 'Pose keyframes by dragging joints, retime them on the timeline, and watch the move with springs and hit stop.',
   fx: 'Every fx look (built-in and custom), as a gallery of tiles: open one to tune it (sliders, colour, randomize), preview it on a character or a plain segment, and compare values of two variables in a grid.',
+  sounds: 'Every sound (built-in and custom), synthesized live, no files: a slider per parameter, a test button; duplicate a built-in to tune your own.',
+  tracker: 'A simple step sequencer built from your own sounds: rows of sounds, a grid of beats, play it as a loop at a tempo.',
   replay: 'A recorded fight (the play fight or a replay file) as a timeline of colour-coded events and an event table: filter by type, find a moment, go there.',
 };
-const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode, replay: replayMode, fx: fxMode })[app.mode] || labMode;
-// the top bar's tabs: impact is a view of play, gallery and tests views of animate, picked first in their toolbar
-const VIEWS = { play: ['play', 'impact'], animate: ['animate', 'gallery', 'tests'] };
-const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', gallery: 'animation', impact: 'crisis_alert', tests: 'science', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', replay: 'history' };
+const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode, replay: replayMode, fx: fxMode, sounds: soundsMode, tracker: trackerMode })[app.mode] || labMode;
+// the top bar's tabs: impact is a view of play, gallery and tests views of animate, sounds and tracker of fx, picked first in their toolbar
+const VIEWS = { play: ['play', 'impact'], animate: ['animate', 'gallery', 'tests'], fx: ['fx', 'sounds', 'tracker'] };
+const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', gallery: 'animation', impact: 'crisis_alert', tests: 'science', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', sounds: 'waves', tracker: 'view_module', replay: 'history' };
 const tabOf = m => Object.keys(VIEWS).find(t => VIEWS[t].includes(m)) || m;
 
 function setMode(m) {

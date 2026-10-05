@@ -88,8 +88,8 @@ try {
     undo(); if (DEFS[CURRENT].binds.backKick !== '' || !cell('4K').classList.contains('fall')) errs.push('input undo');
     undo(); undo();
     undo(); lay('animate').panel = null; panels(); }
-  // sounds panel: lists every sound; a built-in is directly tunable (revert undoes it); new sound makes a wholly custom one (delete removes it)
-  { setMode('animate'); openStage('sounds'); panels();
+  // sounds view (fx tab): lists every sound; a built-in is directly tunable (revert undoes it); new sound makes a wholly custom one (delete removes it)
+  { setMode('sounds'); panels();
     const rows = () => [...document.querySelectorAll('.mtable .bar:not(.stagehead)')];
     if (rows().length !== Object.keys(SOUNDS).length) errs.push('sounds panel rows ' + rows().length + ' vs ' + Object.keys(SOUNDS).length);
     rows()[0].click(); // a built-in (whoosh)
@@ -106,10 +106,10 @@ try {
     if (SOUNDS[name].nf0 !== 780) errs.push('sound slider ' + JSON.stringify(SOUNDS[name]));
     [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('delete')).click();
     if (name in SOUNDS || name in mySounds) errs.push('sound delete ' + name);
-    openStage(null); panels(); }
+    setMode('fx'); panels(); }
   // sound waveform preview + the extra resonance/detune options: renderSound (offline, silent) draws into the wave canvas; both
   // options round-trip through SOUNDS/mySounds and don't stop a sound built-ins never set them on from playing or rendering
-  afterSync.push(async () => { setMode('animate'); openStage('sounds'); panels();
+  afterSync.push(async () => { setMode('sounds'); panels();
     [...document.querySelectorAll('.mtable .bar:not(.stagehead)')].find(b => b.textContent.startsWith('hit')).click();
     const cv = document.querySelector('.mtable canvas.wave'); if (!cv) errs.push('sound wave canvas missing');
     await new Promise(r => setTimeout(r, 200));
@@ -123,7 +123,7 @@ try {
       let data; try { data = await renderSound(SOUNDS.hit); } catch (e) { errs.push('renderSound threw ' + e.message); }
       if (data && [...data].some(v => !Number.isFinite(v))) errs.push('renderSound non-finite');
       resetSound('hit'); }
-    openStage(null); panels(); });
+    setMode('fx'); panels(); });
   // fx tab: a gallery tile for every look; clicking one opens + zooms it; a built-in (hand-coded) is directly tunable
   // too (revert undoes it); new look makes a wholly custom generic-particle one, a slider edits it live, delete removes
   // it from FX_LOOKS/FX_DRAW; the experiment grid's Y axis crosses a second variable in, 4×4 cells instead of 4
@@ -159,9 +159,9 @@ try {
     if (myLooks[name].speed !== 200) errs.push('grid pick mutated the preset ' + JSON.stringify(myLooks[name]));
     deleteLook(name); if (name in FX_LOOKS || Object.keys(FX_LOOKS).length !== before) errs.push('look delete ' + name + ' ' + Object.keys(FX_LOOKS).length);
     fxState.sel = null; fxState.zoom = false; panels(); }
-  // tracker panel: new track starts a 16-step row; cells toggle (even clicked out of order, each against the live state,
+  // tracker view (fx tab): new track starts a 16-step row; cells toggle (even clicked out of order, each against the live state,
   // not a stale snapshot from before the last redraw), steps resizes every row's cells, rows add/remove, delete removes the track
-  { setMode('animate'); openStage('tracker'); panels();
+  { setMode('tracker'); panels();
     [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('new track')).click();
     const name = Object.keys(myTracks)[0];
     if (!name || myTracks[name].rows.length !== 1 || myTracks[name].rows[0].cells.length !== 16) errs.push('new track not created ' + JSON.stringify(myTracks[name]));
@@ -175,7 +175,7 @@ try {
     [...document.querySelectorAll('.trk button')].find(b => b.dataset.rich === ':delete:').click();
     if (myTracks[name].rows.length !== 1) errs.push('tracker remove row ' + myTracks[name].rows.length);
     deleteTrack(name); if (name in myTracks) errs.push('tracker delete ' + name);
-    openStage(null); panels(); }
+    setMode('fx'); panels(); }
   // the attack grid: a hovered cell's own save button keeps that attack (once, however often it is pressed), without breeding
   lab.kind = 'attacks'; setMode('grid'); lab.hover = 4; labRender();
   const cell = lab.cells[4], sb = cell.btns.find(b => !b.open), seed = breed.seed, nMoves = Object.keys(DEFS[CURRENT].moves).length;

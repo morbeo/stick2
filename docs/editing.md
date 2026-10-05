@@ -189,7 +189,7 @@ Neither sounds nor looks are picked from a closed list — both can be designed 
 
 ### Sounds
 
-**panels** → **sounds**. Every sound is synthesized live (WebAudio, no files): a noise layer (a filtered sweep, with a resonance) and/or a tone layer (an oscillator sweep, with a detune), each with its own gain, over an attack and a decay. A waveform preview above the sliders renders the actual sound (silently, offline) so you can see the shape you're tuning. Every one is tunable, the 4 built-ins (whoosh, hit, thud, block) included — a slider per parameter, a **test** button; **revert** puts a built-in back to its shipped values (it keeps its name, since other moves already pick it by name). **new sound** (or **duplicate**) makes a wholly new one instead, free to rename or delete. A sound appears anywhere a sound is picked, including the key events row above.
+The sounds view (a view of the [Fx](modes.md#fx) tab). Every sound is synthesized live (WebAudio, no files): a noise layer (a filtered sweep, with a resonance) and/or a tone layer (an oscillator sweep, with a detune), each with its own gain, over an attack and a decay. A waveform preview above the sliders renders the actual sound (silently, offline) so you can see the shape you're tuning. Every one is tunable, the 4 built-ins (whoosh, hit, thud, block) included — a slider per parameter, a **test** button; **revert** puts a built-in back to its shipped values (it keeps its name, since other moves already pick it by name). **new sound** (or **duplicate**) makes a wholly new one instead, free to rename or delete. A sound appears anywhere a sound is picked, including the key events row above.
 
 ### Effects (looks)
 
@@ -197,7 +197,7 @@ Looks (fire, aura, lightning…) are designed in their own tab, not a panel over
 
 ### Tracker
 
-**panels** → **tracker**. A simple step sequencer built from your own sounds: a track has a tempo and a number of steps (8, 16 or 32), and any number of rows, each picking a sound and a grid of beats it plays on. **play** loops it, highlighting the step currently sounding. **new track** (or **+ row**) starts one; delete a row or the whole track, rename it freely.
+The tracker view (a view of the [Fx](modes.md#fx) tab). A simple step sequencer built from your own sounds: a track has a tempo and a number of steps (8, 16 or 32), and any number of rows, each picking a sound and a grid of beats it plays on. **play** loops it, highlighting the step currently sounding. **new track** (or **+ row**) starts one; delete a row or the whole track, rename it freely.
 
 ## Movement layers
 

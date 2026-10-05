@@ -241,7 +241,7 @@ The **panels** group → **bones** puts every bone in a table over the stage: id
 
 ### Moves
 
-The **panels** group in the toolbar (here and in animate) opens the move table, the inputs, the combos, [sounds](editing.md#sounds) and the [tracker](editing.md#tracker) over the stage; here also the **bones** table. Click it again, × or Esc to close; each tab keeps its own open panel. A move clicked in them (or picked from **edit** in the **moves** group; in animate, from the **move** group) opens in animate. Looks (effects) have their own tab, [Fx](#fx). See [Editing](editing.md).
+The **panels** group in the toolbar (here and in animate) opens the move table, the inputs and the combos over the stage; here also the **bones** table. Click it again, × or Esc to close; each tab keeps its own open panel. A move clicked in them (or picked from **edit** in the **moves** group; in animate, from the **move** group) opens in animate. Looks, [sounds and the tracker](editing.md#sounds) have their own tab, [Fx](#fx). See [Editing](editing.md).
 
 ## Animate
 
@@ -378,6 +378,8 @@ A gallery of every look (see [Effects](#effects)), built-in or custom, one tile 
 - **Experiment grid**: pick an **X** variable (and optionally a **Y**) among the look's own knobs; a 4 or 4×4 grid of small previews compares their values side by side.
 
 A custom look (new or duplicated) appears anywhere a look is picked, right alongside the built-ins — a move or key's fx, a bone's fx.
+
+The tab's view switcher also has **sounds** and **tracker**: every sound is synthesized live (no files) — a slider per parameter, built-ins tunable and revertible too, **new sound** (or duplicate) makes a wholly new one; the tracker is a simple step sequencer built from your own sounds (a tempo, a step count, rows each picking a sound and a grid of beats). See [Editing](editing.md#sounds).
 
 ## Replay
 

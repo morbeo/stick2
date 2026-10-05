@@ -165,7 +165,7 @@ function fxSide() {
 }
 
 function fxCtx() {
-  const backBtn = button(':grid_view: back to grid', 'Show every look again (Esc)', () => { fxState.zoom = false; });
+  const backBtn = button(':arrow_back: back to gallery', 'Show every look again (Esc)', () => { fxState.zoom = false; });
   reg(backBtn, () => { backBtn.hidden = !fxState.zoom; });
   return [grp('fx', 'Design fx looks: built-ins are hand-coded with a few tunable knobs each; a new look is a generic particle effect tuned by 8 sliders',
     button(':add: new look', 'A new custom look, starting from simple rising dots', () => { const n = newLook(); fxState.sel = n; fxState.zoom = true; fxState.gx = null; fxState.gy = null; panels(); }),
@@ -183,4 +183,16 @@ const fxMode = {
   wheel(dy) { const ms = fxMaxScroll(); if (!ms) return false; fxState.scroll = clamp(fxState.scroll + dy * dpr, 0, ms); return true; },
   key(e) { if (e.code === 'Escape' && fxState.zoom) { fxState.zoom = false; return true; } },
   hint: () => fxState.zoom ? 'Esc or click: back to the gallery' : 'click a look: open it, tune it, try it on a character · scroll for more',
+};
+// ---------- sounds and tracker: views of the fx tab (VIEWS.fx), not toggleable stage panels — soundsPanel/trackerPanel
+// (src/editor.js) are full-stage DOM content here, same as the gallery is for the fx view itself; no live worlds ----------
+const soundsMode = {
+  enter() {}, restart() {}, worlds: () => [], render: clear, ctxBar: () => [], side: () => [],
+  overlay: () => [soundsPanel()],
+  hint: () => 'every sound, synthesized live · built-ins are tunable too, revert undoes it',
+};
+const trackerMode = {
+  enter() {}, restart() {}, worlds: () => [], render: clear, ctxBar: () => [], side: () => [],
+  overlay: () => [trackerPanel()],
+  hint: () => 'a step sequencer built from your sounds · play loops it',
 };

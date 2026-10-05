@@ -691,9 +691,7 @@ const VIEW_TIPS = { cards: 'A drawing of each move (hover to play it)', list: 'C
   table: 'Every move in a table over the stage: sort by any column, fuzzy filter, edit the values in place, hover a row to see it play',
   inputs: 'Every input over the stage: direction pads per button show which directions have no move of their own, and a table of all inputs; click one to give it a move',
   combos: 'The combos over the stage: the chain links (P / K, or a direction with it like 6P, after a move chains into the next, chains setting authored) as a tree per starter or a table of routes with damage and frames; add, change and cut links in place',
-  sounds: 'Design sounds: every built-in and custom sound, a slider over every synth parameter, a test button; duplicate a built-in to tune your own',
-  looks: 'Design fx looks: every built-in and custom look, a live preview and an experiment grid; a new look is a generic particle effect tuned by sliders (count, life, speed, spread, angle, gravity, size, shape)',
-  tracker: 'A simple step sequencer: rows of sounds, a grid of beats, play it as a loop at a tempo' };
+  looks: 'Design fx looks: every built-in and custom look, a live preview and an experiment grid; a new look is a generic particle effect tuned by sliders (count, life, speed, spread, angle, gravity, size, shape)' };
 // ---------- move table: every move of the character, sortable, fuzzy-filtered, values edited in place ----------
 // startup / active / recovery edits retime that phase's keys; height opens its options; hovering a row plays the move by the cursor
 const PHASE_TIPS = { startup: 'Startup frames (60 fps) before the first active key. Edit to retime the startup keys.',
@@ -845,7 +843,8 @@ function soundsPanel() {
     body.replaceChildren(...Object.keys(SOUNDS).map(row), h('h4', { textContent: soundSel || 'pick a sound' }),
       soundSel ? soundFields(soundSel, fill) : h('p', { cls: 'note', textContent: 'click a sound above to hear it, tune it, or tune a copy of it' }));
   };
-  wrap.append(stageHead('sounds', 'Every sound is synthesized live (no files). A slider per parameter, built-ins included — revert goes back to a built-in\'s shipped values. A custom (or customized) sound plays anywhere that name is picked (the key events row).',
+  // a fx-tab view (src/fxlab.js), not a toggleable stage panel: no close button, there's nothing to close to
+  wrap.append(h('div', { cls: 'bar stagehead' }, h('b', { textContent: 'sounds', tip: 'Every sound is synthesized live (no files). A slider per parameter, built-ins included — revert goes back to a built-in\'s shipped values. A custom (or customized) sound plays anywhere that name is picked (the key events row).' }),
     button(':add: new sound', 'A new sound, copied from whoosh', () => { duplicateSound('whoosh'); fill(); })), body);
   fill();
   return wrap;
@@ -919,7 +918,8 @@ function trackerPanel() {
     body.replaceChildren(...Object.keys(myTracks).map(row), h('h4', { textContent: trackSel || 'pick a track' }),
       trackSel ? trackFields(trackSel, fill) : h('p', { cls: 'note', textContent: 'new track starts a 16-step pattern; its rows pick from your sounds' }));
   };
-  wrap.append(stageHead('tracker', 'A simple step sequencer: each row plays one of your sounds on a loop of steps, at a tempo — a tiny drum machine built from the sounds you\'ve made.',
+  // a fx-tab view (src/fxlab.js), not a toggleable stage panel: no close button, there's nothing to close to
+  wrap.append(h('div', { cls: 'bar stagehead' }, h('b', { textContent: 'tracker', tip: 'A simple step sequencer: each row plays one of your sounds on a loop of steps, at a tempo — a tiny drum machine built from the sounds you\'ve made.' }),
     button(':add: new track', 'A new 16-step track', () => { newTrack(); fill(); })), body);
   fill();
   return wrap;
@@ -1049,8 +1049,8 @@ function movesGrp() {
     popup(b, h('div', { cls: 'bar' }, Object.keys(currentChar().moves).sort().map(n => button(n, `Open ${n} in the keyframe editor`, () => { closePop(); openMove(n); })))));
   return grp('moves', 'The character\'s moves: pick one to open in the keyframe editor (or click a move in the table, inputs or combos)', pick);
 }
-const MOVE_PANELS = ['table', 'inputs', 'combos', 'sounds', 'tracker'],
-  moveStage = () => ({ table: moveTable, inputs: inputTable, combos: comboView, sounds: soundsPanel, tracker: trackerPanel })[stageOpen()];
+const MOVE_PANELS = ['table', 'inputs', 'combos'],
+  moveStage = () => ({ table: moveTable, inputs: inputTable, combos: comboView })[stageOpen()];
 // the move toolbar (animate): previous / next, the move being edited with the picker, its actions and the stance
 function moveGrp() {
   const ch = currentChar(), names = Object.keys(ch.moves), step = d => pickMove(names[(names.indexOf(anim.move) + d + names.length) % names.length]);
