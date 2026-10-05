@@ -87,11 +87,12 @@ class World {
     this.cam = (this.a.x + this.b.x) / 2;
     s.init?.(this); // a scenario can set up a state (the animate preview's target: lying, dizzy, facing away)
   }
-  // an enemy (a random built-in or the opponent's character) runs in from an edge, every other one from the left
+  // an enemy (a random built-in or the opponent's character) runs in from an edge, every other one from the left;
+  // the scenario's own bover (if any) applies to every one spawned this way too, not just the initial b
   addFoe(x, left, over) {
     const names = Object.keys(CHARS), opp = (this.chars || [currentChar()])[Math.min(1, (this.chars || [0]).length - 1)];
     const ch = this.cfg.waveMix ? CHARS[names[Math.floor(this.rand() * names.length)]] : opp;
-    this.fighters.push(Object.assign(new Fighter(this, x, left ? 1 : -1, COLS[1 + this.spawned++ % (COLS.length - 1)], ch, over), { team: 1 }));
+    this.fighters.push(Object.assign(new Fighter(this, x, left ? 1 : -1, COLS[1 + this.spawned++ % (COLS.length - 1)], ch, { ...this.scen.bover, ...over }), { team: 1 }));
     this.ctl.push(makeCtl('ai', this));
   }
   // survival: the enemies down a while leave, a new one runs in with health grown by the minutes survived and the enemies down

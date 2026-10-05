@@ -69,10 +69,22 @@ const EMBED_SLUGS = { vsdummy: 'you vs dummy', vsai: 'you vs ai', vs2ai: 'you vs
   arai: 'random AI vs random AI', arp: 'random player vs random player', arpai: 'random player vs random AI' };
 // scenarios a lone embedder could plausibly want at random: solo (you vs something), not a move test or an AI-only demo
 const EMBED_RANDOM_POOL = ['you vs dummy', 'you vs ai', 'you vs 2 ai', 'you vs 3 dummies', 'endless waves', 'survival'];
+// an embed is a passive demo for whoever's watching, not a real match: more of these (you vs 2 ai, 3 dummies, waves,
+// survival) are a gang-up than a fair fight, so the player gets a real edge instead of just getting ground down.
+// over replaces a setting rather than scaling it, so health/staggerAt/dizzyAt (not 1-based like damage) are computed
+// off the live CFG; bover also applies to every wave/survival enemy as they spawn in (World.addFoe), not just b
+const embedPlayerEdge = () => ({ health: CFG.health * 1.5, damage: 0.5, comboDamage: 0.7, staggerAt: CFG.staggerAt * 1.6, dizzyAt: CFG.dizzyAt * 1.6 });
+const EMBED_ENEMY_EDGE = { damage: 1.6 };
 function loadEmbedScenario(raw) {
   let name = EMBED_SLUGS[raw] || (SCENARIOS[raw] ? raw : null);
-  if (raw === 'random') { name = EMBED_RANDOM_POOL[Math.floor(Math.random() * EMBED_RANDOM_POOL.length)];
-    SCENARIOS[EMBED_KEY] = { ...SCENARIOS[name], chars: ['random', 'random', 'random', 'random'] }; name = EMBED_KEY; }
+  if (raw === 'random') {
+    name = EMBED_RANDOM_POOL[Math.floor(Math.random() * EMBED_RANDOM_POOL.length)];
+    const base = SCENARIOS[name];
+    SCENARIOS[EMBED_KEY] = { ...base, chars: ['random', 'random', 'random', 'random'],
+      aover: { ...base.aover, ...embedPlayerEdge() }, bover: { ...base.bover, ...EMBED_ENEMY_EDGE },
+      more: base.more?.map(m => ({ ...m, over: { ...m.over, ...EMBED_ENEMY_EDGE } })) };
+    name = EMBED_KEY;
+  }
   if (!name) { // not a known scenario or slug: a custom one, exported from the builder (same JSON as the export/import file, one entry)
     let u; try { u = JSON.parse(raw); } catch { return console.error(`stick2: bad #embed value "${raw}"`); }
     SCENARIOS[EMBED_KEY] = toScen(u); name = EMBED_KEY;
