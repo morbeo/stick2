@@ -78,8 +78,9 @@ function weaponsScale() {
 }
 // ---------- props ----------
 function propCanvas(name) {
-  const cv = h('canvas', { width: 90 * dpr, height: 64 * dpr, cls: 'scenthumb' });
+  const cv = h('canvas', { width: 90 * dpr, height: 64 * dpr, cls: 'itemthumb' });
   const p = PROPS[name]; if (!p) return cv;
+  if (p.bg) cv.style.background = p.bg;
   const ctx = cv.getContext('2d'), gy = cv.height - 8 * dpr, s = dpr * propsScale();
   drawShapes(ctx, p.shapes, (x, y) => [cv.width / 2 + x * s, gy + y * s], c => c || '#888', { sway: 0 });
   ctx.strokeStyle = '#cfc8bb'; ctx.lineWidth = dpr; ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(cv.width, gy); ctx.stroke();
@@ -107,8 +108,8 @@ function fitBox(shapes) {
 // a bigger, interactive version of propCanvas for the detail view: every shape's handles are draggable dots; drag
 // updates the shape and redraws locally (so the drag itself is smooth and never rebuilds this canvas mid-gesture),
 // and onChange (persisting + refilling the rest of the panel) only fires once, on release
-function propEditCanvas(shapes, onChange) {
-  const cv = h('canvas', { cls: 'shapeedit', width: EDIT_W * dpr, height: EDIT_H * dpr, style: `width:${EDIT_W}px;height:${EDIT_H}px;background:#1a1a1a;border-radius:4px;touch-action:none` });
+function propEditCanvas(shapes, onChange, bg) {
+  const cv = h('canvas', { cls: 'shapeedit', width: EDIT_W * dpr, height: EDIT_H * dpr, style: `width:${EDIT_W}px;height:${EDIT_H}px;background:${bg || '#f3f0e8'};border-radius:4px;touch-action:none` });
   const ctx = cv.getContext('2d');
   let drag = null;
   const toXY = (x, y) => { const { s, gy, cx } = fitBox(shapes); return [cx + x * s, gy + y * s]; };
@@ -145,8 +146,10 @@ function propFields(name, refill) {
     h('div', { cls: 'bar' }, nm, built ? h('span', { cls: 'note', textContent: 'built-in — tunable, revert to go back' }) : null,
       button(built ? ':restart_alt: revert' : ':delete: delete', built ? `Back to ${name}'s shipped values` : `Delete ${name}`,
         () => { resetProp(name); if (!built) propSel = null; refill(); })),
-    propEditCanvas(p.shapes, () => set({ shapes: p.shapes })),
+    propEditCanvas(p.shapes, () => set({ shapes: p.shapes }), p.bg),
     h('p', { cls: 'note', textContent: 'drag a dot to reposition or resize a shape' }),
+    h('div', { cls: 'bar' }, h('span', { textContent: 'preview background' }), colorInput(p.bg || '#f3f0e8', v => set({ bg: v }), 'Background behind this prop\'s own preview (cosmetic only)'),
+      p.bg ? button(':restart_alt:', 'Back to the default background', () => set({ bg: undefined }), 'mini') : null),
     h('div', { cls: 'bar' }, h('span', { textContent: 'size / height' }), numInput(p.size, v => set({ size: v }), 'Hit-test half-width'), numInput(p.h, v => set({ h: v }), 'Collidable height from the floor')),
     h('div', { cls: 'bar' }, h('span', { textContent: 'layer' }), seg(['back', 'mid', 'front'], () => p.layer || 'mid', v => set({ layer: v === 'mid' ? undefined : v }),
       { back: 'Behind everything', mid: 'Where fighters are (default)', front: 'In front of everything' })),
@@ -170,8 +173,9 @@ function propsSide() {
 }
 // ---------- weapons ----------
 function weaponCanvas(name) {
-  const cv = h('canvas', { width: 100 * dpr, height: 50 * dpr, cls: 'scenthumb' });
+  const cv = h('canvas', { width: 100 * dpr, height: 50 * dpr, cls: 'itemthumb' });
   const w = WEAPONS[name]; if (!w) return cv;
+  if (w.bg) cv.style.background = w.bg;
   const ctx = cv.getContext('2d'), y = cv.height / 2, pad = 8 * dpr, s = dpr * weaponsScale();
   drawShapes(ctx, w.shapes, (d, p) => [pad + d * s, y + p * s], raw => raw === 'wood' ? WOOD : raw === 'metal' ? METAL : raw, { len: w.len });
   return cv;
@@ -199,6 +203,8 @@ function weaponFields(name, refill) {
       button(built ? ':restart_alt: revert' : ':delete: delete', built ? `Back to ${name}'s shipped values` : `Delete ${name}`,
         () => { resetWeapon(name); if (!built) weaponSel = null; refill(); })),
     h('div', { cls: 'bar' }, weaponCanvas(name), weaponHandPreview(name)),
+    h('div', { cls: 'bar' }, h('span', { textContent: 'preview background' }), colorInput(w.bg || '#f3f0e8', v => set({ bg: v }), 'Background behind this weapon\'s own preview (cosmetic only)'),
+      w.bg ? button(':restart_alt:', 'Back to the default background', () => set({ bg: undefined }), 'mini') : null),
     h('div', { cls: 'bar' }, h('span', { textContent: 'class' }), seg(Object.keys(WEAPON_CLASSES), () => w.cls, v => set({ cls: v }), mapVals(WEAPON_CLASSES, c => c.tip))),
     h('div', { cls: 'bar' }, h('span', { textContent: 'length / weight' }), numInput(w.len, v => set({ len: v }), 'How long it is, in px'), numInput(w.weight, v => set({ weight: v }), 'Heavier hits harder but swings slower')),
     h('div', { cls: 'bar' }, h('span', { textContent: 'grip angle' }), numInput(w.a, v => set({ a: v }), 'Angle in the hand, relative to the fist'),
@@ -223,6 +229,6 @@ function weaponsSide() {
     weaponPicker()];
 }
 const propsMode = { enter() {}, restart() {}, worlds: () => [], render: clear, ctxBar: () => [], side: propsSide, overlay: () => [propsPanel()],
-  hint: () => 'pick a prop in the side panel to tune it: size, layer, moveable, breakable, and its shapes' };
+  open: ['props'], hint: () => 'pick a prop in the side panel to tune it: size, layer, moveable, breakable, and its shapes' };
 const weaponsMode = { enter() {}, restart() {}, worlds: () => [], render: clear, ctxBar: () => [], side: weaponsSide, overlay: () => [weaponsPanel()],
-  hint: () => 'pick a weapon in the side panel to tune it: class, length, weight, grip, and its shapes' };
+  open: ['weapons'], hint: () => 'pick a weapon in the side panel to tune it: class, length, weight, grip, and its shapes' };

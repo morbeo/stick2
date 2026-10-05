@@ -105,6 +105,8 @@
   .card canvas.wave { width: 100%; height: 28px; }
   .card canvas.scenthumb { width: 100%; height: auto; aspect-ratio: 100 / 56; background: #1a1a1a; border-radius: 2px; }
   .mtable td canvas.scenthumb { width: 44px; height: auto; background: #1a1a1a; border-radius: 2px; vertical-align: middle; }
+  .card canvas.itemthumb { width: 100%; height: auto; aspect-ratio: 100 / 56; border-radius: 2px; }
+  .mtable td canvas.itemthumb { width: 44px; height: auto; border-radius: 2px; vertical-align: middle; }
   .gbadge.actors .ic { font-size: 11px; vertical-align: -2px; }
   .gbadge { color: #999; font-size: 9px; line-height: 1.3; white-space: nowrap; }
   .shaperow { border-top: 1px solid #e3ded2; padding: 4px 0; margin-top: 4px; }
@@ -171,6 +173,7 @@
   .legend { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; font-size: 11px; font-weight: bold; }
   .card.on canvas { filter: invert(1) brightness(1.6); }
   .card.on canvas.scenthumb { filter: none; } /* a rendered scene, not a B&W figure: inverting it looks broken, not selected */
+  .card.on canvas.itemthumb { filter: none; }
   .tree { display: flex; align-items: center; gap: 2px; margin: 1px 0; }
   .tree button { padding: 0 6px; } button.twist, span.twist { width: 18px; padding: 0; border: 0; background: none; }
   .vname { cursor: pointer; text-decoration: underline dotted #aaa; text-underline-offset: 3px; }

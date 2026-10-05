@@ -129,6 +129,10 @@ try {
   // built-in weapons are drawn from now, so editing one's fields (and reverting) must round-trip through PROPS/WEAPONS
   { setMode('props'); panels();
     const cards = () => [...document.querySelectorAll('.cards .card')], tog = t => [...document.querySelectorAll('.mtable button.tog')].find(b => b.textContent.includes(t));
+    // the side panel's gallery starts open (it used to default shut, like any other fold, hiding the picker entirely)
+    if (document.querySelector('#side .fold.shut') || !cards().length) errs.push('props side panel starts folded shut');
+    // thumbnails are their own class (not scenthumb, a scene's), so they get the app's own background, not a scene's dark one
+    if (document.querySelector('canvas.scenthumb')) errs.push('prop thumbnail still uses the scene-thumbnail class/background');
     if (cards().length !== Object.keys(PROPS).length) errs.push('props gallery ' + cards().length);
     cards().find(c => c.textContent.startsWith('crate')).click();
     if (!document.querySelector('.shaperow')) errs.push('crate has no shapes shown');
@@ -163,18 +167,33 @@ try {
     cards().find(c => c.textContent.startsWith('crate')).click();
     // every shape has a real colour picker, not just built-in presets
     if (!document.querySelector('.shaperow input[type=color]')) errs.push('prop shape has no colour picker');
+    // a custom preview background, per prop; unset by default (the app's own background, not a hardcoded dark one)
+    const bgInput = [...document.querySelectorAll('.mtable input[type=color]')][0];
+    if ('bg' in PROPS.crate) errs.push('crate should have no custom background by default');
+    bgInput.value = '#336699'; bgInput.dispatchEvent(new Event('change'));
+    if (PROPS.crate.bg !== '#336699') errs.push('prop background field did not set PROPS.crate.bg');
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('revert')).click();
+    if ('bg' in PROPS.crate) errs.push('prop background did not revert');
     // the gallery's table view shows the same items, each with its own real-size thumbnail
     [...document.querySelectorAll('#side button')].find(b => b.dataset.tip === 'A compact table').click();
     const rows = () => [...document.querySelectorAll('#side .mtable tbody tr')];
-    if (rows().length !== Object.keys(PROPS).length || !rows()[0].querySelector('canvas.scenthumb')) errs.push('props table view ' + rows().length);
+    if (rows().length !== Object.keys(PROPS).length || !rows()[0].querySelector('canvas.itemthumb')) errs.push('props table view ' + rows().length);
     rows().find(r => r.textContent.startsWith('crate')).click();
     if (propSel !== 'crate') errs.push('props table row click ' + propSel);
     [...document.querySelectorAll('#side button')].find(b => b.dataset.tip === 'A grid of thumbnails').click();
     setMode('weapons'); panels();
+    if (document.querySelector('#side .fold.shut') || !cards().length) errs.push('weapons side panel starts folded shut');
     if (cards().length !== Object.keys(WEAPONS).length) errs.push('weapons gallery ' + cards().length);
     cards().find(c => c.textContent.startsWith('sword')).click();
     // a preview of the weapon held in a character's hand, next to the flat blade-shape thumbnail
     if (document.querySelectorAll('.mtable canvas').length < 2) errs.push('weapon hand preview missing');
+    // a custom preview background, per weapon; unset by default
+    const wBgInput = [...document.querySelectorAll('.mtable input[type=color]')][0];
+    if ('bg' in WEAPONS.sword) errs.push('sword should have no custom background by default');
+    wBgInput.value = '#663399'; wBgInput.dispatchEvent(new Event('change'));
+    if (WEAPONS.sword.bg !== '#663399') errs.push('weapon background field did not set WEAPONS.sword.bg');
+    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('revert')).click();
+    if ('bg' in WEAPONS.sword) errs.push('weapon background did not revert');
     const lenBase = BASE_WEAPONS.sword.len, lenInput = document.querySelector('.mtable input[type=number]');
     lenInput.value = lenBase + 10; lenInput.dispatchEvent(new Event('change'));
     if (WEAPONS.sword.len !== lenBase + 10 || !('sword' in myWeapons)) errs.push('weapon field edit ' + JSON.stringify(WEAPONS.sword));
