@@ -462,14 +462,19 @@ function trainingCtl() {
   reg(rep, () => { rep.disabled = !human() || lab.rec || !lab.tape?.length; });
   return [grp('dummy', 'Record your inputs for the dummy to play back', rec, rep)];
 }
-// the menu bar's replay buttons: save the play fight (play only), play a replay file (switches to play)
-function replaySave() {
-  const b = button(':save: save', `Save the play fight so far as a replay file: its inputs, settings and characters, pinned to engine v${ENGINE_VERSION} (other versions play it out differently)`, saveReplay);
+// the export/import menus' replay items: export the play fight so far (play only), import one to play back (switches to play)
+function replayExportItem() {
+  const b = button('replay', `Export the play fight so far as a replay file: its inputs, settings and characters, pinned to engine v${ENGINE_VERSION} (other versions play it out differently)`, saveReplay);
   reg(b, () => { b.disabled = app.mode !== 'play' || !lab.cells[0]?.w.log.length; });
   return b;
 }
-const replayFile = () => toggle(':theaters: file', 'Play a saved replay file in play (inputs, settings and characters of a recorded fight); click again to stop. A file from another engine version plays out differently: it asks first, and the top line shows where it goes out of sync',
-  () => !!lab.playback, v => v ? loadReplay() : (lab.playback = null, build()));
+const replayImportItem = () => button('replay', 'Play a saved replay file in play (inputs, settings and characters of a recorded fight). A file from another engine version plays out differently: it asks first, and the top line shows where it goes out of sync', loadReplay);
+// the menu bar's replay group: only a loaded replay file needs stopping (picking a scenario already clears it)
+function stopReplayButton() {
+  const b = button(':close: stop', 'Stop playing this replay file and return to the live fight', () => { lab.playback = null; build(); });
+  reg(b, () => { b.disabled = !lab.playback; });
+  return b;
+}
 // the blow controls (impact's ragdoll, the creator's impact preview): what, how hard, from which side, and stand it up again
 // under the preview, not the toolbar — it is its own thing to play with, not a setting of the view
 // (inPv: the creator/animate split layout, where the preview is only the right-hand pane, not the whole canvas)

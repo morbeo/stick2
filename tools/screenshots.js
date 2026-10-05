@@ -40,7 +40,7 @@ const SHOTS = {
   stancereq: [`setMode('character'); pickChar('stick'); studio.stance = 1; lay().fold['character:stance pose'] = false; panels(); ${run(5)}
     [...document.querySelectorAll('#side h3')].find(el => el.textContent.toLowerCase().includes('stance pose')).scrollIntoView();`, [1080, 60, 320, 740]],
   fighters: [`lab.scen = 'ai 2v2'; setMode('play'); build(); panels(); ${run(30)} document.querySelectorAll('.fpick')[2].click();`, [0, 0, 1000, 700]],
-  menubar: [`setMode('play'); panels(); ${run(30)} [...document.querySelectorAll('#global button')].find(b => b.dataset.tip?.startsWith('Export')).click();`, [0, 0, 1400, 130]],
+  menubar: [`setMode('play'); panels(); ${run(30)} [...document.querySelectorAll('#global button')].find(b => b.dataset.tip?.startsWith('Export')).click();`, [0, 0, 1400, 160]],
   // a popup is placed to fit the small capture window: put it back where it opens in the full page
   layout: [`setMode('play'); panels(); ${run(30)} $('global').querySelector('button[data-tip^="Layout:"]').click(); Object.assign(pop.style, { left: '560px', top: '32px', maxHeight: 'none' });`, [540, 20, 460, 540]],
   debug: [`setMode('play'); panels(); ${run(90)} debugBtn().click(); Object.assign(pop.style, { left: '955px', top: '32px', maxHeight: 'none' }); dbgT = 0; drawDebug(); drawScope();`, [940, 20, 400, 540]],

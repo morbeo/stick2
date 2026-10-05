@@ -210,5 +210,5 @@ function clipGroup() {
     row('fps', 'Frames a second: more is smoother, fewer gives smaller files', pick('fps', CLIP_FPS, String)),
     row('aspect', 'The clip\'s shape: the watched view\'s own, or a fixed one (16:9 video, 1:1 square, 9:16 phone)', pick('aspect', Object.keys(CLIP_ASPECTS), String)),
     row('fit', 'Another shape than the view\'s: crop its middle, or fit all of it with bars', pick('fit', ['crop', 'letterbox'], String))));
-  return grp('', 'Clips: save the last seconds of what you watch, or record it, as a GIF or a WebM', save, rec, opts);
+  return grp('clips', 'Clips: save the last seconds of what you watch, or record it, as a GIF or a WebM', save, rec, opts);
 }

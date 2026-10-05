@@ -12,7 +12,7 @@ Three rows, the same in every tab:
 
 | Row | What's on it |
 |---|---|
-| menu bar | the tabs · undo / redo · clip / record · replay save / play · export / import · search, panel, layout, keys, debug, docs, hints, sound |
+| menu bar | the tabs · undo / redo · clip / record · replay (edit in the replay tab, stop a loaded replay file) · export / import · search, panel, layout, keys, debug, docs, hints, sound |
 | transport | pause, rewind, step back, step, restart, speed, scrub, loop (the same in every mode) |
 | toolbar | the mode's own tools in labelled groups, in the same order on every tab: view, what you work on (scenario, fighters, moves…), the tab's tools, **show** (overlays), **panels** (tables over the stage: click again, × or Esc closes; each tab keeps its own) |
 
@@ -25,6 +25,7 @@ Three rows, the same in every tab:
 | character | the current character |
 | settings | every setting changed from its default (the debug views left out) |
 | everything | your edited and new characters, the changed settings, your scenarios and your keys, as one JSON file |
+| replay | **export**: the play fight so far (needs one running); **import**: play a saved replay file in play — the **replay** group's **stop** button (disabled until one is loaded) returns to the live fight |
 
 - Importing **everything** asks first.
 - A broken character in the file loads nothing.

@@ -113,14 +113,14 @@ function buildTop() {
   const soundBtn = button('', 'Sound: whooshes, hits and blocks in play and in the animate preview, synthesized live (no sound files); off by default in automated browsers', toggleMute, 'tog');
   reg(soundBtn, () => { soundBtn.classList.toggle('on', !muted()); setRich(soundBtn, muted() ? ':volume_off:' : ':waves:'); });
   $('global').replaceChildren(
-    grp('', 'Edit history', button(':undo:', 'Undo the last edit: character, moves or settings (⌘Z)', undo), button(':redo:', 'Redo the last undone edit (⇧⌘Z)', redo)),
+    grp('edit', 'Edit history', button(':undo:', 'Undo the last edit: character, moves or settings (⌘Z)', undo), button(':redo:', 'Redo the last undone edit (⇧⌘Z)', redo)),
     clipGroup(),
-    grp('', 'Replay files: a whole play fight (inputs, settings, characters), pinned to the engine version', replaySave(), replayFile(),
-      button(':history:', 'Edit the play fight in the replay tab: its events on a timeline and in a table', reelFromPlay)),
-    grp('', 'Files: the character, the settings or everything, as JSON', button(':download: export :expand_more:', 'Export to a file: the character, the settings or everything', fileMenu('export', exportFile)),
-      button(':upload: import :expand_more:', 'Import from a file: a character, settings or everything', fileMenu('import', importFile,
-        button('compare…', 'Compare settings: the current ones against a settings or everything file, setting by setting (grid tab)', compareFile)))),
-    grp('', 'Layout and keys', button(':search:', 'Find anything (⌘K): a mode, a toolbar tool, an action, a table (moves, inputs, combos, bones), a character, a move or a setting', openPalette),
+    grp('replay', 'Edit the play fight in the replay tab, or stop a loaded replay file (export / import, in files) and return to the live fight',
+      button(':history:', 'Edit the play fight in the replay tab: its events on a timeline and in a table', reelFromPlay), stopReplayButton()),
+    grp('files', 'The character, the settings, everything, or this play fight as a replay, as JSON', button(':download: export :expand_more:', 'Export to a file: the character, the settings, everything, or this play fight as a replay', fileMenu('export', exportFile, replayExportItem())),
+      button(':upload: import :expand_more:', 'Import from a file: a character, settings, everything, or a replay to play back', fileMenu('import', importFile,
+        replayImportItem(), button('compare…', 'Compare settings: the current ones against a settings or everything file, setting by setting (grid tab)', compareFile)))),
+    grp('layout', 'Layout and keys', button(':search:', 'Find anything (⌘K): a mode, a toolbar tool, an action, a table (moves, inputs, combos, bones), a character, a move or a setting', openPalette),
       button(':view_sidebar:', 'Panel: show / hide the side panel (remembered per tab)' + keyTip('panel'), togglePanel),
       button(':view_module:', LAY_TIP, layoutPanel),
       button(':zoom_in:', 'Interface scale: the whole page bigger or smaller (not the fight itself, which always fills its own space)', (e, b) => popup(b,
