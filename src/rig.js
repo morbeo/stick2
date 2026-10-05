@@ -724,20 +724,22 @@ const CHAR_DEFS = {
 // weight: heavier hits harder (power, damage and knockback × weaponPower) but its moves play slower (× weaponSpeed)
 // a shape's x can reach for 'len' (this weapon's own len, so the blade still reaches the tip under a slight live
 // stretch) or 'len-4' etc; grip/guard sizes are plain numbers (a short dagger's guard isn't scaled down with it)
-const BLADE_SHAPES = [ // dagger, sword: grip, guard, a pointed blade to the tip
+// bladeShapes/clubShapes return a fresh copy each time: dagger/sword and bat/limb start from the same recipe, but
+// each weapon owns its own shapes array (editing one must never silently change the other)
+const bladeShapes = () => [ // grip, guard, a pointed blade to the tip
   { kind: 'line', x1: -3, y1: 0, x2: 4, y2: 0, w: 3, col: 'wood' },
   { kind: 'polygon', pts: [[3, -5], [3, 5], [4.5, 5], [4.5, -5]], col: 'metal', stroke: 'metal' },
   { kind: 'polygon', pts: [[5, -2], [5, 2], ['len-4', 1.5], ['len', 0], ['len-4', -1.5]], col: 'metal', stroke: 'metal' },
 ];
-const CLUB_SHAPES = [{ kind: 'polygon', pts: [[-3, -1.5], [-3, 1.5], ['len', 3.5], ['len', -3.5]], col: 'wood', stroke: 'wood' }]; // bat, limb
-const WEAPONS = {
-  dagger: { cls: 'pierce', shapes: BLADE_SHAPES, len: 20, weight: 0.3, a: 0, tip: 'Dagger: short and quick; stabs, and flies straight when thrown' },
-  sword: { cls: 'slash', shapes: BLADE_SHAPES, len: 46, weight: 0.8, a: 10, tip: 'Sword: long blade, slashes and chops' },
+const clubShapes = () => [{ kind: 'polygon', pts: [[-3, -1.5], [-3, 1.5], ['len', 3.5], ['len', -3.5]], col: 'wood', stroke: 'wood' }];
+const BASE_WEAPONS = {
+  dagger: { cls: 'pierce', shapes: bladeShapes(), len: 20, weight: 0.3, a: 0, tip: 'Dagger: short and quick; stabs, and flies straight when thrown' },
+  sword: { cls: 'slash', shapes: bladeShapes(), len: 46, weight: 0.8, a: 10, tip: 'Sword: long blade, slashes and chops' },
   axe: { cls: 'slash', len: 36, weight: 1.3, a: 40, tip: 'Axe: a heavy head on a handle; slower, harder chops', shapes: [
     { kind: 'line', x1: -3, y1: 0, x2: 'len', y2: 0, w: 3, col: 'wood' },
     { kind: 'polygon', pts: [['len-12', 0], ['len-15', 10], ['len+1', 12], ['len-2', 0]], col: 'metal', stroke: 'metal' },
   ] },
-  bat: { cls: 'blunt', shapes: CLUB_SHAPES, len: 40, weight: 0.9, a: 40, tip: 'Bat: blunt swings that knock back' },
+  bat: { cls: 'blunt', shapes: clubShapes(), len: 40, weight: 0.9, a: 40, tip: 'Bat: blunt swings that knock back' },
   nunchucks: { cls: 'blunt', chain: true, len: 34, weight: 0.6, a: -100, tip: 'Nunchucks: two sticks on a chain, the outer one flails behind the swing',
     shapes: [{ kind: 'line', x1: -2, y1: 0, x2: 'len', y2: 0, w: 4, col: 'wood' }] },
   hammer: { cls: '2h', len: 52, weight: 2, a: 40, grip2: 9, tip: 'War hammer: two-handed, very slow, crushing', shapes: [
@@ -746,8 +748,17 @@ const WEAPONS = {
   ] },
   staff: { cls: 'pole', len: 62, back: 34, weight: 1, a: -50, grip2: -24, tip: 'Staff: held along its length; the longest reach',
     shapes: [{ kind: 'line', x1: -36, y1: 0, x2: 'len', y2: 0, w: 3, col: 'wood' }] },
-  limb: { cls: 'blunt', shapes: CLUB_SHAPES, len: 24, weight: 0.9, a: 0, tip: 'Severed limb: a gruesome weapon of opportunity' },
+  limb: { cls: 'blunt', shapes: clubShapes(), len: 24, weight: 0.9, a: 0, tip: 'Severed limb: a gruesome weapon of opportunity' },
 };
+// my weapons: edits to a built-in, or wholly new ones (same pattern as sounds: myStore -> live table)
+const WEAPON_STORE = 'stick2.weapons';
+const myWeapons = (() => { try { return JSON.parse(localStorage.getItem(WEAPON_STORE)) || {}; } catch { return {}; } })();
+const WEAPONS = { ...BASE_WEAPONS, ...myWeapons };
+function saveWeapon(name, preset) { myWeapons[name] = WEAPONS[name] = preset; saveWeapons(); }
+function resetWeapon(name) { delete myWeapons[name]; if (BASE_WEAPONS[name]) WEAPONS[name] = { ...BASE_WEAPONS[name] }; else delete WEAPONS[name]; saveWeapons(); }
+function renameWeapon(from, to) { if (!myWeapons[from] || to === from || WEAPONS[to]) return; myWeapons[to] = WEAPONS[to] = myWeapons[from]; resetWeapon(from); }
+function saveWeapons() { try { localStorage.setItem(WEAPON_STORE, JSON.stringify(myWeapons)); } catch {} }
+function duplicateWeapon(from) { let n = 1; while (WEAPONS[from + n]) n++; const name = from + n; saveWeapon(name, { ...WEAPONS[from], shapes: cloneShapes(WEAPONS[from].shapes) }); return name; }
 const weaponPower = w => 0.8 + 0.4 * w.weight, weaponSpeed = w => 1.15 - 0.2 * w.weight;
 // a weapon move built on a stick move's key pose (move, key index), with the weapon's grip angle (undefined: the rest grip)
 const wPose = (n, i, w, more) => ({ ...CHAR_DEFS.stick.moves[n].keys[i].p, ...more, ...(w === undefined ? {} : { weapon: w }) });

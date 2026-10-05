@@ -36,17 +36,13 @@ const STAGES = {
   } },
 };
 
-// ---------- props: simple collidable scenery, placed by a scenario (scen.props: [{type, x, z?}]) ----------
+// ---------- props: scenery, placed by a scenario (scen.props: [{type, x, z?}]) ----------
 // size: half-width (and collision radius); h: the collidable column's height, from the floor up (generous, so a punch
 // or a kick, high or low, both reach it — independent of how tall its own drawing happens to be)
-// breakable: takes damage from strikes and thrown weapons, destroyed (debris) at 0 hp
-// bendable: never damaged or destroyed, just bends briefly where it's struck (bendDir/bendT, set in World.updateProps)
-// bouncy: never damaged; a thrown weapon that hits it reflects instead of landing
-// draw(ctx, p, w) runs in world space, like STAGES; w: the World (for w.groundY)
-// a prop: size/h (collision: hit-test radius and height), layer (back/mid/front, default mid), moveable (sways on
-// a strike, bounces a thrown weapon back — a shape opts into the sway with its own `sway` field, in px), breakable
-// (hp, destroyed at 0) — independent of each other and of the shapes that draw it (src/shapes.js)
-const PROPS = {
+// layer (back/mid/front, default mid): draw order relative to fighters. moveable: sways on a strike, bounces a thrown
+// weapon back (a shape opts into the sway with its own `sway` field, in px). breakable: hp, destroyed at 0 (debris).
+// Both are independent of each other and of the shapes that draw it (src/shapes.js)
+const BASE_PROPS = {
   crate: { size: 20, h: 90, breakable: true, hp: 30, tip: 'A crate: breaks after enough hits', shapes: [
     { kind: 'box', x: -20, y: -48, w: 40, h: 48, col: '#b08a52', stroke: '#7a5c34', lw: 2, cross: true } ] },
   reed: { size: 6, h: 90, moveable: true, tip: 'A reed: bends when struck, never breaks', shapes: [
@@ -54,3 +50,12 @@ const PROPS = {
   spring: { size: 16, h: 90, moveable: true, tip: 'A spring: bounces thrown weapons back', shapes: [
     { kind: 'circle', cx: 0, cy: -4, rx: 16, ry: 6, col: '#c0392b', stroke: '#7a2015', lw: 2 } ] },
 };
+// my props: edits to a built-in, or wholly new ones (same pattern as sounds: myStore -> live table)
+const PROP_STORE = 'stick2.props';
+const myProps = (() => { try { return JSON.parse(localStorage.getItem(PROP_STORE)) || {}; } catch { return {}; } })();
+const PROPS = { ...BASE_PROPS, ...myProps };
+function saveProp(name, preset) { myProps[name] = PROPS[name] = preset; saveProps(); }
+function resetProp(name) { delete myProps[name]; if (BASE_PROPS[name]) PROPS[name] = { ...BASE_PROPS[name] }; else delete PROPS[name]; saveProps(); }
+function renameProp(from, to) { if (!myProps[from] || to === from || PROPS[to]) return; myProps[to] = PROPS[to] = myProps[from]; resetProp(from); }
+function saveProps() { try { localStorage.setItem(PROP_STORE, JSON.stringify(myProps)); } catch {} }
+function duplicateProp(from) { let n = 1; while (PROPS[from + n]) n++; const name = from + n; saveProp(name, { ...PROPS[from], shapes: cloneShapes(PROPS[from].shapes) }); return name; }

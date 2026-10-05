@@ -20,12 +20,14 @@ const MODES = {
   fx: 'Every fx look (built-in and custom), as a gallery of tiles: open one to tune it (sliders, colour, randomize), preview it on a character or a plain segment, and compare values of two variables in a grid.',
   sounds: 'Every sound (built-in and custom), synthesized live, no files: a slider per parameter, a test button; duplicate a built-in to tune your own.',
   tracker: 'A simple step sequencer built from your own sounds: rows of sounds, a grid of beats, play it as a loop at a tempo.',
+  props: 'Scenery (built-in and custom): fixed or moveable, breakable or not, drawn from simple shapes (line, circle, box, polygon). Used by the scenario builder.',
+  weapons: 'Held or thrown weapons (built-in and custom), drawn along the grip-to-tip axis from the same simple shapes as props. A custom one reuses an existing class\'s moveset.',
   replay: 'A recorded fight (the play fight or a replay file) as a timeline of colour-coded events and an event table: filter by type, find a moment, go there.',
 };
-const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode, replay: replayMode, fx: fxMode, sounds: soundsMode, tracker: trackerMode, grid: gridMode })[app.mode] || labMode;
+const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode, replay: replayMode, fx: fxMode, sounds: soundsMode, tracker: trackerMode, grid: gridMode, props: propsMode, weapons: weaponsMode })[app.mode] || labMode;
 // the top bar's tabs: impact is a view of experiment, gallery and tests views of animate, sounds and tracker of fx, picked first in their toolbar
-const VIEWS = { experiment: ['experiment', 'impact'], animate: ['animate', 'gallery', 'tests'], fx: ['fx', 'sounds', 'tracker'] };
-const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', experiment: 'science', gallery: 'animation', impact: 'crisis_alert', tests: 'fact_check', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', sounds: 'waves', tracker: 'view_module', replay: 'history' };
+const VIEWS = { experiment: ['experiment', 'impact'], animate: ['animate', 'gallery', 'tests'], fx: ['fx', 'sounds', 'tracker', 'props', 'weapons'] };
+const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', experiment: 'science', gallery: 'animation', impact: 'crisis_alert', tests: 'fact_check', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', sounds: 'waves', tracker: 'view_module', replay: 'history', props: 'category', weapons: 'swords' };
 const tabOf = m => Object.keys(VIEWS).find(t => VIEWS[t].includes(m)) || m;
 
 function setMode(m) {

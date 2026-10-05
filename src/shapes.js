@@ -49,6 +49,9 @@ function drawShape(ctx, s, toXY, resolveCol, vars = {}, extra = 0) {
   }
 }
 function drawShapes(ctx, shapes, toXY, resolveCol, vars, extra) { for (const s of shapes) drawShape(ctx, s, toXY, resolveCol, vars, extra); }
+// a deep-enough copy for editing: a polygon's own pts array (and its [x,y] pairs) must never alias the original,
+// or moving a point on a duplicated prop/weapon would silently move it on the one it was copied from too
+const cloneShapes = shapes => shapes.map(s => s.kind === 'polygon' ? { ...s, pts: s.pts.map(p => [...p]) } : { ...s });
 // a default new primitive of a given kind, small and near the origin so it's visible and editable right away
 function newShape(kind) {
   if (kind === 'line') return { kind, x1: 0, y1: 0, x2: 0, y2: -20, w: 3, col: '#333' };
