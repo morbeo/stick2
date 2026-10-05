@@ -124,29 +124,41 @@ try {
       if (data && [...data].some(v => !Number.isFinite(v))) errs.push('renderSound non-finite');
       resetSound('hit'); }
     openStage(null); panels(); });
-  // looks panel: lists every look; a built-in (hand-coded) is directly tunable too (revert undoes it); new look makes a
-  // wholly custom generic-particle one, a slider edits it live, delete removes it from FX_LOOKS/FX_DRAW
-  { setMode('animate'); openStage('looks'); panels();
-    const rows = () => [...document.querySelectorAll('.mtable .bar:not(.stagehead)')];
-    rows().find(r => r.textContent.startsWith('aura')).click(); // a built-in
-    if (!document.querySelector('.mtable input[type=range]')) errs.push('built-in look has no sliders');
+  // fx tab: a gallery tile for every look; clicking one opens + zooms it; a built-in (hand-coded) is directly tunable
+  // too (revert undoes it); new look makes a wholly custom generic-particle one, a slider edits it live, delete removes
+  // it from FX_LOOKS/FX_DRAW; the experiment grid's Y axis crosses a second variable in, 4×4 cells instead of 4
+  { setMode('fx'); panels();
+    const auraI = Object.keys(FX_LOOKS).indexOf('aura'), r0 = fxRects()[auraI];
+    fxClick(r0.x + r0.w / 2, r0.y + r0.h / 2); panels(); // a built-in
+    if (fxState.sel !== 'aura' || !fxState.zoom) errs.push('fx gallery click ' + fxState.sel + ' ' + fxState.zoom);
+    const sliders = () => [...document.querySelectorAll('#side input[type=range]')];
+    if (!sliders().length) errs.push('built-in look has no sliders');
     const auraGapBase = BASE_BUILTIN.aura.params.gap;
-    const sl0 = document.querySelector('.mtable input[type=range]'); sl0.value = auraGapBase + 5; sl0.dispatchEvent(new Event('input'));
+    const sl0 = sliders()[0]; sl0.value = auraGapBase + 5; sl0.dispatchEvent(new Event('input'));
     if (FX_BUILTIN.aura.params.gap !== auraGapBase + 5 || !('aura' in builtinFx)) errs.push('built-in look slider ' + JSON.stringify(FX_BUILTIN.aura));
-    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('revert')).click();
+    [...document.querySelectorAll('#side button')].find(b => b.textContent.includes('revert')).click();
     if (FX_BUILTIN.aura.params.gap !== auraGapBase || 'aura' in builtinFx) errs.push('built-in look revert ' + JSON.stringify(FX_BUILTIN.aura));
+    // duplicate: an independent copy of a built-in using the same algorithm, so tuning it never touches the original
+    [...document.querySelectorAll('#side button')].find(b => b.textContent.includes('duplicate')).click();
+    const dup = fxState.sel;
+    if (!dup || !(dup in myLooks) || myLooks[dup].algo !== 'aura' || myLooks[dup].gap !== auraGapBase) errs.push('duplicate builtin ' + dup + ' ' + JSON.stringify(myLooks[dup]));
+    const dupSl = sliders()[0]; dupSl.value = auraGapBase + 9; dupSl.dispatchEvent(new Event('input'));
+    if (myLooks[dup].gap !== auraGapBase + 9 || FX_BUILTIN.aura.params.gap !== auraGapBase) errs.push('duplicate not independent of builtin ' + JSON.stringify([myLooks[dup], FX_BUILTIN.aura]));
+    deleteLook(dup);
     const before = Object.keys(FX_LOOKS).length;
-    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('new look')).click();
+    [...document.querySelectorAll('#ctx button')].find(b => b.textContent.includes('new look')).click();
     const name = Object.keys(myLooks)[0];
     if (!name || !(name in FX_LOOKS) || !FX_DRAW[name]) errs.push('new look not created ' + name);
-    const sliders = document.querySelectorAll('.mtable input[type=range]');
-    sliders[2].value = 200; sliders[2].dispatchEvent(new Event('input')); // speed (count, life, speed, …)
+    sliders()[2].value = 200; sliders()[2].dispatchEvent(new Event('input')); // speed (count, life, speed, …)
     if (myLooks[name].speed !== 200) errs.push('look slider ' + JSON.stringify(myLooks[name]));
-    // the experiment grid previews the clicked slider's name without mutating the saved preset
-    [...document.querySelectorAll('.mtable .vname')].find(n => n.textContent === 'count').click();
+    const cellsBefore = document.querySelectorAll('#side canvas').length; // the experiment grid: 4 cells, one variable (X only)
+    [...document.querySelectorAll('#side button')].find(b => b.textContent.startsWith('Y:')).click();
+    [...document.querySelectorAll('.pop button')].find(b => b.textContent === 'life').click();
+    const cellsAfter = document.querySelectorAll('#side canvas').length; // now a 4×4 grid: 12 more cells
+    if (cellsAfter - cellsBefore !== 12) errs.push('fx grid Y axis ' + cellsBefore + ' -> ' + cellsAfter);
     if (myLooks[name].speed !== 200) errs.push('grid pick mutated the preset ' + JSON.stringify(myLooks[name]));
     deleteLook(name); if (name in FX_LOOKS || Object.keys(FX_LOOKS).length !== before) errs.push('look delete ' + name + ' ' + Object.keys(FX_LOOKS).length);
-    openStage(null); panels(); }
+    fxState.sel = null; fxState.zoom = false; panels(); }
   // tracker panel: new track starts a 16-step row; cells toggle (even clicked out of order, each against the live state,
   // not a stale snapshot from before the last redraw), steps resizes every row's cells, rows add/remove, delete removes the track
   { setMode('animate'); openStage('tracker'); panels();
@@ -259,9 +271,9 @@ try {
     labClick(r.x + r.w / 2, r.y + r.h / 2, {}); if (!sideMove() || anim.move !== 'sweep') errs.push('gallery move panel ' + anim.move);
     lab.zoom = false; setMode('tests'); isolate('kick|' + CURRENT + '|0'); if (!sideMove() || anim.move !== 'kick') errs.push('tests move panel ' + anim.move);
     isolate(null); anim.move = 'jab'; setMode('animate'); }
-  // four tabs: impact is a view of play, gallery of animate, picked in the toolbar's view group
+  // six tabs (play, grid, character, animate, fx, replay): impact is a view of play, gallery of animate, picked in the toolbar's view group
   { setMode('impact'); const tabs = [...document.querySelectorAll('#modes button')], on = tabs.find(b => b.classList.contains('on'));
-    if (tabs.length !== 5 || !on?.textContent.includes('play')) errs.push('tabs ' + tabs.length + ' ' + on?.textContent);
+    if (tabs.length !== 6 || !on?.textContent.includes('play')) errs.push('tabs ' + tabs.length + ' ' + on?.textContent);
     [...document.querySelectorAll('#ctx button')].find(b => b.textContent.includes('fight')).click(); if (app.mode !== 'play') errs.push('view fight ' + app.mode);
     setMode('gallery'); tabs.find(b => b.textContent.includes('animate')).click(); if (app.mode !== 'gallery') errs.push('tab keeps its view ' + app.mode); }
   // combos: the table lists routes; + P on a route's end adds a link (the route gets longer), clicking that step and cut removes it; the tree shows starters

@@ -16,12 +16,13 @@ const MODES = {
   character: 'Build the fighter: drag joints, add limbs, tune bones. The preview fights with it live.',
   tests: 'Every move tried against every target: standing, crouching, guarding high and low, in the air, on the floor, dizzy; facing it or turned away; near and far; against the character itself or every one. Red cells did not do what they should (hover for why); click one to watch it and open it in animate to fix it. Your scenarios are played through too.',
   animate: 'Pose keyframes by dragging joints, retime them on the timeline, and watch the move with springs and hit stop.',
+  fx: 'Every fx look (built-in and custom), as a gallery of tiles: open one to tune it (sliders, colour, randomize), preview it on a character or a plain segment, and compare values of two variables in a grid.',
   replay: 'A recorded fight (the play fight or a replay file) as a timeline of colour-coded events and an event table: filter by type, find a moment, go there.',
 };
-const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode, replay: replayMode })[app.mode] || labMode;
+const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode, replay: replayMode, fx: fxMode })[app.mode] || labMode;
 // the top bar's tabs: impact is a view of play, gallery and tests views of animate, picked first in their toolbar
 const VIEWS = { play: ['play', 'impact'], animate: ['animate', 'gallery', 'tests'] };
-const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', gallery: 'animation', impact: 'crisis_alert', tests: 'science', character: 'accessibility_new', animate: 'timeline', replay: 'history' };
+const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', gallery: 'animation', impact: 'crisis_alert', tests: 'science', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', replay: 'history' };
 const tabOf = m => Object.keys(VIEWS).find(t => VIEWS[t].includes(m)) || m;
 
 function setMode(m) {

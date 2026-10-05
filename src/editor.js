@@ -850,14 +850,13 @@ function soundsPanel() {
   fill();
   return wrap;
 }
-// ---------- looks: design fx looks, with a live preview and a grid to compare values of whichever slider you clicked ----------
-// built-ins (aura, fire, …) are hand-coded draws with a few tunable constants each (editable + revertible, like built-in
-// sounds); new looks use one generic particle draw tuned by 8 sliders (count/life/speed/spread/angle/gravity/size/shape)
-let lookSel = null, lookGridKey = null; // lookGridKey: the slider last clicked to experiment with in the grid below it
+// ---------- looks: fx look definitions and tunables used by the fx tab (src/fxlab.js), which has its own gallery,
+// preview and editor UI now — this just keeps the data every look needs (a custom look's defaults and its 8 sliders,
+// the 3 particle shapes) and the "new look" action, shared with the fx toolbar ----------
 const DEFAULT_LOOK = { count: 6, life: 0.5, speed: 60, spread: 40, angle: -90, gravity: 200, size0: 3, size1: 0, shape: 'dot', col: 'white', back: false };
 function newLook() {
   let n = 1; while (FX_LOOKS['custom' + n]) n++;
-  const name = 'custom' + n; saveLook(name, { ...DEFAULT_LOOK }); lookSel = name; lookGridKey = null; return name;
+  const name = 'custom' + n; saveLook(name, { ...DEFAULT_LOOK }); return name;
 }
 const LOOK_SHAPE_TIPS = { dot: 'A filled circle', line: 'A short trailing streak (sparks, speed lines)', ring: 'A stroked ring (an expanding shockwave)' };
 // a custom look's own knobs: [key, { min, max, step }, tip, label?]
@@ -871,73 +870,6 @@ const CUSTOM_SLIDERS = [
   ['size0', { min: 0, max: 12, step: 0.5 }, 'Size at birth', 'size start'],
   ['size1', { min: 0, max: 12, step: 0.5 }, 'Size at the end of its life (0: shrinks to nothing)', 'size end'],
 ];
-// a self-animating preview on a single fixed segment, independent of any character; override previews one variable's grid
-// value without saving it (both builtinDraw and registerLook's FX_DRAW wrappers in fx.js accept this 6th argument)
-function lookCanvas(name, size, segLen, k, override) {
-  const cv = h('canvas', { width: size, height: size }), t0 = performance.now();
-  const loop = () => {
-    if (!cv.isConnected) return;
-    const ctx = cv.getContext('2d'), t = (performance.now() - t0) / 1000;
-    ctx.clearRect(0, 0, size, size); ctx.save(); ctx.translate(size / 2, size * 0.75);
-    const col = name in BASE_BUILTIN ? FX_BUILTIN[name].col : myLooks[name]?.col;
-    FX_DRAW[name]?.(ctx, [{ i: fxSeed(name), w: 4, a: [0, 0], b: [0, -segLen] }], FX_COLS[col] || FX_COLS.white, k, t, override);
-    ctx.restore(); requestAnimationFrame(loop);
-  };
-  requestAnimationFrame(loop);
-  return cv;
-}
-function lookPreview(name) { return lookCanvas(name, 280, 80, 1.5); }
-function lookFields(name, refill) {
-  const built = name in BASE_BUILTIN;
-  const p = built ? FX_BUILTIN[name].params : myLooks[name];
-  const col = built ? FX_BUILTIN[name].col : (myLooks[name].col || 'white');
-  const back = built ? FX_BUILTIN[name].back : !!myLooks[name].back;
-  const set = (k, v) => { if (built) saveBuiltinFx(name, { params: { [k]: v } }); else saveLook(name, { ...myLooks[name], [k]: v }); refill(); };
-  const setCol = v => { if (built) saveBuiltinFx(name, { col: v }); else saveLook(name, { ...myLooks[name], col: v }); refill(); };
-  const setBack = v => { if (built) saveBuiltinFx(name, { back: v }); else saveLook(name, { ...myLooks[name], back: v || undefined }); refill(); };
-  // a built-in keeps its name (other moves/keys/bones already reference it by that name); only a custom one can rename or go away for good
-  const nm = built ? h('b', { textContent: name }) : h('input', { cls: 'macro', value: name, tip: 'Rename this look', onkeydown: e => e.stopPropagation(),
-    onchange: () => { const v = nm.value.trim(); if (!v || v === name || FX_LOOKS[v]) { nm.value = name; return; } renameLook(name, v); lookSel = v; lookGridKey = null; refill(); } });
-
-  const fieldSpecs = built ? BUILTIN_SLIDERS[name] : CUSTOM_SLIDERS;
-  if (!fieldSpecs.some(([k]) => k === lookGridKey)) lookGridKey = fieldSpecs[0][0];
-  // clicking a slider's name (like gridLink does for settings, lab.js) experiments with it in the grid below
-  const sliders = fieldSpecs.map(([key, opts, tip, label]) =>
-    expLink(slider(label || key, opts, () => p[key], v => set(key, v), tip), `experiment with ${label || key} in the grid below`, () => { lookGridKey = key; refill(); }));
-
-  const [, gridOpts] = fieldSpecs.find(([k]) => k === lookGridKey);
-  const vals = [0, 1 / 3, 2 / 3, 1].map(f => Math.round((gridOpts.min + (gridOpts.max - gridOpts.min) * f) / gridOpts.step) * gridOpts.step);
-  const grid = h('div', { cls: 'bar col' },
-    h('p', { cls: 'note', textContent: `${lookGridKey}: ${vals.map(fmt).join(' · ')} (click another slider's name to experiment with it instead)` }),
-    h('div', { cls: 'bar' }, ...vals.map(v => lookCanvas(name, 64, 24, 0.8, { [lookGridKey]: v }))));
-
-  return h('div', { cls: 'bar' },
-    h('div', {}, lookPreview(name)),
-    h('div', {},
-      h('div', { cls: 'bar' }, nm, built ? h('span', { cls: 'note', textContent: 'built-in — tunable, revert to go back' }) : null,
-        button(built ? ':restart_alt: revert' : ':delete: delete', built ? `Back to ${name}'s shipped values` : `Delete ${name}`,
-          () => { if (built) resetBuiltinFx(name); else { deleteLook(name); lookSel = null; } lookGridKey = null; refill(); })),
-      h('div', { cls: 'bar' },
-        !built && h('span', { textContent: 'shape' }), !built && seg(Object.keys(LOOK_SHAPE_TIPS), () => p.shape, v => set('shape', v), LOOK_SHAPE_TIPS),
-        h('span', { textContent: 'colour' }), seg(Object.keys(FX_COLS), () => col, setCol, Object.fromEntries(Object.keys(FX_COLS).map(c => [c, `Default colour: ${c} (a move can still override it)`]))),
-        toggle(':layers: behind', 'Draws behind the body (like aura, smoke) instead of in front', () => back, setBack)),
-      ...sliders,
-      grid));
-}
-function looksPanel() {
-  const wrap = h('div', { cls: 'mtable' }), body = h('div');
-  const fill = () => {
-    if (lookSel && !FX_LOOKS[lookSel]) lookSel = null;
-    const row = n => h('div', { cls: 'bar' + (lookSel === n ? ' on' : ''), onclick: () => { if (lookSel !== n) lookGridKey = null; lookSel = n; fill(); } },
-      h('b', { textContent: n }), n in myLooks ? null : h('span', { cls: 'note', textContent: 'built-in' }));
-    body.replaceChildren(...Object.keys(FX_LOOKS).map(row), h('h4', { textContent: lookSel || 'pick a look' }),
-      lookSel ? lookFields(lookSel, fill) : h('p', { cls: 'note', textContent: 'click a look above: tune a built-in directly, or new look starts a custom one' }));
-  };
-  wrap.append(stageHead('looks', 'Design fx looks, each with a live preview and a grid comparing 4 values of whichever slider you last clicked. Built-ins (aura, fire, …) are hand-coded with a few tunable knobs each — revert undoes your changes. A new look uses one generic particle effect tuned by 8 sliders (count, life, speed, spread, angle, gravity, size, shape). A custom look appears anywhere looks are picked (a move, key or bone\'s fx).',
-    button(':add: new look', 'A new custom look, starting from simple rising dots', () => { newLook(); fill(); })), body);
-  fill();
-  return wrap;
-}
 // ---------- tracker: a simple step sequencer (rows of sounds, a grid of beats) that loops at a tempo ----------
 let trackSel = null;
 function newTrack() {
@@ -1117,8 +1049,8 @@ function movesGrp() {
     popup(b, h('div', { cls: 'bar' }, Object.keys(currentChar().moves).sort().map(n => button(n, `Open ${n} in the keyframe editor`, () => { closePop(); openMove(n); })))));
   return grp('moves', 'The character\'s moves: pick one to open in the keyframe editor (or click a move in the table, inputs or combos)', pick);
 }
-const MOVE_PANELS = ['table', 'inputs', 'combos', 'sounds', 'looks', 'tracker'],
-  moveStage = () => ({ table: moveTable, inputs: inputTable, combos: comboView, sounds: soundsPanel, looks: looksPanel, tracker: trackerPanel })[stageOpen()];
+const MOVE_PANELS = ['table', 'inputs', 'combos', 'sounds', 'tracker'],
+  moveStage = () => ({ table: moveTable, inputs: inputTable, combos: comboView, sounds: soundsPanel, tracker: trackerPanel })[stageOpen()];
 // the move toolbar (animate): previous / next, the move being edited with the picker, its actions and the stance
 function moveGrp() {
   const ch = currentChar(), names = Object.keys(ch.moves), step = d => pickMove(names[(names.indexOf(anim.move) + d + names.length) % names.length]);

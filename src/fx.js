@@ -116,8 +116,11 @@ function saveBuiltinFx(name, patch) {
 function resetBuiltinFx(name) { delete builtinFx[name]; applyBuiltin(name); saveBuiltinFxStore(); }
 function saveBuiltinFxStore() { try { localStorage.setItem(BUILTIN_STORE, JSON.stringify(builtinFx)); } catch {} }
 // wraps a built-in's draw with its live (tunable) params, merged with an optional override (the looks panel's experiment grid previews a
-// value without saving it); a move's own fx still just calls FX_DRAW[name](ctx, segs, rgb, k, t) with no override, unaffected
-function builtinDraw(name, draw) { FX_DRAW[name] = (ctx, segs, rgb, k, t, override) => draw(ctx, segs, rgb, k, t, { ...FX_BUILTIN[name].params, ...override }); }
+// value without saving it); a move's own fx still just calls FX_DRAW[name](ctx, segs, rgb, k, t) with no override, unaffected.
+// BUILTIN_RAW keeps the bare (ctx, segs, rgb, k, t, params) function too, so a custom look can reuse the exact same algorithm with its
+// own independent params (duplicateBuiltinLook): editing a built-in only ever changes BASE_BUILTIN's live overrides, never a custom's copy
+const BUILTIN_RAW = {};
+function builtinDraw(name, draw) { BUILTIN_RAW[name] = draw; FX_DRAW[name] = (ctx, segs, rgb, k, t, override) => draw(ctx, segs, rgb, k, t, { ...FX_BUILTIN[name].params, ...override }); }
 // each look: (ctx, segments, rgb, size, time)
 const FX_DRAW = {};
 builtinDraw('aura', (ctx, segs, rgb, k, t, pm) => {
@@ -226,15 +229,28 @@ function drawCustom(preset, ctx, segs, rgb, k, t) {
 // ---------- my looks: custom presets built in the browser, saved as you go (same pattern as scenarios: myStore -> SCENARIOS) ----------
 const LOOK_STORE = 'stick2.looks';
 const myLooks = (() => { try { return JSON.parse(localStorage.getItem(LOOK_STORE)) || {}; } catch { return {}; } })();
+// preset.algo (unset = 'particle'): a custom look either tunes the generic particle draw (drawCustom), or — duplicated
+// from a built-in (duplicateBuiltinLook) — reuses that built-in's own hand-coded algorithm with its own independent
+// copy of params, so it fully recreates the built-in's look at the moment it was duplicated, decoupled from it after
 function registerLook(name, preset) {
   FX_LOOKS[name] = `Custom: ${name}`;
+  const algo = preset.algo || 'particle';
   // override: the looks panel's experiment grid previews a value without saving it (same signature as builtinDraw)
-  FX_DRAW[name] = (ctx, segs, rgb, k, t, override) => drawCustom({ ...preset, ...override }, ctx, segs, rgb, k, t);
+  FX_DRAW[name] = algo === 'particle' ? (ctx, segs, rgb, k, t, override) => drawCustom({ ...preset, ...override }, ctx, segs, rgb, k, t)
+    : (ctx, segs, rgb, k, t, override) => BUILTIN_RAW[algo](ctx, segs, rgb, k, t, { ...preset, ...override });
   FX_AUTO[name] = preset.col || 'white'; // a move using this look without its own colour falls back to the look's own default
   if (preset.back) FX_BACK.add(name); else FX_BACK.delete(name);
 }
 for (const [name, preset] of Object.entries(myLooks)) registerLook(name, preset);
 function saveLook(name, preset) { myLooks[name] = preset; registerLook(name, preset); saveLooks(); }
+// a built-in, independent copy: a new custom look seeded with its current (possibly tuned) values, using the very same
+// hand-coded algorithm — fully recreates it, free to rename, tune further or delete without ever touching the original
+function duplicateBuiltinLook(name) {
+  let n = 2; while (FX_LOOKS[name + n]) n++;
+  const copy = name + n, b = FX_BUILTIN[name];
+  saveLook(copy, { algo: name, ...b.params, col: b.col, back: b.back });
+  return copy;
+}
 function deleteLook(name) { delete myLooks[name]; delete FX_LOOKS[name]; delete FX_DRAW[name]; delete FX_AUTO[name]; FX_BACK.delete(name); saveLooks(); }
 function renameLook(from, to) { if (!myLooks[from] || to === from || FX_LOOKS[to]) return; const p = myLooks[from]; deleteLook(from); saveLook(to, p); }
 function saveLooks() { try { localStorage.setItem(LOOK_STORE, JSON.stringify(myLooks)); } catch {} }

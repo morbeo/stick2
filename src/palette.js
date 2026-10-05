@@ -24,7 +24,7 @@ function paletteEntries() {
     { kind: 'table', name: 'input table', tip: VIEW_TIPS.inputs + over, run: () => { inputs.table = true; overView('inputs')(); } },
     { kind: 'editor', name: 'combos', tip: VIEW_TIPS.combos + over, run: overView('combos') },
     { kind: 'editor', name: 'sounds', tip: VIEW_TIPS.sounds + over, run: overView('sounds') },
-    { kind: 'editor', name: 'looks', tip: VIEW_TIPS.looks + over, run: overView('looks') },
+    { kind: 'editor', name: 'looks', tip: VIEW_TIPS.looks, run: () => setMode('fx') },
     { kind: 'editor', name: 'tracker', tip: VIEW_TIPS.tracker + over, run: overView('tracker') },
     { kind: 'table', name: 'bone table', tip: 'Every bone of the character in a table over its stage: sort, filter, edit in place, drag to reorder, change parents (in the character tab)', run: () => {
       if (app.mode !== 'character') setMode('character');

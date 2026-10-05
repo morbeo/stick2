@@ -241,7 +241,7 @@ The **panels** group → **bones** puts every bone in a table over the stage: id
 
 ### Moves
 
-The **panels** group in the toolbar (here and in animate) opens the move table, the inputs, the combos, [sounds, looks](editing.md#sounds-and-effects) and the [tracker](editing.md#tracker) over the stage; here also the **bones** table. Click it again, × or Esc to close; each tab keeps its own open panel. A move clicked in them (or picked from **edit** in the **moves** group; in animate, from the **move** group) opens in animate. See [Editing](editing.md).
+The **panels** group in the toolbar (here and in animate) opens the move table, the inputs, the combos, [sounds](editing.md#sounds) and the [tracker](editing.md#tracker) over the stage; here also the **bones** table. Click it again, × or Esc to close; each tab keeps its own open panel. A move clicked in them (or picked from **edit** in the **moves** group; in animate, from the **move** group) opens in animate. Looks (effects) have their own tab, [Fx](#fx). See [Editing](editing.md).
 
 ## Animate
 
@@ -367,6 +367,17 @@ Using it:
 - Click a cell to watch it looping over the table; the side panel then edits its move. **open in animate** edits the move with that exact target (the preview target has near / far too).
 - My scenarios are played through as cases too (NaN, stage, stuck 5 s).
 - Cells run in the background, a few per frame, and rerun when the character or a setting changes.
+
+## Fx
+
+A gallery of every look (see [Effects](#effects)), built-in or custom, one tile each — click a tile to open and tune it; click again, or Esc, to go back to the gallery.
+
+- **Preview** (side panel): what the gallery and the big preview draw the look on — a plain fixed **segment** (no character), the whole **body**, or one role (arm, leg, head, tail, weapon) of any character — and a preview-only **background** colour (never saved with the look).
+- **Look** (side panel, a tile selected): built-ins (fire, aura, lightning…) are hand-coded, each with a handful of its own knobs (spacing, speed, reach, size…); **revert** puts a built-in back to its shipped values, **duplicate** forks it into an independent custom look using the same algorithm — fully recreating it at that moment, free to tune further, rename or delete without ever touching the original. A plain **new look** (toolbar) instead starts from one generic particle effect, tuned by 8 sliders: how many spawn per point, their lifetime, launch speed/spread/angle, gravity, size from birth to the end of its life, and a shape (a dot, a trailing streak, or a ring).
+- **randomize all**, or the dice next to one slider: a random value in its usual range.
+- **Experiment grid**: pick an **X** variable (and optionally a **Y**) among the look's own knobs; a 4 or 4×4 grid of small previews compares their values side by side.
+
+A custom look (new or duplicated) appears anywhere a look is picked, right alongside the built-ins — a move or key's fx, a bone's fx.
 
 ## Replay
 

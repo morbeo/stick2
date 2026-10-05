@@ -125,7 +125,7 @@ Links:
 ⌘K / Ctrl+K, or the magnifier top right. Type to find:
 
 - a mode, a tool on the current toolbar or in a bar under the preview, or a key action;
-- a table: the move table, input table, combos, sounds, looks and tracker (over the character tab there, else in animate), the bone table (in the character tab), compare settings;
+- a table: the move table, input table, combos, sounds and tracker (over the character tab there, else in animate), the bone table (in the character tab), compare settings;
 - a layout by name, reset layout, reset settings, factory reset;
 - a character, a move (opens it in animate) or a setting (searches the settings panel for it; from the gallery it goes to play).
 
