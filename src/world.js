@@ -165,22 +165,25 @@ class World {
       }
     }
   }
-  // ---------- props (PROPS, src/stage.js): simple collidable scenery, hit by active strikes and thrown weapons ----------
-  // breakable loses hp and is destroyed; bendable just bends (bendDir/bendT, decaying here); bouncy only reflects thrown weapons
+  // ---------- props (PROPS, src/stage.js): scenery, hit by active strikes and thrown weapons ----------
+  // breakable loses hp and is destroyed; moveable sways (bendDir/bendT, decaying here) on a strike and bounces a
+  // thrown weapon back — a prop can be either, neither (an inert fixture, strikes just register and stop there)
+  // or both (a cracking sign that wobbles and eventually breaks)
   updateProps(h) {
     if (!this.props.length) return;
     const cfg = this.cfg;
     for (const p of this.props) p.bendT = Math.max(0, p.bendT - h);
     for (const p of this.props) {
       const t = PROPS[p.type], top = [p.x, this.groundY - t.h], bot = [p.x, this.groundY], mid = [p.x, this.groundY - t.h / 2];
-      if (!t.bouncy) for (const f of this.fighters) {
+      for (const f of this.fighters) {
         const a = f.action;
         if (!a?.m.keys[a.i]?.active || a.m.throw || a.hits.includes(p) || Math.abs(f.z - p.z) > cfg.zReach) continue;
         const hit = f.strikeShapes(a.m).some(sh => distSegSeg(sh[0], sh[1], top, bot) < sh[2] + t.size);
         if (!hit) continue;
         a.hits.push(p);
-        if (t.breakable) { p.hp -= a.m.damage ?? 0; this.spark('blunt', mid, p.z, f.dir); }
-        else if (t.bendable) { p.bendDir = f.dir; p.bendT = 0.08; }
+        let sparked = false;
+        if (t.breakable) { p.hp -= a.m.damage ?? 0; this.spark('blunt', mid, p.z, f.dir); sparked = true; }
+        if (t.moveable) { p.bendDir = f.dir; p.bendT = 0.08; if (!sparked) this.spark('blunt', mid, p.z, f.dir); }
       }
       for (const it of this.items) {
         if (!it.live || it.hitProps?.has(p) || Math.abs(it.z - p.z) > cfg.zReach) continue;
@@ -188,15 +191,23 @@ class World {
         if (distSegSeg(seg[0], seg[1], top, bot) >= seg[2] + t.size) continue;
         (it.hitProps ??= new Set()).add(p);
         const dir = Math.sign(it.vx) || 1;
-        if (t.breakable) { p.hp -= thrownMove(it.type, it.power).damage; this.spark('blunt', mid, p.z, dir); }
-        else if (t.bendable) { p.bendDir = dir; p.bendT = 0.08; }
-        else if (t.bouncy) { it.vx *= -0.6; it.vy = Math.min(it.vy, -200); this.spark('blunt', mid, p.z, dir); }
+        let sparked = false;
+        if (t.breakable) { p.hp -= thrownMove(it.type, it.power).damage; this.spark('blunt', mid, p.z, dir); sparked = true; }
+        if (t.moveable) { it.vx *= -0.6; it.vy = Math.min(it.vy, -200); if (!sparked) this.spark('blunt', mid, p.z, dir); }
       }
     }
     const gone = this.props.filter(p => PROPS[p.type].breakable && p.hp <= 0);
     if (gone.length) { for (const p of gone) this.dust(p.x, this.groundY, 1.5, p.z); this.props = this.props.filter(p => !gone.includes(p)); }
   }
-  drawProps(ctx) { for (const p of this.props) PROPS[p.type].draw(ctx, p, this); }
+  // toXY: a prop's local (x, y) is pixels from its own ground anchor (p.x, groundY), y negative = up; vars.sway:
+  // the live -1..1 lean (bendDir × how far into its 0.08s decay), a swaying primitive's own `sway` field is its
+  // magnitude in px — the same quadratic-curve lean reed always had, now any shape can opt into it
+  drawProps(ctx, layer) {
+    for (const p of this.props) { const t = PROPS[p.type]; if ((t.layer || 'mid') !== layer) continue;
+      const sway = p.bendDir * Math.min(1, p.bendT / 0.08);
+      drawShapes(ctx, t.shapes, (x, y) => [p.x + x, this.groundY + y], c => c || '#888', { sway });
+    }
+  }
   // ---------- projectiles (Fighter.shoot): fly straight until they hit, meet a foe's shot, leave the arena or run out of life ----------
   updateShots(h) {
     const cfg = this.cfg, gone = new Set(), pop = (s, col) => { gone.add(s); this.parts.push({ t: 'ring', x: s.x, y: s.y, z: s.z, life: 0.2, max: 0.2, col, big: true }); };
@@ -639,8 +650,9 @@ class World {
     this.view = { s, ox: r.x + r.w / 2 + (sx - cx) * s, oy: r.y + r.h / 2 + (sy - cy) * s }; // screen = world · s + o
     ctx.transform(s, 0, 0, s, this.view.ox, this.view.oy);
     (STAGES[this.scen.stage] || STAGES.plain).draw(ctx, this);
-    this.drawProps(ctx);
+    this.drawProps(ctx, 'back');
     if (cfg.speedLines) this.drawSpeedLines(ctx);
+    this.drawProps(ctx, 'mid');
     for (const f of this.fighters.filter(f => !f.hidden).sort((a, b) => a.z - b.z)) // far ones first
       f.draw(ctx, f.freeze > 0 && f === this.victim ? Math.sin(T * 170) * cfg.hitShake : 0);
     this.drawItems(ctx);
@@ -649,6 +661,7 @@ class World {
     this.drawBeams(ctx);
     this.drawParticles(ctx);
     if (cfg.impactFrames) this.drawImpact(ctx);
+    this.drawProps(ctx, 'front');
     ctx.restore();
     if (cfg.letterbox) { const bh = Math.round(r.h * 0.09); ctx.fillStyle = '#111'; ctx.fillRect(r.x, r.y, r.w, bh); ctx.fillRect(r.x, r.y + r.h - bh, r.w, bh); }
     if (this.scen.waves || this.scen.survival) { // wave counter, survival time

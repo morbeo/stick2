@@ -30,9 +30,13 @@ function shapePts(s, vars) {
 function drawShape(ctx, s, toXY, resolveCol, vars = {}, extra = 0) {
   const col = resolveCol(s.col);
   if (s.kind === 'line') {
-    const p1 = toXY(resolveNum(s.x1, vars), resolveNum(s.y1, vars)), p2 = toXY(resolveNum(s.x2, vars), resolveNum(s.y2, vars));
+    const x1 = resolveNum(s.x1, vars), y1 = resolveNum(s.y1, vars), x2 = resolveNum(s.x2, vars), y2 = resolveNum(s.y2, vars);
+    const bend = s.sway ? (vars.sway || 0) * s.sway : 0; // a swaying line (e.g. a reed) curves toward bend instead of running straight
+    const p1 = toXY(x1, y1), p2 = toXY(x2 + bend, y2);
     ctx.strokeStyle = col; ctx.lineWidth = (s.w || 2) + extra; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p1[0], p1[1]);
+    if (bend) { const cp = toXY(x1 + (x2 - x1) * 0.5 + bend * 0.6, y1 + (y2 - y1) * 0.5); ctx.quadraticCurveTo(cp[0], cp[1], p2[0], p2[1]); } else ctx.lineTo(p2[0], p2[1]);
+    ctx.stroke();
     return;
   }
   const pts = shapePts(s, vars).map(([x, y]) => toXY(x, y));

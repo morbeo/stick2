@@ -43,22 +43,14 @@ const STAGES = {
 // bendable: never damaged or destroyed, just bends briefly where it's struck (bendDir/bendT, set in World.updateProps)
 // bouncy: never damaged; a thrown weapon that hits it reflects instead of landing
 // draw(ctx, p, w) runs in world space, like STAGES; w: the World (for w.groundY)
+// a prop: size/h (collision: hit-test radius and height), layer (back/mid/front, default mid), moveable (sways on
+// a strike, bounces a thrown weapon back — a shape opts into the sway with its own `sway` field, in px), breakable
+// (hp, destroyed at 0) — independent of each other and of the shapes that draw it (src/shapes.js)
 const PROPS = {
-  crate: { size: 20, h: 90, hp: 30, breakable: true, draw(ctx, p, w) {
-    ctx.save(); ctx.translate(p.x, w.groundY - 24); ctx.fillStyle = '#b08a52'; ctx.strokeStyle = '#7a5c34'; ctx.lineWidth = 2;
-    ctx.fillRect(-20, -24, 40, 48); ctx.strokeRect(-20, -24, 40, 48);
-    ctx.beginPath(); ctx.moveTo(-20, -24); ctx.lineTo(20, 24); ctx.moveTo(20, -24); ctx.lineTo(-20, 24); ctx.stroke();
-    ctx.restore();
-  } },
-  reed: { size: 6, h: 90, bendable: true, draw(ctx, p, w) {
-    const bend = (p.bendDir || 0) * Math.min(1, (p.bendT || 0) / 0.08) * 22;
-    ctx.save(); ctx.translate(p.x, w.groundY); ctx.strokeStyle = '#6a8a4a'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(bend * 0.6, -22, bend, -44); ctx.stroke();
-    ctx.restore();
-  } },
-  spring: { size: 16, h: 90, bouncy: true, draw(ctx, p, w) {
-    ctx.save(); ctx.translate(p.x, w.groundY - 4); ctx.fillStyle = '#c0392b'; ctx.strokeStyle = '#7a2015'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.ellipse(0, 0, 16, 6, 0, 0, 7); ctx.fill(); ctx.stroke();
-    ctx.restore();
-  } },
+  crate: { size: 20, h: 90, breakable: true, hp: 30, tip: 'A crate: breaks after enough hits', shapes: [
+    { kind: 'box', x: -20, y: -48, w: 40, h: 48, col: '#b08a52', stroke: '#7a5c34', lw: 2, cross: true } ] },
+  reed: { size: 6, h: 90, moveable: true, tip: 'A reed: bends when struck, never breaks', shapes: [
+    { kind: 'line', x1: 0, y1: 0, x2: 0, y2: -44, w: 4, col: '#6a8a4a', sway: 22 } ] },
+  spring: { size: 16, h: 90, moveable: true, tip: 'A spring: bounces thrown weapons back', shapes: [
+    { kind: 'circle', cx: 0, cy: -4, rx: 16, ry: 6, col: '#c0392b', stroke: '#7a2015', lw: 2 } ] },
 };

@@ -150,8 +150,7 @@ function scenBuilder() {
     }, 'mini');
     // props: simple collidable scenery (PROPS, src/stage.js) — a crate (breakable), a reed (bends) or a spring (bouncy)
     const propRow = (p, i) => withData({ pr: i }, h('div', { cls: 'bar' }, h('b', { textContent: 'prop' }),
-      seg(Object.keys(PROPS), () => p.type, v => { p.type = v; scenChanged(); fill(); }, Object.fromEntries(Object.keys(PROPS).map(k =>
-        [k, k === 'crate' ? 'A crate: breaks after enough hits' : k === 'reed' ? 'A reed: bends when struck, never breaks' : 'A spring: bounces thrown weapons back']))),
+      seg(Object.keys(PROPS), () => p.type, v => { p.type = v; scenChanged(); fill(); }, Object.fromEntries(Object.keys(PROPS).map(k => [k, PROPS[k].tip]))),
       slider('x', { min: 20, max: W - 20, step: 5 }, () => p.x, v => { p.x = v; scenChanged(); }, `Where this ${p.type} sits (the stage is ${W} wide)`),
       button(':close:', 'Remove this prop', () => { u.props.splice(i, 1); scenChanged(); fill(); }, 'mini')));
     const addProp = button(':add: add prop', 'Add a piece of collidable scenery: a crate (breakable), a reed (bends) or a spring (bouncy)', () => {
