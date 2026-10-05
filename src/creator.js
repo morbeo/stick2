@@ -510,7 +510,7 @@ const creatorMode = {
   side: () => creator.expOn ? expPanel() : bodyPanel(),
   overlay: () => creator.expOn ? [] : stageOpen() === 'bones' ? [boneTable()] : moveStage() ? [moveStage()()] :
     creator.preview === 'impact' ? [previewBar(), blowBar(() => creator.w, () => creatorMode.restart(), true)] : [previewBar()],
-  open: ['character', 'body', 'bone', 'stance pose', 'random characters', 'body experiment'],
+  open: ['character', 'body', 'bone', 'stance pose', 'random characters'],
   mouse: creatorMouse,
   key: creatorKey,
   hint: () => creator.expOn ? (creator.exp.kind === 'random' ? 'click a cell to keep it' : 'click a cell to breed around it') + ' · Esc back to the editor'

@@ -4,7 +4,7 @@ The full reference behind the [landing page](../README.md). The app has its own 
 
 | Page | What's in it |
 |---|---|
-| [Modes](modes.md) | what each tab and view does: play, impact, grid, character, animate, gallery, tests |
+| [Modes](modes.md) | what each tab and view does: play, grid, experiment (sweep, breed, attacks, compare, impact, vary body), character, animate, gallery, tests |
 | [Fighting](fighting.md) | the engine: guard, combos, throws, specials, projectiles, weapons, power, falls, 2D / 2.5D, stances |
 | [Editing](editing.md) | the roster, stats, the move table, movement layers, the input table, combos |
 | [Contributing to the roster](roster-contributing.md) | what help is needed, the contribution workflow, and where to learn the tools (animate, movement, physics, combos) |

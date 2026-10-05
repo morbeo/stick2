@@ -2,13 +2,13 @@
 
 [← docs index](README.md)
 
-The top bar has seven tabs: **play**, **grid**, **experiment**, **character**, **animate**, **fx** and **replay**. Some of them have more views inside (impact, gallery, tests, sounds, tracker, props, weapons), picked under **view** in the toolbar.
+The top bar has seven tabs: **play**, **grid**, **experiment**, **character**, **animate**, **fx** and **replay**. Some of them have more views inside (gallery, tests, sounds, tracker, props, weapons), picked under **view** in the toolbar.
 
 | Tab | Views | What it's for |
 |---|---|---|
 | [play](#play) | | fight, train |
 | [grid](#grid) | | browse and search characters, moves, scenarios, sounds, looks and tracks |
-| [experiment](#experiment) | experiment · [impact](#impact) | compare one fight across many settings, bred variations, or two settings side by side; watch hit reactions |
+| [experiment](#experiment) | | sweep settings, breed variations, compare two settings side by side, watch hit reactions ([impact](#impact)), or [vary a body](#vary-body) |
 | [character](#character) | | build a body |
 | [animate](#animate) | [gallery](#gallery) · [tests](#tests) | build moves, check them all |
 | [fx](#fx) | sounds · tracker · props · weapons | design looks, sounds, a step sequencer, scenery and weapons |
@@ -151,40 +151,11 @@ A content manager: browse and search characters, moves, scenarios, sounds, looks
 - **sounds**, **looks** and **tracks** are simpler — name, a built-in/custom badge (looks also get a live preview, sounds their waveform and a hover-to-play toggle), no variable picker.
 - The search box filters by name and by any variable currently shown.
 
-## Impact
-
-![Impact: nine hit reactions side by side](img/impact.png)
-
-**experiment → view impact** (key 6). Hit reactions and falls side by side.
-
-### Hits
-
-Nine bodies, each struck by the stick fighter: jab, kick, sweep, roundhouse, launcher, wall splat, ground bounce, crumple and K.O.
-
-- **Drag on a body** to strike it at that point. The drag's direction and length are the blow; a long one knocks down.
-- **Click a body** for a medium blow.
-- **falls:** ragdoll or pose, to compare the two.
-- **no attacker** hides the stick fighter. Its blows still land the same way and the camera frames the struck body, so only the reaction is on screen and drags reach the body unobstructed.
-
-### Ragdoll
-
-![One body alone, launched by the launcher button](img/ragdoll.png)
-
-**ragdoll** (next to **hits**, in the **kind** group) is one big body alone.
-
-- A bar under the preview, not the toolbar, holds the blow controls.
-- The **blow** buttons strike it: high, mid, low, sweep, launcher, overhead, knockdown, crumple, K.O. Each is a stick move's hit without damage, on the bone at that height.
-- **light / normal / heavy** set how hard; **front / back** where from.
-- **stand up** puts it back on its feet.
-- Drags still strike it.
-
-The same body and buttons are in the character editor as the **impact** preview.
-
 ## Experiment
 
 ![Experiment: one fight, nine hit stop values](img/experiment.png)
 
-A 3 × 3 sweep of any setting (or X × Y). Every cell replays the same seeded fight, so the only difference is the setting.
+The **experiment** group in the toolbar picks what the nine cells do: **sweep** (a 3 × 3 sweep of any setting, or X × Y — every cell replays the same seeded fight, so the only difference is the setting), **breed**, **attacks**, **compare**, **impact** or **body**.
 
 ### Monitor
 
@@ -212,6 +183,44 @@ The side panel's **monitor** is an oscilloscope over the focused cell's last few
 
 - **compare** in the **panels** group opens the list of what differs over the cells, so you can read and watch together.
 - Click a cell to use its settings (⌘Z undoes); Shift+click only focuses it.
+
+### Impact
+
+![Impact: nine hit reactions side by side](img/impact.png)
+
+**impact** shows hit reactions and falls, as **hits** (nine scripted hits) or **ragdoll** (one body alone).
+
+#### Hits
+
+Nine bodies, each struck by the stick fighter: jab, kick, sweep, roundhouse, launcher, wall splat, ground bounce, crumple and K.O.
+
+- **Drag on a body** to strike it at that point. The drag's direction and length are the blow; a long one knocks down.
+- **Click a body** for a medium blow.
+- **falls:** ragdoll or pose, to compare the two.
+- **no attacker** hides the stick fighter. Its blows still land the same way and the camera frames the struck body, so only the reaction is on screen and drags reach the body unobstructed.
+
+#### Ragdoll
+
+![One body alone, launched by the launcher button](img/ragdoll.png)
+
+**ragdoll** (next to **hits**, in the **kind** group) is one big body alone.
+
+- A bar under the preview, not the toolbar, holds the blow controls.
+- The **blow** buttons strike it: high, mid, low, sweep, launcher, overhead, knockdown, crumple, K.O. Each is a stick move's hit without damage, on the bone at that height.
+- **light / normal / heavy** set how hard; **front / back** where from.
+- **stand up** puts it back on its feet.
+- Drags still strike it.
+
+The same body and buttons are in the character editor as the **impact** preview.
+
+### Vary body
+
+Nine bodies: the parent (framed) and 8 random variations of the properties you pick, fighting a copy of your current character. Click a cell to make it the parent and breed new variations; repeat to home in, then keep it.
+
+- **vary** picks which bone properties, stats, and walk/idle variables change, how far (**spread**) and by how much extra (**exaggerate**).
+- **limbs** also adds a random limb, drops one, or grows an extra joint, each variation.
+- **symmetric** keeps front/back partners (handF/handB…) changing together.
+- A bone's, stat's or the walk/idle's own context menu in the [character](#character) tab jumps straight here, pre-set to vary just that property.
 
 ### Testing in the experiment tab
 
@@ -261,10 +270,6 @@ The **panels** group → **bones** puts every bone in a table over the stage: id
 - The fuzzy filter matches id, parent, role, side and shape.
 - Edit values in place. An edit in a selected row goes to every selected bone.
 - Click a row to select it; ⌘/Ctrl/Shift+click adds it to the selection.
-
-### Body experiment
-
-**vary body** breeds a 3 × 3 grid of body variations around the cell you click. With **limbs** on, variations also add, drop or extend limbs.
 
 ### Moves
 
