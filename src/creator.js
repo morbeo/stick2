@@ -230,7 +230,7 @@ function previewBar() {
     reg(b, () => setRich(b, ':person: ' + creator.opponent));
     return b;
   })();
-  const controlB = toggle(':sports_esports: you control it', 'Drive the opponent with your own keyboard instead of its script/AI - handy for holding it still, guarding, or moving it into a weapon or throw\'s reach',
+  const controlB = toggle(':stadia_controller: you control it', 'Drive the opponent with your own keyboard instead of its script/AI - handy for holding it still, guarding, or moving it into a weapon or throw\'s reach',
     () => creator.controlDummy, v => { creator.controlDummy = v; creatorMode.restart(); });
   return h('div', { cls: 'over pvbar' }, seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); panels(); }, mapVals(PREVIEWS, p => p[1])),
     creator.preview === 'impact' ? null : oppB, creator.preview === 'impact' ? null : controlB);

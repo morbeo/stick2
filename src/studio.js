@@ -355,7 +355,7 @@ function charStancePicker() {
   // thumbnail instead of just a text tip - stances can look very different, worth seeing before switching
   const stances = names.length > 1 ? h('span', { cls: 'seg' }, names.map((n, i) => {
     const btn = button(n, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance: the base pose, binds and loops',
-      () => { studio.stance = i; panels(); mode().restart(); });
+      () => { hideStancePreview(); studio.stance = i; panels(); mode().restart(); });
     btn.onmouseenter = () => showStancePreview(btn, i);
     btn.onmouseleave = hideStancePreview;
     reg(btn, () => btn.classList.toggle('on', studio.stance === i));

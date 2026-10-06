@@ -787,7 +787,7 @@ function debugPanel(e, b) {
     dbgInfo, h('div', { cls: 'bar' }, button(':bug_report: report a bug', 'Shows the report (build, settings changed from default, the shown fight), to copy and paste into a new GitHub issue', (e, b) => reportBug(b), 'bugbtn'),
       button(':restart_alt: reset settings', 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels, timer) stay (⌘Z undoes)', () => { applyPreset('juicy'); mode().restart(); }),
       button(':delete: factory reset', 'Delete all local data: edited characters, settings, keys and macros, layout; then reload as new (asks first)', () => factoryReset())),
-    h('div', { cls: 'bar' }, button(':code: github', 'Open the stick2 repository on GitHub, in a new tab', () => window.open('https://github.com/morbeo/stick2', '_blank'), 'mini')));
+    h('div', { cls: 'bar' }, button(':north_east: github', 'Open the stick2 repository on GitHub, in a new tab', () => window.open('https://github.com/morbeo/stick2', '_blank'), 'mini')));
   pop.classList.add('dbgpop'); dbgT = 0; drawDebug();
 }
 const debugBtn = () => [...$('global').querySelectorAll('button')].find(b => b.dataset.tip?.startsWith('Debug:'));

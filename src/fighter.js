@@ -1136,7 +1136,7 @@ class Fighter {
     if (ck > 1) this.say('COUNTER');
     if (hurt && (this.hp -= dmg) <= 0) { this.hp = 0; this.ko = true; this.say('K.O.'); }
     // super meter: both fighters gain it on a landed hit, the attacker from dealing it, the defender from taking it
-    if (this.c('superMeter')) { const g = this.c('superAt'); this.power = Math.min(g, this.power + dmg * this.c('superGain')); att.power = Math.min(g, att.power + dmg * att.c('superGain')); }
+    if (this.c('superMeter')) { this.power = Math.min(this.c('superAt'), this.power + dmg * this.c('superGain')); att.power = Math.min(att.c('superAt'), att.power + dmg * att.c('superGain')); }
     // dismemberment: a lethal slash severs the struck limb — or, on the spine, a full cleave: everything above the
     // hit (chest/neck/head, both arms) comes off as one piece, same mechanism, just a bigger one. Either way the
     // fighter's own remaining bones (always including the hip and both legs) carry on into the normal K.O. fall
