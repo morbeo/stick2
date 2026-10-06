@@ -9,11 +9,24 @@ function setTheater(v) {
   else if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
 }
 // ---------- "a newer version is live" indicator ----------
-// no build step, no server: a tab left open across a deploy just keeps running the page it loaded. Periodically
-// re-fetches this page's own index.html (cache-busted) and compares it to the copy fetched when this check first ran -
-// a byte difference means a newer deploy exists. Works the same on GitHub Pages and itch.io (same-origin either way).
+// no build step, no server: a tab left open across a deploy just keeps running the page it loaded. When this build
+// knows its own commit (BUILD, from npm run build-info — not deployed everywhere, see tools/build-info.js), asks
+// GitHub to compare it against master: status 'ahead' means master has commits this build does not, so it is stale.
+// 'behind' (local commits not yet pushed, a dev checkout) or 'identical' are both up to date - a plain sha mismatch
+// is not enough, since a dev running ahead of origin/master must not be told to "update" to an older build.
+// Otherwise (itch.io, a checkout with no build-info run) falls back to re-fetching this page's own index.html
+// (cache-busted) and diffing it against the copy first fetched - a byte difference means a newer deploy exists.
+// Works the same on GitHub Pages and itch.io (same-origin either way).
 let appStale = false, appBaseline = null;
+async function checkStaleViaGitHub() {
+  const r = await fetch(`https://api.github.com/repos/morbeo/stick2/compare/${BUILD.commit}...master`, { cache: 'no-store' });
+  if (!r.ok) return false; // BUILD.commit unknown to GitHub (a local commit never pushed): nothing to say either way
+  const j = await r.json();
+  if (j.status === 'ahead' && !appStale) { appStale = true; syncAll(); }
+  return true;
+}
 async function checkStale() {
+  try { if (typeof BUILD === 'object' && BUILD.commit && await checkStaleViaGitHub()) return; } catch {} // offline, rate-limited: fall back below
   try {
     const text = await (await fetch('index.html?_=' + Date.now(), { cache: 'no-store' })).text();
     if (appBaseline === null) appBaseline = text;
