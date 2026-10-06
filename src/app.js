@@ -8,6 +8,23 @@ function setTheater(v) {
   if (v) document.documentElement.requestFullscreen?.().catch(() => {});
   else if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
 }
+// ---------- "a newer version is live" indicator ----------
+// no build step, no server: a tab left open across a deploy just keeps running the page it loaded. Periodically
+// re-fetches this page's own index.html (cache-busted) and compares it to the copy fetched when this check first ran -
+// a byte difference means a newer deploy exists. Works the same on GitHub Pages and itch.io (same-origin either way).
+let appStale = false, appBaseline = null;
+async function checkStale() {
+  try {
+    const text = await (await fetch('index.html?_=' + Date.now(), { cache: 'no-store' })).text();
+    if (appBaseline === null) appBaseline = text;
+    else if (text !== appBaseline && !appStale) { appStale = true; syncAll(); }
+  } catch {} // offline, or blocked some other way: nothing to show either way, stay quiet
+}
+function staleButton() {
+  const b = button(':restart_alt:', 'Up to date', () => location.reload(), 'updatebtn');
+  reg(b, () => { b.disabled = !appStale; b.dataset.tip = appStale ? 'A newer version of stick2 is live on the server — click to reload and get it' : 'Up to date'; });
+  return b;
+}
 const MODES = {
   play: 'Fight in one arena. Pick who fights: you, the AI, scripted combos, crowds.',
   grid: 'Browse and search characters, moves, scenarios, sounds, looks and tracks as tiles. For characters and moves, pick which variables show on each one (an autocomplete over every documented stat and move property). Click a tile to open it where it\'s edited.',
@@ -131,7 +148,7 @@ function buildTop() {
       button(':keyboard:', 'Keys: rebind any action, set up macros, and help', keysPanel),
       button(':info:', 'Docs: how everything works, with live demo fights, and every setting, move flag, input and key explained; searchable (also in ⌘K)', () => openDocs()),
       toggle(':help:', 'Hints: the line of mouse and key help under the view and the frame meter\'s colour legend; off, they show for a few seconds on the first visit to each mode (?)', () => ui.hints, toggleHints),
-      soundBtn, button(':ssid_chart:', 'Debug: the build and engine version, frame rate and the shown fight\'s state, report a bug, ghost, boxes, hud and labels, reset settings, and factory reset', debugPanel, 'bugbtn')));
+      soundBtn, staleButton(), button(':ssid_chart:', 'Debug: the build and engine version, frame rate and the shown fight\'s state, report a bug, ghost, boxes, hud and labels, reset settings, and factory reset', debugPanel, 'bugbtn')));
 }
 
 function resize() {
@@ -254,3 +271,4 @@ readHash();
 new ResizeObserver(resize).observe($('stage'));
 resize();
 requestAnimationFrame(frame);
+checkStale(); setInterval(checkStale, 10 * 60 * 1000); // every 10 minutes: a deploy is rare, no need to poll hard
