@@ -1,6 +1,6 @@
 'use strict';
 // ---------- character mode: drag the skeleton, tune bones, watch it fight live; body experiment grid ----------
-const creator = { preview: 'showcase', opponent: 'self', w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
+const creator = { preview: 'showcase', opponent: 'self', controlDummy: false, w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
   exp: { kind: 'body', vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
 const PREVIEWS = {
   showcase: ['showcase', 'Scripted demo: punches, a kick, a sweep, a jump kick, a dash into a grab and throw, a special, then backs off.'],
@@ -8,8 +8,10 @@ const PREVIEWS = {
   'vs ai': ['ai vs ai', 'Two copies fight each other with the engine AI.'],
   impact: [null, 'The body alone, no attacker: strike it low, mid, high… with the blow buttons and watch it fall (the ragdoll).'],
 };
-// the preview's scenario (impact: the experiment grid plays the showcase)
-const previewScen = () => { const s = SCENARIOS[PREVIEWS[creator.preview][0] || 'showcase']; return { ...s, init: w => { s.init?.(w); w.a.setStance(studio.stance, 'instant'); } }; };
+// the preview's scenario (impact: the experiment grid plays the showcase). controlDummy: your own keyboard drives the
+// opponent instead of its script/AI - the character being edited never reads live keys here, so there's no clash
+const previewScen = () => { const s = SCENARIOS[PREVIEWS[creator.preview][0] || 'showcase'];
+  return { ...s, ...creator.controlDummy && s.b ? { b: 'human' } : null, init: w => { s.init?.(w); w.a.setStance(studio.stance, 'instant'); } }; };
 // the opponent's character model for the main preview (not the body-experiment cells, which bring their own)
 const previewChars = () => [currentChar(), CHARS[creator.opponent] || currentChar()];
 
@@ -228,8 +230,10 @@ function previewBar() {
     reg(b, () => setRich(b, ':person: ' + creator.opponent));
     return b;
   })();
+  const controlB = toggle(':sports_esports: you control it', 'Drive the opponent with your own keyboard instead of its script/AI - handy for holding it still, guarding, or moving it into a weapon or throw\'s reach',
+    () => creator.controlDummy, v => { creator.controlDummy = v; creatorMode.restart(); });
   return h('div', { cls: 'over pvbar' }, seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); panels(); }, mapVals(PREVIEWS, p => p[1])),
-    creator.preview === 'impact' ? null : oppB);
+    creator.preview === 'impact' ? null : oppB, creator.preview === 'impact' ? null : controlB);
 }
 const setProp = (k, v) => edit(def => { for (const b of selDefs(def)) b[k] = v; }, selIds() + '.' + k);
 const prop = k => selBone()?.[k] ?? BONE[k];
