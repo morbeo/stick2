@@ -10,6 +10,7 @@ for (const k in DEFS) CHARS[k] = makeCharacter(DEFS[k]);
 if (DEFS[saved.current]) CURRENT = saved.current;
 // only edited built-ins are stored, so improved built-ins reach characters nobody changed
 const edited = () => Object.fromEntries(Object.entries(DEFS).filter(([k, d]) => !CHAR_DEFS[k] || JSON.stringify(d) !== JSON.stringify(CHAR_DEFS[k])));
+
 // debounced: a drag (a joint in animate, a settings slider) can call a save on every event, far more often than the
 // JSON + localStorage write needs to happen; flush() forces it now (used on beforeunload, and where a caller needs the
 // write to have happened, like a test reading localStorage straight back)
@@ -196,10 +197,24 @@ async function deleteChar() {
   delete DEFS[CURRENT]; delete CHARS[CURRENT];
   pickChar('stick');
 }
-function exportChar(clip) { (clip ? copyData : d => download(CURRENT + '.json', d))(DEFS[CURRENT]); }
+// a character export is a diff against its matching built-in by default (small, and what a diff viewer can use
+// directly) - like a git patch, not the whole file. full: the whole def anyway (the only option for a wholly new
+// character, with no built-in to diff against; also offered explicitly for sharing one standalone)
+function charExport(full) {
+  const base = CHAR_DEFS[CURRENT];
+  if (full || !base) return DEFS[CURRENT];
+  const d = diffObj(base, DEFS[CURRENT]);
+  return { format: 'stick2.character.diff', base: CURRENT, diff: d || {} };
+}
+function exportChar(clip, full) { (clip ? copyData : d => download(CURRENT + (full || !CHAR_DEFS[CURRENT] ? '' : '.diff') + '.json', d))(charExport(full)); }
 function importChar(clip) {
   (clip ? pasteJSON : openFile)((def, name) => {
-    try { makeCharacter(def); addChar(def, name.replace(/\.json$/, '')); } catch (err) { notice('Not a character file', err.message); }
+    if (def.format === 'stick2.character.diff') {
+      const base = CHAR_DEFS[def.base];
+      if (!base) return notice('Unknown base character', `This diff is against "${def.base}", which isn't a built-in here.`);
+      name = def.base; def = applyObj(base, def.diff); // a diff always reconstructs under its own recorded base name, not the file's
+    }
+    try { makeCharacter(def); addChar(def, name.replace(/\.(diff\.)?json$/, '')); } catch (err) { notice('Not a character file', err.message); }
   });
 }
 // ---------- suggest a character for the roster: an issue + an attached file, no local git, no sign-in beyond GitHub ----------
@@ -270,7 +285,9 @@ function importFile(kind, clip) {
 const fileMenu = (verb, f, ...extra) => (e, b) => popup(b, h('b', { textContent: verb }),
   h('div', { cls: 'bar col', onclick: closePop }, Object.entries(FILE_TIPS).map(([k, tip]) => h('div', { cls: 'bar' },
     button(k, `${verb} ${k} ${verb === 'export' ? 'to' : 'from'} a file: ${tip}`, () => f(k)),
-    button(verb === 'export' ? 'copy' : 'paste', `${verb} ${k} ${verb === 'export' ? 'to' : 'from'} the clipboard: ${tip}`, () => f(k, true), 'mini'))),
+    button(verb === 'export' ? 'copy' : 'paste', `${verb} ${k} ${verb === 'export' ? 'to' : 'from'} the clipboard: ${tip}`, () => f(k, true), 'mini'),
+    verb === 'export' && k === 'character' && CHAR_DEFS[CURRENT]
+      ? button('full', `Export the whole character file instead of just a diff against the built-in ${CURRENT}`, () => exportChar(false, true), 'mini') : null)),
     ...extra));
 
 // a random character: the stick's skeleton with random proportions and thickness, maybe extra limbs, a stance preset;

@@ -141,3 +141,36 @@ test('stances and binds: every bound input names a move the character has; stanc
       if (s.name !== 'main' && !s.key) bad.push(n + ' ' + s.name + ': no key switches to it');
     }`), []);
 });
+
+test('diffObj/applyObj (objdiff.js): a round trip reconstructs the target exactly, for every built-in and some hand-made edits', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => {
+    const bad = [];
+    const roundTrip = (label, a, b) => {
+      const d = diffObj(a, b), back = applyObj(a, d);
+      if (JSON.stringify(back) !== JSON.stringify(b)) bad.push(label + ': round trip did not reconstruct the target');
+      return d;
+    };
+    // every built-in against itself: no differences
+    for (const [n, def] of Object.entries(CHAR_DEFS)) if (diffObj(def, JSON.parse(JSON.stringify(def)))) bad.push(n + ': a character diffed against its own clone is not empty');
+    // a real edit: hadoo's speed and a move's damage changed, a bone added, a move removed, a stance's pose key changed
+    const base = CHAR_DEFS.hadoo, edited = JSON.parse(JSON.stringify(base));
+    edited.speed = (edited.speed || 1) + 0.1;
+    edited.moves.kiBlast = { ...edited.moves.kiBlast, damage: edited.moves.kiBlast.damage + 5 };
+    edited.bones = [...edited.bones, { id: 'extraTail', parent: 'waist', len: 10, a: -120, role: 'tail' }];
+    delete edited.moves.collarBreak;
+    edited.stances[0] = { ...edited.stances[0], pose: { ...edited.stances[0].pose, torso: (edited.stances[0].pose.torso || 0) + 7 } };
+    const d = roundTrip('hadoo edit', base, edited);
+    if (!d.added?.speed || !d.changed?.moves?.changed?.kiBlast || !d.changed?.bones?.added?.extraTail
+      || !d.changed?.moves?.removed?.collarBreak || !d.changed?.stances?.changed?.[base.stances[0].name]) bad.push('hadoo edit: diff missing an expected change - ' + JSON.stringify(d));
+    // a move's keys array (index-diffed, no id/name): a single key's value changed, round trips
+    const m0 = base.moves.kiBlast, m1 = JSON.parse(JSON.stringify(m0)); m1.keys[1].p.torso = (m1.keys[1].p.torso || 0) + 3;
+    const md = roundTrip('kiBlast key edit', m0, m1);
+    if (!md.changed?.keys?.changed?.[1]) bad.push('kiBlast key edit: expected keys.changed[1], got ' + JSON.stringify(md));
+    // a move's keys array with a key added (length changed): falls back to a whole-array replacement, still round trips
+    const m2 = JSON.parse(JSON.stringify(m0)); m2.keys.splice(1, 0, { d: 0.05, p: {} });
+    const md2 = roundTrip('kiBlast key insert', m0, m2);
+    if (!('full' in (md2.changed?.keys || {}))) bad.push('kiBlast key insert: expected keys.full, got ' + JSON.stringify(md2));
+    return bad;
+  })())`));
+  assert.deepEqual(r, []);
+});

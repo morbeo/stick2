@@ -417,12 +417,22 @@ try {
   // the menu bar's files: export / import character, settings or everything; settings round-trip, out-of-range values fall back to the default
   { setMode('play'); const top = t => [...document.querySelectorAll('#global button')].find(b => b.textContent.includes(t)), got = [], dl = download, of = openFile;
     top('export').click(); const menu = [...document.querySelectorAll('.pop button')].map(b => b.textContent).join(); closePop();
-    if (menu !== 'character,copy,settings,copy,everything,copy,replay' || !top('import')) errs.push('file menu ' + menu);
-    download = (n, d) => got.push(JSON.parse(JSON.stringify(d))); let feed; openFile = f => f(feed);
+    if (menu !== 'character,copy,full,settings,copy,everything,copy,replay' || !top('import')) errs.push('file menu ' + menu);
+    download = (n, d) => got.push(JSON.parse(JSON.stringify(d))); let feed; openFile = f => f(feed, 'test.json');
     setCfg({ hitstop: 0.12 }); exportFile('settings'); setCfg({ hitstop: DEFAULTS.hitstop }); feed = got[0]; importFile('settings');
     if (CFG.hitstop !== 0.12) errs.push('settings import ' + CFG.hitstop);
     feed = { format: 'stick2.settings', cfg: { hitstop: 99 } }; importFile('settings'); if (CFG.hitstop !== 99) errs.push('settings any number ' + CFG.hitstop); CFG.hitstop = DEFAULTS.hitstop;
     exportFile('everything'); if (got[1]?.format !== 'stick2.everything' || got[1].current !== CURRENT) errs.push('everything export');
+    // character export defaults to a diff against the built-in (small, format stick2.character.diff); full export is the whole def
+    pickChar('hadoo'); setProp('len', 30); const speedBefore = DEFS.hadoo.speed;
+    exportChar(false); const d = got.at(-1);
+    if (d.format !== 'stick2.character.diff' || d.base !== 'hadoo' || !d.diff.changed?.bones) errs.push('character diff export ' + JSON.stringify(d));
+    exportChar(false, true); const full = got.at(-1);
+    if (full.format || !full.bones || JSON.stringify(full) !== JSON.stringify(DEFS.hadoo)) errs.push('character full export ' + JSON.stringify(full).slice(0, 80));
+    pickChar('stick'); delete DEFS.hadoo; CHARS.hadoo = makeCharacter(CHAR_DEFS.hadoo); // back to the shipped built-in
+    feed = d; importChar(false);
+    if (!DEFS.hadoo || DEFS.hadoo.speed !== speedBefore) errs.push('character diff import did not restore speed ' + DEFS.hadoo?.speed + ' vs ' + speedBefore);
+    pickChar('stick');
     download = dl; openFile = of;
     top('import').click(); const imenu = [...document.querySelectorAll('.pop button')].map(b => b.textContent).join(); closePop();
     if (imenu !== 'character,paste,settings,paste,everything,paste,replay,compare…') errs.push('import menu ' + imenu);
