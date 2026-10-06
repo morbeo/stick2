@@ -375,6 +375,22 @@ function fighterPick(i) {
   reg(b, () => { b.replaceChildren(cv, h('span', { textContent: `P${i + 1} ${name()}` })); drawThumb(cv, CHARS[name()], undefined, 20, 22); });
   return b;
 }
+// a scenario flagged select (the builder's "select screen" toggle): a full-screen picker for P1 and P2 over its roster
+// (empty roster = every character), instead of the small per-slot popup. Confirm sets lab.chars like fighterPick does
+function selectScreen() {
+  const scen = SCENARIOS[lab.scen], roster = scen.roster?.length ? scen.roster : Object.keys(DEFS);
+  const picks = [lab.chars[0], lab.chars[1]];
+  const box = h('div', { cls: 'pop modal' });
+  const end = () => { back.remove(); lab.chars[0] = picks[0] ?? null; lab.chars[1] = picks[1] ?? null; build(); };
+  const render = () => box.replaceChildren(h('b', { textContent: 'select your fighter' }),
+    h('p', {}, ...rich('P1 is you, P2 the opponent (any extra fighter keeps its own pick).')),
+    ...[0, 1].map(i => h('div', {}, h('h4', { textContent: `P${i + 1}` }),
+      h('div', { cls: 'cards' }, roster.map(k => charCard(k, v => { picks[i] = v; render(); }, k => (picks[i] ?? pickName(i)) === k))))),
+    h('div', { cls: 'bar' }, button(':sports_kabaddi: fight!', 'Start the fight with these fighters', end)));
+  const back = h('div', { cls: 'modalback' }, box);
+  back.addEventListener('mousedown', e => { if (e.target === back) end(); });
+  document.body.append(back); render();
+}
 // play's shields: invulnerability per fighter (null, nodamage, untouchable), put in the scen as the fighters' overrides so replays keep it
 const INV_OPTS = [null, 'nodamage', 'untouchable'];
 const withInv = s => s.user || !lab.inv.some(Boolean) ? s : { ...s, ...lab.inv[0] && { aover: { ...s.aover, inv: lab.inv[0] } }, ...lab.inv[1] && { bover: { ...s.bover, inv: lab.inv[1] } },
@@ -579,6 +595,7 @@ function labCtx() {
   if (lab.mode === 'experiment') els.push(grp('experiment', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
   if ((lab.kind !== 'attacks' && lab.kind !== 'impact' && lab.kind !== 'body') || lab.mode === 'play') els.push(grp('scenario', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = lab.branch = null; build(); panels(); })));
   if (lab.mode === 'play' && !SCENARIOS[lab.scen]?.user) els.push(grp('fighters', 'Who fights: P1 (you), P2 and any extra fighters of the scenario, each any character; unset = the one being edited (P3 on: as P2)',
+    SCENARIOS[lab.scen]?.select ? button(':sports_kabaddi: select screen', 'Open the character-select screen for this scenario', selectScreen) : null,
     fighterPick(0), shieldButton(0), swapFighters(), fighterPick(1), shieldButton(1), Array.from({ length: fighterCount(SCENARIOS[lab.scen]) - 2 }, (_, i) => [fighterPick(i + 2), shieldButton(i + 2)])));
   if (lab.mode === 'play' && SCENARIOS[lab.scen]?.waves) els.push(grp('waves', SPEC.waves.tip + ' Changing it starts over at wave 1',
     seg(SPEC.waves.opts, () => CFG.waves, v => { setCfg({ waves: v }); mode().restart(); }, SPEC.waves.optTips),

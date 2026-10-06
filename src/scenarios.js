@@ -41,6 +41,7 @@ function toScen(u) {
     stage: u.stage, props: u.props?.length ? u.props.map(p => ({ type: p.type, x: p.x })) : undefined,
     items: u.items?.length ? u.items.map(it => ({ type: it.type, x: it.x })) : undefined,
     waves: u.mode === 'waves' ? true : undefined, survival: u.mode === 'survival' ? true : undefined,
+    select: u.select || undefined, roster: u.select && u.roster?.length ? u.roster : undefined,
     cfg: { ...u.cfg }, period: u.period, user: true,
     init: away.some(Boolean) ? w => { w.fighters.forEach((f, i) => { if (away[i]) { f.away = true; f.dir = -f.dir; } }); } : undefined };
 }
@@ -54,7 +55,7 @@ function fromScen(s, chars) {
   return { p: [f(s.a, s.ax ?? (scripted ? 330 : 300), name(0), s.aover, s.aTeam ?? 0, s.aw), f(s.b, s.bx ?? (scripted ? 375 : 500), name(1), s.bover, s.bTeam ?? 1, s.bw),
     ...(s.more || []).map((m, i) => f(m.c, m.x, name(i + 2), m.over, m.team ?? 1))], stage: s.stage,
     props: (s.props || []).map(p => ({ type: p.type, x: p.x })), items: (s.items || []).map(it => ({ type: it.type, x: it.x })),
-    mode: s.waves ? 'waves' : s.survival ? 'survival' : 'normal', period: s.period || 0, cfg: { ...s.cfg } };
+    mode: s.waves ? 'waves' : s.survival ? 'survival' : 'normal', select: !!s.select, roster: s.roster || [], period: s.period || 0, cfg: { ...s.cfg } };
 }
 // a name/slug never saves to myStore or localStorage: it's for the page it's embedded on, not "my scenarios" in this browser
 const EMBED_KEY = '__embed__';
@@ -115,7 +116,7 @@ function curU() {
     if (preview?.name !== name) preview = { name, u: fromScen(withInv(SCENARIOS[name]), null) };
     u = preview.u;
   }
-  u.props ??= []; u.items ??= [];
+  u.props ??= []; u.items ??= []; u.roster ??= [];
   return u;
 }
 function importScens(json) { Object.assign(myStore, JSON.parse(json)); saveScens(); panels(); }
@@ -232,10 +233,22 @@ function scenBuilder() {
         .map(s => button(s.k, s.tip, () => { u.cfg[s.k] = CFG[s.k]; scenChanged(); fill(); }, 'mini')) : [])) });
     const MODE_TIPS = { normal: 'A normal fight between the actors above', waves: 'Endless waves: P2 is the first enemy, then new ones keep coming (the Waves settings tune them)',
       survival: 'Endless survival: one enemy after another, tougher over time (the Survival settings tune it)' };
+    // select screen: a full roster picker shown before the fight (lab.js selectScreen), instead of the small per-slot
+    // popup; the roster it offers defaults to every character, narrowed by checking only some of the cards off
+    const selectRow = h('div', {});
+    const fillSelect = () => selectRow.replaceChildren(
+      toggle(':sports_kabaddi: select screen', 'Show a character-select screen for P1 and P2 before the fight starts, instead of picking them from the toolbar',
+        () => u.select, v => { u.select = v; if (v) u.roster ??= []; scenChanged(); fillSelect(); }),
+      u.select ? h('p', {}, ...rich('Roster for the select screen (none checked = every character):')) : null,
+      u.select ? h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k,
+        () => { const i = u.roster.indexOf(k); if (i < 0) u.roster.push(k); else u.roster.splice(i, 1); scenChanged(); fillSelect(); },
+        k => u.roster.includes(k)))) : null);
+    fillSelect();
     body.replaceChildren(h('div', { cls: 'bar' }, nm,
       slider('restart', { min: 0, max: 10, step: 0.1 }, () => u.period, v => { u.period = v; scenChanged(); }, 'Restarts every this many seconds (0: plays on)'),
       seg(Object.keys(STAGES), () => u.stage || 'plain', v => { u.stage = v === 'plain' ? undefined : v; scenChanged(); }, Object.fromEntries(Object.keys(STAGES).map(k => [k, STAGES[k].tip]))),
       seg(Object.keys(MODE_TIPS), () => u.mode || 'normal', v => { u.mode = v === 'normal' ? undefined : v; scenChanged(); }, MODE_TIPS)),
+      selectRow,
       ...u.p.map(fighter), h('div', { cls: 'bar' }, addActor),
       ...u.props.map(propRow), h('div', { cls: 'bar' }, addProp),
       ...u.items.map(itemRow), h('div', { cls: 'bar' }, addItem), h('h4', { textContent: 'settings' }), ...over,
