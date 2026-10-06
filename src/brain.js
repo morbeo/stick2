@@ -275,6 +275,10 @@ const BASE_SCENARIOS = {
   'taunt': { a: [0.2, 'up+guard+special'], b: 'dummy', period: 1.6 },
   // S+G cycles main -> boxing -> powered: the first press just reaches boxing, the second reaches powered and charges up
   'power up': { a: [0.2, 'guard+special', 0.15, 'guard+special'], b: 'dummy', period: 2.4 },
+  // houndo's S+G cycles main -> prowl -> feral: feral's body carries a built-in weapon (WEAPONS.claws, fixed: true), so
+  // P / fwd+P / down+P become slash / chop / lowSlash instead of its own clawSwipe/bite/tackle - no pickup, no disarm.
+  // @slash (not punch: '!' walks in on the dummy, which is only 80px off) forces it right where it lands
+  'claws stance': { a: [0.2, 'guard+special', 0.1, 'guard+special', 0.4, '@slash'], b: 'dummy', chars: ['houndo'], ax: 300, bx: 380, period: 3.4 },
   'win pose': { a: [0.2, 'kick'], b: 'dummy', cfg: { health: 5 } },
   'pounce': { a: ['down+kick', 0.6, { hold: 'fwd', t: 0.35 }, 'hop', 0.1, 'down+special'], b: 'dummy', period: 3 },
   'wall bounce': { a: [0.2, '@spin', 0.5, 'hop', 0.05, 'kick'], b: 'dummy', ax: 560, bx: 640, period: 2.4 },
@@ -312,6 +316,10 @@ const BASE_SCENARIOS = {
   // props (PROPS, src/stage.js): breakable ones to smash for debris, moveable ones to grab and throw (P+G, same as a weapon)
   'breakable props': { a: 'human', b: 'dummy', ax: 50, bx: 760, props: [{ type: 'crate', x: 150 }, { type: 'chair', x: 280 }, { type: 'table', x: 410 }, { type: 'door', x: 540 }, { type: 'window', x: 670 }] },
   'prop throw': { a: 'human', b: 'dummy', ax: 50, bx: 750, props: [{ type: 'reed', x: 200 }, { type: 'spring', x: 400 }] },
+  // the ball (PROPS.ball, bounce: true): a free physics body, not fixed scenery - a kick sends it flying, it bounces
+  // off the floor and the walls and rolls to a stop; a thrown weapon can also bat it around. @pushKick (not fwd+kick:
+  // '!' walks in on the dummy, not the ball) forces the kick right where it reaches the ball
+  'ball': { a: [0.2, '@pushKick'], b: 'dummy', ax: 300, bx: 700, props: [{ type: 'ball', x: 335 }], period: 3 },
   'walk': { a: [{ hold: 'fwd', t: 0.8 }, 0.3, { hold: 'back', t: 0.8 }], b: 'dummy', ax: 250, bx: 550, period: 2.4 },
   'jump': { a: ['hop', 0.7, 'fwd+hop', 0.1, { hold: 'fwd', t: 0.5 }], b: 'dummy', ax: 250, bx: 550, period: 2 },
 };

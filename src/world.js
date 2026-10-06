@@ -67,7 +67,7 @@ class World {
     [this.a, this.b] = this.fighters;
     // weapons: one per fighter from the settings (on the floor in front, or in hand), plus the scenario's (items, aw / bw / more[].w = held)
     this.items = []; this.shots = []; this.beams = []; this.limbs = [];
-    this.props = (s.props || []).map(p => ({ type: p.type, x: p.x, z: p.z || 0, hp: PROPS[p.type].hp, bendT: 0, bendDir: 0 }));
+    this.props = (s.props || []).map(p => ({ type: p.type, x: p.x, z: p.z || 0, hp: PROPS[p.type].hp, bendT: 0, bendDir: 0, lift: 0, vx: 0, vlift: 0 }));
     // the random pool: the built-in arsenal, minus the synthetic 'limb' (a severed-limb weapon, never a starting pick)
     // and 'lightsaber' (a bonus weapon, picked on purpose, not handed out at random) — named explicitly, not by
     // position in WEAPONS, so a new built-in or a custom one never shifts who gets what for the same seed
@@ -187,12 +187,24 @@ class World {
   // breakable loses hp and is destroyed; moveable sways (bendDir/bendT, decaying here) on a strike and bounces a
   // thrown weapon back — a prop can be either, neither (an inert fixture, strikes just register and stop there)
   // or both (a cracking sign that wobbles and eventually breaks)
+  // a bounce prop (ball) is a free body instead of fixed scenery: gravity, a floor bounce (settling once it's slow),
+  // wall bounces at the arena edge, and rolling friction once it's down - the same shape of physics items/shots use,
+  // just kept on its own fields (lift/vlift, not y/vy) so an ordinary fixed prop is untouched
+  updatePropPhysics(h) {
+    for (const p of this.props) { const t = PROPS[p.type];
+      if (!t.bounce) continue;
+      p.vlift -= this.cfg.gravity * h; p.lift += p.vlift * h; p.x += p.vx * h;
+      if (p.x < 20 || p.x > W - 20) { p.x = clamp(p.x, 20, W - 20); p.vx *= -0.5; }
+      if (p.lift <= 0) { p.lift = 0; if (p.vlift < -60) { p.vlift *= -0.55; this.dust(p.x, this.groundY, 0.3, p.z); } else p.vlift = 0; p.vx *= Math.max(0, 1 - 3 * h); }
+    }
+  }
   updateProps(h) {
     if (!this.props.length) return;
     const cfg = this.cfg;
+    this.updatePropPhysics(h);
     for (const p of this.props) p.bendT = Math.max(0, p.bendT - h);
     for (const p of this.props) {
-      const t = PROPS[p.type], top = [p.x, this.groundY - t.h], bot = [p.x, this.groundY], mid = [p.x, this.groundY - t.h / 2];
+      const t = PROPS[p.type], gy = this.groundY - p.lift, top = [p.x, gy - t.h], bot = [p.x, gy], mid = [p.x, gy - t.h / 2];
       for (const f of this.fighters) {
         const a = f.action;
         if (!a?.m.keys[a.i]?.active || a.m.throw || a.hits.includes(p) || Math.abs(f.z - p.z) > cfg.zReach) continue;
@@ -202,6 +214,7 @@ class World {
         let sparked = false;
         if (t.breakable) { p.hp -= a.m.damage ?? 0; this.spark('blunt', mid, p.z, f.dir); sparked = true; }
         if (t.moveable) { p.bendDir = f.dir; p.bendT = 0.08; if (!sparked) this.spark('blunt', mid, p.z, f.dir); }
+        if (t.bounce) { p.vx = f.dir * (120 + a.m.knock * 0.6); p.vlift = Math.max(p.vlift, 260); if (!sparked) this.spark('blunt', mid, p.z, f.dir); }
       }
       for (const it of this.items) {
         if (!it.live || it.hitProps?.has(p) || Math.abs(it.z - p.z) > cfg.zReach) continue;
@@ -212,6 +225,7 @@ class World {
         let sparked = false;
         if (t.breakable) { p.hp -= (it.kind === 'prop' ? thrownPropMove(it.type, it.power) : thrownMove(it.type, it.power)).damage; this.spark('blunt', mid, p.z, dir); sparked = true; }
         if (t.moveable) { it.vx *= -0.6; it.vy = Math.min(it.vy, -200); if (!sparked) this.spark('blunt', mid, p.z, dir); }
+        if (t.bounce) { p.vx += dir * 180; p.vlift = Math.max(p.vlift, 150); it.vx *= -0.3; if (!sparked) this.spark('blunt', mid, p.z, dir); }
       }
     }
     // destroyed: dust, and debris left lying where it stood — pickable and throwable like any other floor item
@@ -231,7 +245,7 @@ class World {
   drawProps(ctx, layer) {
     for (const p of this.props) { const t = PROPS[p.type]; if ((t.layer || 'mid') !== layer) continue;
       const sway = p.bendDir * Math.min(1, p.bendT / 0.08);
-      drawShapes(ctx, t.shapes, (x, y) => [p.x + x, this.groundY + y], c => c || '#888', { sway });
+      drawShapes(ctx, t.shapes, (x, y) => [p.x + x, this.groundY - p.lift + y], c => c || '#888', { sway });
     }
   }
   // ---------- projectiles (Fighter.shoot): fly straight until they hit, meet a foe's shot, leave the arena or run out of life ----------
@@ -422,7 +436,7 @@ class World {
     for (const k of Object.keys(s)) this[k] = cloneState(s[k], memo);
   }
   stateHash() {
-    return hashNums([this.rand.seed, this.hits, this.blocks, this.clashes, this.simT, ...this.items.flatMap(it => [it.x, it.y]), ...this.limbs.flatMap(l => [l.x, l.y, l.t]), ...this.props.flatMap(p => [p.hp ?? 0, p.bendT]), ...this.shots.flatMap(s => [s.x, s.y, s.t, s.dur]),
+    return hashNums([this.rand.seed, this.hits, this.blocks, this.clashes, this.simT, ...this.items.flatMap(it => [it.x, it.y]), ...this.limbs.flatMap(l => [l.x, l.y, l.t]), ...this.props.flatMap(p => [p.hp ?? 0, p.bendT, p.x, p.lift, p.vx, p.vlift]), ...this.shots.flatMap(s => [s.x, s.y, s.t, s.dur]),
       ...this.beams.flatMap(b => [b.t, b.hit ? 1 : 0]), ...this.fighters.flatMap(f => [f.x, f.y, f.z, f.vx, f.vy, f.hp, f.dir, f.action?.i ?? -1, f.action?.t ?? 0])]);
   }
   // a running key macro (keys.js) presses its steps on top of the keys held

@@ -41,7 +41,9 @@ const STAGES = {
 // or a kick, high or low, both reach it — independent of how tall its own drawing happens to be)
 // layer (back/mid/front, default mid): draw order relative to fighters. moveable: sways on a strike, bounces a thrown
 // weapon back (a shape opts into the sway with its own `sway` field, in px). breakable: hp, destroyed at 0 (debris).
-// Both are independent of each other and of the shapes that draw it (src/shapes.js)
+// bounce: a free body instead of fixed scenery (World.updatePropPhysics) - gravity, floor and wall bounces, rolling
+// friction once it settles; a strike or a thrown weapon launches it instead of just making it sway or lose hp.
+// All three are independent of each other and of the shapes that draw it (src/shapes.js)
 const BASE_PROPS = {
   crate: { size: 20, h: 90, breakable: true, hp: 30, tip: 'A crate: breaks after enough hits', shapes: [
     { kind: 'box', x: -20, y: -48, w: 40, h: 48, col: '#b08a52', stroke: '#7a5c34', lw: 2, cross: true } ] },
@@ -64,6 +66,8 @@ const BASE_PROPS = {
     { kind: 'circle', cx: 10, cy: -60, rx: 3, ry: 3, col: '#d8b84a' } ] },
   window: { size: 10, h: 90, breakable: true, hp: 14, tip: 'A window: breaks after enough hits', shapes: [
     { kind: 'box', x: -18, y: -130, w: 36, h: 46, col: '#bcd9e8', stroke: '#5c4024', lw: 2, cross: true } ] },
+  ball: { size: 10, h: 20, bounce: true, tip: 'A ball: bounces and rolls when struck or thrown into - never breaks, never settles for long', shapes: [
+    { kind: 'circle', cx: 0, cy: -10, rx: 10, ry: 10, col: '#d35400', stroke: '#7a2e00', lw: 2 } ] },
 };
 // my props: edits to a built-in, or wholly new ones (same pattern as sounds: myStore -> live table)
 const PROP_STORE = 'stick2.props';
