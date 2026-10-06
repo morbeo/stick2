@@ -35,5 +35,6 @@ PRs are welcome too: bug fixes, new fx looks, roster characters, docs fixes, any
 - Keep the no-build-step, no-dependencies, no-image-asset constraints: everything is plain `src/*.js` loaded via `<script>` tags in `index.html`, and visuals are drawn in code, not images.
 - Match the existing code style (see [Development](docs/development.md)) rather than introducing a new one.
 - Small, focused PRs are easier to land than large ones.
+- Commit messages: an imperative subject line (under 72 chars), a blank line, then 1-5 short `- ` bullets — what changed and why, with `- Risk:` / `- Follow-up:` only when there's a real one. No prose paragraphs, no "Risks: none", no AI attribution lines.
 
 If you're not sure whether something is worth a PR, open an issue first and ask.
