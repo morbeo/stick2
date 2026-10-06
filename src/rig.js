@@ -434,7 +434,7 @@ const STICK_MOVES = {
   ] },
   // specials (SPECIAL_SCHEMES): rolls tumble through or away (flag roll: invincible for rollInv), teleport reappears behind at its warp key
   rollFwd: { roll: true, keys: [
-    { d: 0.05, e: 'outQuad', p: TUCK },
+    { d: 0.05, e: 'outQuad', p: { torso: 35, head: 20, afU: 60, afL: 100, abU: 50, abL: 110, lfU: 70, lfL: -110, lbU: 10, lbL: -20 } }, // a crouching dip, hands reaching forward, before it tucks over
     { d: 0.3, p: TUCK, lunge: 560 },
     { d: 0.12, e: 'inOutCubic', p: null },
   ] },
@@ -443,6 +443,23 @@ const STICK_MOVES = {
     { d: 0.05, e: 'outQuad', p: { torso: -20, head: 25, lfU: 100, lfL: -135, lbU: 90, lbL: -135, afU: 165, afL: 120, abU: 155, abL: 130 } },
     { d: 0.3, p: { ...TUCK, head: 35, afU: 170, afL: 140, abU: 160, abL: 145 }, lunge: -480 },
     { d: 0.12, e: 'inOutCubic', p: null },
+  ] },
+  // a scrambling wake-up roll (used getting up, instead of the standing dodge roll): low to the ground, hands and knees, not an acrobatic tuck
+  tumbleFwd: { roll: true, keys: [
+    { d: 0.05, e: 'outQuad', p: { torso: 60, head: 10, afU: 15, afL: 25, abU: 25, abL: 35, lfU: 45, lfL: -55, lbU: 15, lbL: -25 } },
+    { d: 0.28, p: { torso: 65, head: 15, afU: 10, afL: 20, abU: 20, abL: 30, lfU: 55, lfL: -65, lbU: 20, lbL: -30 }, lunge: 560 },
+    { d: 0.14, e: 'inOutCubic', p: null },
+  ] },
+  tumbleBack: { roll: true, keys: [
+    { d: 0.05, e: 'outQuad', p: { torso: -35, head: 20, afU: 150, afL: 80, abU: 140, abL: 90, lfU: 70, lfL: -90, lbU: 50, lbL: -60 } },
+    { d: 0.28, p: { torso: -30, head: 25, afU: 155, afL: 85, abU: 145, abL: 95, lfU: 75, lfL: -95, lbU: 55, lbL: -65 }, lunge: -480 },
+    { d: 0.14, e: 'inOutCubic', p: null },
+  ] },
+  // a leapfrog over a close foe (grounded hop near one vaults it instead of jumping): invincible and spinning like a roll, but through the air
+  vault: { vault: true, keys: [
+    { d: 0.05, e: 'outQuad', p: { torso: 30, afU: 70, afL: 20, abU: 60, abL: 10, lfU: 60, lfL: -90, lbU: 20, lbL: -20 } },
+    { d: 0.22, e: 'outQuad', p: { torso: -10, afU: -60, afL: 10, abU: -50, abL: 20, lfU: 110, lfL: -140, lbU: -60, lbL: -30 }, rise: 300, lunge: 170 },
+    { d: 0.18, e: 'inOutCubic', p: null },
   ] },
   teleport: { special: true, keys: [
     { d: 0.12, e: 'outQuad', p: { ...CROUCH, afU: 20, afL: 120, abU: 10, abL: 130 } },

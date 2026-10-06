@@ -553,12 +553,41 @@ test('wake-up: P / K while down gets up attacking, ← / → rolls, G held stays
   const plain = go("'dummy'");
   assert.equal(plain.wake, 'getup');
   assert.equal(go("[1.0, 'kick']").wake, 'getupAttack');
-  assert.equal(go("[1.0, 'back']").wake, 'rollBack');
-  assert.equal(go("[1.0, 'fwd']").wake, 'rollFwd');
+  assert.equal(go("[1.0, 'back']").wake, 'tumbleBack', 'a character with tumbleFwd/tumbleBack uses those for the wake-up roll');
+  assert.equal(go("[1.0, 'fwd']").wake, 'tumbleFwd');
   assert.equal(go("[1.0, 'kick']", { wakeUp: false }).wake, 'getup');
   const stay = go("[0.8, { hold: 'guard', t: 3 }]", { wakeDelay: 0.5 });
   assert.ok(Math.abs(stay.up - plain.up - 30) <= 2, `stayed down ${stay.up - plain.up} frames more`);
   assert.ok(Math.abs(go("'dummy'", { downTime: 1.2 }).up - plain.up - 36) <= 2);
+});
+
+test('a character with no tumbleFwd/tumbleBack still wakes up into the plain rollFwd/rollBack', () => {
+  const wake = run(`(() => {
+    const { tumbleFwd, tumbleBack, ...rest } = CHAR_DEFS.stick.moves;
+    const ch = makeCharacter({ ...CHAR_DEFS.stick, moves: rest });
+    const w = new World({ a: ['down+kick'], b: [1.0, 'back'] }, {}, 7, [CHARS.stick, ch]); w.loop = false;
+    let wake = '';
+    for (let i = 0; i < 240; i++) { const was = w.b.kd; w.advance(1/60, NOIN);
+      if (was === 'down' && !w.b.kd) { wake = Object.keys(w.b.ch.moves).find(k => w.b.ch.moves[k] === w.b.action?.m) || ''; break; } }
+    return wake;
+  })()`);
+  assert.equal(wake, 'rollBack');
+});
+
+test('vault: a grounded hop within vaultRange of a grounded foe leapfrogs it (invincible, leaves the ground) instead of jumping; 0 (default) never vaults', () => {
+  const go = (vaultRange, dist = 50) => JSON.parse(run(`(() => {
+    const w = new World({ a: 'human', b: 'dummy', ax: 330, bx: 330 + ${dist}, cfg: { vaultRange: ${vaultRange} } }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    let jumped = false, vaulted = false, grounded = true;
+    for (let i = 0; i < 90; i++) { w.advance(1/60, { ...NOIN, hop: i === 0 });
+      if (w.a.action?.m === CHARS.stick.moves.vault) vaulted = true;
+      if (!w.a.grounded && grounded && !vaulted) jumped = true;
+      grounded = w.a.grounded;
+    }
+    return JSON.stringify({ jumped, vaulted, inv: w.a.invT > 0 });
+  })()`));
+  const off = go(0); assert.ok(off.jumped && !off.vaulted, 'vaultRange 0: a plain jump, exactly as before');
+  const on = go(100); assert.ok(on.vaulted && !on.jumped, 'close to a grounded foe, in range: vaults instead');
+  const far = go(100, 400); assert.ok(far.jumped && !far.vaulted, 'too far away: still a plain jump');
 });
 
 test('in blockstun P guard cancels (costs health), K push blocks (the attacker slides off); G tapped just before the parry window: just guard', () => {

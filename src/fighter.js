@@ -298,7 +298,7 @@ class Fighter {
     this.action = { m: mv, name, i: 0, t: 0, from: { ...this.target }, fromMul: Object.fromEntries(KEY_MULS.map(p => [p, { ...this.mul[p] }])), hit: false, hits: [] };
     if (mv.charge) this.action.chargeBtn = this.inp.punch ? 'punch' : this.inp.kick ? 'kick' : this.inp.special ? 'special' : null;
     if (!mv.hurt) { this.w.ev(this, 'move', name); if (name) this.moveCount[name] = (this.moveCount[name] || 0) + 1; }
-    if (this.action.m.roll) this.passT = this.invT = this.c('rollInv'); // a roll: through fighters and untouchable a moment
+    if (this.action.m.roll || this.action.m.vault) this.passT = this.invT = this.c('rollInv'); // a roll or vault: through fighters and untouchable a moment
     const keys = this.action.m.keys;
     if (this.away && !this.action.m.hurt && !keys.some(k => k.turn)) { this.away = false; this.dir = -this.dir; } // back turned: a move without turns faces the foe first
     if (keys[0]?.turn) this.turnKey(keys[0]);
@@ -579,7 +579,12 @@ class Fighter {
     const hop = inp.hop || flat && upTap || chase && (c('chaseJump') === 'auto' || inp.up); // 2D: ↑ jumps too
     if (inp.down && this.grounded) this.lowAt = this.w.simT; // super jump: ↓ shortly before the jump
     const wall = this.x < 40 + c('wallJumpReach') ? 1 : this.x > W - 40 - c('wallJumpReach') ? -1 : 0;
-    if (hop && this.grounded && this.free && (!busy || jc) && this.squatT <= 0 && !this.st.fly) {
+    // vault: a grounded hop close in front of a grounded foe leapfrogs it instead of jumping (needs the move vault)
+    const vFoe = this.w.nearestFoe(this), vr = c('vaultRange');
+    const canVault = vr > 0 && this.ch.moves.vault && vFoe && vFoe.grounded && Math.abs(vFoe.z - this.z) <= c('zReach') && (vFoe.x - this.x) * this.dir > 0 && (vFoe.x - this.x) * this.dir <= vr;
+    if (hop && canVault && this.grounded && this.free && !busy && this.squatT <= 0 && !this.st.fly) {
+      this.start('vault');
+    } else if (hop && this.grounded && this.free && (!busy || jc) && this.squatT <= 0 && !this.st.fly) {
       this.superJ = c('superJump') > 1 && this.w.simT - this.lowAt <= c('superJumpWindow');
       this.squatT = (c('jumpSquat') || 1e-6) * (this.superJ ? 1.5 : 1);
       if (jc) this.action = null;
@@ -612,7 +617,7 @@ class Fighter {
     this.after = this.after.filter(g => g.t > 0);
     if (this.flip) this.spin = this.flip * 360 * Math.min(1, this.airT / (2 * c('jumpVel') / c('gravity')));
     else if (this.spin) { const to = Math.round(this.spin / 360) * 360; this.spin = approach(this.spin, to, 1440 * dt); if (this.spin === to) this.spin = 0; }
-    if (this.action?.m.roll) { // a roll turns the body once over, the way its lunge goes
+    if (this.action?.m.roll || this.action?.m.vault) { // a roll or vault turns the body once over, the way its lunge goes
       const ks = this.action.m.keys, all = ks.reduce((s, k) => s + k.d, 0), done = ks.slice(0, this.action.i).reduce((s, k) => s + k.d, 0) + this.action.t;
       this.spin = Math.sign(ks.find(k => k.lunge)?.lunge || 1) * 360 * Math.min(1, done / all) % 360;
     }
@@ -659,7 +664,10 @@ class Fighter {
       // wake-up (wakeUp setting): P / K gets up attacking, → / ← rolling that way, G held lies up to wakeDelay longer
       const wk = c('wakeUp'), stay = wk && inp.guard && this.downT > -c('wakeDelay');
       if (wk && (inp.punch || inp.kick)) this.wake = 'getupAttack';
-      else if (wk && inp.left !== inp.right) this.wake = (inp.right - inp.left) * this.dir > 0 ? 'rollFwd' : 'rollBack';
+      else if (wk && inp.left !== inp.right) { // a scrambling tumble if the character has one, else the standing dodge roll
+        const fwd = (inp.right - inp.left) * this.dir > 0, tumble = fwd ? 'tumbleFwd' : 'tumbleBack';
+        this.wake = this.ch.moves[tumble] ? tumble : (fwd ? 'rollFwd' : 'rollBack');
+      }
       if (wk) this.buffer = null; // the press was the wake-up's
       if ((this.downT -= dt) <= 0 && !stay) {
         const m = this.ch.moves[this.wake] ? this.wake : 'getup';
