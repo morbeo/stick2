@@ -332,13 +332,25 @@ function charCard(k, pick = pickChar, on = k => CURRENT === k) {
 // as fighterPick/scenarios.js charPick), and which of its stances (the same quick-switch seg as stanceRow, whose own
 // row stays in the side panel for the rest of a stance's own settings: key, fly, body)
 function charStancePicker() {
-  const cv = h('canvas'), b = h('button', { cls: 'fpick', tip: 'The character every mode edits · click: pick another, or add a new one' });
-  b.onclick = (e, el) => popup(el, h('b', { textContent: 'character' }), h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k))));
+  const cv = h('canvas'), b = button('', 'The character every mode edits · click: pick another', (e, el) =>
+    popup(el, h('b', { textContent: 'character' }), h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k)))));
+  b.classList.add('fpick');
   reg(b, () => { b.replaceChildren(cv, h('span', { textContent: CURRENT })); drawThumb(cv, currentChar(), undefined, 20, 22); });
   const names = currentChar().stances.map(s => s.name);
   const stances = names.length > 1 ? seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); },
     Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance: the base pose, binds and loops'])), i => names[i]) : null;
-  return grp('character', 'The character every mode edits, and which of its stances', b, stances);
+  // the same new/copy/rename/revert/delete/import/export actions charPanel() used to carry in the side panel - up here
+  // too, so they stay in view with the picker instead of scrolling off with the rest of the body/move panel
+  const ops = crud({
+    random: ['New random character: proportions, thickness, extra limbs, stance and stats', () => addChar(randomDef(makeRand(Math.random() * 1e9 | 0)))],
+    copy: ['New character copied from this one', () => addChar(DEFS[CURRENT], CURRENT)],
+    rename: ['Rename this character (a built-in one is copied under the new name)', renameChar],
+    revert: ['Throw away the edits of this built-in character (undoable)', revertChar],
+    delete: ['Delete this character (only your own ones; asks first, cannot be undone)', deleteChar],
+    import: ['Load a character JSON file as a new character', importChar],
+    export: ['Download this character as a JSON file', exportChar],
+  });
+  return grp('character', 'The character every mode edits, and which of its stances', b, stances, ops);
 }
 // the character's stances: each has its own pose, binds (unset slots use the main ones), key and idle / walk loops
 function stanceRow() {
@@ -455,28 +467,16 @@ function randomPanel(changed = () => {}) {
     ['Experiment: a grid of nine random characters; click one to keep it', () => randomExp()]));
   return [title, ...RANDOM_VARS.map(s => slider(s.k, s, () => studio.rnd[s.k], v => set({ [s.k]: v }), s.tip))];
 }
+// the picker and its new/copy/rename/revert/delete/import/export actions moved to the toolbar (charStancePicker, pinned
+// above the side panel instead of scrolling with it); this fold keeps only what has nowhere else to live
 function charPanel() {
-  const head = heading('Character', 'Pick the fighter every mode uses. Edits are saved in this browser automatically; export a file to keep or share one.',
+  const head = heading('Character', 'Pick the fighter every mode uses (the picker is in the toolbar above). Edits are saved in this browser automatically; export a file to keep or share one.',
     '⌘Z undo · ⇧⌘Z redo');
-  head.append(crud({
-    random: ['New random character: proportions, thickness, extra limbs, stance and stats', () => addChar(randomDef(makeRand(Math.random() * 1e9 | 0)))],
-    copy: ['New character copied from this one', () => addChar(DEFS[CURRENT], CURRENT)],
-    rename: ['Rename this character (a built-in one is copied under the new name)', renameChar],
-    revert: ['Throw away the edits of this built-in character (undoable)', revertChar],
-    delete: ['Delete this character (only your own ones; asks first, cannot be undone)', deleteChar],
-    import: ['Load a character JSON file as a new character', importChar],
-    export: ['Download this character as a JSON file', exportChar],
-  }, button(':tune:', 'What the random characters are drawn from, and an experiment grid of them', (e, b) => popup(b, ...randomPanel()), 'mini')));
-  // the current character only; the others in a popup grid (picking one is rare next to editing it)
-  const cv = h('canvas'), name = h('b'), info = h('span', { cls: 'note' });
-  const pick = h('button', { cls: 'charpick', tip: 'The character every mode uses · click: pick another',
-    onclick: () => popup(pick, h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k)))) }, cv, h('span', {}, name, info), ...rich(':expand_more:'));
-  reg(pick, () => { const c = currentChar(); drawThumb(cv, c, undefined, 36, 40); name.textContent = CURRENT;
-    info.textContent = `${CHAR_DEFS[CURRENT] ? 'built-in' : 'yours'} · ${c.bones.length} bones`; });
+  head.append(button(':tune:', 'What the random characters are drawn from, and an experiment grid of them', (e, b) => popup(b, ...randomPanel()), 'mini'));
   // its own row, not a small icon lost in the crud bar: proposing a character for the roster is a one-off, worth noticing
   const suggestRow = h('div', { cls: 'row', tip: 'Think this character belongs in the roster? Export it and open an issue - a maintainer folds it in.' },
     button(':upload: suggest for the roster', 'Export this character and open a GitHub issue to propose it, with instructions (see CONTRIBUTING.md)', () => suggestChar()));
-  return [head, pick, colorRow(), suggestRow];
+  return [head, colorRow(), suggestRow];
 }
 // a character's own colour (def.col): unset (auto) leaves it to the player slot in a fight (P1 black, P2 red…, as every
 // built-in does today); set, it is always drawn that way — in a fight too, overriding the slot. Preset swatches, or any

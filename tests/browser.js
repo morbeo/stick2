@@ -442,8 +442,8 @@ try {
     const q = document.querySelector('#side input'); q.value = 'decel'; q.dispatchEvent(new Event('input'));
     if (!vis(row('decel')) || vis(row('maxSpeed'))) errs.push('search shows folded');
     q.value = ''; q.dispatchEvent(new Event('input')); lab.q = '';
-    // the character menu: the current one on a button, the rest in a popup
-    setMode('animate'); document.querySelector('.charpick').click(); [...document.querySelectorAll('.pop .card')].find(c => c.textContent === 'grumbo').click();
+    // the character menu: the current one on a button in the toolbar (charStancePicker), the rest in a popup
+    setMode('animate'); document.querySelector('#ctx .fpick').click(); [...document.querySelectorAll('.pop .card')].find(c => c.textContent === 'grumbo').click();
     if (CURRENT !== 'grumbo' || document.querySelector('.pop')) errs.push('char menu ' + CURRENT); pickChar('stick'); }
   // movelist (play's side panel): every bound move of the played character with its input notation, grouped, fuzzy-filterable,
   // and live as the character or stance changes
