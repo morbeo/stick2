@@ -4,7 +4,8 @@ const canvas = $('c'), ctx = canvas.getContext('2d');
 const cursor = c => { if (canvas.style.cursor !== c) canvas.style.cursor = c; }; // the mouse cursor follows what is under it
 let dpr = 1;
 const lab = { mode: 'play', scen: 'you vs dummy', rows: null, x: { k: 'hitstop' }, y: { k: '' }, cells: [], cols: 1, focus: null, zoom: false, kind: 'sweep',
-  seeds: 1, tape: null, rec: false, replay: false, target: 'dummy', playback: null, chars: [null, null], inv: [], impact: 'hits', blowPower: 'normal', blowSide: 'front', filter: '' };
+  seeds: 1, tape: null, rec: false, replay: false, target: 'dummy', playback: null, chars: [null, null], inv: [], impact: 'hits', blowPower: 'normal', blowSide: 'front', filter: '',
+  plot: '' }; // what a cell's own little graph shows; unset (auto) keeps today's behavior, picked from the swept axis
 layFlag(lab, 'meter'); layFlag(lab, 'inputs'); // per tab, in the layout
 const newWorld = (...a) => Object.assign(new World(...a), { loop: app.loop });
 
@@ -15,7 +16,7 @@ const GROUP = {
   stop: ['hitstop', 'hitstopAtk', 'hitstopFin', 'hitstopDecay', 'hitstopBudget', 'hitShake'],
   move: ['maxSpeed', 'accel', 'decel', 'jumpVel', 'gravity', 'jumpSquat'],
 };
-const plotKind = k => Object.keys(GROUP).find(g => GROUP[g].includes(k)) || 'scope';
+const plotKind = k => SCOPE_SERIES[k] ? k : Object.keys(GROUP).find(g => GROUP[g].includes(k)) || 'scope';
 const PRESET_TIPS = {
   raw: 'No tween, no spring, no juice: poses snap from key to key.',
   tweened: 'Keyframes eased, no spring, no juice.',
@@ -275,7 +276,7 @@ function stepResponse(cfg, depth) {
 }
 
 function drawPlot(c, r) {
-  const w = c.w, cfg = w.cfg, kind = c.move ? 'timeline' : c.motion ? 'move' : c.over ? plotKind(c.plot ?? lab.x.k) : 'scope';
+  const w = c.w, cfg = w.cfg, kind = c.move ? 'timeline' : c.motion ? 'move' : c.over ? plotKind(lab.plot || (c.plot ?? lab.x.k)) : 'scope';
   const note = s => text(s, r.x + 4 * dpr, r.y + 11 * dpr, '#aaa', 10);
   if (kind === 'spring') {
     hline(r, -0.5, 1.8, 0); hline(r, -0.5, 1.8, 1);
@@ -318,6 +319,11 @@ function drawPlot(c, r) {
     if (at !== null) { ctx.fillStyle = '#222'; ctx.fillRect(at - dpr, r.y + r.h * 0.4, 2 * dpr, r.h * 0.6); }
     const f = frameData(m, cfg.attackSpeed), adv = w.adv === null ? '' : `  ${w.adv >= 0 ? '+' : ''}${w.adv} on hit`;
     note(`${f.startup}f startup · ${f.active} active · ${f.recovery} recovery${adv}`);
+  } else if (SCOPE_SERIES[kind]) { // explicitly picked (plotButton), not tied to the swept axis: health, stun or speed over the fight
+    const { a, b, label } = SCOPE_SERIES[kind](w), all = a.concat(b), lo = Math.min(...all, 0) - 5, hi = Math.max(...all, 0) + 5;
+    series(ctx, a, r, lo, hi, '#bbb', HIST);
+    if (b !== a) series(ctx, b, r, lo, hi, '#c0392b', HIST);
+    note(label);
   } else {
     const all = w.hist.tgt.concat(w.hist.disp), lo = Math.min(...all) - 5, hi = Math.max(...all) + 5;
     series(ctx, w.hist.tgt, r, lo, hi, '#bbb', HIST);
@@ -460,6 +466,28 @@ function axisButton(ax, name) {
   reg(b, () => { setRich(b, `${name}: ${ax.k || 'none'}`); });
   return b;
 }
+// what a cell's own little graph shows: auto (today's default, from the swept axis) or any of these, explicitly -
+// health, stun and speed were never otherwise reachable here, only in the debug popup's oscilloscope (same SCOPE_SERIES)
+const PLOT_TIPS = { spring: 'Pose filter step response (torso / forearm)', ease: 'Easing curves', stop: 'Hit-stop bars: freeze wanted (outline) vs granted (fill)', move: 'Velocity (black) + height (red)',
+  angle: 'Bone angle (cfg.scope): target (grey) vs drawn (red)', health: 'Health: P1 (grey) vs P2 (red)', stun: 'Stun meter: P1 (grey) vs P2 (red)', speed: 'P1 horizontal speed (vx)' };
+function plotButton() {
+  const b = button('', 'What the cells\' own little graph shows · fuzzy search', (e, anchor) => {
+    const list = h('div', { cls: 'plist' });
+    const inp = h('input', { cls: 'macro', placeholder: 'plot…', tip: 'Fuzzy search over what a cell\'s little graph can show',
+      oninput: fill, onkeydown: ev => { ev.stopPropagation(); if (ev.key === 'Escape') { inp.value = ''; fill(); } } });
+    const pick = k => { lab.plot = k; closePop(); build(); };
+    function fill() {
+      const q = inp.value.trim();
+      const shown = [['', 'Auto: from the swept axis (today\'s default)'], ...Object.entries(PLOT_TIPS)]
+        .map(([k, tip]) => [paletteRank(q, { name: k || 'auto', tip, kind: '' }), k, tip]).filter(([r]) => r > 0).sort((a, c) => c[0] - a[0]).slice(0, 8);
+      list.replaceChildren(...shown.map(([, k, tip]) => h('div', { cls: 'pitem', onmousedown: ev => { ev.preventDefault(); pick(k); } },
+        h('b', { textContent: k || 'auto' }), h('span', { cls: 'pt' }, ...rich(tip)))));
+    }
+    popup(anchor, h('b', { textContent: 'plot' }), inp, list); fill(); inp.focus();
+  }, 'mini');
+  reg(b, () => setRich(b, `:timeline: ${lab.plot || 'auto'}`));
+  return b;
+}
 const GALLERY_TARGETS = {
   dummy: ['A dummy stands in range: hits, hit stop and advantage', {}],
   whiff: ['Nobody in range: the move whiffs, pure animation', { bx: 720 }],
@@ -568,7 +596,7 @@ function labCtx() {
     const adopt = button(':check: use these values', 'Copy the focused cell\'s values into the settings (side panel)', () => setCfg(lab.focus.over));
     const back = zoomBack();
     reg(adopt, () => { adopt.hidden = !lab.zoom; });
-    els.push(grp('axes', 'The variables swept across the cells', axisButton(lab.x, 'X'), axisButton(lab.y, 'Y')),
+    els.push(grp('axes', 'The variables swept across the cells', axisButton(lab.x, 'X'), axisButton(lab.y, 'Y'), plotButton()),
       grp('tests', 'Ready-made comparisons', button(':science: tests :expand_more:', 'Ready-made comparisons: collision modes, chain rules, combo effects, planes', (e, tb) => popup(tb, h('div', { cls: 'bar col', onclick: closePop }, button(':target: collision test', 'Every hitTest mode (columns) on three fights (rows): compare hits and whiffs of the collision modes', () => {
         Object.assign(lab.x, { k: 'hitTest' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = null; build();
       }),
