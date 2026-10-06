@@ -1,6 +1,6 @@
 'use strict';
 // ---------- animate mode: pose keyframes by dragging joints (IK), retime them on a frame timeline, preview with springs ----------
-const anim = { move: 'jab', key: 1, t: 0, playing: true, pvLoop: true, pvSpeed: 1, pvFx: true, onion: true, aim: false, aimId: null, reach: 'limb', drag: null, hover: null, anchor: null, pv: null, hold: false,
+const anim = { move: 'jab', key: 1, t: 0, playing: true, pvLoop: true, pvSpeed: 1, pvFx: true, onion: true, aim: false, aimId: null, reach: 'limb', drag: null, hover: null, anchor: null, pv: null, hold: false, holdEdit: false,
   target: { char: null, stance: 'stand', state: 'idle', facing: 'toward', dist: 'near' }, group: 'type', sort: 'order', filter: '',
   tfilter: '', tsort: { k: null, dir: 1 }, tscroll: 0, // the move table's filter, sort column and scroll
   cmp: null, cmpView: 'off' }; // the move compared with (compare group): drawn over this one or as filmstrips
@@ -33,12 +33,23 @@ function anFrame() {
   const o = anim.anchor, toScreen = p => [o[0] + p[0] * s, o[1] + p[1] * s];
   return { ch, r, s, o, pose, L, P: mapVals(L, toScreen), wa, ground, toLocal: (x, y) => [(x - o[0]) / s, (y - o[1]) / s] };
 }
+// a move some other move's throw points at: the toss, not the grab (holdPose/holdAt live here, see fighter.js seize/held)
+const isThrowTarget = (name = anim.move) => Object.values(currentChar().moves).some(m => m.throw === name);
+// the held victim, for the hold editor: same character, posed by holdPose (generic stance if unset) at holdAt's offset
+// from the thrower's own anchor/scale — a second body overlaid on the preview, dragged the same way anFrame's is
+function holdFrame() {
+  const ch = edChar(), f = anFrame(), at = curMove().holdAt || {}, dx = at.dx ?? 30, dy = at.dy ?? 0;
+  const pose = { ...ch.poses.stance, ...(defMove().holdPose || {}) }, L = fk(ch, pose, 1);
+  const o = [f.o[0] + dx * f.s, f.o[1] + dy * f.s], toScreen = p => [o[0] + p[0] * f.s, o[1] + p[1] * f.s];
+  return { ch, s: f.s, o, dx, dy, pose, L, P: mapVals(L, toScreen), toLocal: (x, y) => [(x - o[0]) / f.s, (y - o[1]) / f.s] };
+}
 
 const AMBER = '#d68c14';
 const lowest = (ch, L) => Math.max(...ch.bones.map(b => L[b.id][1] + (b.shape === 'circle' ? b.len : 0)));
 function drawAnimEditor() {
   if (anim.cmpView === 'strip') return drawStrip();
   const f = anFrame(), { ch, r, s, o, L, P, ground } = f, m = curMove(), ki = keyAt(m, anim.t);
+  const hf = isThrowTarget(anim.move) ? holdFrame() : null; // the held victim, shown whenever this move is a throw's target
   ctx.fillStyle = '#f3f0e8'; ctx.fillRect(r.x, r.y, r.w, r.h);
   ctx.strokeStyle = '#cfc8bb'; ctx.lineWidth = 2 * dpr;
   ctx.beginPath(); ctx.moveTo(r.x, ground); ctx.lineTo(r.x + r.w, ground); ctx.stroke();
@@ -61,29 +72,36 @@ function drawAnimEditor() {
     const e = L[id];
     ctx.fillStyle = 'rgba(192,57,43,.35)'; ctx.beginPath(); ctx.arc(e[0], e[1], Math.max(2.5, CFG.hitR), 0, 7); ctx.fill();
   }
+  if (hf) { // the held victim: amber, faint when holdPose is still the generic default (nothing authored yet)
+    ctx.save(); ctx.translate(hf.dx, hf.dy); ctx.globalAlpha = curMove().holdPose ? 0.85 : 0.35;
+    drawFigure(ctx, hf.ch, hf.L, AMBER, AMBER, -1); ctx.restore();
+  }
   ctx.restore();
   const editing = Math.abs(anim.t - keyEnd(m, anim.key)) < 1e-6, hits = hitIds(m);
-  for (const b of ch.bones) {
-    const p = P[b.id], hov = b.id === anim.hover || b.id === anim.drag, hit = hits.includes(b.id);
+  const hch = anim.holdEdit && hf ? hf.ch : ch, hP = anim.holdEdit && hf ? hf.P : P, hPose = anim.holdEdit && hf ? hf.pose : f.pose;
+  for (const b of hch.bones) {
+    const p = hP[b.id], hov = b.id === anim.hover || b.id === anim.drag, hit = !anim.holdEdit && hits.includes(b.id);
     ctx.beginPath(); ctx.arc(p[0], p[1], (hov ? 5.5 : 4) * dpr, 0, 7);
     ctx.fillStyle = hov ? '#ffd' : '#fff'; ctx.fill();
     ctx.strokeStyle = hit ? RED[0] : '#555'; ctx.lineWidth = (hit ? 2.5 : 1.5) * dpr; ctx.stroke();
   }
-  { const [x, y] = P.hip, hov = anim.hover === 'hip' || anim.drag === 'hip', q = (hov ? 5.5 : 4) * dpr; // the hip: a square handle
+  { const [x, y] = hP.hip, hov = anim.hover === 'hip' || anim.drag === 'hip', q = (hov ? 5.5 : 4) * dpr; // the hip: a square handle
     ctx.fillStyle = hov ? '#ffd' : '#fff'; ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5 * dpr; ctx.fillRect(x - q, y - q, q * 2, q * 2); ctx.strokeRect(x - q, y - q, q * 2, q * 2); }
-  if (anim.aim && P[aimBone()]) { // the joint that follows the cursor: a crosshair ring
+  if (!anim.holdEdit && anim.aim && P[aimBone()]) { // the joint that follows the cursor: a crosshair ring
     const [x, y] = P[aimBone()], q = 9 * dpr;
     ctx.beginPath(); ctx.arc(x, y, q, 0, 7);
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { ctx.moveTo(x + dx * q * 0.6, y + dy * q * 0.6); ctx.lineTo(x + dx * q * 1.5, y + dy * q * 1.5); }
     ctx.strokeStyle = '#07f'; ctx.lineWidth = 1.5 * dpr; ctx.stroke();
   }
-  if (anim.hover === 'hip' || anim.drag === 'hip') text('hip: the body moves, the feet stay', Math.min(P.hip[0] + 10 * dpr, r.x + r.w - 220 * dpr), P.hip[1] - 8 * dpr, '#666', 11);
-  const hv = ch.by[anim.drag || anim.hover];
-  if (hv) text(`${hv.id} ${Math.round(f.pose[hv.id])}°`, Math.min(P[hv.id][0] + 10 * dpr, r.x + r.w - 120 * dpr), P[hv.id][1] - 8 * dpr, '#666', 11);
+  if (anim.hover === 'hip' || anim.drag === 'hip') text(anim.holdEdit ? 'hip: slides the victim (holdAt)' : 'hip: the body moves, the feet stay', Math.min(hP.hip[0] + 10 * dpr, r.x + r.w - 220 * dpr), hP.hip[1] - 8 * dpr, '#666', 11);
+  const hv = hch.by[anim.drag || anim.hover];
+  if (hv) text(`${hv.id} ${Math.round(hPose[hv.id])}°`, Math.min(hP[hv.id][0] + 10 * dpr, r.x + r.w - 120 * dpr), hP[hv.id][1] - 8 * dpr, '#666', 11);
   text(`${anim.move} · key ${anim.key + 1}/${m.keys.length}${editing ? '' : ' (drag a joint to jump to the selected key)'}`, r.x + 10 * dpr, r.y + 18 * dpr, '#444', 12, 'bold');
-  text(anim.aim ? `aim: ${anim.aimId || 'the striking limb'} follows the cursor (reach: ${anim.reach}) · click to set`
+  text(anim.holdEdit ? 'hold editor: drag a joint to pose the held victim (holdPose) · drag the hip to reposition it (holdAt)'
+    : anim.aim ? `aim: ${anim.aimId || 'the striking limb'} follows the cursor (reach: ${anim.reach}) · click to set`
     : `drag: IK (reach: ${anim.reach}) · Alt+drag: rotate one bone · double-click a joint: it follows the cursor`, r.x + 10 * dpr, r.y + 34 * dpr, '#999', 11);
   if (cm && anim.cmpView === 'overlay') text(`amber: ${anim.cmp} at the same moment`, r.x + 10 * dpr, r.y + 50 * dpr, AMBER, 11);
+  else if (hf && !anim.holdEdit) text(`amber: the held victim${curMove().holdPose ? '' : ' (generic pose - not customized yet)'}`, r.x + 10 * dpr, r.y + 50 * dpr, AMBER, 11);
 }
 // filmstrip (compare: strip): the move and the compared one under it, a cell every few frames on one time scale,
 // tinted by phase; the playhead's cell is outlined, a click goes to that frame
@@ -224,9 +242,21 @@ function hipTo(f, x, y) {
   return { pose, chain };
 }
 function poseTo(id, x, y, single) {
-  const f = anFrame(), ch = f.ch;
+  // the held victim's hip: not a walking hip-IK (there are no feet to keep planted), just slides holdAt under the cursor
+  if (id === 'hip' && anim.holdEdit) {
+    const h0 = anim.hip0;
+    setMove('holdAt', { ...h0.at0, dx: Math.round(h0.at0.dx + (x - h0.x) / h0.s), dy: Math.round(h0.at0.dy + (y - h0.y) / h0.s) }, 'm.holdAt:drag');
+    return;
+  }
+  const f = anim.holdEdit ? holdFrame() : anFrame(), ch = f.ch;
   const { chain, pose } = id === 'hip' ? hipTo(f, x, y) : (c => ({ chain: c, pose: ik(ch, { ...f.pose }, id, f.toLocal(x, y), c, single ? 1 : 12) }))(ikChain(ch, id, single));
-  edit(def => {
+  if (anim.holdEdit) {
+    edit(def => {
+      const m = def.moves[anim.move];
+      m.holdPose = m.holdPose || {};
+      for (const b of chain) m.holdPose[b.id] = Math.round(pose[b.id] * 10) / 10;
+    }, 'hold:' + anim.move + id);
+  } else edit(def => {
     const k = def.moves[anim.move].keys[anim.key];
     k.p = k.p || {};
     for (const b of chain) k.p[b.id] = Math.round(pose[b.id] * 10) / 10;
@@ -234,7 +264,7 @@ function poseTo(id, x, y, single) {
 }
 const aimBone = () => anim.aimId || hitIds(curMove())[0]; // what aim moves: a double-clicked joint, else the striking bone
 function pickJoint(x, y) {
-  const { ch, P } = anFrame();
+  const { ch, P } = anim.holdEdit ? holdFrame() : anFrame();
   let best = null, bd = 12 * dpr;
   for (const id of [...ch.ids, 'hip']) { const d = Math.hypot(P[id][0] - x, P[id][1] - y); if (d < bd) { bd = d; best = id; } }
   return best;
@@ -302,7 +332,8 @@ function animMouse(type, x, y, e) {
       if (id === 'hip' && (e.shiftKey || e.detail === 2)) return; // the hip neither strikes nor aims
       if (id && e.shiftKey) { pickHit(id, e.metaKey || e.ctrlKey); return; } // Shift+click: the striking bone (⌘/Ctrl too: add or remove it)
       if (id && e.detail === 2) { anim.aim = true; anim.aimId = id; return; } // double-click: that joint follows the cursor
-      if (id) { selectKey(anim.key); const f = anFrame(); anim.drag = id; anim.hold = true; anim.hip0 = { x, y, a: [...f.o], L: f.L, pose: f.pose }; } // anFrame: re-anchor at the key pose before freezing
+      if (id === 'hip' && anim.holdEdit) { anim.drag = id; anim.hold = true; anim.hip0 = { x, y, s: holdFrame().s, at0: { dx: 30, dy: 0, dz: 0, ...curMove().holdAt } }; }
+      else if (id) { selectKey(anim.key); const f = anim.holdEdit ? holdFrame() : anFrame(); anim.drag = id; anim.hold = true; anim.hip0 = { x, y, a: [...f.o], L: f.L, pose: f.pose }; } // anFrame/holdFrame: re-anchor before freezing
     }
   }
   if (type === 'move') {
@@ -456,7 +487,7 @@ const toggleBind = s => edit(def => {
   else delete b[s];
 });
 function pickMove(name) {
-  anim.move = name; anim.key = 0; anim.t = 0; anim.playing = true;
+  anim.move = name; anim.key = 0; anim.t = 0; anim.playing = true; anim.holdEdit = false;
   buildPreview(); panels();
 }
 // the gallery and tests views show the move panel too: it edits the move last picked there (or in the editor)
@@ -540,6 +571,23 @@ function counterRow() {
   return h('div', { cls: 'row', tip: 'Counter: a key marked catch (keyPanel) answers a strike caught during it with the move picked here, at once — its damage lands on the attacker. No catch key: this has no effect.' },
     h('span', { textContent: 'counter' }), h('span', { cls: 'bar' }, moveBtn,
       button(':add: new counter move', 'Make a new reversal move (starts as a copy of the built-in reversal) and set it here', mk, 'mini')));
+}
+// hold (holdPose/holdAt, on a toss move — one some other move's throw points at): how the victim hangs while held, instead
+// of today's generic randomized hurt pose and fixed "30px in front" offset. The hold editor (toggle below) overlays the
+// victim on the preview in amber; while it's on, dragging a joint poses the victim and dragging the hip repositions it.
+function holdRow() {
+  const m = () => curMove(), at = () => ({ dx: 30, dy: 0, dz: 0, ...m().holdAt });
+  const setAt = (k, v) => setMove('holdAt', { ...at(), [k]: v }, 'm.holdAt');
+  const editBtn = toggle('hold editor', 'Pose the held victim and drag it into position, overlaid on the preview in amber. While on, dragging a joint moves the victim, not this move\'s own keyframe.',
+    () => anim.holdEdit, v => { anim.holdEdit = v; });
+  return h('div', { cls: 'row', tip: 'How the victim hangs while held by the throw that plays this move: its pose (holdPose) and position relative to the thrower (holdAt). Unset: the generic randomized hurt pose, 30px in front, same height and depth as today.' },
+    h('span', { textContent: 'hold' }), h('span', { cls: 'bar' },
+      editBtn,
+      button('reset pose', 'Clear the custom hold pose: back to the generic randomized hurt flinch', () => setMove('holdPose', undefined), 'mini'),
+      slider('dx', { min: -100, max: 250, step: 2 }, () => at().dx, v => setAt('dx', v), 'Forward offset (px) from the thrower, the way it faces'),
+      slider('dy', { min: -150, max: 150, step: 2 }, () => at().dy, v => setAt('dy', v), 'Vertical offset (px); negative lifts the victim up'),
+      adv(slider('dz', { min: -100, max: 100, step: 2 }, () => at().dz, v => setAt('dz', v), 'Depth offset (px); outside the 2D plane only (lanes/belt) — not shown in this 2D preview')),
+      button('reset pos', 'Clear the custom position: back to 30px in front, same height and depth', () => setMove('holdAt', undefined), 'mini')));
 }
 
 // what normalize returns to: the built-in move of the same name (copies like jab2: the move they were copied from)
@@ -1078,6 +1126,7 @@ function movePanel() {
     h('div', { cls: 'bar' }, Object.entries(MOVE_FLAGS).map(([f, tip]) => toggle(f, tip, () => !!m()[f], v => setMove(f, v || undefined)))),
     throwRow(),
     counterRow(),
+    isThrowTarget() ? holdRow() : null,
     ...keyPanel(),
     ...charPanel(),
   ];

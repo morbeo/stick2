@@ -59,6 +59,26 @@ try {
     undo(); anim.reach = 'bone'; const hd = anFrame(); drag('head', -(hd.P.head[0] - hd.P.neck[0]) * 2 - 30 * dpr, 20 * dpr);
     if (!(keyPose(currentChar(), curMove(), 0).head > currentChar().by.head.max)) errs.push('past the limit ' + keyPose(currentChar(), curMove(), 0).head);
     undo(); anim.reach = 'limb'; }
+  // hold editor (Plan P2): holdPose/holdAt on a throw's toss move, edited by dragging a second, overlaid body
+  { anim.move = 'toss'; selectKey(1); panels();
+    const ev = { detail: 1 }, drag = (id, dx, dy) => { const p = (anim.holdEdit ? holdFrame() : anFrame()).P[id]; animMouse('down', p[0], p[1], ev); animMouse('move', p[0] + dx, p[1] + dy, ev); animMouse('up', p[0] + dx, p[1] + dy, ev); };
+    if (!isThrowTarget('toss')) errs.push('toss is not seen as a throw target (grab.throw)');
+    if (![...document.querySelectorAll('#side button')].some(b => b.textContent === 'hold editor')) errs.push('no hold editor toggle in the panel');
+    const keyBefore = JSON.stringify(curMove().keys[anim.key].p); anFrame(); const anchorBefore = [...anim.anchor];
+    anim.holdEdit = true;
+    drag('handF', -40 * dpr, -30 * dpr);
+    if (!curMove().holdPose || Object.values(curMove().holdPose).some(Number.isNaN)) errs.push('hold editor: dragging a joint did not set holdPose ' + JSON.stringify(curMove().holdPose));
+    if (JSON.stringify(curMove().keys[anim.key].p) !== keyBefore) errs.push('hold editor: dragging the victim also moved the thrower\\'s own key');
+    drag('hip', 20 * dpr, -10 * dpr);
+    if (!curMove().holdAt || typeof curMove().holdAt.dx !== 'number') errs.push('hold editor: dragging the hip did not set holdAt ' + JSON.stringify(curMove().holdAt));
+    if (anim.anchor[0] !== anchorBefore[0] || anim.anchor[1] !== anchorBefore[1]) errs.push('hold editor: dragging the victim\\'s hip moved the thrower\\'s own anchor ' + [anchorBefore, anim.anchor]);
+    setMove('holdPose', undefined); setMove('holdAt', undefined);
+    if (curMove().holdPose || curMove().holdAt) errs.push('hold editor: reset left a value behind');
+    anim.holdEdit = false;
+    const keyBefore2 = JSON.stringify(curMove().keys[anim.key].p);
+    drag('handF', 40 * dpr, 30 * dpr);
+    if (JSON.stringify(curMove().keys[anim.key].p) === keyBefore2) errs.push('hold editor off: dragging a joint should edit the move\\'s own key again, as before');
+    undo(); undo(); undo(); undo(); undo(); }
   // the move table: one row per move, fuzzy filter, sorting, editing a value and retiming a phase in place
   lay('animate').panel = 'table'; panels();
   const rows = () => [...document.querySelectorAll('.mtable tbody tr')];
