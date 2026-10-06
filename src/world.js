@@ -464,7 +464,7 @@ class World {
     const landed = [];
     moving.forEach(f => f.strike(this.foes(f), landed));
     for (const l of landed) if (!l.a.m.throw) this.onHit(l.f, l.o, l.h, l.m, l.o.defend(l.f, l.a.m, l.key));
-    for (const l of landed) if (l.a.m.throw && l.f.action === l.a && l.o.free && !l.o.heldBy) l.f.seize(l.o);
+    for (const l of landed) if (l.a.m.throw && l.f.action === l.a && (l.o.free || l.a.m.catchFly && l.o.kd === 'fly') && !l.o.heldBy) l.f.seize(l.o);
     this.updateProps(h);
     // push apart by the bodies' extents (unless someone is knocked down, or held in a throw: pinned at its spot), then face the nearest foe
     for (let i = 0; i < fs.length; i++) for (let j = i + 1; j < fs.length; j++) {

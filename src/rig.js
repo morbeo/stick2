@@ -184,7 +184,7 @@ const STICK_MOVES = {
     { d: 0.06, e: 'outExpo', p: { torso: 22, afU: 92, afL: 5, abU: 88, abL: 10, lfU: 40, lfL: -35 }, active: true, lunge: 120 },
     { d: 0.32, e: 'inOutCubic', p: null },
   ] },
-  toss: { power: 1.5, damage: 14, hit: 'fh', height: 'mid', knock: 260, launch: 450, kd: true, keys: [
+  toss: { power: 1.5, damage: 14, hit: 'fh', height: 'mid', knock: 260, launch: 450, kd: true, next: { kick: 'airGrab' }, keys: [
     { d: 0.2, e: 'outQuad', p: { torso: -10, afU: 60, afL: 90, abU: 50, abL: 100, lfU: 20, lfL: -40, lbU: -30, lbL: -20 } },
     { d: 0.08, e: 'outExpo', p: { torso: 35, afU: 150, afL: 10, abU: 140, abL: 20, lfU: 45, lfL: -30, lbU: -35, lbL: 0 } },
     { d: 0.3, e: 'inOutCubic', p: null },
@@ -196,13 +196,15 @@ const STICK_MOVES = {
     { d: 0.06, e: 'outExpo', p: { torso: 18, afU: 108, afL: 22, abU: 80, abL: 20, lfU: 22, lfL: -20, lbU: -38, lbL: -12 }, active: true, lunge: 120 },
     { d: 0.32, e: 'inOutCubic', p: null },
   ] },
-  backToss: { power: 1.5, damage: 14, hit: 'fh', height: 'mid', knock: 300, launch: 380, kd: true, keys: [
+  backToss: { power: 1.5, damage: 14, hit: 'fh', height: 'mid', knock: 300, launch: 380, kd: true, next: { kick: 'airGrab' }, keys: [
     { d: 0.18, e: 'inOutCubic', p: { torso: 5, afU: 90, afL: 60, abU: 80, abL: 70, lfU: 30, lfL: -40, lbU: -25, lbL: -20 }, turn: true },
     { d: 0.08, e: 'outExpo', p: { torso: 30, afU: 140, afL: 10, abU: 130, abL: 20, lfU: 45, lfL: -30, lbU: -35, lbL: 0 } },
     { d: 0.3, e: 'inOutCubic', p: null },
   ] },
-  // P+G in the air: the air throw, mirroring grab/toss but only catching another airborne fighter (move flag air)
-  airGrab: { power: 1, damage: 0, hit: 'fh', height: 'mid', knock: 0, throw: 'airToss', air: true, keys: [
+  // P+G in the air: the air throw, catching another airborne fighter (move flag air). catchFly also catches a foe
+  // still flying from an earlier launch - a throw chain (toss/backToss's own next chains kick into this once the
+  // first throw's launch actually lands the victim in the air; chasing one down requires no changes of its own)
+  airGrab: { power: 1, damage: 0, hit: 'fh', height: 'mid', knock: 0, throw: 'airToss', air: true, catchFly: true, keys: [
     { d: 0.06, e: 'outQuad', p: { torso: 10, afU: 80, afL: 30, abU: 60, abL: 40 } },
     { d: 0.08, e: 'outExpo', p: { torso: 15, afU: 95, afL: 10, abU: 80, abL: 15 }, active: true },
     { d: 0.3, e: 'inOutCubic', p: null },

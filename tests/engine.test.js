@@ -911,6 +911,26 @@ test('holdOptions: holding a button through a grab\'s startup picks that toss in
   assert.equal(go(true), 'suplex', 'kick held through the startup: the matching holdOptions toss instead');
 });
 
+test('catchFly: a throw chain - cancelling a toss into airGrab (toss.next) catches the same victim again once its launch actually lands them in the air', () => {
+  const go = holdKick => JSON.parse(run(`(() => {
+    const w = new World({ a: 'human', b: 'dummy', ax: 330, bx: 372 }, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    const events = [];
+    for (let i = 0; i < 60; i++) {
+      const kick = ${holdKick} && i >= 14 && i !== 0; // after the grab (P alone) has already started, well past the first throw's techWindow
+      w.advance(1/60, { ...NOIN, punch: i === 0, guard: i < 10, kick, kickHeld: kick });
+      const name = w.a.action && Object.keys(w.a.ch.moves).find(k => w.a.ch.moves[k] === w.a.action.m);
+      if (events[events.length - 1] !== name && name) events.push(name);
+    }
+    return JSON.stringify({ bHp: w.b.hp, events });
+  })()`));
+  const plain = go(false);
+  assert.equal(plain.bHp, 86, 'no chain input: just the one throw (100 - 14 toss damage)');
+  assert.ok(!plain.events.includes('airGrab'), 'no cancel without the kick chain');
+  const chained = go(true);
+  assert.equal(chained.bHp, 74, 'chained: toss damage (14) then airToss damage (12) land on the same victim');
+  assert.deepEqual(chained.events, ['grab', 'toss', 'airGrab', 'airToss'], 'grab, toss, cancelled into airGrab the moment it catches fire, then airToss resolves it');
+});
+
 test('armor: a hit during an armored key (the hammer wind-up) does its damage but the move goes on and lands', () => {
   const go = d => JSON.parse(run(`(() => { const w = new World({ a: ['punch'], b: [${d}, '@hammer'], ax: 330, bx: 385 }, {}, 7); w.loop = false; const L = new Set();
     for (let i = 0; i < 70; i++) { w.advance(1/60, NOIN); if (w.b.labelT > 0) L.add(w.b.label); }

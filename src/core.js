@@ -281,7 +281,7 @@ function makeRand(seed) {
 // ranges away), of the other sign than a range that never goes below zero, or not a number. Values are never limited, only flagged
 const riskOf = (v, min, max) => !Number.isFinite(v) ? 'danger' : min === undefined || v >= min && v <= max ? '' : min >= 0 && v < 0 || v < min - 10 * (max - min) || v > max + 10 * (max - min) ? 'danger' : 'warn';
 const RISK_TIPS = { warn: 'outside the usual range: it may look or play oddly', danger: 'far outside the usual range: the fight may become unstable (bodies flying off, jitter)' };
-const ENGINE_VERSION = 44;
+const ENGINE_VERSION = 45;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied

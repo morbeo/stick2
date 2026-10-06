@@ -816,8 +816,13 @@ class Fighter {
       const air = !!o.kd || !o.grounded;
       if (a.m.hits && !o.kd && !a.m.hits.includes(!o.grounded ? 'air' : o.crouching ? 'crouch' : 'stand')) continue; // the move's hits: the states it can hit
       if (air && c('jugglePoints') && o.jugUsed + (a.m.juggle ?? 1) > c('jugglePoints')) continue; // the juggle pool can't pay for it
-      // throws only catch a standing, free fighter; an air throw (move flag air) is the mirror: only an airborne one
-      if (a.m.throw && ((a.m.air ? o.grounded : !o.grounded) || !o.free || o.heldBy || o.squatT > 0)) continue;
+      // throws only catch a standing, free fighter; an air throw (move flag air) is the mirror: only an airborne one.
+      // catchFly is additional, not exclusive: it also catches a foe still flying from an earlier launch (kd 'fly'),
+      // a throw chain - a normal/air throw still needs the usual grounded/airborne + free fighter if that foe isn't one
+      if (a.m.throw) {
+        const reach = a.m.catchFly && o.kd === 'fly' ? true : (a.m.air ? !o.grounded : o.grounded) && o.free;
+        if (!reach || o.heldBy || o.squatT > 0) continue;
+      }
       const cl = this.clashWith(o, ss);
       if (cl) { this.w.clash(this, o, cl); break; }
       // several striking bones: the deepest overlap counts, one hit per foe per move
@@ -1082,6 +1087,7 @@ class Fighter {
   seize(o) {
     o.exitOn('grab');
     o.heldBy = this; o.heldT = this.c('techWindow'); o.heldAt = this.w.simT; o.buffer = null; o.guarding = false; o.blockT = 0; o.dir = -this.dir; o.away = false;
+    o.kd = null; // caught out of a fall (catchFly): held now, not still "falling" alongside it
     const backGrab = (this.inp.right - this.inp.left) * this.dir < 0 && this.ch.moves[this.binds.backThrow];
     const grab = backGrab || this.action.m;
     const picked = grab.holdOptions?.find(opt => this.inp[opt.input + 'Held'] && this.ch.moves[opt.throw]);
