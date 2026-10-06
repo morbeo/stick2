@@ -217,6 +217,45 @@ function importChar(clip) {
     try { makeCharacter(def); addChar(def, name.replace(/\.(diff\.)?json$/, '')); } catch (err) { notice('Not a character file', err.message); }
   });
 }
+// a path-prefixed, readable line per leaf change in a diffObj()/diffArr() result - generic over whatever it's run on
+// (bones, moves, stances, gait, stats…), so a new field never needs its own formatting added here
+const fmtDiffVal = v => Array.isArray(v) ? JSON.stringify(v) : typeof v === 'object' && v !== null ? '{…}' : String(v);
+function describeDiff(d, path = []) {
+  const lines = [];
+  for (const k in d.added || {}) lines.push(`+ ${[...path, k].join('.')}: ${fmtDiffVal(d.added[k])}`);
+  for (const k in d.removed || {}) lines.push(`- ${[...path, k].join('.')}`);
+  for (const k in d.changed || {}) {
+    const v = d.changed[k], p = [...path, k];
+    if (Array.isArray(v)) lines.push(`${p.join('.')}: ${fmtDiffVal(v[0])} → ${fmtDiffVal(v[1])}`);
+    else if ('full' in v) lines.push(`${p.join('.')}: ${v.full.length} items (reordered or resized)`);
+    else lines.push(...describeDiff(v, p));
+  }
+  return lines;
+}
+// ---------- character diff view (a stage panel, "changes"): what differs from the matching built-in, for reviewing
+// an edit before exporting/suggesting it - the two bodies side by side with changed bones highlighted, and every
+// other change (moves, stances, stats…) as a flat list of dotted paths, from the same diff the export uses
+function charDiffPanel() {
+  const wrap = h('div', { cls: 'mtable' }), base = CHAR_DEFS[CURRENT];
+  if (!base) { wrap.append(stageHead('changes', 'What differs from the matching built-in character'),
+    h('p', { cls: 'note', textContent: 'This character has no built-in to compare against (it\'s wholly your own).' })); return wrap; }
+  const d = diffObj(base, DEFS[CURRENT]) || {};
+  const changedBones = new Set([...Object.keys(d.changed?.bones?.changed || {}), ...Object.keys(d.changed?.bones?.added || {})]);
+  const baseCh = makeCharacter(base), curCh = CHARS[CURRENT];
+  const tintFor = (ch, removed) => b => changedBones.has(b.id) || removed?.has(b.id) ? '#c0392b' : (b.side === 'b' ? (ch.col || INK)[1] : (ch.col || INK)[0]);
+  const removedBones = new Set(Object.keys(d.changed?.bones?.removed || {}));
+  const cvBase = h('canvas'), cvCur = h('canvas');
+  drawThumb(cvBase, baseCh, undefined, 110, 120, tintFor(baseCh, removedBones));
+  drawThumb(cvCur, curCh, undefined, 110, 120, tintFor(curCh, null));
+  const lines = describeDiff(d);
+  wrap.append(stageHead('changes', 'What differs from the matching built-in character - changed bones in red on both bodies',
+    button(':download: export diff', 'Export just this diff (the default character export)', () => exportChar(false), 'mini')),
+    h('div', { cls: 'bar' },
+      h('div', {}, h('b', { textContent: 'built-in' }), cvBase),
+      h('div', {}, h('b', { textContent: 'yours' }), cvCur)),
+    lines.length ? h('pre', { cls: 'note', textContent: lines.join('\n') }) : h('p', { cls: 'note', textContent: 'No changes from the built-in.' }));
+  return wrap;
+}
 // ---------- suggest a character for the roster: an issue + an attached file, no local git, no sign-in beyond GitHub ----------
 // used to pre-fill GitHub's "new file" page instead (a PR draft) - a character alone is ~70 KB, well past any URL
 // GitHub will accept (it refuses an oversized request outright, not just truncates it), so that page almost always
@@ -330,13 +369,13 @@ function randomDef(rand, o = studio.rnd) {
   return def;
 }
 // a small drawing of a character (its stance, or any pose); one scale for all, so sizes compare
-function drawThumb(cv, ch, pose = ch.poses.stance, cw = 60, chh = 64) {
+function drawThumb(cv, ch, pose = ch.poses.stance, cw = 60, chh = 64, tint = null) {
   const w = cv.width = cw * dpr, hh = cv.height = chh * dpr, c = cv.getContext('2d'), L = fk(ch, pose, 1), s = hh * 0.92 / 125;
   let low = 0, x0 = 0, x1 = 0;
   for (const b of ch.bones) { const p = L[b.id], r = b.shape === 'circle' ? b.len : 0; low = Math.max(low, p[1] + r); x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); }
   c.translate(w / 2 - (x0 + x1) / 2 * s, hh - 3 * dpr - low * s); c.scale(s, s);
   const col = ch.col || INK;
-  drawFigure(c, ch, L, col[0], col[1]);
+  drawFigure(c, ch, L, col[0], col[1], 0, tint);
 }
 // a character as a card; by default clicking it makes it the one every mode edits
 function charCard(k, pick = pickChar, on = k => CURRENT === k) {

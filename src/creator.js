@@ -214,7 +214,8 @@ function creatorKey(e, a) {
 // ---------- panels ----------
 function creatorCtx() {
   return [charStancePicker(), movesGrp(),
-    showGrp(['boxes', 'colours']), panelsGrp([...MOVE_PANELS, 'bones'], { ...VIEW_TIPS, bones: BONES_TIP }),
+    showGrp(['boxes', 'colours']), panelsGrp([...MOVE_PANELS, 'bones', ...CHAR_DEFS[CURRENT] ? ['changes'] : []],
+      { ...VIEW_TIPS, bones: BONES_TIP, changes: 'What differs from the matching built-in character' }),
   ];
 }
 // vary body lives in the experiment tab (lab.kind 'body') now; a property's context menu can still jump straight there, pre-set to vary it
@@ -518,7 +519,7 @@ const creatorMode = {
   render: creatorRender,
   ctxBar: creatorCtx,
   side: () => creator.expOn ? expPanel() : bodyPanel(),
-  overlay: () => creator.expOn ? [] : stageOpen() === 'bones' ? [boneTable()] : moveStage() ? [moveStage()()] :
+  overlay: () => creator.expOn ? [] : stageOpen() === 'bones' ? [boneTable()] : stageOpen() === 'changes' ? [charDiffPanel()] : moveStage() ? [moveStage()()] :
     creator.preview === 'impact' ? [previewBar(), blowBar(() => creator.w, () => creatorMode.restart(), true)] : [previewBar()],
   open: ['character', 'body', 'bone', 'stance pose', 'random characters'],
   mouse: creatorMouse,
