@@ -1050,16 +1050,16 @@ test('the powered stance (a DBZ-style power-up): charges up (mainToPowered), the
   const r = JSON.parse(run(`(() => {
     const speedOf = f => f.c('maxSpeed');
     const timeout = (() => { const w = new World({ a: 'human', b: 'dummy', ax: 300, bx: 700, period: 9 }, {}, 7, [CHARS.stick, CHARS.stick]), f = w.a;
-      const before = speedOf(f); f.setStance(2);
+      const before = speedOf(f); f.setStance(1);
       const duringCharge = { stanceI: f.stanceI, action: f.action?.name, speed: speedOf(f) };
       for (let i = 0; i < 120; i++) w.advance(1/60, NOIN);
       const charged = { stanceI: f.stanceI, action: !!f.action, speed: speedOf(f) };
       for (let i = 0; i < 8 * 60; i++) w.advance(1/60, NOIN);
       return { before, duringCharge, charged, expired: { stanceI: f.stanceI, speed: speedOf(f) } }; })();
     const hitCancel = (() => { const w = new World({ a: 'human', b: [0.05, '@kick'], ax: 330, bx: 375, period: 9 }, {}, 7, [CHARS.stick, CHARS.stick]), f = w.a;
-      f.setStance(2); for (let i = 0; i < 90; i++) w.advance(1/60, NOIN); return { stanceI: f.stanceI, speed: speedOf(f) }; })();
+      f.setStance(1); for (let i = 0; i < 90; i++) w.advance(1/60, NOIN); return { stanceI: f.stanceI, speed: speedOf(f) }; })();
     return JSON.stringify({ timeout, hitCancel }); })()`));
-  assert.equal(r.timeout.duringCharge.stanceI, 2, 'the stance (and its stat buff) switches at once, the charge-up move plays alongside it');
+  assert.equal(r.timeout.duringCharge.stanceI, 1, 'the stance (and its stat buff) switches at once, the charge-up move plays alongside it');
   assert.equal(r.timeout.duringCharge.action, 'mainToPowered');
   assert.ok(r.timeout.duringCharge.speed > r.timeout.before, `already faster while the charge-up plays: ${r.timeout.before} -> ${r.timeout.duringCharge.speed}`);
   assert.ok(!r.timeout.charged.action, 'the transition move has finished by 2 seconds in');

@@ -820,9 +820,12 @@ CHAR_DEFS.houndo = { ...mapPoses({ ...stick, moves: retimed(0.85, 0.9) }, beastP
   }) },
   ...bind({ fwdPunch: 'tackle', downPunch: 'clawSwipe', upKick: 'bite', backKick: 'hindKick', taunt: 'howl',
     special: 'tackle', downSpecial: 'clawSwipe', upSpecial: 'bite', backSpecial: 'hindKick' }),
-  // ↓ S+G: a low prowling crouch, quicker into the claw rake
+  // ↓ S+G: a low prowling crouch, quicker into the claw rake · S+G again: feral, built-in blades on the front paws
+  // (body.weapon, WEAPONS.claws, fixed: true — a beast's own claws, not a weapon to drop or lose)
   stances: [{ name: 'prowl', pose: beastPose(fromOld({ torso: 10, lfU: 5, lfL: -5, lbU: -5, lbL: 5, afU: -10, afL: 10, abU: -5, abL: 15 })),
-    ...bind({ punch: 'clawSwipe', special: 'clawSwipe', fwdPunch: 'bite' }) }] };
+    ...bind({ punch: 'clawSwipe', special: 'clawSwipe', fwdPunch: 'bite' }) },
+    { name: 'feral', pose: beastPose(fromOld({ torso: 15, head: -10, lfU: 10, lfL: -10, lbU: -10, lbL: 10, afU: -15, afL: 20, abU: -10, abL: 25 })),
+      body: { weapon: 'claws' } }] };
 
 // tako: a human who shapeshifts into an octopus. Two more legs and two more arms are always part of the skeleton, as
 // short nubs at the hips and shoulders in human form (every move stays valid on the base skeleton, and no bone needs a

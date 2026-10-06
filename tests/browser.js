@@ -597,21 +597,25 @@ try {
     undo(); if (JSON.stringify(curStance().pose) !== p0) errs.push('hip drag undo'); }
   // this stance only: with a second stance picked, a bone length edit goes to the stance's body (the main body and the other stance keep theirs),
   // the editor and the preview show it, Del hides a bone there, undo takes it back
-  { setMode('character'); pickChar('stick'); studio.stance = 1; studio.sel = 'uarmF'; panels(); mode().restart();
+  { setMode('character'); pickChar('stick');
+    // stick only has 'powered' (its own req/morph/body already set) as a built-in second stance now, no blank one to
+    // sandbox on - add a throwaway blank one just for this block, dropped again at the end
+    DEFS.stick.stances.push({ name: 'blank', pose: {}, binds: {} }); const bi = DEFS.stick.stances.length;
+    CHARS.stick = makeCharacter(DEFS.stick); studio.stance = bi; studio.sel = 'uarmF'; panels(); mode().restart();
     const own = () => [...document.querySelectorAll('#side button')].find(b => b.dataset.tip?.startsWith('This stance only'));
     if (!own()) errs.push('no stance only toggle');
     own().click(); setProp('len', 30);
-    const body = DEFS.stick.stances[0].body;
+    const body = DEFS.stick.stances[bi - 1].body;
     if (!studio.own || DEFS.stick.bones.find(b => b.id === 'uarmF').len !== 17 || body?.bones?.uarmF?.len !== 30 || CHARS.stick.by.uarmF.len !== 17
       || viewChar().by.uarmF.len !== 30 || edFrame().ch.by.uarmF.len !== 30 || creator.w.a.ch.by.uarmF.len !== 30) errs.push('stance only len ' + JSON.stringify(body));
     deleteBone(); if (!viewChar().by.handF.hidden || CHARS.stick.by.uarmF.hidden) errs.push('stance only hide');
-    undo(); undo(); if (DEFS.stick.stances[0].body?.bones?.uarmF?.len) errs.push('stance only undo');
+    undo(); undo(); if (DEFS.stick.stances[bi - 1].body?.bones?.uarmF?.len) errs.push('stance only undo');
     // requirements: where and exit on, stored only while they differ from the defaults
     const btn = t => [...document.querySelectorAll('#side button')].find(b => b.dataset.tip?.startsWith(t));
     btn('Only in the air').click(); btn('Hit (a blow').click();
-    const rq = JSON.stringify(DEFS.stick.stances[0].req), on = CHARS.stick.stances[1].req;
+    const rq = JSON.stringify(DEFS.stick.stances[bi - 1].req), on = CHARS.stick.stances[bi].req;
     btn('Only standing').click(); btn('Hit (a blow').click();
-    if (rq !== '{"grounded":false,"air":true,"exitOn":["hit"]}' || !on.air || DEFS.stick.stances[0].req) errs.push('stance req ' + rq + JSON.stringify(DEFS.stick.stances[0].req));
+    if (rq !== '{"grounded":false,"air":true,"exitOn":["hit"]}' || !on.air || DEFS.stick.stances[bi - 1].req) errs.push('stance req ' + rq + JSON.stringify(DEFS.stick.stances[bi - 1].req));
     // main is a stance too: it gets the same "this stance only" toggle, but its own body bakes into the character itself (no separate variant)
     studio.stance = 0; panels(); if (!own()) errs.push('no stance only toggle on main');
     setProp('len', 25);
@@ -621,11 +625,11 @@ try {
     undo(); if (DEFS.stick.main) errs.push('main stance only undo');
     studio.own = false;
     // transition: move mode shows the move row; new transition move makes <main>To<Stance> and opens it in animate
-    studio.stance = 1; panels(); const nm = morphName('main', curStance().name);
+    studio.stance = bi; panels(); const nm = morphName('main', curStance().name);
     btn('A keyframed transition move').click(); btn('Make ' + nm).click();
-    if (DEFS.stick.stances[0].morph?.mode !== 'move' || !CHARS.stick.moves[nm] || app.mode !== 'animate' || anim.move !== nm) errs.push('transition move ' + [nm, app.mode, anim.move]);
-    anim.move = 'jab'; undo(); undo(); if (DEFS.stick.moves[nm] || DEFS.stick.stances[0].morph) errs.push('transition undo');
-    setMode('character'); studio.stance = 0; panels(); }
+    if (DEFS.stick.stances[bi - 1].morph?.mode !== 'move' || !CHARS.stick.moves[nm] || app.mode !== 'animate' || anim.move !== nm) errs.push('transition move ' + [nm, app.mode, anim.move]);
+    anim.move = 'jab'; undo(); undo(); if (DEFS.stick.moves[nm] || DEFS.stick.stances[bi - 1].morph) errs.push('transition undo');
+    setMode('character'); studio.stance = 0; DEFS.stick.stances.length = bi - 1; CHARS.stick = makeCharacter(DEFS.stick); panels(); }
   // the bone table rearranges bones: drag a row's id onto another to move it before it (the draw order), click parent to hang it from another bone
   { setMode('character'); pickChar('stick'); lay('character').panel = 'bones'; creator.tsort = { k: '', dir: 1 }; creator.tfilter = ''; panels();
     const idCell = id => [...document.querySelectorAll('.btable tbody td:first-child')].find(td => td.textContent === id), ids = () => currentChar().ids;

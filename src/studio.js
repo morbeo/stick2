@@ -524,7 +524,7 @@ function boneTree() {
       (stanceOwn ? ' · only exists in this stance' : '') + ' · click: select it (Shift / ⌘: add to the selection) · double-click: rename',
       e => pickBoneSel(b.id, e.shiftKey || e.metaKey || e.ctrlKey));
     nb.ondblclick = e => { e.stopPropagation(); renameBone(b.id).then(panels); };
-    nb.style.borderLeft = `4px solid ${ROLE_COLS[b.role][b.side === 'b' ? 1 : 0]}`;
+    nb.style.borderLeft = `4px solid ${ROLE_COLS[b.role]?.[b.side === 'b' ? 1 : 0] || '#888'}`; // a weapon (or other roleless) bone keeps a neutral colour
     reg(nb, () => nb.classList.toggle('on', selIds().includes(b.id)));
     const row = h('div', { cls: 'tree' }, tw, nb);
     row.style.paddingLeft = depth * 14 + 'px';

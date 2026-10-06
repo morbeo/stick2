@@ -791,6 +791,10 @@ const BASE_WEAPONS = {
   staff: { cls: 'pole', len: 62, back: 34, weight: 1, a: -50, grip2: -24, tip: 'Staff: held along its length; the longest reach',
     shapes: [{ kind: 'line', x1: -36, y1: 0, x2: 'len', y2: 0, w: 3, col: 'wood' }] },
   limb: { cls: 'blunt', shapes: clubShapes(), len: 24, weight: 0.9, a: 0, tip: 'Severed limb: a gruesome weapon of opportunity' },
+  // fixed: built into a stance's body (body.weapon, see variant() in rig.js), not picked up or held - never disarmed,
+  // thrown or wielded through the normal P+G flow (src/fighter.js weaponGrab, takeHit)
+  claws: { cls: 'slash', fixed: true, shapes: [-4, 0, 4].map(y => ({ kind: 'line', x1: 0, y1: y, x2: 'len', y2: y, w: 2, col: 'metal' })),
+    len: 14, weight: 0.5, a: 0, tip: 'Claws: short, fast slashes, built into the stance - a fighter\'s own hands, never dropped or thrown' },
 };
 // my weapons: edits to a built-in, or wholly new ones (same pattern as sounds: myStore -> live table)
 const WEAPON_STORE = 'stick2.weapons';
@@ -881,14 +885,20 @@ function bodyDef(def, b) {
 }
 const stanceDef = (def, i) => bodyDef(def, def.stances[i - 1].body);
 // a character in stance i (its body, if the stance has one) holding a weapon (if any): compiled once and cached on the base character.
-// Every variant has all the stances, so stance indexes and loop names work in any of them
+// Every variant has all the stances, so stance indexes and loop names work in any of them. A stance can also build its
+// own weapon right into its body (body.weapon, e.g. claws): that always wins over whatever is (or isn't) held, so the
+// stance's own hands are the weapon - see WEAPONS.fixed, which also keeps it from being disarmed or thrown away
 function variant(ch, i, type) {
-  const base = ch.base || ch, si = i && base.def.stances?.[i - 1]?.body ? i : 0, w = WEAPONS[type] ? type : '', key = si + ':' + w;
+  const base = ch.base || ch, si = i && base.def.stances?.[i - 1]?.body ? i : 0;
+  const w = (si && base.def.stances[si - 1].body.weapon) || (WEAPONS[type] ? type : ''), key = si + ':' + w;
   if (!si && !w) return base;
   base.variants ??= {};
   if (base.variants[key]) return base.variants[key];
   let def = si ? stanceDef(base.def, si) : base.def;
-  if (w) def = { ...def, weapon: w, moves: { ...WEAPON_MOVES, ...def.moves }, bones: [...def.bones, ...weaponBones(si ? variant(base, si, '') : base, w)] };
+  if (w) { // weaponBones needs the chains of this same stance body, unarmed - compiled once, cached, and never itself re-entering this branch
+    const bare = si ? (base.variants[si + ':'] ??= Object.assign(makeCharacter(def), { base, si })) : base;
+    def = { ...def, weapon: w, moves: { ...WEAPON_MOVES, ...def.moves }, bones: [...def.bones, ...weaponBones(bare, w)] };
+  }
   return base.variants[key] = Object.assign(makeCharacter(def), { base, si });
 }
 // the character holding a weapon (in the same stance body; the weapon moves are there even when the def lacks them); no type: unarmed
