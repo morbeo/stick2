@@ -211,7 +211,7 @@ function creatorKey(e, a) {
 
 // ---------- panels ----------
 function creatorCtx() {
-  return [movesGrp(),
+  return [charStancePicker(), movesGrp(),
     showGrp(['boxes', 'colours']), panelsGrp([...MOVE_PANELS, 'bones'], { ...VIEW_TIPS, bones: BONES_TIP }),
   ];
 }

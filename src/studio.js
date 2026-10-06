@@ -327,6 +327,19 @@ function charCard(k, pick = pickChar, on = k => CURRENT === k) {
   reg(b, () => { b.classList.toggle('on', on(k)); drawThumb(cv, CHARS[k]); });
   return b;
 }
+// the character + stance picker: a toolbar group (pinned at the top, unlike the side panel, so it stays visible on
+// scroll), shared by the character and animate tabs - which character every mode edits (same popup-of-cards button
+// as fighterPick/scenarios.js charPick), and which of its stances (the same quick-switch seg as stanceRow, whose own
+// row stays in the side panel for the rest of a stance's own settings: key, fly, body)
+function charStancePicker() {
+  const cv = h('canvas'), b = h('button', { cls: 'fpick', tip: 'The character every mode edits · click: pick another, or add a new one' });
+  b.onclick = (e, el) => popup(el, h('b', { textContent: 'character' }), h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k))));
+  reg(b, () => { b.replaceChildren(cv, h('span', { textContent: CURRENT })); drawThumb(cv, currentChar(), undefined, 20, 22); });
+  const names = currentChar().stances.map(s => s.name);
+  const stances = names.length > 1 ? seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); },
+    Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance: the base pose, binds and loops'])), i => names[i]) : null;
+  return grp('character', 'The character every mode edits, and which of its stances', b, stances);
+}
 // the character's stances: each has its own pose, binds (unset slots use the main ones), key and idle / walk loops
 function stanceRow() {
   const add = async () => {
