@@ -23,6 +23,7 @@ vs guard       hits 1 blocks 2 hp 100.0 88.6 x 330 463
 vs low guard   hits 1 blocks 1 hp 100.0 90.0 x 339 398
 parry          hits 1 blocks 0 hp 100.0 95.0 x 330 382
 specials (S)   hits 2 blocks 0 hp 100.0 81.0 x 536 574
+super showcase hits 1 blocks 0 hp 100.0 71.0 x 506 544
 throw          hits 1 blocks 0 hp 100.0 86.0 x 336 517
 back throw     hits 1 blocks 0 hp 100.0 86.0 x 306 110
 fireball       hits 1 blocks 0 hp 100.0 91.0 x 220 584
@@ -57,6 +58,7 @@ wake-up attack hits 1 blocks 0 hp 100.0 90.0 x 330 458
 wake-up roll   hits 1 blocks 0 hp 100.0 90.0 x 330 559
 taunt          hits 0 blocks 0 hp 100.0 100.0 x 330 375
 power up       hits 0 blocks 0 hp 100.0 100.0 x 330 375
+claws stance   hits 1 blocks 0 hp 95.0 85.0 x 300 392
 win pose       hits 1 blocks 0 hp 5.0 0.0 x 330 524
 pounce         hits 2 blocks 0 hp 100.0 81.9 x 437 475
 wall bounce    hits 2 blocks 0 hp 100.0 76.9 x 589 733
@@ -75,22 +77,23 @@ weapon clash   hits 0 blocks 0 hp 100.0 100.0 x 267 433
 deflect        hits 0 blocks 0 hp 100.0 100.0 x 250 450
 sword vs staff ai hits 8 blocks 0 hp 78.3 53.2 x 396 440
 weapons ai     hits 8 blocks 0 hp 100.0 40.8 x 760 699
+ball           hits 0 blocks 0 hp 100.0 100.0 x 300 700
 walk           hits 0 blocks 0 hp 100.0 100.0 x 250 550
 jump           hits 0 blocks 0 hp 100.0 100.0 x 450 550
-hadoo showcase hits 1 blocks 0 hp 100.0 91.0 x 239 424
-grumbo showcase hits 2 blocks 0 hp 125.0 91.0 x 324 283
-jabbo showcase hits 2 blocks 0 hp 105.0 80.0 x 639 677
-sneeko showcase hits 2 blocks 0 hp 90.0 73.0 x 147 189
-zippa showcase hits 0 blocks 0 hp 95.0 95.0 x 266 400
-hicco showcase hits 1 blocks 0 hp 105.0 94.0 x 505 582
-lumpo showcase hits 5 blocks 0 hp 120.0 81.9 x 482 548
-sarj showcase  hits 1 blocks 0 hp 110.0 101.0 x 408 446
-noodo showcase hits 2 blocks 0 hp 90.0 75.0 x 493 420
-gogili showcase hits 6 blocks 0 hp 105.0 62.2 x 537 624
-pollo showcase hits 1 blocks 0 hp 110.0 92.0 x 387 580
-gloomo showcase hits 4 blocks 0 hp 130.0 95.6 x 605 504
-centaur showcase hits 3 blocks 0 hp 100.0 67.0 x 454 648
-houndo showcase hits 1 blocks 0 hp 95.0 86.0 x 380 469
-tako showcase  hits 1 blocks 0 hp 100.0 94.0 x 320 450
-clampo showcase hits 2 blocks 0 hp 120.0 98.0 x 470 510
+hadoo showcase hits 1 blocks 0 hp 100.0 91.0 x 284 424
+grumbo showcase hits 2 blocks 0 hp 125.0 91.0 x 307 266
+jabbo showcase hits 2 blocks 0 hp 105.0 80.0 x 659 697
+sneeko showcase hits 3 blocks 0 hp 90.0 44.0 x 190 213
+zippa showcase hits 0 blocks 0 hp 95.0 95.0 x 311 400
+hicco showcase hits 2 blocks 0 hp 105.0 65.0 x 580 587
+lumpo showcase hits 5 blocks 0 hp 120.0 81.9 x 512 550
+sarj showcase  hits 2 blocks 0 hp 110.0 72.0 x 445 483
+noodo showcase hits 3 blocks 0 hp 90.0 46.0 x 449 382
+gogili showcase hits 7 blocks 0 hp 105.0 33.2 x 580 633
+pollo showcase hits 1 blocks 0 hp 110.0 92.0 x 431 580
+gloomo showcase hits 4 blocks 0 hp 130.0 95.6 x 560 504
+centaur showcase hits 3 blocks 0 hp 100.0 67.0 x 514 648
+houndo showcase hits 2 blocks 0 hp 95.0 57.0 x 423 494
+tako showcase  hits 1 blocks 0 hp 100.0 94.0 x 364 450
+clampo showcase hits 3 blocks 0 hp 120.0 69.0 x 512 546
 stick showcase hits 3 blocks 0 hp 100.0 76.0 x 478 577
