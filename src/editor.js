@@ -820,7 +820,7 @@ function peekSeq(ns, e) {
     peek = { n: label, el, d };
     document.body.append(el);
     const loop = now => {
-      if (peek?.el !== el) return; if (!document.querySelector('.mtable')) return unpeek();
+      if (peek?.el !== el) return; if (!document.querySelector('.mtable, .pop')) return unpeek(); // the table or popup closed without a mouseleave - stop animating
       const t = Math.max(0, now - t0) / 1000 % (d + 0.3), s = segs.findLast(s => s.t0 <= t); // (the first frame's time can be before t0)
       drawThumb(cv, s.ch, samplePose(s.ch, s.m, t - s.t0), 120, 128); requestAnimationFrame(loop);
     };
@@ -1194,8 +1194,11 @@ function pickCompare(anchor) {
   const ch = currentChar(), groups = new Map(), rank = g => (GROUP_ORDER.indexOf(g) + 1 || 99);
   for (const n of Object.keys(ch.moves)) { const g = MOVE_GROUPS[anim.group](ch.moves[n], ch, n); groups.set(g, [...groups.get(g) || [], n]); }
   const set = v => { anim.cmp = v; if (anim.cmpView === 'off') anim.cmpView = 'overlay'; closePop(); };
+  const btn = n => { const b = button(n, `Compare with ${n}: overlay or filmstrip, as picked in the toolbar`, () => set(n));
+    b.onmousemove = e => peekMove(n, e); b.onmouseleave = unpeek;
+    reg(b, () => b.classList.toggle('on', anim.cmp === n)); return b; };
   popup(anchor, h('b', { textContent: 'compare with' }), ...[...groups].sort((a, b) => rank(a[0]) - rank(b[0]))
-    .flatMap(([g, ns]) => [g && h('h4', { textContent: g }), h('div', { cls: 'bar' }, seg(ns, () => anim.cmp, set, Object.fromEntries(ns.map(n => [n, `Compare with ${n}: overlay or filmstrip, as picked in the toolbar`]))))]));
+    .flatMap(([g, ns]) => [g && h('h4', { textContent: g }), h('div', { cls: 'bar' }, ns.map(btn))]));
 }
 
 // controls over the canvas: transport and key edits above the timeline, the preview's target under the preview
