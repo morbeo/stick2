@@ -764,15 +764,22 @@ test('movement layers: a move named <state>Layer adds its offsets from its ref p
   const r = JSON.parse(run(`(() => {
     const out = {}, plain = makeCharacter(CHAR_DEFS.stick), id = plain.chains.spine[0][0].id, ref = plain.poses.stance;
     const key = { ...ref, [id]: ref[id] + 40 }, layer = mix => ({ ref, mix, keys: [{ d: 0.01, p: key }, { d: 1, p: key }] });
-    const scen = { crouch: 'crouch', rise: 'jump', fall: 'jump', flip: 'flip', run: 'run', dash: 'dash', backDash: 'back dash', backWalk: 'back walk',
+    // fly's condition reads f.st.fly (the stance), not grounded/vy/kd like the rest, so its baseline must share the same
+    // fly stance (else basePose's own air-pose blend differs between baseline and test, swamping the layer's own offset)
+    const FLY_STANCES = [{ name: 'fly', fly: true, req: { grounded: true, air: true } }], plainFly = makeCharacter({ ...CHAR_DEFS.stick, stances: FLY_STANCES });
+    const scen = { crouch: 'crouch', rise: 'jump', fall: 'jump', fly: 'fly', flip: 'flip', run: 'run', dash: 'dash', backDash: 'back dash', backWalk: 'back walk',
       airDash: 'air dash', wallJump: 'wall jump', guard: 'guard', hurt: 'hit reaction', tumble: 'launched', lying: 'knockdown & getup', dizzy: 'dizzy', turn: 'turn' };
+    // fly has no built-in scenario (no roster character has a fly stance): a one-off character with one, switched to instantly
     const most = (kind, s, mix = 1) => {
-      const ch = makeCharacter({ ...CHAR_DEFS.stick, moves: { ...CHAR_DEFS.stick.moves, [kind + 'Layer']: layer(mix) } });
-      const w = new World(MOVEMENTS[s][1], {}, 7, [ch]); w.loop = false;
+      const fly = s === 'fly', base = fly ? plainFly : plain;
+      // not stance 0 (main): the fly stance's own loops/layers are named like any other non-main stance's (loopName), "fly" + "FlyLayer"
+      const def = { ...CHAR_DEFS.stick, moves: { ...CHAR_DEFS.stick.moves, [fly ? 'flyFlyLayer' : kind + 'Layer']: layer(mix) }, ...fly && { stances: FLY_STANCES } };
+      const ch = makeCharacter(def);
+      const w = new World(fly ? { a: [0.2, 'hop'], b: 'dummy', bx: 560, init: w => w.a.setStance(1, 'instant') } : MOVEMENTS[s][1], {}, 7, [ch]); w.loop = false;
       let m = 0;
       for (let i = 0; i < 150; i++) {
         w.advance(1 / 60, NOIN);
-        const f = w.a, P = f.basePose(), at = f.layerAt; f.ch = plain; f.layerAt = {}; const Q = f.basePose(); f.ch = ch; f.layerAt = at;
+        const f = w.a, P = f.basePose(), at = f.layerAt; f.ch = base; f.layerAt = {}; const Q = f.basePose(); f.ch = ch; f.layerAt = at;
         m = Math.max(m, Math.abs(P[id] - Q[id]));
       }
       return Math.round(m);

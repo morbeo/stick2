@@ -565,8 +565,9 @@ const morphName = (from, to) => from + 'To' + to[0].toUpperCase() + to.slice(1);
 // fighter is in that state: [tip, how much of it shows (0..1) for a fighter f]
 const LAYERS = {
   crouch: ['Crouching', f => +(!f.kd && f.grounded && (f.crouching || f.squatT > 0))],
-  rise: ['Rising in a jump', f => +(!f.kd && !f.grounded && !f.flip && f.vy <= 0 && f.wallJumpT <= 0)],
-  fall: ['Falling from a jump', f => +(!f.kd && !f.grounded && !f.flip && f.vy > 0 && f.wallJumpT <= 0)],
+  rise: ['Rising in a jump', f => +(!f.kd && !f.grounded && !f.st.fly && !f.flip && f.vy <= 0 && f.wallJumpT <= 0)],
+  fall: ['Falling from a jump', f => +(!f.kd && !f.grounded && !f.st.fly && !f.flip && f.vy > 0 && f.wallJumpT <= 0)],
+  fly: ['Hovering or flying (a fly stance, see stance.fly)', f => +(!f.kd && !f.grounded && f.st.fly)],
   flip: ['A ninja flip', f => +(!f.kd && !f.grounded && !!f.flip)],
   run: ['Running', f => +(!f.kd && f.grounded && f.running && f.dashT <= 0)],
   dash: ['A forward dash', f => +(f.dashT > 0 && f.vx * f.dir > 0)],
