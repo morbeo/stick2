@@ -312,9 +312,11 @@ const BASE_SCENARIOS = {
   'deflect': { a: [0.3, 'punch+guard'], aw: 'dagger', b: [0.45, 'punch'], bw: 'sword', ax: 250, bx: 450, period: 2.4 },
   'sword vs staff ai': { a: 'ai', b: 'ai', aw: 'sword', bw: 'staff' },
   'weapons ai': { a: 'ai', b: 'ai', items: [{ type: 'axe', x: 330 }, { type: 'nunchucks', x: 470 }] },
-  'weapons room': { a: 'human', b: 'dummy', ax: 50, bx: 750, items: [{ type: 'dagger', x: 100 }, { type: 'sword', x: 200 }, { type: 'axe', x: 300 }, { type: 'bat', x: 400 }, { type: 'nunchucks', x: 500 }, { type: 'hammer', x: 600 }, { type: 'staff', x: 700 }] },
+  'weapons room': { a: 'human', b: 'dummy', ax: 50, bx: 750, items: [{ type: 'dagger', x: 80 }, { type: 'sword', x: 170 }, { type: 'axe', x: 260 }, { type: 'bat', x: 350 }, { type: 'nunchucks', x: 440 }, { type: 'whip', x: 530 }, { type: 'hammer', x: 620 }, { type: 'staff', x: 710 }] },
   // props (PROPS, src/stage.js): breakable ones to smash for debris, moveable ones to grab and throw (P+G, same as a weapon)
   'breakable props': { a: 'human', b: 'dummy', ax: 50, bx: 760, props: [{ type: 'crate', x: 150 }, { type: 'chair', x: 280 }, { type: 'table', x: 410 }, { type: 'door', x: 540 }, { type: 'window', x: 670 }] },
+  // every breakable prop at once, low hp, close together - quick to smash through them all and watch the debris pile up
+  'break room': { a: 'human', b: 'dummy', ax: 60, bx: 780, cfg: { health: 0 }, props: [{ type: 'crate', x: 140 }, { type: 'crate', x: 210 }, { type: 'chair', x: 280 }, { type: 'chair', x: 340 }, { type: 'table', x: 420 }, { type: 'door', x: 540 }, { type: 'window', x: 620 }, { type: 'window', x: 690 }] },
   'prop throw': { a: 'human', b: 'dummy', ax: 50, bx: 750, props: [{ type: 'reed', x: 200 }, { type: 'spring', x: 400 }] },
   // the ball (PROPS.ball, bounce: true): a free physics body, not fixed scenery - a kick sends it flying, it bounces
   // off the floor and the walls and rolls to a stop; a thrown weapon can also bat it around. @pushKick (not fwd+kick:

@@ -785,6 +785,10 @@ const BASE_WEAPONS = {
   bat: { cls: 'blunt', shapes: clubShapes(), len: 40, weight: 0.9, a: 40, tip: 'Bat: blunt swings that knock back' },
   nunchucks: { cls: 'blunt', chain: true, len: 34, weight: 0.6, a: -100, tip: 'Nunchucks: two sticks on a chain, the outer one flails behind the swing',
     shapes: [{ kind: 'line', x1: -2, y1: 0, x2: 'len', y2: 0, w: 4, col: 'wood' }] },
+  // chain: true (the same loose-jointed weaponTip as nunchucks, weaponBones in rig.js) makes the lash itself flex and
+  // crack out behind the swing (whip/dangle on weaponTip); light and long, so it's fast with by far the longest reach
+  whip: { cls: 'slash', chain: true, len: 76, weight: 0.2, a: -70, tip: 'Whip: a long, light lash that cracks out behind the swing - the longest one-handed reach',
+    shapes: [{ kind: 'line', x1: -2, y1: 0, x2: 'len', y2: 0, w: 2, col: 'wood' }] },
   hammer: { cls: '2h', len: 52, weight: 2, a: 40, grip2: 9, tip: 'War hammer: two-handed, very slow, crushing', shapes: [
     { kind: 'line', x1: -3, y1: 0, x2: 'len', y2: 0, w: 3.5, col: 'wood' },
     { kind: 'polygon', pts: [['len-6', -7], ['len-6', 9], ['len+4', 9], ['len+4', -7]], col: 'metal', stroke: 'metal' },

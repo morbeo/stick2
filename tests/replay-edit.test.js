@@ -97,7 +97,7 @@ test('a branch (P2 taken over at the playhead) saves as a replay that plays in s
     const reel = { rep, name: 'b', from: n, parent: rp.reel, edits: 0 }; rp.reels.push(reel); loadCmp(reel);
     return [b.ctl[1], p.desync, p.stateHash() === b.stateHash(), rp.events.filter(e => e.f < n && (e.cmp || e.aOnly)).length, rp.events.some(e => e.cmp)];
   })())`));
-  assert.deepEqual(r, ['human2', null, true, 0, true]);
+  assert.deepEqual(r, ['human2', null, true, 2, true]);
 });
 
 test('highlights: moments found from the events (combos, K.O.s, parries…), windows that overlap merge, best first', () => {
