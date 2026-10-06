@@ -589,6 +589,27 @@ function holdRow() {
       adv(slider('dz', { min: -100, max: 100, step: 2 }, () => at().dz, v => setAt('dz', v), 'Depth offset (px); outside the 2D plane only (lanes/belt) — not shown in this 2D preview')),
       button('reset pos', 'Clear the custom position: back to 30px in front, same height and depth', () => setMove('holdAt', undefined), 'mini')));
 }
+// holdOptions (on the GRAB move itself, the one with m.throw set): command-grab follow-ups. Holding punch, kick or
+// special through the grab's startup (not just as it connects — a button press is otherwise edge-confined to one
+// instant) plays that option's toss instead of the plain throw above; the first matching option wins.
+const HOLD_INPUTS = ['punch', 'kick', 'special'];
+function holdOptionsRows() {
+  const m = () => curMove(), opts = () => m().holdOptions || [], names = () => Object.keys(currentChar().moves).filter(n => n !== anim.move);
+  const setOpts = next => setMove('holdOptions', next.length ? next : undefined);
+  const optRow = (opt, i) => {
+    const tossBtn = button('', 'The toss this plays · click: pick another', (e, b) => popup(b, h('b', { textContent: `holding ${opt.input}: plays` }),
+      seg(names(), () => opt.throw, v => { setOpts(opts().map((o, j) => j === i ? { ...o, throw: v } : o)); closePop(); })), 'mini');
+    reg(tossBtn, () => setRich(tossBtn, `:sports_handball: ${opt.throw || 'pick a move'}`));
+    return h('div', { cls: 'row', tip: `Holding ${opt.input} from this grab's startup through to the moment it connects plays the toss picked here instead.` },
+      h('span', { textContent: i === 0 ? 'holds' : '' }), h('span', { cls: 'bar' },
+        seg(HOLD_INPUTS, () => opt.input, v => setOpts(opts().map((o, j) => j === i ? { ...o, input: v } : o))),
+        tossBtn, button(':close:', 'Remove this follow-up', () => setOpts(opts().filter((_, j) => j !== i)), 'mini')));
+  };
+  return [...opts().map(optRow),
+    h('div', { cls: 'row', tip: 'Command-grab follow-ups: holding one of these buttons through the grab\'s startup plays its own toss instead of the plain throw above. None held, or none set here: the plain throw plays, as always.' },
+      h('span', { textContent: opts().length ? '' : 'holds' }), h('span', { cls: 'bar' },
+        button(':add: add a follow-up', 'Hold a button through the grab\'s startup to play a different toss', () => setOpts([...opts(), { input: 'kick', throw: m().throw }]), 'mini')))];
+}
 
 // what normalize returns to: the built-in move of the same name (copies like jab2: the move they were copied from)
 const builtInMove = () => (CHAR_DEFS[CURRENT] || CHAR_DEFS.stick).moves[anim.move.replace(/\d+$/, '')];
@@ -1125,6 +1146,7 @@ function movePanel() {
     ...MOVE_PROPS.map(p => { const r = slider(p.k, p, () => m()[p.k] ?? p.def ?? 0, v => setMove(p.k, v === (p.def ?? 0) ? undefined : v, 'm.' + p.k), p.tip); return MOVE_BASIC.includes(p.k) ? r : adv(r); }),
     h('div', { cls: 'bar' }, Object.entries(MOVE_FLAGS).map(([f, tip]) => toggle(f, tip, () => !!m()[f], v => setMove(f, v || undefined)))),
     throwRow(),
+    ...(m().throw ? holdOptionsRows() : []),
     counterRow(),
     isThrowTarget() ? holdRow() : null,
     ...keyPanel(),

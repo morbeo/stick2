@@ -1077,12 +1077,15 @@ class Fighter {
     this.w.onHit(this, att, { bone: att.ch.by[hitIds(att.action?.m)[0]] || hit.bone, pt: hit.pt }, m, null);
   }
   // a throw connected: the victim is held for the tech window, then thrown by the move named in the grab's throw.
-  // ← / → held as it lands aims it: back throws the other way (whichever grab move caught them), forward or neutral keeps it
+  // ← / → held as it lands aims it: back throws the other way (whichever grab move caught them), forward or neutral keeps it.
+  // holdOptions (command-grab follow-ups): holding punch/kick/special as it connects plays that toss instead; first match wins
   seize(o) {
     o.exitOn('grab');
     o.heldBy = this; o.heldT = this.c('techWindow'); o.heldAt = this.w.simT; o.buffer = null; o.guarding = false; o.blockT = 0; o.dir = -this.dir; o.away = false;
     const backGrab = (this.inp.right - this.inp.left) * this.dir < 0 && this.ch.moves[this.binds.backThrow];
-    const toss = (backGrab && this.ch.moves[backGrab.throw]) || this.ch.moves[this.action.m.throw];
+    const grab = backGrab || this.action.m;
+    const picked = grab.holdOptions?.find(opt => this.inp[opt.input + 'Held'] && this.ch.moves[opt.throw]);
+    const toss = this.ch.moves[picked?.throw] || this.ch.moves[grab.throw];
     o.heldM = toss || this.action.m;
     const hold = o.heldM.holdPose; // toss.holdPose: hang in an authored pose instead of the generic randomized flinch
     o.start(hold ? { hurt: true, keys: [{ d: 0.08, e: 'outExpo', p: hold }, { d: 9, e: 'linear', p: hold }] } : makeHurt(o.ch.hurt.mid[0], 9, this.w.rand, o.st.pose));

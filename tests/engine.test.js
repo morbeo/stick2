@@ -895,6 +895,22 @@ test('a toss move\'s holdPose/holdAt author the victim\'s held pose and position
   assert.equal(custom.rel.x, 60, 'holdAt.dx replaces the fixed offset'); assert.equal(custom.rel.y, -30, 'holdAt.dy lifts/lowers the victim'); assert.equal(custom.rel.z, 5, 'holdAt.dz offsets depth (plane: belt, where z is in play)');
 });
 
+test('holdOptions: holding a button through a grab\'s startup picks that toss instead; unheld, the plain throw plays as always', () => {
+  const go = kick => JSON.parse(run(`(() => {
+    const d = { ...CHAR_DEFS.stick, moves: { ...CHAR_DEFS.stick.moves, grab: { ...CHAR_DEFS.stick.moves.grab, holdOptions: [{ input: 'kick', throw: 'suplex' }] },
+      suplex: { ...CHAR_DEFS.stick.moves.toss, damage: 999 } } };
+    const w = new World({ a: 'human', b: 'dummy', ax: 330, bx: 372 }, {}, 7, [makeCharacter(d), CHARS.stick]); w.loop = false;
+    let played = null;
+    for (let i = 0; i < 30 && !played; i++) {
+      w.advance(1/60, { ...NOIN, punch: true, guard: true, kick: ${kick} && i >= 2, kickHeld: ${kick} && i >= 2 }); // held from frame 2 on, after the grab (not this combo) has already started
+      if (w.b.heldBy) played = Object.keys(w.a.ch.moves).find(k => w.a.ch.moves[k] === w.a.action?.m);
+    }
+    return JSON.stringify(played);
+  })()`));
+  assert.equal(go(false), 'toss', 'no holdOptions button held: the plain throw');
+  assert.equal(go(true), 'suplex', 'kick held through the startup: the matching holdOptions toss instead');
+});
+
 test('armor: a hit during an armored key (the hammer wind-up) does its damage but the move goes on and lands', () => {
   const go = d => JSON.parse(run(`(() => { const w = new World({ a: ['punch'], b: [${d}, '@hammer'], ax: 330, bx: 385 }, {}, 7); w.loop = false; const L = new Set();
     for (let i = 0; i < 70; i++) { w.advance(1/60, NOIN); if (w.b.labelT > 0) L.add(w.b.label); }
