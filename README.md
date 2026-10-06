@@ -25,6 +25,8 @@ A scenario is a fight already set up for you — who's fighting, who controls th
 
 Any scenario named anywhere in these docs plays the same way: `https://morbeo.github.io/stick2/#embed=<name>` (spaces and all, URL-encoded). It opens in [theater mode](docs/modes.md#theater-mode) — press Esc for the full interface, the scenario picker and every setting.
 
+**[Character gallery](https://morbeo.github.io/stick2/gallery.html)**: pick any character and watch every one of its moves and movements loop, with frame data. **[Theatrical demo](https://morbeo.github.io/stick2/gallery-demo.html)** is the same view with no toolbar or side panel — just the loop, for embedding.
+
 ## Features
 
 **Fight.** You, the engine AI (four difficulty levels), a dummy or scripted scenarios; 16 characters with chains, motion specials, throws, counters, projectiles, weapons, juggles and ragdoll falls; 2D or 2.5D lanes; endless waves. A frame meter and input display for training. → [Fighting](docs/fighting.md)

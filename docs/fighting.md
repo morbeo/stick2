@@ -256,13 +256,12 @@ A knockdown lies **downTime** (Falls) before getting up.
 
 ### Powering up
 
-The stick's third stance, **powered** (S+G cycles main → boxing → powered). A DBZ-style power-up: fists clench, an aura builds and the screen shakes harder with each key of its transition move (**mainToPowered**), then it fights faster and snappier (speed, dash, tempo, springs) until it's hit or 8 seconds pass.
+The stick's only other stance, **powered** (S+G). A DBZ-style power-up: fists clench, an aura builds and the screen shakes harder with each key of its transition move (**mainToPowered**), then it fights faster and snappier (speed, dash, tempo, springs) until it's hit or 8 seconds pass.
 
 - It's a stance like any other: the stat buff is **body.stats** on the stance, applied the moment it switches (not gated behind the charge-up finishing — the vulnerability while it plays is the cost).
 - **req.exitOn: ['hit']** cancels it early if the charge-up (or the powered stance itself) gets hit; **req.maxT** sends it back to main on its own.
 - Reverting (by either of those) is a **setStance(0, 'exit')**, which skips the transition move back — it just snaps back.
 - A character can make this part of its own moveset: a stance named anything, a **\<from\>To\<To\>** move for the charge-up, **req.exitOn** / **maxT** to limit it, **body.stats** for the buff.
-- Since S+G normally reaches powered by way of boxing, not main, its morph names the move explicitly (**move: 'mainToPowered'**) instead of relying on the auto-derived name — otherwise the charge-up would never play in a real fight.
 
 | Powering up: the aura builds, the screen shakes harder each key |
 | --- |
@@ -299,6 +298,14 @@ The stick's third stance, **powered** (S+G cycles main → boxing → powered). 
 - picks a wake-up as often as it techs
 
 **Scenarios:** roll through, roll back, teleport, guard cancel, push block, just guard, wake-up attack, wake-up roll, high counter, low counter, taunt, win pose, pounce, wall bounce, turnaround.
+
+## Super meter
+
+- **superMeter:** on by default. Landing or taking a hit fills both fighters' meter (power), scaled by **superGain**, up to **superAt**.
+- Once full, the neutral special (S, no direction) plays the character's **super** instead of its usual special, and spends the whole meter.
+- Every character's super is its own hardest existing special, amplified and armored on the way in — no new animations needed. A meter bar draws under the health bar (and in the top HUD).
+
+**Scenarios:** super showcase.
 
 ## Strikes
 
@@ -406,13 +413,14 @@ Key fields **len**, **thick**, **alpha** (each `{boneId: multiplier}`); in anima
 
 ### The weapons
 
-Dagger, sword, axe, bat, nunchucks (the outer stick flails on a loose joint), war hammer and staff, drawn in wood and metal.
+Dagger, sword, axe, bat, nunchucks and whip (both chain weapons: the outer stick or the lash flails on a loose joint, and hangs under gravity at rest), war hammer and staff, drawn in wood and metal.
 
 - A weapon is an extra bone in the front hand, compiled per character and weapon (armed).
-- Heavier weapons hit harder and swing slower.
+- Heavier weapons hit harder and swing slower; whip is very light, so it's fast, with reach close to a staff's.
 - A staff or war hammer is held in both hands. **grip2:** the back hand holds it that far along from the front hand (two-bone IK), letting go where it can't reach.
 - Every weapon (built-in or custom) is tunable and recreatable, drawn from a short list of shapes — see [Modes: fx](modes.md#fx).
 - A weapon can be made **breakable**, with its own **durability**: a clash or a landed hit wears it down, and once it runs out it snaps — gone, not dropped.
+- A weapon can also be made **fixed** (claws is): built into a stance's body (that stance's `body.weapon`, see [Modes: character](modes.md#character)) instead of picked up, so it's never disarmed or thrown away. Switching into that stance arms it at once.
 
 ### Picking up and throwing
 
@@ -424,6 +432,7 @@ Dagger, sword, axe, bat, nunchucks (the outer stick flails on a loose joint), wa
 - A knockdown, or a blow of at least **disarm** power, knocks the weapon loose.
 - A severed limb (**dismember**, below), once it settles on the floor, is pickable and throwable the same way.
 - A **moveable** prop (see [Modes: play](modes.md#play)) can be grabbed with the same P+G and thrown the same way — it carries no weapon moves, just a throw. A **breakable** one, destroyed, leaves debris behind: a weapon of opportunity from the wreckage, pickable and throwable too.
+- A **bounce** prop (ball) is a free body instead of fixed scenery: a strike or a thrown weapon launches it, gravity and a floor/wall bounce take over, and it rolls to a stop with friction.
 
 | Picking up a sword, then slashing |
 | --- |
@@ -584,7 +593,8 @@ Every built-in has a second stance in a fighting style, with that style's moves:
 
 | Character | Second stance |
 |---|---|
-| stick | boxing |
+| stick | powered: a DBZ-style power-up (charges, then fights faster and snappier until hit or 8s pass) |
+| houndo | feral: a built-in weapon (claws) on the front paws, see [Weapons](#weapons) |
 | hadoo | karate |
 | grumbo | wrestling |
 | jabbo | peekaboo |

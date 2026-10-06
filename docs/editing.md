@@ -205,13 +205,14 @@ A step is off, or on at a pitch: click toggles it, scroll over it shifts the pit
 
 **animate → move group → + → layer.** Every movement state can get a keyframed layer on top of its procedural / IK motion.
 
-**States:** crouch, rise, fall, flip, run, dash, backDash, backWalk, airDash, guard, hurt, tumble, lying, dizzy, turn.
+**States:** crouch, rise, fall, fly, flip, run, dash, backDash, backWalk, airDash, guard, hurt, tumble, lying, dizzy, turn.
 
 - The layer is a move named after the state: **crouchLayer** (or **craneCrouchLayer** in a stance named crane).
 - Its keys start at the state's procedural pose (its ref).
 - In a fight, its keys play (looping) from the moment the state begins, and their offsets from the ref are added to the procedural pose.
 - **mix** sets how much: 0 = off, 1 = as keyed. Back walk and turn fade in by speed, or by how far through the turn.
 - Layers group as **layer** in the move picker. Delete one to go back.
+- **fly** only applies in a stance with **fly** on (see [Stance bodies](#stance-bodies)); it's the only state that overrides rise/fall instead of adding to them.
 - The stick ships with **dashLayer**, **backDashLayer** and **airDashLayer**: a single committed lunge on a dash (forward, backward, in the air) instead of a sped-up walk cycle. It also ships **wallJumpLayer**: a push off the wall, kicking away from it (see [Jumping](fighting.md#jumping)); and **runLayer**: a steep forward lean with both arms swept back, held for as long as the run lasts (a ninja run). Every built-in fighter inherits them; override or delete one on a character to replace it with its own.
 
 ## Input table

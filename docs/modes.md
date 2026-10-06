@@ -51,6 +51,7 @@ Drag a fighter or a prop on the stage itself to reposition it — the same thing
 - **add prop** places scenery: the built-in **crate**, **chair**, **table**, **door** or **window** (all breakable), **reed** (bends) or **spring** (bounces a thrown weapon back), or any of your own (made in [fx → props](modes.md#fx)). Each has its own x; **remove** takes it out.
 - **add weapon** places one lying on the floor, free for anyone to pick up (P+G near it); same x and remove as props.
 - **settings:** add one by name, or **take my settings** to bring every setting you changed from the defaults.
+- **select screen:** a full-screen P1/P2 character picker shown before the fight starts, instead of picking them from the toolbar. Its own roster checklist narrows which characters it offers — none checked means everyone.
 - Saved in this browser as you edit, and listed first in the picker.
 - copy, export / import as JSON, delete.
 
@@ -65,6 +66,7 @@ The **fighters** group in the toolbar has one button per fighter: P1, P2, and P3
 - **random** picks a random character; **mirror** gives P2 the same one as P1; ⇄ swaps P1 and P2.
 - A scenario that names its own characters keeps them.
 - The **shield** beside each fighter cycles off → **no damage** (it reacts to hits but loses no health, chip included, so it is never knocked out) → **untouchable** (nothing hits it: strikes, shots, thrown weapons and throws pass through). The fight restarts with it, and a saved replay keeps it.
+- A scenario built with its own **select screen** (above) shows a **select screen** button here instead: opens the full-screen picker any time, not just before the fight starts.
 
 ### The AI
 
@@ -252,11 +254,13 @@ Stretch, follow-through, stiffness and secondary motion:
 - **react:** how hard blows jolt the bone.
 - **sway:** idle drift.
 - **dangle:** hangs like a rope. With the dangle and dangleDrag settings, tails, sneeko's scarf, hadoo's headband and hicco's beard and gourd droop with gravity, stream back from a run and lift in a fall.
+- **whip:** bends back from its own parent's angular velocity, springing past straight into the next turn — a nunchuck or whip's loose end, but any limb can have it.
+- **lock:** keeps the joint's angle to its parent while posing; dragging it (or an IK drag through it, like the hip) turns the first unlocked bone above instead. **lenLock** does the same for length: dragging the joint only turns it, its length stays put (the same as always holding Shift while dragging).
 - **effect:** [effects](#effects) the bone always shows (a burning fist, a glowing tail), up to 4 stacked, each with its colour and size.
 
 ### Preview
 
-A live fight next to the editor, picked in a bar under the preview: **showcase**, **walk**, **vs ai**, or **impact** (the body alone with the [ragdoll](#ragdoll) blow buttons, stacked above them, to see it fall).
+A live fight next to the editor, picked in a bar under the preview: **showcase**, **walk**, **vs ai**, or **impact** (the body alone with the [ragdoll](#ragdoll) blow buttons, stacked above them, to see it fall). **you control it** drives the opponent with your own keyboard instead of its script or AI, to hold it still or move it into reach for testing a weapon or a throw.
 
 ### Bone table
 
@@ -415,7 +419,7 @@ A custom look (new or duplicated) appears anywhere a look is picked, right along
 
 The tab's view switcher also has **sounds** and **tracker**: every sound is synthesized live (no files) — a slider per parameter, built-ins tunable and revertible too, **new sound** (or duplicate) makes a wholly new one; the tracker is a simple step sequencer built from your own sounds (a tempo, a step count, rows each picking a sound and a grid of beats). See [Editing](editing.md#sounds).
 
-**Props** and **weapons** are the other two views, built the same tunable/revertible way: a gallery in the side panel — cards or a compact table, both sized so bigger props/weapons actually look bigger — picks one, built-in or custom, to edit its own fields (a prop: size, height, **layer** — back, mid or front of the fighters — **moveable** and **breakable**, independent of each other; a weapon: class, length, weight, grip) and its **shapes** — a short list of primitives (line, circle, box, polygon), each with its own points and a real colour picker (plus wood/metal quick-picks for a weapon) — which is what it's actually drawn from. A prop's shapes can be dragged by their dots directly on its preview, not just typed; a weapon instead previews held in a character's hand. A line can **sway** on a struck moveable prop (a reed's bend, generalized: any line on any prop can do it). A weapon's shapes run along its own grip-to-tip axis, so the whole thing rotates and stretches with the live held pose; a coordinate can say `len` (or `len-4`) to always reach the tip. **new prop** / **new weapon** duplicates a starting point with its own independent shapes, free to tune, rename or delete.
+**Props** and **weapons** are the other two views, built the same tunable/revertible way: a gallery in the side panel — cards or a compact table, both sized so bigger props/weapons actually look bigger — picks one, built-in or custom, to edit its own fields (a prop: size, height, **layer** — back, mid or front of the fighters — **moveable**, **breakable** and **bounce** (a free body: gravity, floor/wall bounces, rolling friction, launched by a strike or a thrown weapon), independent of each other; a weapon: class, length, weight, grip, **fixed** — built into a stance's body instead of picked up, never disarmed or thrown) and its **shapes** — a short list of primitives (line, circle, box, polygon), each with its own points and a real colour picker (plus wood/metal quick-picks for a weapon) — which is what it's actually drawn from. A prop's shapes can be dragged by their dots directly on its preview, not just typed; a weapon instead previews held in a character's hand. A line can **sway** on a struck moveable prop (a reed's bend, generalized: any line on any prop can do it). A weapon's shapes run along its own grip-to-tip axis, so the whole thing rotates and stretches with the live held pose; a coordinate can say `len` (or `len-4`) to always reach the tip. **new prop** / **new weapon** duplicates a starting point with its own independent shapes, free to tune, rename or delete.
 
 ## Replay
 
