@@ -201,27 +201,24 @@ function importChar(clip) {
     try { makeCharacter(def); addChar(def, name.replace(/\.json$/, '')); } catch (err) { notice('Not a character file', err.message); }
   });
 }
-// ---------- suggest a character for the roster: no server and no sign-in beyond the contributor's own GitHub account ----------
-// opens GitHub's own "new file" page; GitHub forks the repo for you and offers "Propose changes" there, which opens a
-// real PR. The JSON always goes to the clipboard, which is the real mechanism: a character alone is ~70 KB, a GitHub
-// URL this long is outright refused (not just truncated) well before that, and the showcase replay roughly doubles
-// it - so the URL only attempts its own value= prefill on the rare character small enough to actually fit; normally
-// (always, in practice) the box opens empty and pasting is the expected step, not a fallback for an edge case
-// (see CONTRIBUTING.md for what a maintainer does with a PR like this)
-const GITHUB_URL_SAFE_LEN = 6000;
-function suggestCharPR() {
-  const payload = { character: DEFS[CURRENT], showcase: showcaseReplay() }, path = `contrib/characters/${CURRENT}.json`;
-  const json = JSON.stringify(payload, null, 1);
-  copyData(payload);
-  const message = CHAR_DEFS[CURRENT] ? `Suggest a change to ${CURRENT}` : `Suggest adding ${CURRENT} to the roster`;
-  const full = `https://github.com/morbeo/stick2/new/master?${new URLSearchParams({ filename: path, value: json, message })}`;
-  const fits = full.length <= GITHUB_URL_SAFE_LEN;
-  const url = fits ? full : `https://github.com/morbeo/stick2/new/master?${new URLSearchParams({ filename: path, message })}`;
-  window.open(url, '_blank');
-  notice('Suggestion opened on GitHub', (fits
-    ? `A new tab opened on GitHub with ${CURRENT}'s JSON (and a showcase replay, bookmarked at each move) pre-filled at ${path} — paste it from your clipboard instead if the box looks empty or cut off.`
-    : `A new tab opened on GitHub at ${path}. The box is empty — paste (Ctrl/Cmd+V) to fill it in: it's already on your clipboard. That's the normal way this works, not an error: a character alone is bigger than a URL can reliably carry.`
-  ) + '\n\nSign in if it asks: GitHub forks stick2 for you automatically. Then scroll down, click "Propose new file", and "Create pull request".');
+// ---------- suggest a character for the roster: an issue + an attached file, no local git, no sign-in beyond GitHub ----------
+// used to pre-fill GitHub's "new file" page instead (a PR draft) - a character alone is ~70 KB, well past any URL
+// GitHub will accept (it refuses an oversized request outright, not just truncates it), so that page almost always
+// opened empty anyway, and still needed a fork + "propose changes" even once pasted. An issue with the exported file
+// attached needs neither: any signed-in account can open one, and dragging a file in is a familiar step.
+async function suggestChar() {
+  const name = CURRENT, add = !CHAR_DEFS[name];
+  const text = `1. Export this character as a file (below) — you'll attach it to the issue.\n2. Open a new issue on GitHub (below) and drag the exported file in.\n3. Say what's new or changed; a maintainer folds it into the roster (see CONTRIBUTING.md).`;
+  for (;;) {
+    const v = await dialog(`Suggest ${add ? `adding ${name}` : `a change to ${name}`}`, text, [
+      [':download: export character file', 'export', 'Download this character as a JSON file to attach to the issue'],
+      [':north_east: open a new issue', 'issue', 'Opens a new GitHub issue on this repo — attach the exported file there'],
+      [':check: done', null, 'Close this'],
+    ]);
+    if (v === 'export') exportChar(false);
+    else if (v === 'issue') window.open(`https://github.com/morbeo/stick2/issues/new?title=${encodeURIComponent(`Suggest ${add ? `adding ${name}` : `a change to ${name}`}`)}`, '_blank');
+    else break;
+  }
 }
 // ---------- files (the menu bar): export / import the character, the settings, or everything (edited characters, settings, my scenarios, keys), to a file or the clipboard ----------
 const FILE_TIPS = { character: 'The character being edited: skeleton, poses, moves, binds',
@@ -456,15 +453,17 @@ function charPanel() {
     delete: ['Delete this character (only your own ones; asks first, cannot be undone)', deleteChar],
     import: ['Load a character JSON file as a new character', importChar],
     export: ['Download this character as a JSON file', exportChar],
-  }, button(':tune:', 'What the random characters are drawn from, and an experiment grid of them', (e, b) => popup(b, ...randomPanel()), 'mini'),
-    button(':upload: suggest', 'Propose this character for the roster as a pull request: opens a pre-filled GitHub page, no local git needed (see CONTRIBUTING.md)', suggestCharPR, 'mini')));
+  }, button(':tune:', 'What the random characters are drawn from, and an experiment grid of them', (e, b) => popup(b, ...randomPanel()), 'mini')));
   // the current character only; the others in a popup grid (picking one is rare next to editing it)
   const cv = h('canvas'), name = h('b'), info = h('span', { cls: 'note' });
   const pick = h('button', { cls: 'charpick', tip: 'The character every mode uses · click: pick another',
     onclick: () => popup(pick, h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k)))) }, cv, h('span', {}, name, info), ...rich(':expand_more:'));
   reg(pick, () => { const c = currentChar(); drawThumb(cv, c, undefined, 36, 40); name.textContent = CURRENT;
     info.textContent = `${CHAR_DEFS[CURRENT] ? 'built-in' : 'yours'} · ${c.bones.length} bones`; });
-  return [head, pick, colorRow()];
+  // its own row, not a small icon lost in the crud bar: proposing a character for the roster is a one-off, worth noticing
+  const suggestRow = h('div', { cls: 'row', tip: 'Think this character belongs in the roster? Export it and open an issue - a maintainer folds it in.' },
+    button(':upload: suggest for the roster', 'Export this character and open a GitHub issue to propose it, with instructions (see CONTRIBUTING.md)', () => suggestChar()));
+  return [head, pick, colorRow(), suggestRow];
 }
 // a character's own colour (def.col): unset (auto) leaves it to the player slot in a fight (P1 black, P2 red…, as every
 // built-in does today); set, it is always drawn that way — in a fight too, overriding the slot. Preset swatches, or any

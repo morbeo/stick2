@@ -22,7 +22,7 @@ None of this needs to land in one PR — a single new move, one extra limb, or a
 
 1. **Build or edit a character** in the character tab — drag joints, add limbs, tune stats and gait, pick or build a move in animate. [Editing → Characters](editing.md#characters) and [Modes → Character](modes.md#character) cover the tab itself.
 2. **Test it** — the tests tab and the experiment tab (below) catch broken moves and let you feel out the physics before submitting.
-3. **Click suggest** (next to export, in the character panel's header row): it plays the character through the **showcase** scenario, bookmarks each beat of it, and copies both to your clipboard — then opens a GitHub page to paste it into, no local git needed. The mechanics are in [CONTRIBUTING.md → Suggesting a character](../CONTRIBUTING.md#suggesting-a-character).
+3. **Click suggest for the roster** (its own row in the character panel): export the file, open a GitHub issue, attach the file — no local git needed. The mechanics are in [CONTRIBUTING.md → Suggesting a character](../CONTRIBUTING.md#suggesting-a-character).
 
 ## The animation tool
 

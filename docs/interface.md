@@ -31,7 +31,7 @@ Three rows, the same in every tab:
 - A broken character in the file loads nothing.
 - Settings take any number. Outside a setting's usual range the value box turns amber, far outside it red: the fight may get unstable.
 - **import → compare…** compares a settings or everything file with the current settings, without loading it (below).
-- The character tab also has a **suggest** button (next to export): proposes the character for the roster as a pull request, no local git needed — see [Contributing to the roster](roster-contributing.md).
+- The character tab also has its own **suggest for the roster** row: proposes the character via a GitHub issue with the exported file attached, no local git needed — see [Contributing to the roster](roster-contributing.md).
 
 ### Compare settings
 
