@@ -585,7 +585,8 @@ function zoomBack() {
   return back;
 }
 function labCtx() {
-  if (lab.mode === 'gallery') return [grp('target', 'What the moves play against', seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0]))),
+  if (lab.mode === 'gallery') return [charStancePicker(),
+    grp('target', 'What the moves play against', seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0]))),
     grp('filter', 'Fuzzy filter by move name: letters in order match (e.g. "lk" finds lowKick)', h('input', { cls: 'macro', value: lab.filter, placeholder: 'fuzzy filter…',
       oninput: e => { lab.filter = e.target.value; lab.scroll = 0; }, onkeydown: e => e.stopPropagation() })),
     showGrp(['meter', 'boxes', 'ghost', 'hud', 'labels'])];

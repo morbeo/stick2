@@ -1342,6 +1342,11 @@ const randomOk = /\btheater\b/.test(randomDom);
 const sinkDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
   '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'kitchen-sink.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 const sinkOk = /class="sinkpage"/.test(sinkDom) && sinkDom.includes('id="sink"');
-console.log(title, docsOk ? '· docs.html OK' : '· docs.html FAILED', randomOk ? '· random.html OK' : '· random.html FAILED', sinkOk ? '· kitchen-sink.html OK' : '· kitchen-sink.html FAILED');
-process.exit(title === 'OK' && docsOk && randomOk && sinkOk ? 0 : 1);
+// gallery.html opens the app on the gallery view, with the character picker (charStancePicker, a 'fpick' button) in its toolbar
+const galleryDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
+  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'gallery.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+const galleryOk = /data-part="target"/.test(galleryDom) && /class="fpick"/.test(galleryDom);
+console.log(title, docsOk ? '· docs.html OK' : '· docs.html FAILED', randomOk ? '· random.html OK' : '· random.html FAILED', sinkOk ? '· kitchen-sink.html OK' : '· kitchen-sink.html FAILED',
+  galleryOk ? '· gallery.html OK' : '· gallery.html FAILED');
+process.exit(title === 'OK' && docsOk && randomOk && sinkOk && galleryOk ? 0 : 1);
 })();
