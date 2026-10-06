@@ -229,6 +229,9 @@ const BASE_SCENARIOS = {
   'vs low guard': { a: ['!punch', 0.5, '!kick', 0.6, '!down+kick'], b: [{ hold: 'down+guard', t: 3 }], period: 2.6 },
   'parry': { a: [0.2, 'kick', 0.4, 'punch'], b: [0.25, 'guard'], period: 2 },
   'specials (S)': { a: ['!special', 1, '!fwd+special', 1, '!up+special'], b: 'dummy', period: 4.4 },
+  // the super meter: aover.superAt 0 means the meter (power, starts at 0) is always "full", so neutral S always plays
+  // the super instead of the usual special — whichever character is loaded, every one has a super (src/roster.js addSuper)
+  'super showcase': { a: [0.3, '!special', 1.4, '!special'], b: 'dummy', aover: { superAt: 0 }, ax: 300, bx: 480, period: 3.2 },
   // throws (P+G), breaking one, the catch counters (↖ S high, ← S mid, ↙ S low), techs and air recovery (G while falling)
   'throw': { a: [0.2, 'punch+guard'], b: [{ hold: 'guard', t: 2 }], ax: 330, bx: 372, period: 2.4 },
   'back throw': { a: [0.1, { hold: 'back', t: 0.1 }, 'back+punch+guard'], b: [{ hold: 'guard', t: 2 }], ax: 330, bx: 372, period: 2.4 },
@@ -325,6 +328,8 @@ const SIGNATURE_MOVES = {
   centaur: ['trample', 'donkeyKick', 'rearButt', 'rearStrike'], houndo: ['tackle', 'clawSwipe', 'bite', 'hindKick'],
   tako: ['inkCloud', 'slipAway', 'tentacleSlam', 'constrict'], clampo: ['bearHug', 'legLock', 'tackle', 'splash'],
 };
+// every character's showcase also ends on its super (src/roster.js addSuper), forced the same '@' way as the rest
+for (const moves of Object.values(SIGNATURE_MOVES)) moves.push('super');
 for (const [name, moves] of Object.entries(SIGNATURE_MOVES)) BASE_SCENARIOS[`${name} showcase`] = {
   a: moves.flatMap(m => [...CHARS[name].moves[m].air ? ['hop', 0.15] : [], '@' + m, 1]),
   b: 'dummy', chars: [name], ax: 320, bx: 400, period: moves.length + 1.5,
@@ -339,7 +344,7 @@ const STICK_SHOWCASE_MOVES = [
   'elbow', 'pushKick', 'palms', 'fadeKick', 'hammer', 'turnKick', 'headbutt', 'flyingKnee', 'backfist', 'crescent',
   'launcher', 'bodyBlow', 'lowKick', 'crouchJab', 'backSweep', 'airUpper', 'airFlipKick', 'airHammer', 'diveKick',
   'grab', 'clinch', 'backGrab', 'airGrab', 'charge', 'risingKick', 'palmShot', 'shoulderCharge', 'jumpKick', 'groundPunch', 'airSpin',
-  'catch', 'teleport', 'taunt', 'pounce', 'rollFwd', 'rollBack', 'highCounter', 'lowCounter', 'guardCancel', 'pushBlock', 'getupAttack',
+  'catch', 'teleport', 'taunt', 'pounce', 'rollFwd', 'rollBack', 'highCounter', 'lowCounter', 'guardCancel', 'pushBlock', 'getupAttack', 'super',
 ];
 BASE_SCENARIOS['stick showcase'] = {
   a: [{ hold: 'fwd', t: 0.5 }, 0.1, 'hop', 0.3, { hold: 'fwd', t: 0.3 }, 0.3,

@@ -541,6 +541,7 @@ const MOVE_FLAGS = {
   roll: 'Roll: invincible and passing through fighters for rollInv from its start; the body turns over once, the way its lunge goes (rollFwd, rollBack).',
   vault: 'Vault: like roll (invincible, turns over once), but leaves the ground on a key marked rise - a grounded hop within vaultRange of a grounded foe plays this instead of a plain jump.',
   catchFly: 'Catch fly: a throw (m.throw) that also catches a foe still flying from an earlier launch, not just a free one - a throw chain, usually reached via another throw\'s next.',
+  super: 'Super: only plays on the neutral special (S) once the super meter (superMeter setting) is full, which it then spends.',
 };
 // throw (m.throw, a move name): on connect this move holds the foe for techWindow, pinned in front of the THROWER, who
 // plays the named move (the foe just hangs there in a generic hurt pose); its damage lands on the foe when the hold ends
@@ -1178,7 +1179,7 @@ function moveGrp() {
       Object.fromEntries(st.map((n, i) => [i, `Stance ${n}: the one the input and loop edits change and previews start in (stances are made in the character tab)`])), i => st[i]) : null);
 }
 function animCtx() {
-  return [moveGrp(), showGrp(['boxes', 'ghost', 'colours']), panelsGrp(MOVE_PANELS, VIEW_TIPS)];
+  return [charStancePicker(), moveGrp(), showGrp(['boxes', 'ghost', 'colours']), panelsGrp(MOVE_PANELS, VIEW_TIPS)];
 }
 const CMP_TIPS = { off: 'Off: show only the move being edited', overlay: 'The compared move drawn over this one in amber, at the same moment',
   strip: 'Filmstrip: this move and the compared one frame by frame on one time scale, tinted by phase (click a frame to go there)' };

@@ -739,6 +739,9 @@ class World {
         ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.fillRect(x, y, bw, bh);
         if (hp > 0) { const w = bw * clamp(f.hp / hp, 0, 1); ctx.fillStyle = f.col[0]; ctx.fillRect(side === 0 ? x + bw - w : x, y, w, bh); }
         if (da && f.stunM > 0) { const w = bw * Math.min(1, f.stunM / da); ctx.fillStyle = '#e6b422'; ctx.fillRect(side === 0 ? x + bw - w : x, y + bh + gap * 0.4, w, gap * 0.5); }
+        if (f.c('superMeter')) { const sa = f.c('superAt'), q = sa > 0 ? Math.min(1, f.power / sa) : 1, w = bw * q, py = y + bh + gap;
+          ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.fillRect(x, py, bw, gap * 0.5);
+          ctx.fillStyle = q >= 1 ? '#2d9cdb' : '#5a7a99'; ctx.fillRect(side === 0 ? x + bw - w : x, py, w, gap * 0.5); }
         if (cfg.hudNames) { ctx.fillStyle = '#8a8580'; ctx.textAlign = side === 0 ? 'left' : 'right'; ctx.font = `${Math.round(bh * 0.85)}px ui-monospace, Menlo, monospace`;
           ctx.fillText(f.ch.name, side === 0 ? x : x + bw, y + bh + gap * 1.5 + bh * 0.75); }
       }));

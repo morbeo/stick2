@@ -927,15 +927,23 @@ CHAR_DEFS.clampo = { ...stick, name: 'clampo', speed: 0.85, weight: 1.35, jump: 
     body: { stats: { grabRange: 1.4 } },
     ...bind({ punch: 'bearHug', kick: 'legLock', special: 'tackle' }) }] };
 
-// the stick's second stance: boxing · the third: powered (S+G cycles main -> boxing -> powered), a DBZ-style power-up —
-// charges up (mainToPowered: fists clench, the aura builds, the screen shakes harder with each key), then fights faster
-// and snappier until it's hit or 8 seconds pass (req.exitOn / maxT: setStance(0, 'exit') skips the transition back out)
-CHAR_DEFS.stick.stances = [{ name: 'boxing', pose: stylePose([176, 0], [0, 10], [-160, 140], [-170, 145], [20, -20, 90], [-15, 0, 90]),
-  ...bind({ fwdPunch: 'hook', downFwdPunch: 'bodyHook', upPunch: 'overhand' }) },
-  { name: 'powered', pose: fromOld({ torso: 12, afU: -100, afL: 50, abU: -90, abL: 50 }),
-    // move (not just mode: 'move'): S+G cycles main -> boxing -> powered, so it's normally entered FROM boxing, not main;
-    // naming the move explicitly means the same charge-up always plays, instead of morphName looking for boxingToPowered
-    req: { exitOn: ['hit'], maxT: 8 }, body: { stats: { speed: 1.2, dash: 1.3, tempo: 1.25, springs: 1.3 } }, morph: { mode: 'move', move: 'mainToPowered' } }];
+// the stick's only other stance: powered (S+G), a DBZ-style power-up — charges up (mainToPowered: fists clench, the
+// aura builds, the screen shakes harder with each key), then fights faster and snappier until it's hit or 8 seconds
+// pass (req.exitOn / maxT: setStance(0, 'exit') skips the transition back out)
+CHAR_DEFS.stick.stances = [{ name: 'powered', pose: fromOld({ torso: 12, afU: -100, afL: 50, abU: -90, abL: 50 }),
+  req: { exitOn: ['hit'], maxT: 8 }, body: { stats: { speed: 1.2, dash: 1.3, tempo: 1.25, springs: 1.3 } }, morph: { mode: 'move', move: 'mainToPowered' } }];
+// every character's super (S, meter full — see superMeter/superAt in core.js, pickRaw in fighter.js): its own hardest-hitting
+// special, amplified and armored on the way in, so no new animations are needed per character
+function addSuper(def) {
+  const cands = Object.entries(def.moves).filter(([, m]) => m.special && m.damage && m.keys && !m.throw && !m.counter);
+  if (!cands.length) return;
+  const [, m] = cands.reduce((a, b) => b[1].damage > a[1].damage ? b : a);
+  def.moves.super = { ...m, damage: Math.round(m.damage * 1.6), knock: Math.round(m.knock * 1.3),
+    launch: m.launch ? Math.round(m.launch * 1.3) : m.launch, stun: m.stun ? +(m.stun * 1.15).toFixed(2) : m.stun,
+    super: true, keys: m.keys.map((k, i) => i === 0 ? { ...k, inv: true } : k) };
+  def.binds = { ...def.binds, super: 'super' }; def.binds25 = { ...def.binds25, super: 'super' };
+}
+for (const def of Object.values(CHAR_DEFS)) addSuper(def);
 const CHARS = mapVals(CHAR_DEFS, makeCharacter);
 let CURRENT = 'stick';
 const currentChar = () => CHARS[CURRENT];

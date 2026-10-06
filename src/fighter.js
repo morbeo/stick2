@@ -21,7 +21,7 @@ class Fighter {
       kd: null, downT: 0, wake: null, won: false, wallB: false, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
       sq: 0, sqv: 0, trail: [], dirs: [], pressT: { punch: -1e9, kick: -1e9, special: -1e9 }, guardHeld: false, guardPressT: -1e9, used: [], juggles: 0, jugUsed: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, wallJumpT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
-      guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, heldAt: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
+      guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, power: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, heldAt: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
       airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null, layerAt: {}, away: false, turnRate: 0, turnMid: null,
       stanceT: 0, stanceCd: {}, stanceUsed: [], morph: null, moveCount: {} }); // time in the stance, when each stance was left, the stances taken (req.once), an auto morph, times each move has started (over.limits)
     this.hp = this.c('health'); this.ch0 = ch.weapon ? armed(ch, '') : ch; // ch0: the character without its weapon
@@ -253,6 +253,8 @@ class Fighter {
       const sp = this.grounded && [...(motion || []), n + 'S'].map(t => this.special(t)).find(Boolean); // a scheme's special on a motion or a direction (SPECIAL_SCHEMES)
       if (sp) return sp;
       const slot = !this.grounded ? 'airSpecial' : i.down ? 'downSpecial' : i.up ? 'upSpecial' : fwd ? 'fwdSpecial' : i.right !== i.left ? 'backSpecial' : 'special';
+      // meter full, neutral S: the super move, if the character has one, instead of the usual special
+      if (slot === 'special' && this.c('superMeter') && this.power >= this.c('superAt') && this.ch.moves[this.binds.super]) return this.binds.super;
       return [this.binds[slot], this.grounded && this.binds.special].find(m => this.ch.moves[m]) || null;
     }
     const B = P ? 'Punch' : 'Kick', has = s => this.ch.moves[this.binds[s]] ? this.binds[s] : null;
@@ -297,6 +299,7 @@ class Fighter {
     const name = typeof m === 'string' ? m : Object.keys(ms).find(k => ms[k] === m) || Object.keys(WEAPON_MOVES).find(k => WEAPON_MOVES[k] === m) || '';
     this.action = { m: mv, name, i: 0, t: 0, from: { ...this.target }, fromMul: Object.fromEntries(KEY_MULS.map(p => [p, { ...this.mul[p] }])), hit: false, hits: [] };
     if (mv.charge) this.action.chargeBtn = this.inp.punch ? 'punch' : this.inp.kick ? 'kick' : this.inp.special ? 'special' : null;
+    if (mv.super) this.power = 0; // spends the meter the instant the super starts
     if (!mv.hurt) { this.w.ev(this, 'move', name); if (name) this.moveCount[name] = (this.moveCount[name] || 0) + 1; }
     if (this.action.m.roll || this.action.m.vault) this.passT = this.invT = this.c('rollInv'); // a roll or vault: through fighters and untouchable a moment
     const keys = this.action.m.keys;
@@ -352,7 +355,7 @@ class Fighter {
   // a prop: the same move, letGoProp instead of letGo), or reach for a weapon/prop item at the feet (pickUp: the
   // hand closes at the key marked grip) or a moveable prop standing nearby; false = nothing to do, a grab instead
   weaponGrab() {
-    if (this.ch.weapon) { this.start(this.ch.moves.weaponThrow || WEAPON_MOVES.weaponThrow); this.action.toss = true; return true; }
+    if (this.ch.weapon && !this.weapon.fixed) { this.start(this.ch.moves.weaponThrow || WEAPON_MOVES.weaponThrow); this.action.toss = true; return true; }
     if (this.heldProp) { this.start(this.ch.moves.weaponThrow || WEAPON_MOVES.weaponThrow); this.action.toss = true; this.action.propToss = true; return true; }
     const it = this.w.itemNear(this);
     if (it) { it.taker = this; this.taking = it; this.start(this.ch0.moves.pickUp || WEAPON_MOVES.pickUp); this.action.pick = true; return true; }
@@ -1125,13 +1128,15 @@ class Fighter {
     }
     this.exitOn('hit');
     // disarm: a knockdown or a blow hard enough knocks the weapon loose
-    if (this.ch.weapon && !this.rag && this.w.items && (m.kd || m.power * this.c('powerScale') >= this.c('disarm'))) { this.letGo(false); this.say('DISARM'); }
+    if (this.ch.weapon && !this.weapon.fixed && !this.rag && this.w.items && (m.kd || m.power * this.c('powerScale') >= this.c('disarm'))) { this.letGo(false); this.say('DISARM'); }
     if (this.heldProp && !this.rag && this.w.items && (m.kd || m.power * this.c('powerScale') >= this.c('disarm'))) { this.letGoProp(false); this.say('DISARM'); }
     // counter hit: caught in the startup or active frames of its own attack
     const ck = own && a.m.power && a.i < a.m.cancel ? this.c('counterHit') : 1;
     const combo = this.combo = (this.free ? 0 : this.combo) + 1, dmg = this.damageOf(m, combo) * ck, wasDizzy = this.dizzyT > 0;
     if (ck > 1) this.say('COUNTER');
     if (hurt && (this.hp -= dmg) <= 0) { this.hp = 0; this.ko = true; this.say('K.O.'); }
+    // super meter: both fighters gain it on a landed hit, the attacker from dealing it, the defender from taking it
+    if (this.c('superMeter')) { const g = this.c('superAt'); this.power = Math.min(g, this.power + dmg * this.c('superGain')); att.power = Math.min(g, att.power + dmg * att.c('superGain')); }
     // dismemberment: a lethal slash severs the struck limb — or, on the spine, a full cleave: everything above the
     // hit (chest/neck/head, both arms) comes off as one piece, same mechanism, just a bigger one. Either way the
     // fighter's own remaining bones (always including the hip and both legs) carry on into the normal K.O. fall
@@ -1292,6 +1297,9 @@ class Fighter {
     }
     const da = this.c('dizzyAt');
     if (overHead && da && this.stunM > 0) { ctx.fillStyle = '#e6b422'; ctx.fillRect(this.x - 18, top - 11, 36 * Math.min(1, this.stunM / da), 2); }
+    if (overHead && this.c('superMeter')) { const sa = this.c('superAt'), q = sa > 0 ? Math.min(1, this.power / sa) : 1;
+      ctx.fillStyle = 'rgba(0,0,0,.1)'; ctx.fillRect(this.x - 18, top - 8, 36, 2);
+      ctx.fillStyle = q >= 1 ? '#2d9cdb' : '#5a7a99'; ctx.fillRect(this.x - 18, top - 8, 36 * q, 2); }
     if (this.dizzyT > 0) for (let i = 0; i < 3; i++) { // stars circling over the head
       const a = this.time * 5 + i * 2.1, sx = this.x + Math.cos(a) * 16, sy = top - 4 + Math.sin(a) * 4;
       ctx.fillStyle = '#e6b422'; ctx.beginPath();

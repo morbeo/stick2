@@ -110,6 +110,10 @@ const SCHEMA = [
   { k: 'dizzyAt', v: 45, min: 0, max: 150, step: 5, tip: 'Stun meter size: damage taken in quick succession that makes a fighter dizzy. 0 = never.' },
   { k: 'dizzyDrain', v: 12, min: 0, max: 60, step: 1, tip: 'How fast (damage per second) the stun meter drains while the fighter is free.' },
   { k: 'dizzyTime', v: 2, min: 0.5, max: 5, step: 0.1, tip: 'How long (s) a dizzy fighter stays helpless.' },
+  ['Super meter', 'Dealing or taking a hit fills a super meter (the blue bar under health). Once it is full, the neutral special button (S) plays the super move instead of the usual special.', 'S (meter full): super'],
+  { k: 'superMeter', v: true, tip: 'Super meter: fills on hit, swaps the neutral special for the super move once full.' },
+  { k: 'superAt', v: 100, min: 20, max: 300, step: 10, tip: 'Super meter size: damage dealt or taken (× superGain) needed to fill it.' },
+  { k: 'superGain', v: 1, min: 0, max: 3, step: 0.1, tip: 'Super meter gained per point of damage, for both the attacker and the defender.' },
   ['Throws & recovery', 'P while holding G throws (a short reach that ignores guard, not a crouching fighter). The victim is held a moment and can break free with P+G. A fighter knocked flying can recover in the air or tech the landing with G.', ''],
   { k: 'grabReach', v: 10, min: 0, max: 40, step: 1, tip: 'Extra radius of a throw\'s grab (px), on top of hitR.' },
   { k: 'techWindow', v: 0.25, min: 0, max: 0.6, step: 0.01, tip: 'Seconds a thrown fighter has to break the throw with P+G, and how early (s) before landing a G press techs the fall (a quick get-up). 0 = no breaks, no techs.' },
@@ -281,7 +285,7 @@ function makeRand(seed) {
 // ranges away), of the other sign than a range that never goes below zero, or not a number. Values are never limited, only flagged
 const riskOf = (v, min, max) => !Number.isFinite(v) ? 'danger' : min === undefined || v >= min && v <= max ? '' : min >= 0 && v < 0 || v < min - 10 * (max - min) || v > max + 10 * (max - min) ? 'danger' : 'warn';
 const RISK_TIPS = { warn: 'outside the usual range: it may look or play oddly', danger: 'far outside the usual range: the fight may become unstable (bodies flying off, jitter)' };
-const ENGINE_VERSION = 45;
+const ENGINE_VERSION = 46;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied
