@@ -1346,7 +1346,11 @@ const sinkOk = /class="sinkpage"/.test(sinkDom) && sinkDom.includes('id="sink"')
 const galleryDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
   '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'gallery.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 const galleryOk = /data-part="target"/.test(galleryDom) && /class="fpick"/.test(galleryDom);
+// gallery-demo.html opens the same gallery view in theater mode: no toolbar, side panel or picker, just the loop
+const demoDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
+  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'gallery-demo.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+const demoOk = /\btheater\b/.test(demoDom);
 console.log(title, docsOk ? '· docs.html OK' : '· docs.html FAILED', randomOk ? '· random.html OK' : '· random.html FAILED', sinkOk ? '· kitchen-sink.html OK' : '· kitchen-sink.html FAILED',
-  galleryOk ? '· gallery.html OK' : '· gallery.html FAILED');
-process.exit(title === 'OK' && docsOk && randomOk && sinkOk && galleryOk ? 0 : 1);
+  galleryOk ? '· gallery.html OK' : '· gallery.html FAILED', demoOk ? '· gallery-demo.html OK' : '· gallery-demo.html FAILED');
+process.exit(title === 'OK' && docsOk && randomOk && sinkOk && galleryOk && demoOk ? 0 : 1);
 })();
