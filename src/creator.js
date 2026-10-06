@@ -92,7 +92,7 @@ function dragTo(x, y, shift) {
   local = cur + ((local - cur) % 360 + 540) % 360 - 180; // continuous with the current angle
   edit(def => {
     editPose(def)[b.id] = Math.round(local);
-    if (!shift && b.shape !== 'circle') boneDef(def, b.id).len = Math.max(2, Math.round(Math.hypot(dx, dy) / (stanceBody()?.scale || 1))); // (drawn × the stance's size)
+    if (!shift && !b.lenLock && b.shape !== 'circle') boneDef(def, b.id).len = Math.max(2, Math.round(Math.hypot(dx, dy) / (stanceBody()?.scale || 1))); // (drawn × the stance's size)
   }, 'drag:' + b.id);
 }
 // dragging the hip moves the body over the feet in the stance: every leg bends so its ankle stays (as in animate, see hipTo)
@@ -269,7 +269,9 @@ function bonePanel() {
     row('limits', 'Clamp how far this joint can bend', toggle(':straighten: limits', 'On: the joint bends only between min and max (starts at ±90° from the parent); off removes them (undoable)', () => prop('min') !== undefined, lim)),
     ...limRows,
     row('lock', 'Lock to the parent', toggle(':lock: lock', 'Locked: the joint keeps its angle to its parent while posing. Dragging it (or IK through it) turns the first unlocked bone above, so locked bones move as one group.',
-      () => !!prop('lock'), v => setProp('lock', v || undefined)))];
+      () => !!prop('lock'), v => setProp('lock', v || undefined))),
+    row('lenLock', 'Keep its length fixed', toggle(':straighten: length lock', 'Locked: dragging this joint (or an IK drag through it, like the hip) only turns it, its length stays put - the same as always holding Shift while dragging it.',
+      () => !!prop('lenLock'), v => setProp('lenLock', v || undefined)))];
 }
 // clicking a variable's name: nine bodies varying only that variable
 const bodyExpLink = (row, k, preview) => expLink(row, `nine bodies varying ${k}; click the best to breed around it`,
