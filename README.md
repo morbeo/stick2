@@ -6,7 +6,7 @@ A 2D stick-figure fighting engine and motion lab for the browser: procedural ske
 
 This is an active, solo-built project and it needs feedback and testers. If you try it, please [open an issue](https://github.com/morbeo/stick2/issues) with what felt wrong, what broke, or what was confusing — even a short note helps. Pull requests are welcome too; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-![A fight: knockdown, combo counter and frame meter](docs/img/play.png)
+![Four roster characters clashing](docs/img/clash.png)
 
 ## Try a scenario
 
