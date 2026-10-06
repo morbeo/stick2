@@ -1164,6 +1164,18 @@ test('move checks: each target column says what may happen (guard blocks from th
   assert.ok(res.every(r => r.t < 4), 'each settles inside its limit (a knockdown included)');
 });
 
+test('the animate preview\'s jump dummy state hops repeatedly (not timed to the move, unlike air); the move-check grid is unaffected', () => {
+  const r = JSON.parse(run(`(() => {
+    const m = CHARS.stick.moves.jab, s = targetScen('jab', m, { stance: 'stand', state: 'jump', facing: 'toward', dist: 'far' }); // far: the jab whiffs, so a hit reaction does not interrupt the hop cycle
+    const w = new World(s, {}, 7, [CHARS.stick, CHARS.stick]); w.loop = false;
+    let jumps = 0, wasGrounded = true;
+    for (let i = 0; i < 180; i++) { w.advance(1/60, NOIN); if (!w.b.grounded && wasGrounded) jumps++; wasGrounded = w.b.grounded; }
+    return JSON.stringify({ jumps });
+  })()`));
+  assert.ok(r.jumps >= 2, `the dummy jumps repeatedly, not once: ${r.jumps}`);
+  assert.equal(run('CHECK_COLS.length'), 28, 'the jump preview state is not added to the move-check grid columns (still 7 states)');
+});
+
 test('move checks: a move whose hits leave out a state must whiff it, and a jab that cannot reach its own setup is flagged', () => {
   const r = JSON.parse(run(`(() => { const j = CHARS.stick.moves.jab, ch = { ...CHARS.stick, moves: { ...CHARS.stick.moves, dud: { ...j, hit: [] } } };
     return JSON.stringify({ air: allowed({ ...j, hits: ['air'] }, CHECK_COLS[0]), dud: runCheck(ch, CHARS.stick, 'dud', CHECK_COLS[0]) }); })()`));

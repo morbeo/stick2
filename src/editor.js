@@ -251,7 +251,8 @@ function selectKey(i) {
 const TARGET_TIPS = {
   stand: 'The target stands still', crouch: 'The target crouches: highs pass over it', guard: 'The target holds guard: blocks highs and mids from the front',
   low: 'The target holds a low guard: blocks lows and special mids from the front',
-  idle: 'The target is on the ground and free', air: 'The target jumps so it is near the top of its jump when the move becomes active',
+  idle: 'The target is on the ground and free', jump: 'The target jumps on repeat, for a look at the move against a moving target (not timed to it, unlike air)',
+  air: 'The target jumps so it is near the top of its jump when the move becomes active',
   down: 'The target lies on the floor: only off-the-ground (otg) moves hit it', dizzy: 'The target is dizzy: the next hit wakes it',
   toward: 'The target faces the attacker', away: 'The target turns its back: guard and parry only work from the front (it stays turned while crouching or holding a low guard)',
   near: 'The target stands at the move\'s usual distance', far: `The target stands ${FAR} px further away`,
@@ -1155,7 +1156,7 @@ function targetBar() {
   reg(who, () => { setRich(who, ':person: ' + (tg.char && DEFS[tg.char] ? tg.char : 'same')); });
   const sg = (k, opts) => seg(opts, () => tg[k], v => set(k, v), TARGET_TIPS);
   const speedTips = { 0.25: 'Quarter speed', 0.5: 'Half speed', 1: 'Real time', 2: 'Double speed' };
-  return h('div', { cls: 'over tgt', tip: 'The preview\'s target: who, how it stands, its state, facing and distance; changing it restarts the preview' }, who, sg('stance', Object.keys(STANCES)), sg('state', ['idle', 'air', 'down', 'dizzy']), sg('facing', ['toward', 'away']), sg('dist', ['near', 'far']),
+  return h('div', { cls: 'over tgt', tip: 'The preview\'s target: who, how it stands, its state, facing and distance; changing it restarts the preview' }, who, sg('stance', Object.keys(STANCES)), sg('state', ['idle', 'jump', 'air', 'down', 'dizzy']), sg('facing', ['toward', 'away']), sg('dist', ['near', 'far']),
     h('span', { cls: 'sep' }),
     toggle(':repeat:', 'Loop the preview when the move ends; off: play once and hold the last frame', () => anim.pvLoop, v => { anim.pvLoop = v; anim.pv.loop = v; }),
     toggle(':flash_on:', 'Hit stop, screen shake and juice in the preview; off: a clean, undisturbed look at the raw motion', () => anim.pvFx, v => { anim.pvFx = v; buildPreview(); }),
