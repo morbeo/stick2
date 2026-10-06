@@ -236,7 +236,7 @@ function hipTo(f, x, y) {
   anim.anchor = [h0.a[0] + x - h0.x, h0.a[1] + y - h0.y];
   for (const c of ch.chains.leg) {
     const a = ankleOf(c), legs = c.slice(0, c.indexOf(a) + 1).filter(b => !b.lock).reverse(); // end first (CCD)
-    ik(ch, pose, a.id, [h0.L[a.id][0] - dx, h0.L[a.id][1] - dy], legs);
+    ik(ch, pose, a.id, [h0.L[a.id][0] - dx, h0.L[a.id][1] - dy], legs, 40); // 40 rounds, as the creator's equivalent uses - 12 (ik's default) lets the ankles drift
     chain.push(...legs);
   }
   return { pose, chain };
