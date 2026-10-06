@@ -332,14 +332,35 @@ function charCard(k, pick = pickChar, on = k => CURRENT === k) {
 // scroll), shared by the character and animate tabs - which character every mode edits (same popup-of-cards button
 // as fighterPick/scenarios.js charPick), and which of its stances (the same quick-switch seg as stanceRow, whose own
 // row stays in the side panel for the rest of a stance's own settings: key, fly, body)
+// a floating pose thumbnail shown while hovering a stance button, over the stance's own body if it has one (stanceChar)
+let stancePreview = null;
+function showStancePreview(btn, i) {
+  hideStancePreview();
+  const cv = h('canvas'), box = h('div', { cls: 'pop stancepv' }, cv);
+  document.body.append(box);
+  drawThumb(cv, stanceChar(currentChar(), i), undefined, 70, 76);
+  const r = btn.getBoundingClientRect();
+  box.style.left = Math.max(4, Math.min(r.left, innerWidth - box.offsetWidth - 8)) + 'px';
+  box.style.top = (r.bottom + 4) + 'px';
+  stancePreview = box;
+}
+function hideStancePreview() { stancePreview?.remove(); stancePreview = null; }
 function charStancePicker() {
   const cv = h('canvas'), b = button('', 'The character every mode edits · click: pick another', (e, el) =>
     popup(el, h('b', { textContent: 'character' }), h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k)))));
   b.classList.add('fpick');
   reg(b, () => { b.replaceChildren(cv, h('span', { textContent: CURRENT })); drawThumb(cv, currentChar(), undefined, 20, 22); });
   const names = currentChar().stances.map(s => s.name);
-  const stances = names.length > 1 ? seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); },
-    Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance: the base pose, binds and loops'])), i => names[i]) : null;
+  // like seg(), but hovering a stance shows its pose (stanceChar: its own body too, if it has one) in a floating
+  // thumbnail instead of just a text tip - stances can look very different, worth seeing before switching
+  const stances = names.length > 1 ? h('span', { cls: 'seg' }, names.map((n, i) => {
+    const btn = button(n, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance: the base pose, binds and loops',
+      () => { studio.stance = i; panels(); mode().restart(); });
+    btn.onmouseenter = () => showStancePreview(btn, i);
+    btn.onmouseleave = hideStancePreview;
+    reg(btn, () => btn.classList.toggle('on', studio.stance === i));
+    return btn;
+  })) : null;
   // the same new/copy/rename/revert/delete/import/export actions charPanel() used to carry in the side panel - up here
   // too, so they stay in view with the picker instead of scrolling off with the rest of the body/move panel
   const ops = crud({
