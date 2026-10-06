@@ -864,7 +864,9 @@ function weaponBones(ch, type) {
   const w = WEAPONS[type], limb = ch.chains.arm.find(c => c[0].side === 'f') || ch.chains.arm[0] || ch.chains.leg.find(c => c[0].side === 'f') || ch.chains.leg[0];
   const parent = limb ? limb[limb.length - 1].id : ch.bones[0].id;
   const b = { role: 'weapon', side: 'f', type, thick: 3, hurt: 0, lag: 0.3, react: 0.3, sway: 0 };
-  if (w.chain) return [{ ...b, id: 'weapon', parent, len: Math.round(w.len / 2), a: w.a }, { ...b, id: 'weaponTip', parent: 'weapon', len: Math.round(w.len / 2), a: 0, lag: 2, stiff: 0.7, damp: 0.4, react: 2, whip: 0.045 }];
+  // weaponTip dangle (see fighter.js: hangs toward gravity, the same mechanism a tail or scarf uses): the free end,
+  // not gripped, hangs down at rest instead of staying rigid at its rest angle; whip still takes over during a swing
+  if (w.chain) return [{ ...b, id: 'weapon', parent, len: Math.round(w.len / 2), a: w.a }, { ...b, id: 'weaponTip', parent: 'weapon', len: Math.round(w.len / 2), a: 0, lag: 2, stiff: 0.7, damp: 0.4, react: 2, whip: 0.045, dangle: 0.4 }];
   return [{ ...b, id: 'weapon', parent, len: w.len, a: w.a, back: w.back || 0 }];
 }
 // ---------- stance bodies: a stance (or main) can change the body (def.stances[i].body / def.main.body), compiled like a weapon ----------
