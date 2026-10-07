@@ -29,6 +29,8 @@ jobs:
       - if: vars.DISCORD_NOTIFY_GIF != 'false'
         uses: browser-actions/setup-chrome@19ae4b339ee18925ab85cf12c1041150ea4a44c8 # v1
         id: chrome
+        with:
+          install-dependencies: true # bare ubuntu-latest is missing libnss3 etc. that Chrome for Testing needs to start
       - if: vars.DISCORD_NOTIFY_GIF != 'false'
         run: npm ci
       - name: Render a fight GIF
