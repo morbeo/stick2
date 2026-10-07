@@ -97,7 +97,7 @@ honky showcase hits 1 blocks 0 hp 110.0 92.0 x 431 580
 gloomo showcase hits 4 blocks 0 hp 130.0 95.6 x 563 507
 centaur showcase hits 3 blocks 0 hp 100.0 67.0 x 514 647
 houndo showcase hits 2 blocks 0 hp 95.0 57.0 x 422 494
-tako showcase  hits 1 blocks 0 hp 100.0 94.0 x 364 450
+otkopod showcase hits 2 blocks 0 hp 110.0 88.0 x 388 582
 clampo showcase hits 3 blocks 0 hp 120.0 69.0 x 512 546
 bonko showcase hits 2 blocks 0 hp 85.0 70.0 x 441 485
 stick showcase hits 3 blocks 0 hp 100.0 76.0 x 478 577

@@ -40,7 +40,7 @@ The character panel shows a grid of drawings, all at one scale.
 | gloomo | the boss demon | horns, wings, tail, four arms, dark orb, psycho dash, warp claw, skull dive |
 | centaur | the trampling horse | a horizontal horse body: tramples forward, a donkey kick, rears up to headbutt, or to box with its forelegs |
 | houndo | the hound | fights posed on all fours: a tackle, a low claw rake, rears up to bite, a hind-leg kick, a howl |
-| tako | the shapeshifter | an ink cloud, a slippery invincible dodge; shifts into an octopus form for a tentacle slam and a constricting grab |
+| otkopod | the tentacled pod-creature | eight tentacles, always: a sequential four-tentacle flurry, all eight slamming down at once, an ink burst and a coiling wrap throw |
 | clampo | the wrestler | huge and slow: a bear hug into a slam (a combo throw), a leg-lock ankle twist, a running tackle, a diving splash |
 
 ### Your own

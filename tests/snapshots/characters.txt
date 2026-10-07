@@ -13,6 +13,6 @@ honky      hits 9 hp 39.0 100.0
 gloomo     hits 7 hp 104.3 64.3
 centaur    hits 10 hp 44.5 71.4
 houndo     hits 9 hp 28.9 68.0
-tako       hits 11 hp 45.3 64.7
+otkopod    hits 9 hp 31.7 100.0
 clampo     hits 11 hp 52.5 78.8
 bonko      hits 9 hp 41.5 54.9
