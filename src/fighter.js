@@ -23,7 +23,7 @@ class Fighter {
       z: 0, vz: 0, lane: 0, dashT: 0, wallJumpT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, power: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, heldAt: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
       airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null, layerAt: {}, away: false, turnRate: 0, turnMid: null,
-      stanceT: 0, stanceCd: {}, stanceUsed: [], morph: null, moveCount: {}, flyHit: [] }); // time in the stance, when each stance was left, the stances taken (req.once), an auto morph, times each move has started (over.limits); flyHit: ids already clipped this flight (flyHits setting) - a plain array, not a Set, so it survives the replay checkpoint system's JSON state cloning
+      stanceT: 0, stanceCd: {}, stanceUsed: [], morph: null, moveCount: {}, flyHit: [], chainN: 0 }); // time in the stance, when each stance was left, the stances taken (req.once), an auto morph, times each move has started (over.limits); flyHit: ids already clipped this flight (flyHits setting) - a plain array, not a Set, so it survives the replay checkpoint system's JSON state cloning; chainN: how many flyHits dominoes deep this flight is (0 = launched by a real attack)
     this.hp = this.c('health'); this.ch0 = ch.weapon ? armed(ch, '') : ch; // ch0: the character without its weapon
     this.target = this.basePose();
     this.disp = { ...this.target };
@@ -1173,7 +1173,7 @@ class Fighter {
       this.kd = 'fly'; this.bounces = otg ? 99 : 0; this.grounded = false; this.action = null; this.hurtT = 0; // hit off the ground: a small pop, no bounce
       this.exitOn('knockdown');
       this.vy = -Math.max((m.launch || 300) * ps, this.ko ? 380 : 0) * this.c('juggleDecay') ** this.juggles * this.c('launchScale') / this.ch.stats.weight;
-      this.splat = !!m.wall; this.wallB = !!m.wallbounce; this.gb = !!m.bounce && !otg; this.splatT = 0; this.flyT = 0; this.flyHit.length = 0;
+      this.splat = !!m.wall; this.wallB = !!m.wallbounce; this.gb = !!m.bounce && !otg; this.splatT = 0; this.flyT = 0; this.flyHit.length = 0; this.chainN = 0; // flyClip corrects this right after, for a domino launch
       if (m.crumple && !juggle) { this.vx = att.dir * 30; this.vy = -120; this.bounces = 99; this.say('CRUMPLE'); } // folds where it stands
       if (this.c('falls') === 'ragdoll') { if (!this.rag) this.startRag(); this.rag.tone = m.crumple && !juggle ? 0.15 : 1; this.ragHit(hit); }
     } else {
