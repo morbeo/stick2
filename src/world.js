@@ -36,6 +36,8 @@ function itemSeg(it, r = 0) {
 // a thrown prop's one blow (see thrownMove, rig.js, for a weapon's): scaled by its own toughness if breakable, else
 // a flat modest hit (reed/spring, moveable but not breakable) — k: a charged throw's multiplier
 function thrownPropMove(type, k = 1) { const p = PROPS[type]; return { power: k, damage: Math.round((4 + (p.hp ?? 10) / 3) * k), knock: 150 * k, stun: 0.35, height: 'mid' }; }
+// a hit's default spark style by the attacker's weapon class, when the striking key doesn't name its own (onHit)
+const WEAPON_SPARK = { pierce: 'impact', slash: 'slash', blunt: 'blunt', '2h': 'heavy', pole: 'blunt' };
 class World {
   // over: config overrides on top of the live CFG. scen: { a, b, ax?, bx?, aTeam?, bTeam?, more?, period?, init?, chars? } (see brain.js)
   // aTeam/bTeam: a and b's own team (default 0 and 1); same team = allies, as for more's own team
@@ -576,8 +578,10 @@ class World {
     const ko0 = vic.ko, ck = vic.takeHit(att, m, hit), ko = vic.ko && !ko0;
     note();
     const fin = vic.kd === 'fly', power = m.power * cfg.powerScale * (fin ? cfg.hitstopFin : 1);
-    // freeze shrinks along a combo, and a budget caps total frozen time so long strings don't turn to stop-motion
-    const n = vic.combo - 1, want = (m.stop || cfg.hitstop * m.power) * cfg.powerScale * (fin ? cfg.hitstopFin : 1) * cfg.hitstopDecay ** n * Math.max(0, 1 + cfg.comboStop * n);
+    // freeze shrinks along a combo, and a budget caps total frozen time so long strings don't turn to stop-motion.
+    // a fly chain holds the freeze a little longer each domino hop instead, the same beat a real combo finisher gets
+    const n = vic.combo - 1, want = (m.stop || cfg.hitstop * m.power) * cfg.powerScale * (fin ? cfg.hitstopFin : 1) * cfg.hitstopDecay ** n *
+      Math.max(0, 1 + cfg.comboStop * n) * (m.chain ? 1 + cfg.flyChainShake * (m.chain - 1) : 1);
     let hs = want;
     if (cfg.hitstopBudget > 0) { hs = Math.min(hs, this.bank); this.bank -= hs; }
     vic.freeze = hs; att.freeze = Math.max(att.freeze, hs * cfg.hitstopAtk);
@@ -595,8 +599,9 @@ class World {
     // a finisher, a hard hit, or a multi-victim fly chain all earn the punch-in - a 3-deep domino reads as big as a real finisher
     if (fin || power > 1.5 || (m.chain && m.chain > 1)) { this.zoom += cfg.punchIn; this.impactAt = this.T; }
     this.victim = vic;
-    // the striking key's spark style (key event spark); the plain sparks still draw their random numbers so a style changes no fight
-    const st = att.action?.m.keys?.[att.action.i]?.spark;
+    // the striking key's spark style (key event spark); the plain sparks still draw their random numbers so a style changes no fight.
+    // unset, while the attacker holds a weapon, falls back to a per-class default instead of the plain unarmed look
+    const st = att.action?.m.keys?.[att.action.i]?.spark ?? WEAPON_SPARK[att.weapon?.cls];
     this.sound(power > 1.5 ? 'thud' : 'hit', pt[0]);
     if (cfg.sparks > 0) {
       const col = att.col[0]; // tints the hit's sparks/flash/ring to the attacker's own colour
@@ -801,6 +806,15 @@ class World {
     this.drawProps(ctx, 'front');
     ctx.restore();
     if (cfg.letterbox) { const bh = Math.round(r.h * 0.09); ctx.fillStyle = '#111'; ctx.fillRect(r.x, r.y, r.w, bh); ctx.fillRect(r.x, r.y + r.h - bh, r.w, bh); }
+    // koVignette: a dark ring closing in during the round-end pause (koT, already counting down from 2.5s on a KO) -
+    // quick fade in, held, fades back out as koT runs out, so it never outlives the pause it belongs to
+    if (cfg.koVignette > 0 && this.koT > 0) {
+      const a = Math.min(1, (2.5 - this.koT) * 4) * Math.min(1, this.koT * 2) * cfg.koVignette;
+      const cx2 = r.x + r.w / 2, cy2 = r.y + r.h / 2, ro = Math.hypot(r.w, r.h) / 2;
+      const g = ctx.createRadialGradient(cx2, cy2, ro * 0.35, cx2, cy2, ro);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${0.75 * a})`);
+      ctx.fillStyle = g; ctx.fillRect(r.x, r.y, r.w, r.h);
+    }
     if (this.scen.waves || this.scen.survival) { // wave counter, survival time
       const t = Math.floor(this.survT), head = this.scen.waves ? `WAVE ${this.wave} · ${this.downs + this.fighters.filter(f => f.ko && f !== this.a).length}` : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')} · ${this.downs}`;
       ctx.save(); ctx.fillStyle = '#8a8580'; ctx.textAlign = 'center'; ctx.font = `bold ${Math.round(r.h / 28)}px ui-monospace, Menlo, monospace`;

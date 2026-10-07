@@ -236,6 +236,7 @@ const SCHEMA = [
   { k: 'slowParry', v: 0, min: 0, max: 2, step: 0.05, tip: 'Slow motion (s) after a parry. 0 = off.' },
   { k: 'slowKO', v: 0, min: 0, max: 3, step: 0.05, tip: 'Slow motion (s) after the knock-out blow, in place of the finisher\'s. 0 = off.' },
   { k: 'koFreeze', v: 0, min: 0, max: 1.5, step: 0.05, tip: 'Every fighter freezes this long (s) on the knock-out blow, before the body flies. 0 = off.' },
+  { k: 'koVignette', v: 0.5, min: 0, max: 1, step: 0.05, tip: 'A dark vignette closing in around the edges during the round-end pause after a knockout. 0 = off.' },
   { k: 'traumaHit', v: 0.3, min: 0, max: 1, step: 0.05, tip: 'Camera trauma (shake) a hit adds, × its power. The shake grows with the square of the trauma.' },
   { k: 'traumaBlock', v: 0.1, min: 0, max: 1, step: 0.05, tip: 'Camera trauma (shake) a blocked or parried hit adds, × its power.' },
   { k: 'traumaDecay', v: 1.6, min: 0.2, max: 6, step: 0.1, tip: 'How fast the camera trauma wears off (per second). Low = long rumbles.' },

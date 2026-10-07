@@ -2,6 +2,15 @@
 // a key's per-bone multipliers (key.len, key.thick, key.alpha): tweened toward like the pose, 1 = no change, eased back after
 // (len feeds the hurtbox and reach too, a Dhalsim limb; thick and alpha are drawing only)
 const KEY_MULS = ['len', 'thick', 'alpha'];
+// the hit-flash colour, hotter the longer the combo landing on this fighter runs: white -> yellow -> red
+const FLASH_STOPS = [[0, 255, 255, 255], [4, 255, 221, 63], [8, 255, 59, 48]];
+function flashCol(combo) {
+  const n = Math.max(0, combo - 1);
+  let i = 0; while (i < FLASH_STOPS.length - 2 && n >= FLASH_STOPS[i + 1][0]) i++;
+  const [n0, r0, g0, b0] = FLASH_STOPS[i], [n1, r1, g1, b1] = FLASH_STOPS[i + 1], t = n1 > n0 ? Math.min(1, (n - n0) / (n1 - n0)) : 1;
+  const mix = (a, b) => Math.round(a + (b - a) * t);
+  return `rgb(${mix(r0, r1)},${mix(g0, g1)},${mix(b0, b1)})`;
+}
 // a lying body (pose falls): turned about the hips to the angle where its joints sit lowest over its lowest point,
 // so no pose leaves the torso or head hanging in the air above the floor
 function settle(ch, L) {
@@ -1279,7 +1288,8 @@ class Fighter {
     if (this.c('ghost')) { ctx.globalAlpha = 0.2; drawFigure(ctx, this.ch, this.points(this.target), '#07f', '#07f', -2); ctx.globalAlpha = 1; }
     const P = this.body(), fxs = fxNow(this.ch, this.action), aux = { hist: this.poseHist, vx: this.vx, vy: this.vy };
     drawFx(ctx, P, fxs, this.time, true, aux);
-    if (this.flashT > 0 && this.c('flash')) { drawFigure(ctx, this.ch, P, '#111', '#111', 4); drawFigure(ctx, this.ch, P, '#fff', '#fff'); }
+    // the hit flash shifts white -> yellow -> red as the combo landing on this fighter grows, so a long string of hits reads hotter
+    if (this.flashT > 0 && this.c('flash')) { const fc = flashCol(this.combo); drawFigure(ctx, this.ch, P, '#111', '#111', 4); drawFigure(ctx, this.ch, P, fc, fc); }
     else if (this.dodgeT > 0) { ctx.globalAlpha = 0.4; drawFigure(ctx, this.ch, P, this.col[0], this.col[1]); ctx.globalAlpha = 1; } // air dodge: see-through
     else drawFigure(ctx, this.ch, P, this.col[0], this.col[1], 0, null, this.mul);
     if (this.heldProp) { // no held-prop bone (props aren't rigged like a weapon): a small version of it over the head instead
