@@ -221,6 +221,7 @@ const SCHEMA = [
   { k: 'comboTime', v: 0, min: -0.15, max: 0.3, step: 0.01, tip: 'The whole game runs faster (negative: slower) by this fraction per combo hit while the combo lasts.' },
   ['Juice', 'Screen and body feedback that sells impacts.', ''],
   { k: 'shake', v: 14, min: 0, max: 40, step: 1, tip: 'Camera shake on impact (px).' },
+  { k: 'shakeBias', v: 0.4, min: 0, max: 1, step: 0.05, tip: "How much the shake kicks away from the hit's point instead of jittering randomly. 0 = the old purely random rattle, 1 = a clean directional recoil off the impact." },
   { k: 'zoomPunch', v: 0.04, min: 0, max: 0.15, step: 0.005, tip: 'How far the camera zooms in on a hit (share of the view, × its power), then eases back. 0 = off.' },
   { k: 'squash', v: 0.25, min: 0, max: 0.6, step: 0.01, tip: 'How much bodies squash and stretch on jumps, landings and hits. 0 = off.' },
   { k: 'sparks', v: 10, min: 0, max: 40, step: 1, tip: 'Spark particles per hit.' },
@@ -266,9 +267,10 @@ const PRESETS = {
 // power presets: only how hard blows land and how bodies fly and bounce (floor, walls, ceiling); the other settings stay
 const POWER = {
   normal: { powerScale: 1, hitstop: 0.08, floorBounce: 0.35, bounces: 1, wallBounce: 0.5, ceiling: 0, floorGrip: 6 },
-  heavy: { powerScale: 1.6, hitstop: 0.11, floorBounce: 0.45, bounces: 2, wallBounce: 0.6, ceiling: 0, floorGrip: 5 },
-  smash: { powerScale: 2.3, hitstop: 0.13, floorBounce: 0.6, bounces: 3, wallBounce: 0.8, ceiling: 0.6, floorGrip: 3 },
-  pinball: { powerScale: 3, hitstop: 0.12, floorBounce: 0.8, bounces: 4, wallBounce: 1, ceiling: 0.9, floorGrip: 1 },
+  heavy: { powerScale: 1.6, hitstop: 0.11, floorBounce: 0.45, bounces: 2, wallBounce: 0.6, ceiling: 0, floorGrip: 5, shakeBias: 0.5 },
+  smash: { powerScale: 2.3, hitstop: 0.13, floorBounce: 0.6, bounces: 3, wallBounce: 0.8, ceiling: 0.6, floorGrip: 3, shakeBias: 0.6 },
+  // the one preset that turns flying bodies into crowd hazards too - a pinball table doesn't let the ball pass through the pins
+  pinball: { powerScale: 3, hitstop: 0.12, floorBounce: 0.8, bounces: 4, wallBounce: 1, ceiling: 0.9, floorGrip: 1, shakeBias: 0.7, flyHits: true, flyChain: true },
 };
 
 // ---------- math ----------
