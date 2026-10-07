@@ -3,14 +3,11 @@
 const creator = { preview: 'showcase', opponent: 'self', controlDummy: false, w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
   headToHead: false, htControl: 'none', // the changes panel's built-in-vs-yours option, instead of each vs the chosen opponent
   exp: { kind: 'body', vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
-const PREVIEWS = {
-  showcase: ['showcase', 'Scripted demo: punches, a kick, a sweep, a jump kick, a dash into a grab and throw, a special, then backs off.'],
-  walk: ['walk', 'Walk forward and back: check the walk cycle and arm swing.'],
-  'vs ai': ['ai vs ai', 'Two copies fight each other with the engine AI.'],
-};
+// quick picks shown as buttons in the preview bar; creator.preview itself can be any SCENARIOS key (scenButton picks from all of them)
+const PREVIEW_PRESETS = ['showcase', 'walk', 'ai vs ai'];
 // the preview's scenario. controlDummy: your own keyboard drives the
 // opponent instead of its script/AI - the character being edited never reads live keys here, so there's no clash
-const previewScen = () => { const s = SCENARIOS[PREVIEWS[creator.preview][0] || 'showcase'];
+const previewScen = () => { const s = SCENARIOS[creator.preview] || SCENARIOS.showcase;
   return { ...s, ...creator.controlDummy && s.b ? { b: 'human' } : null, init: w => { s.init?.(w); w.a.setStance(studio.stance, 'instant'); } }; };
 // the opponent's character model for the main preview (not the body-experiment cells, which bring their own)
 const previewChars = () => [currentChar(), CHARS[creator.opponent] || currentChar()];
@@ -238,8 +235,10 @@ function previewBar(cls = 'over pvbar') {
   })();
   const controlB = toggle(':stadia_controller: you control it', 'Drive the opponent with your own keyboard instead of its script/AI - handy for holding it still, guarding, or moving it into a weapon or throw\'s reach',
     () => creator.controlDummy, v => { creator.controlDummy = v; creatorMode.restart(); });
-  return h('div', { cls }, seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creator.controlDummy = false; creatorMode.restart(); panels(); }, mapVals(PREVIEWS, p => p[1])),
-    oppB, controlB);
+  const pick = v => { creator.preview = v; creator.controlDummy = false; creatorMode.restart(); panels(); };
+  return h('div', { cls }, seg(PREVIEW_PRESETS, () => creator.preview, pick, mapVals(Object.fromEntries(PREVIEW_PRESETS.map(v => [v, v])), v => scenTip(SCENARIOS[v])), v => v),
+    scenButton(pick, () => creator.preview), oppB, controlB,
+    button(':sports_kabaddi: send to play', 'Jump into Play with this scenario and opponent', () => sendToPlay(creator.preview, creator.opponent), 'mini'));
 }
 const setProp = (k, v) => edit(def => { for (const b of selDefs(def)) b[k] = v; }, selIds() + '.' + k);
 const prop = k => selBone()?.[k] ?? BONE[k];
