@@ -26,6 +26,7 @@ const character = {
     level: '0 = rigid child, 1 = keeps its rest world angle (feet stay flat)', stretch: 'lengthens while swinging fast (0.2 = up to +20%)',
     stiff: 'spring frequency ×', damp: 'damping ×', react: 'how hard blows jolt it', sway: 'idle drift', dangle: 'swings with the body (tails, scarves)',
     min: 'joint limit (shapes the IK solve)', max: 'joint limit', fx: 'drawing effect on the bone (see the editor)', hidden: 'not drawn',
+    turnSnap: "mirrors to face right away when turning around, instead of squashing through the turn with the rest of the body (default: true for role 'head', false otherwise) - a second head, a tail, antennae...; set false on a 'head' bone to make it squash normally instead",
   },
   pose: '{ boneId: angle }: each angle relative to its parent bone (root: to straight down). A key with p: null eases back to the stance',
   move: {
@@ -34,7 +35,8 @@ const character = {
     damage: 'health taken (× damage setting); unset = power × 8', hit: 'bone id or [ids]: the striking bones (each its own hitbox)',
     height: 'high | shigh (overhead) | mid | smid | low', knock: 'knockback px/s', launch: 'upward speed on a knockdown px/s', stun: 'hitstun s (unset 0.4)',
     chip: 'damage fraction on block', stop: 'hit stop s', bstun: 'blockstun s', bpush: 'push on block px/s', juggle: 'juggle cost', range: 'setup distance px (gallery, tests)', reach: 'extra strike radius px',
-    flags: 'booleans: kd (knockdown), air (jumping move), inv, special (normals cancel into it), otg, wide, crumple, wall, wallbounce, bounce, noAirGuard, launcher, roll, throw (a grab), counter',
+    flags: "booleans, each its own top-level field on the move (not nested under a 'flags' key): kd (knockdown), air (jumping move), inv, special (normals cancel into it), otg, wide, crumple, wall, wallbounce, bounce, noAirGuard, launcher, roll, throw (a grab)",
+    counter: "a move name: what plays, on the attacker's own skeleton, when one of this move's keys catches a strike (key.catch/catchH). 'MIRROR' instead of a name plays the attacker's own connecting move right back at them, whatever it was",
     next: "{ input: move }: combo links in the cancel window ({ punch: 'cross', kick: 'kick', '6P': 'elbow' })",
     hits: "['stand' | 'crouch' | 'air']: which target states it can hit (unset = all)", shot: '{ look: ki | fire | dark | wave | star, speed, size, life }: the projectile of a shoot key',
     weapon: 'weapon class: played while holding one (arms the fighter)', lunge: 'forward push px/s', style: 'fighting style tag (grouping only)', fx: 'drawing effect while it plays', ref: 'layer moves: the pose they play from',
