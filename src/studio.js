@@ -21,7 +21,11 @@ function debounce(fn, ms = 250) {
   if (typeof addEventListener === 'function') addEventListener('beforeunload', d.flush);
   return d;
 }
-const save = debounce(() => { try { localStorage.setItem(STORE, JSON.stringify({ defs: edited(), current: CURRENT })); } catch {} });
+let saveFailed = false;
+const save = debounce(() => {
+  try { localStorage.setItem(STORE, JSON.stringify({ defs: edited(), current: CURRENT })); saveFailed = false; }
+  catch (e) { if (!saveFailed) { saveFailed = true; notice('Could not save characters', `Your changes are only in this tab for now: ${e.message}`); } }
+});
 // settings persist too: the ones changed from the defaults, checked on the way in (known, the right type, in range)
 const CFG_STORE = 'stick2.settings';
 // a value a setting can take: known, its type, one of its options; numbers any finite value (outside the usual range is only flagged, riskOf)
@@ -191,11 +195,16 @@ async function renameChar() {
   delete DEFS[old]; delete CHARS[old];
   pickChar(name);
 }
+// scenarios (built in the browser) that still name this character, directly or in a select-mode roster
+const scensUsing = name => Object.entries(myScens()).filter(([, u]) => u.p.some(f => f.char === name) || u.roster?.includes(name)).map(([k]) => k);
 async function deleteChar() {
   const name = CURRENT;
-  if (CHAR_DEFS[name] || !await askYes(`Delete the character "${name}"?`, 'This cannot be undone.', ':delete: delete') || name !== CURRENT) return;
+  if (CHAR_DEFS[name]) return notice('Can\'t delete a built-in', `"${name}" ships with the app; revert it to undo your edits instead.`);
+  if (!await askYes(`Delete the character "${name}"?`, 'This cannot be undone.', ':delete: delete') || name !== CURRENT) return;
+  const used = scensUsing(name);
   delete DEFS[CURRENT]; delete CHARS[CURRENT];
   pickChar('stick');
+  if (used.length) notice('Deleted, but still named elsewhere', `"${name}" is gone, but these scenarios still name it and will fall back to another character when played: ${used.join(', ')}.`);
 }
 // a character export is a diff against its matching built-in by default (small, and what a diff viewer can use
 // directly) - like a git patch, not the whole file. full: the whole def anyway (the only option for a wholly new
@@ -579,8 +588,8 @@ function charStancePicker() {
     random: ['New random character: proportions, thickness, extra limbs, stance and stats', () => addChar(randomDef(makeRand(Math.random() * 1e9 | 0)))],
     copy: ['New character copied from this one', () => addChar(DEFS[CURRENT], CURRENT)],
     rename: ['Rename this character (a built-in one is copied under the new name)', renameChar],
-    revert: ['Throw away the edits of this built-in character (undoable)', revertChar],
-    delete: ['Delete this character (only your own ones; asks first, cannot be undone)', deleteChar],
+    ...CHAR_DEFS[CURRENT] ? { revert: ['Throw away the edits of this built-in character (undoable)', revertChar] }
+      : { delete: ['Delete this character (asks first, cannot be undone)', deleteChar] },
     import: ['Load a character JSON file as a new character', importChar],
     export: ['Download this character as a JSON file', exportChar],
   });
