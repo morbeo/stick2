@@ -10,7 +10,7 @@ const { Client, GatewayIntentBits, AttachmentBuilder, PermissionsBitField } = re
 const TOKEN = process.env.DISCORD_BOT_TOKEN;
 if (!TOKEN) throw new Error('set DISCORD_BOT_TOKEN');
 
-const SCENARIO_BY_COUNT = { 2: 'ai vs ai', 4: 'ai free-for-all' };
+const SCENARIO_BY_COUNT = { 2: 'ai vs ai', 3: 'ai 3-way', 4: 'ai free-for-all' };
 const OUT_DIR = path.join(__dirname, '..', 'out');
 const CONFIG_FILE = path.join(OUT_DIR, 'bot-config.json');
 
@@ -142,7 +142,6 @@ async function renderFight(chars, seed) {
 function parseFightCommand(text, roster) {
   const names = text.trim().split(/\s+/).filter(n => n.toLowerCase() !== 'vs');
   if (names.length < 2 || names.length > 4) throw new Error('name 2 to 4 fighters: `!fight hadoo sneeko` or `!fight random random random random`');
-  if (!SCENARIO_BY_COUNT[names.length]) throw new Error('fights support 2 or 4 fighters right now, not 3');
   return names.map(n => {
     if (n.toLowerCase() === 'random') return roster[Math.floor(Math.random() * roster.length)];
     const match = roster.find(c => c.toLowerCase() === n.toLowerCase());
