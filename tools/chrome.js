@@ -25,15 +25,19 @@ async function launch(url, args = []) {
   if (!bin) throw new Error('no Chrome found (set CHROME=/path/to/chrome)');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'stick2-chrome-'));
   const proc = spawn(bin, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--hide-scrollbars', '--no-first-run', '--no-default-browser-check',
-    '--no-sandbox', '--disable-dev-shm-usage', '--remote-debugging-port=0', `--user-data-dir=${dir}`, ...args, url], { stdio: 'ignore' });
+    '--no-sandbox', '--disable-dev-shm-usage', '--remote-debugging-port=0', `--user-data-dir=${dir}`, ...args, url], { stdio: ['ignore', 'ignore', 'pipe'] });
+  // kept in case Chrome dies before opening its port (missing shared libs, a crash, ...): the only way to see why
+  let stderr = ''; proc.stderr.on('data', d => { stderr += d; });
+  let spawnErr = null; proc.on('error', e => { spawnErr = e; }); // a bad path (ENOENT) throws here, not from DevToolsActivePort ever appearing
   // the profile goes once Chrome is gone (it writes to it until then); at process exit nothing async runs, so close waits a moment
   const rm = () => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} };
   proc.once('exit', rm);
   const close = () => { try { proc.kill(); } catch {} Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 300); rm(); };
   try {
     let port;
-    for (let i = 0; i < 100 && !port; i++) { try { port = +fs.readFileSync(path.join(dir, 'DevToolsActivePort'), 'utf8').split('\n')[0]; } catch { await new Promise(r => setTimeout(r, 100)); } }
-    if (!port) throw new Error('Chrome did not start');
+    for (let i = 0; i < 100 && !port && proc.exitCode === null && !spawnErr; i++) { try { port = +fs.readFileSync(path.join(dir, 'DevToolsActivePort'), 'utf8').split('\n')[0]; } catch { await new Promise(r => setTimeout(r, 100)); } }
+    if (spawnErr) throw spawnErr;
+    if (!port) throw new Error(`Chrome did not start${proc.exitCode !== null ? ` (exited ${proc.exitCode})` : ''}${stderr.trim() ? ': ' + stderr.trim().split('\n').slice(-5).join(' | ') : ''}`);
     const { ws, send } = await devtools(port);
     const js = async code => { const r = await send('Runtime.evaluate', { expression: code, awaitPromise: true, returnByValue: true });
       if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text); return r.result.value; };
