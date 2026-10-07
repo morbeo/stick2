@@ -185,9 +185,11 @@
   .card .linkbtn { align-self: flex-end; opacity: 0.35; padding: 1px 3px; }
   .card .linkbtn:hover, .card .linkbtn.on { opacity: 1; }
   .card .linkbtn.comparebtn.on { color: #3a7ca5; }
-  /* the welcome modal (src/welcome.js): wider than a usual .pop.modal (it needs room for a row of demo cards) */
-  .welcomebox { max-width: 760px; width: 92vw; max-height: 86vh; overflow: auto; }
-  .welcomebox .cards { width: auto; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  /* the welcome modal (src/welcome.js): wider than a usual .pop.modal (it needs room for a row of demo cards) -
+     .pop.modal.welcomebox, not just .welcomebox: .pop.modal's own max-width is two classes, beating one on specificity
+     regardless of source order or value, so a plain .welcomebox rule here would be silently overridden */
+  .pop.modal.welcomebox { max-width: 1400px; width: 95vw; max-height: 90vh; overflow: auto; }
+  .welcomebox .cards { width: auto; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
   .welcomecard { align-items: flex-start; text-align: left; gap: 4px; }
   .welcomecard canvas { width: 100%; height: auto; aspect-ratio: 120 / 108; background: #f3f0e8; border-radius: 2px; }
   .demogrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px; width: 100%; }
