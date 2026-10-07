@@ -202,6 +202,17 @@ const TOOLS = {
     } },
   pull_from_browser: { d: 'Bring the character currently being edited in the bridge-connected browser tab into this session (so list_characters, get_character, simulate etc. see it), overwriting a same-named one here. Needs start_bridge and an open tab.',
     run: async () => { const st = await needBridge().command('state'); return S.call('createCharacter', st.def, true); } },
+  // ---------- discovery ----------
+  search_tools: { d: 'Find tools by a word or two, matched against their name and description - for when you know roughly what you want but not its exact name (over 50 tools exist; tools/list shows all of them but isn\'t searchable).',
+    p: { q: str('a word or short phrase, e.g. "camera shake" or "disable character"') }, req: ['q'],
+    run: a => {
+      const q = a.q.toLowerCase().trim(), terms = q.split(/\s+/).filter(Boolean);
+      const hits = Object.entries(TOOLS).map(([name, t]) => {
+        const hay = `${name} ${t.d}`.toLowerCase(), hit = terms.every(w => hay.includes(w));
+        return hit ? { name, description: t.d, params: Object.keys(t.p || {}) } : null;
+      }).filter(Boolean);
+      return hits.length ? hits : { found: 0, tip: 'No match - try fewer or more general words, or see tools/list for the full set.' };
+    } },
 };
 
 // ---------- resources: the docs and the data shapes ----------
