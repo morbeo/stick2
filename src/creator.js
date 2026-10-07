@@ -5,10 +5,13 @@ const creator = { preview: 'showcase', opponent: 'self', controlDummy: false, w:
   exp: { kind: 'body', vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
 // quick picks shown as buttons in the preview bar; creator.preview itself can be any SCENARIOS key (scenButton picks from all of them)
 const PREVIEW_PRESETS = ['showcase', 'walk', 'ai vs ai', 'solo'];
-// the preview's scenario. controlDummy: your own keyboard drives the
-// opponent instead of its script/AI - the character being edited never reads live keys here, so there's no clash
+// the preview's scenario. controlDummy: your own keyboard drives the opponent instead of its script/AI - the
+// character being edited must never read live keys here (there's only one keyboard, and inFight() turns it on
+// globally for controlDummy, not just for b): force a off 'human' even if the picked scenario is one of the
+// human-vs-something ones (you vs dummy, you vs ai…), which previewing one would otherwise hand straight to a
 const previewScen = () => { const s = SCENARIOS[creator.preview] || SCENARIOS.showcase;
-  return { ...s, ...creator.controlDummy && s.b ? { b: 'human' } : null, init: w => { s.init?.(w); w.a.setStance(studio.stance, 'instant'); } }; };
+  return { ...s, ...s.a === 'human' ? { a: 'dummy' } : null, ...creator.controlDummy && s.b ? { b: 'human' } : null,
+    init: w => { s.init?.(w); w.a.setStance(studio.stance, 'instant'); } }; };
 // the opponent's character model for the main preview (not the body-experiment cells, which bring their own)
 const previewChars = () => [currentChar(), CHARS[creator.opponent] || currentChar()];
 // the changes panel's head-to-head option: the built-in fights your edited version directly (always ai vs ai - a
