@@ -34,6 +34,48 @@ const STAGES = {
     ctx.strokeStyle = '#b89868'; ctx.beginPath(); ctx.moveTo(-2000, g - 6); ctx.lineTo(W + 2000, g - 6); ctx.stroke();
     ctx.fillStyle = '#c9a877'; ctx.fillRect(-2000, -2000, 2020, 4000); ctx.fillRect(W - 20, -2000, 2000, 4000);
   } },
+  bridge: { name: 'bridge', tip: 'A stone bridge at full moon: night sky, stars, a pale moon and stone balustrades.', draw(ctx, w) {
+    const cfg = w.cfg, plane = cfg.plane, g = w.groundY;
+    const sky = ctx.createLinearGradient(0, -400, 0, g); sky.addColorStop(0, '#0e1430'); sky.addColorStop(0.6, '#1c2444'); sky.addColorStop(1, '#2c3252');
+    ctx.fillStyle = sky; ctx.fillRect(-2000, -2000, W + 4000, g + 2000);
+    ctx.fillStyle = '#eef0ff'; // a fixed star field: deterministic so it doesn't flicker frame to frame
+    for (let i = 0; i < 40; i++) { ctx.globalAlpha = 0.3 + (i % 5) * 0.12; ctx.fillRect((i * 137) % (W + 400) - 200, -380 + (i * 71) % 260, 2, 2); }
+    ctx.globalAlpha = 1;
+    const mx = W * 0.78, my = -300; // full moon with a soft halo
+    const halo = ctx.createRadialGradient(mx, my, 10, mx, my, 90); halo.addColorStop(0, 'rgba(233,236,255,.35)'); halo.addColorStop(1, 'rgba(233,236,255,0)');
+    ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(mx, my, 90, 0, 7); ctx.fill();
+    ctx.fillStyle = '#eef0f8'; ctx.beginPath(); ctx.arc(mx, my, 34, 0, 7); ctx.fill();
+    ctx.fillStyle = '#d7dcef'; ctx.beginPath(); ctx.arc(mx - 10, my - 6, 6, 0, 7); ctx.arc(mx + 8, my + 10, 4, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#4a5068'; ctx.lineWidth = 2;
+    if (plane !== '2d') {
+      ctx.fillStyle = '#5a5f78'; ctx.fillRect(-2000, g - ZMAX * ZS, W + 4000, ZMAX * ZS * 2);
+      if (plane === 'lanes') for (const l of [-1, 0, 1]) { ctx.beginPath(); ctx.moveTo(-2000, g + l * LANE * ZS); ctx.lineTo(W + 2000, g + l * LANE * ZS); ctx.stroke(); }
+    } else { ctx.beginPath(); ctx.moveTo(-2000, g); ctx.lineTo(W + 2000, g); ctx.stroke(); }
+    ctx.fillStyle = '#6b7088'; ctx.strokeStyle = '#3f4356'; ctx.lineWidth = 2; // stone balustrade posts along the bridge edge
+    for (let x = -40; x < W + 60; x += 70) { ctx.fillRect(x - 6, g - 46, 12, 46); ctx.strokeRect(x - 6, g - 46, 12, 46); ctx.beginPath(); ctx.arc(x, g - 46, 7, Math.PI, 0); ctx.fill(); ctx.stroke(); }
+    ctx.fillStyle = '#4a4e64'; ctx.fillRect(-2000, -2000, 2020, 4000); ctx.fillRect(W - 20, -2000, 2000, 4000);
+  } },
+  bamboo: { name: 'bamboo', tip: 'A misty bamboo forest, pale stalks fading into the distance behind darker ones up close.', draw(ctx, w) {
+    const cfg = w.cfg, plane = cfg.plane, g = w.groundY;
+    const sky = ctx.createLinearGradient(0, -400, 0, g); sky.addColorStop(0, '#dce8d8'); sky.addColorStop(1, '#eef2e4');
+    ctx.fillStyle = sky; ctx.fillRect(-2000, -2000, W + 4000, g + 2000);
+    const stalks = (n, spacing, top, col, lw) => { // deterministic placement: an index loop, no Math.random (must not flicker)
+      ctx.strokeStyle = col; ctx.lineWidth = lw;
+      for (let i = 0; i < n; i++) {
+        const x = -60 + ((i * spacing + (i % 3) * 23) % (W + 160));
+        ctx.beginPath(); ctx.moveTo(x, g + 4); ctx.lineTo(x, top); ctx.stroke();
+        for (let s = top + 14; s < g; s += 26) { ctx.beginPath(); ctx.moveTo(x - lw, s); ctx.lineTo(x + lw, s); ctx.stroke(); }
+      }
+    };
+    stalks(10, 95, -260, '#b7c9ac', 5); // misted, distant stalks
+    stalks(7, 140, -200, '#6f8f5a', 9); // closer, darker stalks
+    ctx.strokeStyle = '#5a6e48'; ctx.lineWidth = 2;
+    if (plane !== '2d') {
+      ctx.fillStyle = '#8fae78'; ctx.fillRect(-2000, g - ZMAX * ZS, W + 4000, ZMAX * ZS * 2);
+      if (plane === 'lanes') for (const l of [-1, 0, 1]) { ctx.beginPath(); ctx.moveTo(-2000, g + l * LANE * ZS); ctx.lineTo(W + 2000, g + l * LANE * ZS); ctx.stroke(); }
+    } else { ctx.beginPath(); ctx.moveTo(-2000, g); ctx.lineTo(W + 2000, g); ctx.stroke(); }
+    ctx.fillStyle = '#7fa06a'; ctx.fillRect(-2000, -2000, 2020, 4000); ctx.fillRect(W - 20, -2000, 2000, 4000);
+  } },
 };
 
 // ---------- props: scenery, placed by a scenario (scen.props: [{type, x, z?}]) ----------
