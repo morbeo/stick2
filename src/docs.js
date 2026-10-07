@@ -164,6 +164,7 @@ function docsFrame() {
   requestAnimationFrame(docsFrame);
 }
 // the address: #docs or #docs=topic opens the docs page, #mode=animate a mode, #embed=<slug|JSON> loads a fight for an <iframe> (src/scenarios.js),
+// #diff=<json> opens a character diff straight into the changes panel (src/studio.js, the panel's own "embed link" button),
 // #kitchensink opens every shared UI component on one page (src/kitchensink.js), for checking a theme change or a visual bug,
 // #theater drops the toolbars and side panel (any mode, not just play) - a clean demo view, e.g. gallery.html's theatrical variant
 function readHash() {
@@ -171,6 +172,7 @@ function readHash() {
   if (p.has('mode') && MODES[p.get('mode')]) setMode(p.get('mode'));
   if (p.has('docs')) openDocs(p.get('docs') || null, true);
   if (p.has('embed')) loadEmbedScenario(p.get('embed'));
+  if (p.has('diff')) loadEmbedDiff(p.get('diff'));
   if (p.has('kitchensink')) openKitchenSink();
   if (p.has('theater')) setTheater(true);
 }

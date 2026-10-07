@@ -207,16 +207,31 @@ function charExport(full) {
   return { format: 'stick2.character.diff', base: CURRENT, diff: d || {} };
 }
 function exportChar(clip, full) { (clip ? copyData : d => download(CURRENT + (full || !CHAR_DEFS[CURRENT] ? '' : '.diff') + '.json', d))(charExport(full)); }
+// reconstructs a full character def from a diff payload (format stick2.character.diff) - throws a readable message
+// if its base isn't a built-in here (an older roster, or a typo'd/tampered link)
+function fromCharDiff(d) {
+  const base = CHAR_DEFS[d.base];
+  if (!base) throw new Error(`This diff is against "${d.base}", which isn't a built-in here.`);
+  return applyObj(base, d.diff);
+}
 function importChar(clip) {
   (clip ? pasteJSON : openFile)((def, name) => {
     if (def.format === 'stick2.character.diff') {
-      const base = CHAR_DEFS[def.base];
-      if (!base) return notice('Unknown base character', `This diff is against "${def.base}", which isn't a built-in here.`);
-      name = def.base; def = applyObj(base, def.diff); // a diff always reconstructs under its own recorded base name, not the file's
+      let full; try { full = fromCharDiff(def); } catch (err) { return notice('Unknown base character', err.message); }
+      name = def.base; def = full; // a diff always reconstructs under its own recorded base name, not the file's
     }
     try { makeCharacter(def); addChar(def, name.replace(/\.(diff\.)?json$/, '')); } catch (err) { notice('Not a character file', err.message); }
   });
 }
+// ---------- #diff=<json> in the URL hash (readHash, src/docs.js): a direct link to a character diff, opened straight
+// into the character tab's changes panel - the same payload exportChar()/the changes panel's "embed link" produce
+function loadEmbedDiff(raw) {
+  let d; try { d = JSON.parse(raw); } catch (err) { return console.error('stick2: bad #diff value', err); }
+  if (d.format !== 'stick2.character.diff') return console.error('stick2: #diff is not a character diff');
+  let def; try { def = fromCharDiff(d); } catch (err) { return notice('Unknown base character', err.message); }
+  addChar(def, d.base); setMode('character'); openStage('changes');
+}
+const diffEmbedLink = d => `${location.origin}${location.pathname}#diff=${encodeURIComponent(JSON.stringify(d))}`;
 // a path-prefixed, readable line per leaf change in a diffObj()/diffArr() result - generic over whatever it's run on
 // (bones, moves, stances, gait, stats…), so a new field never needs its own formatting added here
 const fmtDiffVal = v => Array.isArray(v) ? JSON.stringify(v) : typeof v === 'object' && v !== null ? '{…}' : String(v);
@@ -292,7 +307,9 @@ function charDiffPanel() {
   wrap.append(stageHead('changes', 'What differs from the matching built-in character - changed bones in red on both bodies',
     button(':download: export diff', 'Export just this diff (the default character export)', () => exportChar(false), 'mini'),
     button(':download: export image', 'Download a PNG of this comparison - the bodies and the change list, for patch notes or docs', () =>
-      exportDiffImage(`${CURRENT}-changes.png`, [{ cv: cvBase, label: 'built-in' }, { cv: cvCur, label: 'yours' }], lines), 'mini')),
+      exportDiffImage(`${CURRENT}-changes.png`, [{ cv: cvBase, label: 'built-in' }, { cv: cvCur, label: 'yours' }], lines), 'mini'),
+    button(':content_copy: embed link', 'Copy a link that opens this exact diff, straight into this changes panel, for anyone (#diff=…)', () =>
+      navigator.clipboard?.writeText(diffEmbedLink(charExport(false))), 'mini')),
     h('div', { cls: 'bar' },
       h('div', {}, h('b', { textContent: 'built-in' }), cvBase),
       h('div', {}, h('b', { textContent: 'yours' }), cvCur)),
