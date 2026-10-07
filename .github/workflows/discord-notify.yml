@@ -21,18 +21,20 @@ jobs:
       - if: vars.DISCORD_NOTIFY_GIF != 'false'
         run: npm ci
       - name: Render a fight GIF
+        # chars/seed are derived from the commit SHA, so the same fight can be
+        # replayed later with: node tools/render-notify-gif.js <sha>
         if: vars.DISCORD_NOTIFY_GIF != 'false'
         id: gif
         env:
           CHROME: ${{ steps.chrome.outputs.chrome-path }}
-        run: echo "path=$(node tools/render-notify-gif.js)" >> "$GITHUB_OUTPUT"
+        run: echo "path=$(node tools/render-notify-gif.js ${{ github.sha }})" >> "$GITHUB_OUTPUT"
       - name: Post to Discord
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           GIF_PATH: ${{ steps.gif.outputs.path }}
         run: |
           PAYLOAD=$(jq -n \
-            --arg title "stick2 updated" \
+            --arg title "Hear ye, hear ye! stick2 updated" \
             --arg desc "${{ github.event.head_commit.message }}" \
             --arg url "${{ github.event.head_commit.url }}" \
             --arg author "${{ github.event.head_commit.author.name }}" \
