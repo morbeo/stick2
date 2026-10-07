@@ -221,7 +221,7 @@ function creatorCtx() {
 // vary body lives in the experiment tab (lab.kind 'body') now; a property's context menu can still jump straight there, pre-set to vary it
 function openBodyVary() { lab.kind = 'body'; setMode('experiment'); }
 // what the preview plays: under the preview (a lot of free space there), not the toolbar
-function previewBar() {
+function previewBar(cls = 'over pvbar') {
   const oppNames = ['self', ...Object.keys(CHARS)];
   const oppB = (() => {
     const choiceB = n => { const b = button(n, n === 'self' ? 'A copy of the character you\'re editing' : `Fight ${n} instead of a copy of yourself`,
@@ -233,7 +233,7 @@ function previewBar() {
   })();
   const controlB = toggle(':stadia_controller: you control it', 'Drive the opponent with your own keyboard instead of its script/AI - handy for holding it still, guarding, or moving it into a weapon or throw\'s reach',
     () => creator.controlDummy, v => { creator.controlDummy = v; creatorMode.restart(); });
-  return h('div', { cls: 'over pvbar' }, seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); panels(); }, mapVals(PREVIEWS, p => p[1])),
+  return h('div', { cls }, seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); panels(); }, mapVals(PREVIEWS, p => p[1])),
     creator.preview === 'impact' ? null : oppB, creator.preview === 'impact' ? null : controlB);
 }
 const setProp = (k, v) => edit(def => { for (const b of selDefs(def)) b[k] = v; }, selIds() + '.' + k);
@@ -513,9 +513,15 @@ const creatorMode = {
   preview: () => creator.expOn ? null : edLayout().pv,
   clipRects: () => creator.expOn ? cellRects(9, 3, fullArea()).map((r, i) => ({ key: creator.exp.cells[i], r })) : [{ key: 'preview', r: edLayout().pv }],
   split: () => !creator.expOn,
-  enter() { creator.w = creator.preview === 'impact' ? ragdollWorld() : newWorld(previewScen(), {}, 7, previewChars()); if (creator.expOn) buildExp(); },
+  enter() {
+    creator.w = creator.preview === 'impact' ? ragdollWorld() : newWorld(previewScen(), {}, 7, previewChars());
+    // the changes panel's "built-in" side: the same scenario/opponent, fighting as the matching built-in instead
+    const base = CHAR_DEFS[CURRENT];
+    creator.diffW = base && creator.preview !== 'impact' ? newWorld(previewScen(), {}, 7, [makeCharacter(base), CHARS[creator.opponent] || makeCharacter(base)]) : null;
+    if (creator.expOn) buildExp();
+  },
   restart() { creatorMode.enter(); },
-  worlds: () => creator.expOn ? creator.exp.cells.map(c => c.w) : [creator.w],
+  worlds: () => creator.expOn ? creator.exp.cells.map(c => c.w) : stageOpen() === 'changes' && creator.diffW ? [creator.w, creator.diffW] : [creator.w],
   render: creatorRender,
   ctxBar: creatorCtx,
   side: () => creator.expOn ? expPanel() : bodyPanel(),
