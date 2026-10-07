@@ -198,6 +198,8 @@ const BASE_SCENARIOS = {
   'you vs ai': { a: 'human', b: 'ai' },
   'ai vs ai': { a: 'ai', b: 'ai' },
   'ai vs dummy': { a: 'ai', b: 'dummy' },
+  // solo: just the one character, standing still - no opponent at all (b is hidden offstage, never seen or hit)
+  solo: { a: 'dummy', b: 'dummy', bx: 2000, init: w => { w.b.hidden = true; } },
   'random AI vs random AI': { a: 'ai', b: 'ai', chars: ['random', 'random'] },
   // 'random player' is stubbed with the engine AI for now: a placeholder until there's a second local keyboard stream to control it
   'random player vs random player': { a: 'human', b: 'ai', chars: ['random', 'random'] },
