@@ -536,19 +536,17 @@ function drawThumb(cv, ch, pose = ch.poses.stance, cw = 60, chh = 64, tint = nul
 // hovering a card plays its select animation (the 'select' move, if it has one) once, then settles into its stance
 // pose - like the combos editor's hover preview (peekSeq), but animation-only (no World) and into the card's own
 // canvas in place, since a popup can show dozens of these at once
-let cardPeek = null; // { cv, raf } - only the hovered card animates; every other card stays a still thumbnail
+let cardPeek = null; // { cv, stop } - only the hovered card animates; every other card stays a still thumbnail
 function startCardPreview(cv, k) {
   stopCardPreview();
   const ch = CHARS[k], m = ch.moves.select, wch = m ? withWeapon(ch, m) : null, t0 = performance.now();
-  const loop = () => {
-    if (cardPeek?.cv !== cv) return;
+  const stop = rafLoop(cv, () => {
     const t = (performance.now() - t0) / 1000;
     drawThumb(cv, wch && t < total(m) ? wch : ch, wch && t < total(m) ? samplePose(wch, m, t) : ch.poses.stance);
-    cardPeek.raf = requestAnimationFrame(loop);
-  };
-  cardPeek = { cv, raf: requestAnimationFrame(loop) };
+  });
+  cardPeek = { cv, stop };
 }
-function stopCardPreview() { if (cardPeek) cancelAnimationFrame(cardPeek.raf); cardPeek = null; }
+function stopCardPreview() { cardPeek?.stop(); cardPeek = null; }
 // a character as a card; by default clicking it makes it the one every mode edits
 function charCard(k, pick = pickChar, on = k => CURRENT === k) {
   const cv = h('canvas'), b = h('button', { cls: 'card', tip: `${CHAR_DEFS[k] ? 'Built-in' : 'Your character'}: ${k}${isDisabled(k) ? ' · disabled (hidden from pickers and random picks)' : ''} · ${CHARS[k].bones.length} bones · speed ${CHARS[k].stats.speed} · click: use it in every mode`,
@@ -568,9 +566,7 @@ function showStancePreview(btn, i) {
   const cv = h('canvas'), box = h('div', { cls: 'pop stancepv' }, cv);
   document.body.append(box);
   drawThumb(cv, stanceChar(currentChar(), i), undefined, 70, 76);
-  const r = btn.getBoundingClientRect();
-  box.style.left = Math.max(4, Math.min(r.left, innerWidth - box.offsetWidth - 8)) + 'px';
-  box.style.top = (r.bottom + 4) + 'px';
+  placeNear(box, btn.getBoundingClientRect());
   stancePreview = box;
 }
 function hideStancePreview() { stancePreview?.remove(); stancePreview = null; }
@@ -753,7 +749,7 @@ function colorRow() {
   const curCol = () => { const b = stanceOnly() && stanceBody(); return (b && 'col' in b ? b.col : DEFS[CURRENT].col) || null; };
   const cur = () => Object.keys(CHAR_COLS).find(k => CHAR_COLS[k] === curCol()) || '';
   const set = v => edit(def => { const target = stanceOnly() ? editBody(def) : def; if (v) target.col = v; else delete target.col; });
-  const picker = h('input', { type: 'color', tip: 'Any colour, not just the presets', onchange: e => set(e.target.value) });
+  const picker = colorInput(curCol() || '#222222', set, 'Any colour, not just the presets');
   reg(picker, () => { picker.value = curCol() || '#222222'; });
   return h('div', { cls: 'row', tip: 'This character\'s own colour. Auto: coloured by player slot instead, like every character before this existed.' },
     h('span', {}, ...rich(':palette: colour')), h('span', { cls: 'bar' },

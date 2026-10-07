@@ -123,6 +123,42 @@ function slider(label, { min, max, step }, get, set, tip) {
     val.classList.toggle('warn', r === 'warn'); val.classList.toggle('danger', r === 'danger'); val.dataset.tip = tipOf(v); });
   return row;
 }
+// a compact number field (no slider: just type a value), Enter/blur commits; an invalid value is dropped, not set
+const numInput = (v, set, title, w = 52) => h('input', { type: 'number', value: fmt(v), tip: title, style: `flex:none;width:${w}px`,
+  onkeydown: e => e.stopPropagation(), onchange: e => { const n = parseFloat(e.target.value); if (Number.isFinite(n)) set(n); } });
+// any exact colour, live as it's dragged (not just on commit, like a slider's own input event)
+const colorInput = (v, set, title) => h('input', { type: 'color', value: /^#/.test(v) ? v : '#888888', tip: title || 'Colour', style: 'flex:none;width:28px;padding:0',
+  oninput: e => set(e.target.value) });
+// a draw callback re-run every animation frame, stopping on its own once el leaves the page (or draw itself returns
+// false, for any other reason to stop) - the raf-id bookkeeping behind every hover/live preview in the app (character
+// cards, moves, scenario cards, the welcome modal's demos). Returns stop(), for callers that also need to cancel it
+// early themselves (e.g. a mouseleave, while el is still very much connected)
+function rafLoop(el, draw) {
+  let raf = requestAnimationFrame(function loop() {
+    if (!el.isConnected || draw() === false) return;
+    raf = requestAnimationFrame(loop);
+  });
+  return () => cancelAnimationFrame(raf);
+}
+// type → fuzzy-ranked results (paletteRank, palette.js) → click one to pick it: the "add from a search" idiom (the
+// grid's own variable picker, the scenario builder's move-limit and settings finders). text(c): what to search and
+// rank by; render(c, pick): the clickable element for one match - pick() both runs onPick(c) and clears/refills the
+// list, ready to add another. listCls: 'plist' for a dropdown of name+tip rows (pitem), 'bar' for a flat row of
+// buttons - the two styles already in use (the palette itself, ⌘K, stays its own thing: it also needs arrow-key
+// navigation and a mix of kinds in one list, which this simpler one-shot "search and add" idiom doesn't)
+function fuzzyFinder({ candidates, text = String, onPick, placeholder = 'search…', tip = 'Fuzzy search; click a result to pick it', limit = 8, listCls = 'plist', render }) {
+  const list = h('div', { cls: listCls });
+  const fill = () => {
+    const q = inp.value.trim();
+    const shown = candidates().map(c => [paletteRank(q, { name: text(c), tip: '', kind: '' }), c])
+      .filter(([r]) => r > 0).sort((a, b) => b[0] - a[0]).slice(0, limit).map(([, c]) => c);
+    list.replaceChildren(...shown.map(c => render(c, () => { onPick(c); inp.value = ''; fill(); })));
+  };
+  const inp = h('input', { cls: 'macro', placeholder, tip,
+    oninput: fill, onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { inp.value = ''; fill(); } } });
+  fill();
+  return h('div', {}, inp, list);
+}
 // a variable row whose name starts an experiment with that variable when clicked (dotted underline, a flask on hover)
 function expLink(row, what, fn) {
   const n = row.firstChild;
@@ -194,6 +230,14 @@ function subFold(name, els) {
   return sec;
 }
 
+// clamps el below-left of anchor rect r (a real getBoundingClientRect(), or a synthetic one for a cursor position -
+// top/bottom equal, gap: 0 - see peekSeq, editor.js), flipping above it if it would run off the bottom of the page.
+// shared by popup(), showStancePreview() (studio.js) and the combos/move-table hover preview (peekSeq, editor.js)
+function placeNear(el, r, { flip = true, gap = 4 } = {}) {
+  const w = el.offsetWidth, h = el.offsetHeight;
+  el.style.left = Math.max(4, Math.min(r.left, innerWidth - w - 8)) + 'px';
+  el.style.top = (flip && r.bottom + h + gap > innerHeight ? Math.max(4, r.top - h - gap) : r.bottom + gap) + 'px';
+}
 // ---------- popup: a floating panel under a button; click elsewhere (or the button again) to close ----------
 let pop = null;
 function popup(anchor, ...content) {
@@ -203,9 +247,7 @@ function popup(anchor, ...content) {
   pop = h('div', { cls: 'pop' }, ...content);
   pop.anchor = anchor;
   document.body.append(pop);
-  const r = anchor.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
-  pop.style.left = Math.max(4, Math.min(r.left, innerWidth - pw - 8)) + 'px';
-  pop.style.top = (r.bottom + ph + 8 > innerHeight ? Math.max(4, r.top - ph - 4) : r.bottom + 4) + 'px';
+  placeNear(pop, anchor.getBoundingClientRect());
 }
 function closePop() { pop?.remove(); pop = null; }
 addEventListener('mousedown', e => { if (pop && !pop.contains(e.target) && !pop.anchor.contains(e.target)) closePop(); });

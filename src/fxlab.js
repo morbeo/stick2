@@ -149,7 +149,7 @@ function fxPreviewSide() {
     fxState.part !== 'segment' ? h('div', { cls: 'bar' }, h('span', { textContent: 'character' }), fxCharButton()) : null,
     fxState.part !== 'segment' ? h('div', { cls: 'bar' }, h('span', { textContent: 'plays' }), fxAnimButton()) : null,
     h('div', { cls: 'bar' }, h('span', { textContent: 'background' }),
-      h('input', { type: 'color', value: fxState.bg, tip: 'Preview-only background colour (not saved with the look)', oninput: e => { fxState.bg = e.target.value; } }),
+      colorInput(fxState.bg, v => { fxState.bg = v; }, 'Preview-only background colour (not saved with the look)'),
       ...['#f3f0e8', '#ffffff', '#222222', '#17304a'].map(c => {
         // setRich (ui.js) auto-toggles .ico based on the label being a pure icon code; an empty label doesn't match
         // that and would strip it right back off, so it's added after button() returns instead of passed as a class
