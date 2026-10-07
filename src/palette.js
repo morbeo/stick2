@@ -1,5 +1,5 @@
 'use strict';
-// ---------- command palette (⌘K): every mode, toolbar tool, key action, table (moves, inputs, combos, bones), character, move and setting, found by typing ----------
+// ---------- command palette (⌘K): every mode, toolbar tool, key action, table (moves, inputs, combos, bones), character, scenario, move and setting, found by typing ----------
 // entries are gathered when it opens, so they follow the current mode's toolbar; ↑ ↓ pick, Enter runs, Esc closes
 function paletteEntries() {
   const tipName = t => (t || '').split(/[:·(]/)[0].trim();
@@ -39,7 +39,16 @@ function paletteEntries() {
     { kind: 'action', name: 'copy embed link', tip: 'Copy a link that embeds the current scenario, pre-loaded (paste as an <iframe> src)', run: () => { const u = curU(); if (u) navigator.clipboard?.writeText(embedLink(u)); } },
     { kind: 'action', name: 'kitchen sink', tip: 'Every shared UI component on one page, for checking a theme change or hunting a visual bug', run: () => openKitchenSink() },
     ...Object.keys(DEFS).map(c => ({ kind: 'character', name: c, tip: 'Use this character in every mode', run: () => pickChar(c) })),
+    ...Object.keys(SCENARIOS).map(k => ({ kind: 'scenario', name: k, tip: scenTip(SCENARIOS[k]), run: () => {
+      if (mode() !== labMode || lab.mode === 'gallery') setMode('play');
+      lab.scen = k; lab.playback = lab.branch = null; build(); panels();
+    } })),
     ...Object.keys(currentChar().moves).map(n => ({ kind: 'move', name: n, tip: 'Open it in the animate editor', run: () => openMove(n) })),
+    ...Object.keys(SOUNDS).map(n => ({ kind: 'sound', name: n, tip: 'Open it in the sounds editor', run: () => { setMode('sounds'); soundSel = n; panels(); } })),
+    ...Object.keys(FX_LOOKS).map(n => ({ kind: 'look', name: n, tip: FX_LOOKS[n], run: () => { setMode('fx'); fxState.sel = n; panels(); } })),
+    ...Object.keys(myTracks).map(n => ({ kind: 'track', name: n, tip: 'Open it in the tracker', run: () => { setMode('tracker'); trackSel = n; panels(); } })),
+    ...Object.keys(PROPS).map(n => ({ kind: 'prop', name: n, tip: 'Open it in the prop editor', run: () => { setMode('props'); propSel = n; panels(); } })),
+    ...Object.keys(WEAPONS).map(n => ({ kind: 'weapon', name: n, tip: 'Open it in the weapon editor', run: () => { setMode('weapons'); weaponSel = n; panels(); } })),
     ...SCHEMA.filter(s => !Array.isArray(s)).map(s => ({ kind: 'setting', name: s.k, tip: s.tip, run: DISPLAY.includes(s.k) ? () => debugPanel(null, debugBtn()) : () => {
       if (mode() !== labMode || lab.mode === 'gallery') setMode('play'); // the gallery shows the move panel instead
       lab.q = s.k; panels();
@@ -65,7 +74,7 @@ function openPalette() {
       h('span', { cls: 'pk', textContent: e.kind }), h('b', { textContent: e.name }), h('span', { cls: 'pt' }, ...rich(e.tip || '')), e.key && h('kbd', { textContent: e.key }))));
     if (!shown.length) list.append(h('div', { cls: 'note', textContent: 'nothing matches' }));
   };
-  const inp = h('input', { placeholder: 'type a mode, tool, table, combos, move, character or setting…', oninput: () => { sel = 0; fill(); },
+  const inp = h('input', { placeholder: 'type a mode, tool, table, combos, move, character, scenario or setting…', oninput: () => { sel = 0; fill(); },
     onkeydown: e => {
       e.stopPropagation();
       if (e.key === 'Escape') closePalette();
