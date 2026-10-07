@@ -20,6 +20,7 @@ const BONE = {
   dangle: 0,           // how much the bone swings with the body's motion: trails behind a run, lifts in a fall (tails, scarves)
   whip: 0,             // how much it lags behind a fast-turning parent joint, then springs back past straight (flails, nunchucks)
   alpha: 1,            // visibility: 0 hides it (and everything below it: no draw, no hurtbox, no part in chains), between draws it translucent
+  curve: 0,            // bows the drawn line into a quadratic curve: fraction of its length the midpoint bulges sideways
 };
 // a bone (or an ancestor) at alpha 0, or flagged hidden directly (older data): no draw, no hurtbox, no part in chains
 function applyHidden(bones) {
@@ -1028,7 +1029,15 @@ function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
     if (a < 1) { ctx.save(); ctx.globalAlpha *= a; }
     if (b.shape === 'circle') { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(e[0], e[1], b.len + extra / 2, 0, 7); ctx.fill(); }
     else if (b.role === 'weapon') drawWeapon(ctx, b, o, e, extra || tint?.(b) ? c : null, extra);
-    else { ctx.strokeStyle = c; ctx.lineWidth = thick + extra; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0], e[1]); ctx.stroke(); }
+    else {
+      ctx.strokeStyle = c; ctx.lineWidth = thick + extra; ctx.beginPath(); ctx.moveTo(o[0], o[1]);
+      if (b.curve) {
+        const dx = e[0] - o[0], dy = e[1] - o[1], l = Math.hypot(dx, dy) || 1;
+        const mx = (o[0] + e[0]) / 2 - (dy / l) * b.curve * l, my = (o[1] + e[1]) / 2 + (dx / l) * b.curve * l;
+        ctx.quadraticCurveTo(mx, my, e[0], e[1]);
+      } else ctx.lineTo(e[0], e[1]);
+      ctx.stroke();
+    }
     if (a < 1) ctx.restore();
   }
 }
