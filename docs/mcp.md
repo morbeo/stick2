@@ -27,7 +27,7 @@ Any other MCP client: run `node tools/mcp.js` (or `npm run mcp`) from the repo. 
 |---|---|
 | `list_characters`, `get_character` | the roster, and one character's whole definition |
 | `list_moves` | a character's moves with frame data, damage, height, flags and the inputs that play them |
-| `create_character`, `edit_character`, `edit_move` | add or change characters; checked by compiling them, so a broken one changes nothing. `edit_character` takes a JSON merge patch; bones can be patched by id |
+| `create_character`, `edit_character`, `edit_move`, `delete_character`, `rename_character` | add, change, remove or rename a character made or edited this session; checked by compiling them, so a broken one changes nothing. `edit_character` takes a JSON merge patch; bones can be patched by id. Built-ins can't be deleted or renamed |
 | `list_settings`, `get_settings`, `set_settings`, `reset_settings` | the settings by group, with defaults, ranges and tips; values are checked against their spec |
 | `list_scenarios` | built-in scenarios and those from a loaded profile |
 | `create_scenario`, `edit_scenario`, `delete_scenario` | save a reusable "my scenario" (checked by building a fight from it), change one with a merge patch, or remove it; built-ins can't be edited or deleted |

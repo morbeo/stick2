@@ -54,6 +54,15 @@ test('characters and moves: the built-ins, a definition, frame data; a broken ed
   assert.equal((await s.call('edit_character', { name: 'longlegs', patch: { bones: { thighF: { len: 30 } }, speed: 1.2 } })).json.bones, def.bones.length);
   assert.equal((await s.call('get_character', { name: 'longlegs' })).json.bones.find(b => b.id === 'thighF').len, 30);
   assert.equal((await s.call('edit_move', { char: 'longlegs', name: 'jab', move: { damage: 9 }, merge: true })).json.damage, 9);
+  const noDel = await s.call('delete_character', { name: 'stick' });
+  assert.ok(noDel.isError && /built-ins can't be deleted/.test(noDel.content[0].text), noDel.content[0].text);
+  const noRen = await s.call('rename_character', { from: 'stick', to: 'sticky' });
+  assert.ok(noRen.isError && /built-ins can't be renamed/.test(noRen.content[0].text), noRen.content[0].text);
+  assert.equal((await s.call('rename_character', { from: 'longlegs', to: 'longshanks' })).json.name, 'longshanks');
+  assert.ok((await s.call('get_character', { name: 'longlegs' })).isError, 'the old name is gone');
+  assert.equal((await s.call('get_character', { name: 'longshanks' })).json.bones.find(b => b.id === 'thighF').len, 30, 'the edits moved with it');
+  assert.equal((await s.call('delete_character', { name: 'longshanks' })).json.deleted, 'longshanks');
+  assert.ok((await s.call('get_character', { name: 'longshanks' })).isError, 'deleted for good');
 });
 
 test('settings: checked against their spec (type, options; numbers unlimited, warned outside the usual range), set, read back and reset', async () => {

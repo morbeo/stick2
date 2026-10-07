@@ -182,6 +182,20 @@ function inside() {
       MCP.defs[n] = def; CHARS[n] = makeCharacter(def);
       return move === null ? { deleted: name } : MCP.listMoves(n).find(m => m.name === name);
     },
+    deleteCharacter(n) {
+      if (!MCP.defs[n]) fail(`no character "${n}" made or edited this session to delete (list_characters; built-ins can't be deleted)`);
+      delete MCP.defs[n]; delete CHARS[n];
+      if (CURRENT === n) CURRENT = 'stick';
+      return { deleted: n };
+    },
+    renameCharacter(from, to) {
+      if (!MCP.defs[from]) fail(`"${from}" is not a character made or edited this session (list_characters; built-ins can't be renamed)`);
+      if (CHARS[to]) fail(`"${to}" is already a character`);
+      MCP.defs[to] = { ...MCP.defs[from], name: to }; CHARS[to] = makeCharacter(MCP.defs[to]);
+      delete MCP.defs[from]; delete CHARS[from];
+      if (CURRENT === from) CURRENT = to;
+      return { name: to };
+    },
 
     // ---------- scenarios and fights ----------
     listScenarios: () => Object.entries(SCENARIOS).map(([name, s]) => ({ name, a: ctlName(s.a), b: ctlName(s.b), fighters: 2 + (s.more?.length || 0),
