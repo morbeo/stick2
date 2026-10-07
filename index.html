@@ -179,6 +179,11 @@
   /* the grid's own select step (one click), distinct from .on (actually in use elsewhere): an outline, not an invert,
      so it reads as "picked, click again to open" rather than "this is what's currently loaded" */
   .card.gridsel { outline: 2px solid #3a7ca5; outline-offset: -2px; }
+  /* a card's own small actions (copy link, compare on radar): in normal flow, not the .gfield overlay scheme (that's
+     pointer-events:none and corner-anchored - these need to be clickable and never collide with a shown variable) */
+  .card .linkbtn { align-self: flex-end; opacity: 0.35; padding: 1px 3px; }
+  .card .linkbtn:hover, .card .linkbtn.on { opacity: 1; }
+  .card .linkbtn.comparebtn.on { color: #3a7ca5; }
   .tree { display: flex; align-items: center; gap: 2px; margin: 1px 0; }
   .tree button { padding: 0 6px; } button.twist, span.twist { width: 18px; padding: 0; border: 0; background: none; }
   .vname { cursor: pointer; text-decoration: underline dotted #aaa; text-underline-offset: 3px; }
