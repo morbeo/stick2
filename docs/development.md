@@ -23,6 +23,7 @@ How the code is laid out, and the tools that build its generated files.
 | `node tools/social.js` | composites a few of the screenshots into `docs/img/social.png`, the GitHub repo's social preview image |
 | `node tools/mcp.js [--serve PORT]` | the MCP server (`npm run mcp`): fights, settings, characters, scenarios, sounds, fx looks, the tracker, replays and pictures over MCP; `--serve` also serves the app for the live bridge (see [MCP server](mcp.md)) |
 | `DISCORD_BOT_TOKEN=... node tools/discord-bot.js` | the Discord fight bot (`npm run discord-bot`); `tools/deploy-bot.sh` installs it as a systemd user service (see [MCP server → The Discord bot](mcp.md#the-discord-bot)) |
+| `npm run discord-stickers [name …]` | renders flashy special-move/transformation clips to `out/discord-stickers/*.png`, animated and sized for Discord's sticker upload (320×320, under 500 KB; no name = every sticker) |
 | `npm run itch` | packs `dist/stick2-itch.zip` for itch.io: `index.html`, `docs.html`, `src/`, `fonts/` and `LICENSE` (see [Publishing on itch.io](#publishing-on-itchio)) |
 | `npm run itch:push` | runs the tests, packs the zip and uploads it with butler to `morbeo/stick2:html`, versioned by the commit (refuses uncommitted changes) |
 | `npm run itch:assets` | writes a cover, banner, page/embed backgrounds, a favicon and a logo to `out/itch/`, drawn from the app's own code (see [Publishing on itch.io](#publishing-on-itchio)) |
@@ -67,4 +68,12 @@ Notes for the itch.io page:
 ## Publishing to Discord
 
 - `.github/workflows/discord-notify.yml` posts the commit message and SHA to a Discord webhook (the `DISCORD_WEBHOOK` repo secret) on every push to `master` — no manual step.
-- The fight bot (`tools/discord-bot.js`, a separate always-on process) is unrelated to that workflow: see [MCP server → The Discord bot](mcp.md#the-discord-bot).
+- `.github/workflows/discord-feature-request.yml` posts every new `enhancement`-labeled issue to the `#feature-requests` channel (the `DISCORD_FEATURE_REQUESTS_WEBHOOK` repo secret) — also no manual step. Point that secret at a webhook scoped to `#feature-requests` before relying on it.
+- The fight bot (`tools/discord-bot.js`, a separate always-on process) is unrelated to either workflow: see [MCP server → The Discord bot](mcp.md#the-discord-bot).
+
+### Feature request guidelines (`#feature-requests`)
+
+- File the request on GitHub first (use the "Feature request" issue template) — it auto-posts to the channel, so GitHub stays the single source of truth and discussion doesn't fork across two places.
+- If you want to discuss an idea before it's fleshed out enough for an issue, post in `#feature-requests` directly, tag it with the area it touches (character / move / fx / editor / ui), and open the GitHub issue once it firms up — link back to the Discord message in the issue body.
+- Don't open duplicate issues for the same idea just to "also" post it in Discord — react/reply on the existing bot post instead.
+- Keep the request scoped to one idea per issue/message; bundle only tightly related tweaks (e.g. "add X move" plus "give it an icon").

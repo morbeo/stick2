@@ -7,6 +7,7 @@
     "itch:assets": "node tools/itch-assets.js",
     "mcp": "node tools/mcp.js",
     "discord-bot": "node tools/discord-bot.js",
+    "discord-stickers": "node tools/discord-stickers.js",
     "itch:push": "npm test && node tools/itch.js --push",
     "coverage": "node --test --experimental-test-coverage --test-coverage-include='src/**' tests/*.test.js",
     "coverage:browser": "COVERAGE=1 node tests/browser.js",
