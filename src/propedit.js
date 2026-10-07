@@ -138,6 +138,16 @@ const PROP_COLS = [[n => PROPS[n].size, 'size'], [n => PROPS[n].h, 'h'], [n => P
 function propPicker() {
   return pickerList(propView, Object.keys(PROPS), propSel, n => { propSel = n; panels(); }, propCanvas, n => n in BASE_PROPS, PROP_COLS);
 }
+// a compact "what changed" block for a built-in prop/weapon/etc: no body or animation to show for these (just a
+// few flat fields plus shapes), so the generic dotted-path list (objdiff.js) on its own is enough
+function assetDiffBlock(base, cur, label) {
+  const d = diffObj(base, cur);
+  if (!d) return null;
+  const lines = describeDiff(d);
+  return h('div', {}, h('div', { cls: 'bar' }, h('span', { cls: 'note', textContent: 'changed from the built-in:' }),
+    button(':content_copy: copy diff', `Copy this ${label}'s diff as JSON`, () => copyData({ format: `stick2.${label}.diff`, diff: d }), 'mini')),
+    h('pre', { cls: 'note', textContent: lines.join('\n') }));
+}
 function propFields(name, refill) {
   const p = PROPS[name], built = name in BASE_PROPS, set = patch => { saveProp(name, { ...PROPS[name], ...patch }); refill(); };
   const nm = built ? h('b', { textContent: name }) : h('input', { cls: 'macro', value: name, tip: 'Rename this prop', onkeydown: e => e.stopPropagation(),
@@ -146,6 +156,7 @@ function propFields(name, refill) {
     h('div', { cls: 'bar' }, nm, built ? h('span', { cls: 'note', textContent: 'built-in — tunable, revert to go back' }) : null,
       button(built ? ':restart_alt: revert' : ':delete: delete', built ? `Back to ${name}'s shipped values` : `Delete ${name}`,
         () => { resetProp(name); if (!built) propSel = null; refill(); })),
+    built ? assetDiffBlock(BASE_PROPS[name], p, 'prop') : null,
     propEditCanvas(p.shapes, () => set({ shapes: p.shapes }), p.bg),
     h('p', { cls: 'note', textContent: 'drag a dot to reposition or resize a shape' }),
     h('div', { cls: 'bar' }, h('span', { textContent: 'preview background' }), colorInput(p.bg || '#f3f0e8', v => set({ bg: v }), 'Background behind this prop\'s own preview (cosmetic only)'),
@@ -202,6 +213,7 @@ function weaponFields(name, refill) {
     h('div', { cls: 'bar' }, nm, built ? h('span', { cls: 'note', textContent: 'built-in — tunable, revert to go back' }) : null,
       button(built ? ':restart_alt: revert' : ':delete: delete', built ? `Back to ${name}'s shipped values` : `Delete ${name}`,
         () => { resetWeapon(name); if (!built) weaponSel = null; refill(); })),
+    built ? assetDiffBlock(BASE_WEAPONS[name], w, 'weapon') : null,
     h('div', { cls: 'bar' }, weaponCanvas(name), weaponHandPreview(name)),
     h('div', { cls: 'bar' }, h('span', { textContent: 'preview background' }), colorInput(w.bg || '#f3f0e8', v => set({ bg: v }), 'Background behind this weapon\'s own preview (cosmetic only)'),
       w.bg ? button(':restart_alt:', 'Back to the default background', () => set({ bg: undefined }), 'mini') : null),
