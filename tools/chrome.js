@@ -9,7 +9,7 @@ const findChrome = () => process.env.CHROME || ['/Applications/Google Chrome.app
 // so a crash between writing DevToolsActivePort and actually opening the HTTP endpoint fails fast with the reason,
 // instead of silently burning the whole retry budget on a process that's already gone
 async function devtools(port, proc, getStderr) {
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 150; i++) {
     if (proc?.exitCode != null) break;
     try { const ws = new WebSocket((await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(t => t.type === 'page').webSocketDebuggerUrl);
       await new Promise((ok, no) => { ws.onopen = ok; ws.onerror = no; });
