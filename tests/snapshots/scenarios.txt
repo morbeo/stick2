@@ -68,6 +68,7 @@ ai 1v3         hits 10 blocks 0 hp 14.6 100.0 x 92 48
 ai free-for-all hits 12 blocks 0 hp 49.1 64.0 x 640 645
 ai vs waves    hits 5 blocks 0 hp 52.2 100.0 x 446 534
 ai survival    hits 6 blocks 0 hp 50.5 50.0 x 496 533
+ai rumble      hits 11 blocks 0 hp 57.1 46.9 x 394 409
 sandwich       hits 5 blocks 0 hp 100.0 77.4 x 330 637
 showcase       hits 5 blocks 0 hp 100.0 54.4 x 754 715
 pick up & slash hits 3 blocks 0 hp 100.0 65.3 x 413 466

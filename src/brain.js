@@ -301,6 +301,10 @@ const BASE_SCENARIOS = {
   // survival (Survival settings): one enemy after another without end, tougher over time and with every one down
   'survival': { a: 'human', b: 'ai', survival: true },
   'ai survival': { a: 'ai', b: 'ai', survival: true },
+  // royal rumble (Rumble settings): starts with rumbleStart fighters, each its own foe; a fresh one (never repeating)
+  // runs in whenever fewer than rumbleThreshold stand, until the pool runs out — then it's last one standing
+  'rumble': { a: 'human', b: 'ai', rumble: true },
+  'ai rumble': { a: 'ai', b: 'ai', rumble: true },
   'sandwich': { a: ['punch', 0.13, 'punch', 0.13, 'kick', 0.7, 'punch', 0.13, 'punch', 0.13, 'kick'], b: 'dummy', bx: 372, more: [{ c: 'dummy', x: 285, team: 1 }], period: 3.4 },
   // punches, a kick, a sweep, an air kick, a dash into a grab and throw, a special, then backs off
   'showcase': { a: ['!punch', 0.13, 'punch', 0.13, 'kick', 0.9, '!down+kick', 1.1, 'hop', 0.12, 'kick', 0.5, 'fwd', 0.05, 'fwd', 0.25, '!punch+guard', 0.8, 'special', 0.6, { hold: 'back', t: 0.6 }], b: 'dummy', ax: 250, bx: 420, period: 8 },

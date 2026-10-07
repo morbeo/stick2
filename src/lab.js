@@ -360,8 +360,8 @@ function drawScope() {
 // play's fighters: P1, P2, P3… by name, null = the character being edited (P3 on: the same as P2); a scenario's own chars win
 const pickName = i => CHARS[lab.chars[i]] ? lab.chars[i] : i >= 2 ? pickName(1) : CURRENT;
 const playChars = () => lab.chars.some(Boolean) ? Array.from({ length: Math.max(2, lab.chars.length) }, (_, i) => CHARS[pickName(i)]) : null;
-// how many fighters the scenario starts with (waves, survival: you and the first enemy, P2)
-const fighterCount = s => s.waves || s.survival ? 2 : 2 + (s.more?.length || 0);
+// how many fighters the scenario starts with (waves, survival, rumble: you and the first enemy, P2)
+const fighterCount = s => s.waves || s.survival || s.rumble ? 2 : 2 + (s.more?.length || 0);
 function fighterPick(i) {
   const set = v => { lab.chars[i] = v; build(); }, cv = h('canvas'), name = () => pickName(i);
   const who = i === 0 ? 'the fighter you play (the left one)' : i === 1 ? 'the opponent' : 'an extra fighter (unset: the same as P2)';
@@ -601,6 +601,8 @@ function labCtx() {
   if (lab.mode === 'play' && SCENARIOS[lab.scen]?.waves) els.push(grp('waves', SPEC.waves.tip + ' Changing it starts over at wave 1',
     seg(SPEC.waves.opts, () => CFG.waves, v => { setCfg({ waves: v }); mode().restart(); }, SPEC.waves.optTips),
     toggle(':casino: mixed', SPEC.waveMix.tip, () => CFG.waveMix, v => { setCfg({ waveMix: v }); mode().restart(); })));
+  if (lab.mode === 'play' && SCENARIOS[lab.scen]?.rumble) els.push(grp('rumble', 'How many are in the ring and when a new one runs in; see the Rumble settings for the rest',
+    toggle(':casino: mixed', SPEC.rumbleMix.tip, () => CFG.rumbleMix, v => { setCfg({ rumbleMix: v }); mode().restart(); })));
   if (lab.mode === 'experiment' && bred()) els.push(...breedCtx());
   else if (lab.mode === 'experiment' && lab.kind === 'compare') els.push(grp('sides', 'The settings of the two cells (the compare panel lists what differs)', cmpSource('a'), cmpSource('b')), zoomBack());
   else if (bodyKind()) { /* its controls are the side panel, expPanel() */ }

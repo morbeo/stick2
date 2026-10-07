@@ -59,7 +59,7 @@ class World {
     if (!this.replaying) { this.log = []; this.checkpoints = []; this.sums = {}; this.desync = null; } // every frame since the start: [dt, input, macro], for rewind and replays
     // a vs b, plus any extra fighters: { c: controller, x, team, over }; over: the fighter's own settings (aover / bover for a and b: inv, aiStyle, limits, aiSkill …)
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: s.aTeam ?? 0, over: s.aover }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: s.bTeam ?? 1, over: s.bover }, ...(s.more || [])];
-    if (s.waves || s.survival) specs.length = 1; // the enemies come in waves (nextWave) or one by one (spawn)
+    if (s.waves || s.survival || s.rumble) specs.length = 1; // the enemies come in waves (nextWave), one by one (spawn) or as a rumble pool (addRumbler)
     const chars = this.chars || [currentChar()];
     this.fighters = specs.map((sp, i) => Object.assign(
       new Fighter(this, sp.x, i < 2 ? 1 - 2 * i : sp.x < W / 2 ? 1 : -1, COLS[i % COLS.length], chars[Math.min(i, chars.length - 1)], sp.over),
@@ -84,6 +84,13 @@ class World {
     this.ctl = specs.map(sp => makeCtl(sp.c, this));
     if (s.waves) { Object.assign(this, { wave: 0, waveT: 0, spawned: 0, downs: 0 }); this.nextWave(); }
     if (s.survival) { Object.assign(this, { survT: 0, spawnT: 0, spawned: 0, downs: 0 }); this.spawn(); }
+    if (s.rumble) {
+      const pool = Object.keys(CHARS);
+      for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(this.rand() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+      Object.assign(this, { rumblePool: pool, rumbleTeam: 1, spawned: 0 });
+      for (let i = 0; i < (this.cfg.rumbleStart || 4) - 1; i++) this.addRumbler();
+      this.b = this.fighters[1];
+    }
     this.cam = (this.a.x + this.b.x) / 2;
     s.init?.(this); // a scenario can set up a state (the animate preview's target: lying, dizzy, facing away)
   }
@@ -94,6 +101,16 @@ class World {
     const ch = this.cfg.waveMix ? CHARS[names[Math.floor(this.rand() * names.length)]] : opp;
     this.fighters.push(Object.assign(new Fighter(this, x, left ? 1 : -1, COLS[1 + this.spawned++ % (COLS.length - 1)], ch, { ...this.scen.bover, ...over }), { team: 1 }));
     this.ctl.push(makeCtl('ai', this));
+  }
+  // rumble: one more fighter runs in, its own foe, with a character drawn from the shrinking pool (never repeating)
+  addRumbler() {
+    if (!this.rumblePool.length) return;
+    const name = this.rumblePool.pop(), opp = (this.chars || [currentChar()])[Math.min(1, (this.chars || [0]).length - 1)];
+    const ch = this.cfg.rumbleMix === false ? opp : (CHARS[name] || opp);
+    const left = this.spawned % 2 === 1, team = this.rumbleTeam++;
+    this.fighters.push(Object.assign(new Fighter(this, left ? 50 + 12 * this.spawned : W - 50 - 12 * this.spawned, left ? 1 : -1, COLS[team % COLS.length], ch, this.scen.bover), { team }));
+    this.ctl.push(makeCtl('ai', this));
+    this.spawned++;
   }
   // survival: the enemies down a while leave, a new one runs in with health grown by the minutes survived and the enemies down
   spawn() {
@@ -508,6 +525,11 @@ class World {
       if (pd.at !== null && pd.vt !== null) { this.adv = Math.round((pd.vt - pd.at) * 60); this.pend = null; }
     }
 
+    // rumble: a fresh one runs in whenever fewer than rumbleThreshold stand and the pool has one left; last team standing ends it (below)
+    if (this.scen.rumble) {
+      const alive = fs.filter(f => !f.ko);
+      if (new Set(alive.map(f => f.team)).size > 1 && alive.length < (this.cfg.rumbleThreshold || 4) && this.rumblePool.length) this.addRumbler();
+    }
     // endless waves: a moment after the last enemy falls the next wave comes; only your K.O. ends the round
     if (this.scen.waves && !this.a.ko) { if (this.foes(this.a).length) this.waveT = 0; else if ((this.waveT += h) > 1.2) this.nextWave(); }
     // survival: each enemy down counts (and heals) once; a new one comes every survEvery s while fewer than survMax stand, soon when none do

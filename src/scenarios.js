@@ -40,7 +40,7 @@ function toScen(u) {
     more: rest.length ? rest.map(f => ({ c: ctl(f), x: f.x, team: f.team ?? 1, over: over(f) })) : undefined,
     stage: u.stage, props: u.props?.length ? u.props.map(p => ({ type: p.type, x: p.x })) : undefined,
     items: u.items?.length ? u.items.map(it => ({ type: it.type, x: it.x })) : undefined,
-    waves: u.mode === 'waves' ? true : undefined, survival: u.mode === 'survival' ? true : undefined,
+    waves: u.mode === 'waves' ? true : undefined, survival: u.mode === 'survival' ? true : undefined, rumble: u.mode === 'rumble' ? true : undefined,
     select: u.select || undefined, roster: u.select && u.roster?.length ? u.roster : undefined,
     cfg: { ...u.cfg }, period: u.period, user: true,
     init: away.some(Boolean) ? w => { w.fighters.forEach((f, i) => { if (away[i]) { f.away = true; f.dir = -f.dir; } }); } : undefined };
@@ -55,7 +55,7 @@ function fromScen(s, chars) {
   return { p: [f(s.a, s.ax ?? (scripted ? 330 : 300), name(0), s.aover, s.aTeam ?? 0, s.aw), f(s.b, s.bx ?? (scripted ? 375 : 500), name(1), s.bover, s.bTeam ?? 1, s.bw),
     ...(s.more || []).map((m, i) => f(m.c, m.x, name(i + 2), m.over, m.team ?? 1))], stage: s.stage,
     props: (s.props || []).map(p => ({ type: p.type, x: p.x })), items: (s.items || []).map(it => ({ type: it.type, x: it.x })),
-    mode: s.waves ? 'waves' : s.survival ? 'survival' : 'normal', select: !!s.select, roster: s.roster || [], period: s.period || 0, cfg: { ...s.cfg } };
+    mode: s.waves ? 'waves' : s.survival ? 'survival' : s.rumble ? 'rumble' : 'normal', select: !!s.select, roster: s.roster || [], period: s.period || 0, cfg: { ...s.cfg } };
 }
 // a name/slug never saves to myStore or localStorage: it's for the page it's embedded on, not "my scenarios" in this browser
 const EMBED_KEY = '__embed__';
@@ -232,7 +232,8 @@ function scenBuilder() {
       onkeydown: e => e.stopPropagation(), oninput: () => found.replaceChildren(...(find.value ? SCHEMA.filter(s => !Array.isArray(s) && !(s.k in u.cfg) && fuzzy(find.value, s.k)).slice(0, 12)
         .map(s => button(s.k, s.tip, () => { u.cfg[s.k] = CFG[s.k]; scenChanged(); fill(); }, 'mini')) : [])) });
     const MODE_TIPS = { normal: 'A normal fight between the actors above', waves: 'Endless waves: P2 is the first enemy, then new ones keep coming (the Waves settings tune them)',
-      survival: 'Endless survival: one enemy after another, tougher over time (the Survival settings tune it)' };
+      survival: 'Endless survival: one enemy after another, tougher over time (the Survival settings tune it)',
+      rumble: 'Royal rumble: P1 and P2 start, a fresh fighter runs in whenever too few stand, each its own foe, until the pool runs out and one is left (the Rumble settings tune it)' };
     // select screen: a full roster picker shown before the fight (lab.js selectScreen), instead of the small per-slot
     // popup; the roster it offers defaults to every character, narrowed by checking only some of the cards off
     const selectRow = h('div', {});
