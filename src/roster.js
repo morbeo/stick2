@@ -933,7 +933,7 @@ CHAR_DEFS.clampo = { ...stick, name: 'clampo', speed: 0.85, weight: 1.35, jump: 
 
 // bonko: a loose-jointed skeleton who throws his own finger bones, rattles into a flurry charge, headbutts
 // straight up out of a crouch and slams a shin down on anyone still on the floor
-CHAR_DEFS.bonko = { ...stick, name: 'bonko', col: '#d8c9a8', speed: 1.15, weight: 0.8, health: 0.85, tough: 0.85, tempo: 1.1, jump: 1.1,
+CHAR_DEFS.bonko = { ...stick, name: 'bonko', col: '#5c5445', speed: 1.15, weight: 0.8, health: 0.85, tough: 0.85, tempo: 1.1, jump: 1.1,
   moves: { ...stick.moves,
     // S: a thrown finger bone, spinning end over end
     boneThrow: { power: 0.9, damage: 6, hit: 'handF', height: 'mid', knock: 150, stun: 0.35, special: true, shot: { speed: 380, size: 9, life: 1.4, look: 'star' },

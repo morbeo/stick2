@@ -108,3 +108,20 @@ test('a scenario can name its characters: flash kick plays sarj, lightning legs 
     assert.ok(r.hits > 0, `${s} lands`);
   }
 });
+
+// WCAG relative luminance / contrast ratio: guards any future custom character colour (def.col) against blending
+// into the page background (#f3f0e8, index.html) - a character with no col uses a per-player-slot colour instead
+// (COLS, world.js), hand-picked for contrast, so this only applies to the few that set their own
+const BG = '#f3f0e8';
+function luminance(hex) {
+  const n = parseInt(hex.slice(1), 16), chans = [n >> 16 & 255, n >> 8 & 255, n & 255].map(c => {
+    const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * chans[0] + 0.7152 * chans[1] + 0.0722 * chans[2];
+}
+function contrast(a, b) { const [l1, l2] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (l1 + 0.05) / (l2 + 0.05); }
+
+test('a character with a custom colour (def.col) contrasts with the page background', () => {
+  const customColored = json(`Object.entries(CHAR_DEFS).filter(([, d]) => d.col).map(([n, d]) => [n, d.col])`);
+  for (const [name, col] of customColored) assert.ok(contrast(col, BG) >= 4.5, `${name}: ${col} vs ${BG} is ${contrast(col, BG).toFixed(2)}, want >= 4.5`);
+});
