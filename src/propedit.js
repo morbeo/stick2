@@ -146,7 +146,7 @@ function assetDiffBlock(base, cur, label) {
   const lines = describeDiff(d);
   return h('div', {}, h('div', { cls: 'bar' }, h('span', { cls: 'note', textContent: 'changed from the built-in:' }),
     button(':content_copy: copy diff', `Copy this ${label}'s diff as JSON`, () => copyData({ format: `stick2.${label}.diff`, diff: d }), 'mini')),
-    h('pre', { cls: 'note', textContent: lines.join('\n') }));
+    diffLinesEl(lines));
 }
 function propFields(name, refill) {
   const p = PROPS[name], built = name in BASE_PROPS, set = patch => { saveProp(name, { ...PROPS[name], ...patch }); refill(); };

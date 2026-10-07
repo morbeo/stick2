@@ -214,22 +214,34 @@ function fromCharDiff(d) {
   if (!base) throw new Error(`This diff is against "${d.base}", which isn't a built-in here.`);
   return applyObj(base, d.diff);
 }
+// loading a diff means "view/update this named built-in", not "add a new copy": DEFS[base] always already exists
+// (it's a built-in), so addChar() would just make base2 and leave nothing left to compare in the changes panel.
+// Confirms first if it would overwrite local edits that the diff doesn't already match
+async function applyCharDiff(def, name) {
+  const cur = DEFS[name];
+  if (cur && JSON.stringify(cur) !== JSON.stringify(def) && JSON.stringify(cur) !== JSON.stringify(CHAR_DEFS[name])) {
+    if (!await askYes(`Replace your "${name}"?`, `You have your own changes to ${name} - loading this diff replaces them in this browser (⌘Z undoes).`, ':restart_alt: replace')) return;
+  }
+  DEFS[name] = { ...clone(def), name }; CHARS[name] = makeCharacter(DEFS[name]);
+}
 function importChar(clip) {
-  (clip ? pasteJSON : openFile)((def, name) => {
+  (clip ? pasteJSON : openFile)(async (def, name) => {
     if (def.format === 'stick2.character.diff') {
       let full; try { full = fromCharDiff(def); } catch (err) { return notice('Unknown base character', err.message); }
-      name = def.base; def = full; // a diff always reconstructs under its own recorded base name, not the file's
+      try { makeCharacter(full); } catch (err) { return notice('Not a character file', err.message); }
+      await applyCharDiff(full, def.base); return pickChar(def.base);
     }
     try { makeCharacter(def); addChar(def, name.replace(/\.(diff\.)?json$/, '')); } catch (err) { notice('Not a character file', err.message); }
   });
 }
 // ---------- #diff=<json> in the URL hash (readHash, src/docs.js): a direct link to a character diff, opened straight
 // into the character tab's changes panel - the same payload exportChar()/the changes panel's "embed link" produce
-function loadEmbedDiff(raw) {
+async function loadEmbedDiff(raw) {
   let d; try { d = JSON.parse(raw); } catch (err) { return console.error('stick2: bad #diff value', err); }
   if (d.format !== 'stick2.character.diff') return console.error('stick2: #diff is not a character diff');
   let def; try { def = fromCharDiff(d); } catch (err) { return notice('Unknown base character', err.message); }
-  addChar(def, d.base); setMode('character'); openStage('changes');
+  await applyCharDiff(def, d.base);
+  pickChar(d.base); setMode('character'); openStage('changes');
 }
 const diffEmbedLink = d => `${location.origin}${location.pathname}#diff=${encodeURIComponent(JSON.stringify(d))}`;
 // a path-prefixed, readable line per leaf change in a diffObj()/diffArr() result - generic over whatever it's run on
@@ -246,6 +258,10 @@ function describeDiff(d, path = []) {
     else lines.push(...describeDiff(v, p));
   }
   return lines;
+}
+// colors a describeDiff() line list like a patch: + green (added), - red (removed), a changed leaf (→) left plain
+function diffLinesEl(lines) {
+  return h('pre', { cls: 'note' }, lines.map(l => h('div', { style: `color: ${l[0] === '+' ? '#2e8b57' : l[0] === '-' ? '#c0392b' : 'inherit'}`, textContent: l })));
 }
 // composites a few labelled canvases (plus optional text lines) into one PNG and downloads it - the same visuals
 // the diff views already draw, just flattened into one shareable image for patch notes, docs, or an issue/PR
@@ -296,15 +312,32 @@ function charDiffPanel() {
     h('p', { cls: 'note', textContent: 'This character has no built-in to compare against (it\'s wholly your own).' })); return wrap; }
   const d = diffObj(base, DEFS[CURRENT]) || {};
   const changedBones = new Set([...Object.keys(d.changed?.bones?.changed || {}), ...Object.keys(d.changed?.bones?.added || {})]);
-  const baseCh = makeCharacter(base), curCh = CHARS[CURRENT];
-  const tintFor = (ch, removed) => b => changedBones.has(b.id) || removed?.has(b.id) ? '#c0392b' : (b.side === 'b' ? (ch.col || INK)[1] : (ch.col || INK)[0]);
   const removedBones = new Set(Object.keys(d.changed?.bones?.removed || {}));
+  const baseCh = makeCharacter(base), curCh = CHARS[CURRENT];
+  // a hovered bone row highlights that one bone on both bodies in blue, over the usual red for every changed bone -
+  // the same selected↔highlighted linking the grid tab's variable table uses, just by row hover instead of a click
+  let focus = null;
+  const tintFor = (ch, removed) => b => b.id === focus ? '#2c6fb0' : changedBones.has(b.id) || removed?.has(b.id) ? '#c0392b' : (b.side === 'b' ? (ch.col || INK)[1] : (ch.col || INK)[0]);
   const cvBase = h('canvas'), cvCur = h('canvas');
-  drawThumb(cvBase, baseCh, undefined, 110, 120, tintFor(baseCh, removedBones));
-  drawThumb(cvCur, curCh, undefined, 110, 120, tintFor(curCh, null));
-  const lines = describeDiff(d);
+  const redraw = () => { drawThumb(cvBase, baseCh, undefined, 110, 120, tintFor(baseCh, removedBones)); drawThumb(cvCur, curCh, undefined, 110, 120, tintFor(curCh, null)); };
+  redraw();
+  // one row per changed bone property (not per bone - a bone with 3 changed fields gets 3 rows), hover to highlight it
+  const bd = d.changed?.bones || {};
+  const boneRows = [];
+  for (const id in bd.changed || {}) { const fd = bd.changed[id];
+    for (const k in fd.added || {}) boneRows.push([id, k, '—', fmtDiffVal(fd.added[k])]);
+    for (const k in fd.removed || {}) boneRows.push([id, k, fmtDiffVal(fd.removed[k]), '—']);
+    for (const k in fd.changed || {}) boneRows.push([id, k, fmtDiffVal(fd.changed[k][0]), fmtDiffVal(fd.changed[k][1])]); }
+  for (const id in bd.added || {}) boneRows.push([id, '(new bone)', '—', '—']);
+  for (const id in bd.removed || {}) boneRows.push([id, '(removed)', '—', '—']);
+  const boneTable = boneRows.length ? h('table', {}, h('tbody', {}, boneRows.map(([id, field, from, to]) => h('tr', {
+    onmouseenter: () => { focus = id; redraw(); }, onmouseleave: () => { focus = null; redraw(); },
+  }, h('td', { textContent: id }), h('td', { textContent: field }),
+    h('td', { textContent: from, style: to === '—' ? 'color: #c0392b' : '' }), h('td', { textContent: '→' }),
+    h('td', { textContent: to, style: from === '—' ? 'color: #2e8b57' : '' }))))) : null;
+  const lines = describeDiff(d).filter(l => !l.replace(/^[+-] /, '').startsWith('bones.') && !/^[+-] bones\b/.test(l)); // the bone table above covers these
   const changedMoves = Object.keys(d.changed?.moves?.changed || {});
-  wrap.append(stageHead('changes', 'What differs from the matching built-in character - changed bones in red on both bodies',
+  wrap.append(...[stageHead('changes', 'What differs from the matching built-in character - hover a bone row to find it on both bodies',
     button(':download: export diff', 'Export just this diff (the default character export)', () => exportChar(false), 'mini'),
     button(':download: export image', 'Download a PNG of this comparison - the bodies and the change list, for patch notes or docs', () =>
       exportDiffImage(`${CURRENT}-changes.png`, [{ cv: cvBase, label: 'built-in' }, { cv: cvCur, label: 'yours' }], lines), 'mini'),
@@ -313,9 +346,10 @@ function charDiffPanel() {
     h('div', { cls: 'bar' },
       h('div', {}, h('b', { textContent: 'built-in' }), cvBase),
       h('div', {}, h('b', { textContent: 'yours' }), cvCur)),
-    lines.length ? h('pre', { cls: 'note', textContent: lines.join('\n') }) : h('p', { cls: 'note', textContent: 'No changes from the built-in.' }),
+    boneTable,
+    lines.length ? diffLinesEl(lines) : h('p', { cls: 'note', textContent: 'No changes from the built-in.' }),
     changedMoves.length ? h('div', { cls: 'bar' }, h('span', { textContent: 'changed moves:' }),
-      changedMoves.map(n => button(n, `Compare ${n} side by side, both versions looping in sync`, (e, el) => popup(el, moveDiffView(n)), 'mini'))) : null);
+      changedMoves.map(n => button(n, `Compare ${n} side by side, both versions looping in sync`, (e, el) => popup(el, moveDiffView(n)), 'mini'))) : null].filter(Boolean));
   return wrap;
 }
 // ---------- suggest a character for the roster: an issue + an attached file, no local git, no sign-in beyond GitHub ----------
