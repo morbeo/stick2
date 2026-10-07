@@ -38,6 +38,7 @@ function paletteEntries() {
     { kind: 'action', name: 'suggest this character', tip: 'Export the current character and open a GitHub issue to propose it for the roster, with instructions (see CONTRIBUTING.md)', run: suggestChar },
     { kind: 'action', name: 'copy embed link', tip: 'Copy a link that embeds the current scenario, pre-loaded (paste as an <iframe> src)', run: () => { const u = curU(); if (u) navigator.clipboard?.writeText(embedLink(u)); } },
     { kind: 'action', name: 'kitchen sink', tip: 'Every shared UI component on one page, for checking a theme change or hunting a visual bug', run: () => openKitchenSink() },
+    { kind: 'action', name: 'welcome', tip: 'What stick2 can do and where to go for each activity, with a little demo of each (shown once on the first visit)', run: openWelcome },
     ...Object.keys(DEFS).map(c => ({ kind: 'character', name: c, tip: 'Use this character in every mode', run: () => pickChar(c) })),
     ...Object.keys(SCENARIOS).map(k => ({ kind: 'scenario', name: k, tip: scenTip(SCENARIOS[k]), run: () => {
       if (mode() !== labMode || lab.mode === 'gallery') setMode('play');
