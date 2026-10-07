@@ -69,15 +69,13 @@ let scenPeek = null;
 function startScenPreview(cv, k) {
   stopScenPreview();
   let w; try { w = newWorld(SCENARIOS[k], {}, 1, null); w.loop = true; } catch { return; }
-  const loop = () => {
-    if (!cv.isConnected || scenPeek?.cv !== cv) return;
+  const stop = rafLoop(cv, () => {
     w.advance(1 / 60, NOIN);
     w.render(cv.getContext('2d'), { x: 0, y: 0, w: cv.width, h: cv.height }, true);
-    scenPeek.raf = requestAnimationFrame(loop);
-  };
-  scenPeek = { cv, raf: requestAnimationFrame(loop) };
+  });
+  scenPeek = { cv, stop };
 }
-function stopScenPreview() { if (scenPeek) cancelAnimationFrame(scenPeek.raf); scenPeek = null; }
+function stopScenPreview() { scenPeek?.stop(); scenPeek = null; }
 // who fights, as small icon + count badges (you / AI / dummy / script), so the grid tells a 1v1 from a free-for-all at a glance
 const CTL_ICONS = { you: 'keyboard', AI: 'smart_toy', dummy: 'person', script: 'timeline' };
 function scenActors(k) {
@@ -170,25 +168,21 @@ function gridCard(card, key, fields) {
     onclick: e => { e.stopPropagation(); navigator.clipboard?.writeText(GRID_COLLECTIONS[gridState.collection].link(key)); } }, icon('link')));
   return card;
 }
-// type → fuzzy, ranked suggestions (paletteRank, palette.js) → click to add; the same idiom as the scenario
-// builder's settings/move-limit finders (src/scenarios.js), scoped to the current collection's own fields
+// ui.js's fuzzyFinder, scoped to the current collection's own fields - the same idiom as the scenario builder's
+// settings/move-limit finders (src/scenarios.js)
 function gridFieldPicker() {
   const fields = GRID_COLLECTIONS[gridState.collection].fields(), chosen = gridState.fields[gridState.collection] ??= [];
-  const list = h('div', { cls: 'plist' });
-  const inp = h('input', { cls: 'macro', placeholder: 'add a variable…', tip: 'Fuzzy search over every documented variable this collection has',
-    oninput: fill, onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { inp.value = ''; fill(); } } });
-  function fill() {
-    const q = inp.value.trim();
-    const shown = fields.filter(f => !chosen.includes(f.k)).map(f => [paletteRank(q, { name: f.k, tip: f.tip, kind: '' }), f])
-      .filter(([r]) => r > 0).sort((a, b) => b[0] - a[0]).slice(0, 8).map(([, f]) => f);
-    list.replaceChildren(...shown.map(f => h('div', { cls: 'pitem', onmousedown: ev => { ev.preventDefault(); chosen.push(f.k); saveGridStore(); inp.value = ''; panels(); } },
-      h('b', { textContent: f.k }), h('span', { cls: 'pt' }, ...rich(f.tip || '')))));
-  }
-  fill();
+  const finder = fuzzyFinder({
+    candidates: () => fields.filter(f => !chosen.includes(f.k)), text: f => f.k,
+    onPick: f => { chosen.push(f.k); saveGridStore(); panels(); },
+    placeholder: 'add a variable…', tip: 'Fuzzy search over every documented variable this collection has',
+    render: (f, pick) => h('div', { cls: 'pitem', onmousedown: ev => { ev.preventDefault(); pick(); } },
+      h('b', { textContent: f.k }), h('span', { cls: 'pt' }, ...rich(f.tip || ''))),
+  });
   return h('div', {},
     h('div', { cls: 'bar' }, ...chosen.map(k => h('span', { cls: 'chip', style: 'background:#6f6a5c' }, k,
       button(':close:', `Remove ${k}`, () => { chosen.splice(chosen.indexOf(k), 1); saveGridStore(); panels(); }, 'mini')))),
-    inp, list);
+    finder);
 }
 function gridCards() {
   const col = GRID_COLLECTIONS[gridState.collection];

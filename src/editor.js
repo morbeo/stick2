@@ -779,17 +779,10 @@ function moveCard(n, tip, pick = pickMove) {
   const cv = h('canvas'), b = h('button', { cls: 'card', tip, onclick: () => pick(n) }, cv, h('span', { textContent: n }));
   const m = currentChar().moves[n], ch = withWeapon(currentChar(), m);
   const still = () => drawThumb(cv, ch, keyPose(ch, m, Math.max(0, m.keys.findIndex(k => k.active))));
-  let raf = 0;
-  b.onmouseenter = () => {
-    const t0 = performance.now(), loop = now => {
-      if (!b.isConnected) return;
-      drawThumb(cv, ch, samplePose(ch, m, (now - t0) / 1000 % (total(m) + 0.3)));
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-  };
-  b.onmouseleave = () => { cancelAnimationFrame(raf); raf = 0; still(); };
-  reg(b, () => { b.classList.toggle('on', anim.move === n); if (!raf) still(); });
+  let stop = null;
+  b.onmouseenter = () => { const t0 = performance.now(); stop = rafLoop(b, () => drawThumb(cv, ch, samplePose(ch, m, (performance.now() - t0) / 1000 % (total(m) + 0.3)))); };
+  b.onmouseleave = () => { stop?.(); stop = null; still(); };
+  reg(b, () => { b.classList.toggle('on', anim.move === n); if (!stop) still(); });
   return b;
 }
 const VIEW_TIPS = { cards: 'A drawing of each move (hover to play it)', list: 'Compact: names only',
@@ -834,14 +827,14 @@ function peekSeq(ns, e) {
     const cv = h('canvas'), el = h('div', { cls: 'peek' }, cv, h('span', { textContent: label })), t0 = performance.now();
     peek = { n: label, el, d };
     document.body.append(el);
-    const loop = now => {
-      if (peek?.el !== el) return; if (!document.querySelector('.mtable, .pop')) return unpeek(); // the table or popup closed without a mouseleave - stop animating
-      const t = Math.max(0, now - t0) / 1000 % (d + 0.3), s = segs.findLast(s => s.t0 <= t); // (the first frame's time can be before t0)
-      drawThumb(cv, s.ch, samplePose(s.ch, s.m, t - s.t0), 120, 128); requestAnimationFrame(loop);
-    };
-    requestAnimationFrame(loop);
+    rafLoop(el, () => {
+      if (peek?.el !== el) return false;
+      if (!document.querySelector('.mtable, .pop')) { unpeek(); return false; } // the table or popup closed without a mouseleave - stop animating
+      const t = Math.max(0, performance.now() - t0) / 1000 % (d + 0.3), s = segs.findLast(s => s.t0 <= t); // (the first frame's time can be before t0)
+      drawThumb(cv, s.ch, samplePose(s.ch, s.m, t - s.t0), 120, 128);
+    });
   }
-  peek.el.style.left = Math.min(e.clientX + 16, innerWidth - 140) + 'px'; peek.el.style.top = Math.max(4, Math.min(e.clientY - 70, innerHeight - 160)) + 'px';
+  placeNear(peek.el, { left: e.clientX + 16, right: e.clientX + 16, top: e.clientY - 70, bottom: e.clientY - 70 }, { gap: 0 });
 }
 const unpeek = () => { peek?.el.remove(); peek = null; };
 function moveTable() {

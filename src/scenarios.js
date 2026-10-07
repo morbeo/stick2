@@ -130,13 +130,15 @@ function limitsPopup(f, anchor) {
   reg(rowsBox, () => rowsBox.replaceChildren(...Object.keys(f.limits).filter(n => ch.moves[n]).map(n => h('div', { cls: 'bar' }, h('span', { textContent: n }),
     slider('uses', { min: 0, max: 20, step: 1 }, () => f.limits[n], v => { f.limits[n] = v; scenChanged(); }, `${n} can be used at most this many times this fight (0: banned outright)`),
     button(':close:', `Remove the limit on ${n}`, () => { delete f.limits[n]; if (!Object.keys(f.limits).length) delete f.limits; scenChanged(); }, 'mini')))));
-  const found = h('div', { cls: 'bar' });
-  const find = h('input', { cls: 'macro', placeholder: 'add a move…', tip: 'Type a move name, then click it to cap its uses', onkeydown: e => e.stopPropagation(),
-    oninput: () => found.replaceChildren(...(find.value ? Object.keys(ch.moves).filter(n => !(n in f.limits) && fuzzy(find.value, n)).slice(0, 12)
-      .map(n => button(n, `Cap ${n} (start at 3, then adjust)`, () => { f.limits[n] = 3; scenChanged(); find.value = ''; found.replaceChildren(); }, 'mini')) : [])) });
+  const finder = fuzzyFinder({
+    candidates: () => Object.keys(ch.moves).filter(n => !(n in f.limits)),
+    onPick: n => { f.limits[n] = 3; scenChanged(); },
+    placeholder: 'add a move…', tip: 'Type a move name, then click it to cap its uses', limit: 12, listCls: 'bar',
+    render: (n, pick) => button(n, `Cap ${n} (start at 3, then adjust)`, pick, 'mini'),
+  });
   popup(anchor, h('b', { textContent: 'move limits' }),
     h('p', {}, ...rich('How many times each move can be used this fight (0: banned outright). Unlisted moves have no limit. Applies to whoever plays this fighter, AI or you.')),
-    rowsBox, h('div', { cls: 'bar' }, find), found);
+    rowsBox, finder);
 }
 // fine skill overrides (f.aiSkill, a fighter override over the aiLevel preset): only what differs from the level in use
 const AI_SKILL_TIPS = { react: 'Seconds before reacting to a throw, blockstun escape or landing', guard: 'Chance to guard an attack starting up in front of it',
@@ -228,9 +230,12 @@ function scenBuilder() {
       return h('div', { cls: 'bar' }, s.opts ? h('span', { textContent: k }) : null,
         s.opts ? seg(s.opts, () => u.cfg[k], set, s.optTips) : typeof s.v === 'boolean' ? toggle(k, s.tip, () => u.cfg[k], set) : slider(k, s, () => u.cfg[k], set, s.tip),
         button(':close:', `Drop ${k}: the live setting applies`, () => { delete u.cfg[k]; scenChanged(); fill(); }, 'mini')); });
-    const found = h('div', { cls: 'bar' }), find = h('input', { cls: 'macro sfind', placeholder: 'add a setting…', tip: 'Type a setting\'s name, then click it to bring it with its current value',
-      onkeydown: e => e.stopPropagation(), oninput: () => found.replaceChildren(...(find.value ? SCHEMA.filter(s => !Array.isArray(s) && !(s.k in u.cfg) && fuzzy(find.value, s.k)).slice(0, 12)
-        .map(s => button(s.k, s.tip, () => { u.cfg[s.k] = CFG[s.k]; scenChanged(); fill(); }, 'mini')) : [])) });
+    const finder = fuzzyFinder({
+      candidates: () => SCHEMA.filter(s => !Array.isArray(s) && !(s.k in u.cfg)), text: s => s.k,
+      onPick: s => { u.cfg[s.k] = CFG[s.k]; scenChanged(); fill(); },
+      placeholder: 'add a setting…', tip: 'Type a setting\'s name, then click it to bring it with its current value', limit: 12, listCls: 'bar',
+      render: (s, pick) => button(s.k, s.tip, pick, 'mini'),
+    });
     const MODE_TIPS = { normal: 'A normal fight between the actors above', waves: 'Endless waves: P2 is the first enemy, then new ones keep coming (the Waves settings tune them)',
       survival: 'Endless survival: one enemy after another, tougher over time (the Survival settings tune it)',
       rumble: 'Royal rumble: P1 and P2 start, a fresh fighter runs in whenever too few stand, each its own foe, until the pool runs out and one is left (the Rumble settings tune it)' };
@@ -253,8 +258,8 @@ function scenBuilder() {
       ...u.p.map(fighter), h('div', { cls: 'bar' }, addActor),
       ...u.props.map(propRow), h('div', { cls: 'bar' }, addProp),
       ...u.items.map(itemRow), h('div', { cls: 'bar' }, addItem), h('h4', { textContent: 'settings' }), ...over,
-      h('div', { cls: 'bar' }, find, button(':tune: take my settings', 'Bring every setting you changed from the defaults, at its current value',
-        () => { for (const k of changedCfg()) u.cfg[k] = CFG[k]; scenChanged(); fill(); }, 'mini')), found);
+      h('div', { cls: 'bar' }, finder, button(':tune: take my settings', 'Bring every setting you changed from the defaults, at its current value',
+        () => { for (const k of changedCfg()) u.cfg[k] = CFG[k]; scenChanged(); fill(); }, 'mini')));
   };
   wrap.append(stageHead('scenario', BUILDER_TIP, h('span', { cls: 'note', textContent: 'saved in this browser as you edit' }),
     button(':science: test in experiment', 'Open this scenario in the experiment tab, one row, to sweep it across settings', () => {

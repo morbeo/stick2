@@ -521,9 +521,6 @@ function sceneDrawProps(ctx, r) {
   });
   ctx.restore();
 }
-// numbers next to each slider: a human drags, an AI (or a script) sets an exact value - both write the same field
-const numField = (v, set, w = 50) => h('input', { type: 'number', value: Math.round(v * 10) / 10, style: `width:${w}px`,
-  onchange: e => set(+e.target.value) });
 function sceneSide() {
   const names = Object.keys(PROPS), w = sceneWorld(), t = sceneTarget(), f0 = w?.fighters[0];
   if (!t) return [];
@@ -539,9 +536,9 @@ function sceneSide() {
       ...names.map(n => button(n, PROPS[n].tip || n, () => sceneAddProp(n), 'mini'))),
     ...t.props.map((p, i) => h('div', { cls: 'bar' + (i === rp.propSel ? ' on' : '') },
       button(p.type, 'Click to select, drag it on the scene to move', () => { rp.propSel = i; rp.poseOn = false; panels(); }, 'mini'),
-      h('span', { textContent: 'x' }), numField(p.x, v => scenePropMove(i, v), 55),
+      h('span', { textContent: 'x' }), numInput(p.x, v => scenePropMove(i, v), 'x', 55),
       h('span', { textContent: 'rotate' }), slider('a', { min: -180, max: 180, step: 5 }, () => p.a, v => scenePropSet(i, { a: v }, 'scene-prop-a:' + i), 'rotate'),
-      numField(p.a, v => scenePropSet(i, { a: v }, 'scene-prop-a:' + i), 45),
+      numInput(p.a, v => scenePropSet(i, { a: v }, 'scene-prop-a:' + i), 'rotate', 45),
       crud({ delete: ['Remove this prop', () => scenePropDelete(i)] }))),
   ];
 }
@@ -1062,7 +1059,7 @@ function fxBtn(j) {
   const b = button(':auto_awesome:', 'Screen effects over this shot: shake, vignette, a colour tint, letterbox bars, a caption', (e, btn) => popup(btn, h('b', { textContent: 'effects' }),
     h('div', { cls: 'row' }, h('span', { textContent: 'shake' }), slider('px', { min: 0, max: 20, step: 1 }, () => cur().shake, v => set({ shake: v }), 'Camera jitter each frame (0 = none)')),
     h('div', { cls: 'row' }, h('span', { textContent: 'vignette' }), toggle(':blur_on: on', 'Darkens the edges of the picture', () => cur().vignette, v => set({ vignette: v }))),
-    h('div', { cls: 'row' }, h('span', { textContent: 'tint' }), h('input', { type: 'color', value: cur().tint.col, oninput: e2 => set({ tint: { col: e2.target.value } }) }),
+    h('div', { cls: 'row' }, h('span', { textContent: 'tint' }), colorInput(cur().tint.col, v => set({ tint: { col: v } }), 'tint'),
       slider('', { min: 0, max: 1, step: 0.05 }, () => cur().tint.amt, v => set({ tint: { amt: v } }), 'How strong the colour wash is (0 = none)')),
     h('div', { cls: 'row' }, h('span', { textContent: 'letterbox' }), toggle(':crop_landscape: on', 'Black bars top and bottom, for a cinematic look', () => cur().letterbox, v => set({ letterbox: v }))),
     h('div', { cls: 'row' }, h('span', { textContent: 'caption' }), h('input', { cls: 'macro', value: cur().caption, oninput: e2 => set({ caption: e2.target.value }) })),

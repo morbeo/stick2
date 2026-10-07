@@ -4,13 +4,9 @@
 // pick a built-in or custom one (side panel: a card grid or a table), tune its own fields and its shape list
 // (overlay), revert or delete — same pattern as sounds
 let propSel = null, weaponSel = null, propView = 'cards', weaponView = 'cards';
-const numInput = (v, set, title) => h('input', { type: 'number', value: fmt(v), tip: title, style: 'flex:none;width:52px',
-  onkeydown: e => e.stopPropagation(), onchange: e => { const n = parseFloat(e.target.value); if (Number.isFinite(n)) set(n); } });
 // a weapon coordinate can be a plain number or 'len' / 'len-4' (reaches for the live blade length); props never use that
 const coordInput = (v, set, title) => h('input', { cls: 'macro', value: String(v), tip: title, style: 'flex:none;width:56px',
   onkeydown: e => e.stopPropagation(), onchange: e => { const s = e.target.value.trim(); const n = parseFloat(s); set(/^-?\d+(\.\d+)?$/.test(s) ? n : s); } });
-const colorInput = (v, set, title) => h('input', { type: 'color', value: /^#/.test(v) ? v : '#888888', tip: title || 'Colour', style: 'flex:none;width:28px;padding:0',
-  onchange: e => set(e.target.value) });
 // rows for one primitive's own fields; weapon: coordInput (numbers or 'len'-relative text); prop: numInput (plain
 // pixels). Colour: wood/metal quick picks (weapon only) plus a real swatch either way, so any exact colour works too.
 // set(patch) merges a partial update into this shape and re-renders
