@@ -157,6 +157,8 @@ Hit stop, shake and zoom that grow with each combo hit; attacks, or the whole ga
 
 **← S** is catch, a counter stance. Its catch key answers a mid strike from the front with **reversal**. The key's **catchH** lists the heights it catches. Any move can catch: a key's **catch** flag, and the move panel's **counter** row picks which move answers (**new counter move** makes one, starting from the built-in reversal, and opens it) — its damage lands on the attacker at once.
 
+A move's **counter** can also be the word **MIRROR** instead of a move name: it plays the attacker's own connecting move right back at them, on the catcher's own skeleton, whatever that move actually was - a true mirror/reversal rather than one fixed answer, since what lands depends on the opponent's real attack.
+
 A counter doesn't have to be an attack. Sneeko's own **← S** (substituteCatch → substitute) is a ninja substitution: a strike caught during it answers by warping away (the **warp** key flag) and leaving a stationary decoy — a shot with speed 0 and a short life — right where it stood. No damage of its own, no retaliation: pure escape, like the ninjas in Samurai Shodown.
 
 | Substitution: a caught strike answers by warping away, a decoy left behind |
@@ -272,9 +274,22 @@ The stick's only other stance, **powered** (S+G). A DBZ-style power-up: fists cl
 - **Pounce** (pounce): ↓ S in the air dives onto a fighter lying on the floor. pounce hits off the ground and lands into its strike; a key's **drop** drives it down.
 - **Wall bounce** (move flag wallbounce, on spin and the shoulder charge): the victim bounces back off the wall at **wallBounceSpeed**, popped up, its juggle count reset for a follow-up.
 
-| Pounce: ↓ S in the air dives onto a downed foe |
+| Pounce: ↓ S in the air dives onto a downed foe | Wall bounce |
+| --- | --- |
+| ![Pounce: ↓ S in the air dives onto a downed foe](img/anim-pounce.png) | ![Wall bounce](img/anim-wall-bounce.png) |
+
+### Crowd
+
+**flyHits** (off by default; the **pinball** power preset turns it on): a fighter knocked flying normally passes clean through everyone else's body. With it on, it clips whoever it passes through instead, pinball-style through a group - and a clipped fighter can go flying itself and keep the chain going, a real multi-step domino through a crowd.
+
+- **flyKnock** / **flyLaunch**: how much of the flying body's own speed (weight-scaled both ways) is passed on, and whether the clipped fighter is launched or just shoved.
+- **flyMinSpeed**: a flier needs real speed to clip anyone, so a weak pop-up can't bowl over a crowd.
+- **flyChain**: caps a single flight to one victim, or lets it bowl through several.
+- **flyDamageDecay** / **flyChainShake**: each domino hop hits a little gentler than the last, but shakes and zooms the camera a little harder - a 3-person pile-up should look bigger than a single clip even as it deals less damage.
+
+| A thrown fighter dominoes through a crowd (flyHits) |
 | --- |
-| ![Pounce: ↓ S in the air dives onto a downed foe](img/anim-pounce.png) |
+| ![A thrown fighter dominoes through a crowd (flyHits)](img/anim-crowd.png) |
 
 ### Turnaround
 
@@ -283,10 +298,11 @@ The stick's only other stance, **powered** (S+G). A DBZ-style power-up: fists cl
 - Back turned (away), the fighter can't guard a hit from the front.
 - ←, → or ↑, or a move without turns, faces the foe again; a move snaps round first. ↓ crouches with the back still turned.
 - A hit taken mid spin leaves it back turned. A get-up faces again.
+- The turn itself is kinematic, not a flip: the body eases through a squashed profile (**turnTuck**/**turnWidth**) as it pivots. A bone's **turnSnap** flag (default: on for role **head**) instead mirrors it to face immediately, so the head doesn't squash into the chest mid-turn - a second head, a tail or antennae can opt in the same way.
 
-| Wall bounce |
+| Turnaround |
 | --- |
-| ![Wall bounce](img/anim-wall-bounce.png) |
+| ![Turnaround](img/anim-turnaround.png) |
 
 ### The AI
 

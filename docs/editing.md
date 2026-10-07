@@ -46,7 +46,7 @@ The character panel shows a grid of drawings, all at one scale.
 ### Your own
 
 - **random** generates one: proportions, thickness, extra limbs, stance, stats. The sliders button tunes the generator; a grid of nine random characters lets you pick one to keep.
-- **copy** to make your own; **rename**, **revert**, **export / import** as JSON.
+- **copy** to make your own; **rename**, **revert**, **export / import** as JSON. A built-in can't be deleted or renamed in place (revert needs it to stay around to undo your edits against) — renaming one makes an edited copy under the new name, and **delete** on one disables it instead: hidden from pickers and random picks until **enable** or **revert** brings it back.
 - Edits are saved in the browser automatically. Only changed built-ins are stored, so a stored copy of an old built-in needs **revert** to get the new version.
 - Any move can be bound to an input (J, K with any direction, running, air, motions), so copied moves are playable.
 

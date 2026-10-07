@@ -27,7 +27,8 @@ Any other MCP client: run `node tools/mcp.js` (or `npm run mcp`) from the repo. 
 |---|---|
 | `list_characters`, `get_character` | the roster, and one character's whole definition |
 | `list_moves` | a character's moves with frame data, damage, height, flags and the inputs that play them |
-| `create_character`, `edit_character`, `edit_move`, `delete_character`, `rename_character` | add, change, remove or rename a character made or edited this session; checked by compiling them, so a broken one changes nothing. `edit_character` takes a JSON merge patch; bones can be patched by id. Built-ins can't be deleted or renamed |
+| `create_character`, `edit_character`, `edit_move`, `delete_character`, `rename_character` | add, change, remove or rename a character made or edited this session; checked by compiling them, so a broken one changes nothing. `edit_character` takes a JSON merge patch; bones can be patched by id. A built-in can't be deleted or renamed in place - `delete_character` disables it instead (hidden from `random` picks), and `rename_character` makes an edited copy under the new name, leaving the original untouched |
+| `enable_character`, `revert_character` | undo `delete_character` on a built-in without touching its edits, or throw away its edits entirely (and re-enable it if disabled) back to how it ships |
 | `undo_character`, `redo_character` | step back or forward through create/edit/edit_move's one shared stack; undoing a create removes the character |
 | `list_settings`, `get_settings`, `set_settings`, `reset_settings` | the settings by group, with defaults, ranges and tips; values are checked against their spec |
 | `list_scenarios` | built-in scenarios and those from a loaded profile |
@@ -44,6 +45,7 @@ Any other MCP client: run `node tools/mcp.js` (or `npm run mcp`) from the repo. 
 | `list_looks`, `save_look`, `delete_look`, `rename_look` | fx looks; built-ins are hand-coded and read-only, a custom one is a generic particle preset, tunable, deletable, renameable |
 | `list_tracks`, `save_track`, `delete_track`, `rename_track` | the tracker: a step sequencer built from the sounds above. No play tool — there's no speaker on the other end of an MCP call |
 | `start_bridge`, `browser_state`, `browser_command` | the live bridge, below |
+| `search_tools` | find a tool by a word or two against its name and description, for when you know roughly what you want but not its exact name |
 
 ## Resources
 
@@ -81,7 +83,9 @@ The server can also drive the app open in a browser.
 | `screenshot` | the canvas as a PNG |
 | `set_mode { mode }` | switches tabs |
 | `pick_character { name }` | the character every mode edits |
-| `delete_character { name }` / `rename_character { from, to }` | session characters only (not built-ins), no confirmation prompt unlike the UI |
+| `delete_character { name }` | a custom character, or disables a built-in (no confirmation prompt unlike the UI) |
+| `enable_character { name }` | undoes `delete_character` on a built-in |
+| `rename_character { from, to }` | a built-in makes an edited copy under the new name instead of being renamed in place |
 | `set_preview { scenario?, opponent?, control? }` | the character tab's live preview (needs that tab open) |
 | `send_to_play { scenario?, opponent? }` | jump to Play with a matchup; default: the character tab's own preview |
 | `undo` / `redo` | the same stack as ⌘Z: character edits, settings, replay/movie/scene edits alike |
