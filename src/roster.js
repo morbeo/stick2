@@ -9,9 +9,9 @@ const horns = (len, a, curl) => ['F', 'B'].flatMap(S => [
   { id: 'horn' + S, parent: 'head', len, a: a + (S === 'B' ? 15 : 0), role: 'head', side: S.toLowerCase(), thick: 3, lag: 0.5 },
   { id: 'hornTip' + S, parent: 'horn' + S, len: Math.round(len * 0.7), a: curl, role: 'head', side: S.toLowerCase(), thick: 2, lag: 1 }]);
 const tail3 = (len, thick) => [
-  { id: 'tail', parent: null, len, a: -120, role: 'tail', thick, lag: 1, dangle: 0.15 },
-  { id: 'tailMid', parent: 'tail', len: Math.round(len * 0.9), a: -20, role: 'tail', thick: thick - 1, lag: 2, dangle: 0.2, min: -70, max: 70 },
-  { id: 'tailEnd', parent: 'tailMid', len: Math.round(len * 0.8), a: -20, role: 'tail', thick: Math.max(1, thick - 2), lag: 3, stretch: 0.25, dangle: 0.3, min: -70, max: 70 }];
+  { id: 'tail', parent: null, len, a: -120, role: 'tail', thick, lag: 1, dangle: 0.3, sway: 0.6 },
+  { id: 'tailMid', parent: 'tail', len: Math.round(len * 0.9), a: -20, role: 'tail', thick: thick - 1, lag: 2, dangle: 0.4, sway: 0.8, min: -70, max: 70 },
+  { id: 'tailEnd', parent: 'tailMid', len: Math.round(len * 0.8), a: -20, role: 'tail', thick: Math.max(1, thick - 2), lag: 3, stretch: 0.25, dangle: 0.6, sway: 1, min: -70, max: 70 }];
 // a cloth strip trailing from a bone (headband, scarf, mask ties): + angle = backwards off a bone pointing up
 const ribbon = (id, parent, len, thick = 3) => [
   { id, parent, len, a: 105, role: 'tail', thick, lag: 2, stretch: 0.2, dangle: 0.45 },
@@ -291,7 +291,8 @@ CHAR_DEFS.zippa = { ...stick, name: 'zippa', speed: 1.15, jump: 1.2, dash: 1.2, 
 // hicco: the drunken master: leans back and sways, slides on the floor, floppy and tough; a beard and a gourd at the hip
 CHAR_DEFS.hicco = { ...stick, name: 'hicco', speed: 0.9, traction: 0.6, turnaround: 1.2, springs: 0.6, tough: 1.35, health: 1.05, jump: 0.95,
   gait: { idle: 'sway', idleAmt: 2.4, lean: -0.5, stride: 0.8, lift: 0.7, armSwing: 1.6, breath: 1.2 },
-  bones: [...sizedBones({ waist: 0.95, head: 1.05, thigh: 0.95, shin: 0.95 }, 2),
+  // a ridiculous sway on the torso/head/arms on top of the gait's own: reads as drunken wobble, not just a walk cycle
+  bones: [...sizedBones({ waist: 0.95, head: 1.05, thigh: 0.95, shin: 0.95 }, 2).map(b => ['spine', 'head', 'arm'].includes(b.role) ? { ...b, sway: 3 } : b),
     { id: 'beard', parent: 'head', len: 10, a: -165, role: 'head', thick: 6, lag: 1.5, stretch: 0.1, dangle: 0.3 },
     { id: 'cord', parent: null, len: 7, a: -20, role: 'tail', thick: 1, lag: 2, dangle: 0.6 },
     { id: 'gourd', parent: 'cord', len: 5, role: 'tail', shape: 'circle', thick: 2, lag: 3, dangle: 0.6 }],

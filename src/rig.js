@@ -507,6 +507,13 @@ const STICK_MOVES = {
     { d: 0.06, e: 'outExpo', p: { torso: 20, afU: 100, afL: 20, abU: 0, abL: 120, lfU: 45, lfL: -40, lbU: -35, lbL: 0 }, active: true, lunge: 180 },
     { d: 0.18, e: 'inOutCubic', p: null },
   ] },
+  // not an attack - played once on the character picker card while it's hovered, then settles into the stance pose
+  // (studio.js's startCardPreview, by name - not bound to any input, so it never plays in a fight)
+  select: { keys: [
+    { d: 0.1, e: 'outQuad', p: { torso: -10, head: -5, afU: 60, afL: 100, abU: 20, abL: 90, lfU: 10, lfL: -10 } },
+    { d: 0.15, e: 'outExpo', p: { torso: 15, head: 5, afU: 130, afL: 20, abU: -10, abL: 100, lfU: 30, lfL: -20, lbU: -15 } },
+    { d: 0.35, e: 'inOutCubic', p: null },
+  ] },
 };
 STICK_MOVES.hammer.keys[0].armor = true;
 STICK_MOVES.guardCancel.keys.slice(0, 2).forEach(k => { k.inv = true; });

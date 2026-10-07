@@ -486,11 +486,28 @@ function drawThumb(cv, ch, pose = ch.poses.stance, cw = 60, chh = 64, tint = nul
   const col = ch.col || INK;
   drawFigure(c, ch, L, col[0], col[1], 0, tint);
 }
+// hovering a card plays its select animation (the 'select' move, if it has one) once, then settles into its stance
+// pose - like the combos editor's hover preview (peekSeq), but animation-only (no World) and into the card's own
+// canvas in place, since a popup can show dozens of these at once
+let cardPeek = null; // { cv, raf } - only the hovered card animates; every other card stays a still thumbnail
+function startCardPreview(cv, k) {
+  stopCardPreview();
+  const ch = CHARS[k], m = ch.moves.select, wch = m ? withWeapon(ch, m) : null, t0 = performance.now();
+  const loop = () => {
+    if (cardPeek?.cv !== cv) return;
+    const t = (performance.now() - t0) / 1000;
+    drawThumb(cv, wch && t < total(m) ? wch : ch, wch && t < total(m) ? samplePose(wch, m, t) : ch.poses.stance);
+    cardPeek.raf = requestAnimationFrame(loop);
+  };
+  cardPeek = { cv, raf: requestAnimationFrame(loop) };
+}
+function stopCardPreview() { if (cardPeek) cancelAnimationFrame(cardPeek.raf); cardPeek = null; }
 // a character as a card; by default clicking it makes it the one every mode edits
 function charCard(k, pick = pickChar, on = k => CURRENT === k) {
   const cv = h('canvas'), b = h('button', { cls: 'card', tip: `${CHAR_DEFS[k] ? 'Built-in' : 'Your character'}: ${k} · ${CHARS[k].bones.length} bones · speed ${CHARS[k].stats.speed} · click: use it in every mode`,
-    onclick: () => { closePop(); pick(k); syncAll(); } }, cv, h('span', { textContent: k }));
-  reg(b, () => { b.classList.toggle('on', on(k)); drawThumb(cv, CHARS[k]); });
+    onclick: () => { closePop(); pick(k); syncAll(); },
+    onmouseenter: () => startCardPreview(cv, k), onmouseleave: () => cardPeek?.cv === cv && stopCardPreview() }, cv, h('span', { textContent: k }));
+  reg(b, () => { b.classList.toggle('on', on(k)); if (cardPeek?.cv !== cv) drawThumb(cv, CHARS[k]); });
   return b;
 }
 // the character + stance picker: a toolbar group (pinned at the top, unlike the side panel, so it stays visible on
@@ -510,9 +527,16 @@ function showStancePreview(btn, i) {
   stancePreview = box;
 }
 function hideStancePreview() { stancePreview?.remove(); stancePreview = null; }
+function charPickerPopup(el) {
+  const list = h('div', { cls: 'cards' });
+  const fill = () => list.replaceChildren(...Object.keys(DEFS).filter(k => fuzzy(q.value, k)).map(k => charCard(k)));
+  const q = h('input', { cls: 'macro', placeholder: 'search…', tip: 'Fuzzy search: letters in order match the name',
+    oninput: fill, onkeydown: e => e.stopPropagation() });
+  fill();
+  popup(el, h('b', { textContent: 'character' }), q, list);
+}
 function charStancePicker() {
-  const cv = h('canvas'), b = button('', 'The character every mode edits · click: pick another', (e, el) =>
-    popup(el, h('b', { textContent: 'character' }), h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k)))));
+  const cv = h('canvas'), b = button('', 'The character every mode edits · click: pick another', (e, el) => charPickerPopup(el));
   b.classList.add('fpick');
   reg(b, () => { b.replaceChildren(cv, h('span', { textContent: CURRENT })); drawThumb(cv, currentChar(), undefined, 20, 22); });
   const names = currentChar().stances.map(s => s.name);
