@@ -423,8 +423,11 @@ function rpRender() {
       ctx.save(); ctx.beginPath(); ctx.rect(pv.x, pv.y, pv.w, pv.h); ctx.clip(); ctx.translate(pv.x, pv.y);
       drawFreeze(ctx, pv.w, pv.h, fr.img, fr.zoom, fr.text); ctx.restore(); }
     else if (rp.mv?.rev) ctx.drawImage(rp.mv.rev.imgs[rp.mv.rev.i].img, pv.x, pv.y, pv.w, pv.h);
-    else if (rp.mv) { const sh = rp.movie.shots[rp.mv.shotI], reel = rp.reels[sh.reel], [dx, dy] = shakeOff(sh.fx?.shake);
-      drawCell({ w: rp.mv.w, shot: reel && camAt(reel.rep, rp.mv.w, rp.mv.n), label: `shot ${rp.mv.shotI + 1}/${rp.movie.shots.length} · ${reel?.name || ''}` }, { ...pv, x: pv.x + dx, y: pv.y + dy }, { full: true, plot: false });
+    else if (rp.mv) { const sh = rp.movie.shots[rp.mv.shotI], reel = rp.reels[sh.reel], [dx, dy] = shakeOff(sh.fx?.shake), shot = { ...pv, x: pv.x + dx, y: pv.y + dy };
+      rp.mv.w.fighters.forEach(f => { f.poseOverride = sh.pose?.[f.id]; });
+      drawCell({ w: rp.mv.w, shot: reel && camAt(reel.rep, rp.mv.w, rp.mv.n), label: `shot ${rp.mv.shotI + 1}/${rp.movie.shots.length} · ${reel?.name || ''}` }, shot, { full: true, plot: false });
+      rp.mv.w.fighters.forEach(f => { f.poseOverride = null; });
+      if (sh.props?.length) sceneDrawProps(ctx, shot);
       if (sh.fx) { ctx.save(); ctx.beginPath(); ctx.rect(pv.x, pv.y, pv.w, pv.h); ctx.clip(); ctx.translate(pv.x, pv.y); drawShotFx(ctx, pv.w, pv.h, sh.fx, rp.mv.n - rp.mv.a); ctx.restore(); } }
     else text(rp.movie.shots.length ? 'The movie ended.' : 'No shots yet: add one in the movie section.', pv.x + pv.w / 2, pv.y + pv.h / 2, '#888', 13, '', 'center');
     return;
@@ -455,19 +458,30 @@ function rpTip(L, x, y) {
   return `${fmtT(rp.T[f])} · ${who(l.id)} ${l.name}: ${l.max > 0 ? `health ${Math.round(l.hp[f] ?? 0)} / ${l.max} · ` : ''}stun ${Math.round(100 * (l.stun[f] ?? 0))}% · ${st || 'idle'}`;
 }
 // ---------- scene: pose the paused frame by dragging joints, and place and move props on it ----------
-// draw-only (Fighter.poseOverride, fighter.js): never touches the fight, so this works on any frame of any reel.
-// Edits go through sceneEdit, the same snapshot()-based undo stack as every other replay/character/settings edit
-// (studio.js); a key merges repeated calls (a drag, a slider) into one undo step, same convention as elsewhere
+// draw-only (Fighter.poseOverride, fighter.js): never touches the fight, so this works on any frame of any reel, or
+// any movie shot. sceneWorld/sceneTarget pick which: the main reel (rp.view, rp.pose/rp.props) or, in the movie
+// preview, the current shot's own world and its own pose/props (rp.movie.shots[i].pose/.props) - two different
+// "scenes" sharing the exact same editing code and undo-key scheme
+function sceneWorld() { return rp.playMovie ? rp.mv?.w : rp.view; }
+function sceneTarget() {
+  if (!rp.playMovie) return rp.reel ? rp : null;
+  const sh = rp.movie.shots[rp.mv?.shotI]; if (!sh) return null;
+  sh.pose ||= {}; sh.props ||= []; return sh;
+}
+// edits go through the same snapshot()-based undo stack as every other edit (studio.js): the main reel's scene gets
+// its own 'scene' kind, a movie shot's reuses 'movie' (its pose/props already live inside rp.movie, movieEdit's own
+// snapshot covers them for free). A key merges repeated calls (a drag, a slider) into one undo step, as elsewhere
 function sceneEdit(fn, key = null) {
+  if (rp.playMovie) { movieEdit(fn, key); return; }
   snapshot(() => ({ scene: JSON.stringify({ pose: rp.pose, props: rp.props }) }), key);
   fn(); panels();
 }
-function sceneToWorld(x, y) { const v = rp.view?.view || { s: 1, ox: 0, oy: 0 }; return [(x - v.ox) / v.s, (y - v.oy) / v.s]; }
+function sceneToWorld(x, y) { const v = sceneWorld()?.view || { s: 1, ox: 0, oy: 0 }; return [(x - v.ox) / v.s, (y - v.oy) / v.s]; }
 function scenePickBone(x, y) {
-  if (!rp.view) return null;
+  const w = sceneWorld(); if (!w) return null;
   const [wx, wy] = sceneToWorld(x, y);
-  let best = null, bd = 16 / (rp.view.view?.s || 1);
-  for (const f of rp.view.fighters) { if (f.hidden) continue; const P = f.body();
+  let best = null, bd = 16 / (w.view?.s || 1);
+  for (const f of w.fighters) { if (f.hidden) continue; const P = f.body();
     for (const id of f.ch.ids) { const d = Math.hypot(P[id][0] - wx, P[id][1] - wy); if (d < bd) { bd = d; best = { f, id }; } }
   }
   return best;
@@ -476,31 +490,33 @@ function scenePickBone(x, y) {
 // output gives the parent's accumulated world angle, and f.xs (get xs, fighter.js) is the dir fk() mirrors angles by
 function scenePoseDrag(f, id) {
   sceneEdit(() => {
-    const [wx, wy] = sceneToWorld(rp.mx, rp.my), pose = { ...f.disp, ...rp.pose[f.id] }, wa = {};
+    const t = sceneTarget(); if (!t) return;
+    const [wx, wy] = sceneToWorld(rp.mx, rp.my), pose = { ...f.disp, ...t.pose[f.id] }, wa = {};
     fk(f.ch, pose, f.xs, f.lens, wa);
     const b = f.ch.by[id], pb = f.ch.by[b.parent], P = f.body(), pp = P[b.parent] || P.hip, pw = pb ? wa[pb.id] : 0;
     const w = Math.atan2((wx - pp[0]) * f.xs, wy - pp[1]) / R;
-    rp.pose[f.id] ||= {}; rp.pose[f.id][id] = Math.round(w - pw + b.level * (pw - (pb ? pb.restW : 0)));
+    t.pose[f.id] ||= {}; t.pose[f.id][id] = Math.round(w - pw + b.level * (pw - (pb ? pb.restW : 0)));
   }, 'scene-pose:' + f.id + ':' + id);
 }
 function scenePickProp(x, y) {
+  const w = sceneWorld(), t = sceneTarget(); if (!w || !t) return null;
   const [wx, wy] = sceneToWorld(x, y);
-  for (let i = rp.props.length - 1; i >= 0; i--) { const p = rp.props[i], gy = (rp.view?.groundY || 0) - p.lift; if (Math.hypot(p.x - wx, gy - wy) < 26) return i; }
+  for (let i = t.props.length - 1; i >= 0; i--) { const p = t.props[i], gy = w.groundY - p.lift; if (Math.hypot(p.x - wx, gy - wy) < 26) return i; }
   return null;
 }
-function sceneAddProp(type) { sceneEdit(() => { rp.props.push({ type, x: rp.view ? rp.view.cam : 400, lift: 0, a: 0 }); rp.propSel = rp.props.length - 1; }); }
-function scenePropMove(i, x) { sceneEdit(() => { rp.props[i].x = Math.round(x); }, 'scene-prop-x:' + i); }
-function scenePropSet(i, patch, key) { sceneEdit(() => Object.assign(rp.props[i], patch), key); }
-function scenePropDelete(i) { sceneEdit(() => { rp.props.splice(i, 1); if (rp.propSel === i) rp.propSel = null; }); }
+function sceneAddProp(type) { sceneEdit(() => { const t = sceneTarget(), w = sceneWorld(); if (!t) return; t.props.push({ type, x: w ? w.cam : 400, lift: 0, a: 0 }); rp.propSel = t.props.length - 1; }); }
+function scenePropMove(i, x) { sceneEdit(() => { const t = sceneTarget(); if (t) t.props[i].x = Math.round(x); }, 'scene-prop-x:' + i); }
+function scenePropSet(i, patch, key) { sceneEdit(() => { const t = sceneTarget(); if (t) Object.assign(t.props[i], patch); }, key); }
+function scenePropDelete(i) { sceneEdit(() => { const t = sceneTarget(); if (!t) return; t.props.splice(i, 1); if (rp.propSel === i) rp.propSel = null; }); }
 function sceneDrawProps(ctx, r) {
-  if (!rp.props.length || !rp.view) return;
-  const { s, ox, oy } = rp.view.view || { s: 1, ox: 0, oy: 0 }, gy = rp.view.groundY;
+  const w = sceneWorld(), t = sceneTarget(); if (!w || !t || !t.props.length) return;
+  const { s, ox, oy } = w.view || { s: 1, ox: 0, oy: 0 }, gy = w.groundY;
   ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip(); ctx.transform(s, 0, 0, s, ox, oy);
-  rp.props.forEach((p, i) => {
-    const t = PROPS[p.type]; if (!t) return;
+  t.props.forEach((p, i) => {
+    const pt = PROPS[p.type]; if (!pt) return;
     ctx.save(); ctx.translate(p.x, gy - p.lift); ctx.rotate(p.a * R);
-    drawShapes(ctx, t.shapes, (x, y) => [x, y], c => c || '#888', { sway: 0 });
-    if (i === rp.propSel) { ctx.strokeStyle = RED[0]; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, -t.h / 2, t.h / 2 + 6, 0, 7); ctx.stroke(); }
+    drawShapes(ctx, pt.shapes, (x, y) => [x, y], c => c || '#888', { sway: 0 });
+    if (i === rp.propSel) { ctx.strokeStyle = RED[0]; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, -pt.h / 2, pt.h / 2 + 6, 0, 7); ctx.stroke(); }
     ctx.restore();
   });
   ctx.restore();
@@ -509,18 +525,19 @@ function sceneDrawProps(ctx, r) {
 const numField = (v, set, w = 50) => h('input', { type: 'number', value: Math.round(v * 10) / 10, style: `width:${w}px`,
   onchange: e => set(+e.target.value) });
 function sceneSide() {
-  const names = Object.keys(PROPS), f0 = rp.view?.fighters[0];
-  return [heading('scene', 'Pose either fighter on the paused frame by dragging a joint, and place props from the catalog. Draw-only: never saved with the replay, never touches the fight. Undo (⌘Z) covers every edit here.', ''),
+  const names = Object.keys(PROPS), w = sceneWorld(), t = sceneTarget(), f0 = w?.fighters[0];
+  if (!t) return [];
+  return [heading('scene', `Pose either fighter on the paused frame by dragging a joint, and place props from the catalog. Draw-only: never saved with the replay, never touches the fight. Undo (⌘Z) covers every edit here.${rp.playMovie ? ' Editing this shot only.' : ''}`, ''),
     h('div', { cls: 'bar' }, toggle(':accessibility_new: pose', 'Drag a joint on either fighter to pose this frame', () => rp.poseOn, v => { rp.poseOn = v; rp.propSel = null; panels(); }),
-      button(':restart_alt: reset pose', 'Clear every pose edit', () => sceneEdit(() => { rp.pose = {}; }))),
-    f0 && Object.keys(rp.pose).length ? h('div', { cls: 'bar' }, h('span', { textContent: 'save as' }),
+      button(':restart_alt: reset pose', 'Clear every pose edit', () => sceneEdit(() => { t.pose = {}; }))),
+    f0 && Object.keys(t.pose).length ? h('div', { cls: 'bar' }, h('span', { textContent: 'save as' }),
       h('input', { type: 'text', placeholder: 'pose name', style: 'width:100px', onkeydown: e => {
         if (e.key !== 'Enter' || !e.target.value.trim()) return;
-        snapshotPose(e.target.value.trim(), f0.ch, { ...f0.disp, ...rp.pose[f0.id] }); e.target.value = ''; panels();
+        snapshotPose(e.target.value.trim(), f0.ch, { ...f0.disp, ...t.pose[f0.id] }); e.target.value = ''; panels();
       } })) : null,
     h('div', { cls: 'bar' }, h('span', { textContent: 'add prop' }),
       ...names.map(n => button(n, PROPS[n].tip || n, () => sceneAddProp(n), 'mini'))),
-    ...rp.props.map((p, i) => h('div', { cls: 'bar' + (i === rp.propSel ? ' on' : '') },
+    ...t.props.map((p, i) => h('div', { cls: 'bar' + (i === rp.propSel ? ' on' : '') },
       button(p.type, 'Click to select, drag it on the scene to move', () => { rp.propSel = i; rp.poseOn = false; panels(); }, 'mini'),
       h('span', { textContent: 'x' }), numField(p.x, v => scenePropMove(i, v), 55),
       h('span', { textContent: 'rotate' }), slider('a', { min: -180, max: 180, step: 5 }, () => p.a, v => scenePropSet(i, { a: v }, 'scene-prop-a:' + i), 'rotate'),
@@ -536,7 +553,7 @@ function rpMouse(type, x, y, e) {
   const L = rpLayout(), inTl = y >= L.tl.y, inMini = inTl && y < L.ruler, d = rp.drag;
   rp.mx = x; rp.my = y;
   const toMini = () => { const span = rp.v[1] - rp.v[0], t = (x - L.tx) / L.tw * rpEnd(); rpView(t - span / 2, t + span / 2); };
-  if (type === 'down' && !inTl && !rp.playMovie) {
+  if (type === 'down' && !inTl && (!rp.playMovie || rp.mv?.w)) {
     if (rp.poseOn) { const hit = scenePickBone(x, y); if (hit) { rp.drag = { pose: hit }; scenePoseDrag(hit.f, hit.id); } return; }
     const pi = scenePickProp(x, y);
     if (pi !== null) { rp.propSel = pi; rp.drag = { prop: pi }; panels(); return; }

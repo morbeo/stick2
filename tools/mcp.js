@@ -5,8 +5,30 @@
 const fs = require('fs'), path = require('path'), readline = require('readline');
 console.log = console.info = console.debug = console.error; // stdout carries the protocol: nothing else may print there (the engine shares this console)
 const S = require('./session')(), schemas = require('./schemas'), render = require('./render'), serve = require('./serve');
+const { execFileSync } = require('child_process');
 const VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 const OUT = path.join(S.ROOT, 'out');
+
+// ---------- git tools: asset files only, never source - see git_status/git_diff/git_commit below ----------
+const CODE_DIRS = ['src', 'tools', 'tests', 'docs', '.github', 'fonts'];
+// resolves and checks a path: inside the repo, and not a code directory (character/profile/replay exports, usually
+// under out/, are fine; src/tools/tests/docs/fonts are not, so an AI calling these tools can never touch source)
+function assetPath(p) {
+  const abs = path.resolve(S.ROOT, p), rel = path.relative(S.ROOT, abs);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error(`"${p}" is outside the repo`);
+  if (CODE_DIRS.includes(rel.split(path.sep)[0])) throw new Error(`"${p}" is a code path: git tools only touch assets (character/profile/replay exports, usually under out/), never source`);
+  return rel;
+}
+function git(...args) { return execFileSync('git', args, { cwd: S.ROOT, encoding: 'utf8' }); }
+function gitStatus() {
+  // -uall: without it, git collapses a whole ignored/untracked directory (out/) into one "!! out/" line instead of listing files in it
+  // --ignored: out/ (where most asset exports land) is gitignored, so a freshly saved profile never shows without it;
+  // narrowed to .json here (not gif/png noise already in out/) since that's what save_profile/replay_export write
+  const lines = git('status', '--porcelain', '--ignored', '-uall').split('\n').filter(Boolean); // not .trim() first: that eats the first line's leading status char
+  const files = lines.map(l => ({ status: l.slice(0, 2).trim(), path: l.slice(3) }))
+    .filter(f => f.path.endsWith('.json') && (() => { try { assetPath(f.path); return true; } catch { return false; } })());
+  return { clean: files.length === 0, files };
+}
 
 // ---------- tools: name → { d: description, p: properties (JSON Schema), req: required, run(args) → value | { content } } ----------
 const str = d => ({ type: 'string', description: d }), num = d => ({ type: 'number', description: d }), int = d => ({ type: 'integer', description: d });
@@ -88,6 +110,30 @@ const TOOLS = {
     p: { path: str('the file (relative to the repo)') }, req: ['path'], run: a => S.loadProfile(a.path) },
   save_profile: { d: 'Save the session as an app "everything" file (characters made or edited here, changed settings, scenarios): the app loads it with import → everything.',
     p: { path: str('the file (relative to the repo), e.g. out/profile.json') }, req: ['path'], run: a => S.saveProfile(a.path) },
+
+  // ---------- git: asset files only (character/profile/replay exports), never source - no wildcards, you name every file ----------
+  git_status: { d: 'Working-tree status for asset files only (never src/tools/tests/docs): new, modified or deleted, like `git status --porcelain`.',
+    run: () => gitStatus() },
+  git_diff: { d: 'The working-tree diff of one asset file (not staged, not a code path). A new file (not yet tracked - most asset exports live under out/, which is gitignored until you commit one) has no diff to show; this says so instead of returning nothing.',
+    p: { path: str('the file, relative to the repo') }, req: ['path'],
+    run: a => {
+      const p = assetPath(a.path);
+      if (!fs.existsSync(path.resolve(S.ROOT, p))) throw new Error(`"${p}" does not exist`);
+      let tracked = true; try { git('ls-files', '--error-unmatch', '--', p); } catch { tracked = false; }
+      if (!tracked) return { path: p, diff: '(new file, not yet committed: nothing to diff against)' };
+      const out = git('diff', '--', p);
+      return { path: p, diff: out || '(no changes)' };
+    } },
+  git_commit: { d: 'Stage and commit specific asset files (never src/tools/tests/docs; no wildcards, you name every file). Most asset exports live under out/, which is gitignored - naming one here force-adds it (a deliberate, explicit choice, not a wildcard), and it stays tracked after. Refuses if any named file is a code path or outside the repo - nothing is committed unless every one checks out.',
+    p: { files: arr('files to commit, relative to the repo', { type: 'string' }), message: str('the commit message') }, req: ['files', 'message'],
+    run: a => {
+      if (!a.files?.length) throw new Error('name at least one file');
+      const paths = a.files.map(assetPath);
+      for (const p of paths) if (!fs.existsSync(path.resolve(S.ROOT, p))) throw new Error(`"${p}" does not exist`);
+      git('add', '-f', '--', ...paths);
+      const log = git('commit', '-m', a.message, '--', ...paths);
+      return { committed: paths, message: a.message, log: log.trim() };
+    } },
 
   // ---------- pictures ----------
   render_frame: { d: 'A picture of a fight at a frame (0 = the start), as the app draws it. PNG from headless Chrome (found on its own, CHROME overrides); without Chrome, or with renderer "svg", SVG text drawn by the engine into a recording context.',

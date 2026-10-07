@@ -36,6 +36,7 @@ Any other MCP client: run `node tools/mcp.js` (or `npm run mcp`) from the repo. 
 | `run_checks` | the move matrix of the tests view: each move against every target state, the failing cells and why. It stops at a time budget and lists the moves left |
 | `replay_export`, `replay_import` | a fight as a replay file, and a replay played back with a desync report |
 | `load_profile`, `save_profile` | the app's export files |
+| `git_status`, `git_diff`, `git_commit` | version an asset export (a character, profile or replay file) in the repo's own git history. Asset files only - a code path (`src/`, `tools/`, `tests/`, `docs/`, `fonts/`) is refused outright. `git_commit` takes an explicit file list and message, never a wildcard; it force-adds (most exports live under `out/`, which is gitignored until you commit one) |
 | `render_frame` | a frame as a PNG (headless Chrome), or as SVG text without Chrome or with `renderer: "svg"` |
 | `frame_state` | the same frame, numerically instead of drawn: position, facing, hp, combo, the move running, frameState's category |
 | `render_gif` | a looping GIF of a stretch of a fight, written to `out/` (needs Chrome) |
