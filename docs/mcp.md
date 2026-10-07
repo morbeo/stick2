@@ -84,3 +84,5 @@ The server can also drive the app open in a browser.
 | `set_preview { scenario?, opponent?, control? }` | the character tab's live preview (needs that tab open) |
 | `send_to_play { scenario?, opponent? }` | jump to Play with a matchup; default: the character tab's own preview |
 | `undo` / `redo` | the same stack as ⌘Z: character edits and settings changes |
+
+This session's characters (`list_characters`, `create_character`...) and the bridge tab's (`DEFS`/`CHARS` in the browser, its own localStorage) are two separate stores - editing one is invisible to the other. `push_to_browser { name }` and `pull_from_browser` move one character between them explicitly (overwriting a same-named one on the receiving side); there is no automatic sync.
