@@ -637,8 +637,8 @@ function keyPanel() {
       button(':accessibility_new: stance', 'This key returns to the stance (clears its pose)', () => setKey('p', null)),
       button(':flip: mirror', 'Swap the front and back limbs in this key (left arm takes the right arm\'s angles and back)', mirrorKey),
       button(':pause: hold', 'Copy the previous key\'s pose (hold still)', () => setKey('p', clone(keyPose(edChar(), curMove(), Math.max(0, anim.key - 1))))),
-      button(':accessibility_new: pose', 'Start this key from a preset pose', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.entries(POSES).map(([n, p]) =>
-        button(n, p.tip, () => setKey('p', { ...keyPose(edChar(), curMove(), anim.key), ...presetPose(edChar(), p) }))))))),
+      button(':accessibility_new: pose', 'Start this key from a preset pose (built-in, or one saved from the replay scene editor)', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.entries(posesFor(edChar())).map(([n, p]) =>
+        button(n, p.tip, () => setKey('p', { ...keyPose(edChar(), curMove(), anim.key), ...p.pose() }))))))),
     h('div', { cls: 'row', tip: 'Easing: how the motion into this key\'s pose speeds up and slows down' }, h('span', { textContent: 'easing' }),
       seg(Object.keys(EASE), () => k().e || 'linear', v => setKey('e', v), EASE_TIPS)),
     h('div', { cls: 'row', tip: 'Active: the keys during which the strike can hit (red on the frame meter)' }, h('span', { textContent: 'active' }),

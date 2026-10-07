@@ -73,9 +73,57 @@
       sendToPlay(scen, opponent ?? (app.mode === 'character' ? creator.opponent : null));
       return { mode: app.mode, scenario: lab.scen };
     },
-    // the same undo/redo as ⌘Z: character edits and settings changes (not scenarios, replays or anything else)
+    // the same undo/redo as ⌘Z: covers character edits, settings, replay edits, movie edits and scene edits alike
     undo() { if (!studio.undo.length) throw new Error('nothing to undo'); undo(); return { undone: true, left: studio.undo.length }; },
     redo() { if (!studio.redo.length) throw new Error('nothing to redo'); redo(); return { redone: true, left: studio.redo.length }; },
+    // the replay tab's scene editor (replay.js): pose a fighter's bone by exact angle (not a drag gesture - for a
+    // script or an AI, a number is easier than simulated mouse movement), or apply a saved/built-in preset pose
+    pose_scene({ fighter, bone, angle, preset } = {}) {
+      if (!rp.reel) throw new Error('open a replay first (open_replay, or from_play)');
+      const f = rp.view.fighters[fighter]; if (!f) throw new Error(`no fighter ${fighter} (0 or 1)`);
+      if (preset !== undefined) {
+        const p = posesFor(f.ch)[preset]; if (!p) throw new Error(`no pose preset "${preset}" for ${f.ch.name} (posesFor lists built-ins + any saved from this character)`);
+        sceneEdit(() => { rp.pose[f.id] = p.pose(); });
+      } else {
+        if (!f.ch.by[bone]) throw new Error(`no bone "${bone}" on ${f.ch.name}`);
+        sceneEdit(() => { rp.pose[f.id] ||= {}; rp.pose[f.id][bone] = angle; });
+      }
+      return { pose: rp.pose[f.id] };
+    },
+    reset_pose() { if (!rp.reel) throw new Error('open a replay first'); sceneEdit(() => { rp.pose = {}; }); return { pose: rp.pose }; },
+    // snapshot_pose: save the fighter's current pose (its live pose + any scene overrides) as a named preset, in the
+    // same registry (myPoses, studio.js) the animate editor's "start this key from a preset pose" reads from
+    snapshot_pose({ fighter, name } = {}) {
+      if (!rp.reel) throw new Error('open a replay first');
+      const f = rp.view.fighters[fighter]; if (!f) throw new Error(`no fighter ${fighter} (0 or 1)`);
+      snapshotPose(name, f.ch, { ...f.disp, ...rp.pose[f.id] });
+      return { name, char: f.ch.name };
+    },
+    place_prop({ type, x, lift = 0, a = 0 } = {}) {
+      if (!rp.reel) throw new Error('open a replay first');
+      if (!PROPS[type]) throw new Error(`no prop "${type}" (PROPS: ${Object.keys(PROPS).join(', ')})`);
+      sceneEdit(() => { rp.props.push({ type, x, lift, a }); });
+      return { index: rp.props.length - 1, props: rp.props };
+    },
+    move_prop({ index, x, lift, a } = {}) {
+      if (!rp.props[index]) throw new Error(`no prop at index ${index}`);
+      sceneEdit(() => Object.assign(rp.props[index], { ...(x !== undefined && { x }), ...(lift !== undefined && { lift }), ...(a !== undefined && { a }) }));
+      return rp.props[index];
+    },
+    delete_prop({ index } = {}) {
+      if (!rp.props[index]) throw new Error(`no prop at index ${index}`);
+      sceneEdit(() => { rp.props.splice(index, 1); });
+      return { props: rp.props };
+    },
+    clear_scene() { if (!rp.reel) throw new Error('open a replay first'); sceneEdit(() => { rp.pose = {}; rp.props = []; }); return { ok: true }; },
+    // branch (replay.js): play on live from the playhead as P1 or P2 - the "continue the fight from here" the scene
+    // editor pairs with (pose it, place a prop, then branch to keep fighting from that doctored moment)
+    branch_from({ side } = {}) {
+      if (!rp.reel) throw new Error('open a replay first');
+      if (side !== 1 && side !== 2) throw new Error('side must be 1 or 2');
+      branchFrom(side);
+      return { mode: app.mode, frame: rp.n };
+    },
   };
   fetch('/bridge/hello').then(r => r.ok ? r.json() : null).then(hi => {
     if (hi?.stick2 !== 'bridge') return;

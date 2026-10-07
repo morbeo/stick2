@@ -143,6 +143,7 @@ function undoRedo(from, to) {
   if (e.cfg) { to.push({ cfg: { ...CFG } }); Object.assign(CFG, e.cfg); saveCfg(); syncAll(); return; }
   if (e.reel) { to.push({ reel: reelSnap() }); reelRestore(e.reel); return; } // a replay edit (replay.js)
   if (e.movie) { to.push({ movie: JSON.stringify(rp.movie) }); rp.movie = JSON.parse(e.movie); panels(); return; } // a movie edit (replay.js)
+  if (e.scene) { to.push({ scene: JSON.stringify({ pose: rp.pose, props: rp.props }) }); const s = JSON.parse(e.scene); rp.pose = s.pose; rp.props = s.props; panels(); return; } // a scene edit (replay.js)
   to.push(JSON.stringify(DEFS[CURRENT]));
   DEFS[CURRENT] = JSON.parse(e);
   recompile();
@@ -767,6 +768,21 @@ function presetPose(ch, preset) {
     c.forEach((b, i) => { if (v[i] !== undefined) p[b.id] = v[i]; });
   }
   return p;
+}
+// ---------- my poses: a literal per-bone snapshot (not role-generalized like POSES above), captured from a specific
+// character - the replay scene editor's "save as" button (replay.js sceneSide) feeds this; the animate editor's own
+// "start this key from a preset pose" (editor.js) and the character editor's stance presets (creator.js) both read
+// it too, alongside the built-in POSES, so a pose posed once in either place is a preset everywhere
+const POSE_STORE = 'stick2.myPoses';
+const myPoses = (() => { try { return JSON.parse(localStorage.getItem(POSE_STORE)) || {}; } catch { return {}; } })();
+function snapshotPose(name, ch, pose) { myPoses[name] = { char: ch.name, pose, tip: `Saved from ${ch.name}` }; saveMyPoses(); }
+function deleteMyPose(name) { delete myPoses[name]; saveMyPoses(); }
+function saveMyPoses() { try { localStorage.setItem(POSE_STORE, JSON.stringify(myPoses)); } catch {} }
+// every pose a character can be set to right now: the built-ins (role-generalized, presetPose) plus any custom ones
+// that were captured from this same character (a custom one's literal bone ids only make sense on its own rig)
+function posesFor(ch) {
+  return { ...Object.fromEntries(Object.entries(POSES).map(([k, p]) => [k, { tip: p.tip, pose: () => presetPose(ch, p) }])),
+    ...Object.fromEntries(Object.entries(myPoses).filter(([, p]) => p.char === ch.name).map(([k, p]) => [k, { tip: p.tip, pose: () => p.pose, custom: true }])) };
 }
 // locked bones rotate only with their parent: IK and dragging turn the first unlocked bone above instead
 const unlockedAbove = (ch, b) => { while (b?.lock) b = ch.by[b.parent]; return b; };
