@@ -600,8 +600,15 @@ class World {
   spark(st, pt, z, dir) {
     const r = this.fx, P = this.parts;
     if (st === 'slash') { const a = r(-1.1, -0.5) * dir; P.push({ t: 'slash', x: pt[0], y: pt[1], z, a, life: 0.18, max: 0.18 }); return; }
-    P.push({ t: 'flash', x: pt[0], y: pt[1], z, r: st === 'heavy' ? 34 : 22, life: 0.12, max: 0.12 });
-    if (st === 'heavy') P.push({ t: 'ring', x: pt[0], y: pt[1], z, life: 0.28, max: 0.28, big: true });
+    if (st === 'explosion') { // a bigger blunt: wider flash and ring, a shower of sparks, extra screen shake
+      P.push({ t: 'flash', x: pt[0], y: pt[1], z, r: 54, life: 0.22, max: 0.22 });
+      P.push({ t: 'ring', x: pt[0], y: pt[1], z, life: 0.4, max: 0.4, big: true });
+      for (let i = 0; i < 14; i++) { const a = r(0, 7), s = r(200, 500), life = r(0.25, 0.5); P.push({ t: 'spark', x: pt[0], y: pt[1], z, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life, w: 3 }); }
+      this.trauma = Math.min(1, this.trauma + 0.6);
+      return;
+    }
+    P.push({ t: 'flash', x: pt[0], y: pt[1], z, r: st === 'heavy' ? 34 : st === 'impact' ? 44 : 22, life: st === 'impact' ? 0.18 : 0.12, max: st === 'impact' ? 0.18 : 0.12 });
+    if (st === 'heavy' || st === 'impact') P.push({ t: 'ring', x: pt[0], y: pt[1], z, life: st === 'impact' ? 0.32 : 0.28, max: st === 'impact' ? 0.32 : 0.28, big: true });
     if (st === 'blunt') for (let i = 0; i < 5; i++) {
       const a = r(0, 7), s = r(150, 400), life = r(0.15, 0.3);
       P.push({ t: 'spark', x: pt[0], y: pt[1], z, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life, w: 2.5 });
