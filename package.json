@@ -6,6 +6,7 @@
     "itch": "node tools/itch.js",
     "itch:assets": "node tools/itch-assets.js",
     "mcp": "node tools/mcp.js",
+    "discord-bot": "node tools/discord-bot.js",
     "itch:push": "npm test && node tools/itch.js --push",
     "coverage": "node --test --experimental-test-coverage --test-coverage-include='src/**' tests/*.test.js",
     "coverage:browser": "COVERAGE=1 node tests/browser.js",
@@ -15,5 +16,8 @@
     "test:browser": "node tests/browser.js",
     "test:matrix": "MATRIX=full node --test tests/matrix.test.js",
     "test:all": "npm test && npm run test:browser"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.0"
   }
 }
