@@ -3,7 +3,8 @@
 const anim = { move: 'jab', key: 1, t: 0, playing: true, pvLoop: true, pvSpeed: 1, pvFx: true, onion: true, aim: false, aimId: null, reach: 'limb', drag: null, hover: null, anchor: null, pv: null, hold: false, holdEdit: false,
   target: { char: null, stance: 'stand', state: 'idle', facing: 'toward', dist: 'near' }, group: 'type', sort: 'order', filter: '',
   tfilter: '', tsort: { k: null, dir: 1 }, tscroll: 0, // the move table's filter, sort column and scroll
-  cmp: null, cmpView: 'off' }; // the move compared with (compare group): drawn over this one or as filmstrips
+  cmp: null, cmpView: 'off', // the move compared with (compare group): drawn over this one or as filmstrips
+  cmpOld: false, pvOld: null }; // side-by-side preview of the built-in character (before) next to the current edits (after)
 const curMove = () => currentChar().moves[anim.move];
 const cmpMove = () => anim.cmp && currentChar().moves[anim.cmp];
 const edChar = () => withWeapon(currentChar(), curMove()); // a weapon move is edited in the hand of its class's weapon
@@ -300,13 +301,22 @@ function buildPreview() {
   Object.assign(w, { sfx: playSound, loop: anim.pvLoop, rawAdvance: w.advance.bind(w) });
   w.advance = (dt, inp) => w.rawAdvance(dt * anim.pvSpeed, inp);
   anim.pv = w;
+  if (anim.cmpOld && CHAR_DEFS[CURRENT]) {
+    const wo = newWorld(pvScen(), anim.pvFx ? {} : NOJUICE, 1, [makeCharacter(CHAR_DEFS[CURRENT]), CHARS[anim.target.char] || currentChar()]);
+    Object.assign(wo, { sfx: () => {}, loop: anim.pvLoop, rawAdvance: wo.advance.bind(wo) }); // muted: only the "after" pane plays sound
+    wo.advance = (dt, inp) => wo.rawAdvance(dt * anim.pvSpeed, inp);
+    anim.pvOld = wo;
+  } else anim.pvOld = null;
 }
 // re-simulate the preview up to move time t (deterministic, so this is what the fight would show)
 function previewAt(t) {
-  const w = anim.pv, m = curMove();
-  w.reset();
-  for (let g = 0; g < 240 && w.a.action?.m !== m; g++) w.rawAdvance(F, NOIN);
-  for (let i = 0; i < Math.round(t / CFG.attackSpeed * 60); i++) w.rawAdvance(F, NOIN);
+  for (const w of [anim.pv, anim.pvOld]) {
+    if (!w) continue;
+    const m = w.a.ch.moves[anim.move]; // each pane's own version of the move, not the other pane's object
+    w.reset();
+    for (let g = 0; g < 240 && w.a.action?.m !== m; g++) w.rawAdvance(F, NOIN);
+    for (let i = 0; i < Math.round(t / CFG.attackSpeed * 60); i++) w.rawAdvance(F, NOIN);
+  }
 }
 
 // ---------- mouse ----------
@@ -1243,6 +1253,8 @@ function targetBar() {
     h('span', { cls: 'sep' }),
     toggle(':repeat:', 'Loop the preview when the move ends; off: play once and hold the last frame', () => anim.pvLoop, v => { anim.pvLoop = v; anim.pv.loop = v; }),
     toggle(':flash_on:', 'Hit stop, screen shake and juice in the preview; off: a clean, undisturbed look at the raw motion', () => anim.pvFx, v => { anim.pvFx = v; buildPreview(); }),
+    CHAR_DEFS[CURRENT] ? toggle(':compare_arrows:', 'Side by side: the built-in move (before) next to your edited one (after), same move, same moment. Record it with the clips toolbar to export the comparison',
+      () => anim.cmpOld, v => { anim.cmpOld = v; buildPreview(); previewAt(anim.t); }) : null,
     seg(Object.keys(speedTips).map(Number), () => anim.pvSpeed, v => { anim.pvSpeed = v; }, speedTips, v => ({ 0.25: '¼×', 0.5: '½×', 1: '1×', 2: '2×' })[v]),
     h('span', { cls: 'sep' }),
     button(':sports_kabaddi: send to play', 'Jump into Play against this target, keyboard in hand', () => sendToPlay('you vs ai', tg.char), 'mini'));
@@ -1255,11 +1267,18 @@ const animMode = {
   restart() { anim.t = 0; buildPreview(); },
   // playing/paused is the preview's own clock: it keeps looping (or holding, paused) regardless of which
   // key you've selected or scrubbed to in the editor below it (that only moves the editor's own cursor)
-  worlds: () => (anim.hold || !anim.playing) ? [] : [anim.pv],
+  worlds: () => (anim.hold || !anim.playing) ? [] : anim.pvOld ? [anim.pv, anim.pvOld] : [anim.pv],
   // scrub: mouse x = time through the move; paused, the preview re-simulates to the same moment; playing, it keeps running
   scrub(f) { const m = curMove(); anim.t = f * (total(m) - 1e-6); anim.key = keyAt(m, anim.t); if (!anim.playing) previewAt(anim.t); },
   changed() { if (anim.drag) previewAt(anim.t); else buildPreview(); },
-  render() { clear(); drawAnimEditor(); drawTimeline(); drawCell({ w: anim.pv, label: 'preview (springs + hit stop)' }, anLayout().pv, { plot: false }); },
+  render() {
+    clear(); drawAnimEditor(); drawTimeline();
+    if (anim.pvOld) {
+      const [ro, rn] = cellRects(2, 2, anLayout().pv);
+      drawCell({ w: anim.pvOld, label: 'before (built-in)' }, ro, { plot: false });
+      drawCell({ w: anim.pv, label: 'after (edited)' }, rn, { plot: false });
+    } else drawCell({ w: anim.pv, label: 'preview (springs + hit stop)' }, anLayout().pv, { plot: false });
+  },
   ctxBar: animCtx,
   split: () => true,
   side: movePanel,
