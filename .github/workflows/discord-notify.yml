@@ -4,18 +4,24 @@ on:
   push:
     branches: [master]
 
+# Set the repo/org variable DISCORD_NOTIFY_GIF to "false" to skip rendering a fight
+# GIF (faster, no Chrome install) and just post the plain embed. Default: on.
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - if: vars.DISCORD_NOTIFY_GIF != 'false'
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-      - uses: browser-actions/setup-chrome@v1
+      - if: vars.DISCORD_NOTIFY_GIF != 'false'
+        uses: browser-actions/setup-chrome@v1
         id: chrome
-      - run: npm ci
+      - if: vars.DISCORD_NOTIFY_GIF != 'false'
+        run: npm ci
       - name: Render a fight GIF
+        if: vars.DISCORD_NOTIFY_GIF != 'false'
         id: gif
         env:
           CHROME: ${{ steps.chrome.outputs.chrome-path }}
@@ -32,6 +38,7 @@ jobs:
             --arg author "${{ github.event.head_commit.author.name }}" \
             --arg sha "${{ github.sha }}" \
             --arg ts "${{ github.event.head_commit.timestamp }}" \
+            --argjson hasGif "$([ -n "$GIF_PATH" ] && echo true || echo false)" \
             '{
               embeds: [{
                 title: $title,
@@ -40,11 +47,11 @@ jobs:
                 color: 5793266,
                 author: { name: $author },
                 fields: [{ name: "Commit", value: ($sha | .[0:7]), inline: true }],
-                timestamp: $ts,
-                image: { url: "attachment://fight.gif" }
-              }]
+                timestamp: $ts
+              } + (if $hasGif then { image: { url: "attachment://fight.gif" } } else {} end)]
             }')
-          curl -s \
-            -F "payload_json=$PAYLOAD" \
-            -F "files[0]=@${GIF_PATH};filename=fight.gif" \
-            "$DISCORD_WEBHOOK"
+          if [ -n "$GIF_PATH" ]; then
+            curl -s -F "payload_json=$PAYLOAD" -F "files[0]=@${GIF_PATH};filename=fight.gif" "$DISCORD_WEBHOOK"
+          else
+            curl -s -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK"
+          fi
