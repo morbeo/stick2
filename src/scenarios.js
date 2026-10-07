@@ -163,8 +163,8 @@ function scenBuilder() {
       const b = button('', `P${i + 1}'s character · click: pick from every character`, (e, el) => popup(el,
         h('b', { textContent: `P${i + 1}` }),
         h('div', { cls: 'bar' }, toggle(':edit: editor', `Follow the character being edited (now ${CURRENT})`, () => !f.char, () => { closePop(); f.char = null; scenChanged(); fill(); }),
-          button(':casino: random', 'A random character', () => { closePop(); const ks = Object.keys(DEFS); f.char = ks[Math.floor(Math.random() * ks.length)]; scenChanged(); fill(); })),
-        h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k, v => { closePop(); f.char = v; scenChanged(); fill(); }, k => (f.char ?? 'editor') === k)))));
+          button(':casino: random', 'A random character', () => { closePop(); const ks = rosterKeys(); f.char = ks[Math.floor(Math.random() * ks.length)]; scenChanged(); fill(); })),
+        h('div', { cls: 'cards' }, rosterKeys().map(k => charCard(k, v => { closePop(); f.char = v; scenChanged(); fill(); }, k => (f.char ?? 'editor') === k)))));
       b.classList.add('fpick');
       reg(b, () => { b.replaceChildren(cv, h('span', { textContent: `P${i + 1} ${name()}` })); drawThumb(cv, CHARS[name()] || currentChar(), undefined, 20, 22); });
       return b;
