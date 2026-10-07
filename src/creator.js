@@ -1,6 +1,7 @@
 'use strict';
 // ---------- character mode: drag the skeleton, tune bones, watch it fight live; body experiment grid ----------
 const creator = { preview: 'showcase', opponent: 'self', controlDummy: false, w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
+  headToHead: false, htControl: 'none', // the changes panel's built-in-vs-yours option, instead of each vs the chosen opponent
   exp: { kind: 'body', vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
 const PREVIEWS = {
   showcase: ['showcase', 'Scripted demo: punches, a kick, a sweep, a jump kick, a dash into a grab and throw, a special, then backs off.'],
@@ -14,6 +15,11 @@ const previewScen = () => { const s = SCENARIOS[PREVIEWS[creator.preview][0] || 
   return { ...s, ...creator.controlDummy && s.b ? { b: 'human' } : null, init: w => { s.init?.(w); w.a.setStance(studio.stance, 'instant'); } }; };
 // the opponent's character model for the main preview (not the body-experiment cells, which bring their own)
 const previewChars = () => [currentChar(), CHARS[creator.opponent] || currentChar()];
+// the changes panel's head-to-head option: the built-in fights your edited version directly (always ai vs ai - a
+// balance test, not a demo), with htControl optionally handing one side to your own keyboard
+const diffHeadScen = () => { const s = SCENARIOS['ai vs ai'];
+  return { ...s, ...creator.htControl === 'base' ? { a: 'human' } : creator.htControl === 'cur' ? { b: 'human' } : null,
+    init: w => { s.init?.(w); w.a.setStance(studio.stance, 'instant'); w.b.setStance(studio.stance, 'instant'); } }; };
 
 // ---------- editor view: the stance pose, big, with a handle on every joint ----------
 function edLayout() {
@@ -518,10 +524,13 @@ const creatorMode = {
     // the changes panel's "built-in" side: the same scenario/opponent, fighting as the matching built-in instead
     const base = CHAR_DEFS[CURRENT];
     creator.diffW = base && creator.preview !== 'impact' ? newWorld(previewScen(), {}, 7, [makeCharacter(base), CHARS[creator.opponent] || makeCharacter(base)]) : null;
+    creator.diffHeadW = base ? newWorld(diffHeadScen(), {}, 7, [makeCharacter(base), CHARS[CURRENT]]) : null;
     if (creator.expOn) buildExp();
   },
   restart() { creatorMode.enter(); },
-  worlds: () => creator.expOn ? creator.exp.cells.map(c => c.w) : stageOpen() === 'changes' && creator.diffW ? [creator.w, creator.diffW] : [creator.w],
+  worlds: () => creator.expOn ? creator.exp.cells.map(c => c.w)
+    : stageOpen() === 'changes' && creator.headToHead && creator.diffHeadW ? [creator.diffHeadW]
+    : stageOpen() === 'changes' && creator.diffW ? [creator.w, creator.diffW] : [creator.w],
   render: creatorRender,
   ctxBar: creatorCtx,
   side: () => creator.expOn ? expPanel() : bodyPanel(),

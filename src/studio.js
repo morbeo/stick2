@@ -353,27 +353,35 @@ function charDiffPanel() {
   const lines = describeDiff(d).filter(l => !l.replace(/^[+-] /, '').startsWith('bones.') && !/^[+-] bones\b/.test(l)); // the bone table above covers these
   const changedMoves = Object.keys(d.changed?.moves?.changed || {});
   // the comparison itself is the fully interactive preview (same controls as the regular preview - scripted demo,
-  // walk, AI vs AI, driving the opponent yourself…), built-in on one side and the live edited character on the other
-  const cvBase = h('canvas'), cvCur = h('canvas');
+  // walk, AI vs AI, driving the opponent yourself…), built-in on one side and the live edited character on the other.
+  // head-to-head swaps that for the built-in fighting your edited version directly (always ai vs ai, a balance test
+  // rather than a look at them side by side), with htControl optionally handing one side to your own keyboard
+  const htToggle = toggle(':swords: head-to-head', 'Fight the built-in against your edited version directly, instead of each against the same opponent - a balance test, not just a look', () => creator.headToHead, v => { creator.headToHead = v; creatorMode.restart(); panels(); });
+  const htControl = h('span', { cls: 'seg' }, [['none', 'the engine AI'], ['base', 'built-in: you'], ['cur', 'yours: you']].map(([v, label]) => {
+    const b = button(label, `Drive the ${v === 'none' ? 'both sides' : v === 'base' ? 'built-in' : 'edited'} side with your own keyboard instead of the engine AI`, () => { creator.htControl = v; creatorMode.restart(); });
+    reg(b, () => b.classList.toggle('on', creator.htControl === v)); return b;
+  }));
+  const cvBase = h('canvas'), cvCur = h('canvas'), cvHead = h('canvas');
   for (const cv of [cvBase, cvCur]) { cv.width = 320 * dpr; cv.height = 200 * dpr; cv.style.width = '320px'; cv.style.height = '200px'; }
+  cvHead.width = 660 * dpr; cvHead.height = 200 * dpr; cvHead.style.width = '660px'; cvHead.style.height = '200px';
   const paint = (cv, w) => { const c = cv.getContext('2d'), r = { x: 0, y: 0, w: cv.width, h: cv.height };
     c.fillStyle = '#f3f0e8'; c.fillRect(r.x, r.y, r.w, r.h); w?.render(c, r); };
   const loop = () => {
-    if (!document.body.contains(cvBase)) return;
-    paint(cvBase, creator.diffW); paint(cvCur, creator.w);
+    if (!document.body.contains(cvBase) && !document.body.contains(cvHead)) return;
+    if (creator.headToHead) paint(cvHead, creator.diffHeadW); else { paint(cvBase, creator.diffW); paint(cvCur, creator.w); }
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
   wrap.append(...[stageHead('changes', 'What differs from the matching built-in character',
     button(':download: export diff', 'Export just this diff (the default character export)', () => exportChar(false), 'mini'),
     button(':download: export image', 'Download a PNG of this comparison - the bodies and the change list, for patch notes or docs', () =>
-      exportDiffImage(`${CURRENT}-changes.png`, [{ cv: cvBase, label: 'built-in' }, { cv: cvCur, label: 'yours' }], lines), 'mini'),
+      exportDiffImage(`${CURRENT}-changes.png`, creator.headToHead ? [{ cv: cvHead, label: 'built-in vs yours' }] : [{ cv: cvBase, label: 'built-in' }, { cv: cvCur, label: 'yours' }], lines), 'mini'),
     button(':content_copy: embed link', 'Copy a link that opens this exact diff, straight into this changes panel, for anyone (#diff=…)', () =>
       navigator.clipboard?.writeText(diffEmbedLink(charExport(false))), 'mini')),
-    previewBar('bar'),
-    h('div', { cls: 'bar' },
-      h('div', {}, h('b', { textContent: 'built-in' }), cvBase),
-      h('div', {}, h('b', { textContent: 'yours' }), cvCur)),
+    h('div', { cls: 'bar' }, htToggle, creator.headToHead ? htControl : null),
+    creator.headToHead ? null : previewBar('bar'),
+    creator.headToHead ? h('div', {}, h('b', { textContent: 'built-in vs yours' }), cvHead)
+      : h('div', { cls: 'bar' }, h('div', {}, h('b', { textContent: 'built-in' }), cvBase), h('div', {}, h('b', { textContent: 'yours' }), cvCur)),
     boneTable,
     lines.length ? diffLinesEl(lines) : h('p', { cls: 'note', textContent: 'No changes from the built-in.' }),
     changedMoves.length ? h('div', { cls: 'bar' }, h('span', { textContent: 'changed moves:' }),
