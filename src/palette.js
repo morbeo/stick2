@@ -43,7 +43,9 @@ function paletteEntries() {
       if (mode() !== labMode || lab.mode === 'gallery') setMode('play');
       lab.scen = k; lab.playback = lab.branch = null; build(); panels();
     } })),
-    ...Object.keys(currentChar().moves).map(n => ({ kind: 'move', name: n, tip: 'Open it in the animate editor', run: () => openMove(n) })),
+    // every character's own moves, not just the current one's — picks that character first if it isn't already
+    ...Object.keys(DEFS).flatMap(c => Object.keys(CHARS[c].moves).map(n => ({ kind: 'move', name: c === CURRENT ? n : `${n} (${c})`,
+      tip: c === CURRENT ? 'Open it in the animate editor' : `Open ${c}'s ${n} in the animate editor`, run: () => { if (CURRENT !== c) pickChar(c); openMove(n); } }))),
     ...Object.keys(SOUNDS).map(n => ({ kind: 'sound', name: n, tip: 'Open it in the sounds editor', run: () => { setMode('sounds'); soundSel = n; panels(); } })),
     ...Object.keys(FX_LOOKS).map(n => ({ kind: 'look', name: n, tip: FX_LOOKS[n], run: () => { setMode('fx'); fxState.sel = n; panels(); } })),
     ...Object.keys(myTracks).map(n => ({ kind: 'track', name: n, tip: 'Open it in the tracker', run: () => { setMode('tracker'); trackSel = n; panels(); } })),

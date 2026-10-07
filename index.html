@@ -176,6 +176,9 @@
   .card.on canvas { filter: invert(1) brightness(1.6); }
   .card.on canvas.scenthumb { filter: none; } /* a rendered scene, not a B&W figure: inverting it looks broken, not selected */
   .card.on canvas.itemthumb { filter: none; }
+  /* the grid's own select step (one click), distinct from .on (actually in use elsewhere): an outline, not an invert,
+     so it reads as "picked, click again to open" rather than "this is what's currently loaded" */
+  .card.gridsel { outline: 2px solid #3a7ca5; outline-offset: -2px; }
   .tree { display: flex; align-items: center; gap: 2px; margin: 1px 0; }
   .tree button { padding: 0 6px; } button.twist, span.twist { width: 18px; padding: 0; border: 0; background: none; }
   .vname { cursor: pointer; text-decoration: underline dotted #aaa; text-underline-offset: 3px; }

@@ -166,10 +166,14 @@ function docsFrame() {
 // the address: #docs or #docs=topic opens the docs page, #mode=animate a mode, #embed=<slug|JSON> loads a fight for an <iframe> (src/scenarios.js),
 // #diff=<json> opens a character diff straight into the changes panel (src/studio.js, the panel's own "embed link" button),
 // #kitchensink opens every shared UI component on one page (src/kitchensink.js), for checking a theme change or a visual bug,
-// #theater drops the toolbars and side panel (any mode, not just play) - a clean demo view, e.g. gallery.html's theatrical variant
-// a direct link into a tool, and optionally one of its stage panels - for docs to point straight at a feature,
-// or for copy-link buttons anywhere in the UI (see charDiffPanel's "link to this panel")
-const toolLink = (tool, panel) => `${location.origin}${location.pathname}#tool=${tool}${panel ? '&panel=' + panel : ''}`;
+// #theater drops the toolbars and side panel (any mode, not just play) - a clean demo view, e.g. gallery.html's theatrical variant,
+// #char=/#scenario=/#move=/#sound=/#look=/#track=/#prop=/#weapon= open that item where it's edited (move combines with
+// char: #char=grumbo&move=hugGrab), #collection=/#sel= pick a grid cell without opening it (the grid's own select step)
+// a direct link into a tool, optionally one of its stage panels, and optionally a specific item it should open or
+// select first - for docs to point straight at a feature, for copy-link buttons anywhere in the UI (see charDiffPanel's
+// "link to this panel" and the grid's own per-card link), extra: { char, scenario, move, sound, look, track, prop, weapon, collection, sel }
+const toolLink = (tool, panel, extra = {}) => `${location.origin}${location.pathname}#tool=${tool}${panel ? '&panel=' + panel : ''}` +
+  Object.entries(extra).filter(([, v]) => v != null).map(([k, v]) => `&${k}=${encodeURIComponent(v)}`).join('');
 // #tool=<mode>&panel=<stage>: a direct link into a specific tool and one of its stage panels (mode is the older
 // name for the same thing, kept for links already out there) - what the docs link to when pointing at a feature
 function readHash() {
@@ -177,9 +181,25 @@ function readHash() {
   const tool = p.get('tool') || p.get('mode');
   if (tool && MODES[tool]) setMode(tool);
   if (p.has('panel')) openStage(p.get('panel'));
+  if (p.has('char') && DEFS[p.get('char')]) pickChar(p.get('char'));
+  if (p.has('scenario') && SCENARIOS[p.get('scenario')]) {
+    if (mode() !== labMode || lab.mode === 'gallery') setMode('play');
+    lab.scen = p.get('scenario'); lab.playback = lab.branch = null; build();
+  }
+  if (p.has('move') && currentChar().moves[p.get('move')]) openMove(p.get('move'));
+  if (p.has('sound') && SOUNDS[p.get('sound')]) { setMode('sounds'); soundSel = p.get('sound'); }
+  if (p.has('look') && FX_LOOKS[p.get('look')]) { setMode('fx'); fxState.sel = p.get('look'); }
+  if (p.has('track') && myTracks[p.get('track')]) { setMode('tracker'); trackSel = p.get('track'); }
+  if (p.has('prop') && PROPS[p.get('prop')]) { setMode('props'); propSel = p.get('prop'); }
+  if (p.has('weapon') && WEAPONS[p.get('weapon')]) { setMode('weapons'); weaponSel = p.get('weapon'); }
+  if (p.has('collection') && GRID_COLLECTIONS[p.get('collection')]) {
+    setMode('grid'); gridState.collection = p.get('collection');
+    if (p.has('sel')) gridState.sel[p.get('collection')] = p.get('sel');
+  }
   if (p.has('docs')) openDocs(p.get('docs') || null, true);
   if (p.has('embed')) loadEmbedScenario(p.get('embed'));
   if (p.has('diff')) loadEmbedDiff(p.get('diff'));
   if (p.has('kitchensink')) openKitchenSink();
   if (p.has('theater')) setTheater(true);
+  panels();
 }
