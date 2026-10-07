@@ -1076,9 +1076,12 @@ class Fighter {
     const set = att.ch.hurt.high, stun = this.c('parryStun');
     att.buffer = null; att.start(makeHurt(set[Math.floor(this.w.rand() * set.length)], stun, this.w.rand, att.st.pose)); att.hurtT = stun;
   }
-  // a strike caught by a catch key: the counter move answers it at once (its damage lands now, its keys only animate)
+  // a strike caught by a catch key: the counter move answers it at once (its damage lands now, its keys only animate).
+  // counter: 'MIRROR' plays the attacker's own connecting move back at them instead of one fixed named move - a true
+  // mirror/reversal, since what lands depends on whatever move the opponent actually threw, not what this move's author picked
   catchHit(att, hit) {
-    const m = this.ch.moves[this.action.m.counter];
+    const named = this.action.m.counter;
+    const m = named === 'MIRROR' ? att.action?.m : this.ch.moves[named];
     this.say('CATCH');
     if (!m) return;
     this.start(m);
@@ -1203,9 +1206,11 @@ class Fighter {
   // world-space joints: lowest body point snapped to the ground, then squash/stretch around it.
   // free (the scene editor's poseOverride only): skip the ground snap so a dragged pose can leave the floor entirely
   points(p, lens, free) {
-    // the head snaps to face (dir) right away instead of squashing through xs with the rest of the body,
-    // so it doesn't gather into the chest mid-turn (the turnTuck squish)
-    const L = fk(this.ch, p, b => b.role === 'head' ? this.dir : this.xs, lens);
+    // a bone with turnSnap (default: role 'head') mirrors to face (dir) right away instead of squashing through xs
+    // with the rest of the body, so it doesn't gather into the chest mid-turn (the turnTuck squish) - a second head,
+    // a tail, antennae... anything that should snap around instead of squashing can opt in with turnSnap: true,
+    // and a head that should squash normally with the body can opt out with turnSnap: false
+    const L = fk(this.ch, p, b => (b.turnSnap ?? b.role === 'head') ? this.dir : this.xs, lens);
     if (this.kd === 'down' && !this.rag) settle(this.ch, L); // the lie pose rolls to the angle it lies flattest at
     let fy = 0;
     if (!free) for (const b of this.ch.bones) fy = Math.max(fy, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
