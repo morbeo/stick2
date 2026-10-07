@@ -4,7 +4,7 @@ const creator = { preview: 'showcase', opponent: 'self', controlDummy: false, w:
   headToHead: false, htControl: 'none', // the changes panel's built-in-vs-yours option, instead of each vs the chosen opponent
   exp: { kind: 'body', vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
 // quick picks shown as buttons in the preview bar; creator.preview itself can be any SCENARIOS key (scenButton picks from all of them)
-const PREVIEW_PRESETS = ['showcase', 'walk', 'ai vs ai'];
+const PREVIEW_PRESETS = ['showcase', 'walk', 'ai vs ai', 'solo'];
 // the preview's scenario. controlDummy: your own keyboard drives the
 // opponent instead of its script/AI - the character being edited never reads live keys here, so there's no clash
 const previewScen = () => { const s = SCENARIOS[creator.preview] || SCENARIOS.showcase;
@@ -224,21 +224,17 @@ function creatorCtx() {
 function openBodyVary() { lab.kind = 'body'; setMode('experiment'); }
 // what the preview plays: under the preview (a lot of free space there), not the toolbar
 function previewBar(cls = 'over pvbar') {
-  const oppNames = ['self', ...Object.keys(CHARS)];
-  const oppB = (() => {
-    const choiceB = n => { const b = button(n, n === 'self' ? 'A copy of the character you\'re editing' : `Fight ${n} instead of a copy of yourself`,
-      () => { creator.opponent = n; closePop(); creatorMode.restart(); panels(); }); reg(b, () => b.classList.toggle('on', creator.opponent === n)); return b; };
-    const b = button('', 'The opponent\'s character in the preview (not just a copy of yours)', (e, el) =>
-      popup(el, h('div', { cls: 'bar' }, h('span', { cls: 'seg' }, oppNames.map(choiceB)))));
-    reg(b, () => setRich(b, ':person: ' + creator.opponent));
-    return b;
-  })();
-  const controlB = toggle(':stadia_controller: you control it', 'Drive the opponent with your own keyboard instead of its script/AI - handy for holding it still, guarding, or moving it into a weapon or throw\'s reach',
+  const solo = creator.preview === 'solo';
+  const oppB = button('', 'The opponent\'s character in the preview (not just a copy of yours)', (e, el) =>
+    charPickerPopup(el, { title: 'opponent', extra: [['self', 'A copy of the character you\'re editing']],
+      pick: n => { creator.opponent = n; creatorMode.restart(); panels(); }, on: n => creator.opponent === n }));
+  reg(oppB, () => setRich(oppB, ':person: ' + creator.opponent));
+  const controlB = toggle(':stadia_controller:', 'Drive the opponent with your own keyboard instead of its script/AI - handy for holding it still, guarding, or moving it into a weapon or throw\'s reach',
     () => creator.controlDummy, v => { creator.controlDummy = v; creatorMode.restart(); });
   const pick = v => { creator.preview = v; creator.controlDummy = false; creatorMode.restart(); panels(); };
   return h('div', { cls }, seg(PREVIEW_PRESETS, () => creator.preview, pick, mapVals(Object.fromEntries(PREVIEW_PRESETS.map(v => [v, v])), v => scenTip(SCENARIOS[v])), v => v),
-    scenButton(pick, () => creator.preview), oppB, controlB,
-    button(':sports_kabaddi: send to play', 'Jump into Play with this scenario and opponent', () => sendToPlay(creator.preview, creator.opponent), 'mini'));
+    scenButton(pick, () => creator.preview), solo ? null : oppB, solo ? null : controlB,
+    button(':sports_kabaddi: send to play', 'Jump into Play with this scenario and opponent', () => sendToPlay(creator.preview, creator.opponent)));
 }
 const setProp = (k, v) => edit(def => { for (const b of selDefs(def)) b[k] = v; }, selIds() + '.' + k);
 const prop = k => selBone()?.[k] ?? BONE[k];

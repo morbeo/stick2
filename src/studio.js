@@ -559,13 +559,17 @@ function showStancePreview(btn, i) {
   stancePreview = box;
 }
 function hideStancePreview() { stancePreview?.remove(); stancePreview = null; }
-function charPickerPopup(el) {
+// the fuzzy-search character picker popup; pick/on default to switching CURRENT everywhere - pass your own to pick
+// something else (e.g. a preview's opponent). extra prepends non-character choices (e.g. "self") as plain buttons
+function charPickerPopup(el, { pick = pickChar, on = k => CURRENT === k, title = 'character', extra = [] } = {}) {
   const list = h('div', { cls: 'cards' });
-  const fill = () => list.replaceChildren(...Object.keys(DEFS).filter(k => fuzzy(q.value, k)).map(k => charCard(k)));
+  const fill = () => list.replaceChildren(
+    ...extra.filter(([n]) => fuzzy(q.value, n)).map(([n, tip]) => { const b = button(n, tip, () => { closePop(); pick(n); }); reg(b, () => b.classList.toggle('on', on(n))); return b; }),
+    ...Object.keys(DEFS).filter(k => fuzzy(q.value, k)).map(k => charCard(k, pick, on)));
   const q = h('input', { cls: 'macro', placeholder: 'search…', tip: 'Fuzzy search: letters in order match the name',
     oninput: fill, onkeydown: e => e.stopPropagation() });
   fill();
-  popup(el, h('b', { textContent: 'character' }), q, list);
+  popup(el, h('b', { textContent: title }), q, list);
 }
 function charStancePicker() {
   const cv = h('canvas'), b = button('', 'The character every mode edits · click: pick another', (e, el) => charPickerPopup(el));
