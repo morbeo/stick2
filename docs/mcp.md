@@ -76,3 +76,8 @@ The server can also drive the app open in a browser.
 | `import_character { def }` | adds a character and picks it |
 | `open_replay { replay }` or `{ simulation }` | opens a fight in the replay tab |
 | `screenshot` | the canvas as a PNG |
+| `set_mode { mode }` | switches tabs |
+| `pick_character { name }` | the character every mode edits |
+| `delete_character { name }` / `rename_character { from, to }` | session characters only (not built-ins), no confirmation prompt unlike the UI |
+| `set_preview { scenario?, opponent?, control? }` | the character tab's live preview (needs that tab open) |
+| `send_to_play { scenario?, opponent? }` | jump to Play with a matchup; default: the character tab's own preview |

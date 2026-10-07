@@ -29,6 +29,50 @@
       return { frames: rp.N, desync: rp.reel.desync, ...(replay.version !== ENGINE_VERSION ? { warning: `recorded with engine v${replay.version}, this is v${ENGINE_VERSION}` } : {}) };
     },
     screenshot: () => ({ png: canvas.toDataURL('image/png') }),
+    set_mode({ mode }) {
+      if (![...Object.keys(MODES), ...Object.values(VIEWS).flat()].includes(mode)) throw new Error(`no mode "${mode}"`);
+      setMode(mode); panels();
+      return { mode: app.mode };
+    },
+    pick_character({ name }) {
+      if (!DEFS[name]) throw new Error(`no character "${name}" (state lists def.name, or import_character first)`);
+      pickChar(name);
+      return { character: CURRENT, def: DEFS[CURRENT] };
+    },
+    // bridge-driven, so no confirmation dialog (unlike the UI's delete/rename, which ask first): the caller already decided
+    delete_character({ name }) {
+      if (CHAR_DEFS[name]) throw new Error(`"${name}" is a built-in, can't be deleted`);
+      if (!DEFS[name]) throw new Error(`no character "${name}"`);
+      const used = scensUsing(name);
+      delete DEFS[name]; delete CHARS[name];
+      if (CURRENT === name) pickChar('stick'); else save();
+      return { deleted: name, ...(used.length ? { stillNamedBy: used } : {}) };
+    },
+    rename_character({ from, to }) {
+      if (CHAR_DEFS[from]) throw new Error(`"${from}" is a built-in, can't be renamed`);
+      if (!DEFS[from]) throw new Error(`no character "${from}"`);
+      if (DEFS[to]) throw new Error(`"${to}" already exists`);
+      DEFS[to] = { ...DEFS[from], name: to }; CHARS[to] = makeCharacter(DEFS[to]);
+      delete DEFS[from]; delete CHARS[from];
+      if (CURRENT === from) pickChar(to); else save();
+      return { name: to };
+    },
+    // the character editor's live preview: what it plays, the opponent, and whether your keyboard drives the opponent
+    set_preview({ scenario, opponent, control } = {}) {
+      if (app.mode !== 'character') throw new Error('the character tab must be open first (set_mode character)');
+      if (scenario !== undefined) { if (!SCENARIOS[scenario]) throw new Error(`no scenario "${scenario}"`); creator.preview = scenario; }
+      if (opponent !== undefined) { if (opponent !== 'self' && !CHARS[opponent]) throw new Error(`no character "${opponent}"`); creator.opponent = opponent; }
+      if (control !== undefined) creator.controlDummy = !!control;
+      creatorMode.restart(); panels();
+      return { scenario: creator.preview, opponent: creator.opponent, control: creator.controlDummy };
+    },
+    // jump to Play with a scenario and opponent, continuing what a preview just showed (default: the character tab's own preview)
+    send_to_play({ scenario, opponent } = {}) {
+      const scen = scenario ?? (app.mode === 'character' ? creator.preview : lab.scen);
+      if (!SCENARIOS[scen]) throw new Error(`no scenario "${scen}"`);
+      sendToPlay(scen, opponent ?? (app.mode === 'character' ? creator.opponent : null));
+      return { mode: app.mode, scenario: lab.scen };
+    },
   };
   fetch('/bridge/hello').then(r => r.ok ? r.json() : null).then(hi => {
     if (hi?.stick2 !== 'bridge') return;
