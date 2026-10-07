@@ -1,0 +1,26 @@
+<!doctype html>
+<!-- renders a built-in character's stance pose to a transparent PNG (tools/discord-emojis.js calls charIcon) -->
+<meta charset="utf-8">
+<title>stick2 character icon</title>
+<script src="../src/core.js"></script>
+<script src="../src/shapes.js"></script>
+<script src="../src/rig.js"></script>
+<script src="../src/fx.js"></script>
+<script src="../src/roster.js"></script>
+<script src="../src/fighter.js"></script>
+<script src="../src/world.js"></script>
+<script>
+// a character's stance, scaled and centred the same way for every character (so sizes compare), transparent background
+window.charIcon = (name, size = 512) => {
+  const ch = CHARS[name], c = document.createElement('canvas'), ctx = c.getContext('2d');
+  c.width = c.height = size;
+  const L = fk(ch, ch.poses.stance, 1), s = size * 0.78 / 125;
+  let low = 0, x0 = 0, x1 = 0;
+  for (const b of ch.bones) { const p = L[b.id], r = b.shape === 'circle' ? b.len : 0; low = Math.max(low, p[1] + r); x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); }
+  ctx.translate(size / 2 - (x0 + x1) / 2 * s, size * 0.94 - low * s); ctx.scale(s, s);
+  const col = ch.col || INK;
+  drawFigure(ctx, ch, L, col[0], col[1], 0, null);
+  return c.toDataURL('image/png');
+};
+window.charIconNames = () => Object.keys(CHARS);
+</script>
