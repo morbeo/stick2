@@ -18,6 +18,14 @@ function gridPick(k, focus, onPick) {
   if (gridState.sel[gridState.collection] === k) focus();
   else { gridState.sel[gridState.collection] = k; onPick?.(); panels(); }
 }
+// the exact same filter + sort gridCards() draws, as a plain array — for keyboard nav (gridMode.key) to walk in the
+// same order the eye sees, and so Enter/arrows never pick something that isn't actually on screen
+function gridItemsShown() {
+  const col = GRID_COLLECTIONS[gridState.collection], items = col.items(), fields = col.fields(), shownKeys = gridState.fields[gridState.collection] || [];
+  const q = gridState.filter.trim();
+  const matches = k => !q || fuzzy(q, [k, ...shownKeys.map(fk => fields.find(f => f.k === fk)?.get(k))].join(' '));
+  return gridSort(items.filter(matches), fields, shownKeys);
+}
 function saveGridStore() { try { localStorage.setItem(GRID_STORE, JSON.stringify({ collection: gridState.collection, cols: gridState.cols, soundAutoplay: gridState.soundAutoplay, fields: gridState.fields, sort: gridState.sort })); } catch {} }
 // name, or any shown field: click picks it (ascending), click again reverses — the same idiom as the move table's headers
 function gridSort(items, fields, shownKeys) {
@@ -46,12 +54,6 @@ const scenGridFields = () => [
   { k: 'a', tip: 'Fighter 1\'s controller', get: k => typeof SCENARIOS[k].a === 'string' ? SCENARIOS[k].a : 'script' },
   { k: 'b', tip: 'Fighter 2\'s controller', get: k => typeof SCENARIOS[k].b === 'string' ? SCENARIOS[k].b : 'script' },
 ];
-// a plain text card for collections with no live thumbnail (sounds, tracks): name, a badge line, click to open
-function simpleCard(name, badge, onClick, isOn) {
-  const b = h('button', { cls: 'card', onclick: onClick }, h('span', { textContent: name }), h('span', { cls: 'gbadge', textContent: badge }));
-  reg(b, () => b.classList.toggle('on', isOn()));
-  return b;
-}
 // a static snapshot of the scenario's starting positions (stage, props, every fighter's idle pose) — drawn once
 // (not kept live: replaying every scenario in the grid at once would be slow and distracting), reusing the exact
 // same World/render a real fight uses, just never advanced a single frame
@@ -92,23 +94,65 @@ function scenCard(k, onclick = () => { lab.scen = k; setMode('play'); }, picked 
   reg(b, () => b.classList.toggle('on', lab.scen === k));
   return b;
 }
+// a step grid thumbnail (on / off cells, one row per track row) — tracks had no visual at all before; a static
+// snapshot is enough here (unlike scenarios, there's no "play it out" world to advance, and the tracker's own
+// scheduler is the real player)
+function trackThumb(name) {
+  const t = myTracks[name], cv = h('canvas', { width: 100 * dpr, height: 56 * dpr, cls: 'itemthumb' });
+  const c = cv.getContext('2d'), cw = cv.width / t.steps, rh = cv.height / Math.max(1, t.rows.length);
+  c.fillStyle = '#f3f0e8'; c.fillRect(0, 0, cv.width, cv.height);
+  t.rows.forEach((row, ri) => row.cells.forEach((cell, ci) => {
+    if (cell == null) return;
+    c.fillStyle = '#6f6a5c'; c.fillRect(ci * cw + 1, ri * rh + 1, cw - 2, rh - 2);
+  }));
+  return cv;
+}
+// what a click on the already-picked cell actually opens, and the #hash a link to it opens straight into (see
+// toolLink, docs.js) — kept apart from the card builders below so the keyboard nav (gridMode.key) and the per-card
+// link button (gridCard) can both call them without caring how each collection draws its own card
+const gridFocus = {
+  characters: kk => { pickChar(kk); setMode('character'); },
+  moves: nm => openMove(nm),
+  scenarios: k => { lab.scen = k; setMode('play'); },
+  sounds: k => { soundSel = k; setMode('sounds'); },
+  looks: k => { fxState.sel = k; fxState.zoom = true; setMode('fx'); },
+  tracks: k => { trackSel = k; setMode('tracker'); },
+};
+// named gridItemLink, not gridLink: src/lab.js already has an unrelated function gridLink (a CSS-grid settings row) -
+// top-level consts/functions across script tags share one global scope, so reusing that name would throw at load
+const gridItemLink = {
+  characters: k => toolLink('character', null, { char: k }),
+  moves: k => toolLink('animate', null, { char: CURRENT, move: k }),
+  scenarios: k => toolLink('play', null, { scenario: k }),
+  sounds: k => toolLink('sounds', null, { sound: k }),
+  looks: k => toolLink('fx', null, { look: k }),
+  tracks: k => toolLink('tracker', null, { track: k }),
+};
 const GRID_COLLECTIONS = {
-  characters: { tip: 'Every built-in and custom character', items: () => Object.keys(DEFS), fields: charFields,
-    card: k => gridCard(charCard(k, kk => gridPick(kk, () => { pickChar(kk); setMode('character'); }), kk => CURRENT === kk), k, charFields()) },
-  moves: { tip: 'The current character\'s moves', items: () => Object.keys(currentChar().moves), fields: moveFields,
-    card: n => gridCard(moveCard(n, `Click to pick it, click again to open ${n} in the keyframe editor`, nm => gridPick(nm, () => openMove(nm))), n, moveFields()) },
-  scenarios: { tip: 'Built-in and your own scenarios', items: () => Object.keys(SCENARIOS), fields: scenGridFields,
-    card: k => gridCard(scenCard(k, () => gridPick(k, () => { lab.scen = k; setMode('play'); }), gridState.sel.scenarios === k), k, scenGridFields()) },
-  sounds: { tip: 'Every sound (built-in and custom)', items: () => Object.keys(SOUNDS), fields: () => [],
-    card: k => gridCard((() => { const b = h('button', { cls: 'card', onclick: () => gridPick(k, () => { soundSel = k; setMode('sounds'); }, () => playSound(k)),
+  characters: { tip: 'Every built-in and custom character', items: () => Object.keys(DEFS), fields: charFields, focus: gridFocus.characters, link: gridItemLink.characters,
+    card: k => {
+      const card = gridCard(charCard(k, kk => gridPick(kk, () => gridFocus.characters(kk)), kk => CURRENT === kk), k, charFields());
+      const cmp = h('span', { cls: 'linkbtn comparebtn', tip: 'Overlay on the character tab\'s stats radar, to compare against the current character', onclick: e => { e.stopPropagation(); radar.chars[radar.chars.has(k) ? 'delete' : 'add'](k); panels(); } }, icon('ssid_chart'));
+      cmp.classList.toggle('on', radar.chars.has(k));
+      card.append(cmp);
+      return card;
+    } },
+  moves: { tip: 'The current character\'s moves', items: () => Object.keys(currentChar().moves), fields: moveFields, focus: gridFocus.moves, link: gridItemLink.moves,
+    card: n => gridCard(moveCard(n, `Click to pick it, click again to open ${n} in the keyframe editor`, nm => gridPick(nm, () => gridFocus.moves(nm))), n, moveFields()) },
+  scenarios: { tip: 'Built-in and your own scenarios', items: () => Object.keys(SCENARIOS), fields: scenGridFields, focus: gridFocus.scenarios, link: gridItemLink.scenarios,
+    card: k => gridCard(scenCard(k, () => gridPick(k, () => gridFocus.scenarios(k)), gridState.sel.scenarios === k), k, scenGridFields()) },
+  sounds: { tip: 'Every sound (built-in and custom)', items: () => Object.keys(SOUNDS), fields: () => [], focus: gridFocus.sounds, link: gridItemLink.sounds,
+    card: k => gridCard((() => { const b = h('button', { cls: 'card', onclick: () => gridPick(k, () => gridFocus.sounds(k), () => playSound(k)),
         onmouseenter: () => { if (gridState.soundAutoplay) playSound(k); } },
       soundWave(k), h('span', { textContent: k }), h('span', { cls: 'gbadge', textContent: k in BASE_SOUNDS ? 'built-in' : 'custom' }));
       reg(b, () => b.classList.toggle('on', soundSel === k)); return b; })(), k, []) },
-  looks: { tip: 'Every fx look (built-in and custom)', items: () => Object.keys(FX_LOOKS), fields: () => [],
-    card: k => gridCard((() => { const b = h('button', { cls: 'card', onclick: () => gridPick(k, () => { fxState.sel = k; fxState.zoom = true; setMode('fx'); }) }, fxCanvas(60, k), h('span', { textContent: k }));
+  looks: { tip: 'Every fx look (built-in and custom)', items: () => Object.keys(FX_LOOKS), fields: () => [], focus: gridFocus.looks, link: gridItemLink.looks,
+    card: k => gridCard((() => { const b = h('button', { cls: 'card', onclick: () => gridPick(k, () => gridFocus.looks(k)) }, fxCanvas(60, k), h('span', { textContent: k }));
       reg(b, () => b.classList.toggle('on', fxState.sel === k)); return b; })(), k, []) },
-  tracks: { tip: 'Your tracker patterns', items: () => Object.keys(myTracks), fields: () => [],
-    card: k => gridCard(simpleCard(k, `${myTracks[k].bpm} bpm · ${myTracks[k].steps} steps`, () => gridPick(k, () => { trackSel = k; setMode('tracker'); }), () => trackSel === k), k, []) },
+  tracks: { tip: 'Your tracker patterns', items: () => Object.keys(myTracks), fields: () => [], focus: gridFocus.tracks, link: gridItemLink.tracks,
+    card: k => { const b = h('button', { cls: 'card', onclick: () => gridPick(k, () => gridFocus.tracks(k)) },
+        trackThumb(k), h('span', { textContent: k }), h('span', { cls: 'gbadge', textContent: `${myTracks[k].bpm} bpm · ${myTracks[k].steps} steps` }));
+      reg(b, () => b.classList.toggle('on', trackSel === k)); return gridCard(b, k, []); } },
 };
 // overlays the collection's chosen fields inside the card's own bounds, one per corner (cycling if more than
 // 4 are picked), instead of stacking them below the name and growing the cell (charCard/moveCard both end in
@@ -120,6 +164,10 @@ function gridCard(card, key, fields) {
     const f = fields.find(x => x.k === k);
     if (f) card.append(h('span', { cls: `gfield ${GFIELD_CORNERS[i % 4]}`, textContent: `${k}: ${f.get(key)}` }));
   });
+  // in normal flow (not absolutely positioned like the gfields above, so it never collides with them, and stays
+  // clickable - .gfield is pointer-events:none) so every card can be shared straight into this item, not just the tool
+  card.append(h('span', { cls: 'linkbtn', tip: 'Copy a link straight to this',
+    onclick: e => { e.stopPropagation(); navigator.clipboard?.writeText(GRID_COLLECTIONS[gridState.collection].link(key)); } }, icon('link')));
   return card;
 }
 // type → fuzzy, ranked suggestions (paletteRank, palette.js) → click to add; the same idiom as the scenario
@@ -143,16 +191,19 @@ function gridFieldPicker() {
     inp, list);
 }
 function gridCards() {
-  const col = GRID_COLLECTIONS[gridState.collection], items = col.items(), fields = col.fields(), shownKeys = gridState.fields[gridState.collection] || [];
-  const q = gridState.filter.trim();
-  const matches = k => !q || fuzzy(q, [k, ...shownKeys.map(fk => fields.find(f => f.k === fk)?.get(k))].join(' '));
-  return h('div', { cls: 'cards', style: `grid-template-columns: repeat(${gridState.cols}, 1fr)` }, gridSort(items.filter(matches), fields, shownKeys).map(col.card));
+  const col = GRID_COLLECTIONS[gridState.collection];
+  return h('div', { cls: 'cards', style: `grid-template-columns: repeat(${gridState.cols}, 1fr)` }, gridItemsShown().map(col.card));
 }
 function gridPanel() {
   const wrap = h('div', { cls: 'mtable' }), cardsWrap = h('div');
   const fill = () => cardsWrap.replaceChildren(gridCards());
+  // debounced: typing a query rebuilds every card (and, for scenarios, restarts the picked one's live preview from
+  // frame 0) - fine on Enter or a pause, but fired on every keystroke it made each letter typed visibly stutter
+  let debounceT = 0;
+  const debouncedFill = () => { clearTimeout(debounceT); debounceT = setTimeout(fill, 150); };
   const search = h('input', { cls: 'macro', value: gridState.filter, placeholder: 'search…', tip: 'Fuzzy filter by name or any shown variable\'s value',
-    oninput: e => { gridState.filter = e.target.value; fill(); }, onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { search.value = gridState.filter = ''; fill(); } } });
+    oninput: e => { gridState.filter = e.target.value; debouncedFill(); },
+    onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { search.value = gridState.filter = ''; clearTimeout(debounceT); fill(); } } });
   wrap.append(h('div', { cls: 'bar' }, search), cardsWrap);
   fill();
   return wrap;
@@ -172,11 +223,29 @@ function gridCtx() {
     slider('cols', { min: 2, max: 8, step: 1 }, () => gridState.cols, v => { gridState.cols = v; saveGridStore(); panels(); }, 'Tiles per row'),
     seg([null, ...sortOpts], () => sort.k, v => { if (sort.k === v) sort.dir *= -1; else { sort.k = v; sort.dir = 1; } saveGridStore(); panels(); },
       { null: 'No sort: the order each collection lists them in', ...Object.fromEntries(sortOpts.map(k => [k, `Sort by ${k}; click again to reverse`])) }, sortLabel),
-    gridState.collection === 'sounds' ? toggle(':volume_up:', 'Play a sound when you hover its card', () => gridState.soundAutoplay, v => { gridState.soundAutoplay = v; saveGridStore(); }) : null)];
+    gridState.collection === 'sounds' ? toggle(':volume_up:', 'Play a sound when you hover its card', () => gridState.soundAutoplay, v => { gridState.soundAutoplay = v; saveGridStore(); }) : null,
+    gridState.collection === 'characters' && radar.chars.size ? button(`:ssid_chart: compare ${radar.chars.size + 1} on radar`,
+      'Open the character tab\'s stats radar, overlaying every character picked here (the small radar icon on a card) against the current one',
+      () => setMode('character')) : null)];
 }
+const GRID_NAV_KEYS = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: 'up', ArrowDown: 'down' };
 const gridMode = {
   enter() {}, restart() {}, worlds: () => [], render: clear, ctxBar: gridCtx, side: gridSide,
   get open() { return [gridState.collection]; },
   overlay: () => [gridPanel()],
-  hint: () => 'click a tile to pick it (shows a live preview where this collection has one) · click it again to open it where it\'s edited · type to search · pick variables to show below each name',
+  // arrow keys move the pick (wrapping rows by the current column count), Enter opens the picked one — all in the
+  // exact order gridCards() drew them (gridItemsShown), so this never lands on something not actually on screen
+  key(e) {
+    if (e.code === 'Enter') { const items = gridItemsShown(), k = gridState.sel[gridState.collection]; if (items.includes(k)) GRID_COLLECTIONS[gridState.collection].focus(k); return true; }
+    const d = GRID_NAV_KEYS[e.code];
+    if (d === undefined) return false;
+    const items = gridItemsShown();
+    if (!items.length) return true;
+    let i = items.indexOf(gridState.sel[gridState.collection]);
+    i = i < 0 ? 0 : clamp(i + (d === 'up' ? -gridState.cols : d === 'down' ? gridState.cols : d), 0, items.length - 1);
+    gridState.sel[gridState.collection] = items[i];
+    panels();
+    return true;
+  },
+  hint: () => 'click a tile to pick it (shows a live preview where this collection has one) · click it again to open it where it\'s edited · arrow keys move the pick, Enter opens it · type to search · pick variables to show below each name',
 };
