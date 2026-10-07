@@ -28,6 +28,7 @@ Any other MCP client: run `node tools/mcp.js` (or `npm run mcp`) from the repo. 
 | `list_characters`, `get_character` | the roster, and one character's whole definition |
 | `list_moves` | a character's moves with frame data, damage, height, flags and the inputs that play them |
 | `create_character`, `edit_character`, `edit_move`, `delete_character`, `rename_character` | add, change, remove or rename a character made or edited this session; checked by compiling them, so a broken one changes nothing. `edit_character` takes a JSON merge patch; bones can be patched by id. Built-ins can't be deleted or renamed |
+| `undo_character`, `redo_character` | step back or forward through create/edit/edit_move's one shared stack; undoing a create removes the character |
 | `list_settings`, `get_settings`, `set_settings`, `reset_settings` | the settings by group, with defaults, ranges and tips; values are checked against their spec |
 | `list_scenarios` | built-in scenarios and those from a loaded profile |
 | `create_scenario`, `edit_scenario`, `delete_scenario`, `rename_scenario` | save a reusable "my scenario" (checked by building a fight from it), change one with a merge patch, remove or rename it; built-ins can't be edited, deleted or renamed |
@@ -36,6 +37,7 @@ Any other MCP client: run `node tools/mcp.js` (or `npm run mcp`) from the repo. 
 | `replay_export`, `replay_import` | a fight as a replay file, and a replay played back with a desync report |
 | `load_profile`, `save_profile` | the app's export files |
 | `render_frame` | a frame as a PNG (headless Chrome), or as SVG text without Chrome or with `renderer: "svg"` |
+| `frame_state` | the same frame, numerically instead of drawn: position, facing, hp, combo, the move running, frameState's category |
 | `render_gif` | a looping GIF of a stretch of a fight, written to `out/` (needs Chrome) |
 | `list_sounds`, `save_sound`, `reset_sound`, `rename_sound` | the synthesized sounds (noise + tone layers); tune one with a merge patch (built-ins included), revert or delete, rename a custom one |
 | `list_looks`, `save_look`, `delete_look`, `rename_look` | fx looks; built-ins are hand-coded and read-only, a custom one is a generic particle preset, tunable, deletable, renameable |
@@ -81,3 +83,4 @@ The server can also drive the app open in a browser.
 | `delete_character { name }` / `rename_character { from, to }` | session characters only (not built-ins), no confirmation prompt unlike the UI |
 | `set_preview { scenario?, opponent?, control? }` | the character tab's live preview (needs that tab open) |
 | `send_to_play { scenario?, opponent? }` | jump to Play with a matchup; default: the character tab's own preview |
+| `undo` / `redo` | the same stack as ⌘Z: character edits and settings changes |

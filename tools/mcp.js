@@ -45,6 +45,8 @@ const TOOLS = {
     run: a => S.call('editMove', a.char, a.name, a.move, !!a.merge) },
   delete_character: { d: 'Remove a character made or edited this session (built-ins can\'t be deleted).', p: { name: str('character name') }, req: ['name'], run: a => S.call('deleteCharacter', a.name) },
   rename_character: { d: 'Rename a character made or edited this session (built-ins can\'t be renamed).', p: { from: str('current name'), to: str('new name') }, req: ['from', 'to'], run: a => S.call('renameCharacter', a.from, a.to) },
+  undo_character: { d: 'Undo the last create_character, edit_character or edit_move (one shared stack, most recent first). Undoing a create removes the character entirely.', run: () => S.call('undoCharacter') },
+  redo_character: { d: 'Redo what undo_character undid, if nothing has changed since.', run: () => S.call('redoCharacter') },
 
   // ---------- settings ----------
   list_settings: { d: 'The settings (every tunable of the engine), by group. Without group: the groups and their keys. With group: each setting\'s default, current value, range or options and what it does.',
@@ -96,6 +98,9 @@ const TOOLS = {
       if (shots[0].svg) return { content: shots.map(s => ({ type: 'text', text: s.svg })) };
       return { content: shots.map(s => ({ type: 'image', data: s.png, mimeType: 'image/png' })) };
     } },
+  frame_state: { d: 'Numeric per-fighter state at a frame of a kept fight, no rendering: position, facing, hp, combo count, the move running (name and its frame within it), and frameState\'s category (idle, startup, active, recovery, cancel, block, hit, dizzy, down, stop, air, move). For inspecting why a hit did or didn\'t land without reading a picture.',
+    p: { simulation: str('simulation id'), replay: { type: ['object', 'string'], description: 'or a replay' }, frame: int('frame number (default 0)') },
+    run: a => S.call('frameSnapshot', replayOf(a), a.frame ?? 0) },
   render_gif: { d: 'A looping GIF of a fight from frame to frame, written to out/ (needs Chrome). Returns its path and a PNG of the first frame.',
     p: { simulation: str('simulation id'), replay: { type: ['object', 'string'], description: 'or a replay' }, from: int('first frame (default 0)'), to: int('last frame (default: the end, at most from + 1200)'),
       fps: num('frames per second (default 20; the engine runs at 60)'), ...SIZE, ...LOOK, file: str('file name in out/ (default <simulation>-<from>-<to>.gif)') },
@@ -129,8 +134,8 @@ const TOOLS = {
   start_bridge: { d: 'Serve the app over HTTP on 127.0.0.1 and wait for it to be opened: the page then takes commands from browser_state / browser_command (src/bridge.js). Same as starting with --serve PORT.',
     p: { port: int('port (default 0: a free one)') }, run: a => startBridge(a.port ?? 0) },
   browser_state: { d: 'What the app open in the browser shows: mode (tab), play scenario, the character being edited and its definition, changed settings, my scenarios, the replay tab\'s reel.', run: () => needBridge().command('state') },
-  browser_command: { d: 'Drive the app open in the browser. Commands: set_settings { values }, set_scenario { name } (the play tab fights it), import_character { def } (added and picked), open_replay { replay } or { simulation } (opens it in the replay tab), screenshot (the canvas as PNG), set_mode { mode } (switch tabs), pick_character { name } (the one every mode edits), delete_character { name } / rename_character { from, to } (session characters only, no confirmation prompt), set_preview { scenario?, opponent?, control? } (the character tab\'s live preview; needs that tab open), send_to_play { scenario?, opponent? } (jump to Play with a matchup, default: the character tab\'s own preview).',
-    p: { name: { type: 'string', enum: ['state', 'set_settings', 'set_scenario', 'import_character', 'open_replay', 'screenshot', 'set_mode', 'pick_character', 'delete_character', 'rename_character', 'set_preview', 'send_to_play'] }, args: obj('the command\'s arguments') }, req: ['name'],
+  browser_command: { d: 'Drive the app open in the browser. Commands: set_settings { values }, set_scenario { name } (the play tab fights it), import_character { def } (added and picked), open_replay { replay } or { simulation } (opens it in the replay tab), screenshot (the canvas as PNG), set_mode { mode } (switch tabs), pick_character { name } (the one every mode edits), delete_character { name } / rename_character { from, to } (session characters only, no confirmation prompt), set_preview { scenario?, opponent?, control? } (the character tab\'s live preview; needs that tab open), send_to_play { scenario?, opponent? } (jump to Play with a matchup, default: the character tab\'s own preview), undo / redo (the same stack as ⌘Z: character edits and settings).',
+    p: { name: { type: 'string', enum: ['state', 'set_settings', 'set_scenario', 'import_character', 'open_replay', 'screenshot', 'set_mode', 'pick_character', 'delete_character', 'rename_character', 'set_preview', 'send_to_play', 'undo', 'redo'] }, args: obj('the command\'s arguments') }, req: ['name'],
     run: async a => {
       const args = { ...a.args };
       if (a.name === 'open_replay' && args.simulation) { args.replay = S.sim(args.simulation).replay; args.name ??= args.simulation; delete args.simulation; }

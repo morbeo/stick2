@@ -147,6 +147,26 @@ function inside() {
 
     // ---------- characters ----------
     defs: {}, // made or edited through the session (a profile saves these)
+    // undo/redo for createCharacter/editCharacter/editMove: one shared stack (like the app's own), snapshotting the
+    // whole character each time (existed: false means it's a brand new name, so undo removes it instead of restoring a def)
+    history: [], redoStack: [],
+    snap(name) { MCP.history.push({ name, existed: name in CHARS, def: MCP.defs[name] ? clone(MCP.defs[name]) : null }); MCP.redoStack.length = 0; if (MCP.history.length > 50) MCP.history.shift(); },
+    applySnap(e) {
+      if (!e.existed) { delete MCP.defs[e.name]; delete CHARS[e.name]; return { deleted: e.name }; }
+      if (e.def === null) delete MCP.defs[e.name]; else MCP.defs[e.name] = e.def;
+      CHARS[e.name] = makeCharacter(MCP.defs[e.name] || CHAR_DEFS[e.name]);
+      return { name: e.name, bones: CHARS[e.name].bones.length, moves: Object.keys(CHARS[e.name].moves).length };
+    },
+    undoCharacter() {
+      const e = MCP.history.pop() || fail('nothing to undo (createCharacter, editCharacter and editMove push an undo step)');
+      MCP.redoStack.push({ name: e.name, existed: e.name in CHARS, def: MCP.defs[e.name] ? clone(MCP.defs[e.name]) : null });
+      return MCP.applySnap(e);
+    },
+    redoCharacter() {
+      const e = MCP.redoStack.pop() || fail('nothing to redo');
+      MCP.history.push({ name: e.name, existed: e.name in CHARS, def: MCP.defs[e.name] ? clone(MCP.defs[e.name]) : null });
+      return MCP.applySnap(e);
+    },
     listCharacters: () => Object.keys(CHARS).map(n => { const ch = CHARS[n];
       return { name: n, builtin: !!CHAR_DEFS[n], edited: !!MCP.defs[n], current: n === CURRENT, bones: ch.bones.length, moves: Object.keys(ch.moves).length,
         stances: ch.stances.map(s => s.name), weapon: ch.weapon || null, stats: Object.fromEntries(Object.entries(ch.stats).filter(([, v]) => v !== 1)) }; }),
@@ -164,6 +184,7 @@ function inside() {
       checkDef(def);
       const base = def.name || 'char'; let name = base, n = 2;
       if (!replace) while (CHARS[name]) name = base + n++;
+      MCP.snap(name);
       MCP.defs[name] = { ...clone(def), name }; CHARS[name] = makeCharacter(MCP.defs[name]);
       return { name, bones: CHARS[name].bones.length, moves: Object.keys(CHARS[name].moves).length };
     },
@@ -171,6 +192,7 @@ function inside() {
       const def = patchDef(clone(charOf(n).def), patch);
       if (def.name !== n) def.name = n;
       checkDef(def);
+      MCP.snap(n);
       MCP.defs[n] = def; CHARS[n] = makeCharacter(def);
       return { name: n, bones: CHARS[n].bones.length, moves: Object.keys(CHARS[n].moves).length };
     },
@@ -179,6 +201,7 @@ function inside() {
       if (move === null) { if (!def.moves[name]) fail(`${n} has no move "${name}"`); delete def.moves[name]; }
       else def.moves[name] = mergeIt ? merge(def.moves[name] || fail(`${n} has no move "${name}" to merge into`), move) : move;
       checkDef(def);
+      MCP.snap(n);
       MCP.defs[n] = def; CHARS[n] = makeCharacter(def);
       return move === null ? { deleted: name } : MCP.listMoves(n).find(m => m.name === name);
     },
@@ -241,6 +264,16 @@ function inside() {
       if (o.inputs) { parseMacro(o.inputs); w.macro = new Script(parseMacro(o.inputs)); w.macroSeq = o.inputs; } // logged with the first frame, so the replay presses it too
       const rec = recordFight(w, o.frames);
       return { replay: makeReplay(w, o.scen ? o.name || 'custom' : o.scenario), summary: summary(w, rec, o) };
+    },
+    // numeric per-fighter state at a frame of a kept fight - no rendering, for programmatic inspection (e.g. why a hit did or didn't land)
+    // without eyeballing a picture: position, facing, hp, the move running and its frame within it, and frameState's category
+    frameSnapshot(r, frame) {
+      const w = replayWorld(r);
+      w.loop = false;
+      while (w.log.length <= frame && !w.done) w.advance(1 / 60, NOIN);
+      const of = f => ({ state: frameState(f), x: Math.round(f.x), y: Math.round(f.y), hp: +f.hp.toFixed(1), facing: f.dir > 0 ? 'right' : 'left',
+        combo: f.combo, move: f.action ? { name: f.action.name, i: f.action.i } : null });
+      return { frame: w.log.length - 1, a: of(w.a), b: of(w.b) };
     },
     // a replay file played through: the same summary, plus the first frame that came out differently (null = in sync)
     importReplay(r, o = {}) {
