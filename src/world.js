@@ -510,6 +510,7 @@ class World {
       if (cfg.flyHits && (a.kd === 'fly') !== (b.kd === 'fly') && a.heldBy !== b && b.heldBy !== a) {
         const flier = a.kd === 'fly' ? a : b, still = flier === a ? b : a;
         if (!still.kd && !flier.flyHit.includes(still.id) && (cfg.flyChain || !flier.flyHit.length) &&
+          Math.hypot(flier.vx, flier.vy) >= cfg.flyMinSpeed &&
           Math.abs(d) < need && Math.abs(a.y - b.y) < 60 && Math.abs(a.z - b.z) < cfg.zReach) this.flyClip(flier, still);
         continue;
       }
@@ -560,7 +561,7 @@ class World {
   onHit(att, vic, hit, m, def) {
     if (vic.c('inv') === 'untouchable') return; // nothing lands on it: not the impact tool, a counter or a throw either
     const cfg = this.cfg, pt = hit.pt, hp0 = vic.hp;
-    const note = () => this.ev(att, def || 'hit', att.action?.name || m.name || '', { vic: vic.id, dmg: hp0 - vic.hp, combo: vic.combo, height: m.height });
+    const note = () => this.ev(att, def || 'hit', att.action?.name || m.name || '', { vic: vic.id, dmg: hp0 - vic.hp, combo: vic.combo, height: m.height, ...(m.chain ? { chain: m.chain } : {}) });
     this.pend = { att, vic, at: null, vt: null };
     if (def) { // blocked or parried: a shorter freeze and a ring, no combo
       if (def === 'catch') { vic.catchHit(att, hit); return note(); }
@@ -612,11 +613,17 @@ class World {
   flyClip(flier, still) {
     const cfg = this.cfg;
     flier.flyHit.push(still.id);
-    const m = { name: 'clip', power: cfg.flyPower, damage: cfg.flyDamage, height: 'mid', stun: 0.35,
-      knock: Math.abs(flier.vx) * cfg.flyKnock, launch: cfg.flyLaunch ? Math.abs(flier.vy) * cfg.flyKnock : 0, kd: cfg.flyLaunch };
+    // weight both ways: a heavy flier bulldozes a light victim, a light one barely budges something heavier
+    const wr = flier.ch.stats.weight / still.ch.stats.weight;
+    // each domino hop (flier.chainN) hits gentler (flyDamageDecay) but shakes the screen more (flyChainShake) than the last
+    const decay = cfg.flyDamageDecay ** flier.chainN;
+    const m = { name: 'clip', chain: flier.chainN + 1, power: cfg.flyPower * (1 + cfg.flyChainShake * flier.chainN), height: 'mid', stun: 0.35,
+      damage: cfg.flyDamage * decay, knock: Math.abs(flier.vx) * cfg.flyKnock * wr * decay,
+      launch: cfg.flyLaunch ? Math.abs(flier.vy) * cfg.flyKnock * wr * decay : 0, kd: cfg.flyLaunch };
     const savedDir = flier.dir;
     flier.dir = Math.sign(flier.vx) || flier.dir;
     this.onHit(flier, still, { pt: [still.x, still.y - still.ch.extent[1] / 2], bone: still.ch.by[still.ch.ids[0]] }, m, null);
+    still.chainN = flier.chainN + 1; // takeHit (run via onHit above) reset this to 0, like any fresh launch; correct it to this domino's real depth
     flier.dir = savedDir;
     flier.vx *= cfg.flyDrag; flier.vy *= cfg.flyDrag;
   }
