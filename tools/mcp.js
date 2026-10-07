@@ -43,6 +43,8 @@ const TOOLS = {
   edit_move: { d: 'Set, merge into or delete one move of a character (move shape: stick2://schema/character → move, key). Returns its new frame data.',
     p: { char: str('character name'), name: str('move name'), move: { type: ['object', 'null'], description: 'the move (null deletes it)' }, merge: bool('merge-patch the existing move instead of replacing it') }, req: ['char', 'name', 'move'],
     run: a => S.call('editMove', a.char, a.name, a.move, !!a.merge) },
+  delete_character: { d: 'Remove a character made or edited this session (built-ins can\'t be deleted).', p: { name: str('character name') }, req: ['name'], run: a => S.call('deleteCharacter', a.name) },
+  rename_character: { d: 'Rename a character made or edited this session (built-ins can\'t be renamed).', p: { from: str('current name'), to: str('new name') }, req: ['from', 'to'], run: a => S.call('renameCharacter', a.from, a.to) },
 
   // ---------- settings ----------
   list_settings: { d: 'The settings (every tunable of the engine), by group. Without group: the groups and their keys. With group: each setting\'s default, current value, range or options and what it does.',
