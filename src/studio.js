@@ -200,10 +200,13 @@ async function deleteChar() {
 // a character export is a diff against its matching built-in by default (small, and what a diff viewer can use
 // directly) - like a git patch, not the whole file. full: the whole def anyway (the only option for a wholly new
 // character, with no built-in to diff against; also offered explicitly for sharing one standalone)
+// lenLock is a posing-tool option (how dragging a joint behaves in the editor), not something worth sharing or
+// diffing against - stripped before either runs
+const stripLocal = def => ({ ...def, bones: def.bones.map(({ lenLock, ...b }) => b) });
 function charExport(full) {
   const base = CHAR_DEFS[CURRENT];
   if (full || !base) return DEFS[CURRENT];
-  const d = diffObj(base, DEFS[CURRENT]);
+  const d = diffObj(base, stripLocal(DEFS[CURRENT]));
   return { format: 'stick2.character.diff', base: CURRENT, diff: d || {} };
 }
 function exportChar(clip, full) { (clip ? copyData : d => download(CURRENT + (full || !CHAR_DEFS[CURRENT] ? '' : '.diff') + '.json', d))(charExport(full)); }
@@ -319,22 +322,16 @@ function moveDiffView(name) {
 // ---------- character diff view (a stage panel, "changes"): what differs from the matching built-in, for reviewing
 // an edit before exporting/suggesting it - the two bodies side by side with changed bones highlighted, and every
 // other change (moves, stances, stats…) as a flat list of dotted paths, from the same diff the export uses
+// bone property name -> its part, for grouping the change table (unlisted/custom bones fall under their own id)
+const partOf = (ch, id) => ch.by[id]?.role || '';
+const PART_ORDER = ['spine', 'head', 'arm', 'leg', 'tail'];
 function charDiffPanel() {
   const wrap = h('div', { cls: 'mtable' }), base = CHAR_DEFS[CURRENT];
   if (!base) { wrap.append(stageHead('changes', 'What differs from the matching built-in character'),
     h('p', { cls: 'note', textContent: 'This character has no built-in to compare against (it\'s wholly your own).' })); return wrap; }
-  const d = diffObj(base, DEFS[CURRENT]) || {};
-  const changedBones = new Set([...Object.keys(d.changed?.bones?.changed || {}), ...Object.keys(d.changed?.bones?.added || {})]);
-  const removedBones = new Set(Object.keys(d.changed?.bones?.removed || {}));
   const baseCh = makeCharacter(base), curCh = CHARS[CURRENT];
-  // a hovered bone row highlights that one bone on both bodies in blue, over the usual red for every changed bone -
-  // the same selected↔highlighted linking the grid tab's variable table uses, just by row hover instead of a click
-  let focus = null;
-  const tintFor = (ch, removed) => b => b.id === focus ? '#2c6fb0' : changedBones.has(b.id) || removed?.has(b.id) ? '#c0392b' : (b.side === 'b' ? (ch.col || INK)[1] : (ch.col || INK)[0]);
-  const cvBase = h('canvas'), cvCur = h('canvas');
-  const redraw = () => { drawThumb(cvBase, baseCh, undefined, 110, 120, tintFor(baseCh, removedBones)); drawThumb(cvCur, curCh, undefined, 110, 120, tintFor(curCh, null)); };
-  redraw();
-  // one row per changed bone property (not per bone - a bone with 3 changed fields gets 3 rows), hover to highlight it
+  const d = diffObj(base, stripLocal(DEFS[CURRENT])) || {};
+  // one row per changed bone property (not per bone - a bone with 3 changed fields gets 3 rows), grouped by part
   const bd = d.changed?.bones || {};
   const boneRows = [];
   for (const id in bd.changed || {}) { const fd = bd.changed[id];
@@ -343,19 +340,37 @@ function charDiffPanel() {
     for (const k in fd.changed || {}) boneRows.push([id, k, fmtDiffVal(fd.changed[k][0]), fmtDiffVal(fd.changed[k][1])]); }
   for (const id in bd.added || {}) boneRows.push([id, '(new bone)', '—', '—']);
   for (const id in bd.removed || {}) boneRows.push([id, '(removed)', '—', '—']);
-  const boneTable = boneRows.length ? h('table', {}, h('tbody', {}, boneRows.map(([id, field, from, to]) => h('tr', {
-    onmouseenter: () => { focus = id; redraw(); }, onmouseleave: () => { focus = null; redraw(); },
-  }, h('td', { textContent: id }), h('td', { textContent: field }),
-    h('td', { textContent: from, style: to === '—' ? 'color: #c0392b' : '' }), h('td', { textContent: '→' }),
-    h('td', { textContent: to, style: from === '—' ? 'color: #2e8b57' : '' }))))) : null;
+  const parts = {};
+  for (const row of boneRows) (parts[partOf(curCh, row[0]) || partOf(baseCh, row[0])] ??= []).push(row);
+  const partKeys = [...PART_ORDER.filter(p => parts[p]), ...Object.keys(parts).filter(p => !PART_ORDER.includes(p))];
+  const boneTable = boneRows.length ? h('table', {}, h('tbody', {}, partKeys.flatMap(part => [
+    h('tr', {}, h('td', { colSpan: 5, textContent: part || '(other)', style: 'font-weight: bold; background: #e8e3d8' })),
+    ...parts[part].map(([id, field, from, to]) => h('tr', {},
+      h('td', { textContent: id }), h('td', { textContent: field }),
+      h('td', { textContent: from, style: to === '—' ? 'color: #c0392b' : '' }), h('td', { textContent: '→' }),
+      h('td', { textContent: to, style: from === '—' ? 'color: #2e8b57' : '' }))),
+  ]))) : null;
   const lines = describeDiff(d).filter(l => !l.replace(/^[+-] /, '').startsWith('bones.') && !/^[+-] bones\b/.test(l)); // the bone table above covers these
   const changedMoves = Object.keys(d.changed?.moves?.changed || {});
-  wrap.append(...[stageHead('changes', 'What differs from the matching built-in character - hover a bone row to find it on both bodies',
+  // the comparison itself is the fully interactive preview (same controls as the regular preview - scripted demo,
+  // walk, AI vs AI, driving the opponent yourself…), built-in on one side and the live edited character on the other
+  const cvBase = h('canvas'), cvCur = h('canvas');
+  for (const cv of [cvBase, cvCur]) { cv.width = 320 * dpr; cv.height = 200 * dpr; cv.style.width = '320px'; cv.style.height = '200px'; }
+  const paint = (cv, w) => { const c = cv.getContext('2d'), r = { x: 0, y: 0, w: cv.width, h: cv.height };
+    c.fillStyle = '#f3f0e8'; c.fillRect(r.x, r.y, r.w, r.h); w?.render(c, r); };
+  const loop = () => {
+    if (!document.body.contains(cvBase)) return;
+    paint(cvBase, creator.diffW); paint(cvCur, creator.w);
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+  wrap.append(...[stageHead('changes', 'What differs from the matching built-in character',
     button(':download: export diff', 'Export just this diff (the default character export)', () => exportChar(false), 'mini'),
     button(':download: export image', 'Download a PNG of this comparison - the bodies and the change list, for patch notes or docs', () =>
       exportDiffImage(`${CURRENT}-changes.png`, [{ cv: cvBase, label: 'built-in' }, { cv: cvCur, label: 'yours' }], lines), 'mini'),
     button(':content_copy: embed link', 'Copy a link that opens this exact diff, straight into this changes panel, for anyone (#diff=…)', () =>
       navigator.clipboard?.writeText(diffEmbedLink(charExport(false))), 'mini')),
+    previewBar('bar'),
     h('div', { cls: 'bar' },
       h('div', {}, h('b', { textContent: 'built-in' }), cvBase),
       h('div', {}, h('b', { textContent: 'yours' }), cvCur)),
