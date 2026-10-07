@@ -1,13 +1,23 @@
 'use strict';
 // ---------- grid mode: a configurable content-manager browser (characters, moves) ----------
 // a thin link-out layer over the existing editors, not a duplicate editing UI: pick a collection, pick which
-// variables show on each tile (autocomplete over that collection's own already-documented fields), click a tile to
-// open it where it's actually edited (character tab, animate). DOM cards (charCard/moveCard), not a canvas gallery:
-// these are static data to browse, not animating effects (see src/fxlab.js for the canvas-gallery pattern used there)
+// variables show on each tile (autocomplete over that collection's own already-documented fields). Click a tile once
+// to pick it (outlined; a live preview where the collection has one - characters/moves already animate on hover,
+// scenarios play out for real, sounds play once); click the picked tile again to open it where it's actually edited
+// (character tab, animate, …). DOM cards (charCard/moveCard), not a canvas gallery: these are static data to browse,
+// not animating effects (see src/fxlab.js for the canvas-gallery pattern used there)
 const GRID_STORE = 'stick2.grid';
 const gridStore = (() => { try { return JSON.parse(localStorage.getItem(GRID_STORE)) || {}; } catch { return {}; } })();
 const gridState = { collection: gridStore.collection || 'characters', filter: '', cols: gridStore.cols || 4, soundAutoplay: gridStore.soundAutoplay ?? true,
-  fields: { characters: ['speed', 'weight', 'health'], moves: ['damage', 'startup', 'active'], ...gridStore.fields }, sort: { ...gridStore.sort } };
+  fields: { characters: ['speed', 'weight', 'health'], moves: ['damage', 'startup', 'active'], ...gridStore.fields }, sort: { ...gridStore.sort },
+  sel: {} }; // per collection: the one cell a click has picked but not yet opened (session only, not saved) — see gridPick
+// one click picks a cell (highlighted, live preview where the collection has one); clicking the already-picked cell
+// opens it for real (focus) - so browsing the grid doesn't bounce you straight out of it on every click. onPick, if
+// given, runs once when a cell becomes picked (a preview side effect: play its sound, start its animation)
+function gridPick(k, focus, onPick) {
+  if (gridState.sel[gridState.collection] === k) focus();
+  else { gridState.sel[gridState.collection] = k; onPick?.(); panels(); }
+}
 function saveGridStore() { try { localStorage.setItem(GRID_STORE, JSON.stringify({ collection: gridState.collection, cols: gridState.cols, soundAutoplay: gridState.soundAutoplay, fields: gridState.fields, sort: gridState.sort })); } catch {} }
 // name, or any shown field: click picks it (ascending), click again reverses — the same idiom as the move table's headers
 function gridSort(items, fields, shownKeys) {
@@ -50,6 +60,22 @@ function scenThumb(k) {
   try { newWorld(SCENARIOS[k], {}, 1, null).render(cv.getContext('2d'), { x: 0, y: 0, w: cv.width, h: cv.height }, true); } catch { /* a broken custom scenario: a blank thumbnail, not a broken grid */ }
   return cv;
 }
+// picking a scenario card plays it out in place (the real World, actually advanced, not just a static start-position
+// frame) until the card is no longer on screen — the grid's own version of startCardPreview (studio.js)/moveCard's
+// hover preview; only the picked card animates, everything else stays a still thumbnail
+let scenPeek = null;
+function startScenPreview(cv, k) {
+  stopScenPreview();
+  let w; try { w = newWorld(SCENARIOS[k], {}, 1, null); w.loop = true; } catch { return; }
+  const loop = () => {
+    if (!cv.isConnected || scenPeek?.cv !== cv) return;
+    w.advance(1 / 60, NOIN);
+    w.render(cv.getContext('2d'), { x: 0, y: 0, w: cv.width, h: cv.height }, true);
+    scenPeek.raf = requestAnimationFrame(loop);
+  };
+  scenPeek = { cv, raf: requestAnimationFrame(loop) };
+}
+function stopScenPreview() { if (scenPeek) cancelAnimationFrame(scenPeek.raf); scenPeek = null; }
 // who fights, as small icon + count badges (you / AI / dummy / script), so the grid tells a 1v1 from a free-for-all at a glance
 const CTL_ICONS = { you: 'keyboard', AI: 'smart_toy', dummy: 'person', script: 'timeline' };
 function scenActors(k) {
@@ -58,35 +84,38 @@ function scenActors(k) {
   return h('span', { cls: 'gbadge actors', tip: [...counts].map(([w, n]) => `${n} ${w}`).join(' · ') },
     ...[...counts].flatMap(([w, n]) => [...rich(`:${CTL_ICONS[w]}:`), `${n} `]));
 }
-function scenCard(k) {
-  const b = h('button', { cls: 'card', onclick: () => { lab.scen = k; setMode('play'); } },
-    scenThumb(k), h('span', { textContent: k }), h('span', { cls: 'gbadge', textContent: k in BASE_SCENARIOS ? 'built-in' : 'yours' }), scenActors(k));
+function scenCard(k, onclick = () => { lab.scen = k; setMode('play'); }, picked = false) {
+  const cv = scenThumb(k);
+  if (picked) startScenPreview(cv, k);
+  const b = h('button', { cls: 'card', onclick },
+    cv, h('span', { textContent: k }), h('span', { cls: 'gbadge', textContent: k in BASE_SCENARIOS ? 'built-in' : 'yours' }), scenActors(k));
   reg(b, () => b.classList.toggle('on', lab.scen === k));
   return b;
 }
 const GRID_COLLECTIONS = {
   characters: { tip: 'Every built-in and custom character', items: () => Object.keys(DEFS), fields: charFields,
-    card: k => gridCard(charCard(k, kk => { pickChar(kk); setMode('character'); }, kk => CURRENT === kk), k, charFields()) },
+    card: k => gridCard(charCard(k, kk => gridPick(kk, () => { pickChar(kk); setMode('character'); }), kk => CURRENT === kk), k, charFields()) },
   moves: { tip: 'The current character\'s moves', items: () => Object.keys(currentChar().moves), fields: moveFields,
-    card: n => gridCard(moveCard(n, `Open ${n} in the keyframe editor`, openMove), n, moveFields()) },
+    card: n => gridCard(moveCard(n, `Click to pick it, click again to open ${n} in the keyframe editor`, nm => gridPick(nm, () => openMove(nm))), n, moveFields()) },
   scenarios: { tip: 'Built-in and your own scenarios', items: () => Object.keys(SCENARIOS), fields: scenGridFields,
-    card: k => gridCard(scenCard(k), k, scenGridFields()) },
+    card: k => gridCard(scenCard(k, () => gridPick(k, () => { lab.scen = k; setMode('play'); }), gridState.sel.scenarios === k), k, scenGridFields()) },
   sounds: { tip: 'Every sound (built-in and custom)', items: () => Object.keys(SOUNDS), fields: () => [],
-    card: k => { const b = h('button', { cls: 'card', onclick: () => { soundSel = k; setMode('sounds'); },
+    card: k => gridCard((() => { const b = h('button', { cls: 'card', onclick: () => gridPick(k, () => { soundSel = k; setMode('sounds'); }, () => playSound(k)),
         onmouseenter: () => { if (gridState.soundAutoplay) playSound(k); } },
       soundWave(k), h('span', { textContent: k }), h('span', { cls: 'gbadge', textContent: k in BASE_SOUNDS ? 'built-in' : 'custom' }));
-      reg(b, () => b.classList.toggle('on', soundSel === k)); return b; } },
+      reg(b, () => b.classList.toggle('on', soundSel === k)); return b; })(), k, []) },
   looks: { tip: 'Every fx look (built-in and custom)', items: () => Object.keys(FX_LOOKS), fields: () => [],
-    card: k => { const b = h('button', { cls: 'card', onclick: () => { fxState.sel = k; fxState.zoom = true; setMode('fx'); } }, fxCanvas(60, k), h('span', { textContent: k }));
-      reg(b, () => b.classList.toggle('on', fxState.sel === k)); return b; } },
+    card: k => gridCard((() => { const b = h('button', { cls: 'card', onclick: () => gridPick(k, () => { fxState.sel = k; fxState.zoom = true; setMode('fx'); }) }, fxCanvas(60, k), h('span', { textContent: k }));
+      reg(b, () => b.classList.toggle('on', fxState.sel === k)); return b; })(), k, []) },
   tracks: { tip: 'Your tracker patterns', items: () => Object.keys(myTracks), fields: () => [],
-    card: k => simpleCard(k, `${myTracks[k].bpm} bpm · ${myTracks[k].steps} steps`, () => { trackSel = k; setMode('tracker'); }, () => trackSel === k) },
+    card: k => gridCard(simpleCard(k, `${myTracks[k].bpm} bpm · ${myTracks[k].steps} steps`, () => gridPick(k, () => { trackSel = k; setMode('tracker'); }), () => trackSel === k), k, []) },
 };
 // overlays the collection's chosen fields inside the card's own bounds, one per corner (cycling if more than
 // 4 are picked), instead of stacking them below the name and growing the cell (charCard/moveCard both end in
 // one name <span>; appending more afterward is safe since their own reg() only ever touches the canvas and the .on class)
 const GFIELD_CORNERS = ['tl', 'tr', 'bl', 'br'];
 function gridCard(card, key, fields) {
+  card.classList.toggle('gridsel', gridState.sel[gridState.collection] === key);
   (gridState.fields[gridState.collection] || []).forEach((k, i) => {
     const f = fields.find(x => x.k === k);
     if (f) card.append(h('span', { cls: `gfield ${GFIELD_CORNERS[i % 4]}`, textContent: `${k}: ${f.get(key)}` }));
@@ -149,5 +178,5 @@ const gridMode = {
   enter() {}, restart() {}, worlds: () => [], render: clear, ctxBar: gridCtx, side: gridSide,
   get open() { return [gridState.collection]; },
   overlay: () => [gridPanel()],
-  hint: () => 'click a tile to open it where it\'s edited · type to search · pick variables to show below each name',
+  hint: () => 'click a tile to pick it (shows a live preview where this collection has one) · click it again to open it where it\'s edited · type to search · pick variables to show below each name',
 };
