@@ -907,6 +907,7 @@ function soundFields(name, refill) {
       button(':play_arrow: test', `Play ${name}`, () => playSound(name)),
       button(built ? ':restart_alt: revert' : ':delete: delete', built ? `Back to ${name}'s shipped values` : `Delete ${name}`,
         () => { resetSound(name); if (!built) soundSel = null; refill(); })),
+    built ? assetDiffBlock(BASE_SOUNDS[name], s, 'sound') : null,
     soundWave(name),
     h('div', { cls: 'bar' }, h('span', { textContent: 'noise' }), seg(['bandpass', 'lowpass', 'highpass', 'none'], () => s.noise, v => set('noise', v),
       Object.fromEntries(['bandpass', 'lowpass', 'highpass', 'none'].map(v => [v, SOUND_FIELD_TIPS.noise])))),
