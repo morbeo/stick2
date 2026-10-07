@@ -30,7 +30,7 @@ Any other MCP client: run `node tools/mcp.js` (or `npm run mcp`) from the repo. 
 | `create_character`, `edit_character`, `edit_move`, `delete_character`, `rename_character` | add, change, remove or rename a character made or edited this session; checked by compiling them, so a broken one changes nothing. `edit_character` takes a JSON merge patch; bones can be patched by id. Built-ins can't be deleted or renamed |
 | `list_settings`, `get_settings`, `set_settings`, `reset_settings` | the settings by group, with defaults, ranges and tips; values are checked against their spec |
 | `list_scenarios` | built-in scenarios and those from a loaded profile |
-| `create_scenario`, `edit_scenario`, `delete_scenario` | save a reusable "my scenario" (checked by building a fight from it), change one with a merge patch, or remove it; built-ins can't be edited or deleted |
+| `create_scenario`, `edit_scenario`, `delete_scenario`, `rename_scenario` | save a reusable "my scenario" (checked by building a fight from it), change one with a merge patch, remove or rename it; built-ins can't be edited, deleted or renamed |
 | `simulate` | runs a fight headless: outcome, winner, K.O. time, stats, filtered events, the end hash. P1 can play a macro (`inputs`). The same seed gives the same fight |
 | `run_checks` | the move matrix of the tests view: each move against every target state, the failing cells and why. It stops at a time budget and lists the moves left |
 | `replay_export`, `replay_import` | a fight as a replay file, and a replay played back with a desync report |

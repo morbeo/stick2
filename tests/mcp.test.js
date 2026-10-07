@@ -121,7 +121,7 @@ test('resources: the docs and the schemas', async () => {
   assert.ok((await s.rpc('resources/read', { uri: 'stick2://docs/../package.json' })).error);
 });
 
-test('scenarios: create a reusable one (checked by building a fight), edit it, simulate it, delete it; built-ins can\'t be deleted', async () => {
+test('scenarios: create a reusable one (checked by building a fight), edit it, simulate it, rename and delete it; built-ins can\'t be deleted or renamed', async () => {
   const before = (await s.call('list_scenarios')).json.length;
   const bad = await s.call('create_scenario', { scen: { a: 'ai', b: 'dummy', chars: ['nope'] }, name: 'bad' });
   assert.ok(bad.isError && /no character/.test(bad.content[0].text), bad.content[0].text);
@@ -132,7 +132,12 @@ test('scenarios: create a reusable one (checked by building a fight), edit it, s
   assert.equal(edited.period, 5);
   const sim = (await s.call('simulate', { scenario: 'my fight', frames: 30 })).json;
   assert.ok(sim.outcome);
-  assert.equal((await s.call('delete_scenario', { name: 'my fight' })).json.deleted, 'my fight');
+  const noRen = await s.call('rename_scenario', { from: 'duel', to: 'duel2' });
+  assert.ok(noRen.isError && /built-ins can't be renamed/.test(noRen.content[0].text), noRen.content[0].text);
+  const renamed = (await s.call('rename_scenario', { from: 'my fight', to: 'my renamed fight' })).json;
+  assert.equal(renamed.name, 'my renamed fight');
+  assert.equal(renamed.period, 5, 'the edit moved with it');
+  assert.equal((await s.call('delete_scenario', { name: 'my renamed fight' })).json.deleted, 'my renamed fight');
   assert.equal((await s.call('list_scenarios')).json.length, before);
   assert.ok((await s.call('delete_scenario', { name: 'duel' })).isError);
 });
