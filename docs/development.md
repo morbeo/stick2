@@ -22,6 +22,7 @@ How the code is laid out, and the tools that build its generated files.
 | `node tools/animations.js [name …]` | regenerates the short animations (`anim-*.png`): each loops one scenario, saved as an animated PNG (no name = every clip) |
 | `node tools/social.js` | composites a few of the screenshots into `docs/img/social.png`, the GitHub repo's social preview image |
 | `node tools/mcp.js [--serve PORT]` | the MCP server (`npm run mcp`): fights, settings, characters, scenarios, sounds, fx looks, the tracker, replays and pictures over MCP; `--serve` also serves the app for the live bridge (see [MCP server](mcp.md)) |
+| `DISCORD_BOT_TOKEN=... node tools/discord-bot.js` | the Discord fight bot (`npm run discord-bot`); `tools/deploy-bot.sh` installs it as a systemd user service (see [MCP server → The Discord bot](mcp.md#the-discord-bot)) |
 | `npm run itch` | packs `dist/stick2-itch.zip` for itch.io: `index.html`, `docs.html`, `src/`, `fonts/` and `LICENSE` (see [Publishing on itch.io](#publishing-on-itchio)) |
 | `npm run itch:push` | runs the tests, packs the zip and uploads it with butler to `morbeo/stick2:html`, versioned by the commit (refuses uncommitted changes) |
 | `npm run itch:assets` | writes a cover, banner, page/embed backgrounds, a favicon and a logo to `out/itch/`, drawn from the app's own code (see [Publishing on itch.io](#publishing-on-itchio)) |
@@ -62,3 +63,8 @@ The only asset is `fonts/icons.woff2`, a subset of [Material Symbols](https://gi
 Notes for the itch.io page:
 - The game runs in an iframe, so the player clicks it before keys work. In fullscreen, the browser may take Esc.
 - Saved data (settings, layouts, characters) is stored per site. The itch.io copy starts empty, so use export and import to bring data over.
+
+## Publishing to Discord
+
+- `.github/workflows/discord-notify.yml` posts the commit message and SHA to a Discord webhook (the `DISCORD_WEBHOOK` repo secret) on every push to `master` — no manual step.
+- The fight bot (`tools/discord-bot.js`, a separate always-on process) is unrelated to that workflow: see [MCP server → The Discord bot](mcp.md#the-discord-bot).

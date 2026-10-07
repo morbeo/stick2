@@ -11,7 +11,7 @@ The full reference behind the [landing page](../README.md). The app has its own 
 | [Interface](interface.md) | the top bar, export / import, debug, ⌘K, keys and macros, panels, undo, sound |
 | [Development](development.md) | code layout, build info, the screenshot and animation tools, the icon font |
 | [Testing](testing.md) | `npm test`, snapshots, replays, the browser test, seeds, the move matrix, fuzzing |
-| [MCP server](mcp.md) | stick2 as an MCP server: fights, settings, characters, replays and pictures for an AI assistant; the live bridge |
+| [MCP server](mcp.md) | stick2 as an MCP server: fights, settings, characters, replays and pictures for an AI assistant; the live bridge; the Discord bot |
 
 ## Where to start
 

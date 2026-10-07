@@ -86,3 +86,13 @@ The server can also drive the app open in a browser.
 | `undo` / `redo` | the same stack as ⌘Z: character edits and settings changes |
 
 This session's characters (`list_characters`, `create_character`...) and the bridge tab's (`DEFS`/`CHARS` in the browser, its own localStorage) are two separate stores - editing one is invisible to the other. `push_to_browser { name }` and `pull_from_browser` move one character between them explicitly (overwriting a same-named one on the receiving side); there is no automatic sync.
+
+## The Discord bot
+
+`tools/discord-bot.js` is a separate always-on process (not an MCP client) that spawns its own `tools/mcp.js` and talks JSON-RPC to it over stdio, the same protocol any MCP client speaks. It's the one place in the repo with an npm dependency (`discord.js`) and a `package-lock.json`, needed only by this script.
+
+- Command: `!fight <char> <char> [<char> [<char>]]` — 2 to 4 names, `vs` optional as a separator, `random` picks a roster character for that slot. 2 fighters → `ai vs ai`, 3 → `ai 3-way`, 4 → `ai free-for-all` (`src/brain.js`); it simulates the fight, renders a GIF (needs Chrome, same as `render_gif`), and replies with it.
+- Access: admins/mods (Manage Server permission) can always use it; everyone else needs a role set with `!fightconfig role <name|none>`, optionally restricted to one channel with `!fightconfig channel <#name|none>`.
+- Throttling: a per-user cooldown (hard reject) and a global cooldown enforced as a queue, not a rejection — both adjustable live with `!fightconfig usercooldown <seconds>` / `globalcooldown <seconds>`, persisted to `out/bot-config.json`. `!fightconfig show` and `!fightstatus` report the current state.
+- `out/` fills with GIFs fast: a timer deletes ones older than `OUT_RETAIN_MS` (default 2h) every `OUT_CLEAN_INTERVAL_MS` (default 15m).
+- Run it: `DISCORD_BOT_TOKEN=... npm run discord-bot`. Deploy it as a systemd user service with `tools/deploy-bot.sh` (installs dependencies, writes the env file and unit, enables it).
