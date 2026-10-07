@@ -43,13 +43,26 @@ function shapeRows(s, set, weapon) {
     h('div', { cls: 'bar' }, button(':add: point', 'Add a point after the last one', () => set({ pts: [...s.pts, [0, 0]] }), 'mini'), col()));
   return rows;
 }
-// the shape list itself: add, reorder isn't needed (later ones just draw over earlier ones, like fx stacks), remove.
+// a small preview of just one shape (its own extent, not the whole weapon/prop's) - so a shape's look is obvious
+// without reading its numeric fields
+function shapeThumb(s, weapon) {
+  const cv = h('canvas'), w = 36, hh = 36, vars = weapon ? { len: 40 } : { sway: 0 };
+  cv.width = w * dpr; cv.height = hh * dpr;
+  const e = shapeExtent([s], vars), ew = Math.max(1, e.maxX - e.minX), eh = Math.max(1, e.maxY - e.minY);
+  const sc = Math.min((w - 8) / ew, (hh - 8) / eh) * dpr;
+  const cx = w * dpr / 2 - (e.minX + e.maxX) / 2 * sc, cy = hh * dpr / 2 - (e.minY + e.maxY) / 2 * sc;
+  drawShape(cv.getContext('2d'), s, (x, y) => [cx + x * sc, cy + y * sc], weapon ? raw => raw === 'wood' ? WOOD : raw === 'metal' ? METAL : raw : c => c || '#888', vars);
+  return cv;
+}
+// the shape list itself: a table (preview, kind, remove) so every element is visible at a glance, each with its own
+// fields below it - add, reorder isn't needed (later ones just draw over earlier ones, like fx stacks), remove.
 // each shape's own fields stay visible (not foldable: #side's fold/shut CSS doesn't reach into this overlay panel)
 function shapeList(shapes, onChange, weapon) {
   const wrap = h('div', {});
   const fill = () => wrap.replaceChildren(...shapes.map((s, i) => h('div', { cls: 'shaperow' },
-    h('div', { cls: 'bar' }, h('b', { textContent: `${i + 1}. ${s.kind}` }),
-      button(':close:', 'Remove this shape', () => { shapes.splice(i, 1); onChange(); fill(); }, 'mini')),
+    h('table', {}, h('tbody', {}, h('tr', {},
+      h('td', {}, shapeThumb(s, weapon)), h('td', {}, h('b', { textContent: `${i + 1}. ${s.kind}` })),
+      h('td', {}, button(':close:', 'Remove this shape', () => { shapes.splice(i, 1); onChange(); fill(); }, 'mini'))))),
     ...shapeRows(s, patch => { Object.assign(s, patch); onChange(); fill(); }, weapon))));
   fill();
   return h('div', {}, wrap, h('div', { cls: 'bar' }, ...SHAPE_KINDS.map(k => button(`:add: ${k}`, `Add a ${k}: ${SHAPE_KIND_TIPS[k]}`, () => { shapes.push(newShape(k)); onChange(); fill(); }, 'mini'))));
