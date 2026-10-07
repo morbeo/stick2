@@ -5,9 +5,12 @@ const fs = require('fs'), os = require('os'), path = require('path'), { spawn } 
 const findChrome = () => process.env.CHROME || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium']
   .find(p => fs.existsSync(p));
 
-// the Chrome DevTools protocol over node's WebSocket: send(method, params) → result
-async function devtools(port) {
+// the Chrome DevTools protocol over node's WebSocket: send(method, params) → result. proc/getStderr (launch() only):
+// so a crash between writing DevToolsActivePort and actually opening the HTTP endpoint fails fast with the reason,
+// instead of silently burning the whole retry budget on a process that's already gone
+async function devtools(port, proc, getStderr) {
   for (let i = 0; i < 50; i++) {
+    if (proc?.exitCode != null) break;
     try { const ws = new WebSocket((await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(t => t.type === 'page').webSocketDebuggerUrl);
       await new Promise((ok, no) => { ws.onopen = ok; ws.onerror = no; });
       let id = 0; const wait = {};
@@ -15,7 +18,8 @@ async function devtools(port) {
       return { ws, send: (method, params = {}) => new Promise((ok, no) => { wait[++id] = m => m.error ? no(new Error(method + ': ' + m.error.message)) : ok(m.result); ws.send(JSON.stringify({ id, method, params })); }) };
     } catch { await new Promise(r => setTimeout(r, 200)); }
   }
-  throw new Error('Chrome did not open its DevTools port');
+  const tail = getStderr?.().trim();
+  throw new Error(`Chrome did not open its DevTools port${proc?.exitCode != null ? ` (exited ${proc.exitCode})` : ''}${tail ? ': ' + tail.split('\n').slice(-5).join(' | ') : ''}`);
 }
 
 // Chrome opening url in a temporary profile, on a free DevTools port (Chrome picks it and writes it to DevToolsActivePort)
@@ -38,7 +42,7 @@ async function launch(url, args = []) {
     for (let i = 0; i < 100 && !port && proc.exitCode === null && !spawnErr; i++) { try { port = +fs.readFileSync(path.join(dir, 'DevToolsActivePort'), 'utf8').split('\n')[0]; } catch { await new Promise(r => setTimeout(r, 100)); } }
     if (spawnErr) throw spawnErr;
     if (!port) throw new Error(`Chrome did not start${proc.exitCode !== null ? ` (exited ${proc.exitCode})` : ''}${stderr.trim() ? ': ' + stderr.trim().split('\n').slice(-5).join(' | ') : ''}`);
-    const { ws, send } = await devtools(port);
+    const { ws, send } = await devtools(port, proc, () => stderr);
     const js = async code => { const r = await send('Runtime.evaluate', { expression: code, awaitPromise: true, returnByValue: true });
       if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text); return r.result.value; };
     return { proc, send, js, close: () => { try { ws.close(); } catch {} close(); } };
