@@ -72,6 +72,7 @@ ai vs waves    hits 5 blocks 0 hp 52.2 100.0 x 446 534
 ai survival    hits 5 blocks 0 hp 45.9 50.0 x 498 525
 ai rumble      hits 10 blocks 0 hp 100.0 51.7 x 87 411
 sandwich       hits 5 blocks 0 hp 100.0 77.4 x 330 637
+crowd          hits 1 blocks 0 hp 100.0 92.0 x 66 107
 showcase       hits 5 blocks 0 hp 100.0 54.4 x 754 715
 pick up & slash hits 3 blocks 0 hp 100.0 65.3 x 413 466
 weapon throw   hits 1 blocks 0 hp 100.0 93.0 x 250 492

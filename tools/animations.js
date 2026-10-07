@@ -39,7 +39,7 @@ const CLIPS = {
   'anim-flash-kick': ['flash kick', 2, CROP],
   'anim-lightning-legs': ['lightning legs', 2, CROP],
   'anim-pickup-slash': ['pick up & slash', 5, CROP],
-  'anim-crowd': ['sandwich', 3.4, [60, 320, 820, 300], { flyHits: true, flyChain: true, flyKnock: 0.9, flyDrag: 0.75, shakeBias: 0.6 }],
+  'anim-crowd': ['crowd', 3.6, [0, 320, 820, 300]],
   'anim-turnaround': ['turnaround', 2.6, CROP],
   'anim-weapon-clash': ['weapon clash', 2, CROP],
 };
