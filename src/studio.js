@@ -10,6 +10,12 @@ for (const k in DEFS) CHARS[k] = makeCharacter(DEFS[k]);
 if (DEFS[saved.current]) CURRENT = saved.current;
 // only edited built-ins are stored, so improved built-ins reach characters nobody changed
 const edited = () => Object.fromEntries(Object.entries(DEFS).filter(([k, d]) => !CHAR_DEFS[k] || JSON.stringify(d) !== JSON.stringify(CHAR_DEFS[k])));
+// a built-in can't be deleted (revert needs it to stay around), so "delete" disables it instead: hidden from every
+// picker, random pick and the live random-character roster, until re-enabled or reverted. Custom characters are unaffected
+const disabledChars = new Set(saved.disabled || []);
+const isDisabled = k => disabledChars.has(k);
+const rosterKeys = () => Object.keys(DEFS).filter(k => !disabledChars.has(k));
+function setDisabled(name, v) { if (v) disabledChars.add(name); else disabledChars.delete(name); save(); }
 
 // debounced: a drag (a joint in animate, a settings slider) can call a save on every event, far more often than the
 // JSON + localStorage write needs to happen; flush() forces it now (used on beforeunload, and where a caller needs the
@@ -23,7 +29,7 @@ function debounce(fn, ms = 250) {
 }
 let saveFailed = false;
 const save = debounce(() => {
-  try { localStorage.setItem(STORE, JSON.stringify({ defs: edited(), current: CURRENT })); saveFailed = false; }
+  try { localStorage.setItem(STORE, JSON.stringify({ defs: edited(), current: CURRENT, disabled: [...disabledChars] })); saveFailed = false; }
   catch (e) { if (!saveFailed) { saveFailed = true; notice('Could not save characters', `Your changes are only in this tab for now: ${e.message}`); } }
 });
 // settings persist too: the ones changed from the defaults, checked on the way in (known, the right type, in range)
@@ -182,10 +188,10 @@ function addChar(def, base = def.name || 'char') {
   CHARS[name] = makeCharacter(DEFS[name]);
   pickChar(name);
 }
-const revertChar = () => CHAR_DEFS[CURRENT] && edit(def => {
+const revertChar = () => CHAR_DEFS[CURRENT] && (setDisabled(CURRENT, false), edit(def => {
   for (const k in def) delete def[k];
   Object.assign(def, clone(CHAR_DEFS[CURRENT]));
-});
+}));
 // built-ins keep their name (revert needs it), so renaming one makes a renamed copy
 async function renameChar() {
   const old = CURRENT, name = (await askText('Rename the character', old))?.trim();
@@ -198,9 +204,17 @@ async function renameChar() {
 }
 // scenarios (built in the browser) that still name this character, directly or in a select-mode roster
 const scensUsing = name => Object.entries(myScens()).filter(([, u]) => u.p.some(f => f.char === name) || u.roster?.includes(name)).map(([k]) => k);
+// a built-in can't truly be deleted (revert needs it to stay around), so "delete" disables it instead: out of every
+// picker, random pick and the live random-character roster until re-enabled or reverted
+async function disableChar() {
+  const name = CURRENT;
+  if (!await askYes(`Disable the character "${name}"?`, `"${name}" ships with the app so it can't be deleted - this hides it from pickers and random picks instead. Enable or revert brings it back.`, ':no_entry: disable') || name !== CURRENT) return;
+  setDisabled(name, true);
+  pickChar('stick');
+}
 async function deleteChar() {
   const name = CURRENT;
-  if (CHAR_DEFS[name]) return notice('Can\'t delete a built-in', `"${name}" ships with the app; revert it to undo your edits instead.`);
+  if (CHAR_DEFS[name]) return disableChar();
   if (!await askYes(`Delete the character "${name}"?`, 'This cannot be undone.', ':delete: delete') || name !== CURRENT) return;
   const used = scensUsing(name);
   delete DEFS[CURRENT]; delete CHARS[CURRENT];
@@ -537,10 +551,10 @@ function startCardPreview(cv, k) {
 function stopCardPreview() { if (cardPeek) cancelAnimationFrame(cardPeek.raf); cardPeek = null; }
 // a character as a card; by default clicking it makes it the one every mode edits
 function charCard(k, pick = pickChar, on = k => CURRENT === k) {
-  const cv = h('canvas'), b = h('button', { cls: 'card', tip: `${CHAR_DEFS[k] ? 'Built-in' : 'Your character'}: ${k} · ${CHARS[k].bones.length} bones · speed ${CHARS[k].stats.speed} · click: use it in every mode`,
+  const cv = h('canvas'), b = h('button', { cls: 'card', tip: `${CHAR_DEFS[k] ? 'Built-in' : 'Your character'}: ${k}${isDisabled(k) ? ' · disabled (hidden from pickers and random picks)' : ''} · ${CHARS[k].bones.length} bones · speed ${CHARS[k].stats.speed} · click: use it in every mode`,
     onclick: () => { closePop(); pick(k); syncAll(); },
     onmouseenter: () => startCardPreview(cv, k), onmouseleave: () => cardPeek?.cv === cv && stopCardPreview() }, cv, h('span', { textContent: k }));
-  reg(b, () => { b.classList.toggle('on', on(k)); if (cardPeek?.cv !== cv) drawThumb(cv, CHARS[k]); });
+  reg(b, () => { b.classList.toggle('on', on(k)); b.style.opacity = isDisabled(k) ? 0.4 : ''; if (cardPeek?.cv !== cv) drawThumb(cv, CHARS[k]); });
   return b;
 }
 // the character + stance picker: a toolbar group (pinned at the top, unlike the side panel, so it stays visible on
@@ -593,8 +607,12 @@ function charStancePicker() {
     random: ['New random character: proportions, thickness, extra limbs, stance and stats', () => addChar(randomDef(makeRand(Math.random() * 1e9 | 0)))],
     copy: ['New character copied from this one', () => addChar(DEFS[CURRENT], CURRENT)],
     rename: ['Rename this character (a built-in one is copied under the new name)', renameChar],
-    ...CHAR_DEFS[CURRENT] ? { revert: ['Throw away the edits of this built-in character (undoable)', revertChar] }
-      : { delete: ['Delete this character (asks first, cannot be undone)', deleteChar] },
+    ...CHAR_DEFS[CURRENT] ? {
+      ...isDisabled(CURRENT)
+        ? { enable: ['Bring this disabled built-in back into pickers and random picks', () => { setDisabled(CURRENT, false); panels(); }] }
+        : { disable: ['Remove this built-in from pickers and random picks (not a full delete - enable or revert brings it back)', disableChar] },
+      revert: ['Throw away the edits of this built-in character, and re-enable it if disabled (undoable)', revertChar],
+    } : { delete: ['Delete this character (asks first, cannot be undone)', deleteChar] },
     import: ['Load a character JSON file as a new character', importChar],
     export: ['Download this character as a JSON file', exportChar],
   });

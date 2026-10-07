@@ -41,12 +41,23 @@
     },
     // bridge-driven, so no confirmation dialog (unlike the UI's delete/rename, which ask first): the caller already decided
     delete_character({ name }) {
-      if (CHAR_DEFS[name]) throw new Error(`"${name}" is a built-in, can't be deleted`);
       if (!DEFS[name]) throw new Error(`no character "${name}"`);
+      // a built-in can't truly be deleted (revert needs it to stay around); disable it instead - out of every picker,
+      // random pick and the live random-character roster until re-enabled or reverted
+      if (CHAR_DEFS[name]) {
+        setDisabled(name, true);
+        if (CURRENT === name) pickChar('stick');
+        return { disabled: name };
+      }
       const used = scensUsing(name);
       delete DEFS[name]; delete CHARS[name];
       if (CURRENT === name) pickChar('stick'); else save();
       return { deleted: name, ...(used.length ? { stillNamedBy: used } : {}) };
+    },
+    enable_character({ name }) {
+      if (!CHAR_DEFS[name]) throw new Error(`"${name}" isn't a built-in`);
+      setDisabled(name, false);
+      return { enabled: name };
     },
     rename_character({ from, to }) {
       if (CHAR_DEFS[from]) throw new Error(`"${from}" is a built-in, can't be renamed`);

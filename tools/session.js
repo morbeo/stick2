@@ -126,6 +126,8 @@ function inside() {
       stats: fightStats(events, lanes), eventCounts: count, events: ev, endHash: w.stateHash() };
   }
 
+  // read by World's constructor (world.js) for a scenario's 'random' character slots, same as the app's studio.js version
+  globalThis.rosterKeys = () => Object.keys(CHARS).filter(n => !MCP.disabled.has(n));
   globalThis.MCP = {
     // ---------- settings ----------
     listSettings(group) {
@@ -147,6 +149,7 @@ function inside() {
 
     // ---------- characters ----------
     defs: {}, // made or edited through the session (a profile saves these)
+    disabled: new Set(), // built-in names hidden from pickers and random picks (delete_character on a built-in); revert_character/enable_character clear it
     // undo/redo for createCharacter/editCharacter/editMove: one shared stack (like the app's own), snapshotting the
     // whole character each time (existed: false means it's a brand new name, so undo removes it instead of restoring a def)
     history: [], redoStack: [],
@@ -167,9 +170,15 @@ function inside() {
       MCP.history.push({ name: e.name, existed: e.name in CHARS, def: MCP.defs[e.name] ? clone(MCP.defs[e.name]) : null });
       return MCP.applySnap(e);
     },
-    listCharacters: () => Object.keys(CHARS).map(n => { const ch = CHARS[n];
-      return { name: n, builtin: !!CHAR_DEFS[n], edited: !!MCP.defs[n], current: n === CURRENT, bones: ch.bones.length, moves: Object.keys(ch.moves).length,
-        stances: ch.stances.map(s => s.name), weapon: ch.weapon || null, stats: Object.fromEntries(Object.entries(ch.stats).filter(([, v]) => v !== 1)) }; }),
+    listCharacters: () => {
+      // self-heal: a built-in should always exist (compiled from CHAR_DEFS, at worst disabled) even if a stale
+      // session destroyed its CHARS entry before renameCharacter stopped doing that
+      for (const n in CHAR_DEFS) if (!CHARS[n]) CHARS[n] = makeCharacter(CHAR_DEFS[n]);
+      return Object.keys(CHARS).map(n => { const ch = CHARS[n];
+        return { name: n, builtin: !!CHAR_DEFS[n], edited: !!MCP.defs[n], current: n === CURRENT, disabled: MCP.disabled.has(n),
+          bones: ch.bones.length, moves: Object.keys(ch.moves).length,
+          stances: ch.stances.map(s => s.name), weapon: ch.weapon || null, stats: Object.fromEntries(Object.entries(ch.stats).filter(([, v]) => v !== 1)) }; });
+    },
     getCharacter: n => charOf(n).def,
     listMoves(n, speed) {
       const ch = charOf(n), sp = speed ?? CFG.attackSpeed * ch.stats.tempo;
@@ -205,17 +214,38 @@ function inside() {
       MCP.defs[n] = def; CHARS[n] = makeCharacter(def);
       return move === null ? { deleted: name } : MCP.listMoves(n).find(m => m.name === name);
     },
+    // a built-in can't truly be deleted (revert needs it to stay around); disable it instead - out of list_characters'
+    // effective roster uses (rosterKeys, read by World's 'random' slot picker) until enable_character or revert_character
     deleteCharacter(n) {
-      if (!MCP.defs[n]) fail(`no character "${n}" made or edited this session to delete (list_characters; built-ins can't be deleted)`);
+      if (CHAR_DEFS[n]) { MCP.disabled.add(n); if (CURRENT === n) CURRENT = 'stick'; return { disabled: n }; }
+      if (!MCP.defs[n]) fail(`no character "${n}" made or edited this session to delete (list_characters)`);
       delete MCP.defs[n]; delete CHARS[n];
       if (CURRENT === n) CURRENT = 'stick';
       return { deleted: n };
     },
+    enableCharacter(n) {
+      if (!CHAR_DEFS[n]) fail(`"${n}" isn't a built-in (list_characters)`);
+      MCP.disabled.delete(n);
+      return { enabled: n };
+    },
+    // undoes edits to a built-in and re-enables it if disabled; CHARS[n] is restored even if a stale session
+    // destroyed it (see listCharacters' self-heal) since this is the only way back for a built-in by name
+    revertCharacter(n) {
+      if (!CHAR_DEFS[n]) fail(`"${n}" isn't a built-in (list_characters); delete_character removes a custom one instead`);
+      MCP.disabled.delete(n);
+      delete MCP.defs[n];
+      CHARS[n] = makeCharacter(CHAR_DEFS[n]);
+      return { name: n, bones: CHARS[n].bones.length, moves: Object.keys(CHARS[n].moves).length };
+    },
+    // built-ins keep their name (revert needs it) and stay exactly as shipped - renaming one makes an edited copy
+    // under the new name instead of destroying the original (a plain custom character is just renamed in place)
     renameCharacter(from, to) {
-      if (!MCP.defs[from]) fail(`"${from}" is not a character made or edited this session (list_characters; built-ins can't be renamed)`);
+      const def = MCP.defs[from] || CHAR_DEFS[from];
+      if (!def) fail(`no character "${from}" (list_characters)`);
       if (CHARS[to]) fail(`"${to}" is already a character`);
-      MCP.defs[to] = { ...MCP.defs[from], name: to }; CHARS[to] = makeCharacter(MCP.defs[to]);
-      delete MCP.defs[from]; delete CHARS[from];
+      MCP.defs[to] = { ...clone(def), name: to }; CHARS[to] = makeCharacter(MCP.defs[to]);
+      if (CHAR_DEFS[from]) CHARS[from] = makeCharacter(CHAR_DEFS[from]); // restore the original, untouched
+      else { delete MCP.defs[from]; delete CHARS[from]; }
       if (CURRENT === from) CURRENT = to;
       return { name: to };
     },

@@ -374,9 +374,9 @@ function fighterPick(i) {
   const b = button('', `P${i + 1}: ${who} · click: pick from every character`, (e, el) => popup(el,
     h('b', { textContent: `P${i + 1}` }), h('p', { textContent: SCENARIOS[lab.scen].chars ? 'This scenario brings its own fighters; the pick applies to the others.' : `Who fights as P${i + 1}` }),
     h('div', { cls: 'bar' }, toggle(i >= 2 ? ':content_copy: as P2' : ':edit: editor', i >= 2 ? 'The same character as P2' : `Follow the character being edited (now ${CURRENT})`, () => !lab.chars[i], () => { closePop(); set(null); }),
-      button(':casino: random', 'A random character from the roster', () => { closePop(); const ks = Object.keys(DEFS); set(ks[Math.floor(Math.random() * ks.length)]); }),
+      button(':casino: random', 'A random character from the roster', () => { closePop(); const ks = rosterKeys(); set(ks[Math.floor(Math.random() * ks.length)]); }),
       i ? button(':content_copy: mirror', 'The same character as P1', () => { closePop(); set(lab.chars[0]); }) : null),
-    h('div', { cls: 'cards' }, Object.keys(DEFS).map(k => charCard(k, set, k => name() === k && !!lab.chars[i])))));
+    h('div', { cls: 'cards' }, rosterKeys().map(k => charCard(k, set, k => name() === k && !!lab.chars[i])))));
   b.classList.add('fpick');
   reg(b, () => { b.replaceChildren(cv, h('span', { textContent: `P${i + 1} ${name()}` })); drawThumb(cv, CHARS[name()], undefined, 20, 22); });
   return b;
@@ -384,7 +384,7 @@ function fighterPick(i) {
 // a scenario flagged select (the builder's "select screen" toggle): a full-screen picker for P1 and P2 over its roster
 // (empty roster = every character), instead of the small per-slot popup. Confirm sets lab.chars like fighterPick does
 function selectScreen() {
-  const scen = SCENARIOS[lab.scen], roster = scen.roster?.length ? scen.roster : Object.keys(DEFS);
+  const scen = SCENARIOS[lab.scen], roster = scen.roster?.length ? scen.roster : rosterKeys();
   const picks = [lab.chars[0], lab.chars[1]];
   const box = h('div', { cls: 'pop modal' });
   const end = () => { back.remove(); lab.chars[0] = picks[0] ?? null; lab.chars[1] = picks[1] ?? null; build(); };

@@ -54,10 +54,13 @@ test('characters and moves: the built-ins, a definition, frame data; a broken ed
   assert.equal((await s.call('edit_character', { name: 'longlegs', patch: { bones: { thighF: { len: 30 } }, speed: 1.2 } })).json.bones, def.bones.length);
   assert.equal((await s.call('get_character', { name: 'longlegs' })).json.bones.find(b => b.id === 'thighF').len, 30);
   assert.equal((await s.call('edit_move', { char: 'longlegs', name: 'jab', move: { damage: 9 }, merge: true })).json.damage, 9);
-  const noDel = await s.call('delete_character', { name: 'stick' });
-  assert.ok(noDel.isError && /built-ins can't be deleted/.test(noDel.content[0].text), noDel.content[0].text);
-  const noRen = await s.call('rename_character', { from: 'stick', to: 'sticky' });
-  assert.ok(noRen.isError && /built-ins can't be renamed/.test(noRen.content[0].text), noRen.content[0].text);
+  const dis = await s.call('delete_character', { name: 'stick' });
+  assert.equal(dis.json.disabled, 'stick', 'a built-in disables instead of erroring');
+  assert.equal((await s.call('enable_character', { name: 'stick' })).json.enabled, 'stick', 'undone, so later tests still see it normally');
+  const ren = await s.call('rename_character', { from: 'stick', to: 'sticky' });
+  assert.equal(ren.json.name, 'sticky', 'a built-in makes a renamed copy instead of erroring');
+  assert.ok(!(await s.call('get_character', { name: 'stick' })).isError, 'the original built-in is untouched');
+  assert.equal((await s.call('delete_character', { name: 'sticky' })).json.deleted, 'sticky', 'the copy is a plain custom character');
   assert.equal((await s.call('rename_character', { from: 'longlegs', to: 'longshanks' })).json.name, 'longshanks');
   assert.ok((await s.call('get_character', { name: 'longlegs' })).isError, 'the old name is gone');
   assert.equal((await s.call('get_character', { name: 'longshanks' })).json.bones.find(b => b.id === 'thighF').len, 30, 'the edits moved with it');
@@ -258,7 +261,9 @@ test('the live bridge: the app opened from the server takes fixed commands', { s
     assert.ok((await s.call('browser_command', { name: 'set_preview', args: { opponent: 'nope' } })).isError, 'checked in the page too');
     const stp = (await s.call('browser_command', { name: 'send_to_play' })).json;
     assert.equal(stp.mode, 'play'); assert.equal(stp.scenario, 'solo');
-    assert.ok((await s.call('browser_command', { name: 'delete_character', args: { name: 'stick' } })).isError, 'built-ins are protected here too');
+    const dis = (await s.call('browser_command', { name: 'delete_character', args: { name: 'stick' } })).json;
+    assert.equal(dis.disabled, 'stick', 'a built-in disables instead of erroring here too');
+    assert.equal((await s.call('browser_command', { name: 'enable_character', args: { name: 'stick' } })).json.enabled, 'stick', 'undoable, so later steps still see it normally');
     assert.equal((await s.call('browser_command', { name: 'rename_character', args: { from: 'bridgetest', to: 'bridgetest2' } })).json.name, 'bridgetest2');
     assert.equal((await s.call('browser_state')).json.character, 'bridgetest2', 'renaming the one being edited follows it');
     assert.equal((await s.call('browser_command', { name: 'delete_character', args: { name: 'bridgetest2' } })).json.deleted, 'bridgetest2');

@@ -44,7 +44,8 @@ class World {
   // pick) — then that wins, so a recorded or chosen fight never re-rolls into a different character than it played with
   constructor(scen, over = {}, seed = 1, chars = null) {
     if (scen.chars) {
-      const names = Object.keys(CHARS), given = chars;
+      // rosterKeys (studio.js, browser-only) leaves out characters the user disabled; headless runs (no studio.js) see every character
+      const names = (typeof rosterKeys === 'function' ? rosterKeys() : Object.keys(CHARS)).filter(k => CHARS[k]), given = chars;
       chars = scen.chars.map((n, i) => n === 'random' ? (given?.[Math.min(i, given.length - 1)] || CHARS[names[Math.floor(Math.random() * names.length)]]) : CHARS[n] || currentChar());
     }
     Object.assign(this, { scen, over, seed, chars, groundY: GROUND, loop: true, camW: 420 });
