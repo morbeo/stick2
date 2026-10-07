@@ -1200,12 +1200,15 @@ class Fighter {
 
   // the drawn width while turning (face goes from -1 to 1): never thinner than turnWidth, mirrored at the halfway point
   get xs() { const w = this.c('turnWidth'), f = this.face; return (Math.sign(f) || this.dir) * (w + (1 - w) * Math.abs(f)); }
-  // world-space joints: lowest body point snapped to the ground, then squash/stretch around it
-  points(p, lens) {
-    const L = fk(this.ch, p, this.xs, lens);
+  // world-space joints: lowest body point snapped to the ground, then squash/stretch around it.
+  // free (the scene editor's poseOverride only): skip the ground snap so a dragged pose can leave the floor entirely
+  points(p, lens, free) {
+    // the head snaps to face (dir) right away instead of squashing through xs with the rest of the body,
+    // so it doesn't gather into the chest mid-turn (the turnTuck squish)
+    const L = fk(this.ch, p, b => b.role === 'head' ? this.dir : this.xs, lens);
     if (this.kd === 'down' && !this.rag) settle(this.ch, L); // the lie pose rolls to the angle it lies flattest at
     let fy = 0;
-    for (const b of this.ch.bones) fy = Math.max(fy, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
+    if (!free) for (const b of this.ch.bones) fy = Math.max(fy, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
     if (this.spin) {
       let top = 0; for (const k in L) top = Math.min(top, L[k][1]);
       const r = this.spin * this.dir * R, c = Math.cos(r), s = Math.sin(r), cy = (top + fy) / 2;
@@ -1218,8 +1221,13 @@ class Fighter {
   }
   // poseOverride (replay.js's scene editor only): bone id -> angle, merged over the real pose for drawing only. Never
   // set during a live fight or w.advance() - only bracketed around a single render() call - so hit detection and
-  // replay determinism never see it; it exists purely to let the replay editor pose a paused frame by dragging joints
-  body() { const p = this.planted || this.disp; return this.points(this.poseOverride ? { ...p, ...this.poseOverride } : p, this.lens); }
+  // replay determinism never see it; it exists purely to let the replay editor pose a paused frame by dragging joints.
+  // While it's set, pose from disp (not the frozen foot-plant IK result in planted) and skip the ground snap, so no
+  // leg stays anchored to its last live-sim planted spot and a free pose isn't pulled back down onto the floor
+  body() {
+    if (this.poseOverride) return this.points({ ...this.disp, ...this.poseOverride }, this.lens, true);
+    return this.points(this.planted || this.disp, this.lens);
+  }
   recordTrail() {
     const P = this.body();
     this.trail.push(this.ch.tips.map(b => P[b.id]));

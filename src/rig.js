@@ -993,14 +993,16 @@ function comboRoutes(ch, roots, speed = 1) {
   return out;
 }
 
-// forward kinematics, hip (root) at origin, y down. dir in [-1, 1] (fractional while turning). lens: stretched lengths
+// forward kinematics, hip (root) at origin, y down. dir in [-1, 1] (fractional while turning), or a bone => dir function
+// so a part (the head, snapping instantly through a turn instead of squashing with the body) can mirror on its own. lens: stretched lengths
 // wa (optional) receives each bone's world angle
 function fk(ch, p, dir, lens, wa = {}) {
+  const dirOf = typeof dir === 'function' ? dir : () => dir;
   const P = { hip: [0, 0] };
   for (const b of ch.bones) {
     const pb = b.parent && ch.by[b.parent], pw = pb ? wa[pb.id] : 0;
     const w = wa[b.id] = pw + p[b.id] - b.level * (pw - (pb ? pb.restW : 0));
-    const o = P[b.parent || 'hip'], l = lens ? lens[b.id] : b.len;
+    const o = P[b.parent || 'hip'], l = lens ? lens[b.id] : b.len, dir = dirOf(b);
     P[b.id] = [o[0] + Math.sin(w * R) * l * dir, o[1] + Math.cos(w * R) * l];
   }
   return P;
