@@ -232,6 +232,19 @@ function describeDiff(d, path = []) {
   }
   return lines;
 }
+// composites a few labelled canvases (plus optional text lines) into one PNG and downloads it - the same visuals
+// the diff views already draw, just flattened into one shareable image for patch notes, docs, or an issue/PR
+function exportDiffImage(filename, cells, lines = []) {
+  const pad = 10, lineH = 14, cw = Math.max(...cells.map(c => c.cv.width / dpr)), ch = Math.max(...cells.map(c => c.cv.height / dpr));
+  const w = cells.length * (cw + pad) + pad, out = h('canvas');
+  out.width = w; out.height = ch + pad * 3 + 16 + (lines.length ? lines.length * lineH + pad : 0);
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#f3f0e8'; ctx.fillRect(0, 0, w, out.height);
+  ctx.font = '12px ui-monospace, Menlo, monospace'; ctx.fillStyle = '#222'; ctx.textBaseline = 'top';
+  cells.forEach((c, i) => { const x = pad + i * (cw + pad); ctx.fillText(c.label, x, pad); ctx.drawImage(c.cv, x, pad + 16, cw, ch); });
+  let y = pad * 2 + 16 + ch; for (const l of lines) { ctx.fillText(l, pad, y); y += lineH; }
+  h('a', { href: out.toDataURL('image/png'), download: filename }).click();
+}
 // a changed move, side by side: both versions looping in sync on a shared playhead, each move's own timeline below
 // it with the changed keys (by index - the diff's keys.changed map) highlighted, click a key to scrub to its start
 function moveDiffView(name) {
@@ -253,7 +266,9 @@ function moveDiffView(name) {
   let last = performance.now();
   const loop = now => { if (!document.body.contains(cvBase)) return; if (state.playing) { state.t += (now - last) / 1000; render(); } last = now; requestAnimationFrame(loop); };
   requestAnimationFrame(loop); render();
-  return h('div', {}, h('b', { textContent: name }), h('div', { cls: 'bar' }, playBtn),
+  return h('div', {}, h('b', { textContent: name }), h('div', { cls: 'bar' }, playBtn,
+    button(':download: export image', 'Download a PNG of this exact moment, both versions side by side', () =>
+      exportDiffImage(`${CURRENT}-${name}.png`, [{ cv: cvBase, label: 'built-in' }, { cv: cvCur, label: 'yours' }]), 'mini')),
     h('div', { cls: 'bar' }, h('div', {}, h('b', { textContent: 'built-in' }), cvBase, timeline(bm)),
       h('div', {}, h('b', { textContent: 'yours' }), cvCur, timeline(cm))));
 }
@@ -275,7 +290,9 @@ function charDiffPanel() {
   const lines = describeDiff(d);
   const changedMoves = Object.keys(d.changed?.moves?.changed || {});
   wrap.append(stageHead('changes', 'What differs from the matching built-in character - changed bones in red on both bodies',
-    button(':download: export diff', 'Export just this diff (the default character export)', () => exportChar(false), 'mini')),
+    button(':download: export diff', 'Export just this diff (the default character export)', () => exportChar(false), 'mini'),
+    button(':download: export image', 'Download a PNG of this comparison - the bodies and the change list, for patch notes or docs', () =>
+      exportDiffImage(`${CURRENT}-changes.png`, [{ cv: cvBase, label: 'built-in' }, { cv: cvCur, label: 'yours' }], lines), 'mini')),
     h('div', { cls: 'bar' },
       h('div', {}, h('b', { textContent: 'built-in' }), cvBase),
       h('div', {}, h('b', { textContent: 'yours' }), cvCur)),
