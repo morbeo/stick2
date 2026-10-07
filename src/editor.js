@@ -449,6 +449,9 @@ function copyMove() {
   edit(def => { def.moves[name] = clone(def.moves[anim.move]); });
   pickMove(name);
 }
+function exportMove() {
+  download(`${CURRENT}-${anim.move}.move.json`, { format: 'stick2.move', char: CURRENT, name: anim.move, move: DEFS[CURRENT].moves[anim.move] });
+}
 function deleteMove() {
   if (CHAR_DEFS[CURRENT]?.moves[anim.move]) return; // built-in moves are used by the controls and combos
   const gone = anim.move;
@@ -1177,7 +1180,7 @@ function moveGrp() {
   const st = ch.stances.map(s => s.name);
   return grp('move', 'The move being edited. Copies can be tuned freely; the built-in names are the ones the controls trigger. Enter play/pause · O onion · I aim',
     button(':chevron_left:', 'Previous move', () => step(-1), 'mini'), cur, button(':chevron_right:', 'Next move', () => step(1), 'mini'),
-    crud({ copy: ['New move copied from this one, named with a number (jab → jab2); undoable', copyMove], delete: ['Delete this move and its binds (only copies; built-ins stay); undoable', deleteMove] }, addButton()),
+    crud({ copy: ['New move copied from this one, named with a number (jab → jab2); undoable', copyMove], export: ['Export this move as a file (JSON)', exportMove], delete: ['Delete this move and its binds (only copies; built-ins stay); undoable', deleteMove] }, addButton()),
     st.length > 1 ? seg(st.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); },
       Object.fromEntries(st.map((n, i) => [i, `Stance ${n}: the one the input and loop edits change and previews start in (stances are made in the character tab)`])), i => st[i]) : null);
 }
