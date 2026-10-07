@@ -168,7 +168,8 @@ function docsFrame() {
 // #kitchensink opens every shared UI component on one page (src/kitchensink.js), for checking a theme change or a visual bug,
 // #theater drops the toolbars and side panel (any mode, not just play) - a clean demo view, e.g. gallery.html's theatrical variant,
 // #char=/#scenario=/#move=/#sound=/#look=/#track=/#prop=/#weapon= open that item where it's edited (move combines with
-// char: #char=grumbo&move=hugGrab), #collection=/#sel= pick a grid cell without opening it (the grid's own select step)
+// char: #char=grumbo&move=hugGrab), #collection=/#sel= pick a grid cell without opening it (the grid's own select step),
+// #welcome reopens the welcome modal (src/welcome.js; it otherwise shows once, on the very first visit)
 // a direct link into a tool, optionally one of its stage panels, and optionally a specific item it should open or
 // select first - for docs to point straight at a feature, for copy-link buttons anywhere in the UI (see charDiffPanel's
 // "link to this panel" and the grid's own per-card link), extra: { char, scenario, move, sound, look, track, prop, weapon, collection, sel }
@@ -201,5 +202,6 @@ function readHash() {
   if (p.has('diff')) loadEmbedDiff(p.get('diff'));
   if (p.has('kitchensink')) openKitchenSink();
   if (p.has('theater')) setTheater(true);
+  if (p.has('welcome')) openWelcome();
   panels();
 }

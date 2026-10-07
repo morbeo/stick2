@@ -185,6 +185,14 @@
   .card .linkbtn { align-self: flex-end; opacity: 0.35; padding: 1px 3px; }
   .card .linkbtn:hover, .card .linkbtn.on { opacity: 1; }
   .card .linkbtn.comparebtn.on { color: #3a7ca5; }
+  /* the welcome modal (src/welcome.js): wider than a usual .pop.modal (it needs room for a row of demo cards) */
+  .welcomebox { max-width: 760px; width: 92vw; max-height: 86vh; overflow: auto; }
+  .welcomebox .cards { width: auto; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .welcomecard { align-items: flex-start; text-align: left; gap: 4px; }
+  .welcomecard canvas { width: 100%; height: auto; aspect-ratio: 120 / 108; background: #f3f0e8; border-radius: 2px; }
+  .demogrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px; width: 100%; }
+  .demotile { display: flex; align-items: center; justify-content: center; background: #f3f0e8; border: 2px solid transparent; border-radius: 2px; }
+  .demotile.gridsel { border-color: #3a7ca5; }
   .tree { display: flex; align-items: center; gap: 2px; margin: 1px 0; }
   .tree button { padding: 0 6px; } button.twist, span.twist { width: 18px; padding: 0; border: 0; background: none; }
   .vname { cursor: pointer; text-decoration: underline dotted #aaa; text-underline-offset: 3px; }
@@ -201,9 +209,9 @@
   .note { white-space: pre-wrap; color: #888; font-size: 11px; margin: 4px 0 8px; }
   #help { grid-area: help; padding: 4px 10px; color: #999; border-top: 1px solid #ddd7cb; }
   .pop { position: fixed; z-index: 10; background: #fbfaf6; border: 1px solid #bbb; border-radius: 4px; padding: 8px;
+    box-shadow: 0 4px 16px #0002; max-width: 420px; max-height: 70vh; overflow: auto; }
   .modalback { position: fixed; inset: 0; z-index: 30; background: rgba(40,36,30,0.18); display: flex; align-items: center; justify-content: center; }
   .pop.modal { position: relative; min-width: 300px; max-width: 460px; display: flex; flex-direction: column; gap: 6px; } .pop.modal input { width: 100%; box-sizing: border-box; }
-    box-shadow: 0 4px 16px #0002; max-width: 420px; max-height: 70vh; overflow: auto; }
   .pop p { margin: 6px 0 0; white-space: pre-wrap; color: #444; }
   .pop .keys { color: #888; } .pop [draggable=true] { cursor: grab; }
   .dbgpop { width: 360px; } .dbgpop .row .bar { flex-wrap: wrap; }
