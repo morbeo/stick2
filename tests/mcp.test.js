@@ -220,5 +220,24 @@ test('the live bridge: the app opened from the server takes fixed commands', { s
     const shot = await s.call('browser_command', { name: 'screenshot' });
     assert.equal(shot.content[0].mimeType, 'image/png');
     assert.ok((await s.call('browser_command', { name: 'eval' })).isError, 'only the fixed commands');
+
+    assert.equal((await s.call('browser_command', { name: 'set_mode', args: { mode: 'character' } })).json.mode, 'character');
+    assert.ok((await s.call('browser_command', { name: 'set_mode', args: { mode: 'nope' } })).isError, 'only a real mode');
+    const def = (await s.call('get_character', { name: 'stick' })).json;
+    const imp = (await s.call('browser_command', { name: 'import_character', args: { def: { ...def, name: 'bridgetest' } } })).json;
+    assert.equal(imp.name, 'bridgetest');
+    assert.equal((await s.call('browser_state')).json.character, 'bridgetest', 'imported and picked');
+    assert.equal((await s.call('browser_command', { name: 'pick_character', args: { name: 'stick' } })).json.character, 'stick');
+    assert.equal((await s.call('browser_command', { name: 'pick_character', args: { name: 'bridgetest' } })).json.character, 'bridgetest');
+    const pv = (await s.call('browser_command', { name: 'set_preview', args: { scenario: 'solo' } })).json;
+    assert.equal(pv.scenario, 'solo');
+    assert.ok((await s.call('browser_command', { name: 'set_preview', args: { opponent: 'nope' } })).isError, 'checked in the page too');
+    const stp = (await s.call('browser_command', { name: 'send_to_play' })).json;
+    assert.equal(stp.mode, 'play'); assert.equal(stp.scenario, 'solo');
+    assert.ok((await s.call('browser_command', { name: 'delete_character', args: { name: 'stick' } })).isError, 'built-ins are protected here too');
+    assert.equal((await s.call('browser_command', { name: 'rename_character', args: { from: 'bridgetest', to: 'bridgetest2' } })).json.name, 'bridgetest2');
+    assert.equal((await s.call('browser_state')).json.character, 'bridgetest2', 'renaming the one being edited follows it');
+    assert.equal((await s.call('browser_command', { name: 'delete_character', args: { name: 'bridgetest2' } })).json.deleted, 'bridgetest2');
+    assert.equal((await s.call('browser_state')).json.character, 'stick', 'deleting the one being edited falls back to stick');
   } finally { page.close(); }
 });
