@@ -3,11 +3,16 @@ name: Discord notify
 on:
   push:
     branches: [master]
+    paths-ignore: ['docs/**', '**.md']
   release:
     types: [published]
 
 permissions:
   contents: write # to attach the gif to a release's assets
+
+concurrency:
+  group: discord-notify-${{ github.ref }}
+  cancel-in-progress: true
 
 # Set the repo/org variable DISCORD_NOTIFY_GIF to "false" to skip rendering a fight
 # GIF (faster, no Chrome install) and just post the plain embed. Default: on.
@@ -15,13 +20,14 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - if: vars.DISCORD_NOTIFY_GIF != 'false'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
+          cache: npm
       - if: vars.DISCORD_NOTIFY_GIF != 'false'
-        uses: browser-actions/setup-chrome@v1
+        uses: browser-actions/setup-chrome@19ae4b339ee18925ab85cf12c1041150ea4a44c8 # v1
         id: chrome
       - if: vars.DISCORD_NOTIFY_GIF != 'false'
         run: npm ci
@@ -73,8 +79,11 @@ jobs:
               } + (if $ts != "" then { timestamp: $ts } else {} end)
                 + (if $hasGif then { image: { url: "attachment://fight.gif" } } else {} end)]
             }')
-          if [ -n "$GIF_PATH" ]; then
-            curl -s -F "payload_json=$PAYLOAD" -F "files[0]=@${GIF_PATH};filename=fight.gif" "$DISCORD_WEBHOOK"
-          else
-            curl -s -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK"
-          fi
+          # --fail-with-body so a Discord-side error (bad webhook, rate limit) fails the job loudly instead of
+          # silently; one retry after a couple seconds covers a transient 5xx / rate limit
+          send() { if [ -n "$GIF_PATH" ]; then
+              curl -sS --fail-with-body -F "payload_json=$PAYLOAD" -F "files[0]=@${GIF_PATH};filename=fight.gif" "$DISCORD_WEBHOOK"
+            else
+              curl -sS --fail-with-body -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK"
+            fi; }
+          send || { echo "First attempt failed, retrying in 5s…"; sleep 5; send; }
