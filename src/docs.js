@@ -167,9 +167,16 @@ function docsFrame() {
 // #diff=<json> opens a character diff straight into the changes panel (src/studio.js, the panel's own "embed link" button),
 // #kitchensink opens every shared UI component on one page (src/kitchensink.js), for checking a theme change or a visual bug,
 // #theater drops the toolbars and side panel (any mode, not just play) - a clean demo view, e.g. gallery.html's theatrical variant
+// a direct link into a tool, and optionally one of its stage panels - for docs to point straight at a feature,
+// or for copy-link buttons anywhere in the UI (see charDiffPanel's "link to this panel")
+const toolLink = (tool, panel) => `${location.origin}${location.pathname}#tool=${tool}${panel ? '&panel=' + panel : ''}`;
+// #tool=<mode>&panel=<stage>: a direct link into a specific tool and one of its stage panels (mode is the older
+// name for the same thing, kept for links already out there) - what the docs link to when pointing at a feature
 function readHash() {
   const p = new URLSearchParams(location.hash.slice(1));
-  if (p.has('mode') && MODES[p.get('mode')]) setMode(p.get('mode'));
+  const tool = p.get('tool') || p.get('mode');
+  if (tool && MODES[tool]) setMode(tool);
+  if (p.has('panel')) openStage(p.get('panel'));
   if (p.has('docs')) openDocs(p.get('docs') || null, true);
   if (p.has('embed')) loadEmbedScenario(p.get('embed'));
   if (p.has('diff')) loadEmbedDiff(p.get('diff'));

@@ -281,6 +281,7 @@ layInit();
 buildTop();
 setMode('play');
 readHash();
+addEventListener('hashchange', readHash); // a #tool=/#panel=/#docs=… link clicked from inside an already-open page (e.g. from docs) takes effect live, not just on first load
 new ResizeObserver(resize).observe($('stage'));
 resize();
 requestAnimationFrame(frame);
