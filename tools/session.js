@@ -224,6 +224,12 @@ function inside() {
       delete myStore[name]; saveScens();
       return { deleted: name };
     },
+    renameScenario(from, to) {
+      if (!myStore[from]) fail(`no user scenario "${from}" to rename (list_scenarios; built-ins can't be renamed)`);
+      if (SCENARIOS[to]) fail(`"${to}" is already a scenario`);
+      myStore[to] = myStore[from]; delete myStore[from]; saveScens();
+      return MCP.listScenarios().find(s => s.name === to);
+    },
     // o: { scenario | scen, chars, seed, frames, cfg, inputs (macro text for P1, who becomes human), events } → { replay, summary }
     simulate(o) {
       const base = o.scen ? scenFrom(o.scen) : SCENARIOS[o.scenario] || fail(`no scenario "${o.scenario}" (list_scenarios)`);
