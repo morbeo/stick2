@@ -585,13 +585,15 @@ class World {
     if (this.freezes.length > 12) this.freezes.shift();
     this.hits++;
     this.trauma = Math.min(1, this.trauma + cfg.traumaHit * power);
-    this.shakeK = 1 + cfg.comboShake * n;
+    this.shakeK = 1 + cfg.comboShake * n + (m.chain ? cfg.flyChainShake * (m.chain - 1) : 0);
+    this.hitPt = pt; // world point the shake kicks away from (shakeBias); stale is harmless, trauma gates it to ~0 anyway
     this.zoom += cfg.zoomPunch * power * (1 + cfg.comboZoom * n);
     if (fin && cfg.slowmo) this.slowT = cfg.slowmoT;
     if (ck > 1 && cfg.slowCounter) this.slowT = Math.max(this.slowT, cfg.slowCounter);
     if (ko && cfg.slowKO) this.slowT = cfg.slowKO;
     if (ko && cfg.koFreeze) for (const f of this.fighters) f.freeze = Math.max(f.freeze, cfg.koFreeze); // the whole fight holds its breath
-    if (fin || power > 1.5) { this.zoom += cfg.punchIn; this.impactAt = this.T; }
+    // a finisher, a hard hit, or a multi-victim fly chain all earn the punch-in - a 3-deep domino reads as big as a real finisher
+    if (fin || power > 1.5 || (m.chain && m.chain > 1)) { this.zoom += cfg.punchIn; this.impactAt = this.T; }
     this.victim = vic;
     // the striking key's spark style (key event spark); the plain sparks still draw their random numbers so a style changes no fight
     const st = att.action?.m.keys?.[att.action.i]?.spark;
@@ -774,8 +776,12 @@ class World {
     this.cam += (clamp(mid, vw / 2 - 20, W - vw / 2 + 20) - this.cam) * cfg.camFollow;
     const cx = shot?.zoom ? clamp(shot.x ?? mid, vw / 2 - 20, W - vw / 2 + 20) : full ? W / 2 : this.cam, cy = full && !shot?.zoom ? H / 2 : this.groundY - vh * cfg.camHeight;
     const s = (shot?.fill ? Math.max : Math.min)(r.w / vw, r.h / vh) * (1 + this.zoom), tr = this.trauma ** 2 * cfg.shake * this.shakeK;
-    const T = this.T, sx = tr * (Math.sin(T * 71) + Math.sin(T * 113 + 1)) * 0.5;
-    const sy = tr * (Math.sin(T * 89 + 2) + Math.sin(T * 127 + 3)) * 0.5;
+    // shakeBias blends the shake from pure random jitter (0) to a kick away from the last hit's point (1), so a big
+    // blow recoils the camera off the impact instead of just rattling it - hitPt is set once in onHit and left stale
+    // after (trauma decaying to ~0 makes it moot, same as the rest of this formula already relies on trauma gating)
+    const hp = this.hitPt, dx = hp ? Math.sign(hp[0] - cx) || 0 : 0, dy = hp ? Math.sign(hp[1] - cy) || 0 : 0;
+    const T = this.T, sx = tr * ((Math.sin(T * 71) + Math.sin(T * 113 + 1)) * 0.5 * (1 - cfg.shakeBias) + dx * cfg.shakeBias);
+    const sy = tr * ((Math.sin(T * 89 + 2) + Math.sin(T * 127 + 3)) * 0.5 * (1 - cfg.shakeBias) + dy * cfg.shakeBias);
     ctx.save();
     ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
     this.view = { s, ox: r.x + r.w / 2 + (sx - cx) * s, oy: r.y + r.h / 2 + (sy - cy) * s }; // screen = world · s + o
