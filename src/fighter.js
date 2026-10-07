@@ -19,7 +19,7 @@ class Fighter {
       time: 0, seed: w.rand(0, 100), walkPh: 0, lean: 0, inp: NOIN,
       action: null, buffer: null, squatT: 0, hurtT: 0, freeze: 0, flashT: 0, crouching: false,
       kd: null, downT: 0, wake: null, won: false, wallB: false, bounces: 0, combo: 0, comboShown: 0, comboT: 0, comboPop: 0, lastHurt: null,
-      sq: 0, sqv: 0, trail: [], dirs: [], pressT: { punch: -1e9, kick: -1e9, special: -1e9 }, guardHeld: false, guardPressT: -1e9, used: [], juggles: 0, jugUsed: 0,
+      sq: 0, sqv: 0, trail: [], poseHist: [], dirs: [], pressT: { punch: -1e9, kick: -1e9, special: -1e9 }, guardHeld: false, guardPressT: -1e9, used: [], juggles: 0, jugUsed: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, wallJumpT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, power: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, heldAt: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
       airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null, layerAt: {}, away: false, turnRate: 0, turnMid: null,
@@ -321,7 +321,7 @@ class Fighter {
   wearWeapon(n = 1) {
     if (!this.ch.weapon || !this.weapon.breakable) return;
     this.weaponDur -= n;
-    if (this.weaponDur <= 0) { const at = this.weaponAt(); this.w.spark('blunt', [at.x, at.y], this.z, this.dir); this.setChar(this.ch0); this.say('BREAK'); }
+    if (this.weaponDur <= 0) { const at = this.weaponAt(); this.w.spark(this.weapon.cls === 'slash' ? 'slash' : 'blunt', [at.x, at.y], this.z, this.dir); this.setChar(this.ch0); this.say('BREAK'); }
   }
   // where the held weapon's bones are, as a lying item would be: its centre and angle
   weaponAt() {
@@ -445,7 +445,7 @@ class Fighter {
   warp() {
     const o = this.w.nearestFoe(this), side = o ? Math.sign(o.x - this.x) || this.dir : this.dir, P = this.body(), x0 = this.x;
     this.x = clamp((o ? o.x : this.x) + side * this.c('teleportDist'), 40, W - 40); this.vx = 0; this.dir = -side;
-    this.trail = []; // no streak across the jump
+    this.trail = []; this.poseHist = []; // no streak across the jump
     this.after = [0, 1, 2].map(i => { const dx = (this.x - x0) * i / 3, Q = {}; for (const k in P) Q[k] = [P[k][0] + dx, P[k][1]]; return { P: Q, t: 0.3 - i * 0.08 }; });
   }
   // a weapon move's blow, by the weight of the weapon held
@@ -1216,11 +1216,16 @@ class Fighter {
     for (const k in L) P[k] = [ax + L[k][0] * sx, ay + (L[k][1] - fy) * sy];
     return P;
   }
-  body() { return this.points(this.planted || this.disp, this.lens); }
+  // poseOverride (replay.js's scene editor only): bone id -> angle, merged over the real pose for drawing only. Never
+  // set during a live fight or w.advance() - only bracketed around a single render() call - so hit detection and
+  // replay determinism never see it; it exists purely to let the replay editor pose a paused frame by dragging joints
+  body() { const p = this.planted || this.disp; return this.points(this.poseOverride ? { ...p, ...this.poseOverride } : p, this.lens); }
   recordTrail() {
     const P = this.body();
     this.trail.push(this.ch.tips.map(b => P[b.id]));
     if (this.trail.length > 24) this.trail.shift();
+    this.poseHist.push(P); // full-body snapshots for the motionBlur/afterimage looks (drawing only, same P object the frame already built)
+    if (this.poseHist.length > 100) this.poseHist.shift();
   }
 
   // hurtboxes (blue), the held weapon (amber) and the live strike (red), in the pose the collision mode tests
@@ -1259,8 +1264,8 @@ class Fighter {
     for (const g of this.after) { ctx.globalAlpha = g.t; drawFigure(ctx, this.ch, g.P, this.col[0], this.col[1]); } // teleport after-images
     ctx.globalAlpha = 1;
     if (this.c('ghost')) { ctx.globalAlpha = 0.2; drawFigure(ctx, this.ch, this.points(this.target), '#07f', '#07f', -2); ctx.globalAlpha = 1; }
-    const P = this.body(), fxs = fxNow(this.ch, this.action);
-    drawFx(ctx, P, fxs, this.time, true);
+    const P = this.body(), fxs = fxNow(this.ch, this.action), aux = { hist: this.poseHist, vx: this.vx, vy: this.vy };
+    drawFx(ctx, P, fxs, this.time, true, aux);
     if (this.flashT > 0 && this.c('flash')) { drawFigure(ctx, this.ch, P, '#111', '#111', 4); drawFigure(ctx, this.ch, P, '#fff', '#fff'); }
     else if (this.dodgeT > 0) { ctx.globalAlpha = 0.4; drawFigure(ctx, this.ch, P, this.col[0], this.col[1]); ctx.globalAlpha = 1; } // air dodge: see-through
     else drawFigure(ctx, this.ch, P, this.col[0], this.col[1], 0, null, this.mul);
@@ -1269,7 +1274,7 @@ class Fighter {
       drawShapes(ctx, PROPS[this.heldProp].shapes, (x, y) => [x * 0.4, y * 0.4], c => c || '#888', { sway: 0 });
       ctx.restore();
     }
-    drawFx(ctx, P, fxs, this.time, false);
+    drawFx(ctx, P, fxs, this.time, false, aux);
     if (this.c('boxes')) this.drawBoxes(ctx);
     const a = this.action;
     if (a?.m.keys.some((k, i) => k.unblock && i >= a.i)) for (const id of hitIds(a.m)) if (P[id]) { // unblockable frames coming: the striking limbs glow

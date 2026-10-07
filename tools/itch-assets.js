@@ -45,7 +45,7 @@ function writePng(dataUrl, file) {
     writePng(await p.js(`renderPromo(${rep}, ${frame}, 2100, 900, ${shot})`), path.join(OUT, 'cover-wide.png'));
     // banner: a wide, shareable crop (forum posts, a profile header…) with a different matchup than the cover/social
     // shot above, so anyone seeing both doesn't just get the same picture cropped differently
-    const bannerMoment = dramaticMoment(['centaur', 'tako', 'houndo', 'hicco'], 2);
+    const bannerMoment = dramaticMoment(['centaur', 'otkopod', 'houndo', 'hicco'], 2);
     const bannerShot = `{ zoom: 2.2, x: ${bannerMoment.x}, hud: false }`;
     writePng(await p.js(`renderPromo(${JSON.stringify(bannerMoment.replay)}, ${bannerMoment.frame}, 1600, 500, ${bannerShot})`), path.join(OUT, 'banner.png'));
     // background: itch.io's page-theme background (Edit theme → Background image) sits behind the whole page, so it

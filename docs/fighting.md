@@ -540,7 +540,7 @@ Feet settings: **plant**, **plantStep**, **plantStepT**, **plantLift**; off by d
 - A foot left more than plantStep from where the animation wants it takes a step there, lifted, one foot at a time.
 - A foot the animation lifts (kicks, the walk's swinging leg) follows the animation.
 - Drawing and hit tests use the planted legs.
-- A leg chain that never reaches as low as the body's own lowest point (a short or high-set extra leg, like tako's octopus tentacles) is normally treated as always lifted and never planted. The bone table's **forcePlant** column (a leg's own root bone) overrides that: it plants and steps like any other leg.
+- A leg chain that never reaches as low as the body's own lowest point (a short or high-set extra leg) is normally treated as always lifted and never planted. The bone table's **forcePlant** column (a leg's own root bone) overrides that: it plants and steps like any other leg.
 
 ### Idle and walk variety
 

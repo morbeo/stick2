@@ -618,7 +618,9 @@ const builtInMove = () => (CHAR_DEFS[CURRENT] || CHAR_DEFS.stick).moves[anim.mov
 const SHOT_TIPS = { ki: 'A blue ball of energy', fire: 'A flickering fireball', dark: 'A dark purple orb', wave: 'A crescent wave (sonic boom)', star: 'A spinning shuriken' };
 const BEAM_TIPS = { laser: 'A bright red-hot line' };
 const SPARK_TIPS = { hit: 'Hit spark: the plain sparks and ring when a strike during this key lands', heavy: 'Heavy: a big flash, a wide ring and thick sparks',
-  slash: 'Slash: a cut across the point of impact (blades)', blunt: 'Blunt: a flash and chunky bits (clubs, stomps)', none: 'No spark' };
+  slash: 'Slash: a cut across the point of impact (blades)', blunt: 'Blunt: a flash and chunky bits (clubs, stomps)',
+  impact: 'Impact flash: a brighter, wider flash and ring (a dramatic landed hit)', explosion: 'Explosion: a big flash, ring and shower of sparks, with extra screen shake',
+  none: 'No spark' };
 const SOUND_TIPS = { '': 'No sound as this key is reached (hits and blocks still sound)', whoosh: 'Sound: a whoosh as this key is reached (swings)',
   hit: 'Sound: a slap as this key is reached', thud: 'Sound: a low thud as this key is reached (landings, stomps)', block: 'Sound: a sharp block as this key is reached' };
 const KEY_VARS = [{ k: 'e', opts: Object.keys(EASE) }, { k: 'lunge', min: 0, max: 600, step: 10 }];
@@ -635,8 +637,8 @@ function keyPanel() {
       button(':accessibility_new: stance', 'This key returns to the stance (clears its pose)', () => setKey('p', null)),
       button(':flip: mirror', 'Swap the front and back limbs in this key (left arm takes the right arm\'s angles and back)', mirrorKey),
       button(':pause: hold', 'Copy the previous key\'s pose (hold still)', () => setKey('p', clone(keyPose(edChar(), curMove(), Math.max(0, anim.key - 1))))),
-      button(':accessibility_new: pose', 'Start this key from a preset pose', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.entries(POSES).map(([n, p]) =>
-        button(n, p.tip, () => setKey('p', { ...keyPose(edChar(), curMove(), anim.key), ...presetPose(edChar(), p) }))))))),
+      button(':accessibility_new: pose', 'Start this key from a preset pose (built-in, or one saved from the replay scene editor)', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.entries(posesFor(edChar())).map(([n, p]) =>
+        button(n, p.tip, () => setKey('p', { ...keyPose(edChar(), curMove(), anim.key), ...p.pose() }))))))),
     h('div', { cls: 'row', tip: 'Easing: how the motion into this key\'s pose speeds up and slows down' }, h('span', { textContent: 'easing' }),
       seg(Object.keys(EASE), () => k().e || 'linear', v => setKey('e', v), EASE_TIPS)),
     h('div', { cls: 'row', tip: 'Active: the keys during which the strike can hit (red on the frame meter)' }, h('span', { textContent: 'active' }),
@@ -672,7 +674,7 @@ function keyPanel() {
         v => { const cur = (k().catchH || Object.keys(HEIGHT_TIPS)).filter(x => x !== ht), next = v ? Object.keys(HEIGHT_TIPS).filter(x => x === ht || cur.includes(x)) : cur;
           setKey('catchH', next.length === 5 ? undefined : next); }))))),
     adv(h('div', { cls: 'row', tip: 'Key events: effects played as this key is reached or hits; they change nothing in the fight' }, h('span', { textContent: 'events' }), h('span', { cls: 'bar' },
-      seg(['hit', 'heavy', 'slash', 'blunt', 'none'], () => k().spark || 'hit', v => setKey('spark', v === 'hit' ? undefined : v), SPARK_TIPS, v => v === 'hit' ? ':auto_awesome: hit' : v),
+      seg(['hit', 'heavy', 'slash', 'blunt', 'impact', 'explosion', 'none'], () => k().spark || 'hit', v => setKey('spark', v === 'hit' ? undefined : v), SPARK_TIPS, v => v === 'hit' ? ':auto_awesome: hit' : v),
       seg(['', ...Object.keys(SOUNDS)], () => k().sound || '', v => setKey('sound', v || undefined),
         { '': SOUND_TIPS[''], ...Object.fromEntries(Object.keys(SOUNDS).map(n => [n, SOUND_TIPS[n] || `Sound: ${n} (custom, in the sounds panel)`])) }, v => v || ':block:'),
       toggle(':blur_on: after', 'After-images: the fighter leaves fading copies of itself while this key plays (fast dashes, teleports)', () => !!k().after, v => setKey('after', v || undefined))))),

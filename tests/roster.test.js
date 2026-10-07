@@ -1,10 +1,10 @@
-// the built-in roster: the stick plus sixteen stereotypes, each with its own signature moves bound to inputs
+// the built-in roster: the stick plus seventeen stereotypes, each with its own signature moves bound to inputs
 const test = require('node:test'), assert = require('node:assert/strict'), load = require('./load');
 const { run } = load();
 const json = code => JSON.parse(run(`JSON.stringify(${code})`));
-const ROSTER = ['hadoo', 'grumbo', 'jabbo', 'sneeko', 'zippa', 'hicco', 'lumpo', 'sarj', 'noodo', 'gogili', 'honky', 'gloomo', 'centaur', 'houndo', 'tako', 'clampo'];
+const ROSTER = ['hadoo', 'grumbo', 'jabbo', 'sneeko', 'zippa', 'hicco', 'lumpo', 'sarj', 'noodo', 'gogili', 'honky', 'gloomo', 'centaur', 'houndo', 'otkopod', 'clampo', 'bonko'];
 
-test('the roster: the stick and sixteen fighters, each with a second stance', () => {
+test('the roster: the stick and seventeen fighters, each with a second stance', () => {
   assert.deepEqual(run('Object.keys(CHARS)'), ['stick', ...ROSTER]);
   for (const n of ROSTER) assert.ok(json(`CHARS.${n}.stances.length`) >= 2, n);
 });
@@ -107,4 +107,21 @@ test('a scenario can name its characters: flash kick plays sarj, lightning legs 
     assert.deepEqual(r, { ...r, ch: true, foe: true, seen: true }, s);
     assert.ok(r.hits > 0, `${s} lands`);
   }
+});
+
+// WCAG relative luminance / contrast ratio: guards any future custom character colour (def.col) against blending
+// into the page background (#f3f0e8, index.html) - a character with no col uses a per-player-slot colour instead
+// (COLS, world.js), hand-picked for contrast, so this only applies to the few that set their own
+const BG = '#f3f0e8';
+function luminance(hex) {
+  const n = parseInt(hex.slice(1), 16), chans = [n >> 16 & 255, n >> 8 & 255, n & 255].map(c => {
+    const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * chans[0] + 0.7152 * chans[1] + 0.0722 * chans[2];
+}
+function contrast(a, b) { const [l1, l2] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (l1 + 0.05) / (l2 + 0.05); }
+
+test('a character with a custom colour (def.col) contrasts with the page background', () => {
+  const customColored = json(`Object.entries(CHAR_DEFS).filter(([, d]) => d.col).map(([n, d]) => [n, d.col])`);
+  for (const [name, col] of customColored) assert.ok(contrast(col, BG) >= 4.5, `${name}: ${col} vs ${BG} is ${contrast(col, BG).toFixed(2)}, want >= 4.5`);
 });

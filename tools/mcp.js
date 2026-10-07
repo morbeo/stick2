@@ -5,8 +5,30 @@
 const fs = require('fs'), path = require('path'), readline = require('readline');
 console.log = console.info = console.debug = console.error; // stdout carries the protocol: nothing else may print there (the engine shares this console)
 const S = require('./session')(), schemas = require('./schemas'), render = require('./render'), serve = require('./serve');
+const { execFileSync } = require('child_process');
 const VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 const OUT = path.join(S.ROOT, 'out');
+
+// ---------- git tools: asset files only, never source - see git_status/git_diff/git_commit below ----------
+const CODE_DIRS = ['src', 'tools', 'tests', 'docs', '.github', 'fonts'];
+// resolves and checks a path: inside the repo, and not a code directory (character/profile/replay exports, usually
+// under out/, are fine; src/tools/tests/docs/fonts are not, so an AI calling these tools can never touch source)
+function assetPath(p) {
+  const abs = path.resolve(S.ROOT, p), rel = path.relative(S.ROOT, abs);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error(`"${p}" is outside the repo`);
+  if (CODE_DIRS.includes(rel.split(path.sep)[0])) throw new Error(`"${p}" is a code path: git tools only touch assets (character/profile/replay exports, usually under out/), never source`);
+  return rel;
+}
+function git(...args) { return execFileSync('git', args, { cwd: S.ROOT, encoding: 'utf8' }); }
+function gitStatus() {
+  // -uall: without it, git collapses a whole ignored/untracked directory (out/) into one "!! out/" line instead of listing files in it
+  // --ignored: out/ (where most asset exports land) is gitignored, so a freshly saved profile never shows without it;
+  // narrowed to .json here (not gif/png noise already in out/) since that's what save_profile/replay_export write
+  const lines = git('status', '--porcelain', '--ignored', '-uall').split('\n').filter(Boolean); // not .trim() first: that eats the first line's leading status char
+  const files = lines.map(l => ({ status: l.slice(0, 2).trim(), path: l.slice(3) }))
+    .filter(f => f.path.endsWith('.json') && (() => { try { assetPath(f.path); return true; } catch { return false; } })());
+  return { clean: files.length === 0, files };
+}
 
 // ---------- tools: name → { d: description, p: properties (JSON Schema), req: required, run(args) → value | { content } } ----------
 const str = d => ({ type: 'string', description: d }), num = d => ({ type: 'number', description: d }), int = d => ({ type: 'integer', description: d });
@@ -89,6 +111,30 @@ const TOOLS = {
   save_profile: { d: 'Save the session as an app "everything" file (characters made or edited here, changed settings, scenarios): the app loads it with import → everything.',
     p: { path: str('the file (relative to the repo), e.g. out/profile.json') }, req: ['path'], run: a => S.saveProfile(a.path) },
 
+  // ---------- git: asset files only (character/profile/replay exports), never source - no wildcards, you name every file ----------
+  git_status: { d: 'Working-tree status for asset files only (never src/tools/tests/docs): new, modified or deleted, like `git status --porcelain`.',
+    run: () => gitStatus() },
+  git_diff: { d: 'The working-tree diff of one asset file (not staged, not a code path). A new file (not yet tracked - most asset exports live under out/, which is gitignored until you commit one) has no diff to show; this says so instead of returning nothing.',
+    p: { path: str('the file, relative to the repo') }, req: ['path'],
+    run: a => {
+      const p = assetPath(a.path);
+      if (!fs.existsSync(path.resolve(S.ROOT, p))) throw new Error(`"${p}" does not exist`);
+      let tracked = true; try { git('ls-files', '--error-unmatch', '--', p); } catch { tracked = false; }
+      if (!tracked) return { path: p, diff: '(new file, not yet committed: nothing to diff against)' };
+      const out = git('diff', '--', p);
+      return { path: p, diff: out || '(no changes)' };
+    } },
+  git_commit: { d: 'Stage and commit specific asset files (never src/tools/tests/docs; no wildcards, you name every file). Most asset exports live under out/, which is gitignored - naming one here force-adds it (a deliberate, explicit choice, not a wildcard), and it stays tracked after. Refuses if any named file is a code path or outside the repo - nothing is committed unless every one checks out.',
+    p: { files: arr('files to commit, relative to the repo', { type: 'string' }), message: str('the commit message') }, req: ['files', 'message'],
+    run: a => {
+      if (!a.files?.length) throw new Error('name at least one file');
+      const paths = a.files.map(assetPath);
+      for (const p of paths) if (!fs.existsSync(path.resolve(S.ROOT, p))) throw new Error(`"${p}" does not exist`);
+      git('add', '-f', '--', ...paths);
+      const log = git('commit', '-m', a.message, '--', ...paths);
+      return { committed: paths, message: a.message, log: log.trim() };
+    } },
+
   // ---------- pictures ----------
   render_frame: { d: 'A picture of a fight at a frame (0 = the start), as the app draws it. PNG from headless Chrome (found on its own, CHROME overrides); without Chrome, or with renderer "svg", SVG text drawn by the engine into a recording context.',
     p: { simulation: str('simulation id'), replay: { type: ['object', 'string'], description: 'or a replay' }, frame: int('frame number (default 0)'), frames: arr('several frames at once (at most 12)', { type: 'integer' }),
@@ -134,8 +180,9 @@ const TOOLS = {
   start_bridge: { d: 'Serve the app over HTTP on 127.0.0.1 and wait for it to be opened: the page then takes commands from browser_state / browser_command (src/bridge.js). Same as starting with --serve PORT.',
     p: { port: int('port (default 0: a free one)') }, run: a => startBridge(a.port ?? 0) },
   browser_state: { d: 'What the app open in the browser shows: mode (tab), play scenario, the character being edited and its definition, changed settings, my scenarios, the replay tab\'s reel.', run: () => needBridge().command('state') },
-  browser_command: { d: 'Drive the app open in the browser. Commands: set_settings { values }, set_scenario { name } (the play tab fights it), import_character { def } (added and picked), open_replay { replay } or { simulation } (opens it in the replay tab), screenshot (the canvas as PNG), set_mode { mode } (switch tabs), pick_character { name } (the one every mode edits), delete_character { name } / rename_character { from, to } (session characters only, no confirmation prompt), set_preview { scenario?, opponent?, control? } (the character tab\'s live preview; needs that tab open), send_to_play { scenario?, opponent? } (jump to Play with a matchup, default: the character tab\'s own preview), undo / redo (the same stack as ⌘Z: character edits and settings).',
-    p: { name: { type: 'string', enum: ['state', 'set_settings', 'set_scenario', 'import_character', 'open_replay', 'screenshot', 'set_mode', 'pick_character', 'delete_character', 'rename_character', 'set_preview', 'send_to_play', 'undo', 'redo'] }, args: obj('the command\'s arguments') }, req: ['name'],
+  browser_command: { d: 'Drive the app open in the browser. Commands: set_settings { values }, set_scenario { name } (the play tab fights it), import_character { def } (added and picked), open_replay { replay } or { simulation } (opens it in the replay tab), screenshot (the canvas as PNG), set_mode { mode } (switch tabs), pick_character { name } (the one every mode edits), delete_character { name } / rename_character { from, to } (session characters only, no confirmation prompt), set_preview { scenario?, opponent?, control? } (the character tab\'s live preview; needs that tab open), send_to_play { scenario?, opponent? } (jump to Play with a matchup, default: the character tab\'s own preview), undo / redo (the same stack as ⌘Z: character edits, settings, replay/movie/scene edits alike), pose_scene { fighter (0|1), bone, angle } or { fighter, preset } (the replay tab\'s scene editor: pose by exact bone angle, or apply a saved/built-in preset pose), reset_pose, snapshot_pose { fighter, name } (save the fighter\'s current pose as a preset, shared with the animate editor\'s own preset-pose picker), place_prop { type, x, lift?, a? } / move_prop { index, x?, lift?, a? } / delete_prop { index }, clear_scene, branch_from { side (1|2) } (play on live from the playhead as that side - "continue the fight from here").',
+    p: { name: { type: 'string', enum: ['state', 'set_settings', 'set_scenario', 'import_character', 'open_replay', 'screenshot', 'set_mode', 'pick_character', 'delete_character', 'rename_character', 'set_preview', 'send_to_play', 'undo', 'redo',
+      'pose_scene', 'reset_pose', 'snapshot_pose', 'place_prop', 'move_prop', 'delete_prop', 'clear_scene', 'branch_from'] }, args: obj('the command\'s arguments') }, req: ['name'],
     run: async a => {
       const args = { ...a.args };
       if (a.name === 'open_replay' && args.simulation) { args.replay = S.sim(args.simulation).replay; args.name ??= args.simulation; delete args.simulation; }

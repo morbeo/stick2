@@ -1,9 +1,31 @@
 'use strict';
 // ---------- fx mode: a gallery of every look (built-ins + custom), a big zoomed preview, a tunable side panel
 // (sliders with per-variable and all-at-once randomize, colour/behind, revert/delete) and a two-variable experiment grid.
-// Pure drawing, like the looks themselves: nothing here is part of the simulation (mode().worlds() is empty) ----------
-const fxState = { sel: null, zoom: false, scroll: 0, char: 'self', part: 'segment', bg: '#f3f0e8', gx: null, gy: null, gridDock: 'bottom', gridSize: 0.26, cellSize: 60 };
+// Pure drawing, like the looks themselves, EXCEPT the body/limb preview's optional animation (fxState.anim): that one
+// runs a real looping World (fxState.world, advanced by the app loop like any other mode) so looks that read motion
+// (motionBlur, afterimage, speedLines: aux.hist/vx/vy, fx.js) have something real to draw from ----------
+const fxState = { sel: null, zoom: false, scroll: 0, char: 'self', part: 'segment', anim: null, world: null, bg: '#f3f0e8', gx: null, gy: null, gridDock: 'bottom', gridSize: 0.26, cellSize: 60 };
 const fxChar = () => fxState.char === 'self' ? currentChar() : (CHARS[fxState.char] || currentChar());
+// the scenario behind fxState.anim: a movement (idle, walk, run…) or a move played on repeat against a dummy (galleryScen)
+const fxAnimScen = () => {
+  const a = fxState.anim;
+  if (!a) return null;
+  if (MOVEMENTS[a]) return MOVEMENTS[a][1];
+  const ch = fxChar();
+  if (!ch.moves[a]) { fxState.anim = null; return null; } // the character changed and no longer has this move: fall back to the static pose
+  return galleryScen(a, undefined, ch.moves[a]);
+};
+// rebuilds fxState.world only when the character or animation actually changed (fxPaint calls this every frame)
+let fxWorldKey = null;
+function fxSyncWorld() {
+  const key = fxState.char + '|' + CURRENT + '|' + fxState.anim; // CURRENT: so "self" rebuilds if the edited character itself changes
+  if (fxWorldKey === key) return;
+  fxWorldKey = key;
+  const scen = fxAnimScen();
+  fxState.world = scen ? newWorld(scen, {}, 7, [fxChar(), CHARS.stick]) : null;
+}
+// every animation choosable in the preview: movements first, then every move of the character being previewed
+const fxAnims = () => [...Object.keys(MOVEMENTS), ...galleryMoves(fxChar().moves)];
 // preview targets: a plain fixed segment (no character needed), the whole body, or one role's chains (only if the character has one)
 const fxParts = ch => ['segment', 'body', ...['arm', 'leg', 'head', 'tail', 'weapon'].filter(r => ch.chains[r]?.length)];
 const fxCol = name => name in BASE_BUILTIN ? FX_BUILTIN[name].col : (myLooks[name]?.col || 'white');
@@ -29,16 +51,19 @@ function fxPaint(ctx, w, h, name, override) {
     ctx.restore();
     return;
   }
-  const ch = fxChar(), wa = {}, L = fk(ch, curStance(ch).pose, 1, null, wa);
+  fxSyncWorld();
+  const f = fxState.world?.fighters[0];
+  const ch = fxChar(), wa = {}, L = f ? f.body() : fk(ch, curStance(ch).pose, 1, null, wa);
+  const aux = f && { hist: f.poseHist, vx: f.vx, vy: f.vy }; // only a real fighter has these; the static pose has no motion to show
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const id of ch.ids) { const [x, y] = L[id]; if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }
   const pad = Math.min(w, h) * 0.12, s = Math.min((w - pad * 2) / (maxX - minX || 1), (h - pad * 2) / (maxY - minY || 1));
   const bones = fxState.part === 'body' ? ch.bones : fxBones(ch, fxState.part, null);
   const back = FX_BACK.has(name), segs = () => fxSegs(L, bones);
   ctx.save(); ctx.translate(w / 2 - s * (minX + maxX) / 2, h / 2 - s * (minY + maxY) / 2); ctx.scale(s, s);
-  if (back) FX_DRAW[name]?.(ctx, segs(), rgb, 1, t, override);
+  if (back) FX_DRAW[name]?.(ctx, segs(), rgb, 1, t, override, aux);
   drawFigure(ctx, ch, L, INK[0], INK[1]);
-  if (!back) FX_DRAW[name]?.(ctx, segs(), rgb, 1, t, override);
+  if (!back) FX_DRAW[name]?.(ctx, segs(), rgb, 1, t, override, aux);
   ctx.restore();
 }
 // a small self-animating DOM preview (the big zoom-free panel header, and each experiment-grid cell)
@@ -97,6 +122,22 @@ function fxCharButton() {
   reg(pick, () => { drawThumb(cv, fxChar(), undefined, 36, 40); label.textContent = fxState.char === 'self' ? 'self' : fxState.char; });
   return pick;
 }
+// what to play while previewing on a body/limb: a static pose (default, no simulation), a movement, or a move on
+// repeat against a dummy (galleryScen) - the only way motionBlur/afterimage/speedLines have anything to draw (aux.hist/vx/vy, fx.js)
+function fxAnimButton() {
+  const label = h('b');
+  const row = (name, tip, onclick) => button(name, tip, onclick, 'wide');
+  const pick = h('button', { cls: 'charpick', tip: 'What the preview plays · click: pick a movement or a move, or go back to a static pose' },
+    label, ...rich(':expand_more:'));
+  pick.onclick = () => popup(pick, h('div', { cls: 'cards', style: 'flex-direction:column; max-height:360px; overflow:auto; align-items:stretch' },
+    row('Static pose', 'No animation: the plain stance, as before', () => { fxState.anim = null; closePop(); }),
+    h('b', { textContent: 'movements' }),
+    ...Object.entries(MOVEMENTS).map(([k, [tip]]) => row(k, tip, () => { fxState.anim = k; closePop(); })),
+    h('b', { textContent: 'moves' }),
+    ...galleryMoves(fxChar().moves).map(m => row(m, `Play ${m} on repeat against a dummy`, () => { fxState.anim = m; closePop(); }))));
+  reg(pick, () => { label.textContent = fxState.anim || 'static pose'; });
+  return pick;
+}
 // ---------- side panel: preview target/background, then (a look selected) its editor ----------
 function fxPreviewSide() {
   const ch = fxChar(), parts = fxParts(ch);
@@ -106,6 +147,7 @@ function fxPreviewSide() {
       seg(parts, () => fxState.part, v => { fxState.part = v; panels(); }, // panels(): the character row only shows for a non-segment part
         { segment: 'A plain fixed line, no character (the classic preview)', body: 'The whole body', arm: 'The arms', leg: 'The legs', head: 'The head', tail: 'The tails', weapon: 'The weapon' })),
     fxState.part !== 'segment' ? h('div', { cls: 'bar' }, h('span', { textContent: 'character' }), fxCharButton()) : null,
+    fxState.part !== 'segment' ? h('div', { cls: 'bar' }, h('span', { textContent: 'plays' }), fxAnimButton()) : null,
     h('div', { cls: 'bar' }, h('span', { textContent: 'background' }),
       h('input', { type: 'color', value: fxState.bg, tip: 'Preview-only background colour (not saved with the look)', oninput: e => { fxState.bg = e.target.value; } }),
       ...['#f3f0e8', '#ffffff', '#222222', '#17304a'].map(c => {
@@ -235,7 +277,7 @@ function fxCtx() {
 const fxMode = {
   enter() {},
   restart() {},
-  worlds: () => [],
+  worlds: () => fxState.world && fxState.part !== 'segment' ? [fxState.world] : [], // only when shown on a body/limb with an animation picked
   render: fxRender,
   ctxBar: fxCtx,
   side: fxSide,

@@ -36,6 +36,7 @@ Any other MCP client: run `node tools/mcp.js` (or `npm run mcp`) from the repo. 
 | `run_checks` | the move matrix of the tests view: each move against every target state, the failing cells and why. It stops at a time budget and lists the moves left |
 | `replay_export`, `replay_import` | a fight as a replay file, and a replay played back with a desync report |
 | `load_profile`, `save_profile` | the app's export files |
+| `git_status`, `git_diff`, `git_commit` | version an asset export (a character, profile or replay file) in the repo's own git history. Asset files only - a code path (`src/`, `tools/`, `tests/`, `docs/`, `fonts/`) is refused outright. `git_commit` takes an explicit file list and message, never a wildcard; it force-adds (most exports live under `out/`, which is gitignored until you commit one) |
 | `render_frame` | a frame as a PNG (headless Chrome), or as SVG text without Chrome or with `renderer: "svg"` |
 | `frame_state` | the same frame, numerically instead of drawn: position, facing, hp, combo, the move running, frameState's category |
 | `render_gif` | a looping GIF of a stretch of a fight, written to `out/` (needs Chrome) |
@@ -83,7 +84,13 @@ The server can also drive the app open in a browser.
 | `delete_character { name }` / `rename_character { from, to }` | session characters only (not built-ins), no confirmation prompt unlike the UI |
 | `set_preview { scenario?, opponent?, control? }` | the character tab's live preview (needs that tab open) |
 | `send_to_play { scenario?, opponent? }` | jump to Play with a matchup; default: the character tab's own preview |
-| `undo` / `redo` | the same stack as ⌘Z: character edits and settings changes |
+| `undo` / `redo` | the same stack as ⌘Z: character edits, settings, replay/movie/scene edits alike |
+| `pose_scene { fighter, bone, angle }` or `{ fighter, preset }` | the replay tab's scene editor: pose a fighter (0 or 1) by exact bone angle, or apply a saved/built-in preset pose |
+| `reset_pose` | clear every pose edit on the current scene |
+| `snapshot_pose { fighter, name }` | save the fighter's current pose as a named preset - the same registry (`myPoses`) the animate editor's "start this key from a preset pose" and the character editor's stance presets both read |
+| `place_prop { type, x, lift?, a? }` / `move_prop { index, x?, lift?, a? }` / `delete_prop { index }` | add, move or remove a prop on the scene |
+| `clear_scene` | reset the scene's pose and props together |
+| `branch_from { side }` | play on live from the playhead as P1 or P2 (1 or 2) - the replay tab's own "continue the fight from here" |
 
 This session's characters (`list_characters`, `create_character`...) and the bridge tab's (`DEFS`/`CHARS` in the browser, its own localStorage) are two separate stores - editing one is invisible to the other. `push_to_browser { name }` and `pull_from_browser` move one character between them explicitly (overwriting a same-named one on the receiving side); there is no automatic sync.
 

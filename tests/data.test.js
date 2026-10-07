@@ -41,7 +41,7 @@ test('bones: unique ids, every parent exists, positive lengths, joint limits min
       ids.forEach((id, i) => { if (ids.indexOf(id) !== i) bad.push(n + ': bone ' + id + ' twice'); });
       for (const b of ch.bones) {
         if (b.parent && !ids.includes(b.parent)) bad.push(n + '.' + b.id + ': parent ' + b.parent + ' missing');
-        if (!(b.len > 0)) bad.push(n + '.' + b.id + ': length ' + b.len);
+        if (!b.hidden && !(b.len > 0)) bad.push(n + '.' + b.id + ': length ' + b.len); // applyHidden (rig.js) zeroes a hidden bone's length on purpose
         if (b.min !== undefined && !(b.min < b.max)) bad.push(n + '.' + b.id + ': limits ' + b.min + '…' + b.max);
       }
     }`), []);
