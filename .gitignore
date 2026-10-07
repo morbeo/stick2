@@ -3,3 +3,4 @@ out/
 dist/
 CLAUDE.md
 node_modules/
+.env.discord-bot
