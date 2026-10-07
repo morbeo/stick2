@@ -270,5 +270,16 @@ test('the live bridge: the app opened from the server takes fixed commands', { s
     assert.equal((await s.call('browser_command', { name: 'redo' })).json.redone, true);
     assert.equal((await s.call('browser_state')).json.settings.hitstop, 0.2, 'redone');
     assert.ok((await s.call('browser_command', { name: 'redo' })).isError, 'nothing left to redo');
+
+    const stickDef = (await s.call('get_character', { name: 'stick' })).json;
+    await s.call('create_character', { def: { ...stickDef, name: 'synctest' } });
+    const pushed = (await s.call('push_to_browser', { name: 'synctest' })).json;
+    assert.equal(pushed.name, 'synctest', 'no number: the earlier copy was overwritten, not duplicated');
+    assert.equal((await s.call('browser_state')).json.character, 'synctest', 'pushed and picked');
+    const tweaked = { ...stickDef, name: 'synctest', bones: stickDef.bones.map(b => b.id === 'thighF' ? { ...b, len: 42 } : b) };
+    await s.call('browser_command', { name: 'delete_character', args: { name: 'synctest' } }); // make room: import_character would otherwise number a taken name
+    await s.call('browser_command', { name: 'import_character', args: { def: tweaked } }); // simulates an edit made in the browser
+    assert.equal((await s.call('pull_from_browser')).json.name, 'synctest');
+    assert.equal((await s.call('get_character', { name: 'synctest' })).json.bones.find(b => b.id === 'thighF').len, 42, 'the browser-side edit came back');
   } finally { page.close(); }
 });

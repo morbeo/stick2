@@ -142,6 +142,17 @@ const TOOLS = {
       const r = await needBridge().command(a.name, args);
       return a.name === 'screenshot' ? image(r.png.slice(r.png.indexOf(',') + 1)) : r;
     } },
+  // this session and an open bridge tab are two separate character stores (one in this process, one in the browser);
+  // these two move one character between them explicitly, rather than keeping them automatically in sync
+  push_to_browser: { d: 'Send a character (built-in or made/edited this session) to the bridge-connected browser tab, overwriting a same-named one there first (a built-in there can\'t be overwritten, so a name clash gets a number instead, like a normal import). Needs start_bridge and an open tab.',
+    p: { name: str('character name (list_characters)') }, req: ['name'],
+    run: async a => {
+      const def = S.call('getCharacter', a.name);
+      await needBridge().command('delete_character', { name: a.name }).catch(() => {});
+      return needBridge().command('import_character', { def });
+    } },
+  pull_from_browser: { d: 'Bring the character currently being edited in the bridge-connected browser tab into this session (so list_characters, get_character, simulate etc. see it), overwriting a same-named one here. Needs start_bridge and an open tab.',
+    run: async () => { const st = await needBridge().command('state'); return S.call('createCharacter', st.def, true); } },
 };
 
 // ---------- resources: the docs and the data shapes ----------
