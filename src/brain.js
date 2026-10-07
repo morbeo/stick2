@@ -338,7 +338,7 @@ const SIGNATURE_MOVES = {
   zippa: ['lightningLegs', 'birdKick', 'headStomp', 'craneKick'], hicco: ['tipsyRoll', 'swayStrike', 'stumbleFist', 'fallingKick'],
   lumpo: ['hundredSlap', 'torpedo', 'beltGrab', 'sumoSplash'], sarj: ['sonicBoom', 'flashKick', 'spinKnuckle', 'kneeBazooka'],
   noodo: ['yogaFire', 'drillKick', 'yogaWarp', 'longJab'], gogili: ['rollingBall', 'verticalBall', 'electricity', 'biteGrab'],
-  pollo: ['swingGrab', 'waistLock', 'dropkick', 'plancha'], gloomo: ['darkOrb', 'psychoDash', 'warpClaw', 'skullDive'],
+  honky: ['swingGrab', 'waistLock', 'dropkick', 'plancha'], gloomo: ['darkOrb', 'psychoDash', 'warpClaw', 'skullDive'],
   centaur: ['trample', 'donkeyKick', 'rearButt', 'rearStrike'], houndo: ['tackle', 'clawSwipe', 'bite', 'hindKick'],
   tako: ['inkCloud', 'slipAway', 'tentacleSlam', 'constrict'], clampo: ['bearHug', 'legLock', 'tackle', 'splash'],
 };

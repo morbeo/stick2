@@ -2,7 +2,7 @@
 const test = require('node:test'), assert = require('node:assert/strict'), load = require('./load');
 const { run } = load();
 const json = code => JSON.parse(run(`JSON.stringify(${code})`));
-const ROSTER = ['hadoo', 'grumbo', 'jabbo', 'sneeko', 'zippa', 'hicco', 'lumpo', 'sarj', 'noodo', 'gogili', 'pollo', 'gloomo', 'centaur', 'houndo', 'tako', 'clampo'];
+const ROSTER = ['hadoo', 'grumbo', 'jabbo', 'sneeko', 'zippa', 'hicco', 'lumpo', 'sarj', 'noodo', 'gogili', 'honky', 'gloomo', 'centaur', 'houndo', 'tako', 'clampo'];
 
 test('the roster: the stick and sixteen fighters, each with a second stance', () => {
   assert.deepEqual(run('Object.keys(CHARS)'), ['stick', ...ROSTER]);
@@ -59,9 +59,9 @@ test('jabbo throws punches on K too', () => {
   assert.deepEqual(r, []);
 });
 
-test('the command throws land: grumbo spinning piledriver on a half circle, pollo giant swing, lumpo belt throw, clampo bearHug/legLock', () => {
+test('the command throws land: grumbo spinning piledriver on a half circle, honky giant swing, lumpo belt throw, clampo bearHug/legLock', () => {
   for (const [n, inp, grab, thr, bx = 372] of [['grumbo', ['fwd', 0.03, 'down+fwd', 0.03, 'down', 0.03, 'down+back', 0.03, 'back+punch'], 'spinGrab', 'piledriver', 430],
-    ['pollo', ['@swingGrab'], 'swingGrab', 'giantSwing'], ['lumpo', ['punch+guard'], 'beltGrab', 'beltThrow'],
+    ['honky', ['@swingGrab'], 'swingGrab', 'giantSwing'], ['lumpo', ['punch+guard'], 'beltGrab', 'beltThrow'],
     ['clampo', ['punch+guard'], 'bearHug', 'slam'], ['clampo', ['kick+guard'], 'legLock', 'ankleTwist']]) {
     const r = run(`(() => { const r = fight({ a: [0.1, ...${JSON.stringify(inp)}], b: 'dummy', ax: 330, bx: ${bx}, period: 9 }, [CHARS.${n}, CHARS.stick], 120); return { seen: r.seen, hits: r.w.hits }; })()`);
     assert.ok(r.seen.includes('a:' + grab) && r.seen.includes('a:' + thr), `${n}: ${r.seen.join(' ')}`);

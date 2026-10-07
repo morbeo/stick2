@@ -36,7 +36,7 @@ The character panel shows a grid of drawings, all at one scale.
 | sarj | the soldier | sonic boom, flash kick, spinning knuckle, knee bazooka |
 | noodo | the yogi | long limbs, yoga fire, drill kick, a warp, floaty |
 | gogili | the beast | long arms, hunched, rolling ball, electricity, a bite |
-| pollo | the luchador | giant swing, german suplex, dropkick, plancha, high jumps |
+| honky | the luchador | giant swing, german suplex, dropkick, plancha, high jumps |
 | gloomo | the boss demon | horns, wings, tail, four arms, dark orb, psycho dash, warp claw, skull dive |
 | centaur | the trampling horse | a horizontal horse body: tramples forward, a donkey kick, rears up to headbutt, or to box with its forelegs |
 | houndo | the hound | fights posed on all fours: a tackle, a low claw rake, rears up to bite, a hind-leg kick, a howl |

@@ -568,8 +568,8 @@ CHAR_DEFS.gogili = { ...stick, name: 'gogili', speed: 1.05, jump: 1.15, grabRang
     ...bind({ punch: 'clawSwipe', kick: 'backSweep', fwdPunch: 'biteGrab', special: 'rollingBall' }) }] };
 CHAR_DEFS.gogili.poses = { ...stick.poses, stance: { ...stick.poses.stance, waist: 155, neck: 15, uarmF: -140, uarmB: -150, farmF: 15, farmB: 20 } };
 
-// pollo: the luchador: high jumps, the flying body press, a dropkick, a dive from the air, suplexes and a giant swing; mask ties trail
-CHAR_DEFS.pollo = { ...stick, name: 'pollo', speed: 1.05, jump: 1.3, airAccel: 1.3, airSpeed: 1.2, weight: 1.15, health: 1.1, grabRange: 1.4, dash: 1.1,
+// honky: the luchador: high jumps, the flying body press, a dropkick, a dive from the air, suplexes and a giant swing; mask ties trail
+CHAR_DEFS.honky = { ...stick, name: 'honky', speed: 1.05, jump: 1.3, airAccel: 1.3, airSpeed: 1.2, weight: 1.15, health: 1.1, grabRange: 1.4, dash: 1.1,
   gait: { idle: 'bounce', idleAmt: 0.9, armSwing: 1.3, lean: 1 },
   bones: [...sizedBones({ chest: 1.2, uarm: 1.15, farm: 1.1, thigh: 1.1, shin: 1.05 }, 3), ...ribbon('tie', 'head', 8, 2)],
   motions: { m63214: '63214' },

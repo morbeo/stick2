@@ -605,7 +605,7 @@ Every built-in has a second stance in a fighting style, with that style's moves:
 | sarj | turtle: crouched, holding the charge |
 | noodo | tree |
 | gogili | prowl |
-| pollo | lucha |
+| honky | lucha |
 | gloomo | menace |
 
 ### Fighting-style moves

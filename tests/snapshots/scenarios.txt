@@ -91,7 +91,7 @@ lumpo showcase hits 5 blocks 0 hp 120.0 81.9 x 512 550
 sarj showcase  hits 2 blocks 0 hp 110.0 72.0 x 445 483
 noodo showcase hits 3 blocks 0 hp 90.0 46.0 x 449 382
 gogili showcase hits 7 blocks 0 hp 105.0 33.2 x 580 633
-pollo showcase hits 1 blocks 0 hp 110.0 92.0 x 431 580
+honky showcase hits 1 blocks 0 hp 110.0 92.0 x 431 580
 gloomo showcase hits 4 blocks 0 hp 130.0 95.6 x 563 507
 centaur showcase hits 3 blocks 0 hp 100.0 67.0 x 514 647
 houndo showcase hits 2 blocks 0 hp 95.0 57.0 x 422 494

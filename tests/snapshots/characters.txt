@@ -9,7 +9,7 @@ lumpo      hits 11 hp 89.0 63.2
 sarj       hits 10 hp 79.8 53.4
 noodo      hits 11 hp 13.6 92.5
 gogili     hits 6 hp 48.8 83.8
-pollo      hits 9 hp 39.0 100.0
+honky      hits 9 hp 39.0 100.0
 gloomo     hits 7 hp 104.3 64.3
 centaur    hits 10 hp 44.5 71.4
 houndo     hits 9 hp 28.9 68.0
