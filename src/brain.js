@@ -344,6 +344,7 @@ const SIGNATURE_MOVES = {
   honky: ['swingGrab', 'waistLock', 'dropkick', 'plancha'], gloomo: ['darkOrb', 'psychoDash', 'warpClaw', 'skullDive'],
   centaur: ['trample', 'donkeyKick', 'rearButt', 'rearStrike'], houndo: ['tackle', 'clawSwipe', 'bite', 'hindKick'],
   tako: ['inkCloud', 'slipAway', 'tentacleSlam', 'constrict'], clampo: ['bearHug', 'legLock', 'tackle', 'splash'],
+  bonko: ['boneThrow', 'rattleRush', 'skullBash', 'boneSlam'],
 };
 // every character's showcase also ends on its super (src/roster.js addSuper), forced the same '@' way as the rest
 for (const moves of Object.values(SIGNATURE_MOVES)) moves.push('super');

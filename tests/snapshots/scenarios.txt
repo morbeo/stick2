@@ -69,8 +69,8 @@ ai 1v3         hits 10 blocks 0 hp 14.6 100.0 x 92 48
 ai 3-way       hits 8 blocks 0 hp 90.0 61.2 x 299 158
 ai free-for-all hits 12 blocks 0 hp 49.1 64.0 x 640 645
 ai vs waves    hits 5 blocks 0 hp 52.2 100.0 x 446 534
-ai survival    hits 6 blocks 0 hp 50.5 50.0 x 496 533
-ai rumble      hits 11 blocks 0 hp 57.1 46.9 x 394 409
+ai survival    hits 5 blocks 0 hp 45.9 50.0 x 498 525
+ai rumble      hits 10 blocks 0 hp 100.0 51.7 x 87 411
 sandwich       hits 5 blocks 0 hp 100.0 77.4 x 330 637
 showcase       hits 5 blocks 0 hp 100.0 54.4 x 754 715
 pick up & slash hits 3 blocks 0 hp 100.0 65.3 x 413 466
@@ -99,4 +99,5 @@ centaur showcase hits 3 blocks 0 hp 100.0 67.0 x 514 647
 houndo showcase hits 2 blocks 0 hp 95.0 57.0 x 422 494
 tako showcase  hits 1 blocks 0 hp 100.0 94.0 x 364 450
 clampo showcase hits 3 blocks 0 hp 120.0 69.0 x 512 546
+bonko showcase hits 2 blocks 0 hp 85.0 70.0 x 441 485
 stick showcase hits 3 blocks 0 hp 100.0 76.0 x 478 577
