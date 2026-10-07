@@ -232,6 +232,31 @@ function describeDiff(d, path = []) {
   }
   return lines;
 }
+// a changed move, side by side: both versions looping in sync on a shared playhead, each move's own timeline below
+// it with the changed keys (by index - the diff's keys.changed map) highlighted, click a key to scrub to its start
+function moveDiffView(name) {
+  const baseCh = makeCharacter(CHAR_DEFS[CURRENT]), curCh = CHARS[CURRENT], bm = baseCh.moves[name], cm = curCh.moves[name];
+  const changedKeys = new Set(Object.keys(diffObj(bm, cm)?.changed?.keys?.changed || {}).map(Number));
+  const state = { t: 0, playing: true };
+  const cvBase = h('canvas'), cvCur = h('canvas');
+  const render = () => {
+    drawThumb(cvBase, baseCh, samplePose(baseCh, bm, state.t % Math.max(0.001, total(bm))), 110, 120);
+    drawThumb(cvCur, curCh, samplePose(curCh, cm, state.t % Math.max(0.001, total(cm))), 110, 120);
+  };
+  const timeline = m => h('div', { cls: 'bar' }, m.keys.map((k, i) => h('span', {
+    tip: `key ${i} (${k.d.toFixed(2)}s)${changedKeys.has(i) ? ' - changed' : ''} · click: scrub here`,
+    style: `display:inline-block; width:${Math.max(4, k.d * 160)}px; height:14px; margin-right:1px; cursor:pointer; background:${changedKeys.has(i) ? '#c0392b' : '#bbb'};`,
+    onclick: () => { state.t = keyStart(m, i); state.playing = false; render(); syncAll(); },
+  })));
+  const playBtn = button('', 'Play / pause both previews', () => { state.playing = !state.playing; }, 'mini');
+  reg(playBtn, () => setRich(playBtn, state.playing ? ':pause:' : ':play_arrow:'));
+  let last = performance.now();
+  const loop = now => { if (!document.body.contains(cvBase)) return; if (state.playing) { state.t += (now - last) / 1000; render(); } last = now; requestAnimationFrame(loop); };
+  requestAnimationFrame(loop); render();
+  return h('div', {}, h('b', { textContent: name }), h('div', { cls: 'bar' }, playBtn),
+    h('div', { cls: 'bar' }, h('div', {}, h('b', { textContent: 'built-in' }), cvBase, timeline(bm)),
+      h('div', {}, h('b', { textContent: 'yours' }), cvCur, timeline(cm))));
+}
 // ---------- character diff view (a stage panel, "changes"): what differs from the matching built-in, for reviewing
 // an edit before exporting/suggesting it - the two bodies side by side with changed bones highlighted, and every
 // other change (moves, stances, stats…) as a flat list of dotted paths, from the same diff the export uses
@@ -248,12 +273,15 @@ function charDiffPanel() {
   drawThumb(cvBase, baseCh, undefined, 110, 120, tintFor(baseCh, removedBones));
   drawThumb(cvCur, curCh, undefined, 110, 120, tintFor(curCh, null));
   const lines = describeDiff(d);
+  const changedMoves = Object.keys(d.changed?.moves?.changed || {});
   wrap.append(stageHead('changes', 'What differs from the matching built-in character - changed bones in red on both bodies',
     button(':download: export diff', 'Export just this diff (the default character export)', () => exportChar(false), 'mini')),
     h('div', { cls: 'bar' },
       h('div', {}, h('b', { textContent: 'built-in' }), cvBase),
       h('div', {}, h('b', { textContent: 'yours' }), cvCur)),
-    lines.length ? h('pre', { cls: 'note', textContent: lines.join('\n') }) : h('p', { cls: 'note', textContent: 'No changes from the built-in.' }));
+    lines.length ? h('pre', { cls: 'note', textContent: lines.join('\n') }) : h('p', { cls: 'note', textContent: 'No changes from the built-in.' }),
+    changedMoves.length ? h('div', { cls: 'bar' }, h('span', { textContent: 'changed moves:' }),
+      changedMoves.map(n => button(n, `Compare ${n} side by side, both versions looping in sync`, (e, el) => popup(el, moveDiffView(n)), 'mini'))) : null);
   return wrap;
 }
 // ---------- suggest a character for the roster: an issue + an attached file, no local git, no sign-in beyond GitHub ----------
