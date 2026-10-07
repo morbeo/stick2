@@ -234,16 +234,29 @@ function importChar(clip) {
     try { makeCharacter(def); addChar(def, name.replace(/\.(diff\.)?json$/, '')); } catch (err) { notice('Not a character file', err.message); }
   });
 }
-// ---------- #diff=<json> in the URL hash (readHash, src/docs.js): a direct link to a character diff, opened straight
-// into the character tab's changes panel - the same payload exportChar()/the changes panel's "embed link" produce
+// base64url (RFC 4648 §5: + → -, / → _, no = padding), so the URL hash never needs %-escaping at all - JSON's braces,
+// quotes and colons each cost 3 chars escaped (encodeURIComponent), base64 none, so this alone shrinks a diff link by
+// more than half. atob/btoa only take Latin1 strings, so UTF-8 bytes go through one at a time, not spread (a long
+// diff could otherwise overflow the call stack through String.fromCharCode(...bytes))
+function b64url(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = ''; for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function fromB64url(s) {
+  const b64 = s.replace(/-/g, '+').replace(/_/g, '/'), bin = atob(b64 + '='.repeat((4 - b64.length % 4) % 4));
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+// ---------- #diff=<base64url json> in the URL hash (readHash, src/docs.js): a direct link to a character diff, opened
+// straight into the character tab's changes panel - the same payload exportChar()/the changes panel's "embed link" produce
 async function loadEmbedDiff(raw) {
-  let d; try { d = JSON.parse(raw); } catch (err) { return console.error('stick2: bad #diff value', err); }
+  let d; try { d = JSON.parse(raw[0] === '{' ? raw : fromB64url(raw)); } catch (err) { return console.error('stick2: bad #diff value', err); } // raw[0]: an older %-escaped JSON link still works
   if (d.format !== 'stick2.character.diff') return console.error('stick2: #diff is not a character diff');
   let def; try { def = fromCharDiff(d); } catch (err) { return notice('Unknown base character', err.message); }
   await applyCharDiff(def, d.base);
   pickChar(d.base); setMode('character'); openStage('changes');
 }
-const diffEmbedLink = d => `${location.origin}${location.pathname}#diff=${encodeURIComponent(JSON.stringify(d))}`;
+const diffEmbedLink = d => `${location.origin}${location.pathname}#diff=${b64url(JSON.stringify(d))}`;
 // a path-prefixed, readable line per leaf change in a diffObj()/diffArr() result - generic over whatever it's run on
 // (bones, moves, stances, gait, stats…), so a new field never needs its own formatting added here
 const fmtDiffVal = v => Array.isArray(v) ? JSON.stringify(v) : typeof v === 'object' && v !== null ? '{…}' : String(v);
