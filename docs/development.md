@@ -67,9 +67,8 @@ Notes for the itch.io page:
 
 ## Publishing to Discord
 
-- `.github/workflows/discord-notify.yml` posts the commit message and SHA to a Discord webhook (the `DISCORD_WEBHOOK` repo secret) on every push to `master` — no manual step.
+- `.github/workflows/discord-notify.yml` posts a fight GIF and the commit message/SHA to a Discord webhook (the `DISCORD_WEBHOOK` repo secret) on every push to `master`, and the release notes/tag plus the same kind of GIF (also attached to the release's assets) when a release is published — no manual step either way. The GIF is seeded by the commit SHA or the release tag, so it's reproducible: `node tools/render-notify-gif.js <sha-or-tag>`.
 - `.github/workflows/discord-feature-request.yml` posts every new `enhancement`-labeled issue to the `#feature-requests` channel (the `DISCORD_FEATURE_REQUESTS_WEBHOOK` repo secret) — also no manual step. Point that secret at a webhook scoped to `#feature-requests` before relying on it.
-- `.github/workflows/discord-release.yml` renders a fight GIF (seeded by the release tag, so it's reproducible: `node tools/render-notify-gif.js <tag>`), attaches it to the GitHub release's assets, and posts it to the same `DISCORD_WEBHOOK` — on every published release, no manual step.
 - The fight bot (`tools/discord-bot.js`, a separate always-on process) is unrelated to either workflow: see [MCP server → The Discord bot](mcp.md#the-discord-bot).
 
 ### Feature request guidelines (`#feature-requests`)
