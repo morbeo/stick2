@@ -7,9 +7,8 @@ const PREVIEWS = {
   showcase: ['showcase', 'Scripted demo: punches, a kick, a sweep, a jump kick, a dash into a grab and throw, a special, then backs off.'],
   walk: ['walk', 'Walk forward and back: check the walk cycle and arm swing.'],
   'vs ai': ['ai vs ai', 'Two copies fight each other with the engine AI.'],
-  impact: [null, 'The body alone, no attacker: strike it low, mid, high… with the blow buttons and watch it fall (the ragdoll).'],
 };
-// the preview's scenario (impact: the experiment grid plays the showcase). controlDummy: your own keyboard drives the
+// the preview's scenario. controlDummy: your own keyboard drives the
 // opponent instead of its script/AI - the character being edited never reads live keys here, so there's no clash
 const previewScen = () => { const s = SCENARIOS[PREVIEWS[creator.preview][0] || 'showcase'];
   return { ...s, ...creator.controlDummy && s.b ? { b: 'human' } : null, init: w => { s.init?.(w); w.a.setStance(studio.stance, 'instant'); } }; };
@@ -239,8 +238,8 @@ function previewBar(cls = 'over pvbar') {
   })();
   const controlB = toggle(':stadia_controller: you control it', 'Drive the opponent with your own keyboard instead of its script/AI - handy for holding it still, guarding, or moving it into a weapon or throw\'s reach',
     () => creator.controlDummy, v => { creator.controlDummy = v; creatorMode.restart(); });
-  return h('div', { cls }, seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creatorMode.restart(); panels(); }, mapVals(PREVIEWS, p => p[1])),
-    creator.preview === 'impact' ? null : oppB, creator.preview === 'impact' ? null : controlB);
+  return h('div', { cls }, seg(Object.keys(PREVIEWS), () => creator.preview, v => { creator.preview = v; creator.controlDummy = false; creatorMode.restart(); panels(); }, mapVals(PREVIEWS, p => p[1])),
+    oppB, controlB);
 }
 const setProp = (k, v) => edit(def => { for (const b of selDefs(def)) b[k] = v; }, selIds() + '.' + k);
 const prop = k => selBone()?.[k] ?? BONE[k];
@@ -520,10 +519,10 @@ const creatorMode = {
   clipRects: () => creator.expOn ? cellRects(9, 3, fullArea()).map((r, i) => ({ key: creator.exp.cells[i], r })) : [{ key: 'preview', r: edLayout().pv }],
   split: () => !creator.expOn,
   enter() {
-    creator.w = creator.preview === 'impact' ? ragdollWorld() : newWorld(previewScen(), {}, 7, previewChars());
+    creator.w = newWorld(previewScen(), {}, 7, previewChars());
     // the changes panel's "built-in" side: the same scenario/opponent, fighting as the matching built-in instead
     const base = CHAR_DEFS[CURRENT];
-    creator.diffW = base && creator.preview !== 'impact' ? newWorld(previewScen(), {}, 7, [makeCharacter(base), CHARS[creator.opponent] || makeCharacter(base)]) : null;
+    creator.diffW = base ? newWorld(previewScen(), {}, 7, [makeCharacter(base), CHARS[creator.opponent] || makeCharacter(base)]) : null;
     creator.diffHeadW = base ? newWorld(diffHeadScen(), {}, 7, [makeCharacter(base), CHARS[CURRENT]]) : null;
     if (creator.expOn) buildExp();
   },
@@ -534,8 +533,7 @@ const creatorMode = {
   render: creatorRender,
   ctxBar: creatorCtx,
   side: () => creator.expOn ? expPanel() : bodyPanel(),
-  overlay: () => creator.expOn ? [] : stageOpen() === 'bones' ? [boneTable()] : stageOpen() === 'changes' ? [charDiffPanel()] : moveStage() ? [moveStage()()] :
-    creator.preview === 'impact' ? [previewBar(), blowBar(() => creator.w, () => creatorMode.restart(), true)] : [previewBar()],
+  overlay: () => creator.expOn ? [] : stageOpen() === 'bones' ? [boneTable()] : stageOpen() === 'changes' ? [charDiffPanel()] : moveStage() ? [moveStage()()] : [previewBar()],
   open: ['character', 'body', 'bone', 'stance pose', 'random characters'],
   mouse: creatorMouse,
   key: creatorKey,

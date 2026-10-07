@@ -44,7 +44,8 @@ const combo = e => (e.altKey ? 'Alt+' : '') + (e.shiftKey ? 'Shift+' : '') + e.c
 // in the editor modes shortcuts take the plain keys and the fight keys do nothing. Fight keys and macros work in fights only,
 // animate and character shortcuts in the editor only, transport, view and mode keys in both
 const FIGHT_MODES = ['play'];
-const inFight = () => FIGHT_MODES.includes(app.mode);
+// character mode also counts while its preview or head-to-head hands a fighter to your keyboard (creator.js)
+const inFight = () => FIGHT_MODES.includes(app.mode) || (app.mode === 'character' && (creator.controlDummy || creator.htControl !== 'none'));
 const CTX_OF = { fight: ['fight'], macro: ['fight'], animate: ['editor'], character: ['editor'], replay: ['editor'] };
 const ctxOf = g => CTX_OF[g] || ['fight', 'editor'];
 const groupOf = a => ACTIONS.find(x => x[0] === a)?.[1];
