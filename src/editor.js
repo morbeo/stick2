@@ -1238,7 +1238,9 @@ function targetBar() {
     h('span', { cls: 'sep' }),
     toggle(':repeat:', 'Loop the preview when the move ends; off: play once and hold the last frame', () => anim.pvLoop, v => { anim.pvLoop = v; anim.pv.loop = v; }),
     toggle(':flash_on:', 'Hit stop, screen shake and juice in the preview; off: a clean, undisturbed look at the raw motion', () => anim.pvFx, v => { anim.pvFx = v; buildPreview(); }),
-    seg(Object.keys(speedTips).map(Number), () => anim.pvSpeed, v => { anim.pvSpeed = v; }, speedTips, v => ({ 0.25: '¼×', 0.5: '½×', 1: '1×', 2: '2×' })[v]));
+    seg(Object.keys(speedTips).map(Number), () => anim.pvSpeed, v => { anim.pvSpeed = v; }, speedTips, v => ({ 0.25: '¼×', 0.5: '½×', 1: '1×', 2: '2×' })[v]),
+    h('span', { cls: 'sep' }),
+    button(':sports_kabaddi: send to play', 'Jump into Play against this target, keyboard in hand', () => sendToPlay('you vs ai', tg.char), 'mini'));
 }
 
 const animMode = {

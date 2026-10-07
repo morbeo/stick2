@@ -360,6 +360,12 @@ function drawScope() {
 // play's fighters: P1, P2, P3… by name, null = the character being edited (P3 on: the same as P2); a scenario's own chars win
 const pickName = i => CHARS[lab.chars[i]] ? lab.chars[i] : i >= 2 ? pickName(1) : CURRENT;
 const playChars = () => lab.chars.some(Boolean) ? Array.from({ length: Math.max(2, lab.chars.length) }, (_, i) => CHARS[pickName(i)]) : null;
+// jump into Play with this scenario, the character being edited as P1 and opponent (a name, or 'self'/null for none) as P2 -
+// lets any preview's "send to play" button hand its matchup over to Play's full toolset (recording, replay, builder…)
+function sendToPlay(scen, opponent = null) {
+  lab.chars[0] = null; lab.chars[1] = opponent && opponent !== 'self' ? opponent : null;
+  lab.scen = scen; lab.playback = lab.branch = null; setMode('play'); build(); panels();
+}
 // how many fighters the scenario starts with (waves, survival, rumble: you and the first enemy, P2)
 const fighterCount = s => s.waves || s.survival || s.rumble ? 2 : 2 + (s.more?.length || 0);
 function fighterPick(i) {
@@ -425,7 +431,8 @@ const SCEN_GROUPS = [
   ['other tests', 'science', 'Scripted: repeatable inputs, the same fight every loop, ideal for the experiment tab.', s => Array.isArray(s.a)],
 ];
 const scenGroup = k => SCEN_GROUPS.find(([, , , f]) => Array.isArray(f) ? f.includes(k) : f(SCENARIOS[k], k))?.[0];
-function scenButton(onPick) {
+// current: the picked key, for the popup's "on" highlight and the button's own label (default: the lab's own scenario)
+function scenButton(onPick, current = () => lab.scen) {
   const b = button('', 'Choose who fights · scenarios grouped by who fights, scripted tests by topic', (e, b) => {
     const pick = k => { closePop(); onPick(k); }, rows = [];
     const q = h('input', { cls: 'macro', placeholder: 'filter scenarios…', tip: 'Letters of a scenario or group name narrow the list · Enter picks the first one left',
@@ -435,7 +442,7 @@ function scenButton(onPick) {
       ...SCEN_GROUPS.flatMap(([g, ic, info]) => {
       const os = Object.entries(SCENARIOS).filter(([k]) => scenGroup(k) === g).map(([k, s]) => {
         const o = button(k, scenTip(s), () => pick(k));
-        reg(o, () => o.classList.toggle('on', lab.scen === k));
+        reg(o, () => o.classList.toggle('on', current() === k));
         return o;
       });
       if (!os.length) return [];
@@ -445,7 +452,7 @@ function scenButton(onPick) {
     }));
     q.focus();
   });
-  reg(b, () => { setRich(b, `:sports_kabaddi: ${lab.scen}`); });
+  reg(b, () => { setRich(b, `:sports_kabaddi: ${current()}`); });
   return b;
 }
 // next/previous scenario hotkeys: step through the same flat order scenButton lists them in (grouped, then as entered)
