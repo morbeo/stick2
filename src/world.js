@@ -505,6 +505,14 @@ class World {
       const sd = Math.abs(d) > 0.5 ? Math.sign(d) : Math.sign(b.vx - a.vx) || Math.sign(b.dir - a.dir) || Math.sign(d) || 1;
       // the gap the two bodies need: the facing sides of their extents (a centaur's horse body reaches far in front)
       const side = (f, toward) => f.ch.extent[toward === f.dir ? 1 : 0], need = side(a, sd) + side(b, -sd);
+      // flyHits: a flying body clips whoever it passes through instead of passing clean through it (the normal push-apart
+      // below is skipped for this pair either way, since the usual !a.kd && !b.kd guard already excludes a flying fighter)
+      if (cfg.flyHits && (a.kd === 'fly') !== (b.kd === 'fly') && a.heldBy !== b && b.heldBy !== a) {
+        const flier = a.kd === 'fly' ? a : b, still = flier === a ? b : a;
+        if (!still.kd && !flier.flyHit.includes(still.id) && (cfg.flyChain || !flier.flyHit.length) &&
+          Math.abs(d) < need && Math.abs(a.y - b.y) < 60 && Math.abs(a.z - b.z) < cfg.zReach) this.flyClip(flier, still);
+        continue;
+      }
       if (Math.abs(d) < need && Math.abs(a.y - b.y) < 60 && Math.abs(a.z - b.z) < cfg.zReach && !a.kd && !b.kd && a.heldBy !== b && b.heldBy !== a) {
         // a dash that began passing keeps passing while it is still dashing inside the other body
         if (a.passT > 0 || b.passT > 0) { for (const f of [a, b]) if (f.passT > 0 && f.dashT > 0) f.passT = Math.max(f.passT, 2 * h); continue; }
@@ -596,6 +604,21 @@ class World {
       }
       if (st && st !== 'none' && st !== 'hit') this.spark(st, pt, vic.z, att.dir, col);
     }
+  }
+  // flyHits: a flying body (flier) passes through still, instead of clean through it. Built as a synthetic move so it
+  // goes through the same onHit/takeHit pipeline as a real attack (hit stop, shake, sparks, stats, events, weight in
+  // the knockback) - flier.dir is faced along its own travel for this, then restored, so the victim is punted onward
+  // the way the flier was already going, pinball-style, rather than toward whichever way the flier happened to be facing
+  flyClip(flier, still) {
+    const cfg = this.cfg;
+    flier.flyHit.push(still.id);
+    const m = { name: 'clip', power: cfg.flyPower, damage: cfg.flyDamage, height: 'mid', stun: 0.35,
+      knock: Math.abs(flier.vx) * cfg.flyKnock, launch: cfg.flyLaunch ? Math.abs(flier.vy) * cfg.flyKnock : 0, kd: cfg.flyLaunch };
+    const savedDir = flier.dir;
+    flier.dir = Math.sign(flier.vx) || flier.dir;
+    this.onHit(flier, still, { pt: [still.x, still.y - still.ch.extent[1] / 2], bone: still.ch.by[still.ch.ids[0]] }, m, null);
+    flier.dir = savedDir;
+    flier.vx *= cfg.flyDrag; flier.vy *= cfg.flyDrag;
   }
   // a styled hit spark (key event spark), from the effects' own random numbers: heavy = a big flash and ring, slash = a cut across the
   // point, blunt = a flash with chunky bits
