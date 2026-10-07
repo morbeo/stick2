@@ -309,6 +309,11 @@ const BASE_SCENARIOS = {
   'rumble': { a: 'human', b: 'ai', rumble: true },
   'ai rumble': { a: 'ai', b: 'ai', rumble: true },
   'sandwich': { a: ['punch', 0.13, 'punch', 0.13, 'kick', 0.7, 'punch', 0.13, 'punch', 0.13, 'kick'], b: 'dummy', bx: 372, more: [{ c: 'dummy', x: 285, team: 1 }], period: 3.4 },
+  // the dummy up front (b) gets pushKicked into a dozen more packed shoulder to shoulder behind it; flyHits/flyChain
+  // (set in cfg below) make the flying body clip and bowl through the whole pack instead of passing through untouched
+  'crowd': { a: [0.2, '@pushKick'], ax: 140, b: 'dummy', bx: 200,
+    more: Array.from({ length: 11 }, (_, i) => ({ c: 'dummy', x: 220 + i * 18, team: 1 })),
+    cfg: { flyHits: true, flyChain: true, flyKnock: 0.9, flyDrag: 0.75, shakeBias: 0.6 }, period: 3.6 },
   // punches, a kick, a sweep, an air kick, a dash into a grab and throw, a special, then backs off
   'showcase': { a: ['!punch', 0.13, 'punch', 0.13, 'kick', 0.9, '!down+kick', 1.1, 'hop', 0.12, 'kick', 0.5, 'fwd', 0.05, 'fwd', 0.25, '!punch+guard', 0.8, 'special', 0.6, { hold: 'back', t: 0.6 }], b: 'dummy', ax: 250, bx: 420, period: 8 },
   // weapons (see WEAPONS): P+G picks one up and throws it; aw / bw = starts held, items = lying on the floor

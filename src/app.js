@@ -1,6 +1,6 @@
 'use strict';
 // ---------- app: mode buttons, transport, frame loop, keyboard and mouse ----------
-const app = { mode: 'play', paused: false, stepOnce: false, speed: 1, loop: true, scrub: false, scrubF: null, hintUntil: 0, fps: 0, frameMs: 0, worstMs: 0, theater: false };
+const app = { mode: 'welcome', paused: false, stepOnce: false, speed: 1, loop: true, scrub: false, scrubF: null, hintUntil: 0, fps: 0, frameMs: 0, worstMs: 0, theater: false };
 // theater mode (play): no toolbars, no side panel, just the fight — for streaming or recording. Tries for fullscreen too
 // (best-effort: browsers can refuse outside a direct click, automated ones usually do); Esc or the toggle again leaves both
 function setTheater(v) {
@@ -39,6 +39,7 @@ function staleButton() {
   return b;
 }
 const MODES = {
+  welcome: 'A starting point: what stick2 can do and where to go for each activity.',
   play: 'Fight in one arena. Pick who fights: you, the AI, scripted combos, crowds.',
   grid: 'Browse and search characters, moves, scenarios, sounds, looks and tracks as tiles. For characters and moves, pick which variables show on each one (an autocomplete over every documented stat and move property). Click a tile to open it where it\'s edited.',
   experiment: 'Nine copies of one fight side by side, each with different settings (or a bred variation, or two settings compared). Click a cell to focus it.',
@@ -53,11 +54,11 @@ const MODES = {
   weapons: 'Held or thrown weapons (built-in and custom), drawn along the grip-to-tip axis from the same simple shapes as props. A custom one reuses an existing class\'s moveset.',
   replay: 'A recorded fight (the play fight or a replay file) as a timeline of colour-coded events and an event table: filter by type, find a moment, go there.',
 };
-const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode, replay: replayMode, fx: fxMode, sounds: soundsMode, tracker: trackerMode, grid: gridMode, props: propsMode, weapons: weaponsMode })[app.mode] || labMode;
+const mode = () => ({ welcome: welcomeMode, character: creatorMode, animate: animMode, tests: testMode, replay: replayMode, fx: fxMode, sounds: soundsMode, tracker: trackerMode, grid: gridMode, props: propsMode, weapons: weaponsMode })[app.mode] || labMode;
 // the top bar's tabs: gallery and tests are views of animate, sounds/tracker/props/weapons of fx, picked first in their toolbar
 // (impact used to be a view of experiment; it is now one of its kinds, alongside sweep/breed/attacks/compare — see BREED_TIPS)
 const VIEWS = { animate: ['animate', 'gallery', 'tests'], fx: ['fx', 'sounds', 'tracker', 'props', 'weapons'] };
-const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', experiment: 'science', gallery: 'animation', tests: 'fact_check', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', sounds: 'waves', tracker: 'view_module', replay: 'history', props: 'category', weapons: 'swords' };
+const MODE_ICONS = { welcome: 'home', play: 'sports_kabaddi', grid: 'grid_view', experiment: 'science', gallery: 'animation', tests: 'fact_check', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', sounds: 'waves', tracker: 'view_module', replay: 'history', props: 'category', weapons: 'swords' };
 const tabOf = m => Object.keys(VIEWS).find(t => VIEWS[t].includes(m)) || m;
 
 function setMode(m) {
