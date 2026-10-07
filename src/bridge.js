@@ -73,6 +73,9 @@
       sendToPlay(scen, opponent ?? (app.mode === 'character' ? creator.opponent : null));
       return { mode: app.mode, scenario: lab.scen };
     },
+    // the same undo/redo as ⌘Z: character edits and settings changes (not scenarios, replays or anything else)
+    undo() { if (!studio.undo.length) throw new Error('nothing to undo'); undo(); return { undone: true, left: studio.undo.length }; },
+    redo() { if (!studio.redo.length) throw new Error('nothing to redo'); redo(); return { redone: true, left: studio.redo.length }; },
   };
   fetch('/bridge/hello').then(r => r.ok ? r.json() : null).then(hi => {
     if (hi?.stick2 !== 'bridge') return;

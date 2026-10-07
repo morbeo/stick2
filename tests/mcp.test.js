@@ -65,6 +65,19 @@ test('characters and moves: the built-ins, a definition, frame data; a broken ed
   assert.ok((await s.call('get_character', { name: 'longshanks' })).isError, 'deleted for good');
 });
 
+test('undo_character/redo_character: one shared stack over create, edit and edit_move', async () => {
+  const def = (await s.call('get_character', { name: 'stick' })).json;
+  await s.call('create_character', { def: { ...def, name: 'undotest' } });
+  await s.call('edit_character', { name: 'undotest', patch: { bones: { thighF: { len: 30 } } } });
+  assert.equal((await s.call('undo_character')).json.name, 'undotest');
+  assert.equal((await s.call('get_character', { name: 'undotest' })).json.bones.find(b => b.id === 'thighF').len, def.bones.find(b => b.id === 'thighF').len, 'the edit is undone');
+  assert.equal((await s.call('redo_character')).json.name, 'undotest');
+  assert.equal((await s.call('get_character', { name: 'undotest' })).json.bones.find(b => b.id === 'thighF').len, 30, 'the edit comes back');
+  assert.equal((await s.call('undo_character')).json.name, 'undotest'); // the edit, again
+  assert.equal((await s.call('undo_character')).json.deleted, 'undotest', 'undoing the create removes it entirely');
+  assert.ok((await s.call('get_character', { name: 'undotest' })).isError);
+});
+
 test('settings: checked against their spec (type, options; numbers unlimited, warned outside the usual range), set, read back and reset', async () => {
   const bad = await s.call('set_settings', { values: { hitstop: 0.1, plane: 'cube', nope: 1, maxSpeed: 'fast' } });
   assert.ok(bad.isError);
@@ -91,6 +104,17 @@ test('simulate: deterministic (same seed, same end hash), summed up with stats a
   assert.equal(m.fighters[0].ctl, 'human');
   assert.ok(m.events.shown.length >= 1, 'the macro plays a move');
   assert.ok((await s.call('simulate', { scenario: 'no such' })).isError);
+});
+
+test('frame_state: numeric per-fighter state at a frame, no rendering', async () => {
+  const sim = (await s.call('simulate', { scenario: 'you vs dummy', inputs: '0.1, 6, 6, P', frames: 120 })).json;
+  const at0 = (await s.call('frame_state', { simulation: sim.id, frame: 0 })).json;
+  assert.equal(at0.frame, 0);
+  assert.ok(['idle', 'move', 'air'].includes(at0.a.state) && typeof at0.a.x === 'number' && at0.a.hp === 100 && ['left', 'right'].includes(at0.a.facing), JSON.stringify(at0));
+  const later = (await s.call('frame_state', { simulation: sim.id, frame: 30 })).json;
+  assert.equal(later.frame, 30);
+  assert.ok(later.a.move || later.a.state !== at0.a.state || later.a.x !== at0.a.x, 'something happened by frame 30');
+  assert.ok((await s.call('frame_state', { simulation: 'no such' })).isError);
 });
 
 test('a replay round trip: simulate → replay_export → replay_import plays in sync to the same end', async () => {
@@ -239,5 +263,12 @@ test('the live bridge: the app opened from the server takes fixed commands', { s
     assert.equal((await s.call('browser_state')).json.character, 'bridgetest2', 'renaming the one being edited follows it');
     assert.equal((await s.call('browser_command', { name: 'delete_character', args: { name: 'bridgetest2' } })).json.deleted, 'bridgetest2');
     assert.equal((await s.call('browser_state')).json.character, 'stick', 'deleting the one being edited falls back to stick');
+
+    await s.call('browser_command', { name: 'set_settings', args: { values: { hitstop: 0.2 } } });
+    assert.equal((await s.call('browser_command', { name: 'undo' })).json.undone, true);
+    assert.notEqual((await s.call('browser_state')).json.settings.hitstop, 0.2, 'the setting reverted');
+    assert.equal((await s.call('browser_command', { name: 'redo' })).json.redone, true);
+    assert.equal((await s.call('browser_state')).json.settings.hitstop, 0.2, 'redone');
+    assert.ok((await s.call('browser_command', { name: 'redo' })).isError, 'nothing left to redo');
   } finally { page.close(); }
 });
