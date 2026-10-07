@@ -25,7 +25,7 @@ async function launch(url, args = []) {
   if (!bin) throw new Error('no Chrome found (set CHROME=/path/to/chrome)');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'stick2-chrome-'));
   const proc = spawn(bin, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--hide-scrollbars', '--no-first-run', '--no-default-browser-check',
-    '--remote-debugging-port=0', `--user-data-dir=${dir}`, ...args, url], { stdio: 'ignore' });
+    '--no-sandbox', '--disable-dev-shm-usage', '--remote-debugging-port=0', `--user-data-dir=${dir}`, ...args, url], { stdio: 'ignore' });
   // the profile goes once Chrome is gone (it writes to it until then); at process exit nothing async runs, so close waits a moment
   const rm = () => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} };
   proc.once('exit', rm);
