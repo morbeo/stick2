@@ -1,0 +1,15 @@
+name: Discord notify
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post to Discord
+        run: |
+          curl -s -H "Content-Type: application/json" \
+            -d "$(jq -n --arg msg "stick2 updated: ${{ github.event.head_commit.message }} (${{ github.sha }})" '{content: $msg}')" \
+            "${{ secrets.DISCORD_WEBHOOK }}"
