@@ -1216,7 +1216,10 @@ class Fighter {
     for (const k in L) P[k] = [ax + L[k][0] * sx, ay + (L[k][1] - fy) * sy];
     return P;
   }
-  body() { return this.points(this.planted || this.disp, this.lens); }
+  // poseOverride (replay.js's scene editor only): bone id -> angle, merged over the real pose for drawing only. Never
+  // set during a live fight or w.advance() - only bracketed around a single render() call - so hit detection and
+  // replay determinism never see it; it exists purely to let the replay editor pose a paused frame by dragging joints
+  body() { const p = this.planted || this.disp; return this.points(this.poseOverride ? { ...p, ...this.poseOverride } : p, this.lens); }
   recordTrail() {
     const P = this.body();
     this.trail.push(this.ch.tips.map(b => P[b.id]));

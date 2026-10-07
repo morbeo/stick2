@@ -5,7 +5,10 @@
 
 const rp = { reel: null, master: null, view: null, frames: [], T: [0], N: 0, events: [], n: 0, t: 0, show: new Set(Object.keys(EVENT_TYPES)), sel: new Set(),
   footOn: true, fsel: null, reels: [], cmp: null, cmpView: null, moments: [], hl: { picked: new Set(), slow: true, titles: true }, expWhat: 'footage', filter: '', sort: { k: 't', dir: 1 }, hover: null, drag: null, scrollTo: null, lanes: {}, v: [0, 1], fold: new Set(), base: [], mx: -1, my: -1,
-  movie: { shots: [] }, playMovie: false, mv: null, shotDrag: null }; // the movie: shots across any loaded reel, see "movie" below
+  movie: { shots: [] }, playMovie: false, mv: null, shotDrag: null, // the movie: shots across any loaded reel, see "movie" below
+  // the scene editor: pose the paused frame by dragging joints (poseOn), and place props on it - both reset on scrub
+  // ({[fighterId]: {boneId: angle}}, [{type, x, y, a}]); draw-only (Fighter.poseOverride), never touches the fight itself
+  poseOn: false, pose: {}, props: [], propSel: null, propDrag: null };
 const fmtT = t => t.toFixed(2) + 's';
 const who = id => id < 0 ? '' : 'P' + (id + 1);
 
@@ -427,7 +430,10 @@ function rpRender() {
     return;
   }
   const c = rp.cmp, side = c && rp.cmpView === 'side', a = side ? { ...pv, w: Math.floor(pv.w / 2) - 2 * dpr } : pv;
+  rp.view.fighters.forEach(f => { f.poseOverride = rp.pose[f.id]; });
   drawCell({ w: rp.view, shot: shotAt(rp.view, rp.n), label: `${c ? 'A · ' : ''}${rp.reel.name} · engine v${rp.reel.rep.version}` }, a, { full: true, plot: false });
+  rp.view.fighters.forEach(f => { f.poseOverride = null; });
+  sceneDrawProps(ctx, a);
   if (side) drawCell({ w: c.view, label: `B · ${c.reel.name}` }, { ...a, x: a.x + a.w + 4 * dpr }, { full: true, plot: false });
   else if (c) { // overlay: B's picture over A's, see-through
     const off = rp.ghost ??= document.createElement('canvas');
@@ -448,6 +454,60 @@ function rpTip(L, x, y) {
   const f = frameAt(xToT(L, x)), l = r.l, st = l.fs[f];
   return `${fmtT(rp.T[f])} · ${who(l.id)} ${l.name}: ${l.max > 0 ? `health ${Math.round(l.hp[f] ?? 0)} / ${l.max} · ` : ''}stun ${Math.round(100 * (l.stun[f] ?? 0))}% · ${st || 'idle'}`;
 }
+// ---------- scene: pose the paused frame by dragging joints, and place and move props on it ----------
+// draw-only (Fighter.poseOverride, fighter.js): never touches the fight, so this works on any frame of any reel
+// screen = world · s + o (World.render sets w.view after drawing it, world.js); invert it to turn a click into a world point
+function sceneToWorld(x, y) { const v = rp.view?.view || { s: 1, ox: 0, oy: 0 }; return [(x - v.ox) / v.s, (y - v.oy) / v.s]; }
+function scenePickBone(x, y) {
+  if (!rp.view) return null;
+  const [wx, wy] = sceneToWorld(x, y);
+  let best = null, bd = 16 / (rp.view.view?.s || 1);
+  for (const f of rp.view.fighters) { if (f.hidden) continue; const P = f.body();
+    for (const id of f.ch.ids) { const d = Math.hypot(P[id][0] - wx, P[id][1] - wy); if (d < bd) { bd = d; best = { f, id }; } }
+  }
+  return best;
+}
+// same inverse-FK as creator.js's dragTo (drag a joint toward a world point), but through a live fighter: fk's own wa
+// output gives the parent's accumulated world angle, and f.xs (get xs, fighter.js) is the dir fk() mirrors angles by
+function scenePoseDrag(f, id) {
+  const [wx, wy] = sceneToWorld(rp.mx, rp.my), pose = { ...f.disp, ...rp.pose[f.id] }, wa = {};
+  fk(f.ch, pose, f.xs, f.lens, wa);
+  const b = f.ch.by[id], pb = f.ch.by[b.parent], P = f.body(), pp = P[b.parent] || P.hip, pw = pb ? wa[pb.id] : 0;
+  const w = Math.atan2((wx - pp[0]) * f.xs, wy - pp[1]) / R;
+  rp.pose[f.id] ||= {}; rp.pose[f.id][id] = Math.round(w - pw + b.level * (pw - (pb ? pb.restW : 0)));
+}
+function scenePickProp(x, y) {
+  const [wx, wy] = sceneToWorld(x, y);
+  for (let i = rp.props.length - 1; i >= 0; i--) { const p = rp.props[i], gy = (rp.view?.groundY || 0) - p.lift; if (Math.hypot(p.x - wx, gy - wy) < 26) return i; }
+  return null;
+}
+function sceneAddProp(type) { rp.props.push({ type, x: (rp.view ? rp.view.cam : 400), lift: 0, a: 0 }); rp.propSel = rp.props.length - 1; panels(); }
+function sceneDrawProps(ctx, r) {
+  if (!rp.props.length || !rp.view) return;
+  const { s, ox, oy } = rp.view.view || { s: 1, ox: 0, oy: 0 }, gy = rp.view.groundY;
+  ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip(); ctx.transform(s, 0, 0, s, ox, oy);
+  rp.props.forEach((p, i) => {
+    const t = PROPS[p.type]; if (!t) return;
+    ctx.save(); ctx.translate(p.x, gy - p.lift); ctx.rotate(p.a * R);
+    drawShapes(ctx, t.shapes, (x, y) => [x, y], c => c || '#888', { sway: 0 });
+    if (i === rp.propSel) { ctx.strokeStyle = RED[0]; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, -t.h / 2, t.h / 2 + 6, 0, 7); ctx.stroke(); }
+    ctx.restore();
+  });
+  ctx.restore();
+}
+function sceneSide() {
+  const names = Object.keys(PROPS);
+  return [heading('scene', 'Pose either fighter on the paused frame by dragging a joint, and place props from the catalog. Draw-only: never saved with the replay, never touches the fight.', ''),
+    h('div', { cls: 'bar' }, toggle(':accessibility_new: pose', 'Drag a joint on either fighter to pose this frame', () => rp.poseOn, v => { rp.poseOn = v; rp.propSel = null; panels(); }),
+      button(':restart_alt: reset pose', 'Clear every pose edit', () => { rp.pose = {}; panels(); })),
+    h('div', { cls: 'bar' }, h('span', { textContent: 'add prop' }),
+      ...names.map(n => button(n, PROPS[n].tip || n, () => sceneAddProp(n), 'mini'))),
+    ...rp.props.map((p, i) => h('div', { cls: 'bar' + (i === rp.propSel ? ' on' : '') },
+      button(p.type, 'Click to select, drag it on the scene to move', () => { rp.propSel = i; rp.poseOn = false; panels(); }, 'mini'),
+      slider('a', { min: -180, max: 180, step: 5 }, () => p.a, v => { p.a = v; }, 'rotate'),
+      crud({ delete: ['Remove this prop', () => { rp.props.splice(i, 1); if (rp.propSel === i) rp.propSel = null; panels(); }] }))),
+  ];
+}
 // the timeline's mouse: the minimap moves the window, a fighter's name folds it, the ruler and fighter rows seek; in the lanes a click
 // picks an event (⌘ / ⇧ more) and goes there, dragging selected inputs retimes them (a held span's ends: resize), dragging from empty
 // space selects what the box covers and a plain click there seeks
@@ -456,6 +516,11 @@ function rpMouse(type, x, y, e) {
   const L = rpLayout(), inTl = y >= L.tl.y, inMini = inTl && y < L.ruler, d = rp.drag;
   rp.mx = x; rp.my = y;
   const toMini = () => { const span = rp.v[1] - rp.v[0], t = (x - L.tx) / L.tw * rpEnd(); rpView(t - span / 2, t + span / 2); };
+  if (type === 'down' && !inTl && !rp.playMovie) {
+    if (rp.poseOn) { const hit = scenePickBone(x, y); if (hit) { rp.drag = { pose: hit }; scenePoseDrag(hit.f, hit.id); } return; }
+    const pi = scenePickProp(x, y);
+    if (pi !== null) { rp.propSel = pi; rp.drag = { prop: pi }; panels(); return; }
+  }
   if (type === 'down' && inTl) {
     const ev = eventAt(L, x, y), r = rowAt(L, y);
     if (inMini) { rp.drag = { mini: true }; toMini(); }
@@ -486,6 +551,8 @@ function rpMouse(type, x, y, e) {
     }
     return;
   }
+  if (d?.pose) return scenePoseDrag(d.pose.f, d.pose.id);
+  if (d?.prop != null) { const [wx] = sceneToWorld(x, y); rp.props[d.prop].x = wx; return; }
   if (d?.mini) return toMini();
   if (d?.span) return footDrag(L, x);
   if (d?.seek) return rpSeek(frameAt(snapT(L, x, e)));
@@ -1187,7 +1254,7 @@ function rpSide() {
     rp.reel.desync !== null ? h('p', { cls: 'note warn', textContent: `The file goes out of sync with its recording from ${fmtT(rp.T[rp.reel.desync] ?? 0)}.` }) : null,
     h('p', { cls: 'note', textContent: w.fighters.map(f => `${who(f.id)} ${f.ch.name}`).join(' · ') }),
     ...nowPanel(), ...selPanel(), ...typesPanel(), ...hlPanel(),
-    ...footSide(), ...movieSide(), ...markSide(),
+    ...footSide(), ...movieSide(), ...markSide(), ...sceneSide(),
     heading('reels', 'This reel, its branches and any imported for the movie. Edit one, or compare it with the one you edit: side by side or as a ghost; the events only one has are marked (B: amber outline, only in A: amber underline).'),
     ...rp.reels.map(r => h('div', { cls: 'bar' + (r === rp.reel ? ' on' : '') },
       button(r === rp.reel ? `:edit: ${r.name}` : r.name, r === rp.reel ? 'The reel being edited' : `Edit this reel${r.from !== undefined ? ` (branched at ${fmtT(rp.T[Math.min(r.from, rp.N)])})` : ''}`, () => { if (r !== rp.reel) { loadReel(r.rep, r.name, r); app.paused = true; panels(); } }, 'mini'),
@@ -1226,7 +1293,7 @@ const replayMode = {
   render: rpRender,
   ctxBar: rpCtx,
   side: rpSide,
-  open: ['replay', 'now', 'selection', 'types', 'highlights', 'footage', 'movie', 'bookmarks', 'reels', 'stats'],
+  open: ['replay', 'now', 'selection', 'types', 'highlights', 'footage', 'movie', 'bookmarks', 'reels', 'stats', 'scene'],
   overlay: () => rp.reel && stageOpen() === 'events' ? [eventTable()] : [],
   mouse: rpMouse,
   wheel: rpWheel,
