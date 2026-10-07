@@ -321,7 +321,7 @@ class Fighter {
   wearWeapon(n = 1) {
     if (!this.ch.weapon || !this.weapon.breakable) return;
     this.weaponDur -= n;
-    if (this.weaponDur <= 0) { const at = this.weaponAt(); this.w.spark('blunt', [at.x, at.y], this.z, this.dir); this.setChar(this.ch0); this.say('BREAK'); }
+    if (this.weaponDur <= 0) { const at = this.weaponAt(); this.w.spark(this.weapon.cls === 'slash' ? 'slash' : 'blunt', [at.x, at.y], this.z, this.dir); this.setChar(this.ch0); this.say('BREAK'); }
   }
   // where the held weapon's bones are, as a lying item would be: its centre and angle
   weaponAt() {

@@ -237,6 +237,7 @@ const SCHEMA = [
   { k: 'comboGravity', v: 1, min: 0.3, max: 3, step: 0.05, tip: 'Gravity × this on a body knocked flying in a combo (second hit on): above 1 drops juggles sooner, below 1 floats them.' },
   { k: 'letterbox', v: false, tip: 'Black bars at the top and bottom of the view, like a film. Drawing only.' },
   { k: 'impactFrames', v: false, tip: 'Impact frames: a heavy or finishing hit flashes the scene to black-and-white silhouettes for a few frames. Drawing only.' },
+  { k: 'impactDur', v: 0.07, min: 0.02, max: 0.3, step: 0.01, tip: 'Impact frames: how long the black-and-white flash lasts (s), split evenly between its two silhouette colours.' },
   { k: 'speedLines', v: false, tip: 'Speed lines streak behind a body launched or knocked flying fast. Drawing only.' },
 ];
 const CFG = {}, DEFAULTS = {}, SPEC = {};
