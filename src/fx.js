@@ -11,7 +11,10 @@ const FX_LOOKS = {
   spikyAura: 'Spiky aura: a pulsing glow bristling with jagged spikes (a feral power-up, a dark aura)',
   bubbles: 'Bubbles: rising bubbles with a highlight, popping near the top (underwater, a toxic brew)',
   sparks: 'Sparks: a shower of bright streaks flying out and falling (grinding metal, a shower of impact sparks)',
-  blood: 'Blood: a spray of droplets falling with gravity (a lethal slash)' };
+  blood: 'Blood: a spray of droplets falling with gravity (a lethal slash)',
+  motionBlur: 'Motion blur: a short fading streak stretching back from each bone along its last frame of motion (a fast strike or dash)',
+  afterimage: 'Afterimage: faded ghost copies of the bones trailing a few frames behind (a vanish, a blur of speed)',
+  speedLines: 'Speed lines: streaks trailing behind the bones in the opposite direction to their velocity, growing with speed (a fast dash or flying knockback)' };
 const FX_ON = { strike: 'The striking limbs (the move\'s hit bones, the whole limb)', body: 'The whole body', arm: 'The arms', leg: 'The legs', head: 'The head', tail: 'The tails', weapon: 'The weapon' };
 const FX_COLS = { blue: '60,140,240', cyan: '0,175,255', red: '220,50,35', orange: '240,110,30', gold: '230,170,30', purple: '160,80,220', green: '60,200,90', white: '235,235,240', grey: '130,125,120', dark: '45,35,55' };
 const FX_AUTO = {}; // every look's default colour; built-ins fill theirs in below (applyBuiltin), customs on registerLook
@@ -36,7 +39,7 @@ function fxNow(ch, a) {
 // the bones as segments (a circle bone as a ring) and points spaced about gap apart along them
 // (each seeded by its bone's id, so a bone's flames and bolts are its own however the effects are split)
 const fxSeed = id => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7);
-const fxSegs = (P, bones) => bones.filter(b => P[b.id]).map(b => ({ i: fxSeed(b.id), w: b.thick, ...b.shape === 'circle' ? { c: P[b.id], r: b.len } : { a: P[b.parent || 'hip'], b: P[b.id] } }));
+const fxSegs = (P, bones) => bones.filter(b => P[b.id]).map(b => ({ i: fxSeed(b.id), w: b.thick, id: b.id, parent: b.parent || 'hip', ...b.shape === 'circle' ? { c: P[b.id], r: b.len } : { a: P[b.parent || 'hip'], b: P[b.id] } }));
 function fxPoints(s, gap) {
   if (s.c) { const n = Math.max(4, Math.round(2 * Math.PI * s.r / gap)); return Array.from({ length: n }, (_, i) => [s.c[0] + Math.cos(i / n * 6.283) * s.r, s.c[1] + Math.sin(i / n * 6.283) * s.r]); }
   const n = Math.max(1, Math.round(Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]) / gap));
@@ -63,6 +66,9 @@ const BASE_BUILTIN = {
   bubbles: { col: 'cyan', back: false, params: { gap: 9, speed: 0.5, size: 4, rise: 30, sway: 5 } },
   sparks: { col: 'gold', back: false, params: { gap: 13, speed: 2, reach: 30, gravity: 40, life: 0.6 } },
   blood: { col: 'red', back: false, params: { gap: 12, speed: 1.5, size: 3, gravity: 250, reach: 60 } },
+  motionBlur: { col: 'white', back: false, params: { stretch: 1, width: 1, alpha: 0.35 } },
+  afterimage: { col: 'cyan', back: false, params: { count: 3, gap: 3, alpha: 0.4, width: 1 } },
+  speedLines: { col: 'dark', back: false, params: { count: 5, length: 24, spread: 12, width: 1.5, alpha: 0.5, minSpeed: 60, maxSpeed: 500 } },
 };
 const BUILTIN_SLIDERS = {
   aura: [['gap', { min: 4, max: 30, step: 1 }, 'Spacing between sparkle points along the bones (px); lower = denser'],
@@ -115,6 +121,20 @@ const BUILTIN_SLIDERS = {
     ['size', { min: 1, max: 8, step: 0.5 }, 'Droplet size'],
     ['gravity', { min: 50, max: 600, step: 10 }, 'Downward pull on droplets (px/s²)'],
     ['reach', { min: 0, max: 150, step: 5 }, 'How far droplets fly out (px)']],
+  motionBlur: [['stretch', { min: 0, max: 3, step: 0.1 }, 'How far the streak stretches back along last frame\'s motion, relative to the actual distance moved'],
+    ['width', { min: 0, max: 4, step: 0.1 }, 'Extra streak thickness on top of the bone\'s own (px)'],
+    ['alpha', { min: 0, max: 1, step: 0.05 }, 'Streak opacity']],
+  afterimage: [['count', { min: 1, max: 8, step: 1 }, 'How many ghost copies trail behind'],
+    ['gap', { min: 1, max: 12, step: 1 }, 'Frames between each ghost'],
+    ['alpha', { min: 0, max: 1, step: 0.05 }, 'The nearest ghost\'s opacity; each one further back fades more'],
+    ['width', { min: 0.3, max: 3, step: 0.1 }, 'Ghost line thickness, relative to the bone\'s own']],
+  speedLines: [['count', { min: 1, max: 12, step: 1 }, 'How many streaks trail each bone'],
+    ['length', { min: 4, max: 80, step: 2 }, 'Streak length at max speed (px)'],
+    ['spread', { min: 0, max: 40, step: 1 }, 'How far streaks scatter sideways off the bone (px)'],
+    ['width', { min: 0.3, max: 5, step: 0.1 }, 'Streak thickness (px)'],
+    ['alpha', { min: 0, max: 1, step: 0.05 }, 'Streak opacity'],
+    ['minSpeed', { min: 0, max: 300, step: 10 }, 'Speed below which no streaks show (px/s)', 'min speed'],
+    ['maxSpeed', { min: 50, max: 1000, step: 10 }, 'Speed at which streaks reach full length (px/s)', 'max speed']],
 };
 const BUILTIN_STORE = 'stick2.builtinFx';
 const builtinFx = (() => { try { return JSON.parse(localStorage.getItem(BUILTIN_STORE)) || {}; } catch { return {}; } })();
@@ -137,8 +157,9 @@ function saveBuiltinFxStore() { try { localStorage.setItem(BUILTIN_STORE, JSON.s
 // BUILTIN_RAW keeps the bare (ctx, segs, rgb, k, t, params) function too, so a custom look can reuse the exact same algorithm with its
 // own independent params (duplicateBuiltinLook): editing a built-in only ever changes BASE_BUILTIN's live overrides, never a custom's copy
 const BUILTIN_RAW = {};
-function builtinDraw(name, draw) { BUILTIN_RAW[name] = draw; FX_DRAW[name] = (ctx, segs, rgb, k, t, override) => draw(ctx, segs, rgb, k, t, { ...FX_BUILTIN[name].params, ...override }); }
-// each look: (ctx, segments, rgb, size, time)
+function builtinDraw(name, draw) { BUILTIN_RAW[name] = draw; FX_DRAW[name] = (ctx, segs, rgb, k, t, override, aux) => draw(ctx, segs, rgb, k, t, { ...FX_BUILTIN[name].params, ...override }, aux); }
+// each look: (ctx, segments, rgb, size, time, params, aux); aux (only from a live fight) carries { hist: past P snapshots (oldest first), vx, vy }
+// for looks that need more than the current pose (motionBlur, afterimage, speedLines) - undefined in the animate/character previews, which never ran a fight
 const FX_DRAW = {};
 // a glow layer list [[width,alpha], …] scaled by a size and alpha multiplier (aura, spikyAura: both have an inner glow)
 const glowLayers = (base, sizeMul, alphaMul) => base.map(([w, a]) => [w * sizeMul, a * alphaMul]);
@@ -225,6 +246,51 @@ builtinDraw('blood', (ctx, segs, rgb, k, t, pm) => {
     ctx.fillStyle = `rgba(${rgb},${0.8 * (1 - ph)})`; dot(ctx, px, py, pm.size * k * (1 - ph * 0.5));
   }));
 });
+// ---------- looks that need more than the current pose (aux.hist: past P snapshots oldest-first, aux.vx/vy: velocity) ----------
+// none of them read the fight's own RNG, same as every other look: drawing only, no effect on determinism
+builtinDraw('motionBlur', (ctx, segs, rgb, k, t, pm, aux) => {
+  // recordTrail() pushes this frame's own pose before draw() runs, so the last entry is "now" - one frame back is the one before it
+  const hist = aux?.hist, prev = hist && hist[hist.length - 2];
+  if (!prev) return;
+  ctx.fillStyle = `rgba(${rgb},${pm.alpha})`;
+  for (const s of segs) {
+    const [cx, cy] = s.c || s.b, p0 = prev[s.id];
+    if (!p0) continue;
+    const dx = (cx - p0[0]) * pm.stretch, dy = (cy - p0[1]) * pm.stretch, len = Math.hypot(dx, dy);
+    if (len < 0.5) continue;
+    const w = (s.w * 0.5 + pm.width) * k, nx = -dy / len * w, ny = dx / len * w;
+    ctx.beginPath(); ctx.moveTo(cx + nx, cy + ny); ctx.lineTo(cx - nx, cy - ny); ctx.lineTo(cx - dx - nx * 0.3, cy - dy - ny * 0.3); ctx.lineTo(cx - dx + nx * 0.3, cy - dy + ny * 0.3); ctx.closePath(); ctx.fill();
+  }
+});
+builtinDraw('afterimage', (ctx, segs, rgb, k, t, pm, aux) => {
+  const hist = aux?.hist;
+  if (!hist?.length) return;
+  const n = Math.min(pm.count, Math.floor((hist.length - 1) / Math.max(1, pm.gap)));
+  for (let g = 1; g <= n; g++) {
+    const snap = hist[hist.length - 1 - g * pm.gap]; // -1: the last entry is this frame's own pose, not a ghost
+    if (!snap) break;
+    ctx.strokeStyle = ctx.fillStyle = `rgba(${rgb},${pm.alpha * (1 - g / (n + 1))})`;
+    for (const s of segs) {
+      if (s.c) { const sc = snap[s.id]; if (sc) { ctx.beginPath(); ctx.arc(sc[0], sc[1], s.r, 0, 7); ctx.fill(); } continue; }
+      const sa = snap[s.parent], sb = snap[s.id];
+      if (!sa || !sb) continue;
+      ctx.lineWidth = s.w * k * pm.width; ctx.beginPath(); ctx.moveTo(sa[0], sa[1]); ctx.lineTo(sb[0], sb[1]); ctx.stroke();
+    }
+  }
+});
+builtinDraw('speedLines', (ctx, segs, rgb, k, t, pm, aux) => {
+  const vx = aux?.vx || 0, vy = aux?.vy || 0, v = Math.hypot(vx, vy);
+  if (v < pm.minSpeed) return;
+  const ux = vx / v, uy = vy / v, len = pm.length * k * Math.min(1, (v - pm.minSpeed) / Math.max(1, pm.maxSpeed - pm.minSpeed));
+  ctx.strokeStyle = `rgba(${rgb},${pm.alpha})`; ctx.lineWidth = pm.width * k;
+  for (const s of segs) {
+    const [x, y] = s.c || s.b;
+    for (let i = 0; i < pm.count; i++) {
+      const o = (fxRnd(s.i + i, Math.floor(t * 20)) - 0.5) * pm.spread * k, ox = -uy * o, oy = ux * o;
+      ctx.beginPath(); ctx.moveTo(x + ox, y + oy); ctx.lineTo(x + ox - ux * len, y + oy - uy * len); ctx.stroke();
+    }
+  }
+});
 // ---------- custom looks: one generic particle draw, parametrized (count/life/speed/spread/angle/gravity/size/shape) ----------
 // closed-form from (seed, t) like every look above (no stepped simulation), so the animate timeline can still scrub to any instant
 function drawCustom(preset, ctx, segs, rgb, k, t) {
@@ -256,7 +322,7 @@ function registerLook(name, preset) {
   const algo = preset.algo || 'particle';
   // override: the looks panel's experiment grid previews a value without saving it (same signature as builtinDraw)
   FX_DRAW[name] = algo === 'particle' ? (ctx, segs, rgb, k, t, override) => drawCustom({ ...preset, ...override }, ctx, segs, rgb, k, t)
-    : (ctx, segs, rgb, k, t, override) => BUILTIN_RAW[algo](ctx, segs, rgb, k, t, { ...preset, ...override });
+    : (ctx, segs, rgb, k, t, override, aux) => BUILTIN_RAW[algo](ctx, segs, rgb, k, t, { ...preset, ...override }, aux);
   FX_AUTO[name] = preset.col || 'white'; // a move using this look without its own colour falls back to the look's own default
   if (preset.back) FX_BACK.add(name); else FX_BACK.delete(name);
 }
@@ -274,9 +340,9 @@ function deleteLook(name) { delete myLooks[name]; delete FX_LOOKS[name]; delete 
 function renameLook(from, to) { if (!myLooks[from] || to === from || FX_LOOKS[to]) return; const p = myLooks[from]; deleteLook(from); saveLook(to, p); }
 function saveLooks() { try { localStorage.setItem(LOOK_STORE, JSON.stringify(myLooks)); } catch {} }
 // the effects of fxNow over the points P: the ones behind the body (back) or in front
-function drawFx(ctx, P, list, t, back) {
+function drawFx(ctx, P, list, t, back, aux) {
   for (const [e, bones] of list) if (FX_DRAW[e.look] && FX_BACK.has(e.look) === back) {
-    ctx.save(); ctx.lineCap = ctx.lineJoin = 'round'; FX_DRAW[e.look](ctx, fxSegs(P, bones), FX_COLS[e.col] || FX_COLS[FX_AUTO[e.look]], e.size ?? 1, t * (e.spd ?? 1)); ctx.restore();
+    ctx.save(); ctx.lineCap = ctx.lineJoin = 'round'; FX_DRAW[e.look](ctx, fxSegs(P, bones), FX_COLS[e.col] || FX_COLS[FX_AUTO[e.look]], e.size ?? 1, t * (e.spd ?? 1), undefined, aux); ctx.restore();
   }
 }
 // ---------- the shadow under a fighter: per character (def.shadow over SHADOW), drawing only ----------
