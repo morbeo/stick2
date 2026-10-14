@@ -209,3 +209,50 @@ test('the manual signaler hands codes over in either order', async () => {
     return [a, await p, ...shown]; })()`);
   assert.deepEqual([...got], ['early', 'late', 'offer:o1', 'answer:r1']);
 });
+
+// ---------- short codes: only what differs, the rest rebuilt ----------
+const CHROME_OFFER = ['v=0', 'o=- 7010035589187511692 2 IN IP4 127.0.0.1', 's=-', 't=0 0', 'a=group:BUNDLE 0', 'a=extmap-allow-mixed', 'a=msid-semantic: WMS',
+  'm=application 9 UDP/DTLS/SCTP webrtc-datachannel', 'c=IN IP4 0.0.0.0',
+  'a=candidate:3410262555 1 udp 2113937151 94b9809a-77af-41a1-8063-ee18880816cf.local 55930 typ host generation 0 network-cost 999',
+  'a=candidate:842163049 1 udp 1677729535 203.0.113.7 61234 typ srflx raddr 0.0.0.0 rport 0 generation 0 network-cost 999',
+  'a=candidate:1 1 udp 2113939711 2001:db8::1:2 50001 typ host generation 0',
+  'a=candidate:2 1 tcp 1518280447 192.168.1.5 9 typ host tcptype active generation 0',
+  'a=candidate:3 1 udp 41885439 198.51.100.9 3478 typ relay raddr 203.0.113.7 rport 61234 generation 0',
+  'a=ice-ufrag:xB+4', 'a=ice-pwd:b3MTNSUM9YJkEu/PToYYdZF9', 'a=ice-options:trickle',
+  'a=fingerprint:sha-256 EB:57:8C:35:FF:DD:6D:20:CF:F9:68:AD:A5:6C:BA:5B:C5:58:30:02:EA:29:EC:04:89:07:E6:73:3E:A6:F9:13',
+  'a=setup:actpass', 'a=mid:0', 'a=sctp-port:5000', 'a=max-message-size:262144', ''].join('\r\n');
+// what a connection needs out of a description: the ICE credentials, the fingerprint, the role, and each UDP candidate
+const essentials = sdp => { const L = sdp.split('\r\n'), a = k => L.filter(l => l.startsWith(`a=${k}:`)).map(l => l.slice(k.length + 3));
+  return { ufrag: a('ice-ufrag'), pwd: a('ice-pwd'), fp: a('fingerprint'), setup: a('setup'), mid: a('mid'),
+    cands: a('candidate').map(c => c.split(' ')).filter(p => p[2] === 'udp').map(p => [p[4], p[5], p[7]].join(' ')) }; };
+
+test('a short code: about a quarter of the long one, URL-safe, and it rebuilds everything a connection needs', async () => {
+  const code = await nrun(`netEncode({ type: 'offer', sdp: ${JSON.stringify(CHROME_OFFER)} })`);
+  assert.match(code, /^s2b\.o~[A-Za-z0-9_.~:-]+$/);
+  assert.ok(code.length < 200, code.length + ' characters: ' + code);
+  assert.equal(encodeURIComponent(code).replace(/%3A/g, ':'), code, 'not URL-safe');
+  const back = plain(await nrun(`netDecode(${JSON.stringify('join me: https://x/stick2/#join=' + code + '.')})`));
+  assert.equal(back.type, 'offer');
+  const want = essentials(CHROME_OFFER), got = essentials(back.sdp);
+  want.cands = want.cands.filter(c => !c.includes(' 9 ')); // the TCP one is left out
+  assert.deepEqual(got, want);
+  assert.match(back.sdp, /^v=0\r\n[\s\S]*m=application 9 UDP\/DTLS\/SCTP webrtc-datachannel\r\n[\s\S]*a=sctp-port:5000\r\na=max-message-size:262144\r\n$/);
+});
+
+test('a short code keeps the answer\'s role (active or passive), and falls back to the long code for what the template can\'t rebuild', async () => {
+  for (const setup of ['active', 'passive']) {
+    const sdp = CHROME_OFFER.replace('a=setup:actpass', 'a=setup:' + setup);
+    const code = await nrun(`netEncode({ type: 'answer', sdp: ${JSON.stringify(sdp)} })`);
+    assert.match(code, /^s2b\.[ap]~/);
+    const back = plain(await nrun(`netDecode(${JSON.stringify(code)})`));
+    assert.equal(back.type, 'answer'); assert.deepEqual(essentials(back.sdp).setup, [setup]);
+  }
+  const odd = [CHROME_OFFER.replace('a=mid:0', 'a=mid:data'), CHROME_OFFER.replace('sha-256 EB', 'sha-384 EB'), CHROME_OFFER + 'm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n',
+    CHROME_OFFER.replace(/a=candidate:.*udp.*\r\n/g, '')];
+  for (const sdp of odd) {
+    const code = await nrun(`netEncode({ type: 'offer', sdp: ${JSON.stringify(sdp)} })`);
+    assert.match(code, /^s2a\./);
+    assert.equal(plain(await nrun(`netDecode(${JSON.stringify(code)})`)).sdp, sdp);
+  }
+  await assert.rejects(nrun(`netDecode('s2b.o~abc~def~short~hm~1')`), /damaged/);
+});

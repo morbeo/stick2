@@ -126,7 +126,9 @@ function netDraw() {
     // the code that has to travel, until the link is up: the host's invite (and then the guest's answer back in), or the guest's answer
     if (L.host && net.inviting === 'waiting' && net.code) {
       const ans = h('input', { cls: 'macro', placeholder: 'paste their answer code', tip: 'The code the guest sent back; Enter connects', onkeydown: e => { e.stopPropagation(); if (e.code === 'Enter') netAnswer(ans.value); } });
-      rows.push(h('p', { textContent: '1. send this link to the other player:' }), netCodeBox(netInviteLink(net.code)),
+      const qr = qrCanvas(netInviteLink(net.code), 3);
+      if (qr) Object.assign(qr, { className: 'netqr' }).dataset.tip = 'Scan it with a phone or a second screen to open the invite there';
+      rows.push(h('p', { textContent: '1. send this link to the other player, or let them scan it:' }), netCodeBox(netInviteLink(net.code)), qr,
         h('div', { cls: 'bar' }, button(':content_copy: copy link', 'Copy the invite link', () => netCopy(netInviteLink(net.code), 'link')), button(':content_copy: code only', 'Copy just the code (if a link won\'t do)', () => netCopy(net.code, 'code'))),
         h('p', { textContent: '2. paste the code they send back:' }), h('div', { cls: 'netrow' }, ans, button(':check: connect', 'Connect with the guest\'s answer code', () => netAnswer(ans.value))));
     } else if (L.host && net.inviting === 'making') rows.push(h('p', { textContent: 'making the invite… (a few seconds)' }));

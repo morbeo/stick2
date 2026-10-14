@@ -2,7 +2,7 @@
 
 [← docs index](README.md)
 
-Online play between two browsers, with no server: the design, and what's built so far. Status: **all four layers, rollback, spectators, and the play tab's netplay section are built and tested.** Shorter codes and time sync are next.
+Online play between two browsers, with no server: the design, and what's built so far. Status: **all four layers, rollback, spectators, and the play tab's netplay section are built and tested.** Time sync and spectators joining mid-match are next.
 
 ## Constraints
 
@@ -31,7 +31,25 @@ The lobby never touches the network. The host links each guest with a send funct
 
 Each invite is for one guest. To let in another guest or a spectator, the host creates another invite.
 
-**Codes.** A code is the session description, compressed with `deflate-raw` and encoded as base64url, behind an `s2a.` prefix that versions the format. Codes are currently about 600 characters: fine for a link or a chat message, too long to type by hand. `netDecode` finds the code inside a bare code, a link, or a whole chat message.
+**Codes.** A code carries one browser's session description: offer or answer, connection credentials, and network candidates. `netDecode` finds the code inside a bare code, a link, or a whole chat message. Codes come in two forms:
+
+- **Short, `s2b.`** (about 110–150 characters). Only what differs between two connections is kept, joined by `~`:
+  - offer or answer, with the answer's role (`o`, `a` for active, or `p` for passive);
+  - the ICE username and password, with `+` and `/` mapped to `-` and `_`;
+  - the certificate's SHA-256 fingerprint, as base64url;
+  - each UDP candidate's type (host, srflx, prflx or relay), address and port. An mDNS `….local` name is packed into 22 characters, and TCP candidates are left out.
+
+  The other side rebuilds the rest of the description from the standard one-data-channel template, giving each candidate the standard priority for its type.
+- **Long, `s2a.`** (about 600 characters). This is the whole description, compressed with `deflate-raw` and encoded as base64url. It's the fallback for anything the template can't rebuild: more than one media section, a different `mid`, a fingerprint other than SHA-256, or no UDP candidate.
+
+Both forms are URL-safe as they are.
+
+**QR code.** The host's invite link also shows as a QR code (`src/qr.js`), so a phone or a second screen can scan it. It's written from scratch, with no library and no image:
+- byte mode at error-correction level M (about 15% of the code can be smudged and it still reads), versions 1–20;
+- Reed-Solomon error correction per block, then interleaving;
+- the eight masks, keeping the one with the lowest penalty.
+
+A typical invite link is version 8 or 9. The encoder was checked against an independent decoder (jsQR) across every version and mask, and in the app the rendered canvas decodes back to the exact link.
 
 **ICE.** Every candidate has to be in the code, since nobody passes candidates along by hand as they arrive. So a code waits for candidate gathering to finish, for at most `NET_GATHER_MS` (5 s). If the STUN server can't be reached, the candidates found by then still connect on a LAN or through an open NAT. Two players both behind strict (symmetric) NATs would need a TURN relay, which is out of scope.
 
@@ -136,7 +154,7 @@ A spectator's match is a `NetWatch`, not a `NetMatch`:
 The play tab's **netplay** section (`src/netui.js`):
 
 - **Before connecting:** your name, **host**, and a field to paste an invite.
-- **Host:** the invite link, with **copy link** and **code only** buttons, and a field for the guest's answer code.
+- **Host:** the invite link with its QR code, **copy link** and **code only** buttons, and a field for the guest's answer code.
 - **Guest:** the answer code to send back. A `#join=` link opens the play tab already joining; the code then leaves the address bar, so a reload doesn't reuse it.
 - **In the lobby:** the slots (name, character, ready, round trip), your character, **ready**, and chat. The host also has **start**, **invite** (another invite: a second player if a slot is open, else a spectator), and **rollback** (on by default; off is lockstep).
 - **During the fight:** frame, delay, rollbacks and waits; a spectator sees `watching`, the frame, and how many frames behind it is.
@@ -156,7 +174,6 @@ The fight uses the host's play-tab scenario if it's a one-on-one, otherwise `you
 
 - **Time sync:** each side reports how far ahead it runs, and the side that's ahead skips a tick now and then. Today, a side that runs ahead only finds out when it reaches the rollback window and waits.
 - **Spectators joining mid-match:** send them the header and every confirmed frame so far, so they can catch up.
-- **Shorter codes:** strip the SDP down to ufrag, pwd, fingerprint and candidates (about 150 characters), plus a QR code.
 - **A server signaler,** for short room codes and a room list. It only replaces `ManualSignal`.
 
 ## Using it
@@ -197,6 +214,12 @@ hooks.match = m => match?.receive(m);
   - snapshots that stay small (the world's link back to its match isn't copied).
 
   A spectator test runs a host, a player and a spectator over one lobby with rollback on, and checks that the spectator saw the same fight, reached the same end and saved the same replay.
+- `tests/lobby.test.js` also covers the short codes, using real Chrome descriptions with every kind of candidate:
+  - they're under 200 characters and URL-safe;
+  - they rebuild the credentials, fingerprint, role and candidates exactly;
+  - an answer keeps its active or passive role;
+  - anything the template can't rebuild falls back to the long code.
+- `tests/qr.test.js` checks the QR structure (finders, timing lines, dark module, smallest version that fits) and two matrices pinned from the jsQR-checked encoder.
 - `tests/globals.test.js` checks that no top-level name is declared in two `src/` scripts. A second `function` of the same name would silently replace the first, as nearly happened here.
 - `node tools/netplay-test.js` runs separate headless Chromes (two, then three), connected peer to peer through the app's own `src/` files:
   - through the lobby to a synced match start, then the guest leaves mid-match;
