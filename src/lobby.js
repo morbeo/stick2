@@ -9,7 +9,7 @@ const LOBBY = { slots: 2, watchers: 6, pingMs: 1000, timeoutMs: 10000, name: 24,
 
 class Lobby {
   // role: 'host' | 'guest'; name: ours; send (guest): message → the host; now: a ms clock (the tests pass their own)
-  // hooks: change(lobby) on every new snapshot; event(e) for chat, errors and phase changes;
+  // hooks: change(lobby) on every new snapshot; event(e) for chat, errors and phase changes (the match's carries its header); match(m) the match's messages;
   //        header(state, seed, defs) → the match a start sends (default: lobbyHeader); verify(header) → its hash (default: lobbyHash)
   constructor({ role, name = 'player', send = null, hooks = {}, now = () => Date.now(), engine = typeof ENGINE_VERSION !== 'undefined' ? ENGINE_VERSION : 0 }) {
     Object.assign(this, { role, name: lobbyClip(name, LOBBY.name), toHost: send, hooks, now, engine, header: null, id: null, peers: new Map(), n: 0, defs: {}, lastPing: 0, heard: now() });
@@ -57,12 +57,13 @@ class Lobby {
     switch (m.t) {
       case 'welcome': this.id = m.id; break;
       case 'reject': this.close(m.reason); break;
-      case 'lobby': if (!this.state || m.state.rev > this.state.rev) { const was = this.phase; this.state = m.state; if (was !== m.state.phase) this.emit({ type: 'phase', phase: m.state.phase }); this.hooks.change?.(this); } break;
+      case 'lobby': if (!this.state || m.state.rev > this.state.rev) { const was = this.phase; this.state = m.state; if (was !== m.state.phase) this.emit({ type: 'phase', phase: m.state.phase, ...m.state.phase === 'match' ? { header: this.header } : {} }); this.hooks.change?.(this); } break;
       case 'start': { this.header = m.header; let hash; try { hash = this.verify(m.header); } catch (e) { hash = 'error: ' + e.message; }
         this.toHost?.({ t: 'synced', hash }); break; }
       case 'chat': this.emit({ type: 'chat', from: m.from, name: m.name, text: m.text }); break;
       case 'ping': this.toHost?.({ t: 'pong', at: m.at }); break;
       case 'bye': this.close(m.reason || 'the host closed the lobby'); break;
+      case 'in': case 'sum': if (this.phase === 'match') this.hooks.match?.(m); break;
     }
   }
   fromGuest(id, m) {
@@ -83,6 +84,7 @@ class Lobby {
       case 'chat': this.relayChat(id, m.text); break;
       case 'synced': this.synced(id, m.hash); break;
       case 'leave': this.unlink(id, 'left'); break;
+      case 'in': case 'sum': if (s.phase === 'match' && i >= 0) this.hooks.match?.(m); break; // the match's own (src/netmatch.js)
     }
   }
   hello(id, p, m) {
@@ -144,8 +146,8 @@ class Lobby {
     this.waiting.delete(id);
     if (this.waiting.size) return;
     this.state.phase = 'match';
+    this.broadcast(); // first, so a guest is in the match before any of the match's own messages reach it
     this.emit({ type: 'phase', phase: 'match', header: this.header });
-    this.broadcast();
   }
   abort(error) { Object.assign(this.state, { phase: 'lobby', error }); this.waiting = null; for (const sl of this.state.slots) if (sl) sl.ready = false; this.emit({ type: 'error', error }); this.broadcast(); }
   // the match is over: result is whatever the match layer reports (winner, K.O., a forfeit)
@@ -161,6 +163,13 @@ class Lobby {
     for (const sl of s.slots) if (sl) sl.ready = false;
     this.emit({ type: 'phase', phase: 'lobby' });
     this.broadcast();
+  }
+  // a match message (src/netmatch.js) to the other player: a guest's goes to the host, the host's to the guest in the other slot
+  matchSend(m) {
+    if (this.phase !== 'match') return;
+    if (!this.host) return this.toHost?.(m);
+    const other = this.state.slots.find(sl => sl && sl.id !== 'h');
+    if (other) this.sendTo(other.id, m);
   }
   verify(header) { return (this.hooks.verify || lobbyHash)(header); }
 
