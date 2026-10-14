@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>stick2 — motion lab</title>
 <style>
   html, body { margin: 0; height: 100%; background: #f3f0e8; color: #222; overflow: hidden;
@@ -253,6 +254,59 @@
   #sink table.demo-table { width: 100%; }
   .tip { position: fixed; z-index: 20; display: none; pointer-events: none; max-width: 320px; padding: 4px 7px;
     background: #222; color: #f3f0e8; border-radius: 3px; font-size: 11px; white-space: pre-wrap; }
+  /* touch (src/touch.js): the on-screen pad over the stage, a stick on the left and the buttons on the right */
+  #c { touch-action: none; }
+  .tpad { position: absolute; inset: auto 0 0 0; height: 0; pointer-events: none; z-index: 4; }
+  .tpad > * { pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .tstick { position: absolute; left: max(12px, env(safe-area-inset-left)); bottom: 12px; width: 120px; height: 120px; border-radius: 50%;
+    background: rgba(251,250,246,.55); border: 2px solid rgba(34,34,34,.25); box-sizing: border-box; }
+  .tknob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; background: rgba(34,34,34,.35); }
+  .tbtns { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: 12px; display: grid; grid-template: "s g" "p k" "j j" / 56px 56px; gap: 8px; }
+  .tbtn { width: 56px; height: 56px; border-radius: 50%; font-size: 18px; font-weight: bold; background: rgba(251,250,246,.6); border: 2px solid rgba(34,34,34,.3); }
+  .tbtn.thop { grid-area: j; width: auto; height: 40px; border-radius: 20px; } .tbtn.tpunch { grid-area: p; } .tbtn.tkick { grid-area: k; } .tbtn.tspecial { grid-area: s; } .tbtn.tguard { grid-area: g; }
+  .tbtn.on { background: #222; color: #f3f0e8; }
+  .tswitch { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 4; }
+  /* phones: the stage on top of the side panel instead of beside it; popups and modals fit the screen */
+  @media (max-width: 760px) {
+    body { grid-template: "top" auto "stage" minmax(180px, 1fr) "side" minmax(0, 38vh) / minmax(0, 1fr); }
+    #top, #side { min-width: 0; }
+    body.noside { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr 0; }
+    #side { border-left: 0; border-top: 1px solid #ddd7cb; }
+    #grip, #help { display: none; }
+    #top { padding: 2px 6px; }
+    #top .trow { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } #top .trow > span { flex-wrap: nowrap; flex-shrink: 0; }
+    #modes .seg, #global .grp, #ctx .grp { flex-wrap: nowrap; flex-shrink: 0; } #global { margin-left: 0; }
+    .tstick { width: 100px; height: 100px; } .tknob { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
+    .tbtn { width: 46px; height: 46px; font-size: 16px; } .tbtns { grid-template-columns: 46px 46px; gap: 6px; } .tbtn.thop { height: 34px; }
+    .grp[data-part="layout"] { position: static; }
+    .row { grid-template-columns: 80px 1fr 40px; }
+  }
+  @media (max-height: 500px) and (orientation: landscape) {
+    body { grid-template: "top top" auto "stage side" 1fr / 1fr min(var(--side-w, 300px), 36vw); }
+    body.noside { grid-template-columns: 1fr 0; }
+    #side { border-top: 0; border-left: 1px solid #ddd7cb; }
+    #help, #grip { display: none; }
+    .tstick { width: 100px; height: 100px; } .tknob { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
+    .tbtn { width: 48px; height: 48px; } .tbtns { grid-template-columns: 48px 48px; gap: 6px; } .tbtn.thop { height: 34px; }
+  }
+  @media (max-width: 760px), (max-height: 500px) {
+    .pop { max-width: calc(100vw - 16px); max-height: 80vh; }
+    .pop .cards, .pop .movepop { width: auto; max-width: 100%; }
+    .pop.modal { min-width: 0; max-width: calc(100vw - 24px); }
+    .pop.modal.welcomebox { width: calc(100vw - 24px); }
+    .welcomebox .cards { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+    .dbox { width: 100vw; height: 100vh; height: 100dvh; flex-direction: column; border-radius: 0; }
+    .dside { width: auto; max-height: 35%; border-right: 0; border-bottom: 1px solid #ddd7cb; }
+    .dbody { padding: 10px; } .demo canvas { width: 100%; height: auto; aspect-ratio: 360 / 200; }
+    .keyspop, .dbgpop { width: auto; }
+  }
+  /* fingers: bigger targets */
+  @media (pointer: coarse) {
+    button { height: 30px; line-height: 28px; } button.ico { width: 30px; } button.mini { height: 26px; line-height: 24px; } button.mini.ico { width: 26px; }
+    button.info { width: 22px; height: 22px; line-height: 20px; }
+    input, select { font-size: 16px; } /* iOS zooms into any field under 16px */
+    .tip { display: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -307,6 +361,7 @@
 <script src="src/netui.js"></script>
 <script src="src/welcome.js"></script>
 <script src="src/app.js"></script>
+<script src="src/touch.js"></script>
 <script src="src/bridge.js"></script>
 </body>
 </html>
