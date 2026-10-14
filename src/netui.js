@@ -4,8 +4,8 @@
 // A match's world is the play tab's fight while it lasts (build() asks netWorld()); it carries .net, so the app drives it here, at
 // a fixed 60 frames a second, and leaves it out of everything that would change it locally (rewind, scrub, loop, macros).
 const NET_NAME = 'stick2-netname';
-const net = { lobby: null, sig: null, match: null, code: null, codeKind: null, inviting: null, log: [], box: null, status: null, acc: 0, edges: {} };
-const netStatus = () => { const m = net.match; return `frame ${m.f} · delay ${m.delay} · waits ${m.stalls}${m.desync !== null ? ' · DESYNC' : ''}`; };
+const net = { rollback: true, lobby: null, sig: null, match: null, code: null, codeKind: null, inviting: null, log: [], box: null, status: null, acc: 0, edges: {} };
+const netStatus = () => { const m = net.match; return `frame ${m.f} · delay ${m.delay}${m.roll ? ` · rollbacks ${m.rollbacks}` : ''} · waits ${m.stalls}${m.desync !== null ? ' · DESYNC' : ''}`; };
 const ownWorlds = () => mode().worlds().filter(w => !w.net); // the fights only this page runs
 const netWorld = () => net.match?.world || null;
 const netName = () => { try { return localStorage.getItem(NET_NAME) || 'player'; } catch { return 'player'; } };
@@ -19,7 +19,7 @@ function netLobby(role) {
     change: () => netDraw(),
     match: m => net.match?.receive(m),
     // the host picks the input delay from the guest's round trip, and puts it in the match, so both sides use the same
-    header: (state, seed, defs) => ({ ...lobbyHeader({ ...state, scenario: netScen() }, seed, defs), netDelay: netDelay(state) }),
+    header: (state, seed, defs) => ({ ...lobbyHeader({ ...state, scenario: netScen() }, seed, defs), netDelay: netDelay(state), netRoll: net.rollback ? NETMATCH.roll : 0 }),
     event: e => {
       if (e.type === 'chat') netSay(`${e.name}: ${e.text}`);
       else if (e.type === 'joined') netSay(`${e.name} joined`);
@@ -32,7 +32,12 @@ function netLobby(role) {
 }
 // the play tab's scenario, if it's one fight between two (waves, survival and rumbles aren't): else the plain one
 const netScen = () => { const s = SCENARIOS[lab.scen]; return s && !s.waves && !s.survival && !s.rumble && !s.more?.length ? lab.scen : 'you vs ai'; };
-const netDelay = state => clamp(Math.ceil((Math.max(0, ...state.slots.map(s => s?.rtt || 0)) / 2) / (1000 / 60)) + 1, 2, NETMATCH.maxDelay);
+// the input delay, from the slowest round trip: lockstep covers the whole one-way trip (plus a frame) with it; rollback only all but
+// about 3 frames of it, guessing the rest (deeper rollbacks cost more each time and show as bigger corrections)
+const netDelay = state => {
+  const oneWay = Math.ceil((Math.max(0, ...state.slots.map(s => s?.rtt || 0)) / 2) / (1000 / 60));
+  return net.rollback ? clamp(oneWay - 2, 1, NETMATCH.maxDelay) : clamp(oneWay + 1, 2, NETMATCH.maxDelay);
+};
 function netInvite() { net.code = null; net.inviting = 'making'; netInviteGuest(net.lobby, net.sig); netDraw(); }
 function netAnswer(code) { if (!code.trim()) return; net.sig.paste(code); net.code = null; net.inviting = null; netDraw(); }
 function netEnter(code) {
@@ -118,7 +123,8 @@ function netDraw() {
       if (st.phase === 'lobby' && L.host) {
         const go = button(':play_arrow: start', `Start the fight (${netScen()}, with the stage and settings as they are here) once both are ready`, () => L.start());
         go.disabled = !L.canStart();
-        rows.push(h('div', { cls: 'bar' }, go, button(':person: invite', 'Make another invite link: a second player if the slot is open, else a spectator', netInvite)));
+        rows.push(h('div', { cls: 'bar' }, go, button(':person: invite', 'Make another invite link: a second player if the slot is open, else a spectator', netInvite),
+          toggle(':sync_alt: rollback', 'Rollback: run on without waiting for the other player\'s input (guessing it), and correct the moment it arrives; less input delay, a slight snap on a wrong guess. Off: lockstep, every frame waits for both inputs (more delay, never a correction)', () => net.rollback, v => { net.rollback = v; })));
       }
       if (st.phase === 'sync') rows.push(h('p', { textContent: 'starting: checking both sides built the same fight…' }));
       if (st.phase === 'match' && net.match) rows.push(net.status = h('p', { textContent: netStatus(), tip: 'The online fight: frames run, input delay (frames between a press and its move, the same on both sides), how many frames waited on the other player' }));

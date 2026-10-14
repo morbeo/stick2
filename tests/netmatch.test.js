@@ -11,11 +11,11 @@ const press = (side, t) => ({ left: side ? t % 50 < 30 : false, right: side ? fa
   punch: t % (11 + side * 4) === 0, kick: t % (17 + side * 2) === 0, special: t % 131 === side * 9, guard: t % 80 > 70 });
 
 // a network between two matches: each message lands `lat` ticks later; loss: the share of input messages dropped (seeded)
-function net({ lat = 1, loss = 0, delay = 2, frames = 300, period = 0, tamper = false } = {}) {
+function net({ lat = 1, loss = 0, delay = 2, roll = 0, frames = 300, period = 0, tamper = false } = {}) {
   const h = header(period), q = [];
   let t = 0, seed = 1;
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const ms = [0, 1].map(side => new NetMatch({ header: h, side, delay, send: m => {
+  const ms = [0, 1].map(side => new NetMatch({ header: h, side, delay, roll, send: m => {
     if (m.t === 'in' && rnd() < loss) return;
     q.push({ at: t + lat, to: 1 - side, m: plain(m) });
   } }));
@@ -98,4 +98,52 @@ test('over a lobby: the match event starts both sides, and their messages go thr
   for (let t = 0; t < 200; t++) { ms[0].tick(press(0, t)); ms[1].tick(press(1, t)); flush(); }
   agree([ms[0], ms[1]]);
   assert.ok(ms[0].f > 150);
+});
+
+// ---------- rollback: run ahead on a guess, go back when the real input differs ----------
+test('rollback: with latency well above the delay the two sides still agree, wait far less than lockstep, and roll back', () => {
+  const lock = net({ lat: 6, delay: 1 }), roll = net({ lat: 6, delay: 1, roll: 7 });
+  agree(roll);
+  assert.ok(roll.every(m => m.desync === null));
+  assert.ok(roll[0].rollbacks > 0, 'never rolled back: the guesses were never wrong?');
+  assert.ok(roll[0].stalls * 4 < lock[0].stalls, `waits: rollback ${roll[0].stalls}, lockstep ${lock[0].stalls}`);
+  assert.equal(roll[0].world.hits + roll[0].world.blocks, roll[1].world.hits + roll[1].world.blocks);
+});
+
+test('rollback: lost messages, and latency beyond the rollback window (it waits there), still agree', () => {
+  agree(net({ lat: 3, loss: 0.3, delay: 1, roll: 7 }));
+  const far = net({ lat: 14, delay: 1, roll: 4 });
+  agree(far);
+  assert.ok(far[0].stalls > 0 && far[0].rollbacks > 0);
+  assert.ok(far.every(m => m.f - m.c <= 4), 'ran further ahead than the window');
+});
+
+test('rollback: a tampered input is still caught as a desync', () => {
+  assert.ok(net({ tamper: true, lat: 3, delay: 1, roll: 7 }).some(m => m.desync !== null));
+});
+
+test('rollback: the end is the confirmed one, and the replay plays back the same', () => {
+  const ms = net({ frames: 400, period: 3, lat: 5, delay: 1, roll: 7 });
+  for (const m of ms) assert.ok(m.result, 'no result');
+  assert.deepEqual(plain(ms[0].result), plain(ms[1].result));
+  const r = plain(ms[0].replay());
+  assert.deepEqual(r.frames, plain(ms[1].replay()).frames);
+  assert.equal(r.frames.length, ms[0].result.frames);
+  const desync = run(`(() => { const r = ${JSON.stringify(r)}, w = replayWorld(r); w.loop = false; for (let i = 0; i <= r.frames.length; i++) w.advance(0, NOIN); return w.desync; })()`);
+  assert.equal(desync, null);
+});
+
+test('rollback: a restored world keeps drawing (its pose and trail histories are its own, not the snapshot stand-in)', () => {
+  const [m] = net({ lat: 6, delay: 1, roll: 7, frames: 120 });
+  assert.ok(m.rollbacks > 0);
+  const none = run('NET_NONE');
+  for (const f of m.world.fighters) { assert.notEqual(f.poseHist, none); assert.ok(f.poseHist.length > 0); assert.notEqual(f.trail, none); }
+  assert.equal(none.length, 0, 'something was pushed onto the shared stand-in');
+  assert.ok(m.world.hist?.tgt.length > 0);
+});
+
+test('the header\'s roll is used; lockstep is roll 0', () => {
+  const h = header();
+  assert.equal(new NetMatch({ header: h, side: 0 }).roll, 0);
+  assert.equal(new NetMatch({ header: { ...h, netRoll: 6 }, side: 0 }).roll, 6);
 });

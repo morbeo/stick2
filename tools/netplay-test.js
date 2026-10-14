@@ -55,7 +55,8 @@ async function main() {
 }
 
 // the same through the app's play tab (src/netui.js): the host's invite link opened by the guest, the match on both stages,
-// run by both frame loops, checked against each other every NETMATCH.sumEvery frames
+// run by both frame loops with 80 ms of added latency and key presses on both sides (so rollback really guesses wrong and goes
+// back), checked against each other every NETMATCH.sumEvery frames
 async function app() {
   const host = await launch(APP + '#tool=play'), guest = await launch('about:blank');
   try {
@@ -69,16 +70,25 @@ async function app() {
     await until(host, `net.lobby.state.slots[1]?.char`, 'the guest in the lobby, with a character');
     await guest.js(`net.lobby.ready(); true`); await host.js(`net.lobby.ready(); true`);
     await until(host, 'net.lobby.canStart()', 'both ready');
+    // 80 ms more each way for the match's messages (localhost answers at once, so rollback would never have to guess), then a few
+    // key presses on each side mid-fight: guesses that turn out wrong, and rollbacks on the real stage
+    for (const side of [host, guest]) await side.js(`{ const send = net.lobby.matchSend.bind(net.lobby); net.lobby.matchSend = m => setTimeout(() => send(m), 80); } true`);
     await host.js('net.lobby.start(99)');
-    await until(guest, 'net.match?.f > 150', 'the guest\'s match to run 150 frames');
-    await until(host, 'net.match?.f > 150', 'the host\'s match to run 150 frames');
+    await until(guest, 'net.match?.f > 30', 'the guest\'s match to start running');
+    const key = async (side, code, key) => { for (const type of ['keyDown', 'keyUp']) await side.send('Input.dispatchKeyEvent', { type, code, key }); };
+    for (let i = 0; i < 6; i++) { await key(guest, 'KeyJ', 'j'); await key(host, 'KeyK', 'k'); await key(host, 'KeyD', 'd'); await new Promise(r => setTimeout(r, 250)); }
+    await until(guest, 'net.match?.c > 240', 'the guest\'s match to confirm 240 frames');
+    await until(host, 'net.match?.c > 240', 'the host\'s match to confirm 240 frames');
     const [a, b] = await Promise.all([host, guest].map(s => s.js('JSON.stringify(net.match.sums)').then(JSON.parse)));
     const both = Object.keys(a).filter(f => f in b);
     if (!both.length) throw new Error('no state hashes to compare yet');
     const bad = both.find(f => a[f] !== b[f]);
     if (bad) throw new Error(`the two stages went different ways by frame ${bad}`);
     if (!await host.js('lab.cells[0].w === net.match.world')) throw new Error('the play tab isn\'t showing the match');
-    console.log(`app: both stages ran the match, ${both.length} state hashes compared, all the same`);
+    const stats = await Promise.all([host, guest].map(s => s.js('JSON.stringify({ roll: net.match.roll, delay: net.match.delay, rollbacks: net.match.rollbacks, waits: net.match.stalls, hist: net.match.world.a.poseHist.length })').then(JSON.parse)));
+    if (!stats.every(x => x.roll > 0)) throw new Error('the app didn\'t start a rollback match');
+    if (!stats.some(x => x.rollbacks > 0)) throw new Error('no rollback happened: the latency or the key presses didn\'t reach the match');
+    console.log(`app: both stages ran the match, ${both.length} state hashes compared, all the same; host ${JSON.stringify(stats[0])}, guest ${JSON.stringify(stats[1])}`);
     console.log('PASS: the play tab\'s netplay section, invite link to a running match.');
   } finally { host.close(); guest.close(); }
 }

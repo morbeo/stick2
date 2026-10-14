@@ -2,7 +2,7 @@
 
 [← docs index](README.md)
 
-Online play between two browsers, with no server: the design, and what's built so far. Status: **all four layers and the play tab's netplay section are built and tested.** Rollback, spectators seeing the fight, and shorter codes are next.
+Online play between two browsers, with no server: the design, and what's built so far. Status: **all four layers, rollback, and the play tab's netplay section are built and tested.** Spectators seeing the fight and shorter codes are next.
 
 ## Constraints
 
@@ -102,8 +102,17 @@ A player leaving during `sync` sends the lobby back to `lobby`. Leaving during `
 
 When the lobby reaches `match`, each side builds a `NetMatch` from the header (P1 is the host, `side: 0`). Each side then calls `tick(input)` once per 1/60 s of wall time.
 
-- **Input delay.** An input made at frame `f` is for frame `f + delay` and is sent at once, so by the time that frame runs it has usually arrived. The host sets `delay` from the guest's round trip (half the round trip in frames, plus one, between 2 and 8) and puts it in the header as `netDelay`, so both sides use the same value.
-- **Lockstep.** A frame runs only once both inputs for it are in. Otherwise the match waits (a *stall*, counted in `stalls`), and then runs up to two frames per tick to catch up. Nothing is assumed about the other side's inputs, not even the idle first frames, so the two sides can't drift apart.
+- **Input delay.** An input made at frame `f` is for frame `f + delay` and is sent at once, so by the time that frame runs it has usually arrived. Each tick runs one frame (`f` stays exactly `delay` behind our latest input), and up to two only to catch up after a wait.
+- **Lockstep** (`roll` 0). A frame runs only once both inputs for it are in. Otherwise the match waits (a *stall*, counted in `stalls`).
+- **Rollback** (`roll` > 0, the default in the app). A frame whose input from the other side hasn't arrived runs anyway on a guess: their latest input, held, with no new presses. Up to `roll` frames (7) can run past the *confirmed* frame `c`, the last frame both real inputs are in for; beyond that the match waits.
+  - **A wrong guess.** When the real input arrives and differs, the world goes back to the snapshot before that frame and plays forward again to where it was. Sound is muted on the replay, so nothing plays twice. `rollbacks` counts these and `rolled` counts the frames played again.
+  - **Snapshots** are taken only before guessed frames, since only a guess can turn out wrong. They leave out what's only drawn (each fighter's pose and trail histories, and the debug graphs), which the restored world keeps from before. That makes a snapshot about 0.5 ms instead of 9. The match world's own rewind checkpoints keep only their hash.
+  - **What's never guessed.** Desync hashes and the end of the fight come only from confirmed frames, so a guess can't end a fight that the real inputs don't.
+- **Setting the delay.** The host picks the delay from the guest's round trip and puts it in the header (`netDelay`, and `netRoll` for rollback), so both sides use the same values.
+  - **Lockstep:** the delay covers the whole one-way trip plus a frame (between 2 and 8).
+  - **Rollback:** the delay covers all but about 3 frames of it (at least 1), and the guess covers the rest. Shallow rollbacks are cheaper and show smaller corrections.
+  - **Measured** (Node, one side's tick): at 50 ms each way, rollback is about 2 ms on average, 5 ms at p95 and 11 ms at worst. At 165 ms each way, rollback waits 3 times in 600 frames where lockstep waits 142.
+- **Nothing is assumed about the other side's inputs,** not even the idle first frames. So the two sides can't drift apart, even with different delays.
 - **Inputs** travel as the replay's key bitmask: `in {f, b: [masks], a}`. Each message carries every input the other side hasn't acknowledged yet (`a` is how far we've got theirs), up to the last 30. A lost message costs nothing, and a stalled side keeps resending, so a loss can't freeze both sides.
 - **A press during a stall** (hop, punch, kick, special) carries over to the next input, so a quick tap is never lost.
 - **Frame time is fixed** at 1/60 s, never wall time. The same inputs always give the same fight.
@@ -119,15 +128,15 @@ The play tab's **netplay** section (`src/netui.js`):
 - **Before connecting:** your name, **host**, and a field to paste an invite.
 - **Host:** the invite link, with **copy link** and **code only** buttons, and a field for the guest's answer code.
 - **Guest:** the answer code to send back. A `#join=` link opens the play tab already joining; the code then leaves the address bar, so a reload doesn't reuse it.
-- **In the lobby:** the slots (name, character, ready, round trip), your character, **ready**, and chat. The host also has **start** and **invite** (another invite: a second player if a slot is open, else a spectator).
-- **During the fight:** frame, delay and waits.
+- **In the lobby:** the slots (name, character, ready, round trip), your character, **ready**, and chat. The host also has **start**, **invite** (another invite: a second player if a slot is open, else a spectator), and **rollback** (on by default; off is lockstep).
+- **During the fight:** frame, delay, rollbacks and waits.
 - **After the fight:** **rematch** (host) and **replay** (save the fight).
 
 The fight uses the host's play-tab scenario if it's a one-on-one, otherwise `you vs ai`, always with both sides human. While a match lasts, its world is the play tab's fight. The world carries `.net`, so the frame loop drives it through `netFrame` at a steady 60 frames a second, and it keeps running while the page is paused. It is also kept out of everything that would change it on one side only: rewind, scrub, the loop toggle, and macros (`ownWorlds()`).
 
 ## Next
 
-- **Rollback:** predict the other side's input, run ahead, and replay from the world's `restore` and checkpoints when the real input differs. That removes the input delay's lag.
+- **Time sync:** each side reports how far ahead it runs, and the side that's ahead skips a tick now and then. Today, a side that runs ahead only finds out when it reaches the rollback window and waits.
 - **Spectators who see the fight:** the host relays both players' inputs to them, and they run the fight themselves. Today a spectator only sees the lobby.
 - **Shorter codes:** strip the SDP down to ufrag, pwd, fingerprint and candidates (about 150 characters), plus a QR code.
 - **A server signaler,** for short room codes and a room list. It only replaces `ManualSignal`.
@@ -161,11 +170,16 @@ hooks.match = m => match?.receive(m);
 ## Tests
 
 - `tests/lobby.test.js` (`npm test`) covers the lobby over fake links: join, version reject, spectators, ready rules, start and sync, desync, a guest's own character, leave and forfeit, rematch, keepalive and timeouts, chat. It also tests the codes and the manual signaler.
-- `tests/netmatch.test.js` (`npm test`) covers the match over a simulated network: low latency, latency above the delay (stalls), 30% lost messages, different delays on each side, a tampered input caught as a desync, a press kept through a stall, the result and a replay that plays back the same, and a match started by a lobby.
+- `tests/netmatch.test.js` (`npm test`) covers the match over a simulated network: low latency, latency above the delay (stalls), 30% lost messages, different delays on each side, a tampered input caught as a desync, a press kept through a stall, the result and a replay that plays back the same, and a match started by a lobby. The rollback tests cover:
+  - high latency, with fewer waits than lockstep and rollbacks that really happen;
+  - lost messages, and latency beyond the rollback window;
+  - tampering;
+  - the confirmed end and its replay;
+  - drawing histories that survive a rollback.
 - `tests/globals.test.js` checks that no top-level name is declared in two `src/` scripts. A second `function` of the same name would silently replace the first, as nearly happened here.
 - `node tools/netplay-test.js` runs two separate headless Chromes, connected peer to peer through the app's own `src/` files:
   - through the lobby to a synced match start, then the guest leaves mid-match;
-  - then through the play tab: the guest opens the host's invite link, both ready, the match runs on both stages, and their state hashes are compared.
+  - then through the play tab: the guest opens the host's invite link and both ready. Match messages get 80 ms of extra latency and both sides press keys, so rollback really guesses wrong on the real stages. Their state hashes are then compared.
 
   Node only carries the codes between them.
 
