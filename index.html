@@ -82,6 +82,15 @@
   #side { grid-area: side; overflow: auto; border-left: 1px solid #ddd7cb; padding: 8px; box-sizing: border-box; }
   #side h3 { display: flex; align-items: center; margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
   .row { display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 4px; margin: 2px 0; }
+  /* netplay (src/netui.js): the play tab's lobby section */
+  .netplay p { margin: 4px 0; } .netplay .bar { margin: 4px 0; }
+  .netrow { display: flex; align-items: center; gap: 4px; margin: 4px 0; } .netrow input, .netrow select { flex: 1; min-width: 0; }
+  .netcode { width: 100%; box-sizing: border-box; font: 10px/1.2 ui-monospace, Menlo, monospace; word-break: break-all; resize: vertical; background: #fbfaf6; border: 1px solid #cfc8bb; }
+  .netslot { padding: 2px 4px; border-radius: 3px; } .netslot.me { background: #e9e3d4; }
+  .neterr { color: #c0392b; }
+  .netlog { max-height: 8em; overflow-y: auto; margin: 4px 0; color: #555; }
+  .netplay > input { width: 100%; box-sizing: border-box; }
+  .netqr { display: block; margin: 4px auto; image-rendering: pixelated; max-width: 100%; }
   .row input[type=range] { width: 100%; }
   #side .row + .row { border-top: 1px solid #e3ded2; }
   .fold > h3, .fold > h4 { cursor: pointer; }
@@ -293,6 +302,9 @@
 <script src="src/replay.js"></script>
 <script src="src/netplay.js"></script>
 <script src="src/lobby.js"></script>
+<script src="src/netmatch.js"></script>
+<script src="src/qr.js"></script>
+<script src="src/netui.js"></script>
 <script src="src/welcome.js"></script>
 <script src="src/app.js"></script>
 <script src="src/bridge.js"></script>

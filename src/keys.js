@@ -83,7 +83,7 @@ const keyLabel = k => k.replace('Shift+', '⇧').replace('Alt+', '⌥').replace(
 
 // a macro plays in every world the keyboard controls (merged with the keys held), see World.step
 function runMacro(m) {
-  for (const w of mode().worlds()) if (w.ctl[0] === 'human' && !w.playback) { w.macro = new Script(parseMacro(m.seq)); w.macroSeq = m.seq; }
+  for (const w of ownWorlds()) if (w.ctl[0] === 'human' && !w.playback) { w.macro = new Script(parseMacro(m.seq)); w.macroSeq = m.seq; }
 }
 
 // a custom bind's group isn't in CTX_OF, so like 'view' or 'transport' it works everywhere, with a letter taking ⇧ in a fight

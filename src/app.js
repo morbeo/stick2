@@ -93,7 +93,7 @@ function panels() {
 }
 function restart() { mode().restart(); }
 // rewind every fight n frames and pause there
-function rewind(n) { app.paused = true; app.scrub = false; if (mode().rewind) return mode().rewind(n); for (const w of mode().worlds()) w.rewind(n); }
+function rewind(n) { app.paused = true; app.scrub = false; if (mode().rewind) return mode().rewind(n); for (const w of ownWorlds()) w.rewind(n); }
 function toggleHints() { ui.hints = !ui.hints; saveUi(); }
 // factory reset: asks, then deletes everything this app keeps in the browser (characters, settings, keys and macros, layout) and reloads as on a first visit
 function reload() { location.reload(); }
@@ -135,7 +135,7 @@ function transportCtx() {
       toggle(':mouse:', 'Scrub: mouse left/right over the view sets the time: every fight is re-simulated to that moment' + keyTip('scrub'), () => app.scrub, v => { app.scrub = v; app.scrubF = null; }),
       toggle(':repeat:', 'Loop: scripted fights restart when their period ends; off = stop at the end', () => app.loop, v => {
         app.loop = v;
-        for (const w of mode().worlds()) { w.loop = v; if (v && w.done) w.reset(); }
+        for (const w of ownWorlds()) { w.loop = v; if (v && w.done) w.reset(); }
       })),
   ];
 }
@@ -187,11 +187,12 @@ function frame(now) {
   if (now - perf.t0 >= 1000) { Object.assign(app, { fps: perf.frames, worstMs: perf.worst, frameMs: (now - perf.t0) / perf.frames }); Object.assign(perf, { t0: now, frames: 0, worst: 0 }); }
   last = now;
   const inp = readInput(), ran = !app.scrub && (!app.paused || app.stepOnce);
+  netFrame(raw, inp); // an online match runs on, paused or not: the other side is waiting on it
   if (app.scrub) { if (app.scrubF !== null) scrub(app.scrubF); }
   else if (ran) {
     const dt = app.stepOnce ? 1 / 60 : raw * app.speed;
     mode().tick?.(dt);
-    for (const w of mode().worlds()) { w.advance(dt, inp); w.scrubN = undefined; }
+    for (const w of ownWorlds()) { w.advance(dt, inp); w.scrubN = undefined; }
     app.stepOnce = false;
   }
   mode().render(); clipCapture(now, ran); drawScope(); drawDebug();
@@ -207,7 +208,7 @@ function frame(now) {
 function scrub(f) {
   app.scrubF = null;
   if (mode().scrub) return mode().scrub(f);
-  for (const w of mode().worlds()) {
+  for (const w of ownWorlds()) {
     const n = Math.round(f * (w.scen.period || 4) * 60);
     if (w.scrubN === undefined || n < w.scrubN) { w.reset(); w.scrubN = 0; }
     for (; w.scrubN < n; w.scrubN++) w.advance(1 / 60, NOIN);

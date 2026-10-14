@@ -9,7 +9,7 @@ const LOBBY = { slots: 2, watchers: 6, pingMs: 1000, timeoutMs: 10000, name: 24,
 
 class Lobby {
   // role: 'host' | 'guest'; name: ours; send (guest): message → the host; now: a ms clock (the tests pass their own)
-  // hooks: change(lobby) on every new snapshot; event(e) for chat, errors and phase changes;
+  // hooks: change(lobby) on every new snapshot; event(e) for chat, errors and phase changes (the match's carries its header); match(m) the match's messages;
   //        header(state, seed, defs) → the match a start sends (default: lobbyHeader); verify(header) → its hash (default: lobbyHash)
   constructor({ role, name = 'player', send = null, hooks = {}, now = () => Date.now(), engine = typeof ENGINE_VERSION !== 'undefined' ? ENGINE_VERSION : 0 }) {
     Object.assign(this, { role, name: lobbyClip(name, LOBBY.name), toHost: send, hooks, now, engine, header: null, id: null, peers: new Map(), n: 0, defs: {}, lastPing: 0, heard: now() });
@@ -57,12 +57,14 @@ class Lobby {
     switch (m.t) {
       case 'welcome': this.id = m.id; break;
       case 'reject': this.close(m.reason); break;
-      case 'lobby': if (!this.state || m.state.rev > this.state.rev) { const was = this.phase; this.state = m.state; if (was !== m.state.phase) this.emit({ type: 'phase', phase: m.state.phase }); this.hooks.change?.(this); } break;
+      case 'lobby': if (!this.state || m.state.rev > this.state.rev) { const was = this.phase; this.state = m.state; if (was !== m.state.phase) this.emit({ type: 'phase', phase: m.state.phase, ...m.state.phase === 'match' ? { header: this.header } : {} }); this.hooks.change?.(this); } break;
       case 'start': { this.header = m.header; let hash; try { hash = this.verify(m.header); } catch (e) { hash = 'error: ' + e.message; }
         this.toHost?.({ t: 'synced', hash }); break; }
       case 'chat': this.emit({ type: 'chat', from: m.from, name: m.name, text: m.text }); break;
       case 'ping': this.toHost?.({ t: 'pong', at: m.at }); break;
       case 'bye': this.close(m.reason || 'the host closed the lobby'); break;
+      case 'in': case 'sum': if (this.phase === 'match') this.hooks.match?.(m); break;
+      case 'watch': if ((this.phase === 'match' || this.phase === 'post') && !this.me) this.hooks.match?.(m); break; // a spectator's (NetWatch); the last frames arrive just after the end
     }
   }
   fromGuest(id, m) {
@@ -83,6 +85,7 @@ class Lobby {
       case 'chat': this.relayChat(id, m.text); break;
       case 'synced': this.synced(id, m.hash); break;
       case 'leave': this.unlink(id, 'left'); break;
+      case 'in': case 'sum': if (s.phase === 'match' && i >= 0) this.hooks.match?.(m); break; // the match's own (src/netmatch.js)
     }
   }
   hello(id, p, m) {
@@ -90,7 +93,7 @@ class Lobby {
     if (p.hello) return;
     if (m.proto !== NET_PROTO) return no(`lobby protocol v${m.proto}, the host runs v${NET_PROTO}: both reload the page`);
     if (m.engine !== this.engine) return no(`engine v${m.engine}, the host runs v${this.engine}: both reload the page`);
-    const who = { id, name: lobbyClip(m.name, LOBBY.name) || 'guest' }, free = s.slots.indexOf(null);
+    const who = { id, name: this.freeName(lobbyClip(m.name, LOBBY.name) || 'guest') }, free = s.slots.indexOf(null);
     if (m.want !== 'watch' && free >= 0 && s.phase === 'lobby') s.slots[free] = { ...who, char: null, ready: false, rtt: 0 };
     else if (s.watch.length < LOBBY.watchers) s.watch.push(who);
     else return no('the lobby is full');
@@ -98,6 +101,13 @@ class Lobby {
     p.send({ t: 'welcome', id });
     this.emit({ type: 'joined', id, name: who.name });
     this.broadcast();
+  }
+  // two players called the same get told apart: player, player 2, player 3…
+  freeName(name) {
+    const taken = new Set([...this.state.slots, ...this.state.watch].filter(Boolean).map(x => x.name));
+    let n = name;
+    for (let i = 2; taken.has(n); i++) n = name + ' ' + i;
+    return n;
   }
   relayChat(id, text) {
     text = lobbyClip(text, LOBBY.chat); if (!text) return;
@@ -111,7 +121,7 @@ class Lobby {
   ready(on = true) { if (this.host) this.request('h', { t: 'ready', on }); else this.toHost?.({ t: 'ready', on }); }
   chat(text) { if (this.host) this.relayChat('h', text); else this.toHost?.({ t: 'chat', text }); }
   // a guest's hello, once its link is open: want 'play' (a free slot, else watch) or 'watch'
-  join(want = 'play') { this.toHost?.({ t: 'hello', proto: NET_PROTO, engine: this.engine, name: this.name, want }); }
+  join(want = 'play') { this.want = want; this.helloAt = this.now(); this.toHost?.({ t: 'hello', proto: NET_PROTO, engine: this.engine, name: this.name, want }); }
   leave() { if (this.host) { for (const p of this.peers.values()) p.send({ t: 'bye', reason: 'the host closed the lobby' }); this.peers.clear(); } else this.toHost?.({ t: 'leave' }); this.close('you left'); }
   close(why) { if (this.phase === 'closed') return; this.state = { ...(this.state || { rev: 0, slots: [], watch: [] }), phase: 'closed', error: why }; this.emit({ type: 'phase', phase: 'closed', why }); this.hooks.change?.(this); }
 
@@ -144,8 +154,8 @@ class Lobby {
     this.waiting.delete(id);
     if (this.waiting.size) return;
     this.state.phase = 'match';
+    this.broadcast(); // first, so a guest is in the match before any of the match's own messages reach it
     this.emit({ type: 'phase', phase: 'match', header: this.header });
-    this.broadcast();
   }
   abort(error) { Object.assign(this.state, { phase: 'lobby', error }); this.waiting = null; for (const sl of this.state.slots) if (sl) sl.ready = false; this.emit({ type: 'error', error }); this.broadcast(); }
   // the match is over: result is whatever the match layer reports (winner, K.O., a forfeit)
@@ -162,12 +172,30 @@ class Lobby {
     this.emit({ type: 'phase', phase: 'lobby' });
     this.broadcast();
   }
+  // a match message (src/netmatch.js) to the other player: a guest's goes to the host, the host's to the guest in the other slot
+  matchSend(m) {
+    if (this.phase !== 'match') return;
+    if (!this.host) return this.toHost?.(m);
+    const other = this.state.slots.find(sl => sl && sl.id !== 'h');
+    if (other) this.sendTo(other.id, m);
+  }
+  // the confirmed fight, to every spectator (src/netmatch.js NetWatch)
+  watchSend(m) {
+    if (!this.host || (this.phase !== 'match' && this.phase !== 'post')) return; // (the last confirmed frames go out just after the end)
+    for (const w of this.state.watch) this.sendTo(w.id, m);
+  }
   verify(header) { return (this.hooks.verify || lobbyHash)(header); }
 
   // ---------- both sides: keepalive. Call often (every frame is fine): pings each second, drops anyone silent too long ----------
   tick() {
     const t = this.now();
     if (this.phase === 'closed') return;
+    // our own page stood still for a while (a busy or backgrounded tab): what the others sent meanwhile is still queued, unread, so
+    // their silence isn't theirs. Start their clocks again instead of dropping them
+    if (this.lastTick && t - this.lastTick > LOBBY.timeoutMs / 2) { this.heard = t; for (const p of this.peers.values()) p.heard = t; }
+    this.lastTick = t;
+    // a hello with no welcome yet goes again every couple of seconds (the host ignores a second one from the same link)
+    if (!this.host && !this.id && this.helloAt !== undefined && t - this.helloAt > 2000) this.join(this.want);
     if (!this.host) { if (this.state && t - this.heard > LOBBY.timeoutMs) this.close('lost the host'); return; }
     for (const [id, p] of this.peers) if (t - p.heard > LOBBY.timeoutMs) this.unlink(id, 'timed out');
     if (t - this.lastPing < LOBBY.pingMs) return;
