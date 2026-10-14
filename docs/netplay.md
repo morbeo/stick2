@@ -2,7 +2,7 @@
 
 [← docs index](README.md)
 
-Online play between two browsers, with no server: the design, and what's built so far. Status: **layers 1–3 are built and tested** (connection, invite codes, lobby). Layer 4 (match inputs) and the lobby UI are not built yet.
+Online play between two browsers, with no server: the design, and what's built so far. Status: **all four layers and the play tab's netplay section are built and tested.** Rollback, spectators seeing the fight, and shorter codes are next.
 
 ## Constraints
 
@@ -18,7 +18,8 @@ Online play between two browsers, with no server: the design, and what's built s
 | 1. Transport | `src/netplay.js` (`NetPeer`) | One `RTCPeerConnection` with one ordered, reliable data channel, carrying JSON messages |
 | 2. Signaling | `src/netplay.js` (`ManualSignal`, `netHost`, `netJoin`) | Gets the host's offer code to the guest, and the guest's answer code back |
 | 3. Lobby | `src/lobby.js` (`Lobby`) | Who's in, who plays which character, ready, start, rematch, leave |
-| 4. Match | not built yet | Inputs every frame, input delay, then rollback |
+| 4. Match | `src/netmatch.js` (`NetMatch`) | Inputs every frame with a fixed input delay, desync checks, the result, the replay |
+| UI | `src/netui.js` | The play tab's **netplay** section, `#join=` links, and running the match on the stage |
 
 The lobby never touches the network. The host links each guest with a send function and passes whatever arrives to `receive`. So the same lobby runs over WebRTC, over a server relay, or (in the tests) over plain function calls.
 
@@ -97,14 +98,39 @@ Each guest rebuilds the fight from the header and replies with `lobbyHash`: a ha
 
 A player leaving during `sync` sends the lobby back to `lobby`. Leaving during `match` is a forfeit: the lobby moves to `post` with `result: { forfeit: id }`.
 
-## Layer 4: next
+## The match (layer 4)
 
-- **Inputs:** `input {f, bits}` every frame, using the replay's key bitmask, with the last few frames resent each time so a lost message doesn't stall the fight. Probably on a second, unordered and unreliable channel.
-- **Input delay first:** a fixed 2–3 frames, set from the lobby's `rtt`. **Then rollback**, using the world's `restore` and checkpoints.
-- **Desync checks:** `sum {f, hash}` every K frames, using the same checksums replays keep.
-- **Spectators:** the host relays both players' inputs to them, and they run the fight themselves.
-- **Lobby UI:** a panel with host/join, the code with copy and QR buttons, slots, character pick, ready, chat. A `#join=` link opens it.
-- **Shorter codes:** strip the SDP down to ufrag, pwd, fingerprint and candidates to get a code of about 150 characters.
+When the lobby reaches `match`, each side builds a `NetMatch` from the header (P1 is the host, `side: 0`). Each side then calls `tick(input)` once per 1/60 s of wall time.
+
+- **Input delay.** An input made at frame `f` is for frame `f + delay` and is sent at once, so by the time that frame runs it has usually arrived. The host sets `delay` from the guest's round trip (half the round trip in frames, plus one, between 2 and 8) and puts it in the header as `netDelay`, so both sides use the same value.
+- **Lockstep.** A frame runs only once both inputs for it are in. Otherwise the match waits (a *stall*, counted in `stalls`), and then runs up to two frames per tick to catch up. Nothing is assumed about the other side's inputs, not even the idle first frames, so the two sides can't drift apart.
+- **Inputs** travel as the replay's key bitmask: `in {f, b: [masks], a}`. Each message carries every input the other side hasn't acknowledged yet (`a` is how far we've got theirs), up to the last 30. A lost message costs nothing, and a stalled side keeps resending, so a loss can't freeze both sides.
+- **A press during a stall** (hop, punch, kick, special) carries over to the next input, so a quick tap is never lost.
+- **Frame time is fixed** at 1/60 s, never wall time. The same inputs always give the same fight.
+- **Desync checks.** Every 30 frames each side sends `sum {f, h}` with `world.stateHash()`. The first difference fires `hooks.desync(frame)`.
+- **The end.** When the world is done, `result` is `{ winner: 0 | 1 | null, frames, hash }` (by K.O., or by health at a time out). The host passes it to `lobby.finish`, which moves the lobby to `post`. `replay()` is the match as a replay file.
+
+Match messages go through the lobby: `lobby.matchSend(m)` sends them, and `hooks.match(m)` receives them, only in `match`.
+
+## In the app
+
+The play tab's **netplay** section (`src/netui.js`):
+
+- **Before connecting:** your name, **host**, and a field to paste an invite.
+- **Host:** the invite link, with **copy link** and **code only** buttons, and a field for the guest's answer code.
+- **Guest:** the answer code to send back. A `#join=` link opens the play tab already joining; the code then leaves the address bar, so a reload doesn't reuse it.
+- **In the lobby:** the slots (name, character, ready, round trip), your character, **ready**, and chat. The host also has **start** and **invite** (another invite: a second player if a slot is open, else a spectator).
+- **During the fight:** frame, delay and waits.
+- **After the fight:** **rematch** (host) and **replay** (save the fight).
+
+The fight uses the host's play-tab scenario if it's a one-on-one, otherwise `you vs ai`, always with both sides human. While a match lasts, its world is the play tab's fight. The world carries `.net`, so the frame loop drives it through `netFrame` at a steady 60 frames a second, and it keeps running while the page is paused. It is also kept out of everything that would change it on one side only: rewind, scrub, the loop toggle, and macros (`ownWorlds()`).
+
+## Next
+
+- **Rollback:** predict the other side's input, run ahead, and replay from the world's `restore` and checkpoints when the real input differs. That removes the input delay's lag.
+- **Spectators who see the fight:** the host relays both players' inputs to them, and they run the fight themselves. Today a spectator only sees the lobby.
+- **Shorter codes:** strip the SDP down to ufrag, pwd, fingerprint and candidates (about 150 characters), plus a QR code.
+- **A server signaler,** for short room codes and a room list. It only replaces `ManualSignal`.
 
 ## Using it
 
@@ -124,11 +150,23 @@ netJoinLobby(lobby, sig);
 sig.paste(netJoinCode(location.hash) || pastedCode); // shows the answer code to send back
 ```
 
-Call `lobby.tick()` often (every frame is fine) on both sides, for pings and timeouts.
+Call `lobby.tick()` often (every frame is fine) on both sides, for pings and timeouts. Then the match:
+
+```js
+hooks.event = e => { if (e.phase === 'match') match = new NetMatch({ header: e.header, side: lobby.host ? 0 : 1, send: m => lobby.matchSend(m), hooks: { end: r => lobby.host && lobby.finish(r) } }); };
+hooks.match = m => match?.receive(m);
+// every 1/60 s: match.tick(readInput()); draw match.world
+```
 
 ## Tests
 
 - `tests/lobby.test.js` (`npm test`) covers the lobby over fake links: join, version reject, spectators, ready rules, start and sync, desync, a guest's own character, leave and forfeit, rematch, keepalive and timeouts, chat. It also tests the codes and the manual signaler.
-- `node tools/netplay-test.js` runs two separate headless Chromes, connected peer to peer through the app's own `src/` files. They go through the lobby to a synced match start, then the guest leaves mid-match. Node only carries the codes between them.
+- `tests/netmatch.test.js` (`npm test`) covers the match over a simulated network: low latency, latency above the delay (stalls), 30% lost messages, different delays on each side, a tampered input caught as a desync, a press kept through a stall, the result and a replay that plays back the same, and a match started by a lobby.
+- `tests/globals.test.js` checks that no top-level name is declared in two `src/` scripts. A second `function` of the same name would silently replace the first, as nearly happened here.
+- `node tools/netplay-test.js` runs two separate headless Chromes, connected peer to peer through the app's own `src/` files:
+  - through the lobby to a synced match start, then the guest leaves mid-match;
+  - then through the play tab: the guest opens the host's invite link, both ready, the match runs on both stages, and their state hashes are compared.
+
+  Node only carries the codes between them.
 
 `prototype/netplay.html` is the original connection-only proof of concept, which `src/netplay.js` replaces.

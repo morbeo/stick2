@@ -31,6 +31,12 @@ test('a guest joins: gets the second slot, and its view is the host\'s snapshot'
   assert.deepEqual(plain(g.state), plain(host.state));
 });
 
+test('two players with the same name get told apart', () => {
+  const host = new Lobby({ role: 'host', name: 'player', now: () => 0 });
+  for (const n of [1, 2]) host.receive(host.link(() => {}), { t: 'hello', proto: 1, engine: VER, name: 'player' });
+  assert.deepEqual(plain([...host.state.slots, ...host.state.watch].map(s => s.name)), ['player', 'player 2', 'player 3']);
+});
+
 test('a hello from another engine or protocol version is turned away', () => {
   const host = new Lobby({ role: 'host', now: () => 0 }), got = [];
   const id = host.link(m => got.push(m));

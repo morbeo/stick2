@@ -29,12 +29,19 @@ function net({ lat = 1, loss = 0, delay = 2, frames = 300, period = 0, tamper = 
 }
 const agree = ([a, b]) => { const fs = Object.keys(a.sums).filter(f => f in b.sums); assert.ok(fs.length > 3, 'too few checks: ' + fs.length); for (const f of fs) assert.equal(a.sums[f], b.sums[f], 'frame ' + f); };
 
-test('low latency: the two sides play the same fight without waiting', () => {
+test('low latency: the two sides play the same fight, waiting only for the first input', () => {
   const ms = net({ lat: 1 });
   agree(ms);
   assert.ok(ms.every(m => m.desync === null));
-  assert.ok(ms.every(m => m.stalls === 0), 'stalls: ' + ms.map(m => m.stalls));
+  assert.ok(ms.every(m => m.stalls <= 2), 'stalls: ' + ms.map(m => m.stalls)); // only the first frame waits, for their first input
   assert.ok(ms[0].world.hits + ms[0].world.blocks > 0, 'nothing connected: the inputs don\'t reach the fight');
+});
+
+test('the two sides can use different delays and still agree', () => {
+  const h = header(), q = [], ms = [2, 5].map((delay, side) => new NetMatch({ header: h, side, delay, send: m => q.push([1 - side, plain(m)]) }));
+  for (let t = 0; t < 400; t++) { for (const [to, m] of q.splice(0)) ms[to].receive(m); ms.forEach((m, side) => m.tick(press(side, t))); }
+  agree(ms);
+  assert.equal(new NetMatch({ header: { ...h, netDelay: 4 }, side: 0 }).delay, 4, 'the header\'s delay');
 });
 
 test('latency above the input delay: the match waits, and still plays the same fight', () => {
@@ -58,7 +65,8 @@ test('a different input is caught as a desync at the next check', () => {
 
 test('a press made while the match waits is kept for the next input', () => {
   const m = new NetMatch({ header: header(), side: 0, delay: 1 }), punch = 1 << m.keys.indexOf('punch');
-  m.tick({}); m.tick({}); // frame 0 runs (nobody's input can land there); then it waits on theirs for frame 1
+  m.receive({ t: 'in', f: 0, b: [0] });
+  m.tick({}); m.tick({}); // frame 0 runs; then it waits on theirs for frame 1
   m.tick({ punch: true }); // already a frame ahead: the press can't go yet
   assert.equal(m.next, 3); assert.equal(m.f, 1);
   m.receive({ t: 'in', f: 1, b: [0, 0] });

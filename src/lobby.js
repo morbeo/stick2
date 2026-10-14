@@ -92,7 +92,7 @@ class Lobby {
     if (p.hello) return;
     if (m.proto !== NET_PROTO) return no(`lobby protocol v${m.proto}, the host runs v${NET_PROTO}: both reload the page`);
     if (m.engine !== this.engine) return no(`engine v${m.engine}, the host runs v${this.engine}: both reload the page`);
-    const who = { id, name: lobbyClip(m.name, LOBBY.name) || 'guest' }, free = s.slots.indexOf(null);
+    const who = { id, name: this.freeName(lobbyClip(m.name, LOBBY.name) || 'guest') }, free = s.slots.indexOf(null);
     if (m.want !== 'watch' && free >= 0 && s.phase === 'lobby') s.slots[free] = { ...who, char: null, ready: false, rtt: 0 };
     else if (s.watch.length < LOBBY.watchers) s.watch.push(who);
     else return no('the lobby is full');
@@ -100,6 +100,13 @@ class Lobby {
     p.send({ t: 'welcome', id });
     this.emit({ type: 'joined', id, name: who.name });
     this.broadcast();
+  }
+  // two players called the same get told apart: player, player 2, player 3…
+  freeName(name) {
+    const taken = new Set([...this.state.slots, ...this.state.watch].filter(Boolean).map(x => x.name));
+    let n = name;
+    for (let i = 2; taken.has(n); i++) n = name + ' ' + i;
+    return n;
   }
   relayChat(id, text) {
     text = lobbyClip(text, LOBBY.chat); if (!text) return;

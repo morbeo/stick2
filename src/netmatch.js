@@ -11,13 +11,16 @@ const NET_EDGES = ['hop', 'punch', 'kick', 'special']; // a press during a stall
 class NetMatch {
   // header: the lobby's match (a replay header); side: 0 = P1 (the host), 1 = P2; send(m): to the other side
   // hooks: end(result) once the fight is over; desync(frame) on the first differing hash
-  constructor({ header, side, delay = NETMATCH.delay, send = () => {}, hooks = {} }) {
+  // delay: frames between an input and the frame it's for (the header's netDelay, set by the host, else NETMATCH.delay)
+  constructor({ header, side, delay = header.netDelay ?? NETMATCH.delay, send = () => {}, hooks = {} }) {
     const w = this.world = new World({ ...SCENARIOS[header.scenario], ...header.scen }, header.cfg, header.seed, header.chars.map(makeCharacter));
     w.loop = false;
     delay = Math.max(1, Math.min(NETMATCH.maxDelay, Math.round(delay)));
     Object.assign(this, { header, side, delay, send, hooks, keys: header.keys, f: 0, next: delay, mine: [], theirs: [], acked: -1, pend: 0,
       sums: {}, theirSums: {}, desync: null, result: null, stalls: 0 });
-    for (let i = 0; i < delay; i++) this.mine[i] = this.theirs[i] = 0; // the first frames, before anyone's input can land: both idle
+    // our first frames, before any input of ours can land, are idle; theirs come over the network like any other (never assumed),
+    // so the two sides stay in step even with different delays
+    for (let i = 0; i < delay; i++) this.mine[i] = 0;
     this.edges = NET_EDGES.reduce((m, k) => m | 1 << this.keys.indexOf(k), 0);
   }
   mask(inp) { return this.keys.reduce((m, k, i) => m | (inp?.[k] ? 1 << i : 0), 0); }

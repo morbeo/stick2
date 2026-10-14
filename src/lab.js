@@ -98,7 +98,7 @@ function build() {
   if (!bodyKind()) creator.expOn = false;
   if (lab.mode === 'play') {
     const replay = lab.replay && lab.tape?.length && scen.a === 'human';
-    lab.cells.push({ w: lab.branch ? lab.branch.make() : lab.playback ? Object.assign(replayWorld(lab.playback), { loop: app.loop }) : newWorld(withInv(replay ? { ...scen, b: { tape: lab.tape } } : scen), {}, 1, playChars()) });
+    lab.cells.push({ w: netWorld() || (lab.branch ? lab.branch.make() : lab.playback ? Object.assign(replayWorld(lab.playback), { loop: app.loop }) : newWorld(withInv(replay ? { ...scen, b: { tape: lab.tape } } : scen), {}, 1, playChars())) }); // an online match's world while it lasts (netui.js)
     lab.cells[0].w.sfx = playSound; lab.cols = 1;
   }
   else if (lab.mode === 'experiment' && lab.kind === 'impact' && lab.impact === 'ragdoll') { lab.cells.push({ w: ragdollWorld() }); lab.cols = 1; }
@@ -787,7 +787,7 @@ function gridLink(row, s) {
   return expLink(row, `test ${s.k} in a grid, one value per cell`,
     () => { lab.kind = 'sweep'; Object.assign(lab.x, { k: s.k, lo: s.min, hi: s.max }); lab.y.k = ''; setMode('experiment'); });
 }
-const labSide = () => lab.mode === 'gallery' ? moveSide() : configPanel();
+const labSide = () => lab.mode === 'gallery' ? moveSide() : [...netSide(), ...configPanel()];
 // the debug popup (menu bar): the Debug settings, the debug information, report a bug, reset and factory reset
 // (the scope bone and the monitor live in the experiment tab now - see scopePanel)
 function debugPanel(e, b) {
@@ -911,7 +911,7 @@ const labMode = {
   render: () => bodyKind() ? creatorRender() : labRender(),
   ctxBar: labCtx,
   side: () => bodyKind() ? expPanel() : labSide(),
-  get open() { return bodyKind() ? ['body experiment'] : lab.mode === 'gallery' ? ['move', 'key'] : lab.mode === 'play' ? ['presets', 'movelist'] : ['presets']; },
+  get open() { return bodyKind() ? ['body experiment'] : lab.mode === 'gallery' ? ['move', 'key'] : lab.mode === 'play' ? ['presets', 'movelist', ...net.lobby ? ['netplay'] : []] : ['presets']; },
   mouse(type, x, y, e) {
     if (bodyKind()) return creatorMouse(type, x, y, e);
     if (lab.mode === 'experiment' && lab.kind === 'impact' && !e.shiftKey && impactMouse(type, x, y)) return;

@@ -2,7 +2,8 @@
 // Netplay end to end in two independent browser processes, peer to peer: the app's own src/netplay.js and src/lobby.js
 // connect over a WebRTC data channel, the guest joins the host's lobby, both pick and ready, and the match starts only once
 // both built the same fight. Node only stands in for the humans: it carries each side's code to the other, as a chat would.
-// No signaling server runs anywhere. usage: node tools/netplay-test.js   (CHROME=/path/to/chrome overrides the browser)
+// Then the same through the app's own play tab. No signaling server runs anywhere.
+// usage: node tools/netplay-test.js   (CHROME=/path/to/chrome overrides the browser)
 const path = require('path'), { pathToFileURL } = require('url');
 const { launch } = require('./chrome');
 const APP = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
@@ -48,7 +49,37 @@ async function main() {
     await until(host, `T.lobby.phase === 'post'`, 'the host to see the forfeit');
     console.log('guest left mid-match: host result', JSON.stringify(await host.js('T.lobby.state.result')));
 
-    console.log('\nPASS: two browsers, peer to peer, through the lobby to a synced match start, no server.');
+    console.log('PASS: two browsers, peer to peer, through the lobby to a synced match start, no server.\n');
+  } finally { host.close(); guest.close(); }
+  await app();
+}
+
+// the same through the app's play tab (src/netui.js): the host's invite link opened by the guest, the match on both stages,
+// run by both frame loops, checked against each other every NETMATCH.sumEvery frames
+async function app() {
+  const host = await launch(APP + '#tool=play'), guest = await launch('about:blank');
+  try {
+    await until(host, `typeof netLobby === 'function' && !!document.querySelector('#side')`, 'the app to load');
+    await host.js(`netLobby('host'); panels(); true`);
+    const link = await until(host, `net.inviting === 'waiting' && netInviteLink(net.code)`, 'the invite link');
+    await guest.send('Page.navigate', { url: link });
+    const answer = await until(guest, `typeof net !== 'undefined' && net.codeKind === 'answer' && net.code`, 'the guest\'s answer code');
+    if (await guest.js('!!document.querySelector(".modalback")')) throw new Error('a dialog covers the page the invite link opened');
+    await host.js(`netAnswer(${JSON.stringify(answer)}); true`);
+    await until(host, `net.lobby.state.slots[1]?.char`, 'the guest in the lobby, with a character');
+    await guest.js(`net.lobby.ready(); true`); await host.js(`net.lobby.ready(); true`);
+    await until(host, 'net.lobby.canStart()', 'both ready');
+    await host.js('net.lobby.start(99)');
+    await until(guest, 'net.match?.f > 150', 'the guest\'s match to run 150 frames');
+    await until(host, 'net.match?.f > 150', 'the host\'s match to run 150 frames');
+    const [a, b] = await Promise.all([host, guest].map(s => s.js('JSON.stringify(net.match.sums)').then(JSON.parse)));
+    const both = Object.keys(a).filter(f => f in b);
+    if (!both.length) throw new Error('no state hashes to compare yet');
+    const bad = both.find(f => a[f] !== b[f]);
+    if (bad) throw new Error(`the two stages went different ways by frame ${bad}`);
+    if (!await host.js('lab.cells[0].w === net.match.world')) throw new Error('the play tab isn\'t showing the match');
+    console.log(`app: both stages ran the match, ${both.length} state hashes compared, all the same`);
+    console.log('PASS: the play tab\'s netplay section, invite link to a running match.');
   } finally { host.close(); guest.close(); }
 }
 
