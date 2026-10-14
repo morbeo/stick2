@@ -4,8 +4,8 @@
 // A match's world is the play tab's fight while it lasts (build() asks netWorld()); it carries .net, so the app drives it here, at
 // a fixed 60 frames a second, and leaves it out of everything that would change it locally (rewind, scrub, loop, macros).
 const NET_NAME = 'stick2-netname';
-const net = { rollback: true, lobby: null, sig: null, match: null, code: null, codeKind: null, inviting: null, log: [], box: null, status: null, acc: 0, edges: {} };
-const netStatus = () => { const m = net.match; return `frame ${m.f} · delay ${m.delay}${m.roll ? ` · rollbacks ${m.rollbacks}` : ''} · waits ${m.stalls}${m.desync !== null ? ' · DESYNC' : ''}`; };
+const net = { rollback: true, peers: [], lobby: null, sig: null, match: null, code: null, codeKind: null, inviting: null, log: [], box: null, status: null, acc: 0, edges: {} };
+const netStatus = () => { const m = net.match; if (m.watching) return `watching · frame ${m.f} · ${m.behind} behind${m.desync !== null ? ' · DESYNC' : ''}`; return `frame ${m.f} · delay ${m.delay}${m.roll ? ` · rollbacks ${m.rollbacks}` : ''} · waits ${m.stalls}${m.desync !== null ? ' · DESYNC' : ''}`; };
 const ownWorlds = () => mode().worlds().filter(w => !w.net); // the fights only this page runs
 const netWorld = () => net.match?.world || null;
 const netName = () => { try { return localStorage.getItem(NET_NAME) || 'player'; } catch { return 'player'; } };
@@ -13,7 +13,7 @@ const netSay = text => { net.log.push(text); if (net.log.length > 8) net.log.shi
 
 // ---------- the lobby's hooks ----------
 function netLobby(role) {
-  net.log = []; net.code = null; net.match = null; net.inviting = null;
+  netHangUp(); net.log = []; net.code = null; net.match = null; net.inviting = null;
   net.sig = new ManualSignal((code, kind) => { net.code = code; net.codeKind = kind; if (kind === 'offer') net.inviting = 'waiting'; netDraw(); });
   net.lobby = new Lobby({ role, name: netName(), hooks: {
     change: () => netDraw(),
@@ -38,11 +38,13 @@ const netDelay = state => {
   const oneWay = Math.ceil((Math.max(0, ...state.slots.map(s => s?.rtt || 0)) / 2) / (1000 / 60));
   return net.rollback ? clamp(oneWay - 2, 1, NETMATCH.maxDelay) : clamp(oneWay + 1, 2, NETMATCH.maxDelay);
 };
-function netInvite() { net.code = null; net.inviting = 'making'; netInviteGuest(net.lobby, net.sig); netDraw(); }
+function netInvite() { net.code = null; net.inviting = 'making'; net.peers.push(netInviteGuest(net.lobby, net.sig)); netDraw(); }
+// every connection goes when the lobby does
+function netHangUp() { for (const p of net.peers) p.close('left'); net.peers = []; }
 function netAnswer(code) { if (!code.trim()) return; net.sig.paste(code); net.code = null; net.inviting = null; netDraw(); }
 function netEnter(code) {
   if (!net.lobby || net.lobby.phase === 'closed') netLobby('guest');
-  netJoinLobby(net.lobby, net.sig);
+  net.peers.push(netJoinLobby(net.lobby, net.sig));
   net.sig.paste(code);
   netDraw();
 }
@@ -56,10 +58,15 @@ function netJoinFromLink(code) {
 }
 function netPhase(e) {
   if (e.phase === 'match' && e.header) {
-    const m = net.match = new NetMatch({ header: e.header, side: net.lobby.host ? 0 : 1, send: msg => net.lobby.matchSend(msg), hooks: {
-      end: r => { netSay(r.winner === null ? 'draw' : r.winner === m.side ? 'you win' : 'you lose'); if (net.lobby.host) net.lobby.finish(r); },
-      desync: f => netSay(`:close: the fights went different ways at frame ${f}: save the replay and report it`) } });
-    m.world.net = m; m.world.sfx = playSound;
+    const desync = f => netSay(`:close: the fights went different ways at frame ${f}: save the replay and report it`);
+    net.relay = { f: null, a: [], b: [], s: {} };
+    // a spectator watches the host's confirmed frames; a player plays (and the host passes what it confirms on to the spectators)
+    const m = net.match = !net.lobby.me
+      ? new NetWatch({ header: e.header, hooks: { desync, end: r => netSay(r.winner === null ? 'draw' : `P${r.winner + 1} wins`) } })
+      : new NetMatch({ header: e.header, side: net.lobby.host ? 0 : 1, send: msg => net.lobby.matchSend(msg), hooks: { desync,
+        end: r => { netSay(r.winner === null ? 'draw' : r.winner === m.side ? 'you win' : 'you lose'); if (net.lobby.host) net.lobby.finish(r); },
+        confirmed: net.lobby.host ? netRelay : undefined } });
+    m.world.sfx = playSound;
     net.acc = 0;
     if (mode() !== labMode || lab.mode !== 'play') setMode('play');
     build(); netSay('fight!');
@@ -69,6 +76,10 @@ function netPhase(e) {
   }
   netDraw();
 }
+
+// the lobby's pings and timeouts on a timer as well: a page in a background tab gets no animation frames, and the others mustn't
+// take that for a dropped connection
+setInterval(() => net.lobby?.tick(), 1000);
 
 // ---------- every animation frame (app.js): the lobby's pings, and the match's frames at a steady 60 a second ----------
 // presses (edges) from frames where no match frame ran wait for the next one, so a quick tap on a fast screen is never lost
@@ -82,6 +93,18 @@ function netFrame(raw, inp) {
     m.tick({ ...inp, ...net.edges }); net.edges = {};
     if (net.status?.isConnected && m.f % 15 === 0) net.status.textContent = netStatus();
   }
+  // the host: what its match confirmed since the last frame, in one message to every spectator
+  const r = net.relay;
+  if (net.lobby?.host && r?.a.length) {
+    if (net.lobby.state.watch.length) net.lobby.watchSend({ t: 'watch', f: r.f, a: r.a, b: r.b, s: r.s });
+    Object.assign(r, { f: null, a: [], b: [], s: {} });
+  }
+}
+// the host's match confirmed frame k (both real inputs; hash: the state after it, at checks)
+function netRelay(k, p1, p2, hash) {
+  const r = net.relay;
+  r.f ??= k; r.a.push(p1); r.b.push(p2);
+  if (hash !== undefined) r.s[k + 1] = hash;
 }
 
 // ---------- the side section ----------
@@ -133,7 +156,7 @@ function netDraw() {
       const say = h('input', { cls: 'macro', placeholder: 'chat', tip: 'Enter sends', onkeydown: e => { e.stopPropagation(); if (e.code === 'Enter' && say.value.trim()) { L.chat(say.value); say.value = ''; } } });
       rows.push(h('div', { cls: 'netlog' }, net.log.map(t => h('div', { textContent: t }))), say);
     }
-    rows.push(h('div', { cls: 'bar' }, button(':close: leave', 'Leave the lobby (mid-fight, that\'s a forfeit)', () => { L.leave(); net.match = null; net.code = null; build(); netDraw(); })));
+    rows.push(h('div', { cls: 'bar' }, button(':close: leave', 'Leave the lobby (mid-fight, that\'s a forfeit)', () => { L.leave(); netHangUp(); net.match = null; net.code = null; build(); netDraw(); })));
   }
   box.replaceChildren(...rows);
 }

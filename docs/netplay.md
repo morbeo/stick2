@@ -2,7 +2,7 @@
 
 [← docs index](README.md)
 
-Online play between two browsers, with no server: the design, and what's built so far. Status: **all four layers, rollback, and the play tab's netplay section are built and tested.** Spectators seeing the fight and shorter codes are next.
+Online play between two browsers, with no server: the design, and what's built so far. Status: **all four layers, rollback, spectators, and the play tab's netplay section are built and tested.** Shorter codes and time sync are next.
 
 ## Constraints
 
@@ -121,6 +121,16 @@ When the lobby reaches `match`, each side builds a `NetMatch` from the header (P
 
 Match messages go through the lobby: `lobby.matchSend(m)` sends them, and `hooks.match(m)` receives them, only in `match`.
 
+### Spectators
+
+A spectator's match is a `NetWatch`, not a `NetMatch`:
+
+- **What the host relays.** The host's match reports each frame it confirms through `hooks.confirmed(frame, p1, p2, hash?)`, with both players' real inputs. Once per animation frame, the host batches these into one message for every spectator: `watch {f, a: [P1 masks], b: [P2 masks], s: {frame: hash}}`, sent with `lobby.watchSend`.
+- **How the spectator plays it.** The spectator never guesses, so it never rolls back. It waits for a cushion of 4 frames, then plays one frame per tick, or 3 per tick when it falls more than 12 behind.
+- **Checks.** It compares its own state hashes with the host's (`desync`), reaches the same end, and saves the same replay.
+- **The last frames** reach the spectator just after the host's lobby has moved to `post`, so `watch` messages are accepted in `post` too.
+- **Joining.** A spectator has to be in the lobby when the match starts, since that's when it gets the match header. Someone who joins mid-match waits for the next one.
+
 ## In the app
 
 The play tab's **netplay** section (`src/netui.js`):
@@ -129,15 +139,23 @@ The play tab's **netplay** section (`src/netui.js`):
 - **Host:** the invite link, with **copy link** and **code only** buttons, and a field for the guest's answer code.
 - **Guest:** the answer code to send back. A `#join=` link opens the play tab already joining; the code then leaves the address bar, so a reload doesn't reuse it.
 - **In the lobby:** the slots (name, character, ready, round trip), your character, **ready**, and chat. The host also has **start**, **invite** (another invite: a second player if a slot is open, else a spectator), and **rollback** (on by default; off is lockstep).
-- **During the fight:** frame, delay, rollbacks and waits.
+- **During the fight:** frame, delay, rollbacks and waits; a spectator sees `watching`, the frame, and how many frames behind it is.
 - **After the fight:** **rematch** (host) and **replay** (save the fight).
 
 The fight uses the host's play-tab scenario if it's a one-on-one, otherwise `you vs ai`, always with both sides human. While a match lasts, its world is the play tab's fight. The world carries `.net`, so the frame loop drives it through `netFrame` at a steady 60 frames a second, and it keeps running while the page is paused. It is also kept out of everything that would change it on one side only: rewind, scrub, the loop toggle, and macros (`ownWorlds()`).
 
+**Staying connected.**
+- **Keepalive runs on a timer.** The lobby's pings and timeouts also run once a second on a timer, so a tab in the background (no animation frames) isn't taken for a dropped one.
+- **A frozen page doesn't drop anyone.** After our own page has stood still for more than 5 seconds, the silence clocks start again instead of timing anyone out, because what the others sent meanwhile is still queued and unread.
+- **An already-open channel counts as opened.** The guest's end of the channel can arrive already open, with no open event.
+- **The host links a guest on its first message** if that comes before the open event.
+- **An unanswered hello is repeated** every 2 seconds.
+- **Leave closes every connection.**
+
 ## Next
 
 - **Time sync:** each side reports how far ahead it runs, and the side that's ahead skips a tick now and then. Today, a side that runs ahead only finds out when it reaches the rollback window and waits.
-- **Spectators who see the fight:** the host relays both players' inputs to them, and they run the fight themselves. Today a spectator only sees the lobby.
+- **Spectators joining mid-match:** send them the header and every confirmed frame so far, so they can catch up.
 - **Shorter codes:** strip the SDP down to ufrag, pwd, fingerprint and candidates (about 150 characters), plus a QR code.
 - **A server signaler,** for short room codes and a room list. It only replaces `ManualSignal`.
 
@@ -175,11 +193,14 @@ hooks.match = m => match?.receive(m);
   - lost messages, and latency beyond the rollback window;
   - tampering;
   - the confirmed end and its replay;
-  - drawing histories that survive a rollback.
+  - drawing histories that survive a rollback;
+  - snapshots that stay small (the world's link back to its match isn't copied).
+
+  A spectator test runs a host, a player and a spectator over one lobby with rollback on, and checks that the spectator saw the same fight, reached the same end and saved the same replay.
 - `tests/globals.test.js` checks that no top-level name is declared in two `src/` scripts. A second `function` of the same name would silently replace the first, as nearly happened here.
-- `node tools/netplay-test.js` runs two separate headless Chromes, connected peer to peer through the app's own `src/` files:
+- `node tools/netplay-test.js` runs separate headless Chromes (two, then three), connected peer to peer through the app's own `src/` files:
   - through the lobby to a synced match start, then the guest leaves mid-match;
-  - then through the play tab: the guest opens the host's invite link and both ready. Match messages get 80 ms of extra latency and both sides press keys, so rollback really guesses wrong on the real stages. Their state hashes are then compared.
+  - then through the play tab: the guest opens the host's invite link and both ready. Match messages get 80 ms of extra latency and both sides press keys, so rollback really guesses wrong on the real stages. A third browser joins through a second invite as a spectator. All three compare state hashes. Chrome runs with its background throttling off, so that three windows at once all get animation frames. When a wait runs out, the test prints each side's connection (messages sent and received), lobby and match.
 
   Node only carries the codes between them.
 

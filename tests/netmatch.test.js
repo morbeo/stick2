@@ -142,8 +142,61 @@ test('rollback: a restored world keeps drawing (its pose and trail histories are
   assert.ok(m.world.hist?.tgt.length > 0);
 });
 
+test('rollback: a snapshot stays small all match long (the world\'s link back to its match isn\'t copied into it)', () => {
+  const [m] = net({ lat: 6, delay: 1, roll: 7, frames: 300 });
+  assert.equal(m.world.net, m);
+  const size = run('(s => { let n = 0; const seen = new Set(); const go = x => { if (!x || typeof x !== "object" || SHARED.has(x) || seen.has(x)) return; seen.add(x); n++; for (const k of Object.keys(x)) go(x[k]); }; go(s); return n; })');
+  const s = m.snapshot();
+  assert.equal(s.net, undefined);
+  assert.ok(size(s) < 3000, 'snapshot of ' + size(s) + ' objects');
+});
+
 test('the header\'s roll is used; lockstep is roll 0', () => {
   const h = header();
   assert.equal(new NetMatch({ header: h, side: 0 }).roll, 0);
   assert.equal(new NetMatch({ header: { ...h, netRoll: 6 }, side: 0 }).roll, 6);
+});
+
+// ---------- spectators: the host's confirmed frames, relayed ----------
+test('a spectator sees the very same fight as the players, to the same end, and saves the same replay', () => {
+  const NetWatch = run('NetWatch'), q = [], flush = () => { while (q.length) q.shift()(); };
+  const ms = {}, relay = { f: null, a: [], b: [], s: {} };
+  const host = new Lobby({ role: 'host', now: () => 0, hooks: { match: m => ms[0]?.receive(m) } });
+  const join = (id, want) => { const g = new Lobby({ role: 'guest', now: () => 0, send: m => q.push(() => host.receive(g.id, plain(m))), hooks: { match: m => ms[id]?.receive(m) } });
+    g.id = host.link(m => q.push(() => g.receive(null, plain(m)))); g.join(want); return g; };
+  const g = join(1, 'play'), watcher = join(2, 'watch');
+  flush();
+  // the start: a 3 s round with rollback on, so the end comes from the clock and the frames come confirmed, not guessed
+  host.hooks.header = (st, seed, defs) => { const h = run('lobbyHeader')(st, seed, defs); h.scen.period = 3; h.netRoll = 7; h.netDelay = 1; return plain(h); };
+  host.hooks.event = e => { if (e.phase === 'match') ms[0] = new NetMatch({ header: e.header, side: 0, send: m => host.matchSend(m), hooks: {
+    end: r => host.finish(r), confirmed: (k, p1, p2, h) => { relay.f ??= k; relay.a.push(p1); relay.b.push(p2); if (h !== undefined) relay.s[k + 1] = h; } } }); };
+  g.hooks.event = e => { if (e.phase === 'match') ms[1] = new NetMatch({ header: e.header, side: 1, send: m => g.matchSend(m) }); };
+  watcher.hooks.event = e => { if (e.phase === 'match') ms[2] = new NetWatch({ header: e.header }); };
+  host.pick('stick'); g.pick('zippa'); host.ready(); g.ready(); flush();
+  host.start(9); flush();
+  assert.ok(ms[0] && ms[1] && ms[2], 'all three made their match');
+  assert.equal(ms[2].watching, true);
+  for (let t = 0; t < 400 && !ms[2].result; t++) {
+    ms[0].tick(press(0, t)); ms[1].tick(press(1, t)); ms[2].tick();
+    if (relay.a.length) { host.watchSend({ t: 'watch', f: relay.f, a: relay.a, b: relay.b, s: relay.s }); Object.assign(relay, { f: null, a: [], b: [], s: {} }); }
+    flush();
+  }
+  assert.ok(ms[2].result, 'the spectator\'s fight never ended');
+  assert.deepEqual(plain(ms[2].result), plain(ms[0].result));
+  const fs = Object.keys(ms[0].sums).filter(f => f in ms[2].sums);
+  assert.ok(fs.length >= 5);
+  for (const f of fs) assert.equal(ms[2].sums[f], ms[0].sums[f], 'frame ' + f);
+  assert.equal(ms[2].desync, null);
+  assert.deepEqual(plain(ms[2].replay()).frames, plain(ms[0].replay()).frames);
+  assert.equal(host.phase, 'post'); assert.equal(watcher.phase, 'post');
+});
+
+test('a spectator waits for a small cushion, then catches up when it falls behind', () => {
+  const NetWatch = run('NetWatch'), w = new NetWatch({ header: header() });
+  w.receive({ t: 'watch', f: 0, a: [0, 0], b: [0, 0] });
+  assert.equal(w.tick(), 0, 'started before the cushion');
+  w.receive({ t: 'watch', f: 2, a: Array(30).fill(0), b: Array(30).fill(0) });
+  assert.equal(w.tick(), 3, 'far behind: catches up');
+  while (w.behind > 12) w.tick();
+  assert.equal(w.tick(), 1, 'close: one frame a tick');
 });

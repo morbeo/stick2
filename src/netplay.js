@@ -45,7 +45,7 @@ function netGathered(pc, ms = NET_GATHER_MS) {
 // ---------- layer 1: one connection, either side. on: { open(), close(why), message(m) } ----------
 class NetPeer {
   constructor(on = {}, rtc = NET_RTC) {
-    Object.assign(this, { on, ch: null, closed: false, pc: new RTCPeerConnection(rtc) });
+    Object.assign(this, { on, ch: null, closed: false, sent: 0, got: 0, pc: new RTCPeerConnection(rtc) }); // sent / got: messages, for a status line
     this.pc.ondatachannel = e => this.wire(e.channel);
     this.pc.onconnectionstatechange = () => { if (this.pc.connectionState === 'failed') this.close('connection failed'); };
   }
@@ -53,10 +53,11 @@ class NetPeer {
     this.ch = ch;
     ch.onopen = () => this.on.open?.();
     ch.onclose = () => this.close('closed');
-    ch.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch { return; } this.on.message?.(m); };
+    ch.onmessage = e => { this.got++; let m; try { m = JSON.parse(e.data); } catch { return; } this.on.message?.(m); };
+    if (ch.readyState === 'open') queueMicrotask(() => this.on.open?.()); // the guest's end can arrive already open: no open event then
   }
   get open() { return this.ch?.readyState === 'open'; }
-  send(m) { if (this.open) this.ch.send(JSON.stringify(m)); }
+  send(m) { if (this.open) { this.ch.send(JSON.stringify(m)); this.sent++; } }
   close(why = 'closed') { if (this.closed) return; this.closed = true; try { this.ch?.close(); this.pc.close(); } catch {} this.on.close?.(why); }
   async local(desc) { await this.pc.setLocalDescription(desc); await netGathered(this.pc); return netEncode(this.pc.localDescription); }
   // host: make the channel and the offer code; then accept the guest's answer code
@@ -95,8 +96,11 @@ function netJoin(sig, on) {
 // ---------- the lobby (src/lobby.js) over a connection ----------
 // host: one invite = one guest's link (call again for each guest); guest: the link to the host. Both return the NetPeer.
 function netInviteGuest(lobby, sig) {
+  // linked on the channel's open, or on its first message if that comes first (it can: the guest says hello the moment its own
+  // end opens, and a message dropped for arriving early would leave the guest waiting for a welcome forever)
   let id = null;
-  const p = netHost(sig, { open: () => { id = lobby.link(m => p.send(m)); }, message: m => id && lobby.receive(id, m), close: why => id && lobby.unlink(id, why === 'closed' ? 'left' : why) });
+  const link = () => id ??= lobby.link(m => p.send(m));
+  const p = netHost(sig, { open: link, message: m => lobby.receive(link(), m), close: why => id && lobby.unlink(id, why === 'closed' ? 'left' : why) });
   return p;
 }
 function netJoinLobby(lobby, sig, want = 'play') {

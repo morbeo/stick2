@@ -64,6 +64,7 @@ class Lobby {
       case 'ping': this.toHost?.({ t: 'pong', at: m.at }); break;
       case 'bye': this.close(m.reason || 'the host closed the lobby'); break;
       case 'in': case 'sum': if (this.phase === 'match') this.hooks.match?.(m); break;
+      case 'watch': if ((this.phase === 'match' || this.phase === 'post') && !this.me) this.hooks.match?.(m); break; // a spectator's (NetWatch); the last frames arrive just after the end
     }
   }
   fromGuest(id, m) {
@@ -120,7 +121,7 @@ class Lobby {
   ready(on = true) { if (this.host) this.request('h', { t: 'ready', on }); else this.toHost?.({ t: 'ready', on }); }
   chat(text) { if (this.host) this.relayChat('h', text); else this.toHost?.({ t: 'chat', text }); }
   // a guest's hello, once its link is open: want 'play' (a free slot, else watch) or 'watch'
-  join(want = 'play') { this.toHost?.({ t: 'hello', proto: NET_PROTO, engine: this.engine, name: this.name, want }); }
+  join(want = 'play') { this.want = want; this.helloAt = this.now(); this.toHost?.({ t: 'hello', proto: NET_PROTO, engine: this.engine, name: this.name, want }); }
   leave() { if (this.host) { for (const p of this.peers.values()) p.send({ t: 'bye', reason: 'the host closed the lobby' }); this.peers.clear(); } else this.toHost?.({ t: 'leave' }); this.close('you left'); }
   close(why) { if (this.phase === 'closed') return; this.state = { ...(this.state || { rev: 0, slots: [], watch: [] }), phase: 'closed', error: why }; this.emit({ type: 'phase', phase: 'closed', why }); this.hooks.change?.(this); }
 
@@ -178,12 +179,23 @@ class Lobby {
     const other = this.state.slots.find(sl => sl && sl.id !== 'h');
     if (other) this.sendTo(other.id, m);
   }
+  // the confirmed fight, to every spectator (src/netmatch.js NetWatch)
+  watchSend(m) {
+    if (!this.host || (this.phase !== 'match' && this.phase !== 'post')) return; // (the last confirmed frames go out just after the end)
+    for (const w of this.state.watch) this.sendTo(w.id, m);
+  }
   verify(header) { return (this.hooks.verify || lobbyHash)(header); }
 
   // ---------- both sides: keepalive. Call often (every frame is fine): pings each second, drops anyone silent too long ----------
   tick() {
     const t = this.now();
     if (this.phase === 'closed') return;
+    // our own page stood still for a while (a busy or backgrounded tab): what the others sent meanwhile is still queued, unread, so
+    // their silence isn't theirs. Start their clocks again instead of dropping them
+    if (this.lastTick && t - this.lastTick > LOBBY.timeoutMs / 2) { this.heard = t; for (const p of this.peers.values()) p.heard = t; }
+    this.lastTick = t;
+    // a hello with no welcome yet goes again every couple of seconds (the host ignores a second one from the same link)
+    if (!this.host && !this.id && this.helloAt !== undefined && t - this.helloAt > 2000) this.join(this.want);
     if (!this.host) { if (this.state && t - this.heard > LOBBY.timeoutMs) this.close('lost the host'); return; }
     for (const [id, p] of this.peers) if (t - p.heard > LOBBY.timeoutMs) this.unlink(id, 'timed out');
     if (t - this.lastPing < LOBBY.pingMs) return;

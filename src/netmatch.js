@@ -12,10 +12,14 @@
 const NETMATCH = { dt: 1 / 60, delay: 2, maxDelay: 8, roll: 7, maxRoll: 12, sumEvery: 30, resend: 30, catchUp: 2 };
 const NET_EDGES = ['hop', 'punch', 'kick', 'special']; // presses: they carry over a stall, and a guess never repeats them
 const NET_NONE = []; // stands in for the drawing-only histories while a snapshot is taken
+// a snapshot leaves out what the world keeps across a restore anyway (KEEP), and its match: world.net points back at the match,
+// whose own snapshots would otherwise be copied into every new one
+const NET_SKIP = [...KEEP, 'net'];
 
 class NetMatch {
   // header: the lobby's match (a replay header); side: 0 = P1 (the host), 1 = P2; send(m): to the other side
-  // hooks: end(result) once the fight is over (confirmed); desync(frame) on the first differing hash
+  // hooks: end(result) once the fight is over (confirmed); desync(frame) on the first differing hash;
+  //        confirmed(frame, p1, p2, hash?) as each frame is confirmed, with both real inputs (the host relays these to spectators)
   // delay: frames between an input and the frame it's for; roll: how many frames we may run ahead on a guess (0 = lockstep).
   // Both default to the header's (netDelay, netRoll: set by the host, so both sides use the same).
   constructor({ header, side, delay = header.netDelay ?? NETMATCH.delay, roll = header.netRoll ?? 0, send = () => {}, hooks = {} }) {
@@ -24,6 +28,7 @@ class NetMatch {
     // rewind is off for a match (netui.js), so its checkpoints only need the hash a replay file keeps, not the full copy of the world
     // (~10 ms each, every second, and again on each rollback that crosses one)
     w.checkpoint = function () { this.sums[this.log.length] = this.stateHash(); };
+    w.net = this; // the app drives a world with .net through its match, and keeps it out of rewind, scrub and macros (netui.js)
     delay = Math.max(1, Math.min(NETMATCH.maxDelay, Math.round(delay)));
     roll = Math.max(0, Math.min(NETMATCH.maxRoll, Math.round(roll)));
     // f: the frame the world is at; c: the confirmed frame (every frame before it ran on both real inputs)
@@ -96,8 +101,10 @@ class NetMatch {
   // the confirmed frame moves up over every frame that ran on their real input: hashes and the end only ever come from there
   confirm() {
     while (this.c < this.f && this.theirs[this.c] !== undefined && this.theirs[this.c] === this.used[this.c]) {
-      delete this.snaps[this.c]; delete this.at[this.c]; this.c++;
-      if (this.c % NETMATCH.sumEvery === 0) { const h = this.sums[this.c] = this.c === this.f ? this.world.stateHash() : this.at[this.c]; this.send({ t: 'sum', f: this.c, h }); this.check(this.c); }
+      const k = this.c++, h = this.c % NETMATCH.sumEvery === 0 ? this.sums[this.c] = this.c === this.f ? this.world.stateHash() : this.at[this.c] : undefined;
+      delete this.snaps[k]; delete this.at[k];
+      if (h !== undefined) { this.send({ t: 'sum', f: this.c, h }); this.check(this.c); }
+      this.hooks.confirmed?.(k, ...this.side ? [this.theirs[k], this.mine[k]] : [this.mine[k], this.theirs[k]], h); // for spectators
     }
     if (this.c === this.f && this.world.done && !this.result) { this.result = this.outcome(); this.hooks.end?.(this.result); }
   }
@@ -111,7 +118,7 @@ class NetMatch {
     const w = this.world, keep = w.fighters.map(f => [f.poseHist, f.trail]), hist = w.hist;
     for (const f of w.fighters) f.poseHist = f.trail = NET_NONE;
     w.hist = null;
-    try { return cloneState(w, new Map([[NET_NONE, NET_NONE]]), KEEP); }
+    try { return cloneState(w, new Map([[NET_NONE, NET_NONE]]), NET_SKIP); }
     finally { w.fighters.forEach((f, i) => { [f.poseHist, f.trail] = keep[i]; }); w.hist = hist; }
   }
   // back to the snapshot before frame k: the drawn histories carry on as they were; the log, its checkpoints and every snapshot
@@ -133,5 +140,48 @@ class NetMatch {
     return { winner, frames: this.f, hash: this.world.stateHash() };
   }
   // the match so far as a replay file (the header plus every frame's inputs), to save, scrub or compare after a desync
+  replay() { return makeReplay(this.world, this.header.scenario); }
+}
+
+// ---------- a spectator's match: the fight from the host's confirmed frames (both real inputs), never a guess ----------
+// The host batches what its match confirms ({ t: 'watch', f, a: P1 masks, b: P2 masks, s: { frame: hash } }); the spectator plays
+// it a little behind (NETWATCH.buffer frames, so an uneven arrival doesn't stutter), one frame per tick, faster when it falls
+// further behind, and checks its own state hashes against the host's.
+const NETWATCH = { buffer: 4, catchUp: 3, far: 12 };
+class NetWatch {
+  constructor({ header, hooks = {} }) {
+    const w = this.world = new World({ ...SCENARIOS[header.scenario], ...header.scen }, header.cfg, header.seed, header.chars.map(makeCharacter));
+    w.loop = false;
+    w.checkpoint = function () { this.sums[this.log.length] = this.stateHash(); }; // no rewind here either (see NetMatch)
+    w.net = this;
+    Object.assign(this, { header, hooks, keys: header.keys, f: 0, p1: [], p2: [], sums: {}, hostSums: {}, desync: null, result: null, stalls: 0, started: false, watching: true });
+  }
+  unmask(m) { return Object.fromEntries(this.keys.map((k, i) => [k, !!(m >> i & 1)])); }
+  get behind() { return this.p1.length - this.f; } // frames received but not yet played
+  receive(m) {
+    if (m.t !== 'watch') return;
+    m.a.forEach((x, i) => { this.p1[m.f + i] = x | 0; this.p2[m.f + i] = m.b[i] | 0; });
+    for (const [f, h] of Object.entries(m.s || {})) { this.hostSums[f] = h; this.check(+f); }
+  }
+  // one wall-clock frame; the input is ignored (a spectator has no say)
+  tick() {
+    if (this.result) return 0;
+    if (!this.started && this.behind >= NETWATCH.buffer) this.started = true; // wait for a small cushion first
+    if (!this.started) return 0;
+    const n = this.behind > NETWATCH.far ? NETWATCH.catchUp : 1;
+    let ran = 0;
+    for (; ran < n && this.p1[this.f] !== undefined && !this.world.done; ran++) {
+      this.world.advance(NETMATCH.dt, this.unmask(this.p1[this.f]), this.unmask(this.p2[this.f]));
+      this.f++;
+      if (this.f % NETMATCH.sumEvery === 0) { this.sums[this.f] = this.world.stateHash(); this.check(this.f); }
+    }
+    if (!ran && !this.world.done) this.stalls++;
+    if (this.world.done && !this.result) { this.result = NetMatch.prototype.outcome.call(this); this.hooks.end?.(this.result); }
+    return ran;
+  }
+  check(f) {
+    if (this.desync !== null || this.sums[f] === undefined || this.hostSums[f] === undefined || this.sums[f] === this.hostSums[f]) return;
+    this.desync = f; this.hooks.desync?.(f);
+  }
   replay() { return makeReplay(this.world, this.header.scenario); }
 }

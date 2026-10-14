@@ -154,6 +154,30 @@ test('keepalive: pings measure round trips; a silent guest is dropped, a silent 
   assert.equal(r2.g.phase, 'closed'); assert.match(r2.g.state.error, /lost the host/);
 });
 
+test('keepalive: after our own page stood still, nobody is dropped for the silence', () => {
+  const r = room(), { host, g, clock } = r;
+  clock.t = 1000; host.tick(); g.tick();
+  clock.t = 20000; host.tick(); g.tick(); // 19 s with neither page running: the messages sent meanwhile would still be queued
+  assert.ok(host.state.slots[1], 'the host dropped the guest');
+  assert.notEqual(g.phase, 'closed', 'the guest gave up on the host');
+  for (clock.t = 21000; clock.t <= 31000; clock.t += 1000) host.tick(); // but real silence after that, with the page running, still counts
+  assert.equal(host.state.slots[1], null);
+});
+
+test('a hello that went unanswered goes again, and the host takes it once', () => {
+  const host = new Lobby({ role: 'host', now: () => 0 }), clock = { t: 0 }, sent = [];
+  const g = new Lobby({ role: 'guest', now: () => clock.t, send: m => sent.push(m) });
+  g.join('watch'); clock.t = 1000; g.tick();
+  assert.equal(sent.length, 1);
+  clock.t = 2500; g.tick();
+  assert.equal(sent.length, 2); assert.equal(sent[1].want, 'watch');
+  const id = host.link(m => g.receive(null, m));
+  for (const m of sent) host.receive(id, m);
+  assert.equal(host.state.watch.length, 1, 'the second hello made a second spectator');
+  clock.t = 6000; g.tick();
+  assert.equal(sent.length, 2, 'welcomed, it still says hello');
+});
+
 test('chat goes through the host to everyone; names and text are trimmed', () => {
   const r = room({ guests: 2 });
   r.gs[1].chat('  hi\u0007 there  ' + 'x'.repeat(500)); r.flush();
