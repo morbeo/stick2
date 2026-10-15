@@ -143,6 +143,8 @@ The **netplay** section at the top of the play tab's side panel plays someone in
 
 The fight uses the host's scenario, stage and settings. A fight saves as a replay afterwards. More players who join with an invite watch. How it works: [Netplay](netplay.md).
 
+![The netplay section with a hosted lobby: the invite link, its QR code and the answer box](img/netplay.png)
+
 ### Theater mode
 
 **theater** in the toolbar (T, or Esc to leave) hides the toolbars and side panel and tries for fullscreen: just the fight, for streaming or recording.
