@@ -73,17 +73,17 @@ function drawEditor() {
   const hv = ch.by[creator.hover] || (creator.hover !== 'hip' && sel);
   if (hv) text(`${hv.id} · ${hv.role}${hv.side ? ' · ' + (hv.side === 'f' ? 'front' : 'back') : ''} · ${hv.len}px`,
     Math.min(P[hv.id][0] + 10 * dpr, r.x + r.w - 230 * dpr), P[hv.id][1] - 8 * dpr, '#666', 11);
-  text(`${ch.name} · ${ch.bones.length} bones`, r.x + 10 * dpr, r.y + 18 * dpr, '#444', 12, 'bold');
+  text(`${ch.name} · ${ch.bones.filter(b => !b.chainOf).length} bones`, r.x + 10 * dpr, r.y + 18 * dpr, '#444', 12, 'bold');
 }
 // nearest joint handle, else the nearest bone line
 function pickBone(x, y) {
   const { ch, P } = edFrame();
   let best = null, bd = 12 * dpr;
   for (const id of [...ch.ids, 'hip']) { const d = Math.hypot(P[id][0] - x, P[id][1] - y); if (d < bd) { bd = d; best = id; } }
-  if (best) return best;
+  if (best) return ch.by[best]?.chainOf || best;
   bd = 6 * dpr;
   for (const b of ch.bones) { const d = distSeg([x, y], P[b.parent || 'hip'], P[b.id]); if (d < bd) { bd = d; best = b.id; } }
-  return best;
+  return ch.by[best]?.chainOf || best; // a chain's segments edit the chain bone itself
 }
 // dragging a joint sets the bone's stance angle and length (Shift or circles: angle only)
 function dragTo(x, y, shift) {
@@ -99,7 +99,7 @@ function dragTo(x, y, shift) {
   local = cur + ((local - cur) % 360 + 540) % 360 - 180; // continuous with the current angle
   edit(def => {
     editPose(def)[b.id] = Math.round(local);
-    if (!shift && !b.lenLock && b.shape !== 'circle') boneDef(def, b.id).len = Math.max(2, Math.round(Math.hypot(dx, dy) / (stanceBody()?.scale || 1))); // (drawn × the stance's size)
+    if (!shift && !b.lenLock && b.shape !== 'circle') boneDef(def, b.id).len = Math.max(2, Math.round(Math.hypot(dx, dy) * (b.chainN || 1) / (stanceBody()?.scale || 1))); // (drawn × the stance's size)
   }, 'drag:' + b.id);
 }
 // dragging the hip moves the body over the feet in the stance: every leg bends so its ankle stays (as in animate, see hipTo)
@@ -267,7 +267,7 @@ function bonePanel() {
         const also = new Set(b.also || []); v ? also.add(r) : also.delete(r); b.also = also.size ? [...also] : undefined; } })))),
     row(':flip: side', 'Draw order and colour', seg(['f', '', 'b'], () => prop('side'), v => edit(d => { for (const b of selDefs(d)) b.side = v; }), SIDE_TIPS,
       o => ({ f: 'front', '': 'centre', b: 'back' })[o])),
-    row('shape', 'How the bone is drawn', seg(['line', 'circle'], () => prop('shape'), v => edit(d => { for (const b of selDefs(d)) b.shape = v; }), SHAPE_TIPS)),
+    row('shape', 'How the bone is drawn', seg(Object.keys(SHAPE_TIPS), () => prop('shape'), v => edit(d => { for (const b of selDefs(d)) b.shape = v; }), SHAPE_TIPS)),
     subFold(':auto_awesome: fx', fxRows('Effects always drawn on this bone (select several bones for a flaming arm, a glowing body); drawing only, the fight is the same',
       () => prop('fx'), e => setProp('fx', e), null)),
     slider('stance', { min: -270, max: 270, step: 1 }, () => curStance().pose[studio.sel] ?? 0,

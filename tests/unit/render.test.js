@@ -213,3 +213,19 @@ test('a bone\'s alpha draws it translucent (globalAlpha), draws nothing extra at
   assert.ok(r.seen.some(a => Math.abs(a - 0.4) < 1e-9), 'the translucent bone saved globalAlpha 0.4: ' + r.seen);
   assert.ok(r.calls > 10), assert.deepEqual(r.bad, []);
 });
+
+test('a chain bone splits into dangling segments drawn as one spline; fights with it stay deterministic', () => {
+  const r = JSON.parse(run(`(() => { const def = JSON.parse(JSON.stringify(CHAR_DEFS.stick));
+    def.bones.push({ id: 'scarf', parent: 'neck', len: 40, a: -120, role: 'tail', shape: 'chain', segs: 5, thick: 4 }, { id: 'tassel', parent: 'scarf', len: 6, role: 'tail', shape: 'circle' });
+    const ch = makeCharacter(def), P = fk(ch, ch.poses.stance, 1), { ctx, st } = stubCtx();
+    drawFigure(ctx, ch, P, '#000', '#000');
+    const fight = () => { const w = new World({ a: 'ai', b: 'ai' }, {}, 7, [ch, CHARS.stick]); for (let i = 0; i < 240; i++) w.step(1 / 60); return w.stateHash(); };
+    return JSON.stringify({ ids: ch.ids.filter(id => id.startsWith('scarf')), lens: ch.ids.filter(id => id.startsWith('scarf')).map(id => ch.by[id].len),
+      tassel: ch.by.tassel.parent, run: splineRun(ch, ch.by.scarf).map(b => b.id), root: ch.by.scarf.shape, bad: st.bad, same: fight() === fight(), def: def.bones.length }); })()`));
+  assert.deepEqual(r.ids, ['scarf', 'scarf~2', 'scarf~3', 'scarf~4', 'scarf~5']);
+  assert.deepEqual(r.lens, [8, 8, 8, 8, 8]);
+  assert.equal(r.tassel, 'scarf~5', 'children hang off the rope\'s end');
+  assert.deepEqual(r.run, r.ids, 'the whole rope is one spline');
+  assert.equal(r.root, 'spline'); assert.deepEqual(r.bad, []); assert.ok(r.same, 'deterministic');
+  assert.equal(r.def, 18, 'the definition itself is untouched (2 bones, not 6)');
+});

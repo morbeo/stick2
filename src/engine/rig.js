@@ -10,7 +10,10 @@ const BONE = {
                         // than one type (houndo's front legs: role arm, also leg, so they gait and plant like real legs
                         // but still count as an arm for weapon-holding)
   side: '',            // f | b | '': front / back limb (back is drawn behind, in the second colour)
-  shape: 'line',       // line | circle (circle is centred on the bone's end, radius = len)
+  shape: 'line',       // line | circle | spline | chain (circle is centred on the bone's end, radius = len; spline draws one smooth
+                        // tapered curve through this bone and its single line child chain; chain splits the bone into segs dangling
+                        // segments drawn as a spline: a rope, whip or scarf)
+  segs: 6,             // chain only: how many segments the rope is split into
   thick: 5, hurt: 0,   // stroke width; hurtbox radius (0 = can't be hit here)
   lag: 1,              // follow-through: each step lowers the spring frequency, so the bone trails its parent
   level: 0,            // 0 = rigid child, 1 = keeps its rest world angle whatever the parent does (feet stay flat)
@@ -27,6 +30,42 @@ function applyHidden(bones) {
   const by = Object.fromEntries(bones.map(x => [x.id, x]));
   const hid = x => !!x && ((x.alpha ?? 1) <= 0 || !!x.hidden || hid(by[x.parent]));
   for (const x of bones) if (hid(x)) Object.assign(x, { hidden: true, len: 0, hurt: 0 }); else delete x.hidden;
+}
+
+// a chain bone becomes segs real bones (id, id~2 … id~n) of len / segs each, every one looser and more dangling than the
+// last, so the existing springs (dangle, whip, lag) swing it like a rope: deterministic, rollback-safe, hit like any bone.
+// the first keeps the id (poses and moves still name it) and draws the whole rope as a spline; children hang off the last
+function expandChains(by) {
+  for (const b of Object.values(by)) if (b.shape === 'chain' && !b.chainOf) {
+    const n = clamp(Math.round(b.segs || BONE.segs), 2, 24), len = b.len / n, kids = Object.values(by).filter(k => k.parent === b.id);
+    const loose = i => ({ len, lag: b.lag + i * 0.4, dangle: clamp((b.dangle || 0.7) + i * 0.06, 0, 1), whip: b.whip || 0.02, react: b.react + i * 0.1 });
+    Object.assign(b, loose(0), { shape: 'spline', chainN: n });
+    let prev = b;
+    for (let i = 1; i < n; i++) {
+      const id = `${b.id}~${i + 1}`;
+      by[id] = prev = { ...b, ...loose(i), id, parent: prev.id, a: 0, shape: 'line', chainOf: b.id, chainN: undefined,
+        thick: Math.max(1, b.thick * (1 - 0.5 * i / (n - 1))), min: undefined, max: undefined, fx: undefined };
+    }
+    for (const k of kids) k.parent = prev.id;
+  }
+}
+// a spline bone's curve: this bone, then each single visible line child (same side), while there is exactly one
+function splineRun(ch, b) {
+  const run = [b];
+  for (let k; (k = run[run.length - 1].kids?.filter(x => !x.hidden)) && k.length === 1 && (k[0].shape ?? 'line') === 'line' && k[0].side === b.side && k[0].role !== 'weapon';) run.push(k[0]);
+  return run;
+}
+// a Catmull-Rom curve through pts, its width easing from w0 to w1 (short strokes, round caps hide the joins)
+function strokeSpline(ctx, pts, w0, w1) {
+  const n = pts.length - 1, at = (p0, p1, p2, p3, t, k) => 0.5 * (2 * p1[k] + (p2[k] - p0[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t * t + (3 * p1[k] - p0[k] - 3 * p2[k] + p3[k]) * t * t * t);
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(n, i + 2)];
+    for (let s = 0; s < 6; s++) {
+      const a = s / 6, b = (s + 1) / 6;
+      ctx.lineWidth = Math.max(0.5, w0 + (w1 - w0) * (i + a) / n); ctx.beginPath();
+      ctx.moveTo(at(p0, p1, p2, p3, a, 0), at(p0, p1, p2, p3, a, 1)); ctx.lineTo(at(p0, p1, p2, p3, b, 0), at(p0, p1, p2, p3, b, 1)); ctx.stroke();
+    }
+  }
 }
 
 // ---------- the default stick fighter ----------
@@ -666,6 +705,7 @@ function makeCharacter(def) {
   if (def.main?.body) { def = bodyDef(def, def.main.body); delete def.main.body; }
   const by = {}, order = [];
   for (const b of def.bones) by[b.id] = { ...BONE, parent: null, ...b };
+  expandChains(by);
   applyHidden(Object.values(by));
   const visit = b => { if (order.includes(b)) return; if (b.parent) visit(by[b.parent]); order.push(b); };
   Object.values(by).forEach(visit); // parents before children
@@ -1022,14 +1062,18 @@ function drawWeapon(ctx, b, o, e, col, extra = 0) {
 // mul: a fighter's live per-bone key.thick / key.alpha multipliers (mid-move), or null outside one
 function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
   ctx.lineCap = ctx.lineJoin = 'round';
-  for (const side of ['b', '', 'f']) for (const b of ch.bones) if (b.side === side) {
+  const inSpline = new Set();
+  for (const side of ['b', '', 'f']) for (const b of ch.bones) if (b.side === side && !inSpline.has(b.id)) {
     const o = P[b.parent || 'hip'], e = P[b.id], c = tint ? tint(b) : side === 'b' ? back : col;
     if (b.hidden && (b.shape === 'circle' || Math.hypot(e[0] - o[0], e[1] - o[1]) < 0.5)) continue; // a stance's hidden bone (drawn while it shrinks away)
     const a = (b.alpha ?? 1) * (mul?.alpha?.[b.id] ?? 1), thick = b.thick * (mul?.thick?.[b.id] ?? 1);
     if (a < 1) { ctx.save(); ctx.globalAlpha *= a; }
     if (b.shape === 'circle') { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(e[0], e[1], b.len + extra / 2, 0, 7); ctx.fill(); }
     else if (b.role === 'weapon') drawWeapon(ctx, b, o, e, extra || tint?.(b) ? c : null, extra);
-    else {
+    else if (b.shape === 'spline') {
+      const run = splineRun(ch, b); run.slice(1).forEach(k => inSpline.add(k.id));
+      ctx.strokeStyle = c; strokeSpline(ctx, [o, ...run.map(k => P[k.id])], thick + extra, run[run.length - 1].thick * (mul?.thick?.[run[run.length - 1].id] ?? 1) + extra);
+    } else {
       ctx.strokeStyle = c; ctx.lineWidth = thick + extra; ctx.beginPath(); ctx.moveTo(o[0], o[1]);
       if (b.curve) {
         const dx = e[0] - o[0], dy = e[1] - o[1], l = Math.hypot(dx, dy) || 1;
