@@ -28,6 +28,7 @@ function demoFight(scen, bar) {
   rafLoop(cv, () => {
     w.advance(1 / 60, NOIN);
     const c = cv.getContext('2d');
+    c.clearRect(0, 0, cv.width, cv.height); // stages only paint the floor, so an uncleared canvas smears every frame
     w.render(c, { x: 0, y: 0, w: cv.width, h: cv.height }, true);
     if (bar) { c.fillStyle = '#3a7ca5'; c.fillRect(0, cv.height - 3 * dpr, cv.width * ((performance.now() - t0) / 1000 % period) / period, 3 * dpr); }
   });
@@ -39,6 +40,7 @@ function demoExperiment() {
   let ws; try { ws = cfgs.map(c => { const w = newWorld(SCENARIOS['K,K'], c, 1, null); w.loop = true; return w; }); } catch { return cv; }
   rafLoop(cv, () => {
     const c = cv.getContext('2d'), cw = cv.width / 2;
+    c.clearRect(0, 0, cv.width, cv.height);
     ws.forEach((w, i) => { w.advance(1 / 60, NOIN); w.render(c, { x: i * cw, y: 0, w: cw, h: cv.height }, true); });
     c.strokeStyle = '#ccc'; c.lineWidth = dpr; c.beginPath(); c.moveTo(cw, 0); c.lineTo(cw, cv.height); c.stroke();
   });
