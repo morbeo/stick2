@@ -1,5 +1,5 @@
 fonts/icons.woff2 is a subset of Material Symbols by Google
-(https://github.com/google/material-design-icons), made with tools/icons.py.
+(https://github.com/google/material-design-icons), made with tools/render/icons.py.
 It is licensed under the Apache License, Version 2.0, reproduced below.
 The rest of stick2 is under the MIT License (see LICENSE in the root folder).
 

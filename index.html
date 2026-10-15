@@ -83,7 +83,7 @@
   #side { grid-area: side; overflow: auto; border-left: 1px solid #ddd7cb; padding: 8px; box-sizing: border-box; }
   #side h3 { display: flex; align-items: center; margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
   .row { display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 4px; margin: 2px 0; }
-  /* netplay (src/netui.js): the play tab's lobby section */
+  /* netplay (src/net/netui.js): the play tab's lobby section */
   .netplay p { margin: 4px 0; } .netplay .bar { margin: 4px 0; }
   .netrow { display: flex; align-items: center; gap: 4px; margin: 4px 0; } .netrow input, .netrow select { flex: 1; min-width: 0; }
   .netcode { width: 100%; box-sizing: border-box; font: 10px/1.2 ui-monospace, Menlo, monospace; word-break: break-all; resize: vertical; background: #fbfaf6; border: 1px solid #cfc8bb; }
@@ -195,7 +195,7 @@
   .card .linkbtn { align-self: flex-end; opacity: 0.35; padding: 1px 3px; }
   .card .linkbtn:hover, .card .linkbtn.on { opacity: 1; }
   .card .linkbtn.comparebtn.on { color: #3a7ca5; }
-  /* the welcome modal (src/welcome.js): wider than a usual .pop.modal (it needs room for a row of demo cards) -
+  /* the welcome modal (src/ui/welcome.js): wider than a usual .pop.modal (it needs room for a row of demo cards) -
      .pop.modal.welcomebox, not just .welcomebox: .pop.modal's own max-width is two classes, beating one on specificity
      regardless of source order or value, so a plain .welcomebox rule here would be silently overridden */
   .pop.modal.welcomebox { max-width: 1400px; width: 95vw; max-height: 90vh; overflow: auto; }
@@ -254,7 +254,7 @@
   #sink table.demo-table { width: 100%; }
   .tip { position: fixed; z-index: 20; display: none; pointer-events: none; max-width: 320px; padding: 4px 7px;
     background: #222; color: #f3f0e8; border-radius: 3px; font-size: 11px; white-space: pre-wrap; }
-  /* touch (src/touch.js): the on-screen pad over the stage, a stick on the left and the buttons on the right */
+  /* touch (src/ui/touch.js): the on-screen pad over the stage, a stick on the left and the buttons on the right */
   #c { touch-action: none; }
   .tpad { position: absolute; inset: auto 0 0 0; height: 0; pointer-events: none; z-index: 4; }
   .tpad > * { pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
@@ -319,49 +319,49 @@
 <div id="grip" data-tip="Drag: the side panel's width, kept per tab (double-click: back to 300 px)"></div>
 <div id="help"></div>
 <script src="src/build.js"></script>
-<script src="src/core.js"></script>
-<script src="src/shapes.js"></script>
-<script src="src/rig.js"></script>
-<script src="src/fx.js"></script>
-<script src="src/roster.js"></script>
-<script src="src/fighter.js"></script>
-<script src="src/world.js"></script>
-<script src="src/stage.js"></script>
-<script src="src/brain.js"></script>
-<script src="src/checks.js"></script>
-<script src="src/ui.js"></script>
-<script src="src/layout.js"></script>
-<script src="src/sound.js"></script>
-<script src="src/tracker.js"></script>
-<script src="src/objdiff.js"></script>
-<script src="src/studio.js"></script>
-<script src="src/lab.js"></script>
-<script src="src/creator.js"></script>
-<script src="src/editor.js"></script>
-<script src="src/fxlab.js"></script>
-<script src="src/gridlab.js"></script>
-<script src="src/propedit.js"></script>
-<script src="src/matrix.js"></script>
-<script src="src/inputs.js"></script>
-<script src="src/combos.js"></script>
-<script src="src/breed.js"></script>
-<script src="src/keys.js"></script>
-<script src="src/palette.js"></script>
-<script src="src/scenarios.js"></script>
-<script src="src/compare.js"></script>
-<script src="src/docs.js"></script>
-<script src="src/kitchensink.js"></script>
-<script src="src/clip.js"></script>
-<script src="src/events.js"></script>
-<script src="src/replay.js"></script>
-<script src="src/netplay.js"></script>
-<script src="src/lobby.js"></script>
-<script src="src/netmatch.js"></script>
-<script src="src/qr.js"></script>
-<script src="src/netui.js"></script>
-<script src="src/welcome.js"></script>
-<script src="src/app.js"></script>
-<script src="src/touch.js"></script>
-<script src="src/bridge.js"></script>
+<script src="src/engine/core.js"></script>
+<script src="src/engine/shapes.js"></script>
+<script src="src/engine/rig.js"></script>
+<script src="src/engine/fx.js"></script>
+<script src="src/engine/roster.js"></script>
+<script src="src/engine/fighter.js"></script>
+<script src="src/engine/world.js"></script>
+<script src="src/engine/stage.js"></script>
+<script src="src/engine/brain.js"></script>
+<script src="src/engine/checks.js"></script>
+<script src="src/ui/ui.js"></script>
+<script src="src/ui/layout.js"></script>
+<script src="src/ui/sound.js"></script>
+<script src="src/editor/tracker.js"></script>
+<script src="src/engine/objdiff.js"></script>
+<script src="src/editor/studio.js"></script>
+<script src="src/editor/lab.js"></script>
+<script src="src/editor/creator.js"></script>
+<script src="src/editor/editor.js"></script>
+<script src="src/editor/fxlab.js"></script>
+<script src="src/editor/gridlab.js"></script>
+<script src="src/editor/propedit.js"></script>
+<script src="src/editor/matrix.js"></script>
+<script src="src/engine/inputs.js"></script>
+<script src="src/engine/combos.js"></script>
+<script src="src/engine/breed.js"></script>
+<script src="src/ui/keys.js"></script>
+<script src="src/ui/palette.js"></script>
+<script src="src/engine/scenarios.js"></script>
+<script src="src/editor/compare.js"></script>
+<script src="src/ui/docs.js"></script>
+<script src="src/ui/kitchensink.js"></script>
+<script src="src/engine/clip.js"></script>
+<script src="src/engine/events.js"></script>
+<script src="src/engine/replay.js"></script>
+<script src="src/net/netplay.js"></script>
+<script src="src/net/lobby.js"></script>
+<script src="src/net/netmatch.js"></script>
+<script src="src/net/qr.js"></script>
+<script src="src/net/netui.js"></script>
+<script src="src/ui/welcome.js"></script>
+<script src="src/ui/app.js"></script>
+<script src="src/ui/touch.js"></script>
+<script src="src/ui/bridge.js"></script>
 </body>
 </html>

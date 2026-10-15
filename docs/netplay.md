@@ -15,11 +15,11 @@ Online play between two browsers, with no server: the design, and what's built s
 
 | Layer | File | Job |
 |---|---|---|
-| 1. Transport | `src/netplay.js` (`NetPeer`) | One `RTCPeerConnection` with one ordered, reliable data channel, carrying JSON messages |
-| 2. Signaling | `src/netplay.js` (`ManualSignal`, `netHost`, `netJoin`) | Gets the host's offer code to the guest, and the guest's answer code back |
-| 3. Lobby | `src/lobby.js` (`Lobby`) | Who's in, who plays which character, ready, start, rematch, leave |
-| 4. Match | `src/netmatch.js` (`NetMatch`) | Inputs every frame with a fixed input delay, desync checks, the result, the replay |
-| UI | `src/netui.js` | The play tab's **netplay** section, `#join=` links, and running the match on the stage |
+| 1. Transport | `src/net/netplay.js` (`NetPeer`) | One `RTCPeerConnection` with one ordered, reliable data channel, carrying JSON messages |
+| 2. Signaling | `src/net/netplay.js` (`ManualSignal`, `netHost`, `netJoin`) | Gets the host's offer code to the guest, and the guest's answer code back |
+| 3. Lobby | `src/net/lobby.js` (`Lobby`) | Who's in, who plays which character, ready, start, rematch, leave |
+| 4. Match | `src/net/netmatch.js` (`NetMatch`) | Inputs every frame with a fixed input delay, desync checks, the result, the replay |
+| UI | `src/net/netui.js` | The play tab's **netplay** section, `#join=` links, and running the match on the stage |
 
 The lobby never touches the network. The host links each guest with a send function and passes whatever arrives to `receive`. So the same lobby runs over WebRTC, over a server relay, or (in the tests) over plain function calls.
 
@@ -44,7 +44,7 @@ Each invite is for one guest. To let in another guest or a spectator, the host c
 
 Both forms are URL-safe as they are.
 
-**QR code.** The host's invite link also shows as a QR code (`src/qr.js`), so a phone or a second screen can scan it. It's written from scratch, with no library and no image:
+**QR code.** The host's invite link also shows as a QR code (`src/net/qr.js`), so a phone or a second screen can scan it. It's written from scratch, with no library and no image:
 - byte mode at error-correction level M (about 15% of the code can be smudged and it still reads), versions 1–20;
 - Reed-Solomon error correction per block, then interleaving;
 - the eight masks, keeping the one with the lowest penalty.
@@ -151,7 +151,7 @@ A spectator's match is a `NetWatch`, not a `NetMatch`:
 
 ## In the app
 
-The play tab's **netplay** section (`src/netui.js`), first in the side panel and unfolded by default; the command palette's **netplay** and **netplay: host** entries go straight to it (`openNetplay`):
+The play tab's **netplay** section (`src/net/netui.js`), first in the side panel and unfolded by default; the command palette's **netplay** and **netplay: host** entries go straight to it (`openNetplay`):
 
 - **Before connecting:** your name, **host**, and a field to paste an invite.
 - **Host:** the invite link with its QR code, **copy link** and **code only** buttons, and a field for the guest's answer code.
@@ -204,8 +204,8 @@ hooks.match = m => match?.receive(m);
 
 ## Tests
 
-- `tests/lobby.test.js` (`npm test`) covers the lobby over fake links: join, version reject, spectators, ready rules, start and sync, desync, a guest's own character, leave and forfeit, rematch, keepalive and timeouts, chat. It also tests the codes and the manual signaler.
-- `tests/netmatch.test.js` (`npm test`) covers the match over a simulated network: low latency, latency above the delay (stalls), 30% lost messages, different delays on each side, a tampered input caught as a desync, a press kept through a stall, the result and a replay that plays back the same, and a match started by a lobby. The rollback tests cover:
+- `tests/unit/lobby.test.js` (`npm test`) covers the lobby over fake links: join, version reject, spectators, ready rules, start and sync, desync, a guest's own character, leave and forfeit, rematch, keepalive and timeouts, chat. It also tests the codes and the manual signaler.
+- `tests/unit/netmatch.test.js` (`npm test`) covers the match over a simulated network: low latency, latency above the delay (stalls), 30% lost messages, different delays on each side, a tampered input caught as a desync, a press kept through a stall, the result and a replay that plays back the same, and a match started by a lobby. The rollback tests cover:
   - high latency, with fewer waits than lockstep and rollbacks that really happen;
   - lost messages, and latency beyond the rollback window;
   - tampering;
@@ -214,17 +214,17 @@ hooks.match = m => match?.receive(m);
   - snapshots that stay small (the world's link back to its match isn't copied).
 
   A spectator test runs a host, a player and a spectator over one lobby with rollback on, and checks that the spectator saw the same fight, reached the same end and saved the same replay.
-- `tests/lobby.test.js` also covers the short codes, using real Chrome descriptions with every kind of candidate:
+- `tests/unit/lobby.test.js` also covers the short codes, using real Chrome descriptions with every kind of candidate:
   - they're under 200 characters and URL-safe;
   - they rebuild the credentials, fingerprint, role and candidates exactly;
   - an answer keeps its active or passive role;
   - anything the template can't rebuild falls back to the long code.
-- `tests/qr.test.js` checks the QR structure (finders, timing lines, dark module, smallest version that fits) and two matrices pinned from the jsQR-checked encoder.
-- `tests/globals.test.js` checks that no top-level name is declared in two `src/` scripts. A second `function` of the same name would silently replace the first, as nearly happened here.
-- `node tools/netplay-test.js` runs separate headless Chromes (two, then three), connected peer to peer through the app's own `src/` files:
+- `tests/unit/qr.test.js` checks the QR structure (finders, timing lines, dark module, smallest version that fits) and two matrices pinned from the jsQR-checked encoder.
+- `tests/unit/globals.test.js` checks that no top-level name is declared in two `src/` scripts. A second `function` of the same name would silently replace the first, as nearly happened here.
+- `node tools/dev/netplay-test.js` runs separate headless Chromes (two, then three), connected peer to peer through the app's own `src/` files:
   - through the lobby to a synced match start, then the guest leaves mid-match;
   - then through the play tab: the guest opens the host's invite link and both ready. Match messages get 80 ms of extra latency and both sides press keys, so rollback really guesses wrong on the real stages. A third browser joins through a second invite as a spectator. All three compare state hashes. Chrome runs with its background throttling off, so that three windows at once all get animation frames. When a wait runs out, the test prints each side's connection (messages sent and received), lobby and match.
 
   Node only carries the codes between them.
 
-`prototype/netplay.html` is the original connection-only proof of concept, which `src/netplay.js` replaces.
+
