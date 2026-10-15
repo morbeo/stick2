@@ -77,3 +77,7 @@ Notes for the itch.io page:
 - If you want to discuss an idea before it's fleshed out enough for an issue, post in `#feature-requests` directly, tag it with the area it touches (character / move / fx / editor / ui), and open the GitHub issue once it firms up — link back to the Discord message in the issue body.
 - Don't open duplicate issues for the same idea just to "also" post it in Discord — react/reply on the existing bot post instead.
 - Keep the request scoped to one idea per issue/message; bundle only tightly related tweaks (e.g. "add X move" plus "give it an icon").
+
+## Branch previews
+
+`.github/workflows/pages.yml` publishes the site to the `gh-pages` branch: `master` at the root (https://morbeo.github.io/stick2/), every other branch at `https://morbeo.github.io/stick2/preview/<branch>/` (characters outside `A-Za-z0-9._-` become `-`). Opening a PR comments its preview link; deleting the branch removes the preview. One-time setup: Settings → Pages → Source "Deploy from a branch", branch `gh-pages`, folder `/ (root)`, after the first run has created that branch.
