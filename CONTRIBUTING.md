@@ -33,6 +33,7 @@ PRs are welcome too: bug fixes, new fx looks, roster characters, docs fixes, any
 - `npm test` and `npm run test:browser` should pass before you open a PR.
 - The simulation is deterministic and pinned to `ENGINE_VERSION` (`src/engine/core.js`) — if a change alters how an existing fight plays out (not just adds something new), the pinned fixtures in `tests/unit/fixtures/` and `tests/unit/snapshots/` need regenerating with `npm run test:update`, and `ENGINE_VERSION` needs bumping. Say so in the PR description.
 - Keep the no-build-step, no-dependencies, no-image-asset constraints: everything is plain `src/*.js` loaded via `<script>` tags in `index.html`, and visuals are drawn in code, not images.
+- A new `:icon:` needs its Material Symbols codepoint in `ICONS` (`src/ui/ui.js`) and a font rebuild with `tools/render/icons.py`; `tests/unit/icons.test.js` fails on any icon the font lacks.
 - Match the existing code style (see [Development](docs/development.md)) rather than introducing a new one.
 - Small, focused PRs are easier to land than large ones.
 - Commit messages: an imperative subject line (under 72 chars), a blank line, then 1-5 short `- ` bullets — what changed and why, with `- Risk:` / `- Follow-up:` only when there's a real one. No prose paragraphs, no "Risks: none", no AI attribution lines.
