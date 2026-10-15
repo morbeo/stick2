@@ -38,9 +38,11 @@ const tpBtn = (a, label, tip) => {
   b.oncontextmenu = e => e.preventDefault();
   return b;
 };
+// J only in 2.5D: in 2D the stick's up already jumps (tpSync hides it)
+const tpHop = tpBtn('hop', 'J', 'Jump');
 const tbtns = h('div', { cls: 'tbtns' },
   tpBtn('punch', 'P', 'Punch'), tpBtn('kick', 'K', 'Kick'), tpBtn('special', 'S', 'Special'),
-  tpBtn('guard', 'G', 'Guard (hold), parry (tap)'), tpBtn('hop', 'J', 'Jump'));
+  tpBtn('guard', 'G', 'Guard (hold), parry (tap)'), tpHop);
 tpad.append(tpStick, tbtns);
 $('stage').append(tpad);
 // a small corner switch on a touch screen: the pad off (to watch, or a keyboard plugged in) and back on
@@ -56,6 +58,8 @@ function tpSync() {
   if (show !== tpShown) { tpShown = show; tpad.hidden = !show; if (!show) { tpStickEnd(); for (const a of FIGHT) keys.delete(a); } }
   tswitch.hidden = !(tpCoarse.matches || ui.touchPad) || !inFight();
   tswitch.classList.toggle('on', tpWanted());
+  const flat = (mode().worlds?.()[0]?.cfg ?? CFG).plane === '2d';
+  if (tpHop.hidden !== flat) { tpHop.hidden = flat; keys.delete('hop'); tpHop.classList.remove('on'); }
   requestAnimationFrame(tpSync);
 }
 tpSync();

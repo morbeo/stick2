@@ -35,7 +35,7 @@ Any scenario named anywhere in these docs plays the same way: `https://morbeo.gi
 
 ![The play tab's netplay section with an invite ready](docs/img/netplay.png)
 
-**Play on a phone.** On a touch screen an on-screen stick and P/K/S/G/J buttons appear whenever a fighter is yours, and the layout stacks to fit. → [Interface: phones and tablets](docs/interface.md#phones-and-tablets)
+**Play on a phone.** On a touch screen an on-screen stick and P/K/S/G buttons (plus J to jump in 2.5D) appear whenever a fighter is yours, and the layout stacks to fit. → [Interface: phones and tablets](docs/interface.md#phones-and-tablets)
 
 <img src="docs/img/phone.png" alt="stick2 on a phone, with the touch pad" width="260">
 

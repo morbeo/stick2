@@ -230,7 +230,7 @@ Save what you watch as an animated GIF or a WebM video.
 
 stick2 runs on a phone or tablet in the browser, nothing to install.
 
-- On a touch screen, an on-screen pad shows whenever a fighter is yours: a stick on the left (eight directions, with a dead zone in the middle) and **P K S G J** on the right. It presses the same keys the keyboard does, so fights, replays and online matches can't tell the two apart.
+- On a touch screen, an on-screen pad shows whenever a fighter is yours: a stick on the left (eight directions, with a dead zone in the middle) and **P K S G** on the right, plus **J** (jump) in 2.5D, where up moves in depth; in 2D, up on the stick jumps. It presses the same keys the keyboard does, so fights, replays and online matches can't tell the two apart.
 - The controller button at the top of the stage turns the pad off or back on; the choice is saved. On a screen with a mouse, `touchPad(true)` in the console turns it on.
 - A finger on the stage acts as the mouse.
 - Under 760 px wide, the stage sits above the side panel and the toolbars scroll sideways. A short landscape screen keeps the side panel beside the stage, narrower. Popups fit the screen, and buttons and fields get bigger under a finger.
