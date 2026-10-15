@@ -28,6 +28,10 @@ function paletteEntries() {
       if (app.mode !== 'character') setMode('character');
       openStage('bones');
     } },
+    ...Object.keys(SHAPE_TIPS).map(sh => ({ kind: 'action', name: 'bone shape: ' + sh, tip: `Draw the selected bones as ${sh}: ${SHAPE_TIPS[sh]} (in the character tab)`, run: () => {
+      if (app.mode !== 'character') setMode('character');
+      edit(d => { for (const b of selDefs(d)) b.shape = sh; });
+    } })),
     ...Object.keys(layouts.sets).map(n => ({ kind: 'layout', name: 'layout: ' + n, tip: 'Use this layout (what each tab shows)', run: () => layUse(n) })),
     ...['ctx', 'side'].flatMap(kind => app.parts[kind].map(p => { const id = kind + ':' + p, on = layShown(id), what = kind === 'ctx' ? 'toolbar group' : 'side section';
       return { kind: 'layout', name: `${on ? 'hide' : 'show'} ${what}: ${p}`, tip: `${on ? 'Hide' : 'Show'} the ${what} "${p}" on this tab (layout)`, run: () => layShow(id, !on) }; })),

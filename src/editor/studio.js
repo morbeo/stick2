@@ -103,6 +103,7 @@ const BONE_PROPS = [
   { k: 'sway', min: 0, max: 3, step: 0.05, tip: 'Idle sway: how much the bone drifts on its own while standing (deeper bones more). 0 = still.' },
   { k: 'dangle', min: 0, max: 1.5, step: 0.05, tip: 'Secondary motion: how much the bone hangs like a rope (tails, scarves, hair): it droops with gravity, trails a run and a jump and lifts in a fall. 0 = only its animation.' },
   { k: 'whip', min: 0, max: 0.1, step: 0.002, tip: 'Bends back from a fast-turning parent\'s own angular velocity, springing past straight into the next turn (a nunchuck\'s loose end). 0 = rigid to its parent.' },
+  { k: 'segs', min: 2, max: 16, step: 1, tip: 'Chain shape only: how many segments the rope is split into. More = smoother and floppier.' },
   { k: 'alpha', min: 0, max: 1, step: 0.05, tip: 'Visibility: 1 is fully visible (the default). 0 hides the bone and everything below it completely: no draw, no hurtbox, no part in walking or chains. Between, it draws translucent but stays solid.' },
 ];
 const ROLE_TIPS = {
@@ -118,7 +119,9 @@ const roleTint = () => studio.colors ? b => ROLE_COLS[b.role]?.[b.side === 'b' ?
 const colorsToggle = () => toggle(':palette:', 'Colours: colour bones by role: spine black · head purple · arms blue · legs green · tails amber (back side paler)',
   () => studio.colors, v => { studio.colors = v; });
 const SIDE_TIPS = { f: 'Front: drawn over the body in the main colour.', '': 'Centre: drawn with the body.', b: 'Back: drawn behind the body in the second colour.' };
-const SHAPE_TIPS = { line: 'A stroke from the parent joint to this one.', circle: 'A disc centred on the joint, radius = length (heads, fists).' };
+const SHAPE_TIPS = { line: 'A stroke from the parent joint to this one.', circle: 'A disc centred on the joint, radius = length (heads, fists).',
+  spline: 'One smooth curve through this bone and the single chain of line bones below it, tapering to the last one\'s thickness (tails, tentacles).',
+  chain: 'A rope: the bone splits into segs loose, dangling segments drawn as one smooth curve (whips, scarves, hair). Children hang from its end.' };
 
 // ---------- edits: snapshot for undo, change the definition, recompile, swap it into running fights ----------
 // key: repeated edits with the same key (a slider or joint drag) merge into one undo step.
@@ -804,9 +807,10 @@ const unlockedAbove = (ch, b) => { while (b?.lock) b = ch.by[b.parent]; return b
 // collapsible bone tree: ▾/▸ folds a branch, the stripe is the role colour, 🔒 = locked
 function boneTree() {
   const ch = viewChar(), rows = [];
+  const kidsOf = b => b.kids.flatMap(k => k.chainOf ? kidsOf(k) : [k]); // a chain's segments list as the chain bone itself
   const walk = (b, depth) => {
     const fold = studio.fold.has(b.id);
-    const tw = b.kids.length ? button(fold ? '▸' : '▾', fold ? `Show the bones under ${b.id}` : `Hide the bones under ${b.id} in this list`, () => { studio.fold[fold ? 'delete' : 'add'](b.id); panels(); }, 'twist')
+    const tw = kidsOf(b).length ? button(fold ? '▸' : '▾', fold ? `Show the bones under ${b.id}` : `Hide the bones under ${b.id} in this list`, () => { studio.fold[fold ? 'delete' : 'add'](b.id); panels(); }, 'twist')
       : h('span', { cls: 'twist' });
     const nb = button('', '', e => pickBoneSel(b.id, e.shiftKey || e.metaKey || e.ctrlKey));
     nb.ondblclick = e => { e.stopPropagation(); renameBone(b.id).then(panels); };
@@ -823,7 +827,7 @@ function boneTree() {
     const row = h('div', { cls: 'tree' }, tw, nb);
     row.style.paddingLeft = depth * 14 + 'px';
     rows.push(row);
-    if (!fold) b.kids.forEach(k => walk(k, depth + 1));
+    if (!fold) kidsOf(b).forEach(k => walk(k, depth + 1));
   };
   ch.bones.filter(b => !b.parent).forEach(b => walk(b, 0));
   return h('div', {}, rows);
