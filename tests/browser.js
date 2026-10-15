@@ -21,6 +21,13 @@ try {
       }
     }
   }
+  // touch: the on-screen pad (forced on, the smoke test has no touch screen) holds a direction and a button like keys do
+  { setMode('play'); ui.touchPad = true; tpad.hidden = false; const pd = o => new PointerEvent('pointerdown', { pointerId: 7, bubbles: true, ...o }), pu = () => new PointerEvent('pointerup', { pointerId: 7, bubbles: true });
+    const b = document.querySelector('.tpunch'); b.setPointerCapture = () => {}; b.dispatchEvent(pd({})); const on = keys.has('punch') && pressed.has('punch'); b.dispatchEvent(pu());
+    const st = document.querySelector('.tstick'), r = st.getBoundingClientRect(); st.setPointerCapture = () => {};
+    st.dispatchEvent(pd({ clientX: r.left + r.width, clientY: r.top + r.height / 2 })); const right = keys.has('right') && !keys.has('left'); st.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7 }));
+    if (!on || keys.has('punch') || !right || keys.has('right')) errs.push('touch pad ' + [on, right, [...keys]]);
+    delete ui.touchPad; keys.clear(); pressed.clear(); }
   // the editor helpers: a keyframed idle and walk loop from the procedural cycles, then a fight using them
   pickChar('stick'); studio.stance = 0; setMode('animate'); makeLoop('idle'); makeLoop('walk');
   if (!currentChar().moves.idle || currentChar().moves.walk.keys.length !== 8) errs.push('makeLoop');
