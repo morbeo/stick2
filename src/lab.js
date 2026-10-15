@@ -911,7 +911,7 @@ const labMode = {
   render: () => bodyKind() ? creatorRender() : labRender(),
   ctxBar: labCtx,
   side: () => bodyKind() ? expPanel() : labSide(),
-  get open() { return bodyKind() ? ['body experiment'] : lab.mode === 'gallery' ? ['move', 'key'] : lab.mode === 'play' ? ['presets', 'movelist', ...net.lobby ? ['netplay'] : []] : ['presets']; },
+  get open() { return bodyKind() ? ['body experiment'] : lab.mode === 'gallery' ? ['move', 'key'] : lab.mode === 'play' ? ['netplay', 'presets', 'movelist'] : ['presets']; },
   mouse(type, x, y, e) {
     if (bodyKind()) return creatorMouse(type, x, y, e);
     if (lab.mode === 'experiment' && lab.kind === 'impact' && !e.shiftKey && impactMouse(type, x, y)) return;

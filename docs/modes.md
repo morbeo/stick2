@@ -134,7 +134,7 @@ Both replay buttons are in the menu bar, next to undo / redo.
 
 ### Online
 
-The **netplay** section of the side panel plays someone in another browser, directly, with no server or account:
+The **netplay** section at the top of the play tab's side panel plays someone in another browser, directly, with no server or account. The command palette (⌘K) finds it too: **netplay** opens the section, **netplay: host** opens a lobby right away.
 
 1. One player clicks **host** and sends the invite link (chat, email, anything).
 2. The other opens it. Their page shows a code, which they send back.
