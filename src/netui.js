@@ -108,6 +108,15 @@ function netRelay(k, p1, p2, hash) {
 }
 
 // ---------- the side section ----------
+// to the play tab with the netplay section shown, unfolded and scrolled to (the palette's netplay entries); host: open a lobby too
+function openNetplay(host) {
+  if (mode() !== labMode || lab.mode !== 'play') setMode('play');
+  layShow('side:netplay', true); lay().fold['play:netplay'] = false; saveLay();
+  if (host && (!net.lobby || net.lobby.phase === 'closed')) netLobby('host');
+  panels();
+  net.box?.scrollIntoView({ block: 'nearest' });
+  if (!host) net.box?.querySelector('input[placeholder]')?.focus();
+}
 const netSide = () => lab.mode === 'play' ? [h('h3', { textContent: 'netplay', tip: 'Fight someone online, browser to browser, no server: one hosts, sends the other a link, gets a code back. See docs/netplay.md' }), net.box ??= h('div', { cls: 'netplay' })] : [];
 function netCopy(text, what) { navigator.clipboard?.writeText(text).then(() => netSay(`${what} copied`), () => netSay(`couldn't copy: select it and copy by hand`)); }
 const netCodeBox = code => h('textarea', { cls: 'netcode', readOnly: true, value: code, rows: 3, tip: 'Click to select it all', onclick: e => e.target.select() });

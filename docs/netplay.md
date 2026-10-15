@@ -151,7 +151,7 @@ A spectator's match is a `NetWatch`, not a `NetMatch`:
 
 ## In the app
 
-The play tab's **netplay** section (`src/netui.js`):
+The play tab's **netplay** section (`src/netui.js`), first in the side panel and unfolded by default; the command palette's **netplay** and **netplay: host** entries go straight to it (`openNetplay`):
 
 - **Before connecting:** your name, **host**, and a field to paste an invite.
 - **Host:** the invite link with its QR code, **copy link** and **code only** buttons, and a field for the guest's answer code.
