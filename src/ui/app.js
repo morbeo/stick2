@@ -163,6 +163,10 @@ function buildTop() {
       button(':info:', 'Docs: how everything works, with live demo fights, and every setting, move flag, input and key explained; searchable (also in ⌘K)', () => openDocs()),
       toggle(':help:', 'Hints: the line of mouse and key help under the view and the frame meter\'s colour legend; off, they show for a few seconds on the first visit to each mode (?)', () => ui.hints, toggleHints),
       soundBtn, staleButton(), button(':ssid_chart:', 'Debug: the build and engine version, frame rate and the shown fight\'s state, report a bug, ghost, boxes, hud and labels, reset settings, and factory reset', debugPanel, 'bugbtn')));
+  // the layout group is pinned top-right (index.html): keep the first row clear of it, whatever its width
+  const corner = $('global').querySelector('[data-part="layout"]');
+  (buildTop.ro ??= new ResizeObserver(([e]) => $('top').style.setProperty('--corner-w', Math.ceil(e.target.offsetWidth) + 9 + 'px'))).disconnect();
+  if (corner) buildTop.ro.observe(corner);
 }
 
 function resize() {
