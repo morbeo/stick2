@@ -6,7 +6,7 @@ const chrome = process.env.CHROME || ['/Applications/Google Chrome.app/Contents/
 if (!chrome) { console.log('no Chrome found (set CHROME)'); process.exit(1); }
 // advance every world of the mode n frames, then draw once (headless Chrome barely runs requestAnimationFrame)
 const run = n => `for (let i = 0; i < ${n}; i++) { mode().tick?.(1 / 60); for (const w of mode().worlds()) w.advance(1 / 60, NOIN); } mode().render();`;
-// crop: [x, y, w, h] in page px of a 1400 × 800 window
+// crop: [x, y, w, h] in page px of a 1400 × 800 window; an optional third [w, h] sets another page size (a phone)
 const SHOTS = {
   play: [`lab.scen = 'ai vs ai'; setMode('play'); lab.meter = true; build(); panels(); ${run(150)}`, [0, 400, 1100, 370]],
   // the itch.io cover image (630 × 500)
@@ -56,16 +56,22 @@ const SHOTS = {
   replay: [`lab.scen = 'you vs ai'; setMode('play'); const w = lab.cells[0].w;
     for (let i = 0; i < 400; i++) w.advance(1 / 60, { ...NOIN, right: i % 120 < 40, punch: i % 23 === 0, kick: i % 37 === 0 });
     rp.reel = null; setMode('replay'); panels();`, [0, 80, 1400, 600]],
+  // the play tab's netplay section with a hosted lobby open; the invite fills in once WebRTC has made the offer, and its
+  // link is shown as the Pages URL (the QR still holds the local file's)
+  netplay: [`closeWelcome(); lab.scen = 'you vs ai'; setMode('play'); build(); ${run(30)} openNetplay(true); $('side').scrollTop = 0;
+    setInterval(() => net.box.querySelectorAll('textarea').forEach(t => t.value = t.value.replace(/^file:.*?#/, 'https://morbeo.github.io/stick2/#')), 100);`, [600, 40, 800, 760]],
+  // a phone held upright: the mobile layout with the on-screen pad
+  phone: [`closeWelcome(); touchPad(true); lab.scen = 'you vs ai'; setMode('play'); build(); panels(); ${run(60)} tpSync?.();`, [0, 0, 390, 844], [390, 844]],
 };
 fs.mkdirSync(outDir, { recursive: true });
 const page = path.join(os.tmpdir(), 'stick2-shot.html');
 for (const name of process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SHOTS)) {
-  const [code, [x, y, w, h]] = SHOTS[name];
-  // the page keeps its 1400 × 800 layout and slides up-left so the crop lands in a window of the crop's size
+  const [code, [x, y, w, h], [pw, ph] = [1400, 800]] = SHOTS[name];
+  // the page keeps its layout (1400 × 800 unless the shot sets one) and slides up-left so the crop lands in a window of the crop's size
   fs.writeFileSync(page, fs.readFileSync(path.join(root, 'index.html'), 'utf8').replace(/(src|fonts)\//g, `file://${root}/$1/`).replace('</body>',
-    `<script>localStorage.clear(); setTimeout(() => { document.documentElement.style.cssText = 'width:1400px;height:800px;overflow:hidden;transform:translate(-${x}px,-${y}px)';
+    `<script>localStorage.clear(); setTimeout(() => { document.documentElement.style.cssText = 'width:${pw}px;height:${ph}px;overflow:hidden;transform:translate(-${x}px,-${y}px)';
       dispatchEvent(new Event('resize')); ${code}; app.speed = 0; }, 300);</script></body>`));
   execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--hide-scrollbars', `--window-size=${w},${h}`,
-    '--virtual-time-budget=3000', `--screenshot=${path.join(outDir, name + '.png')}`, 'file://' + page], { stdio: 'ignore' });
+    '--virtual-time-budget=6000', `--screenshot=${path.join(outDir, name + '.png')}`, 'file://' + page], { stdio: 'ignore' });
   console.log('docs/img/' + name + '.png');
 }

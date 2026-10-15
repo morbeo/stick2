@@ -31,6 +31,14 @@ Any scenario named anywhere in these docs plays the same way: `https://morbeo.gi
 
 **Fight.** You, the engine AI (four difficulty levels), a dummy or scripted scenarios; 16 characters with chains, motion specials, throws, counters, projectiles, weapons, juggles and ragdoll falls; 2D or 2.5D lanes; endless waves. A frame meter and input display for training. → [Fighting](docs/fighting.md)
 
+**Play online.** Fight someone in another browser with no server or account: host, send the invite link (or let them scan its QR code), paste the code they send back. Lockstep with rollback; extra players watch. → [Modes: online](docs/modes.md#online), [Netplay](docs/netplay.md)
+
+![The play tab's netplay section with an invite ready](docs/img/netplay.png)
+
+**Play on a phone.** On a touch screen an on-screen stick and P/K/S/G buttons (plus J to jump in 2.5D) appear whenever a fighter is yours, and the layout stacks to fit. → [Interface: phones and tablets](docs/interface.md#phones-and-tablets)
+
+<img src="docs/img/phone.png" alt="stick2 on a phone, with the touch pad" width="260">
+
 **Tune the feel.** Hundreds of settings (hit stop, shake, zoom, springs, gravity, knockback) with presets, and an experiment tab that replays the same seeded fight side by side with one setting swept.
 
 ![Experiment: one fight, nine hit stop values](docs/img/experiment.png)
@@ -59,7 +67,7 @@ Any scenario named anywhere in these docs plays the same way: `https://morbeo.gi
 
 ![Impact view](docs/img/impact.png)
 
-**Get around.** ⌘K finds any mode, tool, table, move or setting; every key rebinds, with macros; deterministic replays you can save, rewind and scrub; export and import a character, your settings or everything; in-app docs with live demos. → [Interface](docs/interface.md)
+**Get around.** ⌘K finds any mode, tool, table, move or setting; every key rebinds, with macros; deterministic replays you can save, rewind and scrub; export and import a character, your settings or everything; in-app docs with live demos; it also finds **netplay** and **netplay: host**. → [Interface](docs/interface.md)
 
 ## Development
 

@@ -8,7 +8,7 @@ The full reference behind the [landing page](../README.md). The app has its own 
 | [Fighting](fighting.md) | the engine: guard, combos, throws, specials, projectiles, weapons, power, falls, 2D / 2.5D, stances |
 | [Editing](editing.md) | the roster, stats, the move table, movement layers, the input table, combos |
 | [Contributing to the roster](roster-contributing.md) | what help is needed, the contribution workflow, and where to learn the tools (animate, movement, physics, combos) |
-| [Interface](interface.md) | the top bar, export / import, debug, ⌘K, keys and macros, panels, undo, sound |
+| [Interface](interface.md) | the top bar, export / import, debug, ⌘K, keys and macros, panels, undo, phones and the touch pad, sound |
 | [Development](development.md) | code layout, build info, the screenshot and animation tools, the icon font |
 | [Testing](testing.md) | `npm test`, snapshots, replays, the browser test, seeds, the move matrix, fuzzing |
 | [Netplay](netplay.md) | online play with no server: connection, invite codes, the lobby; what's built and what's next |
@@ -19,6 +19,7 @@ The full reference behind the [landing page](../README.md). The app has its own 
 - **Play a fight:** [Modes → Play](modes.md#play), then the keys in [Fighting → Buttons](fighting.md#buttons).
 - **Make a character:** [Modes → Character](modes.md#character), then [Editing → Characters](editing.md#characters).
 - **Make a move:** [Modes → Animate](modes.md#animate), then [Editing → Moves and inputs](editing.md#moves-and-inputs).
+- **Play someone online:** [Modes → Online](modes.md#online).
 - **Tune the feel:** [Modes → Experiment](modes.md#experiment).
 - **Save or share your work:** [Interface → Export and import](interface.md#export-and-import).
 - **Contribute to the roster:** [Contributing to the roster](roster-contributing.md).

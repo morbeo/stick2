@@ -29,7 +29,7 @@ How the code is laid out, and the tools that build its generated files.
 | `npm run itch:assets` | writes a cover, banner, page/embed backgrounds, a favicon and a logo to `out/itch/`, drawn from the app's own code (see [Publishing on itch.io](#publishing-on-itchio)) |
 | `python tools/render/icons.py MaterialSymbolsOutlined.ttf` | rebuilds the icon font subset (needs fonttools + brotli) |
 
-Rerun the screenshots and animations after a visible change. Both find Chrome on their own; `CHROME=/path/to/chrome` overrides it.
+Rerun the screenshots and animations after a visible change. Both find Chrome on their own; `CHROME=/path/to/chrome` overrides it. Running as root (a container), Chrome needs `--no-sandbox`: point `CHROME` at a two-line wrapper script that adds it.
 
 ## Icons
 
