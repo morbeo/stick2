@@ -29,7 +29,7 @@ jobs:
         run: |
           node tools/dev/build-info.js
           rm -rf .github node_modules tests tools out dist
-          slug=$(echo "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._-\n' '-')
+          slug=$(echo "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._\n-' '-')
           if [ "$GITHUB_REF_NAME" = master ]; then echo "dir=." >> "$GITHUB_OUTPUT"; else echo "dir=preview/$slug" >> "$GITHUB_OUTPUT"; fi
       - uses: peaceiris/actions-gh-pages@v4
         with:
@@ -48,7 +48,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: ${{ github.head_ref }}
         run: |
-          slug=$(echo "$BRANCH" | tr -c 'A-Za-z0-9._-\n' '-')
+          slug=$(echo "$BRANCH" | tr -c 'A-Za-z0-9._\n-' '-')
           owner=${GITHUB_REPOSITORY%/*}; repo=${GITHUB_REPOSITORY#*/}
           gh pr comment ${{ github.event.number }} --repo "$GITHUB_REPOSITORY" \
             --body "Preview: https://${owner,,}.github.io/$repo/preview/$slug/ (updates on every push)"
@@ -63,7 +63,7 @@ jobs:
       - env:
           BRANCH: ${{ github.event.ref }}
         run: |
-          slug=$(echo "$BRANCH" | tr -c 'A-Za-z0-9._-\n' '-')
+          slug=$(echo "$BRANCH" | tr -c 'A-Za-z0-9._\n-' '-')
           [ -d "preview/$slug" ] || exit 0
           git config user.name github-actions; git config user.email github-actions@users.noreply.github.com
           git rm -rq "preview/$slug" && git commit -qm "Remove preview for $BRANCH" && git push
