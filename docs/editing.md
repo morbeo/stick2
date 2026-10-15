@@ -7,6 +7,7 @@ Building fighters and their movesets. The editors themselves (dragging joints, t
 | Section | Where it is |
 |---|---|
 | [Characters](#characters) | side panel in character and animate |
+| [Bone shapes](#bone-shapes) | bone panel → shape, bone table, palette |
 | [Moves and inputs](#moves-and-inputs) | the move table over the stage |
 | [Movement layers](#movement-layers) | animate → move group → + → layer |
 | [Input table](#input-table) | the **moves** group → inputs |
@@ -144,6 +145,15 @@ Next to the stance's key, **fly** makes it hover instead of fall: gravity and th
 
 - A four-legged character kicks with its forelegs (knees forward); its hind legs bend like hocks.
 - Fighters collide by their bodies' extent (torso and legs in the stance, behind and in front). Two four-legged characters keep their horse bodies apart, and the AI measures range from the body's front.
+
+## Bone shapes
+
+A bone's **shape** (bone panel, bone table, or the palette's `bone shape:` entries) sets how it is drawn:
+
+- **line:** a stroke from the parent joint (the default).
+- **circle:** a disc on the joint, radius = length (heads, fists).
+- **spline:** one smooth curve through this bone and the single chain of line bones below it, tapering to the last one's thickness (tails, tentacles). Drawing only; every bone keeps its own hurtbox.
+- **chain:** a rope. The bone splits into **segs** segments (2-16, default 6), each looser and more dangling than the last, drawn as one spline (whips, scarves, hair). It swings on the same springs as dangle and whip, so fights stay deterministic. Poses and moves still name the bone itself; its children hang from the rope's end.
 
 ## Moves and inputs
 

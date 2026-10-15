@@ -134,6 +134,7 @@ Links:
 - a mode, a tool on the current toolbar or in a bar under the preview, or a key action;
 - a table: the move table, input table, combos, sounds and tracker (over the character tab there, else in animate), the bone table (in the character tab), compare settings;
 - a layout by name, reset layout, reset settings, factory reset;
+- **netplay** (opens the play tab's netplay section) and **netplay: host** (opens a lobby and makes an invite);
 - a character, a move (opens it in animate) or a setting (searches the settings panel for it; from the gallery it goes to play).
 
 ↑ ↓ pick, Enter runs, Esc closes.
@@ -224,6 +225,17 @@ Save what you watch as an animated GIF or a WebM video.
 - Moving the mouse to another cell starts the buffer again. A recording stays on the cell it started on.
 - Paused time is left out. Slow motion stays slow.
 - A GIF loops by itself and has 255 colours. A WebM is smaller and keeps every colour, but saving it takes as long as the clip.
+
+## Phones and tablets
+
+stick2 runs on a phone or tablet in the browser, nothing to install.
+
+- On a touch screen, an on-screen pad shows whenever a fighter is yours: a stick on the left (eight directions, with a dead zone in the middle) and **P K S G** on the right, plus **J** (jump) in 2.5D, where up moves in depth; in 2D, up on the stick jumps. It presses the same keys the keyboard does, so fights, replays and online matches can't tell the two apart.
+- The controller button at the top of the stage turns the pad off or back on; the choice is saved. On a screen with a mouse, `touchPad(true)` in the console turns it on.
+- A finger on the stage acts as the mouse.
+- Under 760 px wide, the stage sits above the side panel and the toolbars scroll sideways. A short landscape screen keeps the side panel beside the stage, narrower. Popups fit the screen, and buttons and fields get bigger under a finger.
+
+<img src="img/phone.png" alt="The play tab on a phone, with the touch pad" width="260">
 
 ## Sound
 

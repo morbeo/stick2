@@ -132,6 +132,19 @@ Both replay buttons are in the menu bar, next to undo / redo.
 - A file from another engine version asks first. The top line then shows the version and where the fight goes out of sync.
 - The history button beside them opens the play fight in the [replay](#replay) tab.
 
+### Online
+
+The **netplay** section at the top of the play tab's side panel plays someone in another browser, directly, with no server or account. The command palette (⌘K) finds it too: **netplay** opens the section, **netplay: host** opens a lobby right away.
+
+1. One player clicks **host** and sends the invite link (chat, email, anything).
+2. The other opens it. Their page shows a code, which they send back.
+3. The host pastes that code and clicks **connect**.
+4. Both pick a character and click **ready**, then the host clicks **start**.
+
+The fight uses the host's scenario, stage and settings. A fight saves as a replay afterwards. More players who join with an invite watch. How it works: [Netplay](netplay.md).
+
+![The netplay section with a hosted lobby: the invite link, its QR code and the answer box](img/netplay.png)
+
 ### Theater mode
 
 **theater** in the toolbar (T, or Esc to leave) hides the toolbars and side panel and tries for fullscreen: just the fight, for streaming or recording.

@@ -2,17 +2,17 @@
 
 [← docs index](README.md)
 
-`tools/mcp.js` runs stick2 as an [MCP](https://modelcontextprotocol.io) server, so an AI assistant can run fights, read and change settings, characters, scenarios, sounds and fx looks, check moves, play replays and look at frames. It speaks the stdio transport (JSON-RPC 2.0, one message per line) and has no dependencies.
+`tools/mcp/mcp.js` runs stick2 as an [MCP](https://modelcontextprotocol.io) server, so an AI assistant can run fights, read and change settings, characters, scenarios, sounds and fx looks, check moves, play replays and look at frames. It speaks the stdio transport (JSON-RPC 2.0, one message per line) and has no dependencies.
 
 ## Register it
 
 The repo has a `.mcp.json`, so Claude Code offers the server when it opens the repo. To add it yourself:
 
 ```
-claude mcp add --scope project stick2 -- node tools/mcp.js
+claude mcp add --scope project stick2 -- node tools/mcp/mcp.js
 ```
 
-Any other MCP client: run `node tools/mcp.js` (or `npm run mcp`) from the repo. It logs to stderr only.
+Any other MCP client: run `node tools/mcp/mcp.js` (or `npm run mcp`) from the repo. It logs to stderr only.
 
 ## The session
 
@@ -50,17 +50,17 @@ Any other MCP client: run `node tools/mcp.js` (or `npm run mcp`) from the repo. 
 ## Resources
 
 - `stick2://docs/<file>.md`: these docs.
-- `stick2://schema/settings`: every setting, as in `src/core.js`.
+- `stick2://schema/settings`: every setting, as in `src/engine/core.js`.
 - `stick2://schema/character`: the shape of a character definition (bones, poses, moves, keys).
 - `stick2://schema/scenario`: the shape of a scenario, and of script and macro steps.
 - `stick2://schema/sound`, `/look`, `/track`: the shape of a sound, fx look and tracker track preset.
 
 ## Rendering
 
-- **PNG and GIF:** headless Chrome draws the fight with the app's own code (`tools/render.html`).
+- **PNG and GIF:** headless Chrome draws the fight with the app's own code (`tools/render/render.html`).
   - It is found where the browser test looks; `CHROME=/path/to/chrome` overrides.
   - It starts on first use with a temporary profile, stays up for the session and is killed when the server exits.
-- **SVG:** without Chrome, the engine draws into a recording 2D context (`tools/svg.js`) that writes SVG.
+- **SVG:** without Chrome, the engine draws into a recording 2D context (`tools/render/svg.js`) that writes SVG.
   - Same picture, as text: no dependencies means no rasterizing.
   - GIFs still need Chrome.
 
@@ -68,9 +68,9 @@ Any other MCP client: run `node tools/mcp.js` (or `npm run mcp`) from the repo. 
 
 The server can also drive the app open in a browser.
 
-1. Start it: `node tools/mcp.js --serve 8123`, or the `start_bridge` tool.
+1. Start it: `node tools/mcp/mcp.js --serve 8123`, or the `start_bridge` tool.
 2. It serves the repo on `http://127.0.0.1:PORT/` (only on this machine). Open that address.
-3. The page connects on its own (`src/bridge.js`). Opened any other way (`file://`, itch.io, another server), the bridge does nothing.
+3. The page connects on its own (`src/ui/bridge.js`). Opened any other way (`file://`, itch.io, another server), the bridge does nothing.
 
 `browser_state` shows the tab, the play scenario, the character being edited, the changed settings and your scenarios. `browser_command` runs one of a fixed set of commands; nothing is evaluated:
 
@@ -100,10 +100,10 @@ This session's characters (`list_characters`, `create_character`...) and the bri
 
 ## The Discord bot
 
-`tools/discord-bot.js` is a separate always-on process (not an MCP client) that spawns its own `tools/mcp.js` and talks JSON-RPC to it over stdio, the same protocol any MCP client speaks. It's the one place in the repo with an npm dependency (`discord.js`) and a `package-lock.json`, needed only by this script.
+`tools/discord/discord-bot.js` is a separate always-on process (not an MCP client) that spawns its own `tools/mcp/mcp.js` and talks JSON-RPC to it over stdio, the same protocol any MCP client speaks. It's the one place in the repo with an npm dependency (`discord.js`) and a `package-lock.json`, needed only by this script.
 
-- Command: `!fight <char> <char> [<char> [<char>]]` — 2 to 4 names, `vs` optional as a separator, `random` picks a roster character for that slot. 2 fighters → `ai vs ai`, 3 → `ai 3-way`, 4 → `ai free-for-all` (`src/brain.js`); it simulates the fight, renders a GIF (needs Chrome, same as `render_gif`), and replies with it.
+- Command: `!fight <char> <char> [<char> [<char>]]` — 2 to 4 names, `vs` optional as a separator, `random` picks a roster character for that slot. 2 fighters → `ai vs ai`, 3 → `ai 3-way`, 4 → `ai free-for-all` (`src/engine/brain.js`); it simulates the fight, renders a GIF (needs Chrome, same as `render_gif`), and replies with it.
 - Access: admins/mods (Manage Server permission) can always use it; everyone else needs a role set with `!fightconfig role <name|none>`, optionally restricted to one channel with `!fightconfig channel <#name|none>`.
 - Throttling: a per-user cooldown (hard reject) and a global cooldown enforced as a queue, not a rejection — both adjustable live with `!fightconfig usercooldown <seconds>` / `globalcooldown <seconds>`, persisted to `out/bot-config.json`. `!fightconfig show` and `!fightstatus` report the current state.
 - `out/` fills with GIFs fast: a timer deletes ones older than `OUT_RETAIN_MS` (default 2h) every `OUT_CLEAN_INTERVAL_MS` (default 15m).
-- Run it: `DISCORD_BOT_TOKEN=... npm run discord-bot`. Deploy it as a systemd user service with `tools/deploy-bot.sh` (installs dependencies, writes the env file and unit, enables it).
+- Run it: `DISCORD_BOT_TOKEN=... npm run discord-bot`. Deploy it as a systemd user service with `tools/discord/deploy-bot.sh` (installs dependencies, writes the env file and unit, enables it).
