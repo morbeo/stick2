@@ -35,12 +35,12 @@ jobs:
         run: npm ci
       - name: Render a fight GIF
         # chars/seed are derived from the commit SHA (or the release tag), so the same fight can be
-        # replayed later with: node tools/render-notify-gif.js <sha-or-tag>
+        # replayed later with: node tools/discord/render-notify-gif.js <sha-or-tag>
         if: vars.DISCORD_NOTIFY_GIF != 'false'
         id: gif
         env:
           CHROME: ${{ steps.chrome.outputs.chrome-path }}
-        run: echo "path=$(node tools/render-notify-gif.js ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }})" >> "$GITHUB_OUTPUT"
+        run: echo "path=$(node tools/discord/render-notify-gif.js ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }})" >> "$GITHUB_OUTPUT"
       - name: Attach it to the release
         if: github.event_name == 'release' && steps.gif.outputs.path != ''
         env:
