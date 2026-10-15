@@ -89,8 +89,24 @@ function panels() {
   }
   $('side').replaceChildren(...side.filter(s => !s.fname || layShown('side:' + s.fname)));
   $('over').replaceChildren(...mode().overlay?.() || []); // controls placed over the canvas
-  syncAll();
+  syncAll(); ctxFit();
 }
+// the toolbar keeps to one row: the groups past its end hide behind "more", which unfolds every row (kept in ui.ctxAll)
+function ctxFit() {
+  const c = $('ctx'), more = ctxFit.more ??= button('', 'More: the toolbar groups that don\'t fit on one row (click again: back to one row)', () => { ui.ctxAll = !ui.ctxAll; saveUi(); ctxFit(); }, 'mini');
+  more.id = 'ctxmore'; c.append(more);
+  const gs = [...c.children].filter(g => g !== more);
+  for (const g of gs) g.classList.remove('ovf');
+  c.classList.toggle('all', !!ui.ctxAll);
+  let hid = 0;
+  if (!ui.ctxAll && matchMedia('(min-width: 761px)').matches) {
+    const end = c.clientWidth - more.offsetWidth - 8;
+    for (const g of gs) if (hid || g.offsetLeft - c.offsetLeft + g.offsetWidth > end) { g.classList.add('ovf'); hid++; }
+  }
+  more.hidden = !hid && !ui.ctxAll;
+  setRich(more, ui.ctxAll ? ':expand_more: less' : `:more_horiz: ${hid} more`);
+}
+addEventListener('resize', () => ctxFit());
 function restart() { mode().restart(); }
 // rewind every fight n frames and pause there
 function rewind(n) { app.paused = true; app.scrub = false; if (mode().rewind) return mode().rewind(n); for (const w of ownWorlds()) w.rewind(n); }
@@ -150,8 +166,8 @@ function buildTop() {
     clipGroup(),
     grp('replay', 'Edit the play fight in the replay tab, or stop a loaded replay file (export / import, in files) and return to the live fight',
       button(':history:', 'Edit the play fight in the replay tab: its events on a timeline and in a table', reelFromPlay), stopReplayButton()),
-    grp('files', 'The character, the settings, everything, or this play fight as a replay, as JSON', button(':download: export :expand_more:', 'Export to a file: the character, the settings, everything, or this play fight as a replay', fileMenu('export', exportFile, replayExportItem())),
-      button(':upload: import :expand_more:', 'Import from a file: a character, settings, everything, or a replay to play back', fileMenu('import', importFile,
+    grp('files', 'The character, the settings, everything, or this play fight as a replay, as JSON', button(':download::expand_more:', 'Export to a file: the character, the settings, everything, or this play fight as a replay', fileMenu('export', exportFile, replayExportItem())),
+      button(':upload::expand_more:', 'Import from a file: a character, settings, everything, or a replay to play back', fileMenu('import', importFile,
         replayImportItem(), button('compare…', 'Compare settings: the current ones against a settings or everything file, setting by setting (grid tab)', compareFile)))),
     grp('layout', 'Layout and keys', button(':search:', 'Find anything (⌘K): a mode, a toolbar tool, an action, a table (moves, inputs, combos, bones), a character, a move or a setting', openPalette),
       button(':view_sidebar:', 'Panel: show / hide the side panel (remembered per tab)' + keyTip('panel'), togglePanel),
@@ -163,10 +179,6 @@ function buildTop() {
       button(':info:', 'Docs: how everything works, with live demo fights, and every setting, move flag, input and key explained; searchable (also in ⌘K)', () => openDocs()),
       toggle(':help:', 'Hints: the line of mouse and key help under the view and the frame meter\'s colour legend; off, they show for a few seconds on the first visit to each mode (?)', () => ui.hints, toggleHints),
       soundBtn, staleButton(), button(':ssid_chart:', 'Debug: the build and engine version, frame rate and the shown fight\'s state, report a bug, ghost, boxes, hud and labels, reset settings, and factory reset', debugPanel, 'bugbtn')));
-  // the layout group is pinned top-right (index.html): keep the first row clear of it, whatever its width
-  const corner = $('global').querySelector('[data-part="layout"]');
-  (buildTop.ro ??= new ResizeObserver(([e]) => $('top').style.setProperty('--corner-w', Math.ceil(e.target.offsetWidth) + 9 + 'px'))).disconnect();
-  if (corner) buildTop.ro.observe(corner);
 }
 
 function resize() {

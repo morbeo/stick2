@@ -38,8 +38,10 @@ $('grip').onpointerdown = e => {
 };
 $('grip').ondblclick = () => { delete lay().size.side; saveLay(); layApply(); };
 // hide or show a part: a toolbar group (ctx:<its label>) or a side section (side:<its heading>)
-const layShown = id => !lay().hide[id];
-function layShow(id, v) { if (v) delete lay().hide[id]; else lay().hide[id] = true; saveLay(); panels(); }
+// parts a tab starts with hidden: the replay toolbar's types repeat its side section of the same name
+const LAY_HIDDEN = { replay: ['ctx:types'] };
+const layShown = (id, tab = tabOf(app.mode)) => !(lay(tab).hide[id] ?? LAY_HIDDEN[tab]?.includes(id));
+function layShow(id, v) { if (v === !LAY_HIDDEN[tabOf(app.mode)]?.includes(id)) delete lay().hide[id]; else lay().hide[id] = !v; saveLay(); panels(); }
 // the order of the toolbar groups or side sections (kind ctx / side): the named parts take their places in the saved order, the rest stay put
 function layOrder(kind, els, name) {
   const order = lay().order?.[kind];

@@ -211,7 +211,7 @@ const scensUsing = name => Object.entries(myScens()).filter(([, u]) => u.p.some(
 // picker, random pick and the live random-character roster until re-enabled or reverted
 async function disableChar() {
   const name = CURRENT;
-  if (!await askYes(`Disable the character "${name}"?`, `"${name}" ships with the app so it can't be deleted - this hides it from pickers and random picks instead. Enable or revert brings it back.`, ':no_entry: disable') || name !== CURRENT) return;
+  if (!await askYes(`Disable the character "${name}"?`, `"${name}" ships with the app so it can't be deleted - this hides it from pickers and random picks instead. Enable or revert brings it back.`, ':block: disable') || name !== CURRENT) return;
   setDisabled(name, true);
   pickChar('stick');
 }
