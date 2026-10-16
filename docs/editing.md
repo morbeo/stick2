@@ -73,7 +73,9 @@ Stats scale the fight settings for that character. Three groups, with group butt
 | air | jump height (whatever its gravity), max jumps (-1 = infinite air jumps), gravity, air speed, air acceleration, fall speed, air dodge, air dash |
 | fight | health, toughness, tempo, springs, grab range, chip taken, block pushback taken, combo damage taken, knockback taken, its own just guard's push on the attacker, its own push block's force |
 
-The **radar** above the stats draws the chosen stats: each axis runs from the stat's minimum to its maximum, the dashed ring is 1. Other characters can be overlaid to compare.
+The character tab keeps all of this in one **Stats** section with a sub-tab each: radar, ground, air, fight, walk (walk & idle) and shadow. The last tab picked is remembered, and the palette opens one directly (`stats: air`).
+
+The **radar** tab draws the chosen stats: each axis runs from the stat's minimum to its maximum, the dashed ring is 1. Other characters can be overlaid to compare.
 
 | The stats radar |
 | --- |
@@ -81,7 +83,7 @@ The **radar** above the stats draws the chosen stats: each axis runs from the st
 
 ### Shadow
 
-The **shadow** section (character tab, under walk & idle) sets the shadow drawn under the character in a fight. Drawing only: the fight plays out the same.
+The **shadow** section (the shadow tab of the character's Stats section) sets the shadow drawn under the character in a fight. Drawing only: the fight plays out the same.
 
 - **shape:** ellipse (the default oval), circle (a round blob, w is its radius), body (the figure itself squashed and sheared onto the floor) or **off**.
 - **w, h:** the oval's half-width and half-height. For body, w / 22 and h / 22 scale the figure's width and height on the floor.

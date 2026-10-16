@@ -1,6 +1,6 @@
 'use strict';
 // ---------- character mode: drag the skeleton, tune bones, watch it fight live; body experiment grid ----------
-const creator = { boneView: (() => { try { return localStorage.getItem('stick2.boneView') || 'tree'; } catch { return 'tree'; } })(), preview: 'showcase', opponent: 'self', controlDummy: false, w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
+const creator = { statTab: (() => { try { return localStorage.getItem('stick2.statTab') || 'radar'; } catch { return 'radar'; } })(), boneView: (() => { try { return localStorage.getItem('stick2.boneView') || 'tree'; } catch { return 'tree'; } })(), preview: 'showcase', opponent: 'self', controlDummy: false, w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
   headToHead: false, htControl: 'none', // the changes panel's built-in-vs-yours option, instead of each vs the chosen opponent
   exp: { kind: 'body', vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
 // quick picks shown as buttons in the preview bar; creator.preview itself can be any SCENARIOS key (scenButton picks from all of them)
@@ -349,11 +349,11 @@ function radarPanel() {
 }
 // the character's stats; defaults are the built-in's values (custom characters: 1)
 // (in stance only: the stance body's stats over the character's; health stays the character's)
-function statsPanel() {
+function statsPanel(only) {
   const own = stanceOnly(), get = k => (own ? stanceBody()?.stats?.[k] : undefined) ?? DEFS[CURRENT][k] ?? 1, dflt = k => own ? DEFS[CURRENT][k] ?? 1 : CHAR_DEFS[CURRENT]?.[k] ?? 1;
   const put = (def, vals) => Object.assign(own ? editBody(def).stats ??= {} : def, vals);
   // one heading per group (ground / air / fight), each with its group buttons
-  return Object.keys(STAT_GROUPS).flatMap(g => {
+  return Object.keys(STAT_GROUPS).filter(g => !only || g === only).flatMap(g => {
     const specs = CHAR_STATS.filter(s => s.g === g && !(own && s.k === 'health'));
     const title = h('h3', { textContent: `${g} stats`, tip: `${STAT_GROUPS[g]}. Multipliers on the fight settings for this character only (1 = as the settings say)` });
     title.append(groupOps(specs, get, dflt, vals => edit(def => put(def, vals)),
@@ -531,11 +531,22 @@ function bodyPanel() {
       popup(b, h('div', { cls: 'bar' }, Object.entries(POSE_TARGETS(currentChar())).map(([n, t]) => button(n, t.tip, () => {
         Object.assign(breed, { pose: n, atk: null }); breed.seed++; lab.kind = 'attacks'; setMode('experiment');
       })))))),
-    ...radarPanel(),
-    ...statsPanel(),
-    ...gaitPanel(),
-    ...shadowPanel(),
+    ...statsSection(),
   ];
+}
+// radar, ground / air / fight stats, walk & idle and shadow: one section, a sub-tab each (the last one picked is remembered)
+const STAT_TABS = { radar: ['Stats on a radar, other characters overlaid to compare', () => radarPanel()],
+  ...Object.fromEntries(Object.entries(STAT_GROUPS).map(([g, tip]) => [g, [`${tip}. Multipliers on the fight settings for this character only`, () => statsPanel(g)]])),
+  walk: ['The procedural walk and idle', () => gaitPanel()], shadow: ['The shadow under the character in a fight', () => shadowPanel()] };
+function statsSection() {
+  let tab = creator.statTab;
+  if (!STAT_TABS[tab]) tab = 'radar';
+  const sub = h('div', { cls: 'subpanel' }, ...STAT_TABS[tab][1]());
+  // swap the tab body in place: a full panels() rebuild would let the accordion shut this section
+  const tabs = seg(Object.keys(STAT_TABS), () => creator.statTab in STAT_TABS ? creator.statTab : 'radar', v => { creator.statTab = v; try { localStorage.setItem('stick2.statTab', v); } catch {} sub.replaceChildren(...STAT_TABS[v][1]()); syncAll(); },
+    mapVals(STAT_TABS, t => t[0]), String);
+  return [heading('Stats', 'The character\'s stats, walk & idle and shadow, one tab at a time: radar, ground, air and fight stats (multipliers on the fight settings), walk & idle, shadow'),
+    h('div', { cls: 'bar stattabs' }, tabs), sub];
 }
 function expPanel() {
   const ex = creator.exp;
