@@ -485,11 +485,13 @@ function boneTable() {
   reg(wrap, () => { if (!wrap.contains(document.activeElement) && JSON.stringify([DEFS[CURRENT].bones, stanceBody(), curStance().pose]) !== sig) fill(); });
   const filter = h('input', { cls: 'macro', value: creator.tfilter, placeholder: 'fuzzy filter: id, parent, role, side, shape', tip: 'Letters in order match (e.g. "shf" finds shinF); any column with text counts',
     oninput: e => { creator.tfilter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() });
-  wrap.append(stageHead('bones', BONES_TIP, boneViewSwitch(), boneCrud(), filter),
+  wrap.append(stageHead('bones', BONES_TIP, boneViewSwitch(), limbAdd(), boneCrud(), filter),
     h('table', {}, h('thead', {}, head), body));
   return resizableBones(wrap);
 }
 // the bones panel under the character view: the bone tree (default) or the bone table, switched from its head
+// add a limb (role-based: legs walk, arms swing, tails follow through); it attaches to the selected torso bone
+const limbAdd = () => h('span', { cls: 'seg' }, ...Object.keys(LIMBS).map(k => button(`:add: :${OPT_ICONS[k]}:`, `Add a ${k}: ${LIMB_TIPS[k]} (attaches to the selected torso bone)`, () => addLimb(k), 'mini')));
 const boneCrud = () => crud({
   new: ['Add one bone at the end of the selected bone (same role and side)', addBone],
   copy: ['Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb],
@@ -501,7 +503,7 @@ const boneViewSwitch = () => seg(['tree', 'table'], () => creator.boneView, v =>
   v => v === 'tree' ? ':straighten: tree' : ':table_rows: table');
 function bonePanelStage() {
   if (creator.boneView === 'table') return boneTable();
-  return resizableBones(h('div', { cls: 'mtable btable btree' }, stageHead('bones', 'Bone tree: ' + BONE_VIEW_TIPS.tree, boneViewSwitch(), boneCrud()), boneTree()));
+  return resizableBones(h('div', { cls: 'mtable btable btree' }, stageHead('bones', 'Bone tree: ' + BONE_VIEW_TIPS.tree, boneViewSwitch(), limbAdd(), boneCrud()), boneTree()));
 }
 // drag the bones panel's top edge to resize it (kept in the tab's layout); the editor above refits on its own (edLayout)
 function resizableBones(wrap) {
@@ -520,9 +522,6 @@ function resizableBones(wrap) {
 }
 function bodyPanel() {
   return [...charPanel(),
-    heading('Body', 'Build the skeleton. Limbs are role-based: legs walk, arms swing, tails follow through. New parts attach to the selected torso bone.',
-      '⌘Z undo · ⇧⌘Z redo · Del delete · drag joints in the editor'),
-    h('div', { cls: 'bar' }, ...Object.keys(LIMBS).map(k => button(`:add: :${OPT_ICONS[k]}: ${k}`, LIMB_TIPS[k], () => addLimb(k)))),
     ...bonePanel(),
     heading('Stance pose', 'Set the whole stance from a preset (per limb, so it works for any body), or turn a pose into attacks', ''),
     ...stanceRow(),
