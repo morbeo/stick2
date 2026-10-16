@@ -277,6 +277,9 @@ function bonePanel() {
     row(':flip: side', 'Draw order and colour', seg(['f', '', 'b'], () => prop('side'), v => edit(d => { for (const b of selDefs(d)) b.side = v; }), SIDE_TIPS,
       o => ({ f: 'front', '': 'centre', b: 'back' })[o])),
     row('shape', 'How the bone is drawn', seg(Object.keys(SHAPE_TIPS), () => prop('shape'), v => edit(d => { for (const b of selDefs(d)) b.shape = v; }), SHAPE_TIPS)),
+    row('fill to', 'Fill shape only: the bone whose joint closes the filled shape', button(prop('fillTo') || '—', 'Click: pick the bone whose joint closes the fill (— = it closes back on itself)', (e, el) => {
+      const ids = ['—', ...DEFS[CURRENT].bones.map(b => b.id).filter(id => id !== studio.sel)];
+      popup(el, seg(ids, () => prop('fillTo') || '—', v => { closePop(); edit(d => { for (const b of selDefs(d)) if (v === '—') delete b.fillTo; else b.fillTo = v; }); }, {})); }, 'mini')),
     row('cap', 'How a line bone\'s ends are drawn', seg(Object.keys(CAP_TIPS), () => prop('cap') ?? 'round', v => edit(d => { for (const b of selDefs(d)) if (v === 'round') delete b.cap; else b.cap = v; }), CAP_TIPS)),
     subFold(':auto_awesome: fx', fxRows('Effects always drawn on this bone (select several bones for a flaming arm, a glowing body); drawing only, the fight is the same',
       () => prop('fx'), e => setProp('fx', e), null)),

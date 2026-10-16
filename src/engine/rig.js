@@ -13,11 +13,15 @@ const BONE = {
   shape: 'line',       // line | circle | spline | chain (circle is centred on the bone's end, radius = len; spline draws one smooth
                         // tapered curve through this bone and its single line child chain; chain splits the bone into segs dangling
                         // segments drawn as a spline: a rope, whip or scarf)
+                        // fill: a filled shape through its parent joint, its end and the joints of the single bone chain below it,
+                        // closed back (via fillTo's joint if set): capes, wing membranes, skirts. Its own line is its edge
                         // socket: an invisible attach point (no draw, no hurtbox, in no chain): a held weapon goes on it
   segs: 6,             // chain only: how many segments the rope is split into
   shade: 0,            // grey level: 0 = the figure's own ink, 1 = paper white (monochrome characters keep their look: no hues)
   taper: 0,            // how much thinner the line ends than it starts (0 = even, 1 = to a point)
   cap: 'round',        // line ends: round | square (boxy limbs, pills squared off) | flat (cut at the joint) | point (narrows to a tip: blades, claws)
+  fillTo: undefined,   // fill only: a bone whose joint closes the filled shape (a cape from the neck to a hand)
+  aim: 0,              // how far the bone turns toward the nearest foe's upper body (1 = points straight at it): heads that watch, tracking arms
   z: 0,                // draw order layer: lower draws underneath everything above it, whatever the side (side orders bones within a layer)
   thick: 5, hurt: 0,   // stroke width; hurtbox radius (0 = can't be hit here)
   lag: 1,              // follow-through: each step lowers the spring frequency, so the bone trails its parent
@@ -58,6 +62,12 @@ function expandChains(by) {
 function splineRun(ch, b) {
   const run = [b];
   for (let k; (k = run[run.length - 1].kids?.filter(x => !x.hidden)) && k.length === 1 && (k[0].shape ?? 'line') === 'line' && k[0].side === b.side && k[0].role !== 'weapon';) run.push(k[0]);
+  return run;
+}
+// a fill bone's outline: this bone, then each single visible child below it (any line bone, whatever its side)
+function fillRun(ch, b) {
+  const run = [b];
+  for (let k; (k = run[run.length - 1].kids?.filter(x => !x.hidden && x.shape !== 'socket')) && k.length === 1 && k[0].shape !== 'circle';) run.push(k[0]);
   return run;
 }
 // a Catmull-Rom curve through pts, its width easing from w0 to w1 (short strokes, round caps hide the joins)
@@ -737,7 +747,7 @@ function makeCharacter(def) {
     for (const r of b.also || []) (chains[r] ??= []).push(c);
   }
   const rest = Object.fromEntries(order.map(b => [b.id, b.a]));
-  const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains,
+  const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains, aims: order.some(b => b.aim > 0),
     tips: [...chains.arm, ...chains.leg, ...chains.head, ...chains.tail, ...chains.weapon].map(c => c[c.length - 1]),
     poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, motions: customMotions(def), binds: { ...BINDS, ...def.binds }, binds25: { ...BINDS_25, ...def.binds25 },
     stats: Object.fromEntries(CHAR_STATS.map(s => [s.k, def[s.k] ?? 1])), gait: { ...Object.fromEntries(GAIT_VARS.map(s => [s.k, s.v])), ...def.gait },
@@ -1086,6 +1096,10 @@ function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
     else if (b.shape === 'spline') {
       const run = splineRun(ch, b); run.slice(1).forEach(k => inSpline.add(k.id));
       ctx.strokeStyle = c; strokeSpline(ctx, [o, ...run.map(k => P[k.id])], thick + extra, run[run.length - 1].thick * (mul?.thick?.[run[run.length - 1].id] ?? 1) + extra);
+    } else if (b.shape === 'fill') {
+      const pts = [o, ...fillRun(ch, b).map(k => P[k.id]), ...b.fillTo && P[b.fillTo] ? [P[b.fillTo]] : []];
+      ctx.fillStyle = b.shade || tint || extra ? c : mixWhite(c, 0.55); ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill();
+      if (thick > 0) { ctx.strokeStyle = c; ctx.lineWidth = thick + extra; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0], e[1]); ctx.stroke(); }
     } else if ((b.taper || b.cap === 'point') && !b.curve) drawTapered(ctx, o, e, thick + extra, b.cap === 'point' ? 0 : thick * (1 - b.taper) + extra, c, b.cap);
     else {
       ctx.lineCap = LINE_CAPS[b.cap] || 'round';

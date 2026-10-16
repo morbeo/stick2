@@ -736,9 +736,13 @@ class Fighter {
     // dangling bones (dangle) hang like a rope: turned toward gravity plus the drag of the body's motion, so they droop at rest,
     // stream back from a run and lift in a fall; wa: world angles of the drawn pose, parents first (|| 0: a restored checkpoint has no -0)
     const wa = {}, dd = c('dangleDrag'), blow = Math.atan2(-this.vx * this.dir / dd || 0, 1 - this.vy / dd) / R, gust = this.rag ? 0 : c('dangle');
+    // aim bones turn toward the nearest foe's upper body (look-at heads, a tracking arm): from last frame's drawn joints
+    const foe = this.ch.aims && !this.rag && !this.spin && !this.kd && this.w.nearestFoe(this), P0 = foe && this.body();
+    const fp = foe && foe.body()[foe.ch.chains.head[0]?.[0].parent || foe.ch.chains.spine[0]?.at(-1).id || 'hip'];
     for (const b of this.ch.bones) {
       const j = b.id, wp = b.parent ? wa[b.parent] : 0, t = this.target[j];
       let x = b.dangle && gust ? t + clamp(b.dangle * gust, 0, 1) * wrap180(blow - wp - t) : t;
+      if (b.aim && fp) { const o = P0[b.parent || 'hip']; x += clamp(b.aim, 0, 1) * wrap180(Math.atan2((fp[0] - o[0]) * this.dir, fp[1] - o[1]) / R - wp - x); }
       // whip: lags behind a fast-turning parent (its angular velocity, already updated this frame), so a nunchuck's
       // tip bends back out of a swing and springs past straight into the next one instead of staying rigid
       if (b.whip && !this.rag) x -= clamp((this.flt[b.parent]?.yd || 0) * b.whip * c('whip'), -140, 140);

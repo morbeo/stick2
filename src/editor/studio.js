@@ -105,6 +105,7 @@ const BONE_PROPS = [
   { k: 'whip', min: 0, max: 0.1, step: 0.002, tip: 'Bends back from a fast-turning parent\'s own angular velocity, springing past straight into the next turn (a nunchuck\'s loose end). 0 = rigid to its parent.' },
   { k: 'shade', min: 0, max: 0.9, step: 0.05, tip: 'Grey level: 0 is the figure\'s own ink, higher fades it toward paper white (stays monochrome).' },
   { k: 'taper', min: 0, max: 1, step: 0.05, tip: 'Line ends thinner than it starts: 0 = even, 1 = to a point (claws, horns, tails).' },
+  { k: 'aim', min: 0, max: 1, step: 0.05, tip: 'Look-at: how far the bone turns toward the nearest foe\'s upper body in a fight (1 = straight at it). Heads that watch, an arm that tracks.' },
   { k: 'z', min: -3, max: 3, step: 1, tip: 'Draw order layer: lower draws underneath every higher layer, whatever its side. Side orders bones within a layer.' },
   { k: 'segs', min: 2, max: 16, step: 1, tip: 'Chain shape only: how many segments the rope is split into. More = smoother and floppier.' },
   { k: 'alpha', min: 0, max: 1, step: 0.05, tip: 'Visibility: 1 is fully visible (the default). 0 hides the bone and everything below it completely: no draw, no hurtbox, no part in walking or chains. Between, it draws translucent but stays solid.' },
@@ -126,6 +127,7 @@ const CAP_TIPS = { round: 'Rounded ends (the default stick look).', square: 'Squ
   flat: 'Cut flat at the joints (plates, pills with flat ends).', point: 'Narrows to a tip at its end (blades, claws, horns).' };
 const SHAPE_TIPS = { line: 'A stroke from the parent joint to this one.', circle: 'A disc centred on the joint, radius = length (heads, fists).',
   spline: 'One smooth curve through this bone and the single chain of line bones below it, tapering to the last one\'s thickness (tails, tentacles).',
+  fill: 'A filled shape through the parent joint, this joint and the single chain of bones below it, closed back (or through the fill-to bone\'s joint): capes, wing membranes, skirts. Lighter than the ink unless it has a shade.',
   socket: 'An invisible attach point: not drawn, never hit, in no limb chain. A held weapon goes on it (front side first) instead of the hand.',
   chain: 'A rope: the bone splits into segs loose, dangling segments drawn as one smooth curve (whips, scarves, hair). Children hang from its end.' };
 
