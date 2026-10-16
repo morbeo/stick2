@@ -69,6 +69,9 @@ function drawEditor() {
     const r2 = (on ? 6 : hov ? 5.5 : 4.5) * dpr;
     ctx.fillStyle = hov || on ? '#ffd' : '#fff'; ctx.fillRect(p[0] - r2, p[1] - r2, r2 * 2, r2 * 2);
     ctx.strokeStyle = on ? RED[0] : '#555'; ctx.lineWidth = 1.5 * dpr; ctx.strokeRect(p[0] - r2, p[1] - r2, r2 * 2, r2 * 2); }
+  if (creator.rep) { const p = P[creator.rep.id]; ctx.save(); ctx.setLineDash([4 * dpr, 4 * dpr]); ctx.strokeStyle = RED[0]; ctx.lineWidth = 1.5 * dpr;
+    ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(creator.rep.x, creator.rep.y); ctx.stroke(); ctx.restore();
+    text(`hang ${creator.rep.id} from ${creator.hover && creator.hover !== creator.rep.id ? creator.hover : '…'}`, creator.rep.x + 10 * dpr, creator.rep.y - 8 * dpr, RED[0], 11); }
   if (creator.hover === 'hip') text('hip · drag: the waist moves, the feet stay', Math.min(P.hip[0] + 10 * dpr, r.x + r.w - 300 * dpr), P.hip[1] - 8 * dpr, '#666', 11);
   const hv = ch.by[creator.hover] || (creator.hover !== 'hip' && sel);
   if (hv) text(`${hv.id} · ${hv.role}${hv.side ? ' · ' + (hv.side === 'f' ? 'front' : 'back') : ''} · ${hv.len}px`,
@@ -202,14 +205,20 @@ function creatorMouse(type, x, y, e) {
   if (type === 'down') {
     const id = pickBone(x, y);
     if (id && (e.metaKey || e.ctrlKey)) { pickBoneSel(id, true); syncAll(); } // ⌘/Ctrl+click: add to / take out of the selection
+    else if (id && id !== 'hip' && e.altKey) { pickBoneSel(id, false); creator.rep = { id, x, y }; syncAll(); } // Alt+drag: reparent onto the joint it's dropped on
     else if (id === 'hip') { const f = edFrame(); creator.hip0 = { x, y, a: [...f.o], pose: { ...curStance(f.ch).pose }, L: f.L }; creator.drag = 'hip'; }
     else if (id) { pickBoneSel(id, false); creator.drag = id; syncAll(); }
   } else if (type === 'move') {
+    if (creator.rep) { Object.assign(creator.rep, { x, y }); creator.hover = pickBone(x, y); cursor('alias'); return; }
     if (creator.drag === 'hip') hipDrag(x, y);
     else if (creator.drag) dragTo(x, y, e.shiftKey);
     else creator.hover = x < edLayout().ed.w ? pickBone(x, y) : null;
     cursor(creator.drag ? 'grabbing' : creator.hover ? 'grab' : 'default');
-  } else { creator.drag = null; studio.lastKey = null; }
+  } else {
+    const r = creator.rep; creator.rep = null; creator.drag = null; studio.lastKey = null;
+    const to = r && pickBone(x, y);
+    if (to && to !== r.id && (to === 'hip' || parentChoices(DEFS[CURRENT], r.id).includes(to))) setParent(r.id, to === 'hip' ? null : to);
+  }
 }
 function creatorKey(e, a) {
   if (creator.expOn) { if (e.code === 'Escape') { setExp(false); return true; } return; }
@@ -537,5 +546,5 @@ const creatorMode = {
   mouse: creatorMouse,
   key: creatorKey,
   hint: () => creator.expOn ? (creator.exp.kind === 'random' ? 'click a cell to keep it' : 'click a cell to breed around it') + ' · Esc back to the editor'
-    : 'drag a joint: length + angle · Shift+drag: angle only · drag the hip (square): move the waist over the feet · click: select · ⌘click: add to the selection · Del delete · ⌘Z undo',
+    : 'drag a joint: length + angle · Shift+drag: angle only · Alt+drag onto a joint: hang it from that bone · drag the hip (square): move the waist over the feet · click: select · ⌘click: add to the selection · Del delete · ⌘Z undo',
 };

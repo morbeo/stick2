@@ -822,15 +822,21 @@ function boneTree() {
       const live = viewChar().by[b.id] || b, stanceOwn = studio.stance > 0 && !!stanceBody()?.add?.some(x => x.id === b.id);
       setRich(nb, live.id + (live.lock ? ' 🔒' : '') + (live.hidden ? ' (hidden)' : '') + (stanceOwn ? ' (this stance)' : ''));
       nb.dataset.tip = `${live.role}${live.side ? ' · ' + (live.side === 'f' ? 'front' : 'back') : ''} · ${live.len}px${fold ? ` · ${subtree(DEFS[CURRENT], b.id).length - 1} hidden` : ''}` +
-        (stanceOwn ? ' · only exists in this stance' : '') + ' · click: select it (Shift / ⌘: add to the selection) · double-click: rename';
+        (stanceOwn ? ' · only exists in this stance' : '') + ' · click: select it (Shift / ⌘: add to the selection) · double-click: rename · drag onto a bone: hang it from that bone (Alt: move before it)';
     });
+    // drag a bone onto another: it (and everything below it) hangs from that one; Alt+drop: moves before it in the draw order instead
+    Object.assign(nb, { draggable: true, ondragstart: e => e.dataTransfer?.setData('text/plain', b.id),
+      ondragover: e => { e.preventDefault(); nb.classList.add('dropto'); }, ondragleave: () => nb.classList.remove('dropto'),
+      ondrop: e => { e.preventDefault(); nb.classList.remove('dropto'); treeDrop(e.dataTransfer?.getData('text/plain'), b.id, e.altKey); } });
     const row = h('div', { cls: 'tree' }, tw, nb);
     row.style.paddingLeft = depth * 14 + 'px';
     rows.push(row);
     if (!fold) kidsOf(b).forEach(k => walk(k, depth + 1));
   };
   ch.bones.filter(b => !b.parent).forEach(b => walk(b, 0));
-  return h('div', {}, rows);
+  const hip = h('div', { cls: 'tree note', textContent: 'drop here: hang from the hip', tip: 'Drag a bone here to make it a root (it hangs from the hip, like the legs and the waist)',
+    ondragover: e => e.preventDefault(), ondrop: e => { e.preventDefault(); treeDrop(e.dataTransfer?.getData('text/plain'), 'hip'); } });
+  return h('div', {}, rows, hip);
 }
 
 // ---------- body operations ----------
@@ -923,6 +929,15 @@ function moveBone(id, before) {
 }
 const parentChoices = (def, id) => { const sub = new Set(subtree(def, id)); return def.bones.filter(b => !sub.has(b.id)).map(b => b.id); };
 function setParent(id, p) { edit(def => { def.bones.find(b => b.id === id).parent = p; }); }
+// a drop in the bone tree: onto a bone reparents (never under itself), Alt reorders, the hip row makes a root
+function treeDrop(id, to, reorder = false) {
+  const def = DEFS[CURRENT];
+  if (!id || id === to || !def.bones.some(b => b.id === id)) return;
+  if (to === 'hip') setParent(id, null);
+  else if (reorder) moveBone(id, to);
+  else if (parentChoices(def, id).includes(to)) setParent(id, to);
+  panels();
+}
 // a bone the stance adds goes from its body; in stance only, any other bone is hidden in the stance (with all below it)
 function deleteBone() {
   const body = stanceBody();
