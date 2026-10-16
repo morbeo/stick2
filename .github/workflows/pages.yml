@@ -30,7 +30,7 @@ jobs:
           node tools/dev/build-info.js
           rm -rf .github node_modules tests tools out dist
           slug=$(echo "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._\n-' '-')
-          if [ "$GITHUB_REF_NAME" = master ]; then echo "dir=." >> "$GITHUB_OUTPUT"; else echo "dir=preview/$slug" >> "$GITHUB_OUTPUT"; fi
+          if [ "$GITHUB_REF_NAME" = master ]; then echo "dir=" >> "$GITHUB_OUTPUT"; else echo "dir=preview/$slug" >> "$GITHUB_OUTPUT"; fi
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
