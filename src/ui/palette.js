@@ -24,13 +24,17 @@ function paletteEntries() {
     { kind: 'table', name: 'input table', tip: VIEW_TIPS.inputs + over, run: () => { inputs.table = true; overView('inputs')(); } },
     { kind: 'editor', name: 'combos', tip: VIEW_TIPS.combos + over, run: overView('combos') },
     { kind: 'editor', name: 'looks', tip: VIEW_TIPS.looks, run: () => setMode('fx') }, // 'sounds'/'tracker' are their own mode entries (above) now that they're fx views
-    { kind: 'table', name: 'bone table', tip: 'Every bone of the character in a table over its stage: sort, filter, edit in place, drag to reorder, change parents (in the character tab)', run: () => {
+    { kind: 'table', name: 'bone table', tip: 'Every bone of the character in a table over its stage: sort, filter, edit in place, drag to reorder, change parents (in the character tab; the bone tree and Alt+drag on the canvas reparent too)', run: () => {
       if (app.mode !== 'character') setMode('character');
       openStage('bones');
     } },
     ...Object.keys(SHAPE_TIPS).map(sh => ({ kind: 'action', name: 'bone shape: ' + sh, tip: `Draw the selected bones as ${sh}: ${SHAPE_TIPS[sh]} (in the character tab)`, run: () => {
       if (app.mode !== 'character') setMode('character');
       edit(d => { for (const b of selDefs(d)) b.shape = sh; });
+    } })),
+    ...Object.keys(CAP_TIPS).map(cap => ({ kind: 'action', name: 'bone cap: ' + cap, tip: `Draw the selected line bones' ends ${cap}: ${CAP_TIPS[cap]} (in the character tab)`, run: () => {
+      if (app.mode !== 'character') setMode('character');
+      edit(d => { for (const b of selDefs(d)) if (cap === 'round') delete b.cap; else b.cap = cap; });
     } })),
     ...Object.keys(layouts.sets).map(n => ({ kind: 'layout', name: 'layout: ' + n, tip: 'Use this layout (what each tab shows)', run: () => layUse(n) })),
     ...['ctx', 'side'].flatMap(kind => app.parts[kind].map(p => { const id = kind + ':' + p, on = layShown(id), what = kind === 'ctx' ? 'toolbar group' : 'side section';

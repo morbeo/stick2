@@ -7,7 +7,7 @@ Building fighters and their movesets. The editors themselves (dragging joints, t
 | Section | Where it is |
 |---|---|
 | [Characters](#characters) | side panel in character and animate |
-| [Bone shapes](#bone-shapes) | bone panel → shape, bone table, palette |
+| [Bone shapes](#bone-shapes) | bone panel → shape, cap, shade…; reparenting in the tree and canvas |
 | [Moves and inputs](#moves-and-inputs) | the move table over the stage |
 | [Movement layers](#movement-layers) | animate → move group → + → layer |
 | [Input table](#input-table) | the **moves** group → inputs |
@@ -154,6 +154,25 @@ A bone's **shape** (bone panel, bone table, or the palette's `bone shape:` entri
 - **circle:** a disc on the joint, radius = length (heads, fists).
 - **spline:** one smooth curve through this bone and the single chain of line bones below it, tapering to the last one's thickness (tails, tentacles). Drawing only; every bone keeps its own hurtbox.
 - **chain:** a rope. The bone splits into **segs** segments (2-16, default 6), each looser and more dangling than the last, drawn as one spline (whips, scarves, hair). It swings on the same springs as dangle and whip, so fights stay deterministic. Poses and moves still name the bone itself; its children hang from the rope's end.
+- **fill:** a filled shape through the parent joint, the bone's end and the single bone chain below it, closed back on itself, or through **fill to**'s joint (a cape from the neck to a hand). It fills a lighter grey of the ink unless the bone has a shade; its own line is the edge.
+- **socket:** an invisible attach point: not drawn, never hit, in no limb chain. A held weapon goes on the first socket (front side first) instead of the front hand.
+
+Line bones also have:
+
+- **cap:** how the ends are drawn: round (default), square (pushed out by half the width), flat (cut at the joints) or point (narrows to a tip). Square and flat make boxes and pills.
+- **taper:** how much thinner the line ends than it starts (0 even, 1 a point).
+- **shade:** a grey level, from the figure's own ink (0) toward paper white. Grey only, so characters stay monochrome.
+- **z:** a draw-order layer. Lower layers draw under higher ones whatever their side; side (back, centre, front) orders bones inside a layer.
+- **aim:** in a fight, how far the bone turns toward the nearest foe's upper body (1 = straight at it): heads that watch, an arm that tracks.
+
+### Reorganizing bones
+
+- **Bone tree** (body panel): drag a bone onto another to hang it, and everything below it, from that bone. Hold Alt as you drop to move it before that bone in the draw order instead. Drop it on the **hang from the hip** row to make it a root.
+- **Canvas:** Alt+drag a joint onto another joint (or the hip square) to reparent it. A dashed line shows where it goes.
+- **Bone table:** click a bone's parent cell to pick a new parent; drag an id onto another row to reorder.
+- **copy** (body panel) copies the selected bone and its subtree to the other side.
+
+A bone can never hang from its own subtree.
 
 ## Moves and inputs
 
