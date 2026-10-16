@@ -22,8 +22,9 @@ const diffHeadScen = () => { const s = SCENARIOS['ai vs ai'];
 
 // ---------- editor view: the stance pose, big, with a handle on every joint ----------
 function edLayout() {
-  const ew = splitX();
-  return { ed: { x: 0, y: 0, w: ew, h: canvas.height }, pv: { x: ew, y: 0, w: canvas.width - ew, h: canvas.height } };
+  // the bones panel covers the bottom of the stage: the editor and preview fit above it
+  const ew = splitX(), ov = document.querySelector('#over > .btable'), hh = canvas.height - (ov ? ov.offsetHeight * dpr : 0);
+  return { ed: { x: 0, y: 0, w: ew, h: hh }, pv: { x: ew, y: 0, w: canvas.width - ew, h: hh } };
 }
 // screen transform of the figure; the hips stay put while dragging so the body doesn't jump under the cursor
 function edFrame() {

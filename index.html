@@ -154,6 +154,12 @@
   .tmat td.on { outline: 2px solid #c33; outline-offset: -2px; }
   #over > .sbuild, #over > .cmptable { inset: auto 0 0 0; max-height: 50%; border-top: 1px solid #ccc; }
   #over > .btable { inset: auto 0 0 0; max-height: 45%; border-top: 1px solid #ccc; }
+  .btree .tnode { display: flex; flex-direction: column; align-items: center; }
+  .btree .tkids { display: flex; gap: 6px; align-items: flex-start; border-top: 1px solid #ccc; padding-top: 4px; margin-top: 2px; }
+  .btree .tree { display: flex; align-items: center; white-space: nowrap; padding-left: 0 !important; }
+  .btree .troot { align-items: flex-start; overflow-x: auto; }
+  .btree .thip { padding: 2px 8px; border: 1px dashed #aaa; border-radius: 3px; }
+  #over > .btree { max-height: 30%; }
   .btree button.dropto { box-shadow: inset 0 0 0 2px #c33; }
   #over > .etable { top: 0; right: 0; left: auto; width: 45%; padding-top: 0; border-left: 1px solid #ccc; }
   .chip { display: inline-flex; align-items: center; gap: 2px; padding: 0 5px; border-radius: 8px; color: #fff; font-size: 11px; line-height: 16px; }
