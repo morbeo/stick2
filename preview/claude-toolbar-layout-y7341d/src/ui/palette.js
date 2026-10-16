@@ -36,7 +36,7 @@ function paletteEntries() {
     ...['ctx', 'side'].flatMap(kind => app.parts[kind].map(p => { const id = kind + ':' + p, on = layShown(id), what = kind === 'ctx' ? 'toolbar group' : 'side section';
       return { kind: 'layout', name: `${on ? 'hide' : 'show'} ${what}: ${p}`, tip: `${on ? 'Hide' : 'Show'} the ${what} "${p}" on this tab (layout)`, run: () => layShow(id, !on) }; })),
     { kind: 'layout', name: ui.ctxAll ? 'toolbar: one row' : 'toolbar: all rows', tip: 'The toolbar on one row (the rest behind "more"), or every group on as many rows as it needs', run: () => { ui.ctxAll = !ui.ctxAll; saveUi(); ctxFit(); } },
-    ...[['group', 'grouped settings'], ['context', 'selection first'], ['sticky', 'sticky headings']].map(([k, n]) => ({ kind: 'layout', name: `side panel: ${sideCfg()[k] ? 'no ' : ''}${n}`, tip: 'Side panel option, in every tab (layout popup: side options)', run: () => setSide(k, !sideCfg()[k]) })),
+    ...[['group', 'grouped settings'], ['context', 'selection first'], ['sticky', 'sticky headings'], ['allVars', 'all variables']].map(([k, n]) => ({ kind: 'layout', name: `side panel: ${sideCfg()[k] ? 'no ' : ''}${n}`, tip: 'Side panel option, in every tab (layout popup: side options)', run: () => setSide(k, !sideCfg()[k]) })),
     ...['off', 'editors', 'all'].map(v => ({ kind: 'layout', name: `side panel: one open section ${v}`, tip: 'One side section open at a time: off, in character and animate, or in every tab', run: () => setSide('accordion', v) })),
     { kind: 'layout', name: 'reset layout', tip: 'This tab back to how it starts, in the layout in use', run: () => layReset(tabOf(app.mode)) },
     { kind: 'table', name: 'compare settings', tip: CMP_PANEL_TIP, run: openCompare },

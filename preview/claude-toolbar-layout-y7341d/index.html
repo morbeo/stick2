@@ -104,7 +104,7 @@
   .fold > h3, .fold > h4 { cursor: pointer; }
   .fold > h3::before, .fold > h4::before { content: '\e5cf'; font-family: Icons; font-size: 16px; margin: 0 2px 0 -4px; transition: transform .1s; }
   .fold.shut > h3::before, .fold.shut > h4::before { transform: rotate(-90deg); }
-  #side:not(.searching) .fold.shut > .fbody, #side:not(.searching) .fold:not(.more):not(.sgroup) .adv, #side.searching .morebtn { display: none; }
+  #side:not(.searching) .fold.shut > .fbody, #side:not(.searching):not(.allvars) .fold:not(.more):not(.sgroup) .adv, #side.searching .morebtn, #side.allvars .morebtn { display: none; }
   .morebtn { margin: 2px 0 4px; color: #888; }
   .charpick { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 2px 6px; }
   .charpick canvas { width: 36px; height: 40px; } .charpick .note { margin: 0; } .charpick > span:not(.ic) { flex: 1; display: flex; flex-direction: column; }

@@ -156,8 +156,8 @@ function layoutPanel(e, b) {
 
 // ---------- side panel options (ui.side, the layout popup's "side options" row; the same in every tab) ----------
 // group: the settings sections in a few folds · accordion: one section open at a time (off, editors: character and
-// animate, all) · context: the section for what is selected goes first · sticky: the open section's heading stays in view
-const SIDE_DEFAULTS = { group: true, accordion: 'editors', context: true, sticky: true };
+// animate, all) · allVars: every variable shown, no "n more" buttons · context: the section for what is selected goes first · sticky: the open section's heading stays in view
+const SIDE_DEFAULTS = { group: true, accordion: 'editors', context: true, sticky: true, allVars: false };
 const sideCfg = () => ({ ...SIDE_DEFAULTS, ...ui.side });
 function setSide(k, v) { (ui.side ??= {})[k] = v; saveUi(); panels(); }
 const SIDE_GROUPS = {
@@ -172,7 +172,7 @@ const SIDE_CONTEXT = { character: ['bone', () => selIds().length > 0], animate: 
 const accordionOn = (S = sideCfg()) => S.accordion === 'all' || S.accordion === 'editors' && ['character', 'animate'].includes(tabOf(app.mode));
 function sideArrange(secs) {
   const S = sideCfg(), L = lay();
-  $('side').classList.toggle('sticky', !!S.sticky);
+  $('side').classList.toggle('sticky', !!S.sticky); $('side').classList.toggle('allvars', !!S.allVars);
   let out = [...secs], ctx = null;
   const c = S.context && SIDE_CONTEXT[app.mode];
   if (c && c[1]()) { const i = out.findIndex(s => s.fname === c[0]); if (i >= 0) { ctx = out[i]; out.unshift(...out.splice(i, 1)); } }
@@ -205,6 +205,7 @@ function sideOptions() {
   return h('div', { cls: 'row', tip: 'How the side panel is arranged, in every tab' }, h('span', { textContent: 'side options' }), h('div', { cls: 'bar' },
     toggle('grouped settings', 'The settings sections in five folds: movement, combat, defense, modes, look (a search still opens them)', () => S().group, v => setSide('group', v)),
     toggle('selection first', 'The section for what is selected (a bone, the key, replay events) goes to the top', () => S().context, v => setSide('context', v)),
+    toggle('all variables', 'Every variable shown in every section, without the "n more" buttons', () => S().allVars, v => setSide('allVars', v)),
     toggle('sticky headings', 'The heading of the section you are scrolling through stays at the top of the panel', () => S().sticky, v => setSide('sticky', v)),
     h('span', { cls: 'note', textContent: 'one open' }),
     seg(['off', 'editors', 'all'], () => S().accordion, v => setSide('accordion', v),
