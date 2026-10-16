@@ -38,6 +38,8 @@ jobs:
       - name: Copy site and push
         run: |
           node src-repo/tools/dev/build-info.js
+          # version every script url, so a reload after a deploy never runs old cached scripts with a new page
+          sed -i -E "s#(src=\"src/[^\"?]+\.js)\"#\1?v=${GITHUB_SHA::7}\"#g" src-repo/*.html
           slug=$(echo "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._\n-' '-')
           if [ "$GITHUB_REF_NAME" = master ]; then dest=site; keep=(--exclude preview/); else dest=site/preview/$slug; keep=(); fi
           mkdir -p "$dest"
@@ -45,9 +47,10 @@ jobs:
             --exclude .github --exclude node_modules --exclude tests --exclude tools --exclude out --exclude dist \
             src-repo/ "$dest/"
           cd site && touch .nojekyll
+          # -f below: the copied .gitignore lists src/build.js (ignored in the repo), but the site needs it
           git config user.name github-actions; git config user.email github-actions@users.noreply.github.com
           url="https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY#*/}${dest#site}"; url="${url%/}/"
-          git add -A && git diff --cached --quiet && { echo "No changes for $url" >> "$GITHUB_STEP_SUMMARY"; exit 0; }
+          git add -Af && git diff --cached --quiet && { echo "No changes for $url" >> "$GITHUB_STEP_SUMMARY"; exit 0; }
           git commit -qm "Deploy $GITHUB_REF_NAME@${GITHUB_SHA::7}" && git push
           echo "Deployed \`$GITHUB_REF_NAME\` to $url" >> "$GITHUB_STEP_SUMMARY"
 
