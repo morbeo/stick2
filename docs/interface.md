@@ -85,6 +85,17 @@ The **show** group in the toolbar holds the overlays, always in this order; each
 - Drag the side panel's left edge to set its width (220–560 px); double-click it for the default 300.
 - In animate and character, drag the boundary between the editor and the preview to share the stage between them.
 
+**side options** (in the layout popup, the same in every tab) arrange the side panel:
+
+| option | default | what it does |
+|---|---|---|
+| grouped settings | on | the settings sections fold into five groups: movement, combat, defense, modes, look (a search still opens them) |
+| selection first | on | the section for what is selected moves to the top: the bone (character), the key (animate), the selection (replay) |
+| sticky headings | on | the heading of the section you scroll through stays at the top of the panel |
+| one open | editors | one section open at a time: off, in character and animate (editors), or in every tab |
+
+⌘K has them too (**side panel: …**).
+
 The replay tab starts with its toolbar's **types** group hidden, since its side panel has the same section; show it in the layout popup. ⌘K finds **hide toolbar group: …** and **hide side section: …** (or **show**) for the parts of the tab you are on.
 
 ### Debug

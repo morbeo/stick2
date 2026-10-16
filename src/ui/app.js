@@ -87,7 +87,7 @@ function panels() {
     g.ondragleave = () => g.classList.remove('dropto');
     g.ondrop = e => { e.preventDefault(); const p = e.dataTransfer.getData('text/plain'); if (p && p !== g.dataset.part) layMove('ctx', p, g.dataset.part); };
   }
-  $('side').replaceChildren(...side.filter(s => !s.fname || layShown('side:' + s.fname)));
+  $('side').replaceChildren(...sideArrange(side.filter(s => !s.fname || layShown('side:' + s.fname))));
   $('over').replaceChildren(...mode().overlay?.() || []); // controls placed over the canvas
   syncAll(); ctxFit();
 }

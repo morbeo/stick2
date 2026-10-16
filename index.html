@@ -86,6 +86,8 @@
   .layhi { position: fixed; pointer-events: none; z-index: 20; border: 2px solid #c0392b; border-radius: 3px; background: rgba(192,57,43,0.06); }
   .layhi.hidden { border-style: dashed; background: none; }
   #side { grid-area: side; overflow: auto; border-left: 1px solid #ddd7cb; padding: 8px; box-sizing: border-box; }
+  #side.sticky > .fold:not(.shut) > h3 { position: sticky; top: -8px; z-index: 3; background: #f3f0e8; margin-top: 0; padding: 10px 0 4px; }
+  #side > .sgroup > .fbody { padding-left: 8px; border-left: 1px solid #e3ded2; }
   #side h3 { display: flex; align-items: center; margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
   .row { display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 4px; margin: 2px 0; }
   /* netplay (src/net/netui.js): the play tab's lobby section */
