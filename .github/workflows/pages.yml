@@ -1,4 +1,5 @@
-name: Pages
+name: Pages · deploy & previews
+run-name: "${{ github.event_name == 'push' && format('Deploy {0}', github.ref_name) || github.event_name == 'delete' && format('Remove preview {0}', github.event.ref) || format('Comment preview link on #{0}', github.event.number) }}"
 
 # Publishes the site to the gh-pages branch: master at the root, every other branch
 # under preview/<branch>/. A PR gets a comment with its preview link; deleting a
@@ -10,9 +11,7 @@ on:
   pull_request:
     types: [opened, reopened]
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {} # granted per job
 
 concurrency:
   group: pages # one writer to gh-pages at a time
@@ -20,17 +19,23 @@ concurrency:
 
 jobs:
   deploy:
+    name: Deploy to gh-pages
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Check out branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           path: src-repo
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Check out gh-pages
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: gh-pages
           path: site
-      - name: Copy the site into gh-pages and push
+      - name: Copy site and push
         run: |
           node src-repo/tools/dev/build-info.js
           slug=$(echo "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._\n-' '-')
@@ -41,14 +46,21 @@ jobs:
             src-repo/ "$dest/"
           cd site && touch .nojekyll
           git config user.name github-actions; git config user.email github-actions@users.noreply.github.com
-          git add -A && git diff --cached --quiet && exit 0
+          url="https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY#*/}${dest#site}"; url="${url%/}/"
+          git add -A && git diff --cached --quiet && { echo "No changes for $url" >> "$GITHUB_STEP_SUMMARY"; exit 0; }
           git commit -qm "Deploy $GITHUB_REF_NAME@${GITHUB_SHA::7}" && git push
+          echo "Deployed \`$GITHUB_REF_NAME\` to $url" >> "$GITHUB_STEP_SUMMARY"
 
   comment:
+    name: Comment preview link
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
     steps:
-      - env:
+      - name: Post preview link on PR
+        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: ${{ github.head_ref }}
         run: |
@@ -58,13 +70,19 @@ jobs:
             --body "Preview: https://${owner,,}.github.io/$repo/preview/$slug/ (updates on every push)"
 
   cleanup:
+    name: Remove branch preview
     if: github.event_name == 'delete' && github.event.ref_type == 'branch'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Check out gh-pages
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: gh-pages
-      - env:
+      - name: Delete preview folder and push
+        env:
           BRANCH: ${{ github.event.ref }}
         run: |
           slug=$(echo "$BRANCH" | tr -c 'A-Za-z0-9._\n-' '-')
