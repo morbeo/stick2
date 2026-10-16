@@ -277,6 +277,7 @@ function bonePanel() {
     row(':flip: side', 'Draw order and colour', seg(['f', '', 'b'], () => prop('side'), v => edit(d => { for (const b of selDefs(d)) b.side = v; }), SIDE_TIPS,
       o => ({ f: 'front', '': 'centre', b: 'back' })[o])),
     row('shape', 'How the bone is drawn', seg(Object.keys(SHAPE_TIPS), () => prop('shape'), v => edit(d => { for (const b of selDefs(d)) b.shape = v; }), SHAPE_TIPS)),
+    row('cap', 'How a line bone\'s ends are drawn', seg(Object.keys(CAP_TIPS), () => prop('cap') ?? 'round', v => edit(d => { for (const b of selDefs(d)) if (v === 'round') delete b.cap; else b.cap = v; }), CAP_TIPS)),
     subFold(':auto_awesome: fx', fxRows('Effects always drawn on this bone (select several bones for a flaming arm, a glowing body); drawing only, the fight is the same',
       () => prop('fx'), e => setProp('fx', e), null)),
     slider('stance', { min: -270, max: 270, step: 1 }, () => curStance().pose[studio.sel] ?? 0,
@@ -389,11 +390,11 @@ function shadowPanel() {
 }
 // ---------- bone table: every bone with its properties, edited in place; a row click selects (⌘/Ctrl/Shift+click adds) ----------
 // an edit in a selected row goes to every selected bone, in any other row to that bone only
-const BONE_TIPS = { role: 'What the bone does in procedural motion (click to change)', side: 'Draw order and colour (click to change)', shape: 'How the bone is drawn (click to change)' };
+const BONE_TIPS = { role: 'What the bone does in procedural motion (click to change)', side: 'Draw order and colour (click to change)', shape: 'How the bone is drawn (click to change)', cap: 'How a line bone\'s ends are drawn (click to change)' };
 const BONE_COLS = [
   { k: 'id', tip: 'Click a row to select the bone (⌘/Ctrl/Shift+click adds it to the selection) · drag the id onto another bone to move it before that one: inside front, centre and back, earlier bones draw underneath (unsorted and unfiltered only)', get: b => b.id },
   { k: 'parent', tip: 'The bone it hangs from (hip: a root)', get: b => b.parent || '' },
-  ...['role', 'side', 'shape'].map(k => ({ k, tip: BONE_TIPS[k], get: b => b[k] ?? BONE[k] ?? '', opts: { role: ROLE_TIPS, side: SIDE_TIPS, shape: SHAPE_TIPS }[k] })),
+  ...['role', 'side', 'shape', 'cap'].map(k => ({ k, tip: BONE_TIPS[k], get: b => b[k] ?? BONE[k] ?? '', opts: { role: ROLE_TIPS, side: SIDE_TIPS, shape: SHAPE_TIPS, cap: CAP_TIPS }[k] })),
   { k: 'also', tip: 'Other roles this bone\'s chain also joins (gait, planting, weapon-holding…), on top of its own role — click to toggle (houndo\'s front legs: role arm, also leg)', get: b => (b.also || []).join(' ') },
   { k: 'stance', tip: 'Angle in the stance pose, relative to the parent', get: b => curStance().pose[b.id] ?? 0, num: { min: -270, max: 270, step: 1 } },
   ...BONE_PROPS.map(p => ({ k: p.k, tip: p.tip, get: b => b[p.k] ?? BONE[p.k], num: p })),

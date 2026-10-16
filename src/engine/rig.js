@@ -16,6 +16,7 @@ const BONE = {
   segs: 6,             // chain only: how many segments the rope is split into
   shade: 0,            // grey level: 0 = the figure's own ink, 1 = paper white (monochrome characters keep their look: no hues)
   taper: 0,            // how much thinner the line ends than it starts (0 = even, 1 = to a point)
+  cap: 'round',        // line ends: round | square (boxy limbs, pills squared off) | flat (cut at the joint) | point (narrows to a tip: blades, claws)
   z: 0,                // draw order layer: lower draws underneath everything above it, whatever the side (side orders bones within a layer)
   thick: 5, hurt: 0,   // stroke width; hurtbox radius (0 = can't be hit here)
   lag: 1,              // follow-through: each step lowers the spring frequency, so the bone trails its parent
@@ -1080,19 +1081,21 @@ function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
     else if (b.shape === 'spline') {
       const run = splineRun(ch, b); run.slice(1).forEach(k => inSpline.add(k.id));
       ctx.strokeStyle = c; strokeSpline(ctx, [o, ...run.map(k => P[k.id])], thick + extra, run[run.length - 1].thick * (mul?.thick?.[run[run.length - 1].id] ?? 1) + extra);
-    } else if (b.taper && !b.curve) drawTapered(ctx, o, e, thick + extra, thick * (1 - b.taper) + extra, c);
+    } else if ((b.taper || b.cap === 'point') && !b.curve) drawTapered(ctx, o, e, thick + extra, b.cap === 'point' ? 0 : thick * (1 - b.taper) + extra, c, b.cap);
     else {
+      ctx.lineCap = LINE_CAPS[b.cap] || 'round';
       ctx.strokeStyle = c; ctx.lineWidth = thick + extra; ctx.beginPath(); ctx.moveTo(o[0], o[1]);
       if (b.curve) {
         const dx = e[0] - o[0], dy = e[1] - o[1], l = Math.hypot(dx, dy) || 1;
         const mx = (o[0] + e[0]) / 2 - (dy / l) * b.curve * l, my = (o[1] + e[1]) / 2 + (dx / l) * b.curve * l;
         ctx.quadraticCurveTo(mx, my, e[0], e[1]);
       } else ctx.lineTo(e[0], e[1]);
-      ctx.stroke();
+      ctx.stroke(); ctx.lineCap = 'round';
     }
     if (a < 1) ctx.restore();
   }
 }
+const LINE_CAPS = { round: 'round', square: 'square', flat: 'butt', point: 'round' };
 // a colour (#rgb / #rrggbb) a fraction t of the way to white; anything else (named, rgba) unchanged
 function mixWhite(c, t) {
   const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c || '');
@@ -1100,12 +1103,18 @@ function mixWhite(c, t) {
   const hx = m[1].length === 3 ? [...m[1]].map(x => x + x).join('') : m[1];
   return '#' + [0, 2, 4].map(i => Math.round(parseInt(hx.slice(i, i + 2), 16) + (255 - parseInt(hx.slice(i, i + 2), 16)) * clamp(t, 0, 1)).toString(16).padStart(2, '0')).join('');
 }
-// a straight line from o (width w0) to e (width w1) as one filled outline, round at both ends
-function drawTapered(ctx, o, e, w0, w1, c) {
-  const dx = e[0] - o[0], dy = e[1] - o[1], l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l, a = Math.atan2(ny, nx);
+// a straight line from o (width w0) to e (width w1) as one filled outline; cap: round ends, square (pushed out by half
+// the width) or flat (cut at the joints); point is w1 = 0 with a round start
+function drawTapered(ctx, o, e, w0, w1, c, cap = 'round') {
+  const dx = e[0] - o[0], dy = e[1] - o[1], l = Math.hypot(dx, dy) || 1, ux = dx / l, uy = dy / l, nx = -uy, ny = ux, a = Math.atan2(ny, nx);
   ctx.fillStyle = c; ctx.beginPath();
-  ctx.arc(o[0], o[1], w0 / 2, a, a + Math.PI);
-  ctx.arc(e[0], e[1], Math.max(0.01, w1 / 2), a + Math.PI, a + 2 * Math.PI);
+  if (cap === 'round' || cap === 'point' || !cap) {
+    ctx.arc(o[0], o[1], w0 / 2, a, a + Math.PI);
+    ctx.arc(e[0], e[1], Math.max(0.01, w1 / 2), a + Math.PI, a + 2 * Math.PI);
+  } else {
+    const k0 = cap === 'square' ? w0 / 2 : 0, k1 = cap === 'square' ? w1 / 2 : 0, p = (q, k, w, s) => [q[0] + ux * k + nx * w / 2 * s, q[1] + uy * k + ny * w / 2 * s];
+    for (const [x, y] of [p(o, -k0, w0, 1), p(e, k1, w1, 1), p(e, k1, w1, -1), p(o, -k0, w0, -1)]) ctx.lineTo(x, y);
+  }
   ctx.closePath(); ctx.fill();
 }
 // collect all bones from rootBone down to leaves, as segments relative to rootBone's own position (x, y) at the

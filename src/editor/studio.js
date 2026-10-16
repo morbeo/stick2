@@ -122,6 +122,8 @@ const roleTint = () => studio.colors ? b => ROLE_COLS[b.role]?.[b.side === 'b' ?
 const colorsToggle = () => toggle(':palette:', 'Colours: colour bones by role: spine black · head purple · arms blue · legs green · tails amber (back side paler)',
   () => studio.colors, v => { studio.colors = v; });
 const SIDE_TIPS = { f: 'Front: drawn over the body in the main colour.', '': 'Centre: drawn with the body.', b: 'Back: drawn behind the body in the second colour.' };
+const CAP_TIPS = { round: 'Rounded ends (the default stick look).', square: 'Squared ends pushed out by half the width (boxy limbs, robots).',
+  flat: 'Cut flat at the joints (plates, pills with flat ends).', point: 'Narrows to a tip at its end (blades, claws, horns).' };
 const SHAPE_TIPS = { line: 'A stroke from the parent joint to this one.', circle: 'A disc centred on the joint, radius = length (heads, fists).',
   spline: 'One smooth curve through this bone and the single chain of line bones below it, tapering to the last one\'s thickness (tails, tentacles).',
   chain: 'A rope: the bone splits into segs loose, dangling segments drawn as one smooth curve (whips, scarves, hair). Children hang from its end.' };
