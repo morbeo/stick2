@@ -814,7 +814,7 @@ const unlockedAbove = (ch, b) => { while (b?.lock) b = ch.by[b.parent]; return b
 
 // collapsible bone tree: ▾/▸ folds a branch, the stripe is the role colour, 🔒 = locked
 function boneTree() {
-  const ch = viewChar(), rows = [];
+  const ch = viewChar();
   const kidsOf = b => b.kids.flatMap(k => k.chainOf ? kidsOf(k) : [k]); // a chain's segments list as the chain bone itself
   const walk = (b, depth) => {
     const fold = studio.fold.has(b.id);
@@ -836,15 +836,14 @@ function boneTree() {
     Object.assign(nb, { draggable: true, ondragstart: e => e.dataTransfer?.setData('text/plain', b.id),
       ondragover: e => { e.preventDefault(); nb.classList.add('dropto'); }, ondragleave: () => nb.classList.remove('dropto'),
       ondrop: e => { e.preventDefault(); nb.classList.remove('dropto'); treeDrop(e.dataTransfer?.getData('text/plain'), b.id, e.altKey); } });
-    const row = h('div', { cls: 'tree' }, tw, nb);
-    row.style.paddingLeft = depth * 14 + 'px';
-    rows.push(row);
-    if (!fold) kidsOf(b).forEach(k => walk(k, depth + 1));
+    // laid out sideways like an org chart: a bone over the row of the bones hanging from it
+    const kids = fold ? [] : kidsOf(b);
+    return h('div', { cls: 'tnode' }, h('div', { cls: 'tree' }, tw, nb), kids.length ? h('div', { cls: 'tkids' }, ...kids.map(k => walk(k, depth + 1))) : null);
   };
-  ch.bones.filter(b => !b.parent).forEach(b => walk(b, 0));
-  const hip = h('div', { cls: 'tree note', textContent: 'drop here: hang from the hip', tip: 'Drag a bone here to make it a root (it hangs from the hip, like the legs and the waist)',
+  const roots = ch.bones.filter(b => !b.parent).map(b => walk(b, 0));
+  const hip = h('div', { cls: 'tree note thip', textContent: 'hip',  tip: 'Drag a bone here to make it a root (it hangs from the hip, like the legs and the waist)',
     ondragover: e => e.preventDefault(), ondrop: e => { e.preventDefault(); treeDrop(e.dataTransfer?.getData('text/plain'), 'hip'); } });
-  return h('div', {}, rows, hip);
+  return h('div', { cls: 'tnode troot' }, hip, h('div', { cls: 'tkids' }, ...roots));
 }
 
 // ---------- body operations ----------
