@@ -92,6 +92,7 @@ The **show** group in the toolbar holds the overlays, always in this order; each
 | grouped settings | on | the settings sections fold into five groups: movement, combat, defense, modes, look (a search still opens them) |
 | selection first | on | the section for what is selected moves to the top: the bone (character), the key (animate), the selection (replay) |
 | sticky headings | on | the heading of the section you scroll through stays at the top of the panel |
+| all variables | off | every variable shown in every section, without the **n more** buttons |
 | one open | editors | one section open at a time: off, in character and animate (editors), or in every tab |
 
 ⌘K has them too (**side panel: …**).
