@@ -870,6 +870,8 @@ class Fighter {
     this.rag.landed = false;
   }
   ragStep(dt) {
+    // a body edited mid-fall (a new bone, a chain's segments) gets its new joints where their parents are
+    for (const b of this.ch.bones) if (!this.rag.p[b.id]) { const q = this.rag.p[b.parent || 'hip']; this.rag.p[b.id] = { ...q, vx: q.vx, vy: q.vy, r: b.shape === 'circle' ? b.len : 0 }; }
     const r = this.rag, ch = this.ch, c = k => this.c(k), G = this.groundY, d = this.dir, ps = Object.values(r.p), hip = r.p.hip;
     const ref = ch.chains.spine[0]?.[0], tw = {};
     fk(ch, this.target, 1, null, tw); // the fall pose's world angles: the muscles pull toward its joint angles
