@@ -26,7 +26,11 @@ function paletteEntries() {
     { kind: 'editor', name: 'looks', tip: VIEW_TIPS.looks, run: () => setMode('fx') }, // 'sounds'/'tracker' are their own mode entries (above) now that they're fx views
     { kind: 'table', name: 'bone table', tip: 'Every bone of the character in a table over its stage: sort, filter, edit in place, drag to reorder, change parents (in the character tab; the bone tree and Alt+drag on the canvas reparent too)', run: () => {
       if (app.mode !== 'character') setMode('character');
-      openStage('bones');
+      creator.boneView = 'table'; openStage('bones');
+    } },
+    { kind: 'table', name: 'bone tree', tip: 'The bone tree under the character view: select, fold, drag onto a bone to reparent (in the character tab)', run: () => {
+      if (app.mode !== 'character') setMode('character');
+      creator.boneView = 'tree'; openStage('bones');
     } },
     ...Object.keys(SHAPE_TIPS).map(sh => ({ kind: 'action', name: 'bone shape: ' + sh, tip: `Draw the selected bones as ${sh}: ${SHAPE_TIPS[sh]} (in the character tab)`, run: () => {
       if (app.mode !== 'character') setMode('character');
