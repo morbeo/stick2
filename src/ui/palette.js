@@ -39,6 +39,7 @@ function paletteEntries() {
     { kind: 'layout', name: 'reset layout', tip: 'This tab back to how it starts, in the layout in use', run: () => layReset(tabOf(app.mode)) },
     { kind: 'table', name: 'compare settings', tip: CMP_PANEL_TIP, run: openCompare },
     { kind: 'action', name: 'reset settings', tip: 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels, timer) stay (⌘Z undoes)', run: () => { applyPreset('juicy'); mode().restart(); } },
+    { kind: 'action', name: 'check for update', tip: 'Ask the server for the newest version now; reloads to it when there is one (the build running is in the debug popup)', run: async () => { await checkStale(); if (appStale) reloadLatest(); } },
     { kind: 'action', name: 'factory reset', tip: 'Delete all local data (characters, settings, keys, macros, layout) and reload; asks first', run: () => factoryReset() },
     { kind: 'action', name: 'suggest this character', tip: 'Export the current character and open a GitHub issue to propose it for the roster, with instructions (see CONTRIBUTING.md)', run: suggestChar },
     { kind: 'action', name: 'copy embed link', tip: 'Copy a link that embeds the current scenario, pre-loaded (paste as an <iframe> src)', run: () => { const u = curU(); if (u) navigator.clipboard?.writeText(embedLink(u)); } },

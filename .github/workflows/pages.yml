@@ -28,6 +28,8 @@ jobs:
         id: t
         run: |
           node tools/dev/build-info.js
+          # version every script url, so a reload after a deploy never runs old cached scripts with a new page
+          sed -i -E "s#(src=\"src/[^\"?]+\.js)\"#\1?v=$(git rev-parse --short HEAD)\"#g" *.html
           rm -rf .github node_modules tests tools out dist
           slug=$(echo "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._\n-' '-')
           if [ "$GITHUB_REF_NAME" = master ]; then echo "dir=." >> "$GITHUB_OUTPUT"; else echo "dir=preview/$slug" >> "$GITHUB_OUTPUT"; fi
