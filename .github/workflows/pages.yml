@@ -24,21 +24,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Stamp build info and pick a target dir
-        id: t
-        run: |
-          node tools/dev/build-info.js
-          rm -rf .github node_modules tests tools out dist
-          slug=$(echo "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._\n-' '-')
-          if [ "$GITHUB_REF_NAME" = master ]; then echo "dir=" >> "$GITHUB_OUTPUT"; else echo "dir=preview/$slug" >> "$GITHUB_OUTPUT"; fi
-      - uses: peaceiris/actions-gh-pages@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .
-          destination_dir: ${{ steps.t.outputs.dir }}
-          keep_files: true # keep master's files and other previews
-          exclude_assets: '.git'
-          enable_jekyll: false
+          path: src-repo
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: gh-pages
+          path: site
+      - name: Copy the site into gh-pages and push
+        run: |
+          node src-repo/tools/dev/build-info.js
+          slug=$(echo "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._\n-' '-')
+          if [ "$GITHUB_REF_NAME" = master ]; then dest=site; keep=(--exclude preview/); else dest=site/preview/$slug; keep=(); fi
+          mkdir -p "$dest"
+          rsync -a --delete --exclude .git --exclude .nojekyll "${keep[@]}" \
+            --exclude .github --exclude node_modules --exclude tests --exclude tools --exclude out --exclude dist \
+            src-repo/ "$dest/"
+          cd site && touch .nojekyll
+          git config user.name github-actions; git config user.email github-actions@users.noreply.github.com
+          git add -A && git diff --cached --quiet && exit 0
+          git commit -qm "Deploy $GITHUB_REF_NAME@${GITHUB_SHA::7}" && git push
 
   comment:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
