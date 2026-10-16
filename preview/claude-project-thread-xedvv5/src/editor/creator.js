@@ -474,7 +474,7 @@ function boneTable() {
     oninput: e => { creator.tfilter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() });
   wrap.append(stageHead('bones', BONES_TIP, boneViewSwitch(), boneCrud(), filter),
     h('table', {}, h('thead', {}, head), body));
-  return wrap;
+  return resizableBones(wrap);
 }
 // the bones panel under the character view: the bone tree (default) or the bone table, switched from its head
 const boneCrud = () => crud({
@@ -488,7 +488,22 @@ const boneViewSwitch = () => seg(['tree', 'table'], () => creator.boneView, v =>
   v => v === 'tree' ? ':straighten: tree' : ':table_rows: table');
 function bonePanelStage() {
   if (creator.boneView === 'table') return boneTable();
-  return h('div', { cls: 'mtable btable btree' }, stageHead('bones', 'Bone tree: ' + BONE_VIEW_TIPS.tree, boneViewSwitch(), boneCrud()), boneTree());
+  return resizableBones(h('div', { cls: 'mtable btable btree' }, stageHead('bones', 'Bone tree: ' + BONE_VIEW_TIPS.tree, boneViewSwitch(), boneCrud()), boneTree()));
+}
+// drag the bones panel's top edge to resize it (kept in the tab's layout); the editor above refits on its own (edLayout)
+function resizableBones(wrap) {
+  const px = lay().bonesH;
+  if (px) Object.assign(wrap.style, { height: px + 'px', maxHeight: 'none' });
+  const grip = h('div', { cls: 'vgrip', tip: 'Drag to resize the bones panel (double-click: back to the default size)' });
+  grip.onpointerdown = e => {
+    e.preventDefault(); grip.setPointerCapture(e.pointerId);
+    const y0 = e.clientY, h0 = wrap.offsetHeight, max = (wrap.parentElement?.clientHeight || innerHeight) - 60;
+    grip.onpointermove = m => { const v = Math.round(clamp(h0 + y0 - m.clientY, 60, max)); Object.assign(wrap.style, { height: v + 'px', maxHeight: 'none' }); lay().bonesH = v; };
+    grip.onpointerup = () => { grip.onpointermove = grip.onpointerup = null; saveLay(); };
+  };
+  grip.ondblclick = () => { delete lay().bonesH; saveLay(); Object.assign(wrap.style, { height: '', maxHeight: '' }); };
+  wrap.prepend(grip);
+  return wrap;
 }
 function bodyPanel() {
   return [...charPanel(),

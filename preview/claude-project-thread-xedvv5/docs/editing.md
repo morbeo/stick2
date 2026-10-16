@@ -167,7 +167,7 @@ Line bones also have:
 
 ### Reorganizing bones
 
-- **Bone tree** (the bones panel under the character view; its **tree / table** switch flips it to the bone table): drag a bone onto another to hang it, and everything below it, from that bone. Hold Alt as you drop to move it before that bone in the draw order instead. Drop it on the **hang from the hip** row to make it a root.
+- **Bone tree** (the bones panel under the character view: drag its top edge to resize it, double-click it for the default size; its **tree / table** switch flips it to the bone table): drag a bone onto another to hang it, and everything below it, from that bone. Hold Alt as you drop to move it before that bone in the draw order instead. Drop it on the **hang from the hip** row to make it a root.
 - **Canvas:** Alt+drag a joint onto another joint (or the hip square) to reparent it. A dashed line shows where it goes.
 - **Bone table:** click a bone's parent cell to pick a new parent; drag an id onto another row to reorder.
 - **copy** (body panel) copies the selected bone and its subtree to the other side.
