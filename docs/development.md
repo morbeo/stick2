@@ -68,7 +68,7 @@ Notes for the itch.io page:
 ## Publishing to Discord
 
 - Workflows are named `<Area> · <what>`, jobs and steps by what they do, and each run writes a one-line job summary.
-- `.github/workflows/discord-notify.yml` posts a fight GIF and the commit message/SHA to a Discord webhook (the `DISCORD_WEBHOOK` repo secret) on every push to `master`, and the release notes/tag plus the same kind of GIF (also attached to the release's assets) when a release is published — no manual step either way. The GIF is seeded by the commit SHA or the release tag, so it's reproducible: `node tools/discord/render-notify-gif.js <sha-or-tag>`.
+- `.github/workflows/discord-notify.yml` posts a fight GIF and the commit message/SHA to a Discord webhook (the `DISCORD_WEBHOOK` repo secret) on every push to `master`, and the release notes/tag plus the same kind of GIF (also attached to the release's assets) when a release is published — no manual step either way. The GIF is seeded by the commit SHA or the release tag, so it's reproducible: `node tools/discord/render-notify-gif.js <sha-or-tag>`. To add the GIF to a release that's missing one, run **Release · attach fight GIF** (`.github/workflows/release-gif.yml`) from the Actions tab with the release's tag, or `gh workflow run release-gif.yml -f tag=<tag>`.
 - `.github/workflows/discord-feature-request.yml` posts every `enhancement` issue (labelled on open or later) to the `#feature-requests` channel (the `DISCORD_FEATURE_REQUESTS_WEBHOOK` repo secret) — also no manual step. Point that secret at a webhook scoped to `#feature-requests` before relying on it.
 - The fight bot (`tools/discord/discord-bot.js`, a separate always-on process) is unrelated to either workflow: see [MCP server → The Discord bot](mcp.md#the-discord-bot).
 
