@@ -1,15 +1,23 @@
-name: Discord feature request notify
+name: Discord · feature request
+run-name: "Feature request #${{ github.event.issue.number }}: ${{ github.event.issue.title }}"
 
+# Posts enhancement issues to #feature-requests, whether labelled on open or later.
 on:
   issues:
-    types: [opened]
+    types: [opened, labeled]
+
+permissions: {} # only talks to Discord
 
 jobs:
-  notify:
-    if: contains(github.event.issue.labels.*.name, 'enhancement')
+  post:
+    name: Post feature request
+    if: >-
+      (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'enhancement')) ||
+      (github.event.action == 'labeled' && github.event.label.name == 'enhancement')
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Post to Discord
+      - name: Post issue to Discord
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_FEATURE_REQUESTS_WEBHOOK }}
           TITLE: ${{ github.event.issue.title }}
@@ -34,4 +42,6 @@ jobs:
                 fields: [{ name: "Labels", value: $labels, inline: true }]
               }]
             }')
-          curl -s -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK"
+          send() { curl -sS --fail-with-body -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK"; }
+          send || { echo "::warning::First attempt failed, retrying in 5s"; sleep 5; send; }
+          echo "Posted [$TITLE]($URL) to Discord" >> "$GITHUB_STEP_SUMMARY"
