@@ -13,6 +13,7 @@ const BONE = {
   shape: 'line',       // line | circle | spline | chain (circle is centred on the bone's end, radius = len; spline draws one smooth
                         // tapered curve through this bone and its single line child chain; chain splits the bone into segs dangling
                         // segments drawn as a spline: a rope, whip or scarf)
+                        // socket: an invisible attach point (no draw, no hurtbox, in no chain): a held weapon goes on it
   segs: 6,             // chain only: how many segments the rope is split into
   shade: 0,            // grey level: 0 = the figure's own ink, 1 = paper white (monochrome characters keep their look: no hues)
   taper: 0,            // how much thinner the line ends than it starts (0 = even, 1 = to a point)
@@ -710,6 +711,7 @@ function makeCharacter(def) {
   const by = {}, order = [];
   for (const b of def.bones) by[b.id] = { ...BONE, parent: null, ...b };
   expandChains(by);
+  for (const b of Object.values(by)) if (b.shape === 'socket') b.hurt = 0;
   applyHidden(Object.values(by));
   const visit = b => { if (order.includes(b)) return; if (b.parent) visit(by[b.parent]); order.push(b); };
   Object.values(by).forEach(visit); // parents before children
@@ -728,9 +730,9 @@ function makeCharacter(def) {
   // limb chains per role: start where the parent has another role, follow the first child of the same role
   // (a stance body's hidden bones are in no chain: no walk, swing or trail)
   const chains = { spine: [], head: [], arm: [], leg: [], tail: [], weapon: [] };
-  for (const b of order) if (!b.hidden && (!b.parent || by[b.parent].role !== b.role)) {
+  for (const b of order) if (!b.hidden && b.shape !== 'socket' && (!b.parent || by[b.parent].role !== b.role)) {
     const c = [b];
-    for (let k; (k = c[c.length - 1].kids.find(k => k.role === b.role && !k.hidden));) c.push(k);
+    for (let k; (k = c[c.length - 1].kids.find(k => k.role === b.role && !k.hidden && k.shape !== 'socket'));) c.push(k);
     chains[b.role].push(c);
     for (const r of b.also || []) (chains[r] ??= []).push(c);
   }
@@ -918,7 +920,9 @@ CHAR_DEFS.stick.moves = { ...CHAR_DEFS.stick.moves, ...WEAPON_MOVES };
 function weaponBones(ch, type) {
   // no arms (a houndo, all fours): the nearest thing to a hand is a front leg's own tip instead of the root bone
   const w = WEAPONS[type], limb = ch.chains.arm.find(c => c[0].side === 'f') || ch.chains.arm[0] || ch.chains.leg.find(c => c[0].side === 'f') || ch.chains.leg[0];
-  const parent = limb ? limb[limb.length - 1].id : ch.bones[0].id;
+  // a socket bone (front side first) is where the weapon goes; else the front hand
+  const socket = ch.bones.find(b => b.shape === 'socket' && !b.hidden && b.side === 'f') || ch.bones.find(b => b.shape === 'socket' && !b.hidden);
+  const parent = socket ? socket.id : limb ? limb[limb.length - 1].id : ch.bones[0].id;
   const b = { role: 'weapon', side: 'f', type, thick: 3, hurt: 0, lag: 0.3, react: 0.3, sway: 0 };
   // weaponTip dangle (see fighter.js: hangs toward gravity, the same mechanism a tail or scarf uses): the free end,
   // not gripped, hangs down at rest instead of staying rigid at its rest angle; whip still takes over during a swing
@@ -1076,6 +1080,7 @@ function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
     if (b.hidden && (b.shape === 'circle' || Math.hypot(e[0] - o[0], e[1] - o[1]) < 0.5)) continue; // a stance's hidden bone (drawn while it shrinks away)
     const a = (b.alpha ?? 1) * (mul?.alpha?.[b.id] ?? 1), thick = b.thick * (mul?.thick?.[b.id] ?? 1);
     if (a < 1) { ctx.save(); ctx.globalAlpha *= a; }
+    if (b.shape === 'socket') { if (a < 1) ctx.restore(); continue; }
     if (b.shape === 'circle') { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(e[0], e[1], b.len + extra / 2, 0, 7); ctx.fill(); }
     else if (b.role === 'weapon') drawWeapon(ctx, b, o, e, extra || tint?.(b) ? c : null, extra);
     else if (b.shape === 'spline') {

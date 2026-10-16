@@ -126,6 +126,7 @@ const CAP_TIPS = { round: 'Rounded ends (the default stick look).', square: 'Squ
   flat: 'Cut flat at the joints (plates, pills with flat ends).', point: 'Narrows to a tip at its end (blades, claws, horns).' };
 const SHAPE_TIPS = { line: 'A stroke from the parent joint to this one.', circle: 'A disc centred on the joint, radius = length (heads, fists).',
   spline: 'One smooth curve through this bone and the single chain of line bones below it, tapering to the last one\'s thickness (tails, tentacles).',
+  socket: 'An invisible attach point: not drawn, never hit, in no limb chain. A held weapon goes on it (front side first) instead of the hand.',
   chain: 'A rope: the bone splits into segs loose, dangling segments drawn as one smooth curve (whips, scarves, hair). Children hang from its end.' };
 
 // ---------- edits: snapshot for undo, change the definition, recompile, swap it into running fights ----------
