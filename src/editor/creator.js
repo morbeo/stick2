@@ -1,6 +1,6 @@
 'use strict';
 // ---------- character mode: drag the skeleton, tune bones, watch it fight live; body experiment grid ----------
-const creator = { preview: 'showcase', opponent: 'self', controlDummy: false, w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
+const creator = { boneView: (() => { try { return localStorage.getItem('stick2.boneView') || 'tree'; } catch { return 'tree'; } })(), preview: 'showcase', opponent: 'self', controlDummy: false, w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
   headToHead: false, htControl: 'none', // the changes panel's built-in-vs-yours option, instead of each vs the chosen opponent
   exp: { kind: 'body', vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
 // quick picks shown as buttons in the preview bar; creator.preview itself can be any SCENARIOS key (scenButton picks from all of them)
@@ -229,7 +229,7 @@ function creatorKey(e, a) {
 function creatorCtx() {
   return [charStancePicker(), movesGrp(),
     showGrp(['boxes', 'colours']), panelsGrp([...MOVE_PANELS, 'bones', ...CHAR_DEFS[CURRENT] ? ['changes'] : []],
-      { ...VIEW_TIPS, bones: BONES_TIP, changes: 'What differs from the matching built-in character' }),
+      { ...VIEW_TIPS, bones: 'Bones under the character view: the bone tree or the bone table (switch in its head)', changes: 'What differs from the matching built-in character' }),
   ];
 }
 // vary body lives in the experiment tab (lab.kind 'body') now; a property's context menu can still jump straight there, pre-set to vary it
@@ -471,22 +471,29 @@ function boneTable() {
   reg(wrap, () => { if (!wrap.contains(document.activeElement) && JSON.stringify([DEFS[CURRENT].bones, stanceBody(), curStance().pose]) !== sig) fill(); });
   const filter = h('input', { cls: 'macro', value: creator.tfilter, placeholder: 'fuzzy filter: id, parent, role, side, shape', tip: 'Letters in order match (e.g. "shf" finds shinF); any column with text counts',
     oninput: e => { creator.tfilter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() });
-  wrap.append(stageHead('bone table', BONES_TIP, filter),
+  wrap.append(stageHead('bones', BONES_TIP, boneViewSwitch(), boneCrud(), filter),
     h('table', {}, h('thead', {}, head), body));
   return wrap;
+}
+// the bones panel under the character view: the bone tree (default) or the bone table, switched from its head
+const boneCrud = () => crud({
+  new: ['Add one bone at the end of the selected bone (same role and side)', addBone],
+  copy: ['Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb],
+  rename: ['Rename the selected bone (follows it into moves, poses and stance bodies)', () => renameBone()],
+  delete: ['Delete the selected bone and everything below it (Del)', deleteBone] }, selectAllBtn());
+const BONE_VIEW_TIPS = { tree: 'The bones as a tree: click to select, ▾ ▸ fold a branch, drag a bone onto another to reparent it (Alt: reorder)',
+  table: 'The bones as a table: every property, edited in place, sortable and filterable' };
+const boneViewSwitch = () => seg(['tree', 'table'], () => creator.boneView, v => { creator.boneView = v; try { localStorage.setItem('stick2.boneView', v); } catch {} panels(); }, BONE_VIEW_TIPS,
+  v => v === 'tree' ? ':straighten: tree' : ':table_rows: table');
+function bonePanelStage() {
+  if (creator.boneView === 'table') return boneTable();
+  return h('div', { cls: 'mtable btable btree' }, stageHead('bones', 'Bone tree: ' + BONE_VIEW_TIPS.tree, boneViewSwitch(), boneCrud()), boneTree());
 }
 function bodyPanel() {
   return [...charPanel(),
     heading('Body', 'Build the skeleton. Limbs are role-based: legs walk, arms swing, tails follow through. New parts attach to the selected torso bone.',
       '⌘Z undo · ⇧⌘Z redo · Del delete · drag joints in the editor'),
     h('div', { cls: 'bar' }, ...Object.keys(LIMBS).map(k => button(`:add: :${OPT_ICONS[k]}: ${k}`, LIMB_TIPS[k], () => addLimb(k)))),
-    h('h4', { tip: 'Click to select · ▾ ▸ fold a branch' }, ...rich(':straighten: bones'), crud({
-      new: ['Add one bone at the end of the selected bone (same role and side)', addBone],
-      copy: ['Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb],
-      rename: ['Rename the selected bone (follows it into moves, poses and stance bodies)', () => renameBone()],
-      delete: ['Delete the selected bone and everything below it (Del)', deleteBone] },
-      selectAllBtn())),
-    boneTree(),
     ...bonePanel(),
     heading('Stance pose', 'Set the whole stance from a preset (per limb, so it works for any body), or turn a pose into attacks', ''),
     ...stanceRow(),
@@ -545,7 +552,7 @@ const creatorMode = {
   render: creatorRender,
   ctxBar: creatorCtx,
   side: () => creator.expOn ? expPanel() : bodyPanel(),
-  overlay: () => creator.expOn ? [] : stageOpen() === 'bones' ? [boneTable()] : stageOpen() === 'changes' ? [charDiffPanel()] : moveStage() ? [moveStage()()] : [previewBar()],
+  overlay: () => creator.expOn ? [] : (lay().panel === undefined && (lay().panel = 'bones'), stageOpen() === 'bones') ? [bonePanelStage()] : stageOpen() === 'changes' ? [charDiffPanel()] : moveStage() ? [moveStage()()] : [previewBar()],
   open: ['character', 'body', 'bone', 'stance pose', 'random characters'],
   mouse: creatorMouse,
   key: creatorKey,
