@@ -44,7 +44,12 @@ Each invite is for one guest. To let in another guest or a spectator, the host c
 
 Both forms are URL-safe as they are.
 
-**QR code.** The host's invite link also shows as a QR code (`src/net/qr.js`), so a phone or a second screen can scan it. It's written from scratch, with no library and no image:
+**Sealed codes, `s2c.`** The plain codes carry each side's network candidates, so anyone who sees a link sees the host's local and public IP addresses and ports. The app therefore seals every code by default. Each hosted lobby gets an 8-character **PIN** (`netPin()`, from 31 characters that can't be mistaken for each other, about 40 bits). `netSeal(code, pin)` encrypts the code with AES-GCM under a key derived from the PIN with PBKDF2-SHA-256 (100,000 rounds), using a fresh IV each time, and `netUnseal(text, pin)` reverses it. A wrong PIN fails with "wrong PIN". The guest's answer is sealed with the same PIN.
+- The link the host copies leaves the PIN out: `#join=s2c.…`. The PIN is shown on its own, so the host can say it aloud or send it through another app.
+- The QR code carries both (`#join=s2c.…&pin=…`), because whoever scans it is standing at the screen. **link + PIN** copies that form too.
+- `ManualSignal(show, pin)` passes the PIN to its peers, which seal what they send and unseal what they receive. Without a PIN, codes stay plain, as before.
+
+**QR code.** The host's invite link shows as a QR code, and so does the guest's answer (`src/net/qr.js`), so a phone or a second screen can scan it. It's written from scratch, with no library and no image:
 - byte mode at error-correction level M (about 15% of the code can be smudged and it still reads), versions 1–20;
 - Reed-Solomon error correction per block, then interleaving;
 - the eight masks, keeping the one with the lowest penalty.
@@ -151,12 +156,13 @@ A spectator's match is a `NetWatch`, not a `NetMatch`:
 
 ## In the app
 
-The play tab's **netplay** section (`src/net/netui.js`), first in the side panel and unfolded by default; the command palette's **netplay** and **netplay: host** entries go straight to it (`openNetplay`):
+The play tab's **netplay** section (`src/net/netui.js`), first in the side panel and unfolded by default; the command palette's **netplay**, **netplay: host**, **netplay: chat** and **netplay: scan** entries go straight to it (`openNetplay`):
 
-- **Before connecting:** your name, **host**, and a field to paste an invite.
-- **Host:** the invite link with its QR code, **copy link** and **code only** buttons, and a field for the guest's answer code.
-- **Guest:** the answer code to send back. A `#join=` link opens the play tab already joining; the code then leaves the address bar, so a reload doesn't reuse it.
-- **In the lobby:** the slots (name, character, ready, round trip), your character, **ready**, and chat. The host also has **start**, **invite** (another invite: a second player if a slot is open, else a spectator), and **rollback** (on by default; off is lockstep).
+- **Before connecting:** your name, **host**, and a field for an invite. Code fields act as soon as a whole code lands in them, whether it was typed, pasted or scanned, so there's nothing to press. **paste** reads the clipboard. **scan** reads a QR code with the camera, in browsers that have `BarcodeDetector` (Chrome on Android, for example).
+- **PIN:** a sealed invite without its PIN asks for it, and joins once 8 characters are typed. Case, spaces and dashes don't matter, and O, I and L read as 0 and 1. A wrong PIN comes back to the same prompt with the invite kept.
+- **Host:** two numbered steps. Step 1 is the invite link, the PIN, the QR code, and **copy link** and **link + PIN** buttons. Step 2 is the field for the guest's answer code. A wrong or cut-off answer shows an error and keeps the field, so the guest can just send it again.
+- **Guest:** the answer code to send back, with its own QR code for the host's **scan**. A `#join=` link opens the play tab already joining; the code then leaves the address bar, so a reload doesn't reuse it.
+- **In the lobby:** the slots (name, character, ready, round trip), your character, **ready**, and chat. Chat keeps the last 50 lines, with times, and shows joins, leaves and results apart from what people say. It has quick lines (**gg**, **one more?**, **nice!**, **brb**), keeps a half-typed line through redraws, and Esc returns to the fight. The host also has **start**, **invite** (another invite: a second player if a slot is open, else a spectator), and **rollback** (on by default; off is lockstep).
 - **During the fight:** frame, delay, rollbacks and waits; a spectator sees `watching`, the frame, and how many frames behind it is.
 - **After the fight:** **rematch** (host) and **replay** (save the fight).
 

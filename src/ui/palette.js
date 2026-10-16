@@ -48,6 +48,8 @@ function paletteEntries() {
     { kind: 'action', name: 'kitchen sink', tip: 'Every shared UI component on one page, for checking a theme change or hunting a visual bug', run: () => openKitchenSink() },
     { kind: 'action', name: 'netplay', tip: 'Fight someone online, browser to browser, no server: the play tab\'s netplay section (host, or paste an invite to join)', run: () => openNetplay(false) },
     { kind: 'action', name: 'netplay: host', tip: 'Open an online lobby and make an invite link to send to the other player', run: () => openNetplay(true) },
+    { kind: 'action', name: 'netplay: chat', tip: 'Jump to the netplay chat (Enter sends, Esc back to the fight)', run: () => openNetChat() },
+    { kind: 'action', name: 'netplay: scan', tip: 'Scan an invite or an answer QR code with the camera (where the browser can read QR codes)', run: () => { openNetplay(false); netScan(t => net.lobby?.host && net.inviting === 'waiting' ? netAnswer(t) : netEnter(t)); } },
     { kind: 'action', name: 'welcome', tip: 'What stick2 can do and where to go for each activity, with a little demo of each (shown once on the first visit)', run: openWelcome },
     ...Object.keys(DEFS).map(c => ({ kind: 'character', name: c, tip: 'Use this character in every mode', run: () => pickChar(c) })),
     ...Object.keys(SCENARIOS).map(k => ({ kind: 'scenario', name: k, tip: scenTip(SCENARIOS[k]), run: () => {
