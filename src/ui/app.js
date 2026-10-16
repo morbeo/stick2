@@ -9,33 +9,33 @@ function setTheater(v) {
   else if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
 }
 // ---------- "a newer version is live" indicator ----------
-// no build step, no server: a tab left open across a deploy just keeps running the page it loaded. When this build
-// knows its own commit (BUILD, from npm run build-info — not deployed everywhere, see tools/dev/build-info.js), asks
-// GitHub to compare it against master: status 'ahead' means master has commits this build does not, so it is stale.
-// 'behind' (local commits not yet pushed, a dev checkout) or 'identical' are both up to date - a plain sha mismatch
-// is not enough, since a dev running ahead of origin/master must not be told to "update" to an older build.
-// Otherwise (itch.io, a checkout with no build-info run) falls back to re-fetching this page's own index.html
-// (cache-busted) and diffing it against the copy first fetched - a byte difference means a newer deploy exists.
-// Works the same on GitHub Pages and itch.io (same-origin either way).
-let appStale = false, appBaseline = null;
-async function checkStaleViaGitHub() {
-  const r = await fetch(`https://api.github.com/repos/morbeo/stick2/compare/${BUILD.commit}...master`, { cache: 'no-store' });
-  if (!r.ok) return false; // BUILD.commit unknown to GitHub (a local commit never pushed): nothing to say either way
-  const j = await r.json();
-  if (j.status === 'ahead' && !appStale) { appStale = true; syncAll(); }
-  return true;
-}
+// no build step, no server: a tab left open across a deploy keeps running the page it loaded. The deploy (pages.yml)
+// stamps every script tag with ?v=<commit>, so a reload after a deploy can never mix old cached scripts with new ones.
+// When this build knows its commit (BUILD, from tools/dev/build-info.js), re-fetches its own src/build.js uncached:
+// a different commit means a newer deploy of this same copy (master or a branch preview) is live. Otherwise (itch.io,
+// a checkout with no build-info run) re-fetches index.html and diffs it against the copy first fetched.
+let appStale = false, appBaseline = null, appLatest = null;
 async function checkStale() {
-  try { if (typeof BUILD === 'object' && BUILD.commit && await checkStaleViaGitHub()) return; } catch {} // offline, rate-limited: fall back below
   try {
+    if (typeof BUILD === 'object' && BUILD.commit) {
+      const m = (await (await fetch('src/build.js?_=' + Date.now(), { cache: 'no-store' })).text()).match(/"commit":"(\w+)"/);
+      if (m && m[1] !== BUILD.commit) { appLatest = m[1]; if (!appStale) { appStale = true; syncAll(); } }
+      return;
+    }
     const text = await (await fetch('index.html?_=' + Date.now(), { cache: 'no-store' })).text();
     if (appBaseline === null) appBaseline = text;
     else if (text !== appBaseline && !appStale) { appStale = true; syncAll(); }
   } catch {} // offline, or blocked some other way: nothing to show either way, stay quiet
 }
+// reload to the newest deploy: a fresh ?v= on the page url skips a cached index.html (GitHub Pages caches for 10 minutes)
+function reloadLatest() {
+  const u = new URL(location.href); u.searchParams.set('v', appLatest || Date.now().toString(36));
+  location.replace(u.href);
+}
+const buildName = () => typeof BUILD === 'object' && BUILD.commit ? `build ${BUILD.commit}` : 'build unknown';
 function staleButton() {
-  const b = button(':restart_alt:', 'Up to date', () => location.reload(), 'updatebtn');
-  reg(b, () => { b.disabled = !appStale; b.dataset.tip = appStale ? 'A newer version of stick2 is live on the server — click to reload and get it' : 'Up to date'; });
+  const b = button(':restart_alt:', 'Up to date', reloadLatest, 'updatebtn');
+  reg(b, () => { b.disabled = !appStale; b.dataset.tip = appStale ? `A newer version of stick2 is live${appLatest ? ` (${appLatest})` : ''}; running ${buildName()}. Click to reload and get it` : `Up to date (${buildName()})`; });
   return b;
 }
 const MODES = {
@@ -305,4 +305,5 @@ if (!ui.seen.welcome && !location.hash) { ui.seen.welcome = true; saveUi(); open
 new ResizeObserver(resize).observe($('stage'));
 resize();
 requestAnimationFrame(frame);
-checkStale(); setInterval(checkStale, 10 * 60 * 1000); // every 10 minutes: a deploy is rare, no need to poll hard
+checkStale(); setInterval(checkStale, 5 * 60 * 1000); // every 5 minutes, and whenever the tab comes back into view
+addEventListener('visibilitychange', () => { if (!document.hidden) checkStale(); });
