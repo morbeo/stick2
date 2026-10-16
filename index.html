@@ -89,7 +89,7 @@
   #side.sticky > .fold:not(.shut) > h3 { position: sticky; top: -8px; z-index: 3; background: #f3f0e8; margin-top: 0; padding: 10px 0 4px; }
   #side > .sgroup > .fbody { padding-left: 8px; border-left: 1px solid #e3ded2; }
   #side h3 { display: flex; align-items: center; margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
-  .row { display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 4px; margin: 2px 0; }
+  .row { display: grid; grid-template-columns: 72px 1fr 44px; align-items: center; gap: 4px; margin: 2px 0; }
   /* netplay (src/net/netui.js): the play tab's lobby section */
   .netplay p { margin: 4px 0; } .netplay .bar { margin: 4px 0; }
   .netrow { display: flex; align-items: center; gap: 4px; margin: 4px 0; } .netrow input, .netrow select { flex: 1; min-width: 0; }
@@ -100,6 +100,10 @@
   .netplay > input { width: 100%; box-sizing: border-box; }
   .netqr { display: block; margin: 4px auto; image-rendering: pixelated; max-width: 100%; }
   .row input[type=range] { width: 100%; }
+  .row > .rowc { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
+  .row > .rowc > [hidden] { display: none; }
+  button.pick { white-space: nowrap; }
+  .numlab { display: inline-flex; align-items: center; gap: 3px; color: #777; } .numlab .num { width: 44px; border: 1px solid #cfc8bb; border-radius: 3px; background: #fbfaf6; }
   #side .row + .row { border-top: 1px solid #e3ded2; }
   .fold > h3, .fold > h4 { cursor: pointer; }
   .fold > h3::before, .fold > h4::before { content: '\e5cf'; font-family: Icons; font-size: 16px; margin: 0 2px 0 -4px; transition: transform .1s; }
@@ -295,7 +299,7 @@
     .tstick { width: 100px; height: 100px; } .tknob { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
     .tbtn { width: 46px; height: 46px; font-size: 16px; } .tbtns { grid-template-columns: 46px 46px; gap: 6px; } .tbtn.thop { height: 34px; }
     .grp[data-part="layout"] { position: static; #top > .trow:first-child { padding-right: 0; }
-    .row { grid-template-columns: 80px 1fr 40px; }
+    .row { grid-template-columns: 64px 1fr 40px; }
   }
   @media (max-height: 500px) and (orientation: landscape) {
     body { grid-template: "top top" auto "stage side" 1fr / 1fr min(var(--side-w, 300px), 36vw); }

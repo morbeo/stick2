@@ -251,19 +251,29 @@ function previewBar(cls = 'over pvbar') {
 }
 const setProp = (k, v) => edit(def => { for (const b of selDefs(def)) b[k] = v; }, selIds() + '.' + k);
 const prop = k => selBone()?.[k] ?? BONE[k];
+// rows that only mean something for some shapes (by the selected bone's shape)
+const PROP_WHEN = { segs: sh => sh === 'chain', taper: sh => sh === 'line', curve: sh => sh === 'line' };
+const only = (when, el) => { if (el) reg(el, () => { el.hidden = !when(); }); return el; };
+// a small typed number (a limit), Enter or leaving it sets it
+const numBox = (label, get, set, tip) => { const inp = h('input', { cls: 'v num', inputMode: 'decimal', tip: `${label}: ${tip}`, onkeydown: e => { e.stopPropagation(); if (e.key === 'Enter') inp.blur(); },
+  onchange: () => { const v = parseFloat(inp.value.replace(',', '.')); if (Number.isFinite(v)) set(v); syncAll(); } });
+  reg(inp, () => { if (document.activeElement !== inp) inp.value = fmt(get()); }); return h('span', { cls: 'numlab' }, label, inp); };
+// the roles a chain's root bone also joins, as one button opening the toggles
+const alsoButton = () => { const b = button('', '', (e, el) => popup(el, h('b', { textContent: 'also acts as' }), h('div', { cls: 'bar' }, ...Object.keys(ROLE_TIPS).filter(r => r !== prop('role')).map(r =>
+  toggle(r, `Also act as ${r}: a chain's own root bone gaits and plants as that role too (houndo's front legs: role arm, also leg)`, () => (prop('also') || []).includes(r), v => edit(d => { for (const x of selDefs(d)) {
+    const also = new Set(x.also || []); v ? also.add(r) : also.delete(r); x.also = also.size ? [...also] : undefined; } }))))), 'pick');
+  reg(b, () => { const a = prop('also') || []; setRich(b, ':layers: ' + (a.length ? a.join(' ') : 'also') + ' ▾'); b.dataset.tip = 'Other roles this bone\'s chain also joins (gait, planting, weapon-holding), on top of its own role · click: change'; });
+  return b; };
 const BONE_BASIC = ['len', 'thick', 'hurt', 'lag', 'stretch', 'alpha']; // the rest wait behind "more"
 function bonePanel() {
   const title = heading('', 'Properties of the selected bone. Click a joint in the editor or a name above to select; ⌘/Ctrl+click (Shift+click in the tree) adds bones to the selection: the values shown are the last one\'s, a change goes to every selected bone.',
     'drag joint: length + angle · Shift+drag: angle only · drag the hip (square): move the waist over the feet · Del delete bone');
   reg(title, () => { const n = selIds().length; title.firstChild.textContent = `Bone · ${studio.sel}${n > 1 ? ` + ${n - 1}` : ''}${stanceOnly() ? ` · ${curStance().name} only` : ''}`; });
   title.dataset.fold = 'bone';
-  const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', {}, ...rich(label)), ...c);
+  const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', {}, ...rich(label)), h('span', { cls: 'rowc' }, ...c));
   const lim = on => edit(def => {
     for (const b of selDefs(def)) if (on) { b.min = -90; b.max = 90; } else { delete b.min; delete b.max; }
   });
-  const limRows = ['min', 'max'].map(k => slider(k, { min: -180, max: 180, step: 1 }, () => prop(k) ?? 0, v => setProp(k, v),
-    `Joint limit (${k}), relative to the parent. The drawn pose is clamped after the spring, so overshoot never hyperextends; posing in animate can go past it (the IK prefers to stay inside), and a key posed past it is kept.`));
-  for (const r of limRows) reg(r, () => { r.hidden = prop('min') === undefined; });
   // defaults: the bone as the built-in character has it (custom bones: the general defaults)
   const own = (k, id = studio.sel) => CHAR_DEFS[CURRENT]?.bones.find(b => b.id === id)?.[k], dflt = k => own(k) ?? BONE[k];
   title.append(groupOps(BONE_PROPS, prop, dflt, vals => edit(def => {
@@ -271,28 +281,31 @@ function bonePanel() {
   }),
     ['Experiment: nine bodies varying these properties; click the best to breed around it', () => { BONE_PROPS.forEach(p => creator.exp.vars.add(p.k)); openBodyVary(); }]));
   return [title,
-    row(':category: role', 'What the bone does in procedural motion', seg(Object.keys(ROLE_TIPS), () => prop('role'), v => edit(d => { for (const b of selDefs(d)) b.role = v; }), ROLE_TIPS)),
-    row(':layers: also', 'A chain\'s own root bone can also join another role\'s chains, without losing its own: it gaits and plants as that role too (houndo\'s front legs: role arm, also leg — still a hand for a weapon, but driven and planted like the hind legs)',
-      ...Object.keys(ROLE_TIPS).filter(r => r !== prop('role')).map(r => toggle(r, `Also act as ${r}`, () => (prop('also') || []).includes(r), v => edit(d => { for (const b of selDefs(d)) {
-        const also = new Set(b.also || []); v ? also.add(r) : also.delete(r); b.also = also.size ? [...also] : undefined; } })))),
+    row(':category: role', 'What the bone does in procedural motion · also: other roles its chain joins too',
+      pick(Object.keys(ROLE_TIPS), () => prop('role'), v => edit(d => { for (const b of selDefs(d)) b.role = v; }), ROLE_TIPS), alsoButton()),
     row(':flip: side', 'Draw order and colour', seg(['f', '', 'b'], () => prop('side'), v => edit(d => { for (const b of selDefs(d)) b.side = v; }), SIDE_TIPS,
       o => ({ f: 'front', '': 'centre', b: 'back' })[o])),
-    row('shape', 'How the bone is drawn', seg(Object.keys(SHAPE_TIPS), () => prop('shape'), v => edit(d => { for (const b of selDefs(d)) b.shape = v; }), SHAPE_TIPS)),
-    row('fill to', 'Fill shape only: the bone whose joint closes the filled shape', button(prop('fillTo') || '—', 'Click: pick the bone whose joint closes the fill (— = it closes back on itself)', (e, el) => {
-      const ids = ['—', ...DEFS[CURRENT].bones.map(b => b.id).filter(id => id !== studio.sel)];
-      popup(el, seg(ids, () => prop('fillTo') || '—', v => { closePop(); edit(d => { for (const b of selDefs(d)) if (v === '—') delete b.fillTo; else b.fillTo = v; }); }, {})); }, 'mini')),
-    row('cap', 'How a line bone\'s ends are drawn', seg(Object.keys(CAP_TIPS), () => prop('cap') ?? 'round', v => edit(d => { for (const b of selDefs(d)) if (v === 'round') delete b.cap; else b.cap = v; }), CAP_TIPS)),
+    row('shape', 'How the bone is drawn · cap: how a line bone\'s ends are drawn',
+      pick(Object.keys(SHAPE_TIPS), () => prop('shape'), v => edit(d => { for (const b of selDefs(d)) b.shape = v; }), SHAPE_TIPS),
+      only(() => (prop('shape') ?? 'line') === 'line', pick(Object.keys(CAP_TIPS), () => prop('cap') ?? 'round', v => edit(d => { for (const b of selDefs(d)) if (v === 'round') delete b.cap; else b.cap = v; }), CAP_TIPS, v => 'cap: ' + v))),
+    only(() => prop('shape') === 'fill', row('fill to', 'Fill shape only: the bone whose joint closes the filled shape', pick(() => ['—', ...DEFS[CURRENT].bones.map(b => b.id).filter(id => id !== studio.sel)],
+      () => prop('fillTo') || '—', v => edit(d => { for (const b of selDefs(d)) if (v === '—') delete b.fillTo; else b.fillTo = v; }), {}, String))),
     subFold(':auto_awesome: fx', fxRows('Effects always drawn on this bone (select several bones for a flaming arm, a glowing body); drawing only, the fight is the same',
       () => prop('fx'), e => setProp('fx', e), null)),
     slider('stance', { min: -270, max: 270, step: 1 }, () => curStance().pose[studio.sel] ?? 0,
       v => edit(def => { for (const id of selIds()) editPose(def)[id] = v; }, 'stance:' + selIds()),
       'Angle in the stance pose, relative to the parent (0 = straight on, root bones: 0 = down, 180 = up). Moves are layered on top.'),
-    ...BONE_PROPS.map(p => { const r = bodyExpLink(slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip), p.k); return BONE_BASIC.includes(p.k) ? r : adv(r); }),
-    row('limits', 'Clamp how far this joint can bend', toggle(':straighten: limits', 'On: the joint bends only between min and max (starts at ±90° from the parent); off removes them (undoable)', () => prop('min') !== undefined, lim)),
-    ...limRows,
-    row('lock', 'Lock to the parent', toggle(':lock: lock', 'Locked: the joint keeps its angle to its parent while posing. Dragging it (or IK through it) turns the first unlocked bone above, so locked bones move as one group.',
-      () => !!prop('lock'), v => setProp('lock', v || undefined))),
-    row('lenLock', 'Keep its length fixed', toggle(':straighten: length lock', 'Locked: dragging this joint (or an IK drag through it, like the hip) only turns it, its length stays put - the same as always holding Shift while dragging it.',
+    ...BONE_PROPS.map(p => { const r = bodyExpLink(slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip), p.k);
+      if (PROP_WHEN[p.k]) only(() => PROP_WHEN[p.k](prop('shape') ?? 'line'), r);
+      return BONE_BASIC.includes(p.k) ? r : adv(r); }),
+    row('limits', 'Clamp how far this joint can bend: on, it bends only between min and max (relative to the parent)',
+      toggle(':straighten:', 'On: the joint bends only between min and max (starts at ±90° from the parent); off removes them (undoable)', () => prop('min') !== undefined, lim),
+      ...['min', 'max'].map(k => only(() => prop('min') !== undefined, numBox(k, () => prop(k) ?? 0, v => setProp(k, v),
+        `Joint limit (${k}), relative to the parent. The drawn pose is clamped after the spring, so overshoot never hyperextends; posing in animate can go past it (the IK prefers to stay inside), and a key posed past it is kept.`)))),
+    row('lock', 'Lock: keeps its angle to the parent while posing · length: keeps its length while dragging',
+      toggle(':lock: angle', 'Locked: the joint keeps its angle to its parent while posing. Dragging it (or IK through it) turns the first unlocked bone above, so locked bones move as one group.',
+        () => !!prop('lock'), v => setProp('lock', v || undefined)),
+      toggle(':straighten: length', 'Locked: dragging this joint (or an IK drag through it, like the hip) only turns it, its length stays put - the same as always holding Shift while dragging it.',
       () => !!prop('lenLock'), v => setProp('lenLock', v || undefined)))];
 }
 // clicking a variable's name: nine bodies varying only that variable
