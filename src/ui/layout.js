@@ -143,6 +143,7 @@ function layoutPanel(e, b) {
     parts('side', 'side panel', 'The side panel and its sections (hover a heading: × hides it too)',
       Object.assign(toggle('panel', 'Show or hide the whole side panel on this tab' + keyTip('panel'), () => !lay().hide.side, togglePanel),
         { onmouseenter: () => layHighlight($('side').getBoundingClientRect(), !!lay().hide.side), onmouseleave: () => layHighlight(null) })),
+    sideOptions(),
     app.shows.length ? h('div', { cls: 'row', tip: 'What is drawn over the fight' }, h('span', { textContent: 'overlays' }), h('div', { cls: 'bar' }, ...app.shows.map(k => SHOW[k]()))) : null,
     h('div', { cls: 'row', tip: 'The layout in use; changes are kept in it as you go' }, h('span', { textContent: 'use' }),
       seg(names, () => layouts.current, n => { layUse(n); re(); }, Object.fromEntries(names.map(n => [n, n === LAY_DEFAULT ? 'Switch to the default layout' : `Switch to the layout "${n}"`])))),
@@ -151,4 +152,62 @@ function layoutPanel(e, b) {
       button(':restart_alt: reset tab', `The ${tab} tab back to how it starts, in this layout`, () => { layReset(tab); re(); }),
       button(':restart_alt: reset all', 'Every tab back to how it starts, in this layout', () => { layReset(); re(); }),
       layouts.current !== LAY_DEFAULT && button(':delete: delete', `Delete the layout "${layouts.current}" and go back to the default`, () => { layDelete(); re(); })));
+}
+
+// ---------- side panel options (ui.side, the layout popup's "side options" row; the same in every tab) ----------
+// group: the settings sections in a few folds · accordion: one section open at a time (off, editors: character and
+// animate, all) · allVars: every variable shown, no "n more" buttons · context: the section for what is selected goes first · sticky: the open section's heading stays in view
+const SIDE_DEFAULTS = { group: true, accordion: 'editors', context: true, sticky: true, allVars: false };
+const sideCfg = () => ({ ...SIDE_DEFAULTS, ...ui.side });
+function setSide(k, v) { (ui.side ??= {})[k] = v; saveUi(); panels(); }
+const SIDE_GROUPS = {
+  movement: ['power', 'movement', 'air', 'feet', 'plane (2d / 2.5d)'],
+  combat: ['collision', 'combos & cancels', 'combo escalation', 'specials', 'weapons', 'throws & recovery'],
+  defense: ['guard & damage', 'stagger & dizzy', 'hit stop (per-fighter freeze)', 'falls'],
+  modes: ['crowd', 'waves', 'survival', 'rumble', 'ai', 'super meter'],
+  look: ['tweening (keyframes)', 'pose filter (on top of tween)', 'juice', 'cinema'],
+};
+// the section for what is selected, per mode, and whether something is
+const SIDE_CONTEXT = { character: ['bone', () => selIds().length > 0], animate: ['key', () => true], replay: ['selection', () => rp.sel.size > 0] };
+const accordionOn = (S = sideCfg()) => S.accordion === 'all' || S.accordion === 'editors' && ['character', 'animate'].includes(tabOf(app.mode));
+function sideArrange(secs) {
+  const S = sideCfg(), L = lay();
+  $('side').classList.toggle('sticky', !!S.sticky); $('side').classList.toggle('allvars', !!S.allVars);
+  let out = [...secs], ctx = null;
+  const c = S.context && SIDE_CONTEXT[app.mode];
+  if (c && c[1]()) { const i = out.findIndex(s => s.fname === c[0]); if (i >= 0) { ctx = out[i]; out.unshift(...out.splice(i, 1)); } }
+  if (S.group) for (const [g, names] of Object.entries(SIDE_GROUPS)) {
+    const ms = out.filter(s => names.includes(s.fname));
+    if (ms.length < 2) continue;
+    const at = out.indexOf(ms[0]), k = app.mode + ':group:' + g;
+    const hd = h('h3', { tip: `Settings: ${ms.map(s => s.fname).join(', ')} · click to fold or unfold` }, g);
+    const sec = h('div', { cls: 'fold sgroup' }, hd, h('div', { cls: 'fbody' }, ...ms));
+    sec.classList.toggle('shut', L.fold[k] ?? true); sec.k = k;
+    hd.onclick = () => { L.fold[k] = sec.classList.toggle('shut'); saveLay(); };
+    out = out.filter(s => !ms.includes(s)); out.splice(at, 0, sec);
+  }
+  if (accordionOn(S)) { // one open: the selection's section if it is shown, else the first open one
+    if (ctx) ctx.classList.remove('shut');
+    const open = out.filter(s => s.k && !s.classList.contains('shut')), keep = ctx || open[0];
+    for (const s of open) if (s !== keep) s.classList.add('shut');
+  }
+  return out;
+}
+// accordion: opening a section folds the others (after the heading's own click has opened it)
+$('side').addEventListener('click', e => {
+  const sec = e.target.closest('h3')?.parentElement;
+  if (!accordionOn() || e.target.closest('button') || !sec?.k || sec.parentElement !== $('side') || sec.classList.contains('shut')) return;
+  for (const o of $('side').children) if (o !== sec && o.k && !o.classList.contains('shut')) { o.classList.add('shut'); lay().fold[o.k] = true; }
+  saveLay();
+});
+function sideOptions() {
+  const S = () => sideCfg();
+  return h('div', { cls: 'row', tip: 'How the side panel is arranged, in every tab' }, h('span', { textContent: 'side options' }), h('div', { cls: 'bar' },
+    toggle('grouped settings', 'The settings sections in five folds: movement, combat, defense, modes, look (a search still opens them)', () => S().group, v => setSide('group', v)),
+    toggle('selection first', 'The section for what is selected (a bone, the key, replay events) goes to the top', () => S().context, v => setSide('context', v)),
+    toggle('all variables', 'Every variable shown in every section, without the "n more" buttons', () => S().allVars, v => setSide('allVars', v)),
+    toggle('sticky headings', 'The heading of the section you are scrolling through stays at the top of the panel', () => S().sticky, v => setSide('sticky', v)),
+    h('span', { cls: 'note', textContent: 'one open' }),
+    seg(['off', 'editors', 'all'], () => S().accordion, v => setSide('accordion', v),
+      { off: 'Open as many sections as you like', editors: 'One section open at a time in character and animate', all: 'One section open at a time in every tab' })));
 }

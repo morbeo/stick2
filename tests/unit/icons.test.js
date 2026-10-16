@@ -5,7 +5,7 @@ const test = require('node:test'), assert = require('node:assert'), fs = require
 const root = path.join(__dirname, '..', '..');
 const files = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? files(path.join(dir, e.name)) : e.name.endsWith('.js') ? [path.join(dir, e.name)] : []);
 const ui = fs.readFileSync(path.join(root, 'src/ui/ui.js'), 'utf8'), block = ui.slice(ui.indexOf('const ICONS = {'), ui.indexOf('};', ui.indexOf('const ICONS = {')));
-const NOT_ICONS = new Set(['sub']); // ':sub:' is a layout key separator (ui.js), not an icon
+const NOT_ICONS = new Set(['sub', 'group']); // ':sub:', ':group:': layout key separators (ui.js, layout.js), not icons
 const ICONS = new Set([...block.matchAll(/([a-z_0-9]+): 0x[0-9a-f]+/g)].map(m => m[1]));
 
 test('every icon used is in the icon font', () => {
