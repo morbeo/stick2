@@ -14,6 +14,9 @@ const BONE = {
                         // tapered curve through this bone and its single line child chain; chain splits the bone into segs dangling
                         // segments drawn as a spline: a rope, whip or scarf)
   segs: 6,             // chain only: how many segments the rope is split into
+  shade: 0,            // grey level: 0 = the figure's own ink, 1 = paper white (monochrome characters keep their look: no hues)
+  taper: 0,            // how much thinner the line ends than it starts (0 = even, 1 = to a point)
+  z: 0,                // draw order layer: lower draws underneath everything above it, whatever the side (side orders bones within a layer)
   thick: 5, hurt: 0,   // stroke width; hurtbox radius (0 = can't be hit here)
   lag: 1,              // follow-through: each step lowers the spring frequency, so the bone trails its parent
   level: 0,            // 0 = rigid child, 1 = keeps its rest world angle whatever the parent does (feet stay flat)
@@ -1062,9 +1065,13 @@ function drawWeapon(ctx, b, o, e, col, extra = 0) {
 // mul: a fighter's live per-bone key.thick / key.alpha multipliers (mid-move), or null outside one
 function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
   ctx.lineCap = ctx.lineJoin = 'round';
-  const inSpline = new Set();
-  for (const side of ['b', '', 'f']) for (const b of ch.bones) if (b.side === side && !inSpline.has(b.id)) {
-    const o = P[b.parent || 'hip'], e = P[b.id], c = tint ? tint(b) : side === 'b' ? back : col;
+  const inSpline = new Set(), SIDES = { b: 0, '': 1, f: 2 };
+  const rank = b => (b.z || 0) * 3 + (SIDES[b.side ?? ''] ?? 1), order = ch.bones.map((b, i) => [rank(b), i, b]).sort((x, y) => x[0] - y[0] || x[1] - y[1]).map(x => x[2]);
+  for (const b of order) if (!inSpline.has(b.id)) {
+    const side = b.side ?? '', o = P[b.parent || 'hip'], e = P[b.id];
+    if (!o || !e) continue;
+    let c = tint ? tint(b) : side === 'b' ? back : col;
+    if (b.shade && !tint && !extra) c = mixWhite(c, b.shade);
     if (b.hidden && (b.shape === 'circle' || Math.hypot(e[0] - o[0], e[1] - o[1]) < 0.5)) continue; // a stance's hidden bone (drawn while it shrinks away)
     const a = (b.alpha ?? 1) * (mul?.alpha?.[b.id] ?? 1), thick = b.thick * (mul?.thick?.[b.id] ?? 1);
     if (a < 1) { ctx.save(); ctx.globalAlpha *= a; }
@@ -1073,7 +1080,8 @@ function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
     else if (b.shape === 'spline') {
       const run = splineRun(ch, b); run.slice(1).forEach(k => inSpline.add(k.id));
       ctx.strokeStyle = c; strokeSpline(ctx, [o, ...run.map(k => P[k.id])], thick + extra, run[run.length - 1].thick * (mul?.thick?.[run[run.length - 1].id] ?? 1) + extra);
-    } else {
+    } else if (b.taper && !b.curve) drawTapered(ctx, o, e, thick + extra, thick * (1 - b.taper) + extra, c);
+    else {
       ctx.strokeStyle = c; ctx.lineWidth = thick + extra; ctx.beginPath(); ctx.moveTo(o[0], o[1]);
       if (b.curve) {
         const dx = e[0] - o[0], dy = e[1] - o[1], l = Math.hypot(dx, dy) || 1;
@@ -1084,6 +1092,21 @@ function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
     }
     if (a < 1) ctx.restore();
   }
+}
+// a colour (#rgb / #rrggbb) a fraction t of the way to white; anything else (named, rgba) unchanged
+function mixWhite(c, t) {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c || '');
+  if (!m) return c;
+  const hx = m[1].length === 3 ? [...m[1]].map(x => x + x).join('') : m[1];
+  return '#' + [0, 2, 4].map(i => Math.round(parseInt(hx.slice(i, i + 2), 16) + (255 - parseInt(hx.slice(i, i + 2), 16)) * clamp(t, 0, 1)).toString(16).padStart(2, '0')).join('');
+}
+// a straight line from o (width w0) to e (width w1) as one filled outline, round at both ends
+function drawTapered(ctx, o, e, w0, w1, c) {
+  const dx = e[0] - o[0], dy = e[1] - o[1], l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l, a = Math.atan2(ny, nx);
+  ctx.fillStyle = c; ctx.beginPath();
+  ctx.arc(o[0], o[1], w0 / 2, a, a + Math.PI);
+  ctx.arc(e[0], e[1], Math.max(0.01, w1 / 2), a + Math.PI, a + 2 * Math.PI);
+  ctx.closePath(); ctx.fill();
 }
 // collect all bones from rootBone down to leaves, as segments relative to rootBone's own position (x, y) at the
 // moment of the hit — so World.drawLimbs can just translate by the tracked, physically-updated (x, y) as it falls,

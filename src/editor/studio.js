@@ -103,6 +103,9 @@ const BONE_PROPS = [
   { k: 'sway', min: 0, max: 3, step: 0.05, tip: 'Idle sway: how much the bone drifts on its own while standing (deeper bones more). 0 = still.' },
   { k: 'dangle', min: 0, max: 1.5, step: 0.05, tip: 'Secondary motion: how much the bone hangs like a rope (tails, scarves, hair): it droops with gravity, trails a run and a jump and lifts in a fall. 0 = only its animation.' },
   { k: 'whip', min: 0, max: 0.1, step: 0.002, tip: 'Bends back from a fast-turning parent\'s own angular velocity, springing past straight into the next turn (a nunchuck\'s loose end). 0 = rigid to its parent.' },
+  { k: 'shade', min: 0, max: 0.9, step: 0.05, tip: 'Grey level: 0 is the figure\'s own ink, higher fades it toward paper white (stays monochrome).' },
+  { k: 'taper', min: 0, max: 1, step: 0.05, tip: 'Line ends thinner than it starts: 0 = even, 1 = to a point (claws, horns, tails).' },
+  { k: 'z', min: -3, max: 3, step: 1, tip: 'Draw order layer: lower draws underneath every higher layer, whatever its side. Side orders bones within a layer.' },
   { k: 'segs', min: 2, max: 16, step: 1, tip: 'Chain shape only: how many segments the rope is split into. More = smoother and floppier.' },
   { k: 'alpha', min: 0, max: 1, step: 0.05, tip: 'Visibility: 1 is fully visible (the default). 0 hides the bone and everything below it completely: no draw, no hurtbox, no part in walking or chains. Between, it draws translucent but stays solid.' },
 ];
