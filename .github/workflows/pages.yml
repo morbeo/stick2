@@ -46,7 +46,7 @@ jobs:
             src-repo/ "$dest/"
           cd site && touch .nojekyll
           git config user.name github-actions; git config user.email github-actions@users.noreply.github.com
-          url="https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY#*/}/${dest#site}"; url="${url%/}/"
+          url="https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY#*/}${dest#site}"; url="${url%/}/"
           git add -A && git diff --cached --quiet && { echo "No changes for $url" >> "$GITHUB_STEP_SUMMARY"; exit 0; }
           git commit -qm "Deploy $GITHUB_REF_NAME@${GITHUB_SHA::7}" && git push
           echo "Deployed \`$GITHUB_REF_NAME\` to $url" >> "$GITHUB_STEP_SUMMARY"
