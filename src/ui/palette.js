@@ -5,7 +5,7 @@ function paletteEntries() {
   const tipName = t => (t || '').split(/[:·(]/)[0].trim();
   // the small persistent bars under a preview (timelineBar, targetBar, blowBar) count as tools too; the rest of #over
   // (stage panels, popups) does not — too much, and mostly not meaningful out of context
-  const tools = [...document.querySelectorAll('#global button[data-tip], #ctx button[data-tip], .tlbar button[data-tip], .tgt button[data-tip], .blowbar button[data-tip], .cmpbar button[data-tip], .pvbar button[data-tip]')].filter(b => b.offsetParent).map(b => {
+  const tools = [...document.querySelectorAll('#global button[data-tip], #ctx button[data-tip], .tlbar button[data-tip], .tgt button[data-tip], .blowbar button[data-tip], .cmpbar button[data-tip], .pvbar button[data-tip]')].filter(b => b.offsetParent || b.closest('#ctx > .grp.ovf')).map(b => {
     const text = b.textContent.replace(/[\uE000-\uF8FF]/g, '').trim(), name = text && !/^[\d½¼⅒×]+$/.test(text) ? text : tipName(b.dataset.tip);
     return { kind: 'tool', name, tip: b.dataset.tip, run: () => b.click() };
   });
@@ -35,6 +35,7 @@ function paletteEntries() {
     ...Object.keys(layouts.sets).map(n => ({ kind: 'layout', name: 'layout: ' + n, tip: 'Use this layout (what each tab shows)', run: () => layUse(n) })),
     ...['ctx', 'side'].flatMap(kind => app.parts[kind].map(p => { const id = kind + ':' + p, on = layShown(id), what = kind === 'ctx' ? 'toolbar group' : 'side section';
       return { kind: 'layout', name: `${on ? 'hide' : 'show'} ${what}: ${p}`, tip: `${on ? 'Hide' : 'Show'} the ${what} "${p}" on this tab (layout)`, run: () => layShow(id, !on) }; })),
+    { kind: 'layout', name: ui.ctxAll ? 'toolbar: one row' : 'toolbar: all rows', tip: 'The toolbar on one row (the rest behind "more"), or every group on as many rows as it needs', run: () => { ui.ctxAll = !ui.ctxAll; saveUi(); ctxFit(); } },
     { kind: 'layout', name: 'reset layout', tip: 'This tab back to how it starts, in the layout in use', run: () => layReset(tabOf(app.mode)) },
     { kind: 'table', name: 'compare settings', tip: CMP_PANEL_TIP, run: openCompare },
     { kind: 'action', name: 'reset settings', tip: 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels, timer) stay (⌘Z undoes)', run: () => { applyPreset('juicy'); mode().restart(); } },

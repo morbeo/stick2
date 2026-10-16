@@ -6,7 +6,7 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 from fontTools import subset
 
-root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ui = open(os.path.join(root, 'src/ui/ui.js')).read()
 block = ui[ui.index('const ICONS = {'):ui.index('};', ui.index('const ICONS = {'))]
 cps = [int(h, 16) for h in re.findall(r'0x([0-9a-f]+)', block)]

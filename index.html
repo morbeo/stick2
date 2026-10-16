@@ -51,9 +51,12 @@
   #ctx > .grp:first-child { border-left: 0; padding-left: 0; } #global > .grp:last-child { padding-right: 0; }
   .grp .gl { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #aaa; margin-right: 2px; }
   .grp .gl[draggable] { cursor: grab; } .grp.dragging { opacity: .4; } .grp.dropto { box-shadow: inset 3px 0 0 #c0392b; }
-  /* the layout group stays in the top-right corner; the first row keeps room for it (--corner-w, set in buildTop) so nothing runs under it */
-  #top { position: relative; } #top > .trow:first-child { padding-right: var(--corner-w, 0px); }
-  .grp[data-part="layout"] { position: absolute; top: 6px; right: 10px; background: #f3f0e8; z-index: 5; border-left: 0; padding-right: 0; }
+  /* desktop: two rows - tabs and global tools, then the tab's toolbar on one line; groups that don't fit hide behind
+     "more" (#ctxmore, ctxFit in app.js), which unfolds the toolbar into as many rows as it needs */
+  #top > .trow:first-child { flex-wrap: nowrap; } #modes .seg { flex-wrap: nowrap; } #global .gl { display: none; }
+  #ctx { flex-wrap: nowrap; flex: 1; min-width: 0; } #ctx.all { flex-wrap: wrap; } #ctx > .grp.ovf { display: none; } #ctx .grp { flex-shrink: 0; }
+  #ctxmore { margin-left: auto; flex-shrink: 0; }
+  .grp[data-part="layout"] { border-left: 0; padding-right: 0; }
   #top input[type=number] { width: 56px; }
   #stage { grid-area: stage; position: relative; min-width: 0; min-height: 0; }
   #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }

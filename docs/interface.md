@@ -14,7 +14,7 @@ Three rows, the same in every tab:
 |---|---|
 | menu bar | the tabs · undo / redo · clip / record · replay (edit in the replay tab, stop a loaded replay file) · export / import · search, panel, layout, keys, debug, docs, hints, sound |
 | transport | pause, rewind, step back, step, restart, speed, scrub, loop (the same in every mode) |
-| toolbar | the mode's own tools in labelled groups, in the same order on every tab: view, what you work on (scenario, fighters, moves…), the tab's tools, **show** (overlays), **panels** (tables over the stage: click again, × or Esc closes; each tab keeps its own) |
+| toolbar | the mode's own tools in labelled groups, in the same order on every tab: view, what you work on (scenario, fighters, moves…), the tab's tools, **show** (overlays), **panels** (tables over the stage: click again, × or Esc closes; each tab keeps its own). It keeps to one row: the groups that don't fit hide behind **… n more** at its end, which unfolds every row (click **less** to fold it back; ⌘K **toolbar: all rows** / **one row**) |
 
 ### Export and import
 
@@ -85,7 +85,7 @@ The **show** group in the toolbar holds the overlays, always in this order; each
 - Drag the side panel's left edge to set its width (220–560 px); double-click it for the default 300.
 - In animate and character, drag the boundary between the editor and the preview to share the stage between them.
 
-⌘K finds **hide toolbar group: …** and **hide side section: …** (or **show**) for the parts of the tab you are on.
+The replay tab starts with its toolbar's **types** group hidden, since its side panel has the same section; show it in the layout popup. ⌘K finds **hide toolbar group: …** and **hide side section: …** (or **show**) for the parts of the tab you are on.
 
 ### Debug
 
