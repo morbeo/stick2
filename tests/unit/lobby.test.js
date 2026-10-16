@@ -186,7 +186,7 @@ test('chat goes through the host to everyone; names and text are trimmed', () =>
 });
 
 // ---------- the codes ----------
-const net = vm.createContext({ btoa, atob, Blob, Response, CompressionStream, DecompressionStream, TextEncoder, TextDecoder, Uint8Array, JSON, String, RegExp, Error });
+const net = vm.createContext({ btoa, atob, Blob, Response, CompressionStream, DecompressionStream, TextEncoder, TextDecoder, Uint8Array, JSON, String, RegExp, Error, crypto });
 vm.runInContext(fs.readFileSync(engine.srcFile('netplay'), 'utf8'), net);
 const nrun = code => vm.runInContext(code, net);
 
@@ -201,6 +201,24 @@ test('an invite code round-trips, from a bare code, a link or a chat message, an
   for (const text of [code, link, `join me: ${code} thanks`]) assert.deepEqual(plain(await nrun(`netDecode(${JSON.stringify(text)})`)), { type: 'offer', sdp });
   await assert.rejects(nrun(`netDecode('hello')`), /not a stick2/);
   await assert.rejects(nrun(`netDecode(${JSON.stringify(code.slice(0, 20))})`), /damaged/);
+});
+
+test('a sealed code hides the addresses, opens only with its PIN, and travels in a link with or without the PIN', async () => {
+  const code = 's2b.o~uf~pw~fp~h192.168.1.20:50000~s203.0.113.7:61000';
+  const pin = nrun('netPin()');
+  assert.match(pin, /^[2-9A-HJKMNP-Z]{8}$/);
+  const sealed = await nrun(`netSeal(${JSON.stringify(code)}, ${JSON.stringify(pin)})`);
+  assert.match(sealed, /^s2c\.[A-Za-z0-9_-]+$/);
+  assert.ok(!Buffer.from(sealed.slice(4), 'base64url').toString('latin1').includes('192.168'));
+  assert.notEqual(await nrun(`netSeal(${JSON.stringify(code)}, ${JSON.stringify(pin)})`), sealed); // a fresh IV each time
+  assert.equal(await nrun(`netUnseal(${JSON.stringify('join me: ' + sealed)}, ${JSON.stringify(pin.toLowerCase().replace(/(....)/, '$1-'))})`), code);
+  await assert.rejects(nrun(`netUnseal(${JSON.stringify(sealed)}, 'AAAAAAAA')`), /wrong PIN/);
+  await assert.rejects(nrun(`netUnseal(${JSON.stringify(sealed)}, '')`), /needs the PIN/);
+  assert.equal(await nrun(`netUnseal(${JSON.stringify(code)}, null)`), code); // plain codes pass through
+  const link = nrun(`netInviteLink(${JSON.stringify(sealed)}, 'https://x/stick2/', ${JSON.stringify(pin)})`);
+  assert.equal(nrun(`netJoinCode(${JSON.stringify(link.replace(/^[^#]*/, ''))})`), sealed);
+  assert.equal(nrun(`netPinOf(${JSON.stringify(link)})`), pin);
+  assert.equal(nrun(`netPinOf(${JSON.stringify(sealed)})`), null);
 });
 
 test('the manual signaler hands codes over in either order', async () => {

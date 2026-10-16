@@ -73,7 +73,7 @@ async function app() {
   try {
     await until(host, `typeof netLobby === 'function' && !!document.querySelector('#side')`, 'the app to load');
     await host.js(`netLobby('host'); panels(); true`);
-    const link = await until(host, `net.inviting === 'waiting' && netInviteLink(net.code)`, 'the invite link');
+    const link = await until(host, `net.inviting === 'waiting' && netInviteLink(net.code, location.href, net.pin)`, 'the invite link');
     await guest.send('Page.navigate', { url: link });
     const answer = await until(guest, `typeof net !== 'undefined' && net.codeKind === 'answer' && net.code`, 'the guest\'s answer code');
     if (await guest.js('!!document.querySelector(".modalback")')) throw new Error('a dialog covers the page the invite link opened');
@@ -81,7 +81,7 @@ async function app() {
     await until(host, `net.lobby.state.slots[1]?.char`, 'the guest in the lobby, with a character');
     // a second invite, for a spectator: both slots are taken, so the lobby makes them a watcher
     await host.js('netInvite(); true');
-    await watcher.send('Page.navigate', { url: await until(host, `net.inviting === 'waiting' && netInviteLink(net.code)`, 'the second invite link') });
+    await watcher.send('Page.navigate', { url: await until(host, `net.inviting === 'waiting' && netInviteLink(net.code, location.href, net.pin)`, 'the second invite link') });
     await host.js(`netAnswer(${JSON.stringify(await until(watcher, `typeof net !== 'undefined' && net.codeKind === 'answer' && net.code`, 'the spectator\'s answer code'))}); true`);
     await until(host, 'net.lobby.state.watch.length === 1', 'the spectator in the lobby');
     await guest.js(`net.lobby.ready(); true`); await host.js(`net.lobby.ready(); true`);
