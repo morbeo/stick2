@@ -31,7 +31,7 @@ Any scenario named anywhere in these docs plays the same way: `https://morbeo.gi
 
 **Fight.** You, the engine AI (four difficulty levels), a dummy or scripted scenarios; 16 characters with chains, motion specials, throws, counters, projectiles, weapons, juggles and ragdoll falls; 2D or 2.5D lanes; endless waves. A frame meter and input display for training. → [Fighting](docs/fighting.md)
 
-**Play online.** Fight someone in another browser with no server or account: host, send the invite link (or let them scan its QR code), paste the code they send back. Lockstep with rollback; extra players watch. → [Modes: online](docs/modes.md#online), [Netplay](docs/netplay.md)
+**Play online.** Fight someone in another browser with no server or account: host, send the invite link (or let them scan its QR code), paste the code they send back. Lockstep with rollback; extra players watch. Or run the [dedicated server](docs/server.md) (`docker run`) and join rooms by code, link or QR, with Prometheus metrics. → [Modes: online](docs/modes.md#online), [Netplay](docs/netplay.md)
 
 ![The play tab's netplay section with an invite ready](docs/img/netplay.png)
 
