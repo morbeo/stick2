@@ -1,6 +1,6 @@
 'use strict';
 // ---------- character mode: drag the skeleton, tune bones, watch it fight live; body experiment grid ----------
-const creator = { statTab: (() => { try { return localStorage.getItem('stick2.statTab') || 'radar'; } catch { return 'radar'; } })(), boneView: (() => { try { return localStorage.getItem('stick2.boneView') || 'tree'; } catch { return 'tree'; } })(), preview: 'showcase', opponent: 'self', controlDummy: false, w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
+const creator = { statTab: (() => { try { return localStorage.getItem('stick2.statTab') || 'ground'; } catch { return 'ground'; } })(), boneView: (() => { try { return localStorage.getItem('stick2.boneView') || 'tree'; } catch { return 'tree'; } })(), preview: 'showcase', opponent: 'self', controlDummy: false, w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
   headToHead: false, htControl: 'none', // the changes panel's built-in-vs-yours option, instead of each vs the chosen opponent
   exp: { kind: 'body', vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
 // quick picks shown as buttons in the preview bar; creator.preview itself can be any SCENARIOS key (scenButton picks from all of them)
@@ -498,11 +498,13 @@ const boneCrud = () => crud({
   rename: ['Rename the selected bone (follows it into moves, poses and stance bodies)', () => renameBone()],
   delete: ['Delete the selected bone and everything below it (Del)', deleteBone] }, selectAllBtn());
 const BONE_VIEW_TIPS = { tree: 'The bones as a tree: click to select, ▾ ▸ fold a branch, drag a bone onto another to reparent it (Alt: reorder)',
-  table: 'The bones as a table: every property, edited in place, sortable and filterable' };
-const boneViewSwitch = () => seg(['tree', 'table'], () => creator.boneView, v => { creator.boneView = v; try { localStorage.setItem('stick2.boneView', v); } catch {} panels(); }, BONE_VIEW_TIPS,
-  v => v === 'tree' ? ':straighten: tree' : ':table_rows: table');
+  table: 'The bones as a table: every property, edited in place, sortable and filterable',
+  radar: 'The character\'s stats on a radar, other characters overlaid to compare' };
+const boneViewSwitch = () => seg(['tree', 'table', 'radar'], () => creator.boneView, v => { creator.boneView = v; try { localStorage.setItem('stick2.boneView', v); } catch {} panels(); }, BONE_VIEW_TIPS,
+  v => ({ tree: ':straighten: tree', table: ':table_rows: table', radar: ':tune: radar' })[v]);
 function bonePanelStage() {
   if (creator.boneView === 'table') return boneTable();
+  if (creator.boneView === 'radar') return resizableBones(h('div', { cls: 'mtable btable bradar' }, stageHead('bones', 'Radar: ' + BONE_VIEW_TIPS.radar, boneViewSwitch()), h('div', { cls: 'radarwrap' }, ...radarPanel())));
   return resizableBones(h('div', { cls: 'mtable btable btree' }, stageHead('bones', 'Bone tree: ' + BONE_VIEW_TIPS.tree, boneViewSwitch(), limbAdd(), boneCrud()), boneTree()));
 }
 // drag the bones panel's top edge to resize it (kept in the tab's layout); the editor above refits on its own (edLayout)
@@ -534,18 +536,17 @@ function bodyPanel() {
     ...statsSection(),
   ];
 }
-// radar, ground / air / fight stats, walk & idle and shadow: one section, a sub-tab each (the last one picked is remembered)
-const STAT_TABS = { radar: ['Stats on a radar, other characters overlaid to compare', () => radarPanel()],
-  ...Object.fromEntries(Object.entries(STAT_GROUPS).map(([g, tip]) => [g, [`${tip}. Multipliers on the fight settings for this character only`, () => statsPanel(g)]])),
+// ground / air / fight stats, walk & idle and shadow: one section, a sub-tab each (the last one picked is remembered)
+const STAT_TABS = { ...Object.fromEntries(Object.entries(STAT_GROUPS).map(([g, tip]) => [g, [`${tip}. Multipliers on the fight settings for this character only`, () => statsPanel(g)]])),
   walk: ['The procedural walk and idle', () => gaitPanel()], shadow: ['The shadow under the character in a fight', () => shadowPanel()] };
 function statsSection() {
   let tab = creator.statTab;
-  if (!STAT_TABS[tab]) tab = 'radar';
+  if (!STAT_TABS[tab]) tab = 'ground';
   const sub = h('div', { cls: 'subpanel' }, ...STAT_TABS[tab][1]());
   // swap the tab body in place: a full panels() rebuild would let the accordion shut this section
-  const tabs = seg(Object.keys(STAT_TABS), () => creator.statTab in STAT_TABS ? creator.statTab : 'radar', v => { creator.statTab = v; try { localStorage.setItem('stick2.statTab', v); } catch {} sub.replaceChildren(...STAT_TABS[v][1]()); syncAll(); },
+  const tabs = seg(Object.keys(STAT_TABS), () => creator.statTab in STAT_TABS ? creator.statTab : 'ground', v => { creator.statTab = v; try { localStorage.setItem('stick2.statTab', v); } catch {} sub.replaceChildren(...STAT_TABS[v][1]()); syncAll(); },
     mapVals(STAT_TABS, t => t[0]), String);
-  return [heading('Stats', 'The character\'s stats, walk & idle and shadow, one tab at a time: radar, ground, air and fight stats (multipliers on the fight settings), walk & idle, shadow'),
+  return [heading('Stats', 'The character\'s stats, walk & idle and shadow, one tab at a time: ground, air and fight stats (multipliers on the fight settings), walk & idle, shadow'),
     h('div', { cls: 'bar stattabs' }, tabs), sub];
 }
 function expPanel() {
