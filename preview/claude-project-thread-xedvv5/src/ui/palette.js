@@ -32,7 +32,11 @@ function paletteEntries() {
       if (app.mode !== 'character') setMode('character');
       creator.boneView = 'tree'; openStage('bones');
     } },
-    ...['radar', 'ground', 'air', 'fight', 'walk', 'shadow'].map(t => ({ kind: 'editor', name: 'stats: ' + t, tip: `The ${t} tab of the character's Stats section (in the character tab)`, run: () => {
+    { kind: 'table', name: 'stats radar', tip: 'The character\'s stats on a radar under the character view, other characters overlaid to compare (in the character tab)', run: () => {
+      if (app.mode !== 'character') setMode('character');
+      creator.boneView = 'radar'; openStage('bones');
+    } },
+    ...['ground', 'air', 'fight', 'walk', 'shadow'].map(t => ({ kind: 'editor', name: 'stats: ' + t, tip: `The ${t} tab of the character's Stats section (in the character tab)`, run: () => {
       if (app.mode !== 'character') setMode('character');
       creator.statTab = t; try { localStorage.setItem('stick2.statTab', t); } catch {} panels();
       const hd = [...document.querySelectorAll('#side h3')].find(x => x.textContent.startsWith('Stats'));

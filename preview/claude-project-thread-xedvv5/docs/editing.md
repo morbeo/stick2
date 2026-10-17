@@ -73,9 +73,9 @@ Stats scale the fight settings for that character. Three groups, with group butt
 | air | jump height (whatever its gravity), max jumps (-1 = infinite air jumps), gravity, air speed, air acceleration, fall speed, air dodge, air dash |
 | fight | health, toughness, tempo, springs, grab range, chip taken, block pushback taken, combo damage taken, knockback taken, its own just guard's push on the attacker, its own push block's force |
 
-The character tab keeps all of this in one **Stats** section with a sub-tab each: radar, ground, air, fight, walk (walk & idle) and shadow. The last tab picked is remembered, and the palette opens one directly (`stats: air`).
+The character tab keeps all of this in one **Stats** section with a sub-tab each: ground, air, fight, walk (walk & idle) and shadow. The last tab picked is remembered, and the palette opens one directly (`stats: air`).
 
-The **radar** tab draws the chosen stats: each axis runs from the stat's minimum to its maximum, the dashed ring is 1. Other characters can be overlaid to compare.
+The **radar** lives in the bones panel under the character view (its tree / table / radar switch, or `stats radar` in the palette). It draws the chosen stats: each axis runs from the stat's minimum to its maximum, the dashed ring is 1. Other characters can be overlaid to compare.
 
 | The stats radar |
 | --- |
