@@ -96,9 +96,15 @@
   .netcode { width: 100%; box-sizing: border-box; font: 10px/1.2 ui-monospace, Menlo, monospace; word-break: break-all; resize: vertical; background: #fbfaf6; border: 1px solid #cfc8bb; }
   .netslot { padding: 2px 4px; border-radius: 3px; } .netslot.me { background: #e9e3d4; }
   .neterr { color: #c0392b; }
-  .netlog { max-height: 8em; overflow-y: auto; margin: 4px 0; color: #555; }
+  .netlog { max-height: 12em; overflow-y: auto; margin: 4px 0; color: #555; }
   .netplay > input { width: 100%; box-sizing: border-box; }
   .netqr { display: block; margin: 4px auto; image-rendering: pixelated; max-width: 100%; }
+  .netpin { margin: 4px 0; } .netpin b { font: 600 16px ui-monospace, Menlo, monospace; letter-spacing: 2px; background: #fbfaf6; border: 1px solid #cfc8bb; padding: 1px 6px; }
+  .netpinin { font-family: ui-monospace, Menlo, monospace; text-transform: uppercase; letter-spacing: 2px; }
+  .netstep { margin: 6px 0 2px; font-weight: 600; }
+  .netsys { color: #888; font-style: italic; } .nettime { color: #aaa; font-size: 10px; }
+  .netscan { position: fixed; inset: 0; z-index: 1000; background: rgba(255,255,255,.95); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  .netcam { max-width: 90vw; max-height: 70vh; border: 1px solid #cfc8bb; }
   .row input[type=range] { width: 100%; }
   .row > .rowc { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
   .row > .rowc > [hidden] { display: none; }
@@ -341,51 +347,51 @@
 <div id="side"></div>
 <div id="grip" data-tip="Drag: the side panel's width, kept per tab (double-click: back to 300 px)"></div>
 <div id="help"></div>
-<script src="src/build.js?v=0c6e526"></script>
-<script src="src/engine/core.js?v=0c6e526"></script>
-<script src="src/engine/shapes.js?v=0c6e526"></script>
-<script src="src/engine/rig.js?v=0c6e526"></script>
-<script src="src/engine/fx.js?v=0c6e526"></script>
-<script src="src/engine/roster.js?v=0c6e526"></script>
-<script src="src/engine/fighter.js?v=0c6e526"></script>
-<script src="src/engine/world.js?v=0c6e526"></script>
-<script src="src/engine/stage.js?v=0c6e526"></script>
-<script src="src/engine/brain.js?v=0c6e526"></script>
-<script src="src/engine/checks.js?v=0c6e526"></script>
-<script src="src/ui/ui.js?v=0c6e526"></script>
-<script src="src/ui/layout.js?v=0c6e526"></script>
-<script src="src/ui/sound.js?v=0c6e526"></script>
-<script src="src/editor/tracker.js?v=0c6e526"></script>
-<script src="src/engine/objdiff.js?v=0c6e526"></script>
-<script src="src/editor/studio.js?v=0c6e526"></script>
-<script src="src/editor/lab.js?v=0c6e526"></script>
-<script src="src/editor/creator.js?v=0c6e526"></script>
-<script src="src/editor/editor.js?v=0c6e526"></script>
-<script src="src/editor/fxlab.js?v=0c6e526"></script>
-<script src="src/editor/gridlab.js?v=0c6e526"></script>
-<script src="src/editor/propedit.js?v=0c6e526"></script>
-<script src="src/editor/matrix.js?v=0c6e526"></script>
-<script src="src/engine/inputs.js?v=0c6e526"></script>
-<script src="src/engine/combos.js?v=0c6e526"></script>
-<script src="src/engine/breed.js?v=0c6e526"></script>
-<script src="src/ui/keys.js?v=0c6e526"></script>
-<script src="src/ui/palette.js?v=0c6e526"></script>
-<script src="src/engine/scenarios.js?v=0c6e526"></script>
-<script src="src/editor/compare.js?v=0c6e526"></script>
-<script src="src/ui/docs.js?v=0c6e526"></script>
-<script src="src/ui/kitchensink.js?v=0c6e526"></script>
-<script src="src/engine/clip.js?v=0c6e526"></script>
-<script src="src/engine/events.js?v=0c6e526"></script>
-<script src="src/engine/replay.js?v=0c6e526"></script>
-<script src="src/net/netplay.js?v=0c6e526"></script>
-<script src="src/net/lobby.js?v=0c6e526"></script>
-<script src="src/net/netmatch.js?v=0c6e526"></script>
-<script src="src/net/qr.js?v=0c6e526"></script>
-<script src="src/net/netserver.js?v=0c6e526"></script>
-<script src="src/net/netui.js?v=0c6e526"></script>
-<script src="src/ui/welcome.js?v=0c6e526"></script>
-<script src="src/ui/app.js?v=0c6e526"></script>
-<script src="src/ui/touch.js?v=0c6e526"></script>
-<script src="src/ui/bridge.js?v=0c6e526"></script>
+<script src="src/build.js?v=f539de2"></script>
+<script src="src/engine/core.js?v=f539de2"></script>
+<script src="src/engine/shapes.js?v=f539de2"></script>
+<script src="src/engine/rig.js?v=f539de2"></script>
+<script src="src/engine/fx.js?v=f539de2"></script>
+<script src="src/engine/roster.js?v=f539de2"></script>
+<script src="src/engine/fighter.js?v=f539de2"></script>
+<script src="src/engine/world.js?v=f539de2"></script>
+<script src="src/engine/stage.js?v=f539de2"></script>
+<script src="src/engine/brain.js?v=f539de2"></script>
+<script src="src/engine/checks.js?v=f539de2"></script>
+<script src="src/ui/ui.js?v=f539de2"></script>
+<script src="src/ui/layout.js?v=f539de2"></script>
+<script src="src/ui/sound.js?v=f539de2"></script>
+<script src="src/editor/tracker.js?v=f539de2"></script>
+<script src="src/engine/objdiff.js?v=f539de2"></script>
+<script src="src/editor/studio.js?v=f539de2"></script>
+<script src="src/editor/lab.js?v=f539de2"></script>
+<script src="src/editor/creator.js?v=f539de2"></script>
+<script src="src/editor/editor.js?v=f539de2"></script>
+<script src="src/editor/fxlab.js?v=f539de2"></script>
+<script src="src/editor/gridlab.js?v=f539de2"></script>
+<script src="src/editor/propedit.js?v=f539de2"></script>
+<script src="src/editor/matrix.js?v=f539de2"></script>
+<script src="src/engine/inputs.js?v=f539de2"></script>
+<script src="src/engine/combos.js?v=f539de2"></script>
+<script src="src/engine/breed.js?v=f539de2"></script>
+<script src="src/ui/keys.js?v=f539de2"></script>
+<script src="src/ui/palette.js?v=f539de2"></script>
+<script src="src/engine/scenarios.js?v=f539de2"></script>
+<script src="src/editor/compare.js?v=f539de2"></script>
+<script src="src/ui/docs.js?v=f539de2"></script>
+<script src="src/ui/kitchensink.js?v=f539de2"></script>
+<script src="src/engine/clip.js?v=f539de2"></script>
+<script src="src/engine/events.js?v=f539de2"></script>
+<script src="src/engine/replay.js?v=f539de2"></script>
+<script src="src/net/netplay.js?v=f539de2"></script>
+<script src="src/net/lobby.js?v=f539de2"></script>
+<script src="src/net/netmatch.js?v=f539de2"></script>
+<script src="src/net/qr.js?v=f539de2"></script>
+<script src="src/net/netserver.js?v=f539de2"></script>
+<script src="src/net/netui.js?v=f539de2"></script>
+<script src="src/ui/welcome.js?v=f539de2"></script>
+<script src="src/ui/app.js?v=f539de2"></script>
+<script src="src/ui/touch.js?v=f539de2"></script>
+<script src="src/ui/bridge.js?v=f539de2"></script>
 </body>
 </html>
