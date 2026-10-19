@@ -143,6 +143,12 @@ The **netplay** section at the top of the play tab's side panel plays someone in
 
 The fight uses the host's scenario, stage and settings. A fight saves as a replay afterwards. More players who join with an invite watch. How it works: [Netplay](netplay.md).
 
+**Through a server.** With a [stick2 server](server.md) there's no code to send back. Type the server's address under **or through a server**, then:
+
+- **host on server** opens a room and shows its room code, a link and a QR code. Players join with the code (**join room**), the link or the QR code; **watch** or the **watch link** joins as a spectator.
+- A `#server=<address>&room=<code>` link opens the app and joins straight away (`&spectate=1` to watch). `#server=<address>` alone fills in the server.
+- The palette's **netplay: server** opens the section at the server box. The last server used is remembered.
+
 ![The netplay section with a hosted lobby: the invite link, its QR code and the answer box](img/netplay.png)
 
 ### Theater mode

@@ -9,7 +9,7 @@ Online play between two browsers, with no server: the design, and what's built s
 - **No server.** The app is static files (GitHub Pages, itch.io). Players connect directly over a WebRTC data channel. A public STUN server only tells each browser its own address.
 - **The engine is deterministic.** The same scenario, settings, seed and character definitions give the same fight, so the players only need to send each other their inputs.
 - **Characters can be edited.** A match sends full character definitions, the way a replay does, never just names.
-- **A server can come later.** The connection is set up by a swappable *signaler*. A server would replace the copy-and-paste step and nothing else.
+- **A server is optional.** The connection is set up by a swappable *signaler*. The [dedicated server](server.md) replaces the data channel and the copy-and-paste step with a WebSocket relay (`src/net/netserver.js`); the lobby and the match are the same.
 
 ## Layers
 
@@ -226,5 +226,6 @@ hooks.match = m => match?.receive(m);
   - then through the play tab: the guest opens the host's invite link and both ready. Match messages get 80 ms of extra latency and both sides press keys, so rollback really guesses wrong on the real stages. A third browser joins through a second invite as a spectator. All three compare state hashes. Chrome runs with its background throttling off, so that three windows at once all get animation frames. When a wait runs out, the test prints each side's connection (messages sent and received), lobby and match.
 
   Node only carries the codes between them.
+- Through the [server](server.md): `npm run test:server` (the relay, and a real lobby and match over it) and `node tools/dev/server-test.js` (two browsers: the host opens a room in the play tab, the guest opens its `#server=…&room=…` link, they fight).
 
 

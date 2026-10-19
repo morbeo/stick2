@@ -65,8 +65,9 @@ function paletteEntries() {
     { kind: 'action', name: 'suggest this character', tip: 'Export the current character and open a GitHub issue to propose it for the roster, with instructions (see CONTRIBUTING.md)', run: suggestChar },
     { kind: 'action', name: 'copy embed link', tip: 'Copy a link that embeds the current scenario, pre-loaded (paste as an <iframe> src)', run: () => { const u = curU(); if (u) navigator.clipboard?.writeText(embedLink(u)); } },
     { kind: 'action', name: 'kitchen sink', tip: 'Every shared UI component on one page, for checking a theme change or hunting a visual bug', run: () => openKitchenSink() },
-    { kind: 'action', name: 'netplay', tip: 'Fight someone online, browser to browser, no server: the play tab\'s netplay section (host, or paste an invite to join)', run: () => openNetplay(false) },
+    { kind: 'action', name: 'netplay', tip: 'Fight someone online: the play tab\'s netplay section (browser to browser with an invite, or through a stick2 server)', run: () => openNetplay(false) },
     { kind: 'action', name: 'netplay: host', tip: 'Open an online lobby and make an invite link to send to the other player', run: () => openNetplay(true) },
+    { kind: 'action', name: 'netplay: server', tip: 'Play through a stick2 server: host a room or join one by its code, no codes to copy back and forth (docs/server.md)', run: () => openNetplay(false, true) },
     { kind: 'action', name: 'welcome', tip: 'What stick2 can do and where to go for each activity, with a little demo of each (shown once on the first visit)', run: openWelcome },
     ...Object.keys(DEFS).map(c => ({ kind: 'character', name: c, tip: 'Use this character in every mode', run: () => pickChar(c) })),
     ...Object.keys(SCENARIOS).map(k => ({ kind: 'scenario', name: k, tip: scenTip(SCENARIOS[k]), run: () => {
