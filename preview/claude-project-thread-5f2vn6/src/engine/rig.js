@@ -13,7 +13,16 @@ const BONE = {
   shape: 'line',       // line | circle | spline | chain (circle is centred on the bone's end, radius = len; spline draws one smooth
                         // tapered curve through this bone and its single line child chain; chain splits the bone into segs dangling
                         // segments drawn as a spline: a rope, whip or scarf)
+                        // fill: a filled shape through its parent joint, its end and the joints of the single bone chain below it,
+                        // closed back (via fillTo's joint if set): capes, wing membranes, skirts. Its own line is its edge
+                        // socket: an invisible attach point (no draw, no hurtbox, in no chain): a held weapon goes on it
   segs: 6,             // chain only: how many segments the rope is split into
+  shade: 0,            // grey level: 0 = the figure's own ink, 1 = paper white (monochrome characters keep their look: no hues)
+  taper: 0,            // how much thinner the line ends than it starts (0 = even, 1 = to a point)
+  cap: 'round',        // line ends: round | square (boxy limbs, pills squared off) | flat (cut at the joint) | point (narrows to a tip: blades, claws)
+  fillTo: undefined,   // fill only: a bone whose joint closes the filled shape (a cape from the neck to a hand)
+  aim: 0,              // how far the bone turns toward the nearest foe's upper body (1 = points straight at it): heads that watch, tracking arms
+  z: 0,                // draw order layer: lower draws underneath everything above it, whatever the side (side orders bones within a layer)
   thick: 5, hurt: 0,   // stroke width; hurtbox radius (0 = can't be hit here)
   lag: 1,              // follow-through: each step lowers the spring frequency, so the bone trails its parent
   level: 0,            // 0 = rigid child, 1 = keeps its rest world angle whatever the parent does (feet stay flat)
@@ -53,6 +62,12 @@ function expandChains(by) {
 function splineRun(ch, b) {
   const run = [b];
   for (let k; (k = run[run.length - 1].kids?.filter(x => !x.hidden)) && k.length === 1 && (k[0].shape ?? 'line') === 'line' && k[0].side === b.side && k[0].role !== 'weapon';) run.push(k[0]);
+  return run;
+}
+// a fill bone's outline: this bone, then each single visible child below it (any line bone, whatever its side)
+function fillRun(ch, b) {
+  const run = [b];
+  for (let k; (k = run[run.length - 1].kids?.filter(x => !x.hidden && x.shape !== 'socket')) && k.length === 1 && k[0].shape !== 'circle';) run.push(k[0]);
   return run;
 }
 // a Catmull-Rom curve through pts, its width easing from w0 to w1 (short strokes, round caps hide the joins)
@@ -706,6 +721,7 @@ function makeCharacter(def) {
   const by = {}, order = [];
   for (const b of def.bones) by[b.id] = { ...BONE, parent: null, ...b };
   expandChains(by);
+  for (const b of Object.values(by)) if (b.shape === 'socket') b.hurt = 0;
   applyHidden(Object.values(by));
   const visit = b => { if (order.includes(b)) return; if (b.parent) visit(by[b.parent]); order.push(b); };
   Object.values(by).forEach(visit); // parents before children
@@ -724,14 +740,14 @@ function makeCharacter(def) {
   // limb chains per role: start where the parent has another role, follow the first child of the same role
   // (a stance body's hidden bones are in no chain: no walk, swing or trail)
   const chains = { spine: [], head: [], arm: [], leg: [], tail: [], weapon: [] };
-  for (const b of order) if (!b.hidden && (!b.parent || by[b.parent].role !== b.role)) {
+  for (const b of order) if (!b.hidden && b.shape !== 'socket' && (!b.parent || by[b.parent].role !== b.role)) {
     const c = [b];
-    for (let k; (k = c[c.length - 1].kids.find(k => k.role === b.role && !k.hidden));) c.push(k);
+    for (let k; (k = c[c.length - 1].kids.find(k => k.role === b.role && !k.hidden && k.shape !== 'socket'));) c.push(k);
     chains[b.role].push(c);
     for (const r of b.also || []) (chains[r] ??= []).push(c);
   }
   const rest = Object.fromEntries(order.map(b => [b.id, b.a]));
-  const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains,
+  const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains, aims: order.some(b => b.aim > 0),
     tips: [...chains.arm, ...chains.leg, ...chains.head, ...chains.tail, ...chains.weapon].map(c => c[c.length - 1]),
     poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, motions: customMotions(def), binds: { ...BINDS, ...def.binds }, binds25: { ...BINDS_25, ...def.binds25 },
     stats: Object.fromEntries(CHAR_STATS.map(s => [s.k, def[s.k] ?? 1])), gait: { ...Object.fromEntries(GAIT_VARS.map(s => [s.k, s.v])), ...def.gait },
@@ -914,7 +930,9 @@ CHAR_DEFS.stick.moves = { ...CHAR_DEFS.stick.moves, ...WEAPON_MOVES };
 function weaponBones(ch, type) {
   // no arms (a houndo, all fours): the nearest thing to a hand is a front leg's own tip instead of the root bone
   const w = WEAPONS[type], limb = ch.chains.arm.find(c => c[0].side === 'f') || ch.chains.arm[0] || ch.chains.leg.find(c => c[0].side === 'f') || ch.chains.leg[0];
-  const parent = limb ? limb[limb.length - 1].id : ch.bones[0].id;
+  // a socket bone (front side first) is where the weapon goes; else the front hand
+  const socket = ch.bones.find(b => b.shape === 'socket' && !b.hidden && b.side === 'f') || ch.bones.find(b => b.shape === 'socket' && !b.hidden);
+  const parent = socket ? socket.id : limb ? limb[limb.length - 1].id : ch.bones[0].id;
   const b = { role: 'weapon', side: 'f', type, thick: 3, hurt: 0, lag: 0.3, react: 0.3, sway: 0 };
   // weaponTip dangle (see fighter.js: hangs toward gravity, the same mechanism a tail or scarf uses): the free end,
   // not gripped, hangs down at rest instead of staying rigid at its rest angle; whip still takes over during a swing
@@ -1062,28 +1080,61 @@ function drawWeapon(ctx, b, o, e, col, extra = 0) {
 // mul: a fighter's live per-bone key.thick / key.alpha multipliers (mid-move), or null outside one
 function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
   ctx.lineCap = ctx.lineJoin = 'round';
-  const inSpline = new Set();
-  for (const side of ['b', '', 'f']) for (const b of ch.bones) if (b.side === side && !inSpline.has(b.id)) {
-    const o = P[b.parent || 'hip'], e = P[b.id], c = tint ? tint(b) : side === 'b' ? back : col;
+  const inSpline = new Set(), SIDES = { b: 0, '': 1, f: 2 };
+  const rank = b => (b.z || 0) * 3 + (SIDES[b.side ?? ''] ?? 1), order = ch.bones.map((b, i) => [rank(b), i, b]).sort((x, y) => x[0] - y[0] || x[1] - y[1]).map(x => x[2]);
+  for (const b of order) if (!inSpline.has(b.id)) {
+    const side = b.side ?? '', o = P[b.parent || 'hip'], e = P[b.id];
+    if (!o || !e) continue;
+    let c = tint ? tint(b) : side === 'b' ? back : col;
+    if (b.shade && !tint && !extra) c = mixWhite(c, b.shade);
     if (b.hidden && (b.shape === 'circle' || Math.hypot(e[0] - o[0], e[1] - o[1]) < 0.5)) continue; // a stance's hidden bone (drawn while it shrinks away)
     const a = (b.alpha ?? 1) * (mul?.alpha?.[b.id] ?? 1), thick = b.thick * (mul?.thick?.[b.id] ?? 1);
     if (a < 1) { ctx.save(); ctx.globalAlpha *= a; }
+    if (b.shape === 'socket') { if (a < 1) ctx.restore(); continue; }
     if (b.shape === 'circle') { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(e[0], e[1], b.len + extra / 2, 0, 7); ctx.fill(); }
     else if (b.role === 'weapon') drawWeapon(ctx, b, o, e, extra || tint?.(b) ? c : null, extra);
     else if (b.shape === 'spline') {
       const run = splineRun(ch, b); run.slice(1).forEach(k => inSpline.add(k.id));
       ctx.strokeStyle = c; strokeSpline(ctx, [o, ...run.map(k => P[k.id])], thick + extra, run[run.length - 1].thick * (mul?.thick?.[run[run.length - 1].id] ?? 1) + extra);
-    } else {
+    } else if (b.shape === 'fill') {
+      const pts = [o, ...fillRun(ch, b).map(k => P[k.id]), ...b.fillTo && P[b.fillTo] ? [P[b.fillTo]] : []];
+      ctx.fillStyle = b.shade || tint || extra ? c : mixWhite(c, 0.55); ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill();
+      if (thick > 0) { ctx.strokeStyle = c; ctx.lineWidth = thick + extra; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0], e[1]); ctx.stroke(); }
+    } else if ((b.taper || b.cap === 'point') && !b.curve) drawTapered(ctx, o, e, thick + extra, b.cap === 'point' ? 0 : thick * (1 - b.taper) + extra, c, b.cap);
+    else {
+      ctx.lineCap = LINE_CAPS[b.cap] || 'round';
       ctx.strokeStyle = c; ctx.lineWidth = thick + extra; ctx.beginPath(); ctx.moveTo(o[0], o[1]);
       if (b.curve) {
         const dx = e[0] - o[0], dy = e[1] - o[1], l = Math.hypot(dx, dy) || 1;
         const mx = (o[0] + e[0]) / 2 - (dy / l) * b.curve * l, my = (o[1] + e[1]) / 2 + (dx / l) * b.curve * l;
         ctx.quadraticCurveTo(mx, my, e[0], e[1]);
       } else ctx.lineTo(e[0], e[1]);
-      ctx.stroke();
+      ctx.stroke(); ctx.lineCap = 'round';
     }
     if (a < 1) ctx.restore();
   }
+}
+const LINE_CAPS = { round: 'round', square: 'square', flat: 'butt', point: 'round' };
+// a colour (#rgb / #rrggbb) a fraction t of the way to white; anything else (named, rgba) unchanged
+function mixWhite(c, t) {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c || '');
+  if (!m) return c;
+  const hx = m[1].length === 3 ? [...m[1]].map(x => x + x).join('') : m[1];
+  return '#' + [0, 2, 4].map(i => Math.round(parseInt(hx.slice(i, i + 2), 16) + (255 - parseInt(hx.slice(i, i + 2), 16)) * clamp(t, 0, 1)).toString(16).padStart(2, '0')).join('');
+}
+// a straight line from o (width w0) to e (width w1) as one filled outline; cap: round ends, square (pushed out by half
+// the width) or flat (cut at the joints); point is w1 = 0 with a round start
+function drawTapered(ctx, o, e, w0, w1, c, cap = 'round') {
+  const dx = e[0] - o[0], dy = e[1] - o[1], l = Math.hypot(dx, dy) || 1, ux = dx / l, uy = dy / l, nx = -uy, ny = ux, a = Math.atan2(ny, nx);
+  ctx.fillStyle = c; ctx.beginPath();
+  if (cap === 'round' || cap === 'point' || !cap) {
+    ctx.arc(o[0], o[1], w0 / 2, a, a + Math.PI);
+    ctx.arc(e[0], e[1], Math.max(0.01, w1 / 2), a + Math.PI, a + 2 * Math.PI);
+  } else {
+    const k0 = cap === 'square' ? w0 / 2 : 0, k1 = cap === 'square' ? w1 / 2 : 0, p = (q, k, w, s) => [q[0] + ux * k + nx * w / 2 * s, q[1] + uy * k + ny * w / 2 * s];
+    for (const [x, y] of [p(o, -k0, w0, 1), p(e, k1, w1, 1), p(e, k1, w1, -1), p(o, -k0, w0, -1)]) ctx.lineTo(x, y);
+  }
+  ctx.closePath(); ctx.fill();
 }
 // collect all bones from rootBone down to leaves, as segments relative to rootBone's own position (x, y) at the
 // moment of the hit — so World.drawLimbs can just translate by the tracked, physically-updated (x, y) as it falls,

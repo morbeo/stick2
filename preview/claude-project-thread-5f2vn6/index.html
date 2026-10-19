@@ -89,7 +89,7 @@
   #side.sticky > .fold:not(.shut) > h3 { position: sticky; top: -8px; z-index: 3; background: #f3f0e8; margin-top: 0; padding: 10px 0 4px; }
   #side > .sgroup > .fbody { padding-left: 8px; border-left: 1px solid #e3ded2; }
   #side h3 { display: flex; align-items: center; margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
-  .row { display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 4px; margin: 2px 0; }
+  .row { display: grid; grid-template-columns: 72px 1fr 44px; align-items: center; gap: 4px; margin: 2px 0; }
   /* netplay (src/net/netui.js): the play tab's lobby section */
   .netplay p { margin: 4px 0; } .netplay .bar { margin: 4px 0; }
   .netrow { display: flex; align-items: center; gap: 4px; margin: 4px 0; } .netrow input, .netrow select { flex: 1; min-width: 0; }
@@ -100,6 +100,13 @@
   .netplay > input { width: 100%; box-sizing: border-box; }
   .netqr { display: block; margin: 4px auto; image-rendering: pixelated; max-width: 100%; }
   .row input[type=range] { width: 100%; }
+  .row > .rowc { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
+  .row > .rowc > [hidden] { display: none; }
+  button.pick { white-space: nowrap; }
+  #over > .bradar .radarwrap { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 16px; padding: 4px 8px; overflow: auto; }
+    #over > .bradar .radarwrap h3 { flex-basis: 100%; margin: 0; }
+    .subpanel > h3 { margin-top: 4px; }
+  .numlab { display: inline-flex; align-items: center; gap: 3px; color: #777; } .numlab .num { width: 44px; border: 1px solid #cfc8bb; border-radius: 3px; background: #fbfaf6; }
   #side .row + .row { border-top: 1px solid #e3ded2; }
   .fold > h3, .fold > h4 { cursor: pointer; }
   .fold > h3::before, .fold > h4::before { content: '\e5cf'; font-family: Icons; font-size: 16px; margin: 0 2px 0 -4px; transition: transform .1s; }
@@ -154,6 +161,15 @@
   .tmat td.on { outline: 2px solid #c33; outline-offset: -2px; }
   #over > .sbuild, #over > .cmptable { inset: auto 0 0 0; max-height: 50%; border-top: 1px solid #ccc; }
   #over > .btable { inset: auto 0 0 0; max-height: 45%; border-top: 1px solid #ccc; }
+  .btree .tnode { display: flex; flex-direction: column; align-items: center; }
+  .btree .tkids { display: flex; gap: 6px; align-items: flex-start; border-top: 1px solid #ccc; padding-top: 4px; margin-top: 2px; }
+  .btree .tree { display: flex; align-items: center; white-space: nowrap; padding-left: 0 !important; }
+  .btree .troot { align-items: flex-start; overflow-x: auto; }
+  .btree .thip { padding: 2px 8px; border: 1px dashed #aaa; border-radius: 3px; }
+  #over > .btree { max-height: 30%; }
+  #over > .btable > .vgrip { position: sticky; top: -8px; height: 6px; margin: -8px -8px 2px; cursor: ns-resize; background: #ddd8cc; z-index: 2; }
+  #over > .btable > .vgrip:hover { background: #c9c2b2; }
+  .btree button.dropto { box-shadow: inset 0 0 0 2px #c33; }
   #over > .etable { top: 0; right: 0; left: auto; width: 45%; padding-top: 0; border-left: 1px solid #ccc; }
   .chip { display: inline-flex; align-items: center; gap: 2px; padding: 0 5px; border-radius: 8px; color: #fff; font-size: 11px; line-height: 16px; }
   .nowf { display: grid; grid-template-columns: auto 1fr; gap: 0 6px; align-items: center; margin: 2px 0; } .nowf .note { grid-column: 1 / -1; margin: 0; }
@@ -286,7 +302,7 @@
     .tstick { width: 100px; height: 100px; } .tknob { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
     .tbtn { width: 46px; height: 46px; font-size: 16px; } .tbtns { grid-template-columns: 46px 46px; gap: 6px; } .tbtn.thop { height: 34px; }
     .grp[data-part="layout"] { position: static; #top > .trow:first-child { padding-right: 0; }
-    .row { grid-template-columns: 80px 1fr 40px; }
+    .row { grid-template-columns: 64px 1fr 40px; }
   }
   @media (max-height: 500px) and (orientation: landscape) {
     body { grid-template: "top top" auto "stage side" 1fr / 1fr min(var(--side-w, 300px), 36vw); }
@@ -325,51 +341,51 @@
 <div id="side"></div>
 <div id="grip" data-tip="Drag: the side panel's width, kept per tab (double-click: back to 300 px)"></div>
 <div id="help"></div>
-<script src="src/build.js?v=df96d90"></script>
-<script src="src/engine/core.js?v=df96d90"></script>
-<script src="src/engine/shapes.js?v=df96d90"></script>
-<script src="src/engine/rig.js?v=df96d90"></script>
-<script src="src/engine/fx.js?v=df96d90"></script>
-<script src="src/engine/roster.js?v=df96d90"></script>
-<script src="src/engine/fighter.js?v=df96d90"></script>
-<script src="src/engine/world.js?v=df96d90"></script>
-<script src="src/engine/stage.js?v=df96d90"></script>
-<script src="src/engine/brain.js?v=df96d90"></script>
-<script src="src/engine/checks.js?v=df96d90"></script>
-<script src="src/ui/ui.js?v=df96d90"></script>
-<script src="src/ui/layout.js?v=df96d90"></script>
-<script src="src/ui/sound.js?v=df96d90"></script>
-<script src="src/editor/tracker.js?v=df96d90"></script>
-<script src="src/engine/objdiff.js?v=df96d90"></script>
-<script src="src/editor/studio.js?v=df96d90"></script>
-<script src="src/editor/lab.js?v=df96d90"></script>
-<script src="src/editor/creator.js?v=df96d90"></script>
-<script src="src/editor/editor.js?v=df96d90"></script>
-<script src="src/editor/fxlab.js?v=df96d90"></script>
-<script src="src/editor/gridlab.js?v=df96d90"></script>
-<script src="src/editor/propedit.js?v=df96d90"></script>
-<script src="src/editor/matrix.js?v=df96d90"></script>
-<script src="src/engine/inputs.js?v=df96d90"></script>
-<script src="src/engine/combos.js?v=df96d90"></script>
-<script src="src/engine/breed.js?v=df96d90"></script>
-<script src="src/ui/keys.js?v=df96d90"></script>
-<script src="src/ui/palette.js?v=df96d90"></script>
-<script src="src/engine/scenarios.js?v=df96d90"></script>
-<script src="src/editor/compare.js?v=df96d90"></script>
-<script src="src/ui/docs.js?v=df96d90"></script>
-<script src="src/ui/kitchensink.js?v=df96d90"></script>
-<script src="src/engine/clip.js?v=df96d90"></script>
-<script src="src/engine/events.js?v=df96d90"></script>
-<script src="src/engine/replay.js?v=df96d90"></script>
-<script src="src/net/netplay.js?v=df96d90"></script>
-<script src="src/net/lobby.js?v=df96d90"></script>
-<script src="src/net/netmatch.js?v=df96d90"></script>
-<script src="src/net/qr.js?v=df96d90"></script>
-<script src="src/net/netserver.js?v=df96d90"></script>
-<script src="src/net/netui.js?v=df96d90"></script>
-<script src="src/ui/welcome.js?v=df96d90"></script>
-<script src="src/ui/app.js?v=df96d90"></script>
-<script src="src/ui/touch.js?v=df96d90"></script>
-<script src="src/ui/bridge.js?v=df96d90"></script>
+<script src="src/build.js?v=41e27e4"></script>
+<script src="src/engine/core.js?v=41e27e4"></script>
+<script src="src/engine/shapes.js?v=41e27e4"></script>
+<script src="src/engine/rig.js?v=41e27e4"></script>
+<script src="src/engine/fx.js?v=41e27e4"></script>
+<script src="src/engine/roster.js?v=41e27e4"></script>
+<script src="src/engine/fighter.js?v=41e27e4"></script>
+<script src="src/engine/world.js?v=41e27e4"></script>
+<script src="src/engine/stage.js?v=41e27e4"></script>
+<script src="src/engine/brain.js?v=41e27e4"></script>
+<script src="src/engine/checks.js?v=41e27e4"></script>
+<script src="src/ui/ui.js?v=41e27e4"></script>
+<script src="src/ui/layout.js?v=41e27e4"></script>
+<script src="src/ui/sound.js?v=41e27e4"></script>
+<script src="src/editor/tracker.js?v=41e27e4"></script>
+<script src="src/engine/objdiff.js?v=41e27e4"></script>
+<script src="src/editor/studio.js?v=41e27e4"></script>
+<script src="src/editor/lab.js?v=41e27e4"></script>
+<script src="src/editor/creator.js?v=41e27e4"></script>
+<script src="src/editor/editor.js?v=41e27e4"></script>
+<script src="src/editor/fxlab.js?v=41e27e4"></script>
+<script src="src/editor/gridlab.js?v=41e27e4"></script>
+<script src="src/editor/propedit.js?v=41e27e4"></script>
+<script src="src/editor/matrix.js?v=41e27e4"></script>
+<script src="src/engine/inputs.js?v=41e27e4"></script>
+<script src="src/engine/combos.js?v=41e27e4"></script>
+<script src="src/engine/breed.js?v=41e27e4"></script>
+<script src="src/ui/keys.js?v=41e27e4"></script>
+<script src="src/ui/palette.js?v=41e27e4"></script>
+<script src="src/engine/scenarios.js?v=41e27e4"></script>
+<script src="src/editor/compare.js?v=41e27e4"></script>
+<script src="src/ui/docs.js?v=41e27e4"></script>
+<script src="src/ui/kitchensink.js?v=41e27e4"></script>
+<script src="src/engine/clip.js?v=41e27e4"></script>
+<script src="src/engine/events.js?v=41e27e4"></script>
+<script src="src/engine/replay.js?v=41e27e4"></script>
+<script src="src/net/netplay.js?v=41e27e4"></script>
+<script src="src/net/lobby.js?v=41e27e4"></script>
+<script src="src/net/netmatch.js?v=41e27e4"></script>
+<script src="src/net/qr.js?v=41e27e4"></script>
+<script src="src/net/netserver.js?v=41e27e4"></script>
+<script src="src/net/netui.js?v=41e27e4"></script>
+<script src="src/ui/welcome.js?v=41e27e4"></script>
+<script src="src/ui/app.js?v=41e27e4"></script>
+<script src="src/ui/touch.js?v=41e27e4"></script>
+<script src="src/ui/bridge.js?v=41e27e4"></script>
 </body>
 </html>

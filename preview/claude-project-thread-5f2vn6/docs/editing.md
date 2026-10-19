@@ -7,7 +7,7 @@ Building fighters and their movesets. The editors themselves (dragging joints, t
 | Section | Where it is |
 |---|---|
 | [Characters](#characters) | side panel in character and animate |
-| [Bone shapes](#bone-shapes) | bone panel → shape, bone table, palette |
+| [Bone shapes](#bone-shapes) | bone panel → shape, cap, shade…; reparenting in the tree and canvas |
 | [Moves and inputs](#moves-and-inputs) | the move table over the stage |
 | [Movement layers](#movement-layers) | animate → move group → + → layer |
 | [Input table](#input-table) | the **moves** group → inputs |
@@ -73,7 +73,9 @@ Stats scale the fight settings for that character. Three groups, with group butt
 | air | jump height (whatever its gravity), max jumps (-1 = infinite air jumps), gravity, air speed, air acceleration, fall speed, air dodge, air dash |
 | fight | health, toughness, tempo, springs, grab range, chip taken, block pushback taken, combo damage taken, knockback taken, its own just guard's push on the attacker, its own push block's force |
 
-The **radar** above the stats draws the chosen stats: each axis runs from the stat's minimum to its maximum, the dashed ring is 1. Other characters can be overlaid to compare.
+The character tab keeps all of this in one **Stats** section with a sub-tab each: ground, air, fight, walk (walk & idle) and shadow. The last tab picked is remembered, and the palette opens one directly (`stats: air`).
+
+The **radar** lives in the bones panel under the character view (its tree / table / radar switch, or `stats radar` in the palette). It draws the chosen stats: each axis runs from the stat's minimum to its maximum, the dashed ring is 1. Other characters can be overlaid to compare.
 
 | The stats radar |
 | --- |
@@ -81,7 +83,7 @@ The **radar** above the stats draws the chosen stats: each axis runs from the st
 
 ### Shadow
 
-The **shadow** section (character tab, under walk & idle) sets the shadow drawn under the character in a fight. Drawing only: the fight plays out the same.
+The **shadow** section (the shadow tab of the character's Stats section) sets the shadow drawn under the character in a fight. Drawing only: the fight plays out the same.
 
 - **shape:** ellipse (the default oval), circle (a round blob, w is its radius), body (the figure itself squashed and sheared onto the floor) or **off**.
 - **w, h:** the oval's half-width and half-height. For body, w / 22 and h / 22 scale the figure's width and height on the floor.
@@ -154,6 +156,25 @@ A bone's **shape** (bone panel, bone table, or the palette's `bone shape:` entri
 - **circle:** a disc on the joint, radius = length (heads, fists).
 - **spline:** one smooth curve through this bone and the single chain of line bones below it, tapering to the last one's thickness (tails, tentacles). Drawing only; every bone keeps its own hurtbox.
 - **chain:** a rope. The bone splits into **segs** segments (2-16, default 6), each looser and more dangling than the last, drawn as one spline (whips, scarves, hair). It swings on the same springs as dangle and whip, so fights stay deterministic. Poses and moves still name the bone itself; its children hang from the rope's end.
+- **fill:** a filled shape through the parent joint, the bone's end and the single bone chain below it, closed back on itself, or through **fill to**'s joint (a cape from the neck to a hand). It fills a lighter grey of the ink unless the bone has a shade; its own line is the edge.
+- **socket:** an invisible attach point: not drawn, never hit, in no limb chain. A held weapon goes on the first socket (front side first) instead of the front hand.
+
+Line bones also have:
+
+- **cap:** how the ends are drawn: round (default), square (pushed out by half the width), flat (cut at the joints) or point (narrows to a tip). Square and flat make boxes and pills.
+- **taper:** how much thinner the line ends than it starts (0 even, 1 a point).
+- **shade:** a grey level, from the figure's own ink (0) toward paper white. Grey only, so characters stay monochrome.
+- **z:** a draw-order layer. Lower layers draw under higher ones whatever their side; side (back, centre, front) orders bones inside a layer.
+- **aim:** in a fight, how far the bone turns toward the nearest foe's upper body (1 = straight at it): heads that watch, an arm that tracks.
+
+### Reorganizing bones
+
+- **Bone tree** (the bones panel under the character view: drag its top edge to resize it, double-click it for the default size; its **tree / table** switch flips it to the bone table): drag a bone onto another to hang it, and everything below it, from that bone. Hold Alt as you drop to move it before that bone in the draw order instead. Drop it on the **hang from the hip** row to make it a root.
+- **Canvas:** Alt+drag a joint onto another joint (or the hip square) to reparent it. A dashed line shows where it goes.
+- **Bone table:** click a bone's parent cell to pick a new parent; drag an id onto another row to reorder.
+- **copy** (bones panel head) copies the selected bone and its subtree to the other side. The **+** limb buttons beside it add an arm, leg, head or tail to the selected torso bone.
+
+A bone can never hang from its own subtree.
 
 ## Moves and inputs
 
