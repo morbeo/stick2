@@ -103,6 +103,10 @@ const BONE_PROPS = [
   { k: 'sway', min: 0, max: 3, step: 0.05, tip: 'Idle sway: how much the bone drifts on its own while standing (deeper bones more). 0 = still.' },
   { k: 'dangle', min: 0, max: 1.5, step: 0.05, tip: 'Secondary motion: how much the bone hangs like a rope (tails, scarves, hair): it droops with gravity, trails a run and a jump and lifts in a fall. 0 = only its animation.' },
   { k: 'whip', min: 0, max: 0.1, step: 0.002, tip: 'Bends back from a fast-turning parent\'s own angular velocity, springing past straight into the next turn (a nunchuck\'s loose end). 0 = rigid to its parent.' },
+  { k: 'shade', min: 0, max: 0.9, step: 0.05, tip: 'Grey level: 0 is the figure\'s own ink, higher fades it toward paper white (stays monochrome).' },
+  { k: 'taper', min: 0, max: 1, step: 0.05, tip: 'Line ends thinner than it starts: 0 = even, 1 = to a point (claws, horns, tails).' },
+  { k: 'aim', min: 0, max: 1, step: 0.05, tip: 'Look-at: how far the bone turns toward the nearest foe\'s upper body in a fight (1 = straight at it). Heads that watch, an arm that tracks.' },
+  { k: 'z', min: -3, max: 3, step: 1, tip: 'Draw order layer: lower draws underneath every higher layer, whatever its side. Side orders bones within a layer.' },
   { k: 'segs', min: 2, max: 16, step: 1, tip: 'Chain shape only: how many segments the rope is split into. More = smoother and floppier.' },
   { k: 'alpha', min: 0, max: 1, step: 0.05, tip: 'Visibility: 1 is fully visible (the default). 0 hides the bone and everything below it completely: no draw, no hurtbox, no part in walking or chains. Between, it draws translucent but stays solid.' },
 ];
@@ -119,8 +123,12 @@ const roleTint = () => studio.colors ? b => ROLE_COLS[b.role]?.[b.side === 'b' ?
 const colorsToggle = () => toggle(':palette:', 'Colours: colour bones by role: spine black · head purple · arms blue · legs green · tails amber (back side paler)',
   () => studio.colors, v => { studio.colors = v; });
 const SIDE_TIPS = { f: 'Front: drawn over the body in the main colour.', '': 'Centre: drawn with the body.', b: 'Back: drawn behind the body in the second colour.' };
+const CAP_TIPS = { round: 'Rounded ends (the default stick look).', square: 'Squared ends pushed out by half the width (boxy limbs, robots).',
+  flat: 'Cut flat at the joints (plates, pills with flat ends).', point: 'Narrows to a tip at its end (blades, claws, horns).' };
 const SHAPE_TIPS = { line: 'A stroke from the parent joint to this one.', circle: 'A disc centred on the joint, radius = length (heads, fists).',
   spline: 'One smooth curve through this bone and the single chain of line bones below it, tapering to the last one\'s thickness (tails, tentacles).',
+  fill: 'A filled shape through the parent joint, this joint and the single chain of bones below it, closed back (or through the fill-to bone\'s joint): capes, wing membranes, skirts. Lighter than the ink unless it has a shade.',
+  socket: 'An invisible attach point: not drawn, never hit, in no limb chain. A held weapon goes on it (front side first) instead of the hand.',
   chain: 'A rope: the bone splits into segs loose, dangling segments drawn as one smooth curve (whips, scarves, hair). Children hang from its end.' };
 
 // ---------- edits: snapshot for undo, change the definition, recompile, swap it into running fights ----------
@@ -806,7 +814,7 @@ const unlockedAbove = (ch, b) => { while (b?.lock) b = ch.by[b.parent]; return b
 
 // collapsible bone tree: ▾/▸ folds a branch, the stripe is the role colour, 🔒 = locked
 function boneTree() {
-  const ch = viewChar(), rows = [];
+  const ch = viewChar();
   const kidsOf = b => b.kids.flatMap(k => k.chainOf ? kidsOf(k) : [k]); // a chain's segments list as the chain bone itself
   const walk = (b, depth) => {
     const fold = studio.fold.has(b.id);
@@ -822,15 +830,20 @@ function boneTree() {
       const live = viewChar().by[b.id] || b, stanceOwn = studio.stance > 0 && !!stanceBody()?.add?.some(x => x.id === b.id);
       setRich(nb, live.id + (live.lock ? ' 🔒' : '') + (live.hidden ? ' (hidden)' : '') + (stanceOwn ? ' (this stance)' : ''));
       nb.dataset.tip = `${live.role}${live.side ? ' · ' + (live.side === 'f' ? 'front' : 'back') : ''} · ${live.len}px${fold ? ` · ${subtree(DEFS[CURRENT], b.id).length - 1} hidden` : ''}` +
-        (stanceOwn ? ' · only exists in this stance' : '') + ' · click: select it (Shift / ⌘: add to the selection) · double-click: rename';
+        (stanceOwn ? ' · only exists in this stance' : '') + ' · click: select it (Shift / ⌘: add to the selection) · double-click: rename · drag onto a bone: hang it from that bone (Alt: move before it)';
     });
-    const row = h('div', { cls: 'tree' }, tw, nb);
-    row.style.paddingLeft = depth * 14 + 'px';
-    rows.push(row);
-    if (!fold) kidsOf(b).forEach(k => walk(k, depth + 1));
+    // drag a bone onto another: it (and everything below it) hangs from that one; Alt+drop: moves before it in the draw order instead
+    Object.assign(nb, { draggable: true, ondragstart: e => e.dataTransfer?.setData('text/plain', b.id),
+      ondragover: e => { e.preventDefault(); nb.classList.add('dropto'); }, ondragleave: () => nb.classList.remove('dropto'),
+      ondrop: e => { e.preventDefault(); nb.classList.remove('dropto'); treeDrop(e.dataTransfer?.getData('text/plain'), b.id, e.altKey); } });
+    // laid out sideways like an org chart: a bone over the row of the bones hanging from it
+    const kids = fold ? [] : kidsOf(b);
+    return h('div', { cls: 'tnode' }, h('div', { cls: 'tree' }, tw, nb), kids.length ? h('div', { cls: 'tkids' }, ...kids.map(k => walk(k, depth + 1))) : null);
   };
-  ch.bones.filter(b => !b.parent).forEach(b => walk(b, 0));
-  return h('div', {}, rows);
+  const roots = ch.bones.filter(b => !b.parent).map(b => walk(b, 0));
+  const hip = h('div', { cls: 'tree note thip', textContent: 'hip',  tip: 'Drag a bone here to make it a root (it hangs from the hip, like the legs and the waist)',
+    ondragover: e => e.preventDefault(), ondrop: e => { e.preventDefault(); treeDrop(e.dataTransfer?.getData('text/plain'), 'hip'); } });
+  return h('div', { cls: 'tnode troot' }, hip, h('div', { cls: 'tkids' }, ...roots));
 }
 
 // ---------- body operations ----------
@@ -923,6 +936,15 @@ function moveBone(id, before) {
 }
 const parentChoices = (def, id) => { const sub = new Set(subtree(def, id)); return def.bones.filter(b => !sub.has(b.id)).map(b => b.id); };
 function setParent(id, p) { edit(def => { def.bones.find(b => b.id === id).parent = p; }); }
+// a drop in the bone tree: onto a bone reparents (never under itself), Alt reorders, the hip row makes a root
+function treeDrop(id, to, reorder = false) {
+  const def = DEFS[CURRENT];
+  if (!id || id === to || !def.bones.some(b => b.id === id)) return;
+  if (to === 'hip') setParent(id, null);
+  else if (reorder) moveBone(id, to);
+  else if (parentChoices(def, id).includes(to)) setParent(id, to);
+  panels();
+}
 // a bone the stance adds goes from its body; in stance only, any other bone is hidden in the stance (with all below it)
 function deleteBone() {
   const body = stanceBody();
