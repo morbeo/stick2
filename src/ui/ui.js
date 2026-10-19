@@ -106,6 +106,12 @@ function seg(opts, get, set, tips = {}, label = optLabel) {
     return b;
   }));
 }
+// one-of-many as one compact button showing the current option; a click opens the options (seg) in a popup
+function pick(opts, get, set, tips = {}, label = optLabel) {
+  const b = button('', '', (e, el) => popup(el, seg(typeof opts === 'function' ? opts() : opts, get, v => { closePop(); set(v); }, tips, label)), 'pick');
+  reg(b, () => { const v = get(); setRich(b, label(v) + ' ▾'); b.dataset.tip = (tips[v] ? tips[v] + ' · ' : '') + 'click: change'; });
+  return b;
+}
 // a labelled group of toolbar controls (related tools sit together, divided from the next group)
 // a named group is a part of the layout (data-part): the layout popup can hide it
 const grp = (label, tip, ...els) => { const g = h('span', { cls: 'grp', tip }, label && h('span', { cls: 'gl', textContent: label }), ...els.flat()); if (label) g.dataset.part = label; return g; };

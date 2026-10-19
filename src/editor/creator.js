@@ -1,6 +1,6 @@
 'use strict';
 // ---------- character mode: drag the skeleton, tune bones, watch it fight live; body experiment grid ----------
-const creator = { preview: 'showcase', opponent: 'self', controlDummy: false, w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
+const creator = { statTab: (() => { try { return localStorage.getItem('stick2.statTab') || 'ground'; } catch { return 'ground'; } })(), boneView: (() => { try { return localStorage.getItem('stick2.boneView') || 'tree'; } catch { return 'tree'; } })(), preview: 'showcase', opponent: 'self', controlDummy: false, w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
   headToHead: false, htControl: 'none', // the changes panel's built-in-vs-yours option, instead of each vs the chosen opponent
   exp: { kind: 'body', vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
 // quick picks shown as buttons in the preview bar; creator.preview itself can be any SCENARIOS key (scenButton picks from all of them)
@@ -22,8 +22,9 @@ const diffHeadScen = () => { const s = SCENARIOS['ai vs ai'];
 
 // ---------- editor view: the stance pose, big, with a handle on every joint ----------
 function edLayout() {
-  const ew = splitX();
-  return { ed: { x: 0, y: 0, w: ew, h: canvas.height }, pv: { x: ew, y: 0, w: canvas.width - ew, h: canvas.height } };
+  // the bones panel covers the bottom of the stage: the editor and preview fit above it
+  const ew = splitX(), ov = document.querySelector('#over > .btable'), hh = canvas.height - (ov ? ov.offsetHeight * dpr : 0);
+  return { ed: { x: 0, y: 0, w: ew, h: hh }, pv: { x: ew, y: 0, w: canvas.width - ew, h: hh } };
 }
 // screen transform of the figure; the hips stay put while dragging so the body doesn't jump under the cursor
 function edFrame() {
@@ -69,6 +70,9 @@ function drawEditor() {
     const r2 = (on ? 6 : hov ? 5.5 : 4.5) * dpr;
     ctx.fillStyle = hov || on ? '#ffd' : '#fff'; ctx.fillRect(p[0] - r2, p[1] - r2, r2 * 2, r2 * 2);
     ctx.strokeStyle = on ? RED[0] : '#555'; ctx.lineWidth = 1.5 * dpr; ctx.strokeRect(p[0] - r2, p[1] - r2, r2 * 2, r2 * 2); }
+  if (creator.rep) { const p = P[creator.rep.id]; ctx.save(); ctx.setLineDash([4 * dpr, 4 * dpr]); ctx.strokeStyle = RED[0]; ctx.lineWidth = 1.5 * dpr;
+    ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(creator.rep.x, creator.rep.y); ctx.stroke(); ctx.restore();
+    text(`hang ${creator.rep.id} from ${creator.hover && creator.hover !== creator.rep.id ? creator.hover : '…'}`, creator.rep.x + 10 * dpr, creator.rep.y - 8 * dpr, RED[0], 11); }
   if (creator.hover === 'hip') text('hip · drag: the waist moves, the feet stay', Math.min(P.hip[0] + 10 * dpr, r.x + r.w - 300 * dpr), P.hip[1] - 8 * dpr, '#666', 11);
   const hv = ch.by[creator.hover] || (creator.hover !== 'hip' && sel);
   if (hv) text(`${hv.id} · ${hv.role}${hv.side ? ' · ' + (hv.side === 'f' ? 'front' : 'back') : ''} · ${hv.len}px`,
@@ -202,14 +206,20 @@ function creatorMouse(type, x, y, e) {
   if (type === 'down') {
     const id = pickBone(x, y);
     if (id && (e.metaKey || e.ctrlKey)) { pickBoneSel(id, true); syncAll(); } // ⌘/Ctrl+click: add to / take out of the selection
+    else if (id && id !== 'hip' && e.altKey) { pickBoneSel(id, false); creator.rep = { id, x, y }; syncAll(); } // Alt+drag: reparent onto the joint it's dropped on
     else if (id === 'hip') { const f = edFrame(); creator.hip0 = { x, y, a: [...f.o], pose: { ...curStance(f.ch).pose }, L: f.L }; creator.drag = 'hip'; }
     else if (id) { pickBoneSel(id, false); creator.drag = id; syncAll(); }
   } else if (type === 'move') {
+    if (creator.rep) { Object.assign(creator.rep, { x, y }); creator.hover = pickBone(x, y); cursor('alias'); return; }
     if (creator.drag === 'hip') hipDrag(x, y);
     else if (creator.drag) dragTo(x, y, e.shiftKey);
     else creator.hover = x < edLayout().ed.w ? pickBone(x, y) : null;
     cursor(creator.drag ? 'grabbing' : creator.hover ? 'grab' : 'default');
-  } else { creator.drag = null; studio.lastKey = null; }
+  } else {
+    const r = creator.rep; creator.rep = null; creator.drag = null; studio.lastKey = null;
+    const to = r && pickBone(x, y);
+    if (to && to !== r.id && (to === 'hip' || parentChoices(DEFS[CURRENT], r.id).includes(to))) setParent(r.id, to === 'hip' ? null : to);
+  }
 }
 function creatorKey(e, a) {
   if (creator.expOn) { if (e.code === 'Escape') { setExp(false); return true; } return; }
@@ -220,7 +230,7 @@ function creatorKey(e, a) {
 function creatorCtx() {
   return [charStancePicker(), movesGrp(),
     showGrp(['boxes', 'colours']), panelsGrp([...MOVE_PANELS, 'bones', ...CHAR_DEFS[CURRENT] ? ['changes'] : []],
-      { ...VIEW_TIPS, bones: BONES_TIP, changes: 'What differs from the matching built-in character' }),
+      { ...VIEW_TIPS, bones: 'Bones under the character view: the bone tree or the bone table (switch in its head)', changes: 'What differs from the matching built-in character' }),
   ];
 }
 // vary body lives in the experiment tab (lab.kind 'body') now; a property's context menu can still jump straight there, pre-set to vary it
@@ -241,19 +251,29 @@ function previewBar(cls = 'over pvbar') {
 }
 const setProp = (k, v) => edit(def => { for (const b of selDefs(def)) b[k] = v; }, selIds() + '.' + k);
 const prop = k => selBone()?.[k] ?? BONE[k];
+// rows that only mean something for some shapes (by the selected bone's shape)
+const PROP_WHEN = { segs: sh => sh === 'chain', taper: sh => sh === 'line', curve: sh => sh === 'line' };
+const only = (when, el) => { if (el) reg(el, () => { el.hidden = !when(); }); return el; };
+// a small typed number (a limit), Enter or leaving it sets it
+const numBox = (label, get, set, tip) => { const inp = h('input', { cls: 'v num', inputMode: 'decimal', tip: `${label}: ${tip}`, onkeydown: e => { e.stopPropagation(); if (e.key === 'Enter') inp.blur(); },
+  onchange: () => { const v = parseFloat(inp.value.replace(',', '.')); if (Number.isFinite(v)) set(v); syncAll(); } });
+  reg(inp, () => { if (document.activeElement !== inp) inp.value = fmt(get()); }); return h('span', { cls: 'numlab' }, label, inp); };
+// the roles a chain's root bone also joins, as one button opening the toggles
+const alsoButton = () => { const b = button('', '', (e, el) => popup(el, h('b', { textContent: 'also acts as' }), h('div', { cls: 'bar' }, ...Object.keys(ROLE_TIPS).filter(r => r !== prop('role')).map(r =>
+  toggle(r, `Also act as ${r}: a chain's own root bone gaits and plants as that role too (houndo's front legs: role arm, also leg)`, () => (prop('also') || []).includes(r), v => edit(d => { for (const x of selDefs(d)) {
+    const also = new Set(x.also || []); v ? also.add(r) : also.delete(r); x.also = also.size ? [...also] : undefined; } }))))), 'pick');
+  reg(b, () => { const a = prop('also') || []; setRich(b, ':layers: ' + (a.length ? a.join(' ') : 'also') + ' ▾'); b.dataset.tip = 'Other roles this bone\'s chain also joins (gait, planting, weapon-holding), on top of its own role · click: change'; });
+  return b; };
 const BONE_BASIC = ['len', 'thick', 'hurt', 'lag', 'stretch', 'alpha']; // the rest wait behind "more"
 function bonePanel() {
   const title = heading('', 'Properties of the selected bone. Click a joint in the editor or a name above to select; ⌘/Ctrl+click (Shift+click in the tree) adds bones to the selection: the values shown are the last one\'s, a change goes to every selected bone.',
     'drag joint: length + angle · Shift+drag: angle only · drag the hip (square): move the waist over the feet · Del delete bone');
   reg(title, () => { const n = selIds().length; title.firstChild.textContent = `Bone · ${studio.sel}${n > 1 ? ` + ${n - 1}` : ''}${stanceOnly() ? ` · ${curStance().name} only` : ''}`; });
   title.dataset.fold = 'bone';
-  const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', {}, ...rich(label)), ...c);
+  const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', {}, ...rich(label)), h('span', { cls: 'rowc' }, ...c));
   const lim = on => edit(def => {
     for (const b of selDefs(def)) if (on) { b.min = -90; b.max = 90; } else { delete b.min; delete b.max; }
   });
-  const limRows = ['min', 'max'].map(k => slider(k, { min: -180, max: 180, step: 1 }, () => prop(k) ?? 0, v => setProp(k, v),
-    `Joint limit (${k}), relative to the parent. The drawn pose is clamped after the spring, so overshoot never hyperextends; posing in animate can go past it (the IK prefers to stay inside), and a key posed past it is kept.`));
-  for (const r of limRows) reg(r, () => { r.hidden = prop('min') === undefined; });
   // defaults: the bone as the built-in character has it (custom bones: the general defaults)
   const own = (k, id = studio.sel) => CHAR_DEFS[CURRENT]?.bones.find(b => b.id === id)?.[k], dflt = k => own(k) ?? BONE[k];
   title.append(groupOps(BONE_PROPS, prop, dflt, vals => edit(def => {
@@ -261,24 +281,31 @@ function bonePanel() {
   }),
     ['Experiment: nine bodies varying these properties; click the best to breed around it', () => { BONE_PROPS.forEach(p => creator.exp.vars.add(p.k)); openBodyVary(); }]));
   return [title,
-    row(':category: role', 'What the bone does in procedural motion', seg(Object.keys(ROLE_TIPS), () => prop('role'), v => edit(d => { for (const b of selDefs(d)) b.role = v; }), ROLE_TIPS)),
-    row(':layers: also', 'A chain\'s own root bone can also join another role\'s chains, without losing its own: it gaits and plants as that role too (houndo\'s front legs: role arm, also leg — still a hand for a weapon, but driven and planted like the hind legs)',
-      ...Object.keys(ROLE_TIPS).filter(r => r !== prop('role')).map(r => toggle(r, `Also act as ${r}`, () => (prop('also') || []).includes(r), v => edit(d => { for (const b of selDefs(d)) {
-        const also = new Set(b.also || []); v ? also.add(r) : also.delete(r); b.also = also.size ? [...also] : undefined; } })))),
+    row(':category: role', 'What the bone does in procedural motion · also: other roles its chain joins too',
+      pick(Object.keys(ROLE_TIPS), () => prop('role'), v => edit(d => { for (const b of selDefs(d)) b.role = v; }), ROLE_TIPS), alsoButton()),
     row(':flip: side', 'Draw order and colour', seg(['f', '', 'b'], () => prop('side'), v => edit(d => { for (const b of selDefs(d)) b.side = v; }), SIDE_TIPS,
       o => ({ f: 'front', '': 'centre', b: 'back' })[o])),
-    row('shape', 'How the bone is drawn', seg(Object.keys(SHAPE_TIPS), () => prop('shape'), v => edit(d => { for (const b of selDefs(d)) b.shape = v; }), SHAPE_TIPS)),
+    row('shape', 'How the bone is drawn · cap: how a line bone\'s ends are drawn',
+      pick(Object.keys(SHAPE_TIPS), () => prop('shape'), v => edit(d => { for (const b of selDefs(d)) b.shape = v; }), SHAPE_TIPS),
+      only(() => (prop('shape') ?? 'line') === 'line', pick(Object.keys(CAP_TIPS), () => prop('cap') ?? 'round', v => edit(d => { for (const b of selDefs(d)) if (v === 'round') delete b.cap; else b.cap = v; }), CAP_TIPS, v => 'cap: ' + v))),
+    only(() => prop('shape') === 'fill', row('fill to', 'Fill shape only: the bone whose joint closes the filled shape', pick(() => ['—', ...DEFS[CURRENT].bones.map(b => b.id).filter(id => id !== studio.sel)],
+      () => prop('fillTo') || '—', v => edit(d => { for (const b of selDefs(d)) if (v === '—') delete b.fillTo; else b.fillTo = v; }), {}, String))),
     subFold(':auto_awesome: fx', fxRows('Effects always drawn on this bone (select several bones for a flaming arm, a glowing body); drawing only, the fight is the same',
       () => prop('fx'), e => setProp('fx', e), null)),
     slider('stance', { min: -270, max: 270, step: 1 }, () => curStance().pose[studio.sel] ?? 0,
       v => edit(def => { for (const id of selIds()) editPose(def)[id] = v; }, 'stance:' + selIds()),
       'Angle in the stance pose, relative to the parent (0 = straight on, root bones: 0 = down, 180 = up). Moves are layered on top.'),
-    ...BONE_PROPS.map(p => { const r = bodyExpLink(slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip), p.k); return BONE_BASIC.includes(p.k) ? r : adv(r); }),
-    row('limits', 'Clamp how far this joint can bend', toggle(':straighten: limits', 'On: the joint bends only between min and max (starts at ±90° from the parent); off removes them (undoable)', () => prop('min') !== undefined, lim)),
-    ...limRows,
-    row('lock', 'Lock to the parent', toggle(':lock: lock', 'Locked: the joint keeps its angle to its parent while posing. Dragging it (or IK through it) turns the first unlocked bone above, so locked bones move as one group.',
-      () => !!prop('lock'), v => setProp('lock', v || undefined))),
-    row('lenLock', 'Keep its length fixed', toggle(':straighten: length lock', 'Locked: dragging this joint (or an IK drag through it, like the hip) only turns it, its length stays put - the same as always holding Shift while dragging it.',
+    ...BONE_PROPS.map(p => { const r = bodyExpLink(slider(p.k, p, () => prop(p.k), v => setProp(p.k, v), p.tip), p.k);
+      if (PROP_WHEN[p.k]) only(() => PROP_WHEN[p.k](prop('shape') ?? 'line'), r);
+      return BONE_BASIC.includes(p.k) ? r : adv(r); }),
+    row('limits', 'Clamp how far this joint can bend: on, it bends only between min and max (relative to the parent)',
+      toggle(':straighten:', 'On: the joint bends only between min and max (starts at ±90° from the parent); off removes them (undoable)', () => prop('min') !== undefined, lim),
+      ...['min', 'max'].map(k => only(() => prop('min') !== undefined, numBox(k, () => prop(k) ?? 0, v => setProp(k, v),
+        `Joint limit (${k}), relative to the parent. The drawn pose is clamped after the spring, so overshoot never hyperextends; posing in animate can go past it (the IK prefers to stay inside), and a key posed past it is kept.`)))),
+    row('lock', 'Lock: keeps its angle to the parent while posing · length: keeps its length while dragging',
+      toggle(':lock: angle', 'Locked: the joint keeps its angle to its parent while posing. Dragging it (or IK through it) turns the first unlocked bone above, so locked bones move as one group.',
+        () => !!prop('lock'), v => setProp('lock', v || undefined)),
+      toggle(':straighten: length', 'Locked: dragging this joint (or an IK drag through it, like the hip) only turns it, its length stays put - the same as always holding Shift while dragging it.',
       () => !!prop('lenLock'), v => setProp('lenLock', v || undefined)))];
 }
 // clicking a variable's name: nine bodies varying only that variable
@@ -322,11 +349,11 @@ function radarPanel() {
 }
 // the character's stats; defaults are the built-in's values (custom characters: 1)
 // (in stance only: the stance body's stats over the character's; health stays the character's)
-function statsPanel() {
+function statsPanel(only) {
   const own = stanceOnly(), get = k => (own ? stanceBody()?.stats?.[k] : undefined) ?? DEFS[CURRENT][k] ?? 1, dflt = k => own ? DEFS[CURRENT][k] ?? 1 : CHAR_DEFS[CURRENT]?.[k] ?? 1;
   const put = (def, vals) => Object.assign(own ? editBody(def).stats ??= {} : def, vals);
   // one heading per group (ground / air / fight), each with its group buttons
-  return Object.keys(STAT_GROUPS).flatMap(g => {
+  return Object.keys(STAT_GROUPS).filter(g => !only || g === only).flatMap(g => {
     const specs = CHAR_STATS.filter(s => s.g === g && !(own && s.k === 'health'));
     const title = h('h3', { textContent: `${g} stats`, tip: `${STAT_GROUPS[g]}. Multipliers on the fight settings for this character only (1 = as the settings say)` });
     title.append(groupOps(specs, get, dflt, vals => edit(def => put(def, vals)),
@@ -380,11 +407,11 @@ function shadowPanel() {
 }
 // ---------- bone table: every bone with its properties, edited in place; a row click selects (⌘/Ctrl/Shift+click adds) ----------
 // an edit in a selected row goes to every selected bone, in any other row to that bone only
-const BONE_TIPS = { role: 'What the bone does in procedural motion (click to change)', side: 'Draw order and colour (click to change)', shape: 'How the bone is drawn (click to change)' };
+const BONE_TIPS = { role: 'What the bone does in procedural motion (click to change)', side: 'Draw order and colour (click to change)', shape: 'How the bone is drawn (click to change)', cap: 'How a line bone\'s ends are drawn (click to change)' };
 const BONE_COLS = [
   { k: 'id', tip: 'Click a row to select the bone (⌘/Ctrl/Shift+click adds it to the selection) · drag the id onto another bone to move it before that one: inside front, centre and back, earlier bones draw underneath (unsorted and unfiltered only)', get: b => b.id },
   { k: 'parent', tip: 'The bone it hangs from (hip: a root)', get: b => b.parent || '' },
-  ...['role', 'side', 'shape'].map(k => ({ k, tip: BONE_TIPS[k], get: b => b[k] ?? BONE[k] ?? '', opts: { role: ROLE_TIPS, side: SIDE_TIPS, shape: SHAPE_TIPS }[k] })),
+  ...['role', 'side', 'shape', 'cap'].map(k => ({ k, tip: BONE_TIPS[k], get: b => b[k] ?? BONE[k] ?? '', opts: { role: ROLE_TIPS, side: SIDE_TIPS, shape: SHAPE_TIPS, cap: CAP_TIPS }[k] })),
   { k: 'also', tip: 'Other roles this bone\'s chain also joins (gait, planting, weapon-holding…), on top of its own role — click to toggle (houndo\'s front legs: role arm, also leg)', get: b => (b.also || []).join(' ') },
   { k: 'stance', tip: 'Angle in the stance pose, relative to the parent', get: b => curStance().pose[b.id] ?? 0, num: { min: -270, max: 270, step: 1 } },
   ...BONE_PROPS.map(p => ({ k: p.k, tip: p.tip, get: b => b[p.k] ?? BONE[p.k], num: p })),
@@ -458,22 +485,45 @@ function boneTable() {
   reg(wrap, () => { if (!wrap.contains(document.activeElement) && JSON.stringify([DEFS[CURRENT].bones, stanceBody(), curStance().pose]) !== sig) fill(); });
   const filter = h('input', { cls: 'macro', value: creator.tfilter, placeholder: 'fuzzy filter: id, parent, role, side, shape', tip: 'Letters in order match (e.g. "shf" finds shinF); any column with text counts',
     oninput: e => { creator.tfilter = e.target.value; fill(); }, onkeydown: e => e.stopPropagation() });
-  wrap.append(stageHead('bone table', BONES_TIP, filter),
+  wrap.append(stageHead('bones', BONES_TIP, boneViewSwitch(), limbAdd(), boneCrud(), filter),
     h('table', {}, h('thead', {}, head), body));
+  return resizableBones(wrap);
+}
+// the bones panel under the character view: the bone tree (default) or the bone table, switched from its head
+// add a limb (role-based: legs walk, arms swing, tails follow through); it attaches to the selected torso bone
+const limbAdd = () => h('span', { cls: 'seg' }, ...Object.keys(LIMBS).map(k => button(`:add: :${OPT_ICONS[k]}:`, `Add a ${k}: ${LIMB_TIPS[k]} (attaches to the selected torso bone)`, () => addLimb(k), 'mini')));
+const boneCrud = () => crud({
+  new: ['Add one bone at the end of the selected bone (same role and side)', addBone],
+  copy: ['Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb],
+  rename: ['Rename the selected bone (follows it into moves, poses and stance bodies)', () => renameBone()],
+  delete: ['Delete the selected bone and everything below it (Del)', deleteBone] }, selectAllBtn());
+const BONE_VIEW_TIPS = { tree: 'The bones as a tree: click to select, ▾ ▸ fold a branch, drag a bone onto another to reparent it (Alt: reorder)',
+  table: 'The bones as a table: every property, edited in place, sortable and filterable',
+  radar: 'The character\'s stats on a radar, other characters overlaid to compare' };
+const boneViewSwitch = () => seg(['tree', 'table', 'radar'], () => creator.boneView, v => { creator.boneView = v; try { localStorage.setItem('stick2.boneView', v); } catch {} panels(); }, BONE_VIEW_TIPS,
+  v => ({ tree: ':straighten: tree', table: ':table_rows: table', radar: ':tune: radar' })[v]);
+function bonePanelStage() {
+  if (creator.boneView === 'table') return boneTable();
+  if (creator.boneView === 'radar') return resizableBones(h('div', { cls: 'mtable btable bradar' }, stageHead('bones', 'Radar: ' + BONE_VIEW_TIPS.radar, boneViewSwitch()), h('div', { cls: 'radarwrap' }, ...radarPanel())));
+  return resizableBones(h('div', { cls: 'mtable btable btree' }, stageHead('bones', 'Bone tree: ' + BONE_VIEW_TIPS.tree, boneViewSwitch(), limbAdd(), boneCrud()), boneTree()));
+}
+// drag the bones panel's top edge to resize it (kept in the tab's layout); the editor above refits on its own (edLayout)
+function resizableBones(wrap) {
+  const px = lay().bonesH;
+  if (px) Object.assign(wrap.style, { height: px + 'px', maxHeight: 'none' });
+  const grip = h('div', { cls: 'vgrip', tip: 'Drag to resize the bones panel (double-click: back to the default size)' });
+  grip.onpointerdown = e => {
+    e.preventDefault(); grip.setPointerCapture(e.pointerId);
+    const y0 = e.clientY, h0 = wrap.offsetHeight, max = (wrap.parentElement?.clientHeight || innerHeight) - 60;
+    grip.onpointermove = m => { const v = Math.round(clamp(h0 + y0 - m.clientY, 60, max)); Object.assign(wrap.style, { height: v + 'px', maxHeight: 'none' }); lay().bonesH = v; };
+    grip.onpointerup = () => { grip.onpointermove = grip.onpointerup = null; saveLay(); };
+  };
+  grip.ondblclick = () => { delete lay().bonesH; saveLay(); Object.assign(wrap.style, { height: '', maxHeight: '' }); };
+  wrap.prepend(grip);
   return wrap;
 }
 function bodyPanel() {
   return [...charPanel(),
-    heading('Body', 'Build the skeleton. Limbs are role-based: legs walk, arms swing, tails follow through. New parts attach to the selected torso bone.',
-      '⌘Z undo · ⇧⌘Z redo · Del delete · drag joints in the editor'),
-    h('div', { cls: 'bar' }, ...Object.keys(LIMBS).map(k => button(`:add: :${OPT_ICONS[k]}: ${k}`, LIMB_TIPS[k], () => addLimb(k)))),
-    h('h4', { tip: 'Click to select · ▾ ▸ fold a branch' }, ...rich(':straighten: bones'), crud({
-      new: ['Add one bone at the end of the selected bone (same role and side)', addBone],
-      copy: ['Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb],
-      rename: ['Rename the selected bone (follows it into moves, poses and stance bodies)', () => renameBone()],
-      delete: ['Delete the selected bone and everything below it (Del)', deleteBone] },
-      selectAllBtn())),
-    boneTree(),
     ...bonePanel(),
     heading('Stance pose', 'Set the whole stance from a preset (per limb, so it works for any body), or turn a pose into attacks', ''),
     ...stanceRow(),
@@ -483,11 +533,21 @@ function bodyPanel() {
       popup(b, h('div', { cls: 'bar' }, Object.entries(POSE_TARGETS(currentChar())).map(([n, t]) => button(n, t.tip, () => {
         Object.assign(breed, { pose: n, atk: null }); breed.seed++; lab.kind = 'attacks'; setMode('experiment');
       })))))),
-    ...radarPanel(),
-    ...statsPanel(),
-    ...gaitPanel(),
-    ...shadowPanel(),
+    ...statsSection(),
   ];
+}
+// ground / air / fight stats, walk & idle and shadow: one section, a sub-tab each (the last one picked is remembered)
+const STAT_TABS = { ...Object.fromEntries(Object.entries(STAT_GROUPS).map(([g, tip]) => [g, [`${tip}. Multipliers on the fight settings for this character only`, () => statsPanel(g)]])),
+  walk: ['The procedural walk and idle', () => gaitPanel()], shadow: ['The shadow under the character in a fight', () => shadowPanel()] };
+function statsSection() {
+  let tab = creator.statTab;
+  if (!STAT_TABS[tab]) tab = 'ground';
+  const sub = h('div', { cls: 'subpanel' }, ...STAT_TABS[tab][1]());
+  // swap the tab body in place: a full panels() rebuild would let the accordion shut this section
+  const tabs = seg(Object.keys(STAT_TABS), () => creator.statTab in STAT_TABS ? creator.statTab : 'ground', v => { creator.statTab = v; try { localStorage.setItem('stick2.statTab', v); } catch {} sub.replaceChildren(...STAT_TABS[v][1]()); syncAll(); },
+    mapVals(STAT_TABS, t => t[0]), String);
+  return [heading('Stats', 'The character\'s stats, walk & idle and shadow, one tab at a time: ground, air and fight stats (multipliers on the fight settings), walk & idle, shadow'),
+    h('div', { cls: 'bar stattabs' }, tabs), sub];
 }
 function expPanel() {
   const ex = creator.exp;
@@ -532,10 +592,10 @@ const creatorMode = {
   render: creatorRender,
   ctxBar: creatorCtx,
   side: () => creator.expOn ? expPanel() : bodyPanel(),
-  overlay: () => creator.expOn ? [] : stageOpen() === 'bones' ? [boneTable()] : stageOpen() === 'changes' ? [charDiffPanel()] : moveStage() ? [moveStage()()] : [previewBar()],
+  overlay: () => creator.expOn ? [] : (lay().panel === undefined && (lay().panel = 'bones'), stageOpen() === 'bones') ? [bonePanelStage()] : stageOpen() === 'changes' ? [charDiffPanel()] : moveStage() ? [moveStage()()] : [previewBar()],
   open: ['character', 'body', 'bone', 'stance pose', 'random characters'],
   mouse: creatorMouse,
   key: creatorKey,
   hint: () => creator.expOn ? (creator.exp.kind === 'random' ? 'click a cell to keep it' : 'click a cell to breed around it') + ' · Esc back to the editor'
-    : 'drag a joint: length + angle · Shift+drag: angle only · drag the hip (square): move the waist over the feet · click: select · ⌘click: add to the selection · Del delete · ⌘Z undo',
+    : 'drag a joint: length + angle · Shift+drag: angle only · Alt+drag onto a joint: hang it from that bone · drag the hip (square): move the waist over the feet · click: select · ⌘click: add to the selection · Del delete · ⌘Z undo',
 };
