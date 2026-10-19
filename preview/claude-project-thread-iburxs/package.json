@@ -16,7 +16,10 @@
     "test:update": "UPDATE=1 node --test tests/unit/*.test.js",
     "test:browser": "node tests/browser/browser.js",
     "test:matrix": "MATRIX=full node --test tests/unit/matrix.test.js",
-    "test:all": "npm test && npm run test:browser"
+    "test:all": "npm test && npm run test:browser",
+    "server": "npm --prefix server start",
+    "test:server": "npm --prefix server test",
+    "test:server-browser": "node tools/dev/server-test.js"
   },
   "dependencies": {
     "discord.js": "^14.16.0"

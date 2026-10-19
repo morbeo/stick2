@@ -4,7 +4,7 @@
 // A match's world is the play tab's fight while it lasts (build() asks netWorld()); it carries .net, so the app drives it here, at
 // a fixed 60 frames a second, and leaves it out of everything that would change it locally (rewind, scrub, loop, macros).
 const NET_NAME = 'stick2-netname';
-const net = { rollback: true, peers: [], lobby: null, sig: null, pin: null, match: null, code: null, codeKind: null, inviting: null, pending: null, err: null, log: [], box: null, status: null, acc: 0, edges: {} };
+const net = { rollback: true, peers: [], server: null, lobby: null, sig: null, pin: null, match: null, code: null, codeKind: null, inviting: null, pending: null, err: null, log: [], box: null, status: null, acc: 0, edges: {} };
 const netStatus = () => { const m = net.match; if (m.watching) return `watching · frame ${m.f} · ${m.behind} behind${m.desync !== null ? ' · DESYNC' : ''}`; return `frame ${m.f} · delay ${m.delay}${m.roll ? ` · rollbacks ${m.rollbacks}` : ''} · waits ${m.stalls}${m.desync !== null ? ' · DESYNC' : ''}`; };
 const ownWorlds = () => mode().worlds().filter(w => !w.net); // the fights only this page runs
 const netWorld = () => net.match?.world || null;
@@ -13,9 +13,12 @@ const netName = () => { try { return localStorage.getItem(NET_NAME) || 'player';
 const netSay = (text, from = null) => { net.log.push({ text, from, at: new Date() }); if (net.log.length > 50) net.log.shift(); netDraw(); };
 const netCodeIn = text => /s2[abc]\.[A-Za-z0-9_~-]{20,}/.test(String(text || '')); // a code (or a link with one) in what was typed or pasted
 
+const netServerSaved = () => { try { return localStorage.getItem(NET_SERVER) || ''; } catch { return ''; } };
+
 // ---------- the lobby's hooks ----------
+// server: { url, room?, want? } runs the lobby through a dedicated server (src/net/netserver.js) instead of WebRTC codes
 // pin: the guest's, from the link or typed; the host draws a new one (every code it makes and takes is sealed with it)
-function netLobby(role, pin = null) {
+function netLobby(role, server = null, pin = null) {
   netHangUp(); net.log = []; net.code = null; net.match = null; net.inviting = null; net.pending = null; net.err = null;
   net.pin = role === 'host' ? netPin() : pin;
   net.sig = new ManualSignal((code, kind) => { net.code = code; net.codeKind = kind; if (kind === 'offer') net.inviting = 'waiting'; netDraw(); }, net.pin);
@@ -31,8 +34,28 @@ function netLobby(role, pin = null) {
       else if (e.type === 'error') netSay(':close: ' + e.error);
       else if (e.type === 'phase') netPhase(e);
     } } });
-  if (role === 'host') netInvite();
+  if (server) netServerConnect(role, server);
+  else if (role === 'host') netInvite();
   netDraw();
+}
+// through a server: the host opens a room (its code and link show in the section), a guest joins one
+function netServerConnect(role, { url, room = null, want = 'play' }) {
+  try { url = netServerUrl(url); } catch (e) { net.lobby.close(e.message); return; }
+  try { localStorage.setItem(NET_SERVER, netServerName(url)); } catch {}
+  net.server = role === 'host'
+    ? netServerHost(net.lobby, url, { room: code => { netSay(`room ${code} is open`); netDraw(); } })
+    : netServerJoin(net.lobby, url, room, want);
+  net.server.url = url;
+  netSay(`connecting to ${netServerName(url)}…`);
+}
+// a #server=…&room=… link (or just #server=…): the play tab, with the server filled in, joining the room if there is one
+function netServerFromLink(server, room, watch) {
+  setTimeout(() => history.replaceState(null, '', location.pathname + location.search));
+  try { localStorage.setItem(NET_SERVER, server); } catch {}
+  if (mode() !== labMode || lab.mode !== 'play') setMode('play');
+  layShow('side:netplay', true); lay().fold['play:netplay'] = false; saveLay();
+  if (room) netLobby('guest', { url: server, room, want: watch ? 'watch' : 'play' });
+  panels();
 }
 // the play tab's scenario, if it's one fight between two (waves, survival and rumbles aren't): else the plain one
 const netScen = () => { const s = SCENARIOS[lab.scen]; return s && !s.waves && !s.survival && !s.rumble && !s.more?.length ? lab.scen : 'you vs ai'; };
@@ -49,7 +72,7 @@ function netInvite() {
   netDraw();
 }
 // every connection goes when the lobby does
-function netHangUp() { for (const p of net.peers) p.close('left'); net.peers = []; }
+function netHangUp() { for (const p of net.peers) p.close('left'); net.peers = []; net.server?.close('left'); net.server = null; }
 // the host: the guest's answer, checked before it's handed on (a wrong or cut-off one keeps the box, so they can send it again)
 async function netAnswer(code) {
   if (!String(code || '').trim() || net.inviting !== 'waiting') return;
@@ -61,7 +84,7 @@ function netEnter(text, pin = null) {
   if (!String(text || '').trim()) return;
   pin = netPinClean(pin || netPinOf(text)) || null;
   if (netSealed(text) && !pin) { net.pending = text; net.err = null; netDraw(); return; }
-  netLobby('guest', pin);
+  netLobby('guest', null, pin);
   const p = netJoinLobby(net.lobby, net.sig); net.peers.push(p);
   // a wrong PIN or a damaged code: back to the start, the invite kept, so only the PIN needs typing again
   p.ready.catch(e => { net.lobby?.close(e.message); netHangUp(); net.lobby = null; net.pending = netSealed(text) ? text : null; net.err = e.message; netDraw(); });
@@ -129,15 +152,15 @@ function netRelay(k, p1, p2, hash) {
 
 // ---------- the side section ----------
 // to the play tab with the netplay section shown, unfolded and scrolled to (the palette's netplay entries); host: open a lobby too
-function openNetplay(host) {
+function openNetplay(host, server = false) {
   if (mode() !== labMode || lab.mode !== 'play') setMode('play');
   layShow('side:netplay', true); lay().fold['play:netplay'] = false; saveLay();
   if (host && (!net.lobby || net.lobby.phase === 'closed')) netLobby('host');
   panels();
   net.box?.scrollIntoView({ block: 'nearest' });
-  if (!host) net.box?.querySelector('input[placeholder]')?.focus();
+  if (!host) net.box?.querySelector(server ? 'input[placeholder="server address"]' : 'input[placeholder]')?.focus();
 }
-const netSide = () => lab.mode === 'play' ? [h('h3', { textContent: 'netplay', tip: 'Fight someone online, browser to browser, no server: one hosts, sends the other a link, gets a code back. See docs/netplay.md' }), netBox()] : [];
+const netSide = () => lab.mode === 'play' ? [h('h3', { textContent: 'netplay', tip: 'Fight someone online, browser to browser (one hosts, sends a link, gets a code back) or through a stick2 server (room codes). See docs/netplay.md and docs/server.md' }), netBox()] : [];
 // built once and filled at once: until a lobby event redraws it, an empty box shows a bare heading
 const netBox = () => net.box ?? (net.box = h('div', { cls: 'netplay' }), netDraw(), net.box);
 // open the chat: the netplay section, with the chat field focused (the palette's "netplay: chat")
@@ -193,6 +216,13 @@ function netDraw() {
         h('div', { cls: 'bar' }, button(':link: host', 'Open a lobby and make an invite to send to the other player', () => netLobby('host'))),
         h('p', { textContent: 'or join with the invite you got:' }),
         ...netCodeField('paste an invite link or code', 'The link or code the host sent you; it joins as soon as it\'s all here', t => netEnter(t)));
+      // or through a dedicated server: no codes, just a room code
+      const srv = h('input', { cls: 'macro', value: netServerSaved(), placeholder: 'server address', tip: 'A stick2 server (see docs/server.md), e.g. play.example.org', onkeydown: e => e.stopPropagation() });
+      const roomIn = h('input', { cls: 'macro', placeholder: 'room code', tip: 'The room code the host gave you; Enter joins', onkeydown: e => { e.stopPropagation(); if (e.code === 'Enter') netLobby('guest', { url: srv.value, room: roomIn.value }); } });
+      rows.push(h('p', { textContent: 'or through a server:' }), h('div', { cls: 'netrow' }, srv),
+        h('div', { cls: 'bar' }, button(':link: host on server', 'Open a room on the server and share its code or link', () => netLobby('host', { url: srv.value }))),
+        h('div', { cls: 'netrow' }, roomIn, button(':check: join room', 'Join a room on the server by its code', () => netLobby('guest', { url: srv.value, room: roomIn.value })),
+          button(':visibility: watch', 'Watch the room\'s fight as a spectator', () => netLobby('guest', { url: srv.value, room: roomIn.value, want: 'watch' }))));
     }
   } else {
     const st = L.state, me = L.me;
@@ -206,7 +236,14 @@ function netDraw() {
           button(':content_copy: link + PIN', 'Copy the link with the PIN in it: anyone who sees it can join and see your address', () => netCopy(netInviteLink(net.code, location.href, net.pin), 'link with PIN'))),
         netStep(2, 'their answer code (it connects as soon as it lands here):'),
         ...netCodeField('paste their answer code', 'The code the guest sent back, or scan the QR code on their screen', netAnswer));
-    } else if (L.host && net.inviting === 'making') rows.push(h('p', { textContent: 'making the invite… (a few seconds)' }));
+    } else if (L.host && net.server?.room) {
+      const link = netServerLink(net.server.url, net.server.room), qr = qrCanvas(link, 3);
+      if (qr) Object.assign(qr, { className: 'netqr' }).dataset.tip = 'Scan it with a phone to join this room';
+      rows.push(h('p', {}, 'room ', h('b', { textContent: net.server.room }), ` on ${netServerName(net.server.url)}: share the code, the link or the QR code`), qr,
+        h('div', { cls: 'bar' }, button(':content_copy: copy link', 'Copy the room link (players join, or watch once both places are taken)', () => netCopy(link, 'link')),
+          button(':visibility: watch link', 'Copy a link that joins as a spectator', () => netCopy(netServerLink(net.server.url, net.server.room, true), 'watch link'))));
+    } else if (L.host && net.server) rows.push(h('p', { textContent: 'opening a room…' }));
+    else if (L.host && net.inviting === 'making') rows.push(h('p', { textContent: 'making the invite… (a few seconds)' }));
     else if (L.host && net.inviting === 'connecting') rows.push(h('p', { textContent: 'connecting to the guest…' }));
     if (!L.host && net.code && net.codeKind === 'answer' && !st)
       rows.push(netStep(2, 'send this code back to the host, or let them scan it:'), netCodeBox(net.code),
@@ -227,7 +264,7 @@ function netDraw() {
       if (st.phase === 'lobby' && L.host) {
         const go = button(':play_arrow: start', `Start the fight (${netScen()}, with the stage and settings as they are here) once both are ready`, () => L.start());
         go.disabled = !L.canStart();
-        rows.push(h('div', { cls: 'bar' }, go, button(':person: invite', 'Make another invite: a second player if the slot is open, else a spectator', netInvite),
+        rows.push(h('div', { cls: 'bar' }, go, net.server ? null : button(':person: invite', 'Make another invite: a second player if the slot is open, else a spectator', netInvite),
           toggle(':sync_alt: rollback', 'Rollback: run on without waiting for the other player\'s input (guessing it), and correct the moment it arrives; less input delay, a slight snap on a wrong guess. Off: lockstep, every frame waits for both inputs (more delay, never a correction)', () => net.rollback, v => { net.rollback = v; })));
       }
       if (st.phase === 'sync') rows.push(h('p', { textContent: 'starting: checking both sides built the same fight…' }));

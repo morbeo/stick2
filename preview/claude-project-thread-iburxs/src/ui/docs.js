@@ -200,6 +200,7 @@ function readHash() {
   if (p.has('docs')) openDocs(p.get('docs') || null, true);
   if (p.has('embed')) loadEmbedScenario(p.get('embed'));
   if (p.has('join')) netJoinFromLink(p.get('join'), p.get('pin'));
+  if (p.has('server')) netServerFromLink(p.get('server'), p.get('room'), p.has('spectate'));
   if (p.has('diff')) loadEmbedDiff(p.get('diff'));
   if (p.has('kitchensink')) openKitchenSink();
   if (p.has('theater')) setTheater(true);
