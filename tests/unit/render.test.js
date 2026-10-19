@@ -229,3 +229,25 @@ test('a chain bone splits into dangling segments drawn as one spline; fights wit
   assert.equal(r.root, 'spline'); assert.deepEqual(r.bad, []); assert.ok(r.same, 'deterministic');
   assert.equal(r.def, 18, 'the definition itself is untouched (2 bones, not 6)');
 });
+
+test('shade, taper, caps, z, socket, fill and aim: draw without NaN, keep fights deterministic', () => {
+  const r = JSON.parse(run(`(() => { const def = JSON.parse(JSON.stringify(CHAR_DEFS.stick));
+    const set = (id, o) => Object.assign(def.bones.find(b => b.id === id), o);
+    set('uarmF', { shade: 0.4, taper: 0.6, z: 1 }); set('farmF', { cap: 'square' }); set('shinB', { cap: 'flat', taper: 0.3 }); set('footF', { cap: 'point' });
+    set('neck', { aim: 0.8 });
+    def.bones.push({ id: 'grip', parent: 'farmB', len: 3, role: 'arm', side: 'b', shape: 'socket' },
+      { id: 'cape', parent: 'chest', len: 20, a: -170, role: 'tail', side: 'b', shape: 'fill', fillTo: 'farmB', thick: 2, dangle: 0.6 },
+      { id: 'capeEnd', parent: 'cape', len: 18, role: 'tail', side: 'b', dangle: 0.8 });
+    const ch = makeCharacter(def), P = fk(ch, ch.poses.stance, 1), { ctx, st } = stubCtx();
+    const fills = []; const f0 = ctx.fill; ctx.fill = (...a) => { fills.push(ctx.fillStyle); return f0(...a); };
+    drawFigure(ctx, ch, P, '#222222', '#888888');
+    const armed2 = armed(ch, 'sword');
+    const fight = () => { const w = new World({ a: 'ai', b: 'ai' }, {}, 5, [ch, CHARS.stick]); for (let i = 0; i < 240; i++) w.step(1 / 60); return w.stateHash(); };
+    return JSON.stringify({ bad: st.bad, fills, grip: armed2.by.weapon.parent, gripHurt: ch.by.grip.hurt, inChain: ch.chains.arm.some(c => c.some(b => b.id === 'grip')),
+      aims: ch.aims, same: fight() === fight(), mix: mixWhite('#000000', 0.5), named: mixWhite('red', 0.5), shaded: mixWhite('#222222', 0.4), cape: mixWhite('#888888', 0.55) }); })()`));
+  assert.deepEqual(r.bad, [], 'no NaN');
+  assert.ok(r.fills.includes(r.shaded) && r.fills.includes(r.cape), 'shaded and filled bones draw in lighter greys: ' + r.fills);
+  assert.equal(r.grip, 'grip', 'the weapon goes on the socket'); assert.equal(r.gripHurt, 0); assert.ok(!r.inChain, 'a socket is in no chain');
+  assert.ok(r.aims); assert.ok(r.same, 'deterministic');
+  assert.equal(r.mix, '#808080'); assert.equal(r.named, 'red');
+});
