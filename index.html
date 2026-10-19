@@ -96,9 +96,15 @@
   .netcode { width: 100%; box-sizing: border-box; font: 10px/1.2 ui-monospace, Menlo, monospace; word-break: break-all; resize: vertical; background: #fbfaf6; border: 1px solid #cfc8bb; }
   .netslot { padding: 2px 4px; border-radius: 3px; } .netslot.me { background: #e9e3d4; }
   .neterr { color: #c0392b; }
-  .netlog { max-height: 8em; overflow-y: auto; margin: 4px 0; color: #555; }
+  .netlog { max-height: 12em; overflow-y: auto; margin: 4px 0; color: #555; }
   .netplay > input { width: 100%; box-sizing: border-box; }
   .netqr { display: block; margin: 4px auto; image-rendering: pixelated; max-width: 100%; }
+  .netpin { margin: 4px 0; } .netpin b { font: 600 16px ui-monospace, Menlo, monospace; letter-spacing: 2px; background: #fbfaf6; border: 1px solid #cfc8bb; padding: 1px 6px; }
+  .netpinin { font-family: ui-monospace, Menlo, monospace; text-transform: uppercase; letter-spacing: 2px; }
+  .netstep { margin: 6px 0 2px; font-weight: 600; }
+  .netsys { color: #888; font-style: italic; } .nettime { color: #aaa; font-size: 10px; }
+  .netscan { position: fixed; inset: 0; z-index: 1000; background: rgba(255,255,255,.95); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  .netcam { max-width: 90vw; max-height: 70vh; border: 1px solid #cfc8bb; }
   .row input[type=range] { width: 100%; }
   .row > .rowc { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
   .row > .rowc > [hidden] { display: none; }

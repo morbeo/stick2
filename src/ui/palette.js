@@ -68,6 +68,8 @@ function paletteEntries() {
     { kind: 'action', name: 'netplay', tip: 'Fight someone online: the play tab\'s netplay section (browser to browser with an invite, or through a stick2 server)', run: () => openNetplay(false) },
     { kind: 'action', name: 'netplay: host', tip: 'Open an online lobby and make an invite link to send to the other player', run: () => openNetplay(true) },
     { kind: 'action', name: 'netplay: server', tip: 'Play through a stick2 server: host a room or join one by its code, no codes to copy back and forth (docs/server.md)', run: () => openNetplay(false, true) },
+    { kind: 'action', name: 'netplay: chat', tip: 'Jump to the netplay chat (Enter sends, Esc back to the fight)', run: () => openNetChat() },
+    { kind: 'action', name: 'netplay: scan', tip: 'Scan an invite or an answer QR code with the camera (where the browser can read QR codes)', run: () => { openNetplay(false); netScan(t => net.lobby?.host && net.inviting === 'waiting' ? netAnswer(t) : netEnter(t)); } },
     { kind: 'action', name: 'welcome', tip: 'What stick2 can do and where to go for each activity, with a little demo of each (shown once on the first visit)', run: openWelcome },
     ...Object.keys(DEFS).map(c => ({ kind: 'character', name: c, tip: 'Use this character in every mode', run: () => pickChar(c) })),
     ...Object.keys(SCENARIOS).map(k => ({ kind: 'scenario', name: k, tip: scenTip(SCENARIOS[k]), run: () => {

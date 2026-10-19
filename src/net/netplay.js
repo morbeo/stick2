@@ -8,7 +8,7 @@
 // A public STUN server only tells each side its own reachable address; no game data goes through it.
 const NET_RTC = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 // the codes' prefixes (a new one if a format changes): s2b compact, s2a the whole description deflated; the longest wait for ICE candidates
-const NET_CODE = 's2a', NET_CODE_SHORT = 's2b', NET_GATHER_MS = 5000;
+const NET_CODE = 's2a', NET_CODE_SHORT = 's2b', NET_CODE_SEALED = 's2c', NET_GATHER_MS = 5000;
 
 // ---------- codes: a session description as text short enough for a link or a QR code ----------
 // Short (s2b, ~150 characters): only what differs between two connections - offer or answer, the ICE username and password, the
@@ -76,8 +76,37 @@ async function netDecode(text) {
   try { return JSON.parse(new TextDecoder().decode(await netPipe(netB64.dec(m[1]), new DecompressionStream('deflate-raw')))); }
   catch { throw new Error('netplay code is damaged (copied only part of it?)'); }
 }
+// ---------- sealed codes (s2c): a code encrypted with the lobby's PIN, so a link seen by others gives away no addresses ----------
+// The plain codes carry each side's network candidates (local and public IP, ports). Sealed, they're AES-GCM under a key drawn from
+// the PIN (PBKDF2); the host shows the PIN apart from the link (the QR carries both: whoever scans it is standing there). The guest's
+// answer is sealed with the same PIN. 8 characters from 31 unmistakable ones: ~40 bits, plenty for a code that lives a few minutes.
+const NET_PIN_ABC = '23456789ABCDEFGHJKMNPQRSTUVWXYZ', NET_PIN_LEN = 8;
+const netPin = () => [...crypto.getRandomValues(new Uint8Array(NET_PIN_LEN))].map(b => NET_PIN_ABC[b % NET_PIN_ABC.length]).join('');
+const netPinClean = pin => String(pin || '').toUpperCase().replace(/[^0-9A-Z]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
+async function netKey(pin) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(netPinClean(pin)), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: new TextEncoder().encode('stick2-netplay'), iterations: 100000, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function netSeal(code, pin) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await netKey(pin), new TextEncoder().encode(code)));
+  const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
+  return NET_CODE_SEALED + '.' + netB64.enc(out);
+}
+const netSealed = text => new RegExp(NET_CODE_SEALED + '\\.([A-Za-z0-9_-]+)').exec(String(text || ''))?.[1] || null;
+async function netUnseal(text, pin) {
+  const b = netSealed(text); if (!b) return text;
+  if (!netPinClean(pin)) throw new Error('this code needs the PIN the host shows');
+  let bytes; try { bytes = netB64.dec(b); } catch { throw new Error('netplay code is damaged (copied only part of it?)'); }
+  try { return new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.slice(0, 12) }, await netKey(pin), bytes.slice(12))); }
+  catch { throw new Error('wrong PIN, or the code is damaged'); }
+}
+// a PIN given along with a code: "pin=ABCD2345" in a link or a chat message
+const netPinOf = text => /(?:^|[#&?\s])pin=([0-9A-Za-z-]+)/.exec(String(text || ''))?.[1] || null;
+
 // a link that opens the app straight into joining; and the code back out of a page's hash
-const netInviteLink = (code, base = location.href) => base.replace(/#.*$/, '') + '#join=' + code;
+const netInviteLink = (code, base = location.href, pin = null) => base.replace(/#.*$/, '') + '#join=' + code + (pin ? '&pin=' + pin : '');
 const netJoinCode = hash => /(?:^|[#&])join=([^&]+)/.exec(hash || '')?.[1] || null;
 
 // every ICE candidate has to be in the code (nobody trickles them by hand), so wait for gathering - but not forever
@@ -109,19 +138,21 @@ class NetPeer {
   get open() { return this.ch?.readyState === 'open'; }
   send(m) { if (this.open) { this.ch.send(JSON.stringify(m)); this.sent++; } }
   close(why = 'closed') { if (this.closed) return; this.closed = true; try { this.ch?.close(); this.pc.close(); } catch {} this.on.close?.(why); }
-  async local(desc) { await this.pc.setLocalDescription(desc); await netGathered(this.pc); return netEncode(this.pc.localDescription); }
+  // pin: seal our code with it and open theirs (null: plain codes, as before)
+  async local(desc) { await this.pc.setLocalDescription(desc); await netGathered(this.pc); const c = await netEncode(this.pc.localDescription); return this.pin ? netSeal(c, this.pin) : c; }
+  async remote(code) { await this.pc.setRemoteDescription(await netDecode(await netUnseal(code, this.pin))); }
   // host: make the channel and the offer code; then accept the guest's answer code
   async offer() { this.wire(this.pc.createDataChannel('stick2', { ordered: true })); return this.local(await this.pc.createOffer()); }
-  async accept(code) { await this.pc.setRemoteDescription(await netDecode(code)); }
+  async accept(code) { await this.remote(code); }
   // guest: the host's offer code in, our answer code out
-  async answer(code) { await this.pc.setRemoteDescription(await netDecode(code)); return this.local(await this.pc.createAnswer()); }
+  async answer(code) { await this.remote(code); return this.local(await this.pc.createAnswer()); }
 }
 
 // ---------- layer 2: signalers ----------
 // by hand: the code travels however people like (chat, QR, a #join= link). show(code, kind) displays ours ('offer' | 'answer');
-// paste(code) is the other side's arriving. A guest opened from a #join= link pastes it straight away.
+// paste(code) is the other side's arriving. A guest opened from a #join= link pastes it straight away. pin: seals both codes (s2c).
 class ManualSignal {
-  constructor(show = () => {}) { Object.assign(this, { show, inbox: [], waiting: null }); }
+  constructor(show = () => {}, pin = null) { Object.assign(this, { show, pin, inbox: [], waiting: null }); }
   paste(code) { if (this.waiting) { this.waiting(code); this.waiting = null; } else this.inbox.push(code); }
   next() { return this.inbox.length ? Promise.resolve(this.inbox.shift()) : new Promise(r => { this.waiting = r; }); }
   offer(code) { this.show(code, 'offer'); }
@@ -133,12 +164,12 @@ class ManualSignal {
 // one connection over a signaler: the peer comes back at once (so it can be cancelled), peer.ready settles once both codes have
 // crossed (the channel opens a moment later: on.open). A host makes one per guest, each with its own offer.
 function netHost(sig, on) {
-  const p = new NetPeer(on);
+  const p = new NetPeer(on); p.pin = sig.pin;
   p.ready = (async () => { await sig.offer(await p.offer()); await p.accept(await sig.answer()); })();
   return p;
 }
 function netJoin(sig, on) {
-  const p = new NetPeer(on);
+  const p = new NetPeer(on); p.pin = sig.pin;
   p.ready = (async () => { await sig.reply(await p.answer(await sig.getOffer())); })();
   return p;
 }
