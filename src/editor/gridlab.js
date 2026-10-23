@@ -197,7 +197,7 @@ function gridPanel() {
   const debouncedFill = () => { clearTimeout(debounceT); debounceT = setTimeout(fill, 150); };
   const search = h('input', { cls: 'macro', value: gridState.filter, placeholder: 'search…', tip: 'Fuzzy filter by name or any shown variable\'s value',
     oninput: e => { gridState.filter = e.target.value; debouncedFill(); },
-    onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { search.value = gridState.filter = ''; clearTimeout(debounceT); fill(); } } });
+    onkeydown: e => { e.stopPropagation(); if (e.key === 'Escape') { search.value = gridState.filter = ''; clearTimeout(debounceT); fill(); } else if (e.key === 'Enter') { clearTimeout(debounceT); fill(); } } });
   wrap.append(h('div', { cls: 'bar' }, search), cardsWrap);
   fill();
   return wrap;
