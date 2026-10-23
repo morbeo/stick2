@@ -11,6 +11,7 @@ The engine tests run in Node with no dependencies. A headless Chrome test covers
 | `npm test` | engine unit tests and the scenario / character regression snapshots, in Node (also writes the build info first) |
 | `npm run test:update` | rewrites the snapshots after an intended change |
 | `npm run test:browser` | loads the page in headless Chrome and goes through every mode, character and stance, checking for errors |
+| `npm run test:server` | the relay server's tests (installs `server/` dependencies first) |
 | `npm run test:all` | `npm test`, then the browser test |
 | `npm run test:matrix` | every move of every character in the full move matrix (`MATRIX=full`), before a release |
 | `npm run coverage` | the Node tests with V8 coverage of the engine |
@@ -41,6 +42,7 @@ The build info is shown in the debug popup (the chart button in the menu bar), n
 
 - Covered: the engine in `src/` (core, rig, fighter, world, brain), loaded into a vm context by `tests/unit/load.js` under their real paths.
 - The UI modules need the DOM, so the browser test covers them instead.
+- `CHROME=/path/to/chrome` picks the browser; run as root (CI, containers) the tests add `--no-sandbox` themselves.
 
 `npm run coverage:browser` (`COVERAGE=1 node tests/browser/browser.js`) runs the browser test with Chrome's own coverage, over DevTools, and prints line and function coverage for every file in `src/`, lowest first.
 
