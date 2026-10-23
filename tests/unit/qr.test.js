@@ -2,7 +2,8 @@
 // decoder, jsQR, along with every version 1-20 and all eight masks; a change here should be checked the same way again)
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('fs'), path = require('path'), vm = require('vm'), crypto = require('crypto');
 const ctx = vm.createContext({ TextEncoder, Math, Array, Infinity });
-vm.runInContext(fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'net', 'qr.js'), 'utf8'), ctx);
+const QR = path.join(__dirname, '..', '..', 'src', 'net', 'qr.js');
+vm.runInContext(fs.readFileSync(QR, 'utf8'), ctx, { filename: QR }); // (filename: counted by coverage)
 const qrCode = vm.runInContext('qrCode', ctx);
 const bitmap = q => Array.from({ length: q.size }, (_, y) => Array.from({ length: q.size }, (_, x) => q.dark(x, y) ? '1' : '0').join('')).join('\n');
 const INVITE = 'https://morbeo.github.io/stick2/#join=s2b.o~xB-4~b3MTNSUM9YJkEu_PToYYdZF9~61eMNf_dbSDP-WitbLpbxVgwAuop7ASJB-ZzPqb5Ew~hmlLmAmnevQaGAY-4YCAgWzw~55930~s4203.0.113.7~61234';
