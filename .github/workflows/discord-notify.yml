@@ -27,29 +27,14 @@ jobs:
     steps:
       - name: Check out repo
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Set up Node
-        if: env.WANT_GIF == 'true'
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 20
-          cache: npm
-      - name: Set up Chrome
-        if: env.WANT_GIF == 'true'
-        uses: browser-actions/setup-chrome@19ae4b339ee18925ab85cf12c1041150ea4a44c8 # v1
-        id: chrome
-        with:
-          install-dependencies: true # bare ubuntu-latest is missing libnss3 etc. that Chrome for Testing needs to start
-      - name: Install dependencies
-        if: env.WANT_GIF == 'true'
-        run: npm ci
       - name: Render fight GIF
         # chars/seed are derived from the commit SHA (or the release tag), so the same fight can be
         # replayed later with: node tools/discord/render-notify-gif.js <sha-or-tag>
         if: env.WANT_GIF == 'true'
         id: gif
-        env:
-          CHROME: ${{ steps.chrome.outputs.chrome-path }}
-        run: echo "path=$(node tools/discord/render-notify-gif.js ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }})" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/fight-gif
+        with:
+          seed: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
       - name: Attach GIF to release
         if: github.event_name == 'release' && steps.gif.outputs.path != ''
         env:
