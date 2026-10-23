@@ -21,7 +21,7 @@ The server is a **relay**. It replaces the WebRTC data channel and nothing else:
 
 ```sh
 npm run server            # from the repo root (after: npm ci --prefix server)
-npm run test:server       # its tests: routes, rooms, limits, the drain, a real lobby and match through it
+npm run test:server       # installs server deps, then its tests: routes, rooms, limits, the drain, a real lobby and match through it
 npm run test:server-browser  # two browsers: host a room in the play tab, join by its link, fight, no desync
 ```
 

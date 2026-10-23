@@ -1,6 +1,8 @@
 // the browser smoke test under Chrome's own coverage (CDP Profiler): runs the page, prints line and function coverage per src file
 // a line counts as run when any code on it ran; blank and comment-only lines don't count
 const fs = require('fs'), os = require('os'), path = require('path'), { spawn } = require('child_process');
+// Chrome refuses to start as root (CI and cloud containers) unless its sandbox is off
+const noSandbox = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function connect(port) {
   for (let i = 0; i < 100; i++) {
@@ -29,7 +31,7 @@ function lines(src, fns) {
 }
 module.exports = async function coverage(chrome, url, src) {
   const port = 9300 + Math.floor(Math.random() * 600), dir = fs.mkdtempSync(path.join(os.tmpdir(), 'stick2-cov-'));
-  const proc = spawn(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
+  const proc = spawn(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
     `--remote-debugging-port=${port}`, `--user-data-dir=${dir}`, 'about:blank'], { stdio: 'ignore' });
   try {
     const { ws, send } = await connect(port);

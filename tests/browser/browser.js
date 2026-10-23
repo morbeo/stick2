@@ -1,6 +1,8 @@
 // smoke test in headless Chrome: every mode × every character (and each stance) renders its panels and a few frames without errors
 // usage: npm run test:browser (CHROME=/path/to/chrome to override)
 const fs = require('fs'), os = require('os'), path = require('path'), { execFileSync } = require('child_process');
+// Chrome refuses to start as root (CI and cloud containers) unless its sandbox is off
+const noSandbox = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
 const root = path.join(__dirname, '..', '..'), out = path.join(os.tmpdir(), 'stick2-smoke.html');
 const chrome = process.env.CHROME || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium']
   .find(p => fs.existsSync(p));
@@ -155,7 +157,7 @@ try {
   // editor (add/remove a line, circle, box or polygon; tune its fields) — this is what crate/reed/spring and the 8
   // built-in weapons are drawn from now, so editing one's fields (and reverting) must round-trip through PROPS/WEAPONS
   { setMode('props'); panels();
-    const cards = () => [...document.querySelectorAll('.cards .card')], tog = t => [...document.querySelectorAll('.mtable button.tog')].find(b => b.textContent.includes(t));
+    const cards = () => [...document.querySelectorAll('#side .cards .card')], tog = t => [...document.querySelectorAll('.mtable button.tog')].find(b => b.textContent.includes(t));
     // the side panel's gallery starts open (it used to default shut, like any other fold, hiding the picker entirely)
     if (document.querySelector('#side .fold.shut') || !cards().length) errs.push('props side panel starts folded shut');
     // thumbnails are their own class (not scenthumb, a scene's), so they get the app's own background, not a scene's dark one
@@ -195,11 +197,11 @@ try {
     // every shape has a real colour picker, not just built-in presets
     if (!document.querySelector('.shaperow input[type=color]')) errs.push('prop shape has no colour picker');
     // a custom preview background, per prop; unset by default (the app's own background, not a hardcoded dark one)
-    const bgInput = [...document.querySelectorAll('.mtable input[type=color]')][0];
+    const bgInput = [...document.querySelectorAll('.bar input[type=color]')].find(i => /preview/.test(i.dataset.tip));
     if ('bg' in PROPS.crate) errs.push('crate should have no custom background by default');
-    bgInput.value = '#336699'; bgInput.dispatchEvent(new Event('change'));
+    bgInput.value = '#336699'; bgInput.dispatchEvent(new Event('input'));
     if (PROPS.crate.bg !== '#336699') errs.push('prop background field did not set PROPS.crate.bg');
-    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('revert')).click();
+    [...document.querySelectorAll('.bar button')].find(b => b.dataset.tip === 'Back to the default background').click();
     if ('bg' in PROPS.crate) errs.push('prop background did not revert');
     // the gallery's table view shows the same items, each with its own real-size thumbnail
     [...document.querySelectorAll('#side button')].find(b => b.dataset.tip === 'A compact table').click();
@@ -215,11 +217,11 @@ try {
     // a preview of the weapon held in a character's hand, next to the flat blade-shape thumbnail
     if (document.querySelectorAll('.mtable canvas').length < 2) errs.push('weapon hand preview missing');
     // a custom preview background, per weapon; unset by default
-    const wBgInput = [...document.querySelectorAll('.mtable input[type=color]')][0];
+    const wBgInput = [...document.querySelectorAll('.bar input[type=color]')].find(i => /preview/.test(i.dataset.tip));
     if ('bg' in WEAPONS.sword) errs.push('sword should have no custom background by default');
-    wBgInput.value = '#663399'; wBgInput.dispatchEvent(new Event('change'));
+    wBgInput.value = '#663399'; wBgInput.dispatchEvent(new Event('input'));
     if (WEAPONS.sword.bg !== '#663399') errs.push('weapon background field did not set WEAPONS.sword.bg');
-    [...document.querySelectorAll('.mtable button')].find(b => b.textContent.includes('revert')).click();
+    [...document.querySelectorAll('.bar button')].find(b => b.dataset.tip === 'Back to the default background').click();
     if ('bg' in WEAPONS.sword) errs.push('weapon background did not revert');
     const lenBase = BASE_WEAPONS.sword.len, lenInput = document.querySelector('.mtable input[type=number]');
     lenInput.value = lenBase + 10; lenInput.dispatchEvent(new Event('change'));
@@ -316,7 +318,7 @@ try {
     colsSlider.value = 4; colsSlider.dispatchEvent(new Event('input'));
     // search: fuzzy-filters by name (and any shown field's value)
     const search = document.querySelector('#over input[placeholder="search…"]');
-    search.value = 'stick'; search.dispatchEvent(new Event('input'));
+    search.value = 'stick'; search.dispatchEvent(new Event('input')); search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); // Enter skips the typing debounce
     if (cardsOf().length !== 1 || !cardsOf()[0].textContent.startsWith('stick')) errs.push('grid search ' + cardsOf().map(c => c.textContent).join(','));
     search.value = ''; search.dispatchEvent(new Event('input'));
     // sort: by name ascending, then descending (click the same option again); back to unsorted after
@@ -334,12 +336,14 @@ try {
     // click-through: a character card switches CURRENT and opens the character tab; a move card opens it in animate
     [...document.querySelectorAll('#ctx .seg button')].find(b => b.textContent === 'characters').click();
     const otherChar = Object.keys(DEFS).find(k => k !== CURRENT);
-    cardsOf().find(c => c.textContent.startsWith(otherChar)).click();
+    // a tile opens on its second click (the first picks it)
+    const openCard = name => { cardsOf().find(c => c.textContent.startsWith(name)).click(); cardsOf().find(c => c.textContent.startsWith(name)).click(); };
+    openCard(otherChar);
     if (CURRENT !== otherChar || app.mode !== 'character') errs.push('grid character card click ' + CURRENT + ' ' + app.mode);
     setMode('grid'); panels();
     [...document.querySelectorAll('#ctx .seg button')].find(b => b.textContent === 'moves').click();
     const mv = Object.keys(currentChar().moves)[0];
-    cardsOf().find(c => c.textContent.startsWith(mv)).click();
+    openCard(mv);
     if (anim.move !== mv || app.mode !== 'animate') errs.push('grid move card click ' + anim.move + ' ' + app.mode);
     // the 4 simpler collections: no field picker (nothing to pick), just count + click-through to where each is edited
     setMode('grid'); panels();
@@ -352,18 +356,18 @@ try {
     const sandwich = cardsOf().find(c => c.textContent.startsWith('sandwich')); // a script + 2 dummies: two different badges
     if (!sandwich.querySelector('.actors')?.textContent.includes('1') || !sandwich.querySelector('.actors')?.textContent.includes('2')) errs.push('grid scenario actors mixed ' + sandwich.querySelector('.actors')?.textContent);
     const scen = Object.keys(SCENARIOS).find(k => k !== lab.scen);
-    cardsOf().find(c => c.textContent.startsWith(scen)).click();
+    openCard(scen);
     if (lab.scen !== scen || app.mode !== 'play') errs.push('grid scenario card click ' + lab.scen + ' ' + app.mode);
     setMode('grid'); panels();
     pick('sounds');
     if (cardsOf().length !== Object.keys(SOUNDS).length || document.querySelector('#side input[placeholder="add a variable…"]')) errs.push('grid sounds ' + cardsOf().length);
     if (!cardsOf()[0].querySelector('canvas.wave') || !document.querySelector('[data-tip="Play a sound when you hover its card"]')) errs.push('grid sound card waveform / autoplay toggle missing');
-    cardsOf().find(c => c.textContent.startsWith('hit')).click();
+    openCard('hit');
     if (soundSel !== 'hit' || app.mode !== 'sounds') errs.push('grid sound card click ' + soundSel + ' ' + app.mode);
     setMode('grid'); panels();
     pick('looks');
     if (cardsOf().length !== Object.keys(FX_LOOKS).length || !cardsOf()[0].querySelector('canvas')) errs.push('grid looks ' + cardsOf().length);
-    cardsOf().find(c => c.textContent.startsWith('aura')).click();
+    openCard('aura');
     if (fxState.sel !== 'aura' || !fxState.zoom || app.mode !== 'fx') errs.push('grid look card click ' + fxState.sel + ' ' + app.mode);
     fxState.sel = null; fxState.zoom = false;
     setMode('grid'); panels();
@@ -422,7 +426,7 @@ try {
     if (!w.playback || w.desync !== null || !w.playback.over) errs.push('replay playback ' + [w.desync, w.playback?.over]);
     lab.playback = null; build(); if (lab.cells[0].w.playback) errs.push('replay stop'); }
   // the menu bar's files: export / import character, settings or everything; settings round-trip, out-of-range values fall back to the default
-  { setMode('play'); const top = t => [...document.querySelectorAll('#global button')].find(b => b.textContent.includes(t)), got = [], dl = download, of = openFile;
+  { setMode('play'); const top = t => [...document.querySelectorAll('#global button')].find(b => b.textContent.includes(t) || b.dataset.tip?.toLowerCase().startsWith(t)), // icon-only: matched by tip got = [], dl = download, of = openFile;
     top('export').click(); const menu = [...document.querySelectorAll('.pop button')].map(b => b.textContent).join(); closePop();
     if (menu !== 'character,copy,full,settings,copy,everything,copy,replay' || !top('import')) errs.push('file menu ' + menu);
     download = (n, d) => got.push(JSON.parse(JSON.stringify(d))); let feed; openFile = f => f(feed, 'test.json');
@@ -1345,26 +1349,26 @@ fs.writeFileSync(out, fs.readFileSync(path.join(root, 'index.html'), 'utf8')
 (async () => {
 // COVERAGE=1: the same page under Chrome's coverage, printed per src file (tests/browser/browser-coverage.js)
 const title = process.env.COVERAGE ? await require('./browser-coverage')(chrome, 'file://' + out, path.join(root, 'src'))
-  : (execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
+  : (execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
     '--virtual-time-budget=5000', '--dump-dom', 'file://' + out], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).match(/<title>([^<]*)/) || [])[1] || 'no title';
 // docs.html opens the app as the docs page
-const docsDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
+const docsDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
   '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'docs.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 const docsOk = /class="docspage"/.test(docsDom) && docsDom.includes('id="docs"');
 // random.html opens the app on a random embedded fight, in theater mode
-const randomDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
+const randomDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
   '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'random.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 const randomOk = /\btheater\b/.test(randomDom);
 // kitchen-sink.html opens the app as the kitchen-sink page
-const sinkDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
+const sinkDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
   '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'kitchen-sink.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 const sinkOk = /class="sinkpage"/.test(sinkDom) && sinkDom.includes('id="sink"');
 // gallery.html opens the app on the gallery view, with the character picker (charStancePicker, a 'fpick' button) in its toolbar
-const galleryDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
+const galleryDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
   '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'gallery.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 const galleryOk = /data-part="target"/.test(galleryDom) && /class="fpick"/.test(galleryDom);
 // gallery-demo.html opens the same gallery view in theater mode: no toolbar, side panel or picker, just the loop
-const demoDom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
+const demoDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
   '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'gallery-demo.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 const demoOk = /\btheater\b/.test(demoDom);
 console.log(title, docsOk ? '· docs.html OK' : '· docs.html FAILED', randomOk ? '· random.html OK' : '· random.html FAILED', sinkOk ? '· kitchen-sink.html OK' : '· kitchen-sink.html FAILED',

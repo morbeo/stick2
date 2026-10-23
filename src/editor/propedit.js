@@ -157,8 +157,10 @@ function assetDiffBlock(base, cur, label) {
     button(':content_copy: copy diff', `Copy this ${label}'s diff as JSON`, () => copyData({ format: `stick2.${label}.diff`, diff: d }), 'mini')),
     diffLinesEl(lines));
 }
+// a patch of { key: undefined } drops the key, so a cleared field reads as unset ('bg' in p is false), not as a stored undefined
+const defined = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
 function propFields(name, refill) {
-  const p = PROPS[name], built = name in BASE_PROPS, set = patch => { saveProp(name, { ...PROPS[name], ...patch }); refill(); };
+  const p = PROPS[name], built = name in BASE_PROPS, set = patch => { saveProp(name, defined({ ...PROPS[name], ...patch })); refill(); };
   const nm = built ? h('b', { textContent: name }) : h('input', { cls: 'macro', value: name, tip: 'Rename this prop', onkeydown: e => e.stopPropagation(),
     onchange: () => { const v = nm.value.trim(); if (!v || v === name || PROPS[v]) { nm.value = name; return; } renameProp(name, v); propSel = v; refill(); } });
   return h('div', {},
@@ -215,7 +217,7 @@ function weaponPicker() {
   return pickerList(weaponView, Object.keys(WEAPONS), weaponSel, n => { weaponSel = n; panels(); }, weaponCanvas, n => n in BASE_WEAPONS, WEAPON_COLS);
 }
 function weaponFields(name, refill) {
-  const w = WEAPONS[name], built = name in BASE_WEAPONS, set = patch => { saveWeapon(name, { ...WEAPONS[name], ...patch }); refill(); };
+  const w = WEAPONS[name], built = name in BASE_WEAPONS, set = patch => { saveWeapon(name, defined({ ...WEAPONS[name], ...patch })); refill(); };
   const nm = built ? h('b', { textContent: name }) : h('input', { cls: 'macro', value: name, tip: 'Rename this weapon', onkeydown: e => e.stopPropagation(),
     onchange: () => { const v = nm.value.trim(); if (!v || v === name || WEAPONS[v]) { nm.value = name; return; } renameWeapon(name, v); weaponSel = v; refill(); } });
   return h('div', {},
