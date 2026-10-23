@@ -12,6 +12,8 @@ The engine tests run in Node with no dependencies. A headless Chrome test covers
 | `npm run test:update` | rewrites the snapshots after an intended change |
 | `npm run test:browser` | loads the page in headless Chrome and goes through every mode, character and stance, checking for errors |
 | `npm run test:server` | the relay server's tests (installs `server/` dependencies first) |
+| `npm run coverage:check` | unit tests that fail if line coverage of `src/` drops below the floor (CI runs this) |
+| `npm run lint:src` | fails if `src/` branches on being under test (`process.env.CI`, `isTest`…) |
 | `npm run test:all` | `npm test`, then the browser test |
 | `npm run test:matrix` | every move of every character in the full move matrix (`MATRIX=full`), before a release |
 | `npm run coverage` | the Node tests with V8 coverage of the engine |
@@ -135,3 +137,7 @@ seed 10: frame 75, gogili: a position, speed or health became NaN
   replay: SEED=10 FUZZ=1 node --test tests/unit/fuzz.test.js
   or in the engine: new World(SCENARIOS['ai vs ai'], {"gravity":4000}, 10, [CHARS.gogili, CHARS.gloomo])
 ```
+
+## CI
+
+`.github/workflows/tests.yml` runs on every PR and on master: `lint:src`, `coverage:check`, `test:server` and `test:browser`. The coverage floor lives in `package.json` (`coverage:check`); raise it as coverage grows, never lower it to get green.
