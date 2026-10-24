@@ -187,7 +187,7 @@ test('chat goes through the host to everyone; names and text are trimmed', () =>
 
 // ---------- the codes ----------
 const net = vm.createContext({ btoa, atob, Blob, Response, CompressionStream, DecompressionStream, TextEncoder, TextDecoder, Uint8Array, JSON, String, RegExp, Error, crypto });
-vm.runInContext(fs.readFileSync(engine.srcFile('netplay'), 'utf8'), net);
+vm.runInContext(fs.readFileSync(engine.srcFile('netplay'), 'utf8'), net, { filename: engine.srcFile('netplay') }); // (filename: counted by coverage)
 const nrun = code => vm.runInContext(code, net);
 
 test('an invite code round-trips, from a bare code, a link or a chat message, and is shorter than the description', async () => {

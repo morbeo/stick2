@@ -1,0 +1,84 @@
+name: Tests
+run-name: "Tests on ${{ github.head_ref || github.ref_name }}"
+
+# Every push and PR: unit tests with a line-coverage floor, the server's tests, the headless-Chrome
+# smoke test, two-browser netplay (peer to peer, and through the relay server), and a check that src/ has no test-only branches. Raise the floor in package.json
+# (coverage:check) as coverage grows; never lower it to get green.
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Unit tests + coverage floor
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: No test-only branches in src
+        run: npm run lint:src
+      - name: Build info
+        run: node tools/dev/build-info.js
+      - name: Unit tests with coverage floor
+        run: npm run coverage:check
+
+  server:
+    name: Server tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Server tests
+        run: npm run test:server
+
+  browser:
+    name: Browser smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build info
+        run: node tools/dev/build-info.js
+      - name: Smoke test in headless Chrome
+        run: npm run test:browser
+        env:
+          CHROME: /usr/bin/google-chrome
+
+  netplay:
+    name: Two-browser netplay
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CHROME: /usr/bin/google-chrome
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build info
+        run: node tools/dev/build-info.js
+      - name: Peer to peer, through the lobby to a synced match
+        run: npm run test:netplay
+      - name: Through the relay server
+        run: npm run test:server-browser

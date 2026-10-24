@@ -38,8 +38,8 @@ async function launch(url, args = []) {
   proc.once('exit', rm);
   const close = () => { try { proc.kill(); } catch {} Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 300); rm(); };
   try {
-    let port;
-    for (let i = 0; i < 100 && !port && proc.exitCode === null && !spawnErr; i++) { try { port = +fs.readFileSync(path.join(dir, 'DevToolsActivePort'), 'utf8').split('\n')[0]; } catch { await new Promise(r => setTimeout(r, 100)); } }
+    let port; // up to 30 s: a cold CI runner's first Chrome can take over 10
+    for (let i = 0; i < 300 && !port && proc.exitCode === null && !spawnErr; i++) { try { port = +fs.readFileSync(path.join(dir, 'DevToolsActivePort'), 'utf8').split('\n')[0]; } catch { await new Promise(r => setTimeout(r, 100)); } }
     if (spawnErr) throw spawnErr;
     if (!port) throw new Error(`Chrome did not start${proc.exitCode !== null ? ` (exited ${proc.exitCode})` : ''}${stderr.trim() ? ': ' + stderr.trim().split('\n').slice(-5).join(' | ') : ''}`);
     const { ws, send } = await devtools(port, proc, () => stderr);
