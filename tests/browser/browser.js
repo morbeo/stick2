@@ -1391,26 +1391,24 @@ fs.writeFileSync(out, fs.readFileSync(path.join(root, 'index.html'), 'utf8')
 const title = process.env.COVERAGE ? await require('./browser-coverage')(chrome, 'file://' + out, path.join(root, 'src'))
   : (execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
     '--virtual-time-budget=' + (process.env.BUDGET || 5000), '--timeout=' + PAGE_MS, '--dump-dom', 'file://' + out], DUMP).match(/<title>([^<]*)/) || [])[1] || 'no title';
+// the other entry pages, each in its own Chrome over DevTools in real time: wait (at most a minute) for what it should show.
+// (not --dump-dom with a virtual-time budget: gallery.html's looping previews stalled virtual time in CI, hanging the dump)
+const { launch } = require('../../tools/lib/chrome');
+async function shows(file, expr) {
+  const page = await launch('file://' + path.join(root, file), ['--window-size=1400,800']);
+  try { for (const t0 = Date.now(); Date.now() - t0 < 60000;) { if (await page.js(`!!(${expr})`).catch(() => false)) return true; await new Promise(r => setTimeout(r, 250)); } return false; }
+  finally { page.close(); }
+}
 // docs.html opens the app as the docs page
-const docsDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
-  '--virtual-time-budget=3000', '--timeout=' + PAGE_MS, '--dump-dom', 'file://' + path.join(root, 'docs.html')], DUMP);
-const docsOk = /class="docspage"/.test(docsDom) && docsDom.includes('id="docs"');
+const docsOk = await shows('docs.html', `document.body.classList.contains('docspage') && document.getElementById('docs')`);
 // random.html opens the app on a random embedded fight, in theater mode
-const randomDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
-  '--virtual-time-budget=3000', '--timeout=' + PAGE_MS, '--dump-dom', 'file://' + path.join(root, 'random.html')], DUMP);
-const randomOk = /\btheater\b/.test(randomDom);
+const randomOk = await shows('random.html', `document.body.classList.contains('theater')`);
 // kitchen-sink.html opens the app as the kitchen-sink page
-const sinkDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
-  '--virtual-time-budget=3000', '--timeout=' + PAGE_MS, '--dump-dom', 'file://' + path.join(root, 'kitchen-sink.html')], DUMP);
-const sinkOk = /class="sinkpage"/.test(sinkDom) && sinkDom.includes('id="sink"');
+const sinkOk = await shows('kitchen-sink.html', `document.body.classList.contains('sinkpage') && document.getElementById('sink')`);
 // gallery.html opens the app on the gallery view, with the character picker (charStancePicker, a 'fpick' button) in its toolbar
-const galleryDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
-  '--virtual-time-budget=3000', '--timeout=' + PAGE_MS, '--dump-dom', 'file://' + path.join(root, 'gallery.html')], DUMP);
-const galleryOk = /data-part="target"/.test(galleryDom) && /class="fpick"/.test(galleryDom);
+const galleryOk = await shows('gallery.html', `document.querySelector('[data-part="target"]') && document.querySelector('.fpick')`);
 // gallery-demo.html opens the same gallery view in theater mode: no toolbar, side panel or picker, just the loop
-const demoDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
-  '--virtual-time-budget=3000', '--timeout=' + PAGE_MS, '--dump-dom', 'file://' + path.join(root, 'gallery-demo.html')], DUMP);
-const demoOk = /\btheater\b/.test(demoDom);
+const demoOk = await shows('gallery-demo.html', `document.body.classList.contains('theater')`);
 // only an explicit OK passes: anything else in the title (the app's own, empty) means the probe never finished
 if (!/^(OK|ERR)/.test(title)) console.error(`FAIL: the page never finished its checks (title: ${JSON.stringify(title)})`);
 console.log(title, docsOk ? '· docs.html OK' : '· docs.html FAILED', randomOk ? '· random.html OK' : '· random.html FAILED', sinkOk ? '· kitchen-sink.html OK' : '· kitchen-sink.html FAILED',
