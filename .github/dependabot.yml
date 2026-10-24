@@ -1,0 +1,11 @@
+# Keeps pinned action SHAs and npm dependencies current, grouped into one weekly PR each.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directories: ["/", "/.github/actions/*"]
+    schedule: { interval: weekly }
+    groups: { actions: { patterns: ["*"] } }
+  - package-ecosystem: npm
+    directories: ["/", "/server"]
+    schedule: { interval: weekly }
+    groups: { npm: { patterns: ["*"] } }
