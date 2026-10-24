@@ -41,7 +41,7 @@ const side = (ref, suffix) => {
   if (!head) git('worktree', 'add', '--detach', dir, ref);
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'stick2-shots-'));
   try {
-    for (const f of shoot(names, { root: dir, out: tmp })) fs.renameSync(f, path.join(out, path.basename(f, '.png') + suffix + '.png'));
+    for (const f of shoot(names, { root: dir, out: tmp })) fs.copyFileSync(f, path.join(out, path.basename(f, '.png') + suffix + '.png'));
   } finally { if (!head) git('worktree', 'remove', '--force', dir); fs.rmSync(tmp, { recursive: true, force: true }); }
 };
 side(opt.from, '-before'); side(opt.to, '');
