@@ -94,7 +94,7 @@ function shoot(names = Object.keys(SHOTS), { root = here, out = path.join(here, 
     // the page keeps its layout (1400 × 800 unless the shot sets one) and slides up-left so the crop lands in a window of the crop's size
     fs.writeFileSync(page, fs.readFileSync(path.join(root, 'index.html'), 'utf8').replace(/(src|fonts)\//g, `file://${root}/$1/`).replace('</body>',
       `<script>localStorage.clear(); setTimeout(() => { document.documentElement.style.cssText = 'width:${pw}px;height:${ph}px;overflow:hidden;transform:translate(-${x}px,-${y}px)';
-        dispatchEvent(new Event('resize')); ${code}; app.speed = 0; }, 300);</script></body>`));
+        dispatchEvent(new Event('resize')); try { closeWelcome(); } catch {} ${code}; app.speed = 0; }, 300);</script></body>`));
     const file = path.join(out, name + '.png');
     execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--allow-file-access-from-files', '--hide-scrollbars', `--window-size=${w},${h}`,
       '--virtual-time-budget=6000', `--screenshot=${file}`, 'file://' + page], { stdio: 'ignore' });
