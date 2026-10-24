@@ -12,6 +12,10 @@ The engine tests run in Node with no dependencies. A headless Chrome test covers
 | `npm run test:update` | rewrites the snapshots after an intended change |
 | `npm run test:browser` | loads the page in headless Chrome and goes through every mode, character and stance, checking for errors |
 | `npm run test:server` | the relay server's tests (installs `server/` dependencies first) |
+| `npm run coverage:check` | unit tests that fail if line coverage of `src/` drops below the floor (CI runs this) |
+| `npm run lint:src` | fails if `src/` branches on being under test (`process.env.CI`, `isTest`…) |
+| `npm run test:netplay` | two headless browsers, peer to peer: lobby, synced match, spectator, forfeit |
+| `npm run test:server-browser` | two browsers through the relay server (installs `server/` deps first) |
 | `npm run test:all` | `npm test`, then the browser test |
 | `npm run test:matrix` | every move of every character in the full move matrix (`MATRIX=full`), before a release |
 | `npm run coverage` | the Node tests with V8 coverage of the engine |
@@ -42,6 +46,7 @@ The build info is shown in the debug popup (the chart button in the menu bar), n
 
 - Covered: the engine in `src/` (core, rig, fighter, world, brain), loaded into a vm context by `tests/unit/load.js` under their real paths.
 - The UI modules need the DOM, so the browser test covers them instead.
+- The browser test passes only when its page reports `OK` (exit code 0). It parses the page's check script first, and prints `FAIL` if that script is broken or the page never finishes. It ends with a ⌘K sweep: every safe palette command runs without throwing, every shortcut is in the palette, and the shipped keys don't clash.
 - `CHROME=/path/to/chrome` picks the browser; run as root (CI, containers) the tests add `--no-sandbox` themselves.
 
 `npm run coverage:browser` (`COVERAGE=1 node tests/browser/browser.js`) runs the browser test with Chrome's own coverage, over DevTools, and prints line and function coverage for every file in `src/`, lowest first.
@@ -135,3 +140,7 @@ seed 10: frame 75, gogili: a position, speed or health became NaN
   replay: SEED=10 FUZZ=1 node --test tests/unit/fuzz.test.js
   or in the engine: new World(SCENARIOS['ai vs ai'], {"gravity":4000}, 10, [CHARS.gogili, CHARS.gloomo])
 ```
+
+## CI
+
+`.github/workflows/tests.yml` runs on every PR and on master: `lint:src`, `coverage:check`, `test:server`, `test:browser`, `test:netplay` and `test:server-browser`. The coverage floor lives in `package.json` (`coverage:check`); raise it as coverage grows, never lower it to get green.
