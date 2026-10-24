@@ -68,7 +68,7 @@ const SHOTS = {
 // every shot also depends on src/ui/ui.js and index.html, which would select all of them, so those are left out
 const PLAY = ['src/editor/lab.js', 'src/engine/'], ANIM = ['src/editor/studio.js', 'src/engine/clip.js', 'src/engine/rig.js'];
 const TOUCHES = {
-  play: PLAY, cover: PLAY, animate: ANIM, character: ['src/editor/creator.js', 'src/engine/roster.js', 'src/engine/shapes.js', 'src/engine/rig.js'],
+  play: PLAY, animate: ANIM, character: ['src/editor/creator.js', 'src/engine/roster.js', 'src/engine/shapes.js', 'src/engine/rig.js'],
   gallery: ['src/engine/roster.js', 'gallery.html'], experiment: ['src/editor/lab.js', 'src/editor/matrix.js'], grid: ['src/editor/gridlab.js'],
   fx: ['src/editor/fxlab.js', 'src/engine/fx.js'], tests: ['src/engine/checks.js'], impact: ['src/engine/fighter.js', 'src/engine/world.js'],
   ragdoll: ['src/engine/fighter.js', 'src/engine/world.js'], hip: ['src/editor/creator.js'], movepicker: ['src/editor/studio.js', 'src/editor/propedit.js'],
@@ -78,8 +78,9 @@ const TOUCHES = {
   layout: ['src/ui/layout.js'], debug: ['src/ui/app.js'], palette: ['src/ui/palette.js'], statsradar: ['src/editor/creator.js'], keys: ['src/ui/keys.js'],
   docspanel: ['src/ui/docs.js'], replay: ['src/engine/replay.js'], netplay: ['src/net/'], phone: ['src/ui/touch.js'],
 };
-// the shots that show any of the changed files
-const affected = files => Object.keys(SHOTS).filter(n => (TOUCHES[n] || []).some(t => files.some(f => f.startsWith(t))));
+// the shots that show any of the changed files, closest match first (a file named outright beats a whole folder)
+const affected = files => Object.keys(SHOTS).map(n => [n, Math.max(0, ...(TOUCHES[n] || []).filter(t => files.some(f => f.startsWith(t))).map(t => t.length))])
+  .filter(([, s]) => s).sort((a, b) => b[1] - a[1]).map(([n]) => n);
 
 // renders names from the app in root into out (both default to this checkout's docs/img) → the written paths
 function shoot(names = Object.keys(SHOTS), { root = here, out = path.join(here, 'docs', 'img') } = {}) {
