@@ -3,6 +3,10 @@
 const fs = require('fs'), os = require('os'), path = require('path'), { execFileSync } = require('child_process'), vm = require('vm');
 // Chrome refuses to start as root (CI and cloud containers) unless its sandbox is off
 const noSandbox = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
+// each headless page gets at most 5 minutes: a page that hangs (it ran 20 in CI once) fails with a reason instead of the job timing out
+const DUMP = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 300000, killSignal: 'SIGKILL' };
+process.on('uncaughtException', e => { console.error(e.code === 'ETIMEDOUT' ? `FAIL: a headless page did not finish within ${DUMP.timeout / 1000}s (${e.spawnargs?.at(-1)})` : 'FAIL: ' + e.stack); process.exit(1); });
+process.on('unhandledRejection', e => { console.error(e?.code === 'ETIMEDOUT' ? `FAIL: a headless page did not finish within ${DUMP.timeout / 1000}s (${e.spawnargs?.at(-1)})` : 'FAIL: ' + (e?.stack || e)); process.exit(1); });
 const root = path.join(__dirname, '..', '..'), out = path.join(os.tmpdir(), 'stick2-smoke.html');
 const chrome = process.env.CHROME || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium']
   .find(p => fs.existsSync(p));
@@ -1384,26 +1388,26 @@ fs.writeFileSync(out, fs.readFileSync(path.join(root, 'index.html'), 'utf8')
 // COVERAGE=1: the same page under Chrome's coverage, printed per src file (tests/browser/browser-coverage.js)
 const title = process.env.COVERAGE ? await require('./browser-coverage')(chrome, 'file://' + out, path.join(root, 'src'))
   : (execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
-    '--virtual-time-budget=' + (process.env.BUDGET || 5000), '--dump-dom', 'file://' + out], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).match(/<title>([^<]*)/) || [])[1] || 'no title';
+    '--virtual-time-budget=' + (process.env.BUDGET || 5000), '--dump-dom', 'file://' + out], DUMP).match(/<title>([^<]*)/) || [])[1] || 'no title';
 // docs.html opens the app as the docs page
 const docsDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
-  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'docs.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'docs.html')], DUMP);
 const docsOk = /class="docspage"/.test(docsDom) && docsDom.includes('id="docs"');
 // random.html opens the app on a random embedded fight, in theater mode
 const randomDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
-  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'random.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'random.html')], DUMP);
 const randomOk = /\btheater\b/.test(randomDom);
 // kitchen-sink.html opens the app as the kitchen-sink page
 const sinkDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
-  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'kitchen-sink.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'kitchen-sink.html')], DUMP);
 const sinkOk = /class="sinkpage"/.test(sinkDom) && sinkDom.includes('id="sink"');
 // gallery.html opens the app on the gallery view, with the character picker (charStancePicker, a 'fpick' button) in its toolbar
 const galleryDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
-  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'gallery.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'gallery.html')], DUMP);
 const galleryOk = /data-part="target"/.test(galleryDom) && /class="fpick"/.test(galleryDom);
 // gallery-demo.html opens the same gallery view in theater mode: no toolbar, side panel or picker, just the loop
 const demoDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
-  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'gallery-demo.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'gallery-demo.html')], DUMP);
 const demoOk = /\btheater\b/.test(demoDom);
 // only an explicit OK passes: anything else in the title (the app's own, empty) means the probe never finished
 if (!/^(OK|ERR)/.test(title)) console.error(`FAIL: the page never finished its checks (title: ${JSON.stringify(title)})`);
