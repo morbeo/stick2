@@ -1,9 +1,10 @@
 // the README / docs screenshots: each shot runs a snippet in the app, then Chrome captures a crop of the page into docs/img
 // usage: node tools/render/screenshots.js [name …]   (CHROME=/path/to/chrome to override; no name = every shot)
+//        node tools/render/screenshots.js --changed [ref]   only the shots whose sources changed since ref (default origin/master)
+// required (release-notes.js): shoot(names, { root, out }) renders another checkout's app into another folder
 const fs = require('fs'), os = require('os'), path = require('path'), { execFileSync } = require('child_process');
-const root = path.join(__dirname, '..', '..'), outDir = path.join(root, 'docs', 'img');
-const chrome = process.env.CHROME || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium'].find(p => fs.existsSync(p));
-if (!chrome) { console.log('no Chrome found (set CHROME)'); process.exit(1); }
+const here = path.join(__dirname, '..', '..');
+const findChrome = () => process.env.CHROME || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium'].find(p => fs.existsSync(p));
 // advance every world of the mode n frames, then draw once (headless Chrome barely runs requestAnimationFrame)
 const run = n => `for (let i = 0; i < ${n}; i++) { mode().tick?.(1 / 60); for (const w of mode().worlds()) w.advance(1 / 60, NOIN); } mode().render();`;
 // crop: [x, y, w, h] in page px of a 1400 × 800 window; an optional third [w, h] sets another page size (a phone)
@@ -63,15 +64,53 @@ const SHOTS = {
   // a phone held upright: the mobile layout with the on-screen pad
   phone: [`closeWelcome(); touchPad(true); lab.scen = 'you vs ai'; setMode('play'); build(); panels(); ${run(60)} tpSync?.();`, [0, 0, 390, 844], [390, 844]],
 };
-fs.mkdirSync(outDir, { recursive: true });
-const page = path.join(os.tmpdir(), 'stick2-shot.html');
-for (const name of process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SHOTS)) {
-  const [code, [x, y, w, h], [pw, ph] = [1400, 800]] = SHOTS[name];
-  // the page keeps its layout (1400 × 800 unless the shot sets one) and slides up-left so the crop lands in a window of the crop's size
-  fs.writeFileSync(page, fs.readFileSync(path.join(root, 'index.html'), 'utf8').replace(/(src|fonts)\//g, `file://${root}/$1/`).replace('</body>',
-    `<script>localStorage.clear(); setTimeout(() => { document.documentElement.style.cssText = 'width:${pw}px;height:${ph}px;overflow:hidden;transform:translate(-${x}px,-${y}px)';
-      dispatchEvent(new Event('resize')); ${code}; app.speed = 0; }, 300);</script></body>`));
-  execFileSync(chrome, ['--headless=new', '--disable-gpu', '--allow-file-access-from-files', '--hide-scrollbars', `--window-size=${w},${h}`,
-    '--virtual-time-budget=6000', `--screenshot=${path.join(outDir, name + '.png')}`, 'file://' + page], { stdio: 'ignore' });
-  console.log('docs/img/' + name + '.png');
+// the sources each shot shows: a change to one of these (path prefixes) puts the shot in --changed and in the release notes.
+// every shot also depends on src/ui/ui.js and index.html, which would select all of them, so those are left out
+const PLAY = ['src/editor/lab.js', 'src/engine/'], ANIM = ['src/editor/studio.js', 'src/engine/clip.js', 'src/engine/rig.js'];
+const TOUCHES = {
+  play: PLAY, cover: PLAY, animate: ANIM, character: ['src/editor/creator.js', 'src/engine/roster.js', 'src/engine/shapes.js', 'src/engine/rig.js'],
+  gallery: ['src/engine/roster.js', 'gallery.html'], experiment: ['src/editor/lab.js', 'src/editor/matrix.js'], grid: ['src/editor/gridlab.js'],
+  fx: ['src/editor/fxlab.js', 'src/engine/fx.js'], tests: ['src/engine/checks.js'], impact: ['src/engine/fighter.js', 'src/engine/world.js'],
+  ragdoll: ['src/engine/fighter.js', 'src/engine/world.js'], hip: ['src/editor/creator.js'], movepicker: ['src/editor/studio.js', 'src/editor/propedit.js'],
+  compare: ['src/editor/compare.js'], effects: ['src/engine/fx.js'], combos: ['src/engine/combos.js'], movetable: ['src/editor/studio.js', 'src/editor/tracker.js'],
+  inputs: ['src/engine/inputs.js'], bonetable: ['src/editor/creator.js', 'src/engine/shapes.js'], builder: ['src/engine/scenarios.js', 'src/engine/brain.js'],
+  stancereq: ['src/editor/creator.js'], fighters: ['src/engine/roster.js', 'src/editor/lab.js'], menubar: ['src/ui/layout.js', 'src/ui/app.js'],
+  layout: ['src/ui/layout.js'], debug: ['src/ui/app.js'], palette: ['src/ui/palette.js'], statsradar: ['src/editor/creator.js'], keys: ['src/ui/keys.js'],
+  docspanel: ['src/ui/docs.js'], replay: ['src/engine/replay.js'], netplay: ['src/net/'], phone: ['src/ui/touch.js'],
+};
+// the shots that show any of the changed files
+const affected = files => Object.keys(SHOTS).filter(n => (TOUCHES[n] || []).some(t => files.some(f => f.startsWith(t))));
+
+// renders names from the app in root into out (both default to this checkout's docs/img) → the written paths
+function shoot(names = Object.keys(SHOTS), { root = here, out = path.join(here, 'docs', 'img') } = {}) {
+  const chrome = findChrome();
+  if (!chrome) throw new Error('no Chrome found (set CHROME=/path/to/chrome)');
+  fs.mkdirSync(out, { recursive: true });
+  const page = path.join(os.tmpdir(), 'stick2-shot.html'), done = [];
+  for (const name of names) {
+    if (!SHOTS[name]) throw new Error(`unknown shot ${name} (one of: ${Object.keys(SHOTS).join(', ')})`);
+    const [code, [x, y, w, h], [pw, ph] = [1400, 800]] = SHOTS[name];
+    // the page keeps its layout (1400 × 800 unless the shot sets one) and slides up-left so the crop lands in a window of the crop's size
+    fs.writeFileSync(page, fs.readFileSync(path.join(root, 'index.html'), 'utf8').replace(/(src|fonts)\//g, `file://${root}/$1/`).replace('</body>',
+      `<script>localStorage.clear(); setTimeout(() => { document.documentElement.style.cssText = 'width:${pw}px;height:${ph}px;overflow:hidden;transform:translate(-${x}px,-${y}px)';
+        dispatchEvent(new Event('resize')); ${code}; app.speed = 0; }, 300);</script></body>`));
+    const file = path.join(out, name + '.png');
+    execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--allow-file-access-from-files', '--hide-scrollbars', `--window-size=${w},${h}`,
+      '--virtual-time-budget=6000', `--screenshot=${file}`, 'file://' + page], { stdio: 'ignore' });
+    done.push(file);
+  }
+  return done;
+}
+
+module.exports = { SHOTS, TOUCHES, affected, shoot };
+
+if (require.main === module) {
+  const args = process.argv.slice(2);
+  let names = args.length ? args : undefined;
+  if (args[0] === '--changed') {
+    const files = execFileSync('git', ['diff', '--name-only', `${args[1] || 'origin/master'}...HEAD`], { cwd: here, encoding: 'utf8' }).split('\n').filter(Boolean);
+    names = affected(files);
+    if (!names.length) { console.log('no shot shows the changed files'); process.exit(0); }
+  }
+  try { for (const f of shoot(names)) console.log(path.relative(here, f)); } catch (e) { console.error(e.message); process.exit(1); }
 }
