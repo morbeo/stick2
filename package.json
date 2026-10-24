@@ -10,7 +10,7 @@
     "discord-stickers": "node tools/discord/discord-stickers.js",
     "itch:push": "npm test && node tools/itch/itch.js --push",
     "coverage": "node --test --experimental-test-coverage --test-coverage-include='src/**' tests/unit/*.test.js",
-    "coverage:check": "node --test --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-lines=74 tests/unit/*.test.js",
+    "coverage:check": "node --test --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-lines=76 tests/unit/*.test.js",
     "lint:src": "node tools/dev/no-test-hooks.js",
     "coverage:browser": "COVERAGE=1 node tests/browser/browser.js",
     "pretest": "node tools/dev/build-info.js",
