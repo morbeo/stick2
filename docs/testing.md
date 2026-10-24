@@ -46,6 +46,7 @@ The build info is shown in the debug popup (the chart button in the menu bar), n
 
 - Covered: the engine in `src/` (core, rig, fighter, world, brain), loaded into a vm context by `tests/unit/load.js` under their real paths.
 - The UI modules need the DOM, so the browser test covers them instead.
+- The browser test passes only when its page reports `OK` (exit code 0). It parses the page's check script first, and prints `FAIL` if that script is broken or the page never finishes. It ends with a ⌘K sweep: every safe palette command runs without throwing, every shortcut is in the palette, and the shipped keys don't clash.
 - `CHROME=/path/to/chrome` picks the browser; run as root (CI, containers) the tests add `--no-sandbox` themselves.
 
 `npm run coverage:browser` (`COVERAGE=1 node tests/browser/browser.js`) runs the browser test with Chrome's own coverage, over DevTools, and prints line and function coverage for every file in `src/`, lowest first.

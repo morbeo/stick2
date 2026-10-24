@@ -1,6 +1,6 @@
 // smoke test in headless Chrome: every mode × every character (and each stance) renders its panels and a few frames without errors
 // usage: npm run test:browser (CHROME=/path/to/chrome to override)
-const fs = require('fs'), os = require('os'), path = require('path'), { execFileSync } = require('child_process');
+const fs = require('fs'), os = require('os'), path = require('path'), { execFileSync } = require('child_process'), vm = require('vm');
 // Chrome refuses to start as root (CI and cloud containers) unless its sandbox is off
 const noSandbox = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
 const root = path.join(__dirname, '..', '..'), out = path.join(os.tmpdir(), 'stick2-smoke.html');
@@ -12,6 +12,7 @@ let errs = [];
 const later = [], afterSync = []; // async checks (afterSync: started once the synchronous ones are done); the title waits for them
 window.onerror = (m, s, l) => { errs.push(m + ' @' + (s || '').split('/').pop() + ':' + l); };
 try {
+  closeWelcome(); // a fresh profile opens the welcome modal on first visit; the checks start from the app itself
   localStorage.clear(); app.paused = true;
   for (const c of Object.keys(CHARS)) {
     pickChar(c);
@@ -426,7 +427,7 @@ try {
     if (!w.playback || w.desync !== null || !w.playback.over) errs.push('replay playback ' + [w.desync, w.playback?.over]);
     lab.playback = null; build(); if (lab.cells[0].w.playback) errs.push('replay stop'); }
   // the menu bar's files: export / import character, settings or everything; settings round-trip, out-of-range values fall back to the default
-  { setMode('play'); const top = t => [...document.querySelectorAll('#global button')].find(b => b.textContent.includes(t) || b.dataset.tip?.toLowerCase().startsWith(t)), // icon-only: matched by tip got = [], dl = download, of = openFile;
+  { setMode('play'); const top = t => [...document.querySelectorAll('#global button')].find(b => b.textContent.includes(t) || b.dataset.tip?.toLowerCase().startsWith(t)), /* icon-only: matched by tip */ got = [], dl = download, of = openFile;
     top('export').click(); const menu = [...document.querySelectorAll('.pop button')].map(b => b.textContent).join(); closePop();
     if (menu !== 'character,copy,full,settings,copy,everything,copy,replay' || !top('import')) errs.push('file menu ' + menu);
     download = (n, d) => got.push(JSON.parse(JSON.stringify(d))); let feed; openFile = f => f(feed, 'test.json');
@@ -455,12 +456,14 @@ try {
   // side panel: headings fold their section (remembered), advanced rows wait behind "more", a search shows everything
   { setMode('play'); const sec = name => [...document.querySelectorAll('#side .fold')].find(f => f.querySelector('h3').textContent.toLowerCase().startsWith(name));
     const vis = el => !!el.offsetParent, row = k => [...document.querySelectorAll('#side .row')].find(r => r.firstChild.textContent === k);
-    if (!sec('movement').classList.contains('shut') || vis(row('maxSpeed'))) errs.push('fold default');
-    sec('movement').querySelector('h3').click(); if (!vis(row('maxSpeed')) || vis(row('accel'))) errs.push('fold open / adv');
-    sec('movement').querySelector('.morebtn').click(); if (!vis(row('accel'))) errs.push('more');
-    sec('movement').querySelector('.morebtn').click(); sec('movement').querySelector('h3').click(); panels();
-    if (!sec('movement').classList.contains('shut')) errs.push('fold remembered');
-    const q = document.querySelector('#side input'); q.value = 'decel'; q.dispatchEvent(new Event('input'));
+    // groups (movement, look, defense…) hold their own folds (Power, Movement, Air…), each with its advanced rows behind "more"
+    const sub = () => [...sec('movement').querySelectorAll('.fold')].find(f => f.querySelector('h3').textContent.startsWith('Movement'));
+    if (!sec('movement').classList.contains('shut') || !sub().classList.contains('shut') || vis(row('maxSpeed'))) errs.push('fold default');
+    sec('movement').querySelector('h3').click(); sub().querySelector('h3').click(); if (!vis(row('maxSpeed')) || vis(row('accel'))) errs.push('fold open / adv');
+    sub().querySelector('.morebtn').click(); if (!vis(row('accel'))) errs.push('more');
+    sub().querySelector('.morebtn').click(); sub().querySelector('h3').click(); sec('movement').querySelector('h3').click(); panels();
+    if (!sec('movement').classList.contains('shut') || !sub().classList.contains('shut')) errs.push('fold remembered');
+    const q = document.querySelector('#side input[placeholder="search variables"]'); q.value = 'decel'; q.dispatchEvent(new Event('input'));
     if (!vis(row('decel')) || vis(row('maxSpeed'))) errs.push('search shows folded');
     q.value = ''; q.dispatchEvent(new Event('input')); lab.q = '';
     // the character menu: the current one on a button in the toolbar (charStancePicker), the rest in a popup
@@ -506,14 +509,13 @@ try {
     if (creator.exp.parent === parent0) errs.push('body: click a cell did not breed around it');
     if (!labMode.key({ code: 'Escape' }) || lab.kind !== 'sweep' || creator.expOn) errs.push('body vary escape ' + [lab.kind, creator.expOn]);
     lab.kind = 'sweep'; }
-  // the character tab's preview picker and impact's blow buttons: both under the preview pane now, not the toolbar
-  { setMode('character'); const pv = t => [...document.querySelectorAll('.pvbar button')].find(b => b.textContent.trim().endsWith(t));
-    const blow = t => [...document.querySelectorAll('.blowbar button')].find(b => b.textContent.trim().endsWith(t));
+  // the character tab's preview picker: under the preview pane (with the bones panel closed), not the toolbar; one button per preset
+  // (impact and its blow buttons moved to the experiment tab: see the ragdoll impact checks there)
+  { setMode('character'); closeStage(); panels(); const pv = t => [...document.querySelectorAll('.pvbar button')].find(b => b.textContent.trim().endsWith(t));
     if (document.querySelector('#ctx [data-tip^="What the preview"]')) errs.push('preview picker still in toolbar');
-    pv('impact').click(); if (!document.querySelector('.blowbar.inpv')) errs.push('blow bar not in preview pane');
-    blow('launcher').click(); const w = creator.w; for (let i = 0; i < 20; i++) w.advance(1/60, NOIN);
-    if (!w.a.hidden || w.b.ch !== currentChar() || w.hits !== 1) errs.push('creator impact ' + [w.a.hidden, w.b.ch.name, w.hits]);
-    pv('showcase').click(); if (document.querySelector('.blowbar')) errs.push('creator blow bar stays'); }
+    const missing = PREVIEW_PRESETS.filter(v => !pv(v)); if (missing.length) errs.push('preview presets missing ' + missing);
+    pv('walk').click(); if (creator.preview !== 'walk') errs.push('preview pick ' + creator.preview);
+    pv('showcase').click(); if (creator.preview !== 'showcase' || document.querySelector('.blowbar')) errs.push('creator preview back ' + creator.preview); }
   // animate's move group: the current move opens the picker (filter focused), a card picks and closes it; cards / list is kept in the layout, apart from the stage panels; ‹ › step
   { setMode('animate'); pickChar('stick'); studio.stance = 0; anim.move = 'jab'; anim.filter = ''; panels();
     const cur = () => [...document.querySelectorAll('#ctx [data-part="move"] button')].find(b => b.textContent.includes('jab'));
@@ -579,14 +581,17 @@ try {
     sb('bones').click(); if (!document.querySelector('.btable') || !document.querySelector('.btable .stagehead')) errs.push('bone table in the panels group'); lay('character').panel = null; panels(); }
   // effect stacks: + adds a second effect to a move (a list) and to a bone, the arrows reorder, the bin removes; a key's own stack replaces the move's
   { pickChar('stick'); studio.stance = 0; setMode('animate'); anim.move = 'jab'; selectKey(0); panels();
-    const adds = () => [...document.querySelectorAll('#side button')].filter(b => b.dataset.tip?.startsWith('Add an effect')), fx0 = curMove().fx;
-    adds()[0].click(); adds()[0].click(); const two = curMove().fx;
-    [...document.querySelectorAll('#side button')].find(b => b.dataset.tip?.startsWith('Move this effect up') && !b.hidden).click(); const sw = curMove().fx;
-    adds()[1].click(); const key = fxAt(curMove(), 0).map(e => e.look);
+    // the key's own fx section comes first, the move's after it: each found by its own heading
+    const sect = t => [...document.querySelectorAll('#side .fold')].find(f => f.firstElementChild?.textContent.replace(/[\uE000-\uF8FF]/g, '').trim() === t);
+    const inSect = (t, tip) => [...sect(t).querySelectorAll('button')].filter(b => b.dataset.tip?.startsWith(tip) && !b.closest('[hidden]'));
+    const fx0 = curMove().fx;
+    inSect('move fx', 'Add an effect')[0].click(); inSect('move fx', 'Add an effect')[0].click(); const two = curMove().fx;
+    inSect('move fx', 'Move this effect up')[0].click(); const sw = curMove().fx;
+    inSect('key fx', 'Add an effect')[0].click(); const key = fxAt(curMove(), 0).map(e => e.look);
     if (!Array.isArray(two) || two.length !== 2 || sw[0].look !== two[1].look || key.length !== 3 || fxNow(edChar(), { m: curMove(), i: 0 }).length !== 3) errs.push('move effect stack ' + JSON.stringify([two, sw, key]));
-    [...document.querySelectorAll('#side button')].findLast(b => b.dataset.tip === 'Remove this effect' && !b.closest('[hidden]')).click(); if (fxAt(curMove(), 0).length !== 2) errs.push('remove an effect');
+    inSect('key fx', 'Remove this effect').at(-1).click(); if (fxAt(curMove(), 0).length !== 2) errs.push('remove an effect');
     undo(); undo(); undo(); undo(); undo(); if (JSON.stringify(curMove().fx) !== JSON.stringify(fx0) || curMove().keys[0].fx !== undefined) errs.push('effect stack undo');
-    setMode('character'); studio.sel = 'head'; panels(); adds()[0].click(); adds()[0].click();
+    setMode('character'); studio.sel = 'head'; panels(); const adds = () => [...document.querySelectorAll('#side button')].filter(b => b.dataset.tip?.startsWith('Add an effect')); adds()[0].click(); adds()[0].click();
     const hf = DEFS.stick.bones.find(b => b.id === 'head').fx; if (hf?.length !== 2 || fxNow(currentChar(), null).length !== 2) errs.push('bone effect stack ' + JSON.stringify(hf));
     undo(); if (DEFS.stick.bones.find(b => b.id === 'head').fx) errs.push('bone effect undo (one step: the bone edits merge)'); }
   // the preview has its own clock: playing, it keeps advancing (and selecting a key for editing doesn't pause it); paused, it holds still
@@ -602,7 +607,7 @@ try {
     if (anim.pv.simT !== held) errs.push('a paused preview kept advancing ' + held + ' ' + anim.pv.simT);
     anim.playing = true; }
   // the shadow section: the shape buttons set def.shadow (only what differs from the default), body draws a frame, off draws none, back to ellipse saves none
-  { setMode('character'); pickChar('stick'); panels(); const shp = t => [...document.querySelectorAll('#side button')].find(b => b.dataset.tip === SHADOW_SHAPES[t]);
+  { setMode('character'); pickChar('stick'); paletteEntries().find(e => e.name === 'stats: shadow').run(); const shp = t => [...document.querySelectorAll('#side button')].find(b => b.dataset.tip === SHADOW_SHAPES[t]);
     shp('circle').click(); const c = JSON.stringify(DEFS.stick.shadow); shp('body').click(); for (let i = 0; i < 5; i++) for (const w of mode().worlds()) w.advance(1/60, NOIN); mode().render?.();
     const skew = [...document.querySelectorAll('#side .row')].find(r => r.dataset.tip?.startsWith('Body only'));
     shp('none').click(); const off = currentChar().shadow.shape, hid = skew.hidden; shp('ellipse').click();
@@ -652,7 +657,7 @@ try {
     anim.move = 'jab'; undo(); undo(); if (DEFS.stick.moves[nm] || DEFS.stick.stances[bi - 1].morph) errs.push('transition undo');
     setMode('character'); studio.stance = 0; DEFS.stick.stances.length = bi - 1; CHARS.stick = makeCharacter(DEFS.stick); panels(); }
   // the bone table rearranges bones: drag a row's id onto another to move it before it (the draw order), click parent to hang it from another bone
-  { setMode('character'); pickChar('stick'); lay('character').panel = 'bones'; creator.tsort = { k: '', dir: 1 }; creator.tfilter = ''; panels();
+  { setMode('character'); pickChar('stick'); lay('character').panel = 'bones'; creator.boneView = 'table'; creator.tsort = { k: '', dir: 1 }; creator.tfilter = ''; panels();
     const idCell = id => [...document.querySelectorAll('.btable tbody td:first-child')].find(td => td.textContent === id), ids = () => currentChar().ids;
     const dt = new DataTransfer(); idCell('uarmF').dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true }));
     idCell('thighF').dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true })); idCell('thighF').dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true }));
@@ -712,13 +717,13 @@ try {
     layUse('default'); if (!document.body.classList.contains('noside')) errs.push('layout switch');
     $('global').querySelector('button[data-tip^="Layout:"]').click(); const pb = t => [...document.querySelectorAll('.pop button')].find(b => b.textContent.includes(t));
     // buttons: icon/text is global (every tab, the menu bar included), not part of any one tab's layout; toggling it
-    // hides (and restores) the text on a button that has both, like the menu bar's own export button
+    // hides (and restores) the text on a button that has both, like the menu bar's clip button
     { const findSeg = () => [...pop.querySelectorAll('.row')].find(r => r.textContent.startsWith('buttons')).querySelector('.seg');
       const click = v => [...findSeg().querySelectorAll('button')].find(b => b.textContent.trim().toLowerCase() === v).click();
-      const exportBtn = () => [...document.querySelectorAll('#global button')].find(b => b.dataset.tip?.startsWith('Export'));
+      const exportBtn = () => [...document.querySelectorAll('#global button')].find(b => b.dataset.tip?.startsWith('Save a clip')); // has an icon and text
       const before = exportBtn().textContent;
       click('icon');
-      if (exportBtn().textContent === before || !exportBtn().classList.contains('ico')) errs.push('icon-only setting: export still has text ' + exportBtn().textContent);
+      if (exportBtn().textContent === before || !exportBtn().classList.contains('ico')) errs.push('icon-only setting: clip button still has text ' + exportBtn().textContent);
       if (!document.querySelector('.pop')) errs.push('layout popup should survive the global rebuild');
       click('text');
       if (exportBtn().textContent !== before || exportBtn().classList.contains('ico')) errs.push('icon-only setting did not restore text ' + exportBtn().textContent); }
@@ -767,15 +772,16 @@ try {
     layShow('ctx:speed', false); if (part('ctx', 'speed')) errs.push('speed group hideable'); layShow('ctx:speed', true); layReset(); }
   // order: dragging a part in the layout popup onto another puts it before that one (onto the row's label: last); kept per tab, reset clears it
   { setMode('play'); const ids = k => [...$(k).children].map(el => k === 'ctx' ? el.dataset.part : el.fname).filter(Boolean);
+    // app.parts.side also lists the settings sections nested inside the groups; only the side panel's own children are compared
     const c0 = app.parts.ctx, s0 = app.parts.side;
     layoutPanel(null, $('global').querySelector('button[data-tip^="Layout:"]'));
     const tg = t => [...pop.querySelectorAll('button')].find(b => b.textContent.trim() === t), dt = new DataTransfer();
     const dnd = (from, to) => { from.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true })); to.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true })); };
     dnd(tg(c0.at(-1)), tg(c0[0])); dnd(tg(s0[0]), [...pop.querySelectorAll('.row > span')].find(x => x.textContent === 'side panel'));
     const c1 = ids('ctx'), s1 = ids('side');
-    if (c1[0] !== c0.at(-1) || c1.slice(1).join() !== c0.slice(0, -1).join() || s1.at(-1) !== s0[0] || app.parts.side.join() !== s1.join()) errs.push('reorder ' + c1 + ' / ' + s1);
+    if (c1[0] !== c0.at(-1) || c1.slice(1).join() !== c0.slice(0, -1).join() || s1.at(-1) !== s0[0] || app.parts.side.filter(p => s1.includes(p)).join() !== s1.join()) errs.push('reorder ' + c1 + ' / ' + s1);
     setMode('experiment'); if (lay().order) errs.push('order per tab'); setMode('play'); if (ids('ctx')[0] !== c0.at(-1)) errs.push('order kept');
-    closePop(); layReset('play'); if (ids('ctx').join() !== c0.join() || ids('side').join() !== s0.join()) errs.push('reset order'); }
+    closePop(); layReset('play'); if (ids('ctx').join() !== c0.join() || ids('side').join() !== s0.filter(p => ids('side').includes(p)).join()) errs.push('reset order'); }
   // sizes: the grip sets the side panel's width (220–560, per tab, double-click: default); the editor / preview boundary drags (animate, character)
   { setMode('play'); const g = $('grip'), pe = (t, x) => (t === 'pointerdown' ? g : window).dispatchEvent(new PointerEvent(t, { clientX: x, bubbles: true }));
     pe('pointerdown', innerWidth - 300); pe('pointermove', innerWidth - 450); pe('pointerup', innerWidth - 450);
@@ -877,7 +883,7 @@ try {
     const sc = row(0).querySelector('input.script'); sc.value = '0.2, 2P'; sc.dispatchEvent(new Event('change'));
     const nm = document.querySelector('.sbuild input.sname'); nm.value = 'jab vs sumo'; nm.dispatchEvent(new Event('change'));
     if (lab.scen !== 'jab vs sumo' || !SCENARIOS['jab vs sumo'] || SCENARIOS[name] || w().a.ch !== CHARS.jabbo || w().b.ch !== CHARS.lumpo || !(w().ctl[1] instanceof Brain) || JSON.stringify(w().scen.a) !== JSON.stringify([0.2, 'down+punch'])) errs.push('builder edit ' + lab.scen + ' ' + JSON.stringify(w().scen.a));
-    const f = document.querySelector('.sbuild input.sfind'); f.value = 'gravit'; f.dispatchEvent(new Event('input')); bb('gravity').click();
+    const f = document.querySelector('.sbuild input[placeholder="add a setting…"]'); f.value = 'gravit'; f.dispatchEvent(new Event('input')); bb('gravity').click();
     if (u().cfg.gravity !== CFG.gravity) errs.push('builder add setting ' + JSON.stringify(u().cfg));
     setCfg({ hitstop: 0.2 }); bb(Object.values(document.querySelectorAll('.sbuild button')).find(b => b.textContent.includes('take my settings')).textContent.trim()).click();
     if (u().cfg.hitstop !== 0.2 || w().cfg.hitstop !== 0.2) errs.push('builder take settings ' + JSON.stringify(u().cfg)); applyPreset('juicy');
@@ -1006,7 +1012,7 @@ try {
     if (n1 !== n0 + 1 || Object.keys(DEFS).length !== n1 || !yes || CURRENT !== name) errs.push('keep random ' + [n0, n1, Object.keys(DEFS).length, !!yes]);
     delete DEFS[name]; delete CHARS[name]; creator.expOn = false; pickChar('stick'); });
   // character editor: Shift/⌘+click in the bone tree selects several bones, a value change goes to all of them; a plain click selects one
-  { setMode('character'); pickChar('stick'); panels();
+  { setMode('character'); pickChar('stick'); lay('character').panel = 'bones'; creator.boneView = 'tree'; panels(); // the tree lives in the bones panel
     const tb = id => [...document.querySelectorAll('.tree button')].find(b => b.textContent.trim().startsWith(id + ' ') || b.textContent.trim() === id);
     tb('uarmF').click(); tb('uarmB').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true })); tb('thighF').dispatchEvent(new MouseEvent('click', { bubbles: true, metaKey: true }));
     syncAll(); const title = [...document.querySelectorAll('h3, .head')].find(e => e.textContent.startsWith('Bone'))?.textContent || '';
@@ -1017,7 +1023,7 @@ try {
     tb('farmF').click(); if (selIds().join() !== 'farmF') errs.push('plain click ' + selIds());
     undo(); }
   // bone table: rows select (⌘+click adds), an edit in a selected row goes to every selected bone, in another row to that bone only
-  { setMode('character'); pickChar('stick'); lay('character').panel = 'bones'; panels();
+  { setMode('character'); pickChar('stick'); lay('character').panel = 'bones'; creator.boneView = 'table'; panels();
     const row = id => [...document.querySelectorAll('.btable tbody tr')].find(r => r.firstChild.textContent === id);
     const cell = (id, k) => row(id).children[BONE_COLS.findIndex(c => c.k === k)].querySelector('input');
     const lag = id => DEFS.stick.bones.find(b => b.id === id).lag;
@@ -1029,17 +1035,18 @@ try {
       errs.push('bone table ' + [on, lag('shinF'), lag('shinB'), lag('footF'), selIds()]);
     undo(); undo(); syncAll(); if (cell('shinF', 'lag').value === '2.3') errs.push('bone table after undo');
     lay('character').panel = null; panels(); }
-  // BONE.also: a bone panel row (toggles per role, excluding its own) and a bone table column, both editing the same array
+  // BONE.also: a button on the bone panel's role row (a popup of toggles per role, excluding its own) and a bone table column, both editing the same array
   { setMode('character'); pickChar('houndo'); pickBoneSel('uarmF', false); syncAll(); panels();
-    const row = [...document.querySelectorAll('.row')].find(r => r.textContent.includes('also') && r.textContent.includes('tail') && !r.textContent.includes('role'));
-    if (!row) errs.push('also row missing');
+    const alsoBtn = [...document.querySelectorAll('#side button')].find(b => b.dataset.tip?.startsWith('Other roles this bone'));
+    if (!alsoBtn) errs.push('also button missing');
     else {
-      if ([...row.querySelectorAll('button')].some(b => b.textContent.trim() === 'arm')) errs.push('also row offers the bone\\'s own role');
-      const spine = [...row.querySelectorAll('button')].find(b => b.textContent.trim() === 'spine');
-      spine.click(); if (DEFS.houndo.bones.find(b => b.id === 'uarmF').also?.sort().join() !== 'leg,spine') errs.push('also row add ' + DEFS.houndo.bones.find(b => b.id === 'uarmF').also);
-      spine.click(); if (DEFS.houndo.bones.find(b => b.id === 'uarmF').also?.join() !== 'leg') errs.push('also row remove ' + DEFS.houndo.bones.find(b => b.id === 'uarmF').also);
+      const opts = () => { closePop(); alsoBtn.click(); return [...document.querySelectorAll('.pop button')]; };
+      if (opts().some(b => b.textContent.trim() === 'arm')) errs.push('also offers the bone own role');
+      opts().find(b => b.textContent.trim() === 'spine').click(); if (DEFS.houndo.bones.find(b => b.id === 'uarmF').also?.sort().join() !== 'leg,spine') errs.push('also add ' + DEFS.houndo.bones.find(b => b.id === 'uarmF').also);
+      opts().find(b => b.textContent.trim() === 'spine').click(); if (DEFS.houndo.bones.find(b => b.id === 'uarmF').also?.join() !== 'leg') errs.push('also remove ' + DEFS.houndo.bones.find(b => b.id === 'uarmF').also);
+      closePop();
     }
-    lay('character').panel = 'bones'; panels();
+    lay('character').panel = 'bones'; creator.boneView = 'table'; panels();
     const trow = [...document.querySelectorAll('.btable tbody tr')].find(r => r.firstChild.textContent === 'uarmF');
     const cell = trow.children[BONE_COLS.findIndex(c => c.k === 'also')];
     if (cell.textContent !== 'leg') errs.push('also column ' + cell.textContent);
@@ -1131,7 +1138,7 @@ try {
     const r0 = rows()[0], f0 = +r0.cells[0].textContent.split(' f')[1]; r0.click();
     if (rp.n !== f0 || !rp.sel.size) errs.push('replay row ' + [rp.n, f0]);
     q.value = ''; q.dispatchEvent(new Event('input'));
-    const lanes = rpLanes().length; [...document.querySelectorAll('#ctx button')].find(b => b.dataset.tip?.startsWith('input:')).click();
+    const lanes = rpLanes().length; [...document.querySelectorAll('#side .trow button')].find(b => b.textContent.trim().endsWith('input')).click(); // the types section's toggle
     const h0 = rpLayout().tl.h; if (rpLanes().length !== lanes || rows().some(r => /input/.test(r.cells[1].textContent))) errs.push('replay types');
     { const L2 = rpLayout(), ir = L2.rows.find(r => r.type === 'input'); rpMouse('down', L2.tl.x + 20, ir.y + 4, {}); rpMouse('up', 0, 0, {}); if (!rp.show.has('input') || rpLayout().tl.h !== h0) errs.push('replay lane name toggles, same height'); rp.show.delete('input'); }
     const L = rpLayout(); rpMouse('down', L.tx + L.tw / 2, L.ruler + 5 * dpr, { altKey: true }); rpMouse('up', 0, 0, {});
@@ -1182,7 +1189,8 @@ try {
         else if (Math.abs(got.length - span * 30) > 3) errs.push('export frames ' + [got.length, Math.round(span * 30)]);
       }); }
     // 'all' shows every type, and hides them all when all are shown; a toolbar group dragged onto another moves before it
-    { const all = [...document.querySelectorAll('#ctx button')].find(b => b.textContent.endsWith('all')); rp.show = new Set(Object.keys(EVENT_TYPES)); all.click();
+    { layShow('ctx:types', true); panels(); // the toolbar's types group starts hidden (it repeats the side section); layReset below hides it again
+      const all = [...document.querySelectorAll('#ctx button')].find(b => b.textContent.endsWith('all')); rp.show = new Set(Object.keys(EVENT_TYPES)); all.click();
       const off = rp.show.size; all.click(); if (off !== 0 || rp.show.size !== Object.keys(EVENT_TYPES).length) errs.push('types all toggle ' + off);
       const gs = () => [...document.querySelectorAll('#ctx .grp[data-part]')].map(g => g.dataset.part), before = gs(), dt = new DataTransfer();
       document.querySelector('#ctx .grp[data-part="' + before[2] + '"] .gl').dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true }));
@@ -1340,17 +1348,43 @@ try {
       for (let i = 0; i < px.length; i++) worst = Math.max(worst, Math.abs(got[i] - px[i]));
       if (bm.width !== W || worst > 4) errs.push('clip gif decode ' + worst);
     }, e => errs.push('clip gif ' + e.message))); }
+  // ⌘K sweep, last (it changes a lot): every safe palette command runs without throwing; every shortcut action is in it; the shipped keys don't clash
+  afterSync.push(async () => {
+    if (keyClashes().size) errs.push('shipped key clashes ' + [...keyClashes()].join(','));
+    const names = new Set(paletteEntries().filter(e => e.kind === 'action').map(e => e.name));
+    const noPal = ACTIONS.filter(([a, g]) => SHORTCUTS[a] && g !== 'modes' && !names.has(a)).map(([a]) => a);
+    if (noPal.length) errs.push('shortcuts missing from ⌘K ' + noPal.join(','));
+    // skipped: whatever leaves the page, downloads, opens a file picker, records, wipes saved data, or goes online
+    const unsafe = /reset|delete|remove|clear|export|import|save|download|upload|record|clip|file|print|fullscreen|host|join|netplay|invite|server|copy|share|load|reload|update|new tab|open in/i;
+    const rl = reload, rll = reloadLatest; reload = reloadLatest = () => errs.push('a ⌘K command reloaded the page');
+    const ac = window.alert, cf = window.confirm, pr = window.prompt, op = window.open; window.alert = () => {}; window.confirm = () => false; window.prompt = () => null; window.open = () => null;
+    const kinds = new Set(), failed = [];
+    try {
+      for (const e of paletteEntries()) {
+        if (e.kind === 'tool' || unsafe.test(e.name) || unsafe.test(e.tip || '')) continue;
+        kinds.add(e.kind);
+        try { e.run(); panels(); closePop(); } catch (err) { failed.push(e.kind + ':' + e.name + ' (' + err.message + ')'); }
+        if (document.body.classList.contains('docspage') || $('docs')) closeDocs();
+        if ($('sink')) closeKitchenSink();
+      }
+    } finally { reload = rl; reloadLatest = rll; window.alert = ac; window.confirm = cf; window.prompt = pr; window.open = op; setMode('play'); panels(); }
+    if (failed.length) errs.push('⌘K commands threw: ' + failed.slice(0, 5).join(' · '));
+    for (const k of ['mode', 'action', 'docs']) if (!kinds.has(k)) errs.push('⌘K sweep ran no ' + k + ' entries');
+  });
 } catch (e) { errs.push(e.message + ' ' + e.stack.split('\\n')[1]); }
 // the async checks one after another (an export waits for the last one)
 Promise.all(later).then(() => afterSync.reduce((p, f) => p.then(f), Promise.resolve())).then(() => { document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK'; }, e => { document.title = 'ERR ' + e.message; });
 </script></body>`;
+// the probe must parse: a broken line (a // comment swallowing the rest of a one-line block, say) would otherwise just never run
+try { new vm.Script(probe.replace(/^<script>|<\/script><\/body>$/g, ''), { filename: 'probe' }); }
+catch (e) { console.error('FAIL: the probe script does not parse: ' + e.message + '\n' + e.stack.split('\n').slice(0, 3).join('\n')); process.exit(1); }
 fs.writeFileSync(out, fs.readFileSync(path.join(root, 'index.html'), 'utf8')
   .replace(/(src|fonts)\//g, `file://${root}/$1/`).replace('</body>', probe));
 (async () => {
 // COVERAGE=1: the same page under Chrome's coverage, printed per src file (tests/browser/browser-coverage.js)
 const title = process.env.COVERAGE ? await require('./browser-coverage')(chrome, 'file://' + out, path.join(root, 'src'))
   : (execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
-    '--virtual-time-budget=5000', '--dump-dom', 'file://' + out], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).match(/<title>([^<]*)/) || [])[1] || 'no title';
+    '--virtual-time-budget=' + (process.env.BUDGET || 5000), '--dump-dom', 'file://' + out], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).match(/<title>([^<]*)/) || [])[1] || 'no title';
 // docs.html opens the app as the docs page
 const docsDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
   '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'docs.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
@@ -1371,6 +1405,8 @@ const galleryOk = /data-part="target"/.test(galleryDom) && /class="fpick"/.test(
 const demoDom = execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
   '--virtual-time-budget=3000', '--dump-dom', 'file://' + path.join(root, 'gallery-demo.html')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 const demoOk = /\btheater\b/.test(demoDom);
+// only an explicit OK passes: anything else in the title (the app's own, empty) means the probe never finished
+if (!/^(OK|ERR)/.test(title)) console.error(`FAIL: the page never finished its checks (title: ${JSON.stringify(title)})`);
 console.log(title, docsOk ? '· docs.html OK' : '· docs.html FAILED', randomOk ? '· random.html OK' : '· random.html FAILED', sinkOk ? '· kitchen-sink.html OK' : '· kitchen-sink.html FAILED',
   galleryOk ? '· gallery.html OK' : '· gallery.html FAILED', demoOk ? '· gallery-demo.html OK' : '· gallery-demo.html FAILED');
 process.exit(title === 'OK' && docsOk && randomOk && sinkOk && galleryOk && demoOk ? 0 : 1);
