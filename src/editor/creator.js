@@ -23,8 +23,9 @@ const diffHeadScen = () => { const s = SCENARIOS['ai vs ai'];
 // ---------- editor view: the stance pose, big, with a handle on every joint ----------
 function edLayout() {
   // the bones panel covers the bottom of the stage: the editor and preview fit above it
-  const ew = splitX(), ov = document.querySelector('#over > .btable'), hh = canvas.height - (ov ? ov.offsetHeight * dpr : 0);
-  return { ed: { x: 0, y: 0, w: ew, h: hh }, pv: { x: ew, y: 0, w: canvas.width - ew, h: hh } };
+  const ew = splitX() - (rigShown() ? RIG_W * dpr : 0), ov = document.querySelector('#over > .btable'), hh = canvas.height - (ov ? ov.offsetHeight * dpr : 0);
+  const px = splitX();
+  return { ed: { x: 0, y: 0, w: ew, h: hh }, pv: { x: px, y: 0, w: canvas.width - px, h: hh } };
 }
 // screen transform of the figure; the hips stay put while dragging so the body doesn't jump under the cursor
 function edFrame() {
@@ -52,7 +53,9 @@ function drawEditor() {
     }
   }
   const fxs = fxNow(ch, null), ft = performance.now() / 1000;
+  if (rig.isolate) ctx.globalAlpha = 0.2; // isolate: everything but the selection ghosted
   drawFx(ctx, L, fxs, ft, true); drawFigure(ctx, ch, L, INK[0], INK[1], 0, roleTint()); drawFx(ctx, L, fxs, ft, false);
+  ctx.globalAlpha = 1;
   for (const sel of selIds().map(id => ch.by[id])) { // the selected bones in red: a line, or a filled disc for circles
     const a = L[sel.parent || 'hip'], e = L[sel.id];
     ctx.strokeStyle = ctx.fillStyle = RED[0]; ctx.lineWidth = sel.thick;
@@ -103,7 +106,7 @@ function dragTo(x, y, shift) {
   local = cur + ((local - cur) % 360 + 540) % 360 - 180; // continuous with the current angle
   edit(def => {
     editPose(def)[b.id] = Math.round(local);
-    if (!shift && !b.lenLock && b.shape !== 'circle') boneDef(def, b.id).len = Math.max(2, Math.round(Math.hypot(dx, dy) * (b.chainN || 1) / (stanceBody()?.scale || 1))); // (drawn × the stance's size)
+    if (!shift && rig.mode !== 'animate' && !b.lenLock && b.shape !== 'circle') boneDef(def, b.id).len = Math.max(2, Math.round(Math.hypot(dx, dy) * (b.chainN || 1) / (stanceBody()?.scale || 1))); // (drawn × the stance's size)
   }, 'drag:' + b.id);
 }
 // dragging the hip moves the body over the feet in the stance: every leg bends so its ankle stays (as in animate, see hipTo)
@@ -184,9 +187,11 @@ function creatorRender() {
     creator.exp.cells.forEach((c, i) => drawCell(c, rects[i], { plot: false, selected: creator.exp.kind === 'body' && i === 0 && 'parent' }));
     return;
   }
-  const { pv } = edLayout();
+  const { ed, pv } = edLayout();
+  if (pv.x > ed.w) { ctx.fillStyle = '#f3f0e8'; ctx.fillRect(ed.w, 0, pv.x - ed.w, ed.h); } // under the rig tools column
   drawEditor();
   drawCell({ w: creator.w, label: 'preview' }, pv, { plot: false });
+  drawTipGhost();
 }
 // keeping a random cell adds it once; clicking it again offers to update that character instead of adding a copy
 async function keepRandom(i) {
@@ -206,7 +211,7 @@ function creatorMouse(type, x, y, e) {
   if (type === 'down') {
     const id = pickBone(x, y);
     if (id && (e.metaKey || e.ctrlKey)) { pickBoneSel(id, true); syncAll(); } // ⌘/Ctrl+click: add to / take out of the selection
-    else if (id && id !== 'hip' && e.altKey) { pickBoneSel(id, false); creator.rep = { id, x, y }; syncAll(); } // Alt+drag: reparent onto the joint it's dropped on
+    else if (id && id !== 'hip' && e.altKey && rig.mode !== 'animate') { pickBoneSel(id, false); creator.rep = { id, x, y }; syncAll(); } // Alt+drag: reparent onto the joint it's dropped on
     else if (id === 'hip') { const f = edFrame(); creator.hip0 = { x, y, a: [...f.o], pose: { ...curStance(f.ch).pose }, L: f.L }; creator.drag = 'hip'; }
     else if (id) { pickBoneSel(id, false); creator.drag = id; syncAll(); }
   } else if (type === 'move') {
@@ -229,7 +234,7 @@ function creatorKey(e, a) {
 // ---------- panels ----------
 function creatorCtx() {
   return [charStancePicker(), movesGrp(),
-    showGrp(['boxes', 'colours']), panelsGrp([...MOVE_PANELS, 'bones', ...CHAR_DEFS[CURRENT] ? ['changes'] : []],
+    showGrp(['boxes', 'colours']), toggle(':accessibility: rig', 'Rig tools: a column beside the character view (setup / animate, pose copy and paste, isolate, tip ghost)', () => !rig.hidden, v => { rig.hidden = !v; panels(); }), panelsGrp([...MOVE_PANELS, 'bones', ...CHAR_DEFS[CURRENT] ? ['changes'] : []],
       { ...VIEW_TIPS, bones: 'Bones under the character view: the bone tree or the bone table (switch in its head)', changes: 'What differs from the matching built-in character' }),
   ];
 }
@@ -573,6 +578,75 @@ function expPanel() {
   ];
 }
 
+// ---------- rig tools: a docked column beside the character view (setup / animate, pose clipboard, isolate, tip ghost) ----------
+// setup: dragging a joint sets its angle and length, Alt+drag reparents · animate: angles only, the rig itself can't change
+const RIG_W = 210; // css px
+const rig = { mode: 'setup', isolate: false, ghost: false, trail: [],
+  clip: (() => { try { return JSON.parse(localStorage.getItem('stick2.poseClip')) || null; } catch { return null; } })() };
+layFlag(rig, 'hidden', 'rigHidden');
+const rigShown = () => !rig.hidden && !creator.expOn && innerWidth > 700; // narrow screens: a bottom sheet over the stage instead (css)
+const rigOn = () => !rig.hidden && !creator.expOn;
+// the pose a reset goes back to: the built-in character's, else the pose this stance had when the character was opened
+function bindPose() {
+  const base = CHAR_DEFS[CURRENT];
+  if (base) return (studio.stance ? base.stances?.[studio.stance - 1]?.pose : base.poses?.stance) || {};
+  return (rig.bind ||= {})[CURRENT + ':' + studio.stance] ||= { ...curStance().pose };
+}
+function copyPose() {
+  rig.clip = { ...curStance().pose };
+  try { localStorage.setItem('stick2.poseClip', JSON.stringify(rig.clip)); } catch {}
+}
+// only: paste to these bones (the selection), else every bone the clip and the character share
+function pastePose(only) {
+  const c = rig.clip, ch = viewChar();
+  if (!c) return;
+  edit(def => { const p = editPose(def); for (const id of only || Object.keys(c)) if (id in c && ch.by[id]) p[id] = c[id]; });
+}
+function resetBones(ids = selIds()) {
+  const b = bindPose();
+  edit(def => { const p = editPose(def); for (const id of ids) if (id in b) p[id] = b[id]; else delete p[id]; });
+}
+// the selected bone's tip in the preview fight, kept for ~1.5 s and drawn as a fading trail (shows the arc of a strike)
+function drawTipGhost() {
+  const w = creator.w, f = w?.a, id = studio.sel;
+  if (!rig.ghost || !w?.view || !f?.ch.by[id]) { rig.trail.length = 0; return; }
+  const p = f.body()[id];
+  rig.trail.push([p[0], p[1]]);
+  if (rig.trail.length > 90) rig.trail.shift();
+  const { s, ox, oy } = w.view, r = edLayout().pv;
+  ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
+  ctx.strokeStyle = RED[0]; ctx.lineWidth = 2 * dpr; ctx.lineCap = 'round';
+  for (let i = 1; i < rig.trail.length; i++) {
+    const a = rig.trail[i - 1], b = rig.trail[i];
+    ctx.globalAlpha = i / rig.trail.length;
+    ctx.beginPath(); ctx.moveTo(a[0] * s + ox, a[1] * s + oy); ctx.lineTo(b[0] * s + ox, b[1] * s + oy); ctx.stroke();
+  }
+  ctx.restore();
+}
+const RIG_MODE_TIPS = { setup: 'Setup: dragging a joint sets its angle and length; Alt+drag hangs a bone from another',
+  animate: 'Animate: dragging a joint only turns it; lengths and parents stay put, so posing can\'t change the rig' };
+function rigColumn() {
+  const sel = () => selIds().length > 1 ? `${selIds().length} bones` : studio.sel;
+  const col = h('div', { cls: 'rigcol' },
+    h('div', { cls: 'righead' }, h('b', { textContent: 'Rig tools' }), button(':close:', 'Hide the rig tools (show them again from the toolbar\'s rig button or "rig tools" in the palette)', () => { rig.hidden = true; panels(); }, 'mini')),
+    h('div', { cls: 'row' }, h('span', { textContent: 'mode' }), seg(['setup', 'animate'], () => rig.mode, v => { rig.mode = v; }, RIG_MODE_TIPS)),
+    h('h4', { tip: 'The stance pose: copy it, paste it onto this or another character (bones with the same names), or reset bones' }, 'Pose'),
+    h('div', { cls: 'bar' },
+      button(':content_copy: copy', 'Copy the stance pose (every bone angle)', copyPose),
+      button(':download: paste', 'Paste the copied pose onto every bone it has (undoable)', () => pastePose()),
+      button(':select_all: selected', 'Paste the copied pose onto the selected bones only', () => pastePose(selIds())),
+      button(':restart_alt: reset', 'Reset the selected bones to the bind pose: the built-in character\'s stance, else the pose when you opened it', () => resetBones())),
+    h('h4', { tip: 'What the selection shows' }, 'Selection'),
+    h('div', { cls: 'note rigsel' }),
+    h('div', { cls: 'bar' },
+      toggle(':visibility: isolate', 'Ghost every bone but the selected ones in the character view', () => rig.isolate, v => { rig.isolate = v; }),
+      toggle(':timeline: ghost tip', 'Trail the selected bone\'s tip in the preview fight: the arc of its strikes', () => rig.ghost, v => { rig.ghost = v; rig.trail.length = 0; })));
+  const note = col.querySelector('.rigsel');
+  reg(note, () => { note.textContent = `${sel()}${rig.clip ? ' · pose copied' : ''}`; });
+  col.style.left = `calc(${splitX() / dpr}px - ${RIG_W}px)`;
+  return col;
+}
+
 const creatorMode = {
   preview: () => creator.expOn ? null : edLayout().pv,
   clipRects: () => creator.expOn ? cellRects(9, 3, fullArea()).map((r, i) => ({ key: creator.exp.cells[i], r })) : [{ key: 'preview', r: edLayout().pv }],
@@ -592,10 +666,11 @@ const creatorMode = {
   render: creatorRender,
   ctxBar: creatorCtx,
   side: () => creator.expOn ? expPanel() : bodyPanel(),
-  overlay: () => creator.expOn ? [] : (lay().panel === undefined && (lay().panel = 'bones'), stageOpen() === 'bones') ? [bonePanelStage()] : stageOpen() === 'changes' ? [charDiffPanel()] : moveStage() ? [moveStage()()] : [previewBar()],
+  overlay: () => creator.expOn ? [] : [...rigOn() ? [rigColumn()] : [],
+    ...(lay().panel === undefined && (lay().panel = 'bones'), stageOpen() === 'bones') ? [bonePanelStage()] : stageOpen() === 'changes' ? [charDiffPanel()] : moveStage() ? [moveStage()()] : [previewBar()]],
   open: ['character', 'body', 'bone', 'stance pose', 'random characters'],
   mouse: creatorMouse,
   key: creatorKey,
   hint: () => creator.expOn ? (creator.exp.kind === 'random' ? 'click a cell to keep it' : 'click a cell to breed around it') + ' · Esc back to the editor'
-    : 'drag a joint: length + angle · Shift+drag: angle only · Alt+drag onto a joint: hang it from that bone · drag the hip (square): move the waist over the feet · click: select · ⌘click: add to the selection · Del delete · ⌘Z undo',
+    : (rig.mode === 'animate' ? 'animate: drag a joint to turn it (lengths and parents locked) · ' : '') + 'drag a joint: length + angle · Shift+drag: angle only · Alt+drag onto a joint: hang it from that bone · drag the hip (square): move the waist over the feet · click: select · ⌘click: add to the selection · Del delete · ⌘Z undo',
 };
