@@ -642,7 +642,9 @@ function rigColumn() {
       toggle(':visibility: isolate', 'Ghost every bone but the selected ones in the character view', () => rig.isolate, v => { rig.isolate = v; }),
       toggle(':timeline: ghost tip', 'Trail the selected bone\'s tip in the preview fight: the arc of its strikes', () => rig.ghost, v => { rig.ghost = v; rig.trail.length = 0; })),
     h('h4', { tip: 'Constraints on the selected bones, applied in every fight and the preview fight (the still view shows the stance as authored): follow copies another bone\'s turn, reach bends the bone and its parent so its end touches another bone\'s end (IK). Springs still play on top. rig: clear constraints in the palette removes both' }, 'Constraints'),
-    ...consRows());
+    ...consRows(),
+    h('h4', { tip: 'Skins: named looks for this character, made only of bone drawing settings (thickness, cap, taper, shade, curve, draw layer). Applying one changes how it is drawn, never how it fights' }, 'Skins'),
+    ...skinRows());
   const note = col.querySelector('.rigsel');
   reg(note, () => { note.textContent = `${sel()}${rig.clip ? ' · pose copied' : ''}`; });
   col.style.left = `calc(${splitX() / dpr}px - ${RIG_W}px)`;
@@ -662,6 +664,39 @@ function consRows() {
       pick(others, () => prop('reach') || '—', setT('reach'), {}, String)),
     mix('reach', { min: 0, max: 1, step: 0.05 }, 'How far toward reaching it: 0 = its own pose, 1 = all the way.'),
   ];
+}
+
+// ---------- skins: named sets of bone drawing settings (def.skins[name] = { boneId: { thick, cap, … } }), applied onto the bones.
+// procedural only (no images); only drawing fields, so a skin never changes the fight and replays stay valid
+const SKIN_KEYS = ['thick', 'cap', 'taper', 'shade', 'curve', 'z'];
+function skinOf(def) {
+  return Object.fromEntries(def.bones.map(b => [b.id, Object.fromEntries(SKIN_KEYS.filter(k => b[k] !== undefined).map(k => [k, b[k]]))]));
+}
+async function saveSkin() {
+  const def = DEFS[CURRENT], name = (await askText('Name of the skin', 'skin' + (Object.keys(def.skins || {}).length + 1), 'Saves every bone\'s thickness, cap, taper, shade, curve and draw layer as they are now.'))?.trim();
+  if (name) edit(d => { (d.skins ??= {})[name] = skinOf(d); d.skin = name; });
+}
+// bones the skin doesn't name keep their look; a field the skin doesn't set goes back to the default
+function applySkin(name) {
+  edit(d => {
+    const sk = d.skins?.[name]; if (!sk) return;
+    for (const b of d.bones) if (sk[b.id]) { for (const k of SKIN_KEYS) delete b[k]; Object.assign(b, sk[b.id]); }
+    d.skin = name;
+  });
+}
+function deleteSkin(name) { edit(d => { delete d.skins?.[name]; if (d.skins && !Object.keys(d.skins).length) delete d.skins; if (d.skin === name) delete d.skin; }); }
+function skinRows() {
+  const names = () => Object.keys(DEFS[CURRENT].skins || {});
+  const list = h('div', { cls: 'bar' });
+  reg(list, () => {
+    const cur = DEFS[CURRENT].skin, ns = names();
+    list.replaceChildren(...ns.map(n => button((n === cur ? ':check: ' : '') + n, `Apply the ${n} skin (undoable) · Alt+click: update it from the bones as they are now`,
+      e => e.altKey ? edit(d => { d.skins[n] = skinOf(d); d.skin = n; }) : applySkin(n), 'mini')),
+      ...ns.length ? [] : [h('span', { cls: 'note', textContent: 'none yet' })]);
+  });
+  return [list, h('div', { cls: 'bar' },
+    button(':add: save skin', 'Save the bones\' current look as a new skin: style the bones (thick, cap, taper, shade, curve, z), then save. Example: a "heavy" skin with thick 9, square caps, and a "sketch" skin with thick 2, taper 0.6', saveSkin),
+    button(':delete: delete', 'Delete the applied skin (the bones keep their current look)', () => DEFS[CURRENT].skin && deleteSkin(DEFS[CURRENT].skin)))];
 }
 
 const creatorMode = {
