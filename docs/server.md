@@ -56,7 +56,8 @@ Environment variables, each with a default:
 | `TRUST_PROXY` | off | `1`: take the client address from `X-Forwarded-For` |
 | `LOG_LEVEL` | `info` | `debug`, `info` or `quiet`; logs are JSON lines on stdout |
 | `ADMIN_TOKEN` | (none) | Turns on the [admin API](#moderation); requests need `Authorization: Bearer <token>` |
-| `DB_PATH` | (none; `/data` in the image) | Folder for `bans.json`; none: bans last until a restart |
+| `DB_PATH` | (none; `/data` in the image) | Folder for `bans.json` and `embeds.json`; none: they last until a restart |
+| `MAX_EMBEDS` | `10000` | Short embed links kept ([embed short links](embed.md#short-links)); `0` turns them off |
 | `NAME_BLOCKLIST` | (none) | More words names may not contain, comma separated |
 | `COMMIT` | `dev` | Shown in `stick2_build_info` (the image sets it) |
 
@@ -68,6 +69,8 @@ Environment variables, each with a default:
 | `GET /healthz` | `200 ok`, or `503 draining` while shutting down |
 | `GET /metrics` | Prometheus metrics |
 | `GET /api/rooms` | `{ server, region, version, rooms: [{ room, name, host, phase, players, watchers, locked }] }`, public rooms only (the room browser) |
+| `POST /api/embeds` | `{ hash }` → `{ id }`: a short embed link (CORS open, 60 an hour per address, hash up to 64 KB) |
+| `GET /e/<id>` | Redirects to `/index.html#<hash>` |
 | `/api/admin/…` | Moderation, with `ADMIN_TOKEN` (404 without one) |
 | `WS /ws` | The relay |
 

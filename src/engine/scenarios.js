@@ -80,7 +80,8 @@ const EMBED_RANDOM_POOL = ['you vs dummy', 'you vs ai', 'you vs 2 ai', 'you vs 3
 // off the live CFG; bover also applies to every wave/survival enemy as they spawn in (World.addFoe), not just b
 const embedPlayerEdge = () => ({ health: CFG.health * 1.5, damage: 0.5, comboDamage: 0.7, staggerAt: CFG.staggerAt * 1.6, dizzyAt: CFG.dizzyAt * 1.6 });
 const EMBED_ENEMY_EDGE = { damage: 1.6 };
-function loadEmbedScenario(raw) {
+// the scenario an #embed= value names (a name, a slug, random, or a scenario's JSON), or null (logged)
+function resolveEmbedScenario(raw) {
   let name = EMBED_SLUGS[raw] || (SCENARIOS[raw] ? raw : null);
   if (raw === 'random') {
     name = EMBED_RANDOM_POOL[Math.floor(Math.random() * EMBED_RANDOM_POOL.length)];
@@ -91,9 +92,14 @@ function loadEmbedScenario(raw) {
     name = EMBED_KEY;
   }
   if (!name) { // not a known scenario or slug: a custom one, exported from the builder (same JSON as the export/import file, one entry)
-    let u; try { u = JSON.parse(raw); } catch { return console.error(`stick2: bad #embed value "${raw}"`); }
+    let u; try { u = JSON.parse(raw); } catch { console.error(`stick2: bad #embed value "${raw}"`); return null; }
     SCENARIOS[EMBED_KEY] = toScen(u); name = EMBED_KEY;
   }
+  return name;
+}
+function loadEmbedScenario(raw) {
+  const name = resolveEmbedScenario(raw);
+  if (!name) return;
   lab.scen = name; lab.playback = null; setMode('play'); setTheater(true); build();
 }
 function embedLink(u) { return `${location.origin}${location.pathname}#embed=${encodeURIComponent(JSON.stringify(u))}`; }
