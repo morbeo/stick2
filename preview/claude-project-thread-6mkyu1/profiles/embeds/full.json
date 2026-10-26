@@ -1,0 +1,5 @@
+{
+  "tip": "The whole app in a frame, saving to the visitor's own stick2 storage. Use for a docs page, not a third-party site.",
+  "cfg": { "tools": ["play", "replay", "grid", "experiment", "gallery", "character", "tests", "animate", "fx", "sounds", "tracker", "props", "weapons"], "edit": true, "persist": true, "net": true, "mute": false,
+    "ui": ["menubar", "toolbar", "side", "help", "palette", "hud", "timer", "labels", "meter", "inputs"], "controls": [], "focus": "auto" }
+}
