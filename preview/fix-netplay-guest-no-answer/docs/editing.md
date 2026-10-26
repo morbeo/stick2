@@ -85,7 +85,7 @@ The **radar** lives in the bones panel under the character view (its tree / tabl
 
 The **shadow** section (the shadow tab of the character's Stats section) sets the shadow drawn under the character in a fight. Drawing only: the fight plays out the same.
 
-- **shape:** ellipse (the default oval), circle (a round blob, w is its radius), body (the figure itself squashed and sheared onto the floor) or **off**.
+- **shape:** ellipse (the default oval), circle (a round blob, w is its radius), body (the figure itself squashed and sheared onto the floor) or **off**. The oval and circle sit centred under the whole body and widen to its length (a centaur's horse body is covered too).
 - **w, h:** the oval's half-width and half-height. For body, w / 22 and h / 22 scale the figure's width and height on the floor.
 - **alpha** (darkness) and **colour** (black or an effect colour: a purple glow under a ghost).
 - **dx, dy:** moves it from the feet. **lift:** how fast it shrinks as the fighter rises (0 = never). **skew** (body only): how far it leans.
