@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: Branch, tag or commit to publish (default: the branch picked above)
+        description: "Branch, tag or commit to publish (default: the branch picked above)"
         required: false
         type: string
       channel:
