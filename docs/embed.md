@@ -32,10 +32,11 @@ The hash still takes the app's own links too (`tool=`, `char=`, `move=`…), lim
 | `p1` | characters | string | `—` | Character in slot 1 (empty: the scenario's own) |
 | `p2` | characters | string | `—` | Character in slot 2 (empty: the scenario's own) |
 | `ui` | ui | list (menubar, toolbar, side, help, palette, hud, timer, labels, meter, inputs, welcome) | `hud,timer` | Which parts of the app show |
+| `sections` | ui | list | `none` | Side panel sections to keep, by heading (e.g. netplay,movelist; empty: all) |
 | `controls` | controls | list (play, restart, speed, mute, jumpin, branches, fullscreen, open, share, edit) | `play,restart,mute,fullscreen,open` | The embed's own control bar (shown on hover or tap) |
 | `tools` | tools | list (play, replay, grid, experiment, gallery, character, tests, animate, fx, sounds, tracker, props, weapons) | `play` | Which tabs can be opened (the first is where it starts, unless a replay is given) |
 | `edit` | tools | bool | `false` | Allow the editing tabs (character, animate, fx…) and the edit drawer; edits stay in memory unless persist is on |
-| `input` | input | list (keyboard, touch) | `keyboard,touch` | Which inputs drive the player (none: watch only) |
+| `input` | input | list (keyboard, touch, gamepad, host) | `keyboard,touch,gamepad` | Which inputs drive the player (none: watch only; host: the host page presses keys through postMessage) |
 | `focus` | input | enum (click, auto) | `click` | click: keys reach the game only after it is clicked, so the host page keeps its own keys |
 | `autoplay` | playback | bool | `true` | Start running at once (off: a still poster frame until clicked; also off with reduced motion) |
 | `replay` | playback | string | `—` | A replay to open: an https URL of a replay file, or inline (z:<deflated base64url>, j:<base64url JSON>) |
@@ -45,12 +46,16 @@ The hash still takes the app's own links too (`tool=`, `char=`, `move=`…), lim
 | `challenge` | playback | bool | `false` | A challenge: jump in at the frame and win the round from there |
 | `net` | netplay | bool | `false` | Allow online play (#join= / #server= links and the online panel) |
 | `bg` | look | enum (paper, transparent) | `paper` | Page background around the stage (light theme only) |
+| `accent` | look | string | `—` | Accent colour of the embed's own bar and play button, as #rgb or #rrggbb (empty: the game's) |
+| `poster` | look | string | `—` | A still image shown before play when autoplay is off: an https URL (empty: the paused first frame) |
 | `watermark` | look | bool | `true` | A small "stick2" link back to the full game |
 | `persist` | security | bool | `false` | Save to this browser's stick2 storage (off: everything stays in memory, the visitor's own saves are untouched) |
 | `mute` | security | bool | `true` | Start muted |
 | `origins` | security | list | `none` | Pages allowed to send postMessage commands (empty: the embedding page only; * for any) |
 
 **ui** parts: `menubar` (the tabs and global buttons), `toolbar` (the tab's toolbar), `side` (the side panel), `help` (the hint line), `palette` (⌘K), `hud`, `timer`, `labels`, `meter` (frame meter), `inputs` (input display), `welcome`.
+
+**sections**: side panel sections to keep, by their heading (`sections=movelist,netplay`); empty keeps them all.
 
 **controls** (the embed's own bar, shown on hover or tap): `play` (play/pause), `restart` (or back to where you jumped in), `speed`, `mute`, `jumpin` (jump into the replay as P1 or P2, and back to the replay), `branches` (a list of the replay and its branches), `fullscreen`, `open` (the full app on the same fight), `share` (copy a link to this moment), `edit` (the edit drawer: toolbar and side panel).
 
@@ -97,7 +102,7 @@ The host page can drive the embed and hear back from it. Every message is an obj
 
 **Events** (embed → host page, sent to the parent with `*`; nothing in them is private): `ready` {version, engine, build, warnings, tools}, `ko` {winner: 1 | 2 | 0, team, frame}, `challenge` {won, side, from}, `branch` {side, from}, `replay` {frames, version, desync}, `state` (an answer to `state`), `error` {error}.
 
-**Commands** (host page → embed): `config` {config: {…options}}, `play`, `pause`, `restart`, `scenario` {name}, `seek` {frame}, `jumpIn` {side}, `load` {replay: a replay object or a `replay=` value}, `state`. Commands are taken from the page that embeds the game, or from the pages listed in `origins` (`*` for any).
+**Commands** (host page → embed): `config` {config: {…options}} (live: every option but the replay ones; changing tools or the roster takes effect at once), `play`, `pause`, `restart`, `scenario` {name}, `seek` {frame}, `jumpIn` {side}, `load` {replay: a replay object or a `replay=` value}, `state`, and with `input` including `host`: `press` {keys}, `release` {keys}, `tap` {keys} (P1's keys: left, right, up, down, hop, punch, kick, special, guard). Commands are taken from the page that embeds the game, or from the pages listed in `origins` (`*` for any).
 
 The helper [`stick2-embed.js`](../stick2-embed.js) wraps it:
 
@@ -111,15 +116,19 @@ The helper [`stick2-embed.js`](../stick2-embed.js) wraps it:
 </script>
 ```
 
-`mount(el, options, { width, height, version, base, title })` returns `{ iframe, on(type, fn), config, play, pause, restart, scenario, seek, jumpIn, load, state }`; commands sent before `ready` are queued.
+`mount(el, options, { width, height, version, base, title })` returns `{ iframe, on(type, fn), config, play, pause, restart, scenario, seek, jumpIn, load, state, press, release, tap }`; commands sent before `ready` are queued.
 
 ## Short links
 
-A long config (an inline replay) makes a long link. The [dedicated server](server.md) keeps short ones: the builder's **short link** button posts the hash to `POST <server>/api/embeds` and gets back `<server>/e/<id>`, which redirects to the game with that hash. The same hash always gets the same id. Kept in `DB_PATH/embeds.json` (in memory without one), at most `MAX_EMBEDS` (default 10000; 0 turns short links off), 60 an hour per address.
+A long config (an inline replay) makes a long link. The [dedicated server](server.md) keeps short ones: the builder's **short link** button posts the hash to `POST <server>/api/embeds` and gets back `<server>/e/<id>`, which is a small page with its own link card ("stick2: arcade", "stick2: a replay"…) that goes straight on to the game. The same hash always gets the same id. Kept in `DB_PATH/embeds.json` (in memory without one), at most `MAX_EMBEDS` (default 10000; 0 turns short links off), 60 an hour per address.
 
 ## Link previews
 
-`index.html` carries Open Graph tags, so a stick2 link (embed or not) unfurls in Discord, Slack and the like with a title, a line and a picture. The hash isn't sent to the unfurler, so it's one card for every link.
+`index.html` carries Open Graph tags, so a stick2 link (embed or not) unfurls in Discord, Slack and the like with a title, a line and a picture. The hash isn't sent to the unfurler, so it's one card for every plain link; a [short link](#short-links) gets a card naming what it plays.
+
+## Gamepads
+
+A standard-mapping gamepad plays P1 anywhere in the app: D-pad or left stick moves, A punch, B kick, X special, Y hop, LB / RB guard, Start pauses. In an embed it needs `gamepad` in `input` (on by default).
 
 ## Accessibility
 

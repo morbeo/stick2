@@ -27,7 +27,7 @@
   body.embed.emb-nonet #side .fold:has(.netplay) { display: none; }
   html:has(body.emb-clear), body.emb-clear { background: transparent; }
   #embbar { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); display: flex; gap: 3px; align-items: center; padding: 3px 5px; z-index: 6;
-    background: rgba(251, 250, 246, .92); border: 1px solid #cfc8bb; border-radius: 4px; opacity: 0; transition: opacity .2s; }
+    background: rgba(251, 250, 246, .92); border: 1px solid var(--emb-accent, #cfc8bb); border-radius: 4px; opacity: 0; transition: opacity .2s; }
   #stage:hover #embbar, #embbar:focus-within, body.embtouch #embbar { opacity: 1; }
   #embbar select { font: inherit; height: 18px; max-width: 160px; }
   #embmark { position: absolute; right: 6px; bottom: 4px; font-size: 10px; z-index: 5; } #embmark a { color: #999; text-decoration: none; }
@@ -35,7 +35,8 @@
     border-radius: 3px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 6; } #embstate.show { opacity: 1; }
   #embposter { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(243, 240, 232, .35); cursor: pointer; z-index: 7; }
   #embposter[hidden], #embbar[hidden], #embmark[hidden] { display: none; }
-  .embplay { width: 64px; height: 64px; border-radius: 50%; font-size: 28px; line-height: 1; }
+  .embplay { width: 64px; height: 64px; border-radius: 50%; font-size: 28px; line-height: 1; border-color: var(--emb-accent, #cfc8bb); color: var(--emb-accent, #333); }
+  #embposter { background-size: cover; background-position: center; }
   @media (prefers-reduced-motion: reduce) { #embbar, #embstate { transition: none; } }
   #grip { grid-area: side; justify-self: start; width: 6px; margin-left: -3px; cursor: col-resize; z-index: 5; }
   input, button { font: inherit; }
@@ -424,6 +425,7 @@
 <script src="src/ui/welcome.js"></script>
 <script src="src/ui/app.js"></script>
 <script src="src/ui/touch.js"></script>
+<script src="src/ui/gamepad.js"></script>
 <script src="src/ui/bridge.js"></script>
 </body>
 </html>

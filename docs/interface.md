@@ -249,6 +249,10 @@ stick2 runs on a phone or tablet in the browser, nothing to install.
 
 <img src="img/phone.png" alt="The play tab on a phone, with the touch pad" width="260">
 
+## Gamepads
+
+A standard-mapping gamepad (Xbox, PlayStation, most USB and Bluetooth pads) plays P1 as soon as it's connected: D-pad or left stick moves, A punch, B kick, X special, Y hop, LB / RB guard, Start pauses. It feeds the same inputs as the keyboard, so replays and macros can't tell them apart.
+
 ## Sound
 
 Whooshes, hits, thuds and blocks, synthesized live with WebAudio (no sound files) and panned by where they happen.
