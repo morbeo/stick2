@@ -641,7 +641,7 @@ function rigColumn() {
     h('div', { cls: 'bar' },
       toggle(':visibility: isolate', 'Ghost every bone but the selected ones in the character view', () => rig.isolate, v => { rig.isolate = v; }),
       toggle(':timeline: ghost tip', 'Trail the selected bone\'s tip in the preview fight: the arc of its strikes', () => rig.ghost, v => { rig.ghost = v; rig.trail.length = 0; })),
-    h('h4', { tip: 'Constraints on the selected bones, applied in every fight and the preview: follow copies another bone\'s turn, reach bends the bone and its parent so its end touches another bone\'s end (IK)' }, 'Constraints'),
+    h('h4', { tip: 'Constraints on the selected bones, applied in every fight and the preview fight (the still view shows the stance as authored): follow copies another bone\'s turn, reach bends the bone and its parent so its end touches another bone\'s end (IK). Springs still play on top. rig: clear constraints in the palette removes both' }, 'Constraints'),
     ...consRows());
   const note = col.querySelector('.rigsel');
   reg(note, () => { note.textContent = `${sel()}${rig.clip ? ' · pose copied' : ''}`; });
@@ -655,10 +655,10 @@ function consRows() {
   const setT = k => v => edit(d => { for (const b of selDefs(d)) if (v === '—') { delete b[k]; delete b[k + 'Mix']; } else b[k] = v; });
   const mix = (k, r, tip) => only(() => !!prop(k), slider(k + ' mix', r, () => prop(k + 'Mix'), v => setProp(k + 'Mix', v), tip));
   return [
-    h('div', { cls: 'row', tip: 'Follow: turns as far as this bone turns away from its stance (hair after the head, a cape after the torso)' }, h('span', { textContent: 'follow' }),
+    h('div', { cls: 'row', tip: 'Follow: this bone turns as far as the picked bone turns away from its stance, × follow mix. Hair: follow head, mix 0.6. Cape: follow chest, 0.5. Tail counterswing: follow chest, -0.4. — = off' }, h('span', { textContent: 'follow' }),
       pick(others, () => prop('follow') || '—', setT('follow'), {}, String)),
     mix('follow', { min: -1, max: 1, step: 0.05 }, 'How much of the followed bone\'s turn it copies: 1 = all, 0.5 = half, below 0 = the other way.'),
-    h('div', { cls: 'row', tip: 'Reach (IK): this bone and its parent bend so its end touches this bone\'s end (a hand on a prop, both hands on a staff)' }, h('span', { textContent: 'reach' }),
+    h('div', { cls: 'row', tip: 'Reach (IK): this bone and its parent bend so its end touches the picked bone\'s end, × reach mix. Staff: handB reaches the staff tip, mix 1. Hand on hip: reach a hip socket, 0.7. Out of reach: the limb stretches toward it. — = off' }, h('span', { textContent: 'reach' }),
       pick(others, () => prop('reach') || '—', setT('reach'), {}, String)),
     mix('reach', { min: 0, max: 1, step: 0.05 }, 'How far toward reaching it: 0 = its own pose, 1 = all the way.'),
   ];

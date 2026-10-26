@@ -334,7 +334,7 @@ Each key block shows:
 
 ### Key properties
 
-- Easing, active frames, lunge and hit properties. **bezier** easing draws the key's own curve under the switch: drag its two handles (above the box overshoots, below it anticipates), double-click to reset. Every easing is in the palette as `key easing: …`.
+- Easing, active frames, lunge and hit properties. See [Bezier easing](#bezier-easing) for a curve of your own. Every easing is in the palette as `key easing: …`.
 - **events:** the hit spark (hit, heavy, slash, blunt, none), a sound as the key is reached, after-images while it plays, screen shake. Effects only: the fight plays out the same. A key with events shows a spark icon.
 - **Striking bones:** limb, head and tail ends as buttons, any bone from the list, or Shift+click a joint. Shift+click a button or ⌘/Ctrl+Shift+click a joint to add or remove one, so several limbs strike at once; whichever lands counts, once per target.
 
@@ -390,6 +390,28 @@ The picker shows the moves as:
 - **strip** shows both as filmstrips: a frame every few frames on one time scale, tinted by phase, with their frame data. The playhead's frame is outlined; click a frame to go there.
 
 The move table, input table and combos are on the [Editing](editing.md) page.
+
+### Bezier easing
+
+Pick **bezier** in a key's easing switch to give the key a curve of your own. The graph under the switch shows time from left to right and progress toward the key's pose from bottom to top. The grey box is the range from the previous pose (bottom) to this key's pose (top).
+
+- **Drag a round handle** to bend the curve. The left handle shapes the start of the key, the right handle the end.
+- **Above the box** (y over 1), the motion overshoots the pose and settles back.
+- **Below the box** (y under 0), it anticipates: it pulls back first, then goes.
+- **Double-click** the graph to reset it to a plain slow-in, slow-out.
+- One drag is one undo step.
+
+The curve is saved on the key as `"e": "bezier", "bz": [x1, y1, x2, y2]`, the two handle positions (x from 0 to 1, y from -0.5 to 1.5 in the editor). The default is `[0.42, 0, 0.58, 1]`. The **easing** setting must stay at `authored` (the default) for keys to use their own curves; any other value overrides every key.
+
+| Feel | `bz` | Good for |
+|------|------|----------|
+| Slow in, slow out | `[0.42, 0, 0.58, 1]` | recoveries, idle shifts |
+| Snap | `[0, 0.9, 0.2, 1]` | jabs, fast strikes |
+| Wind-up | `[0.6, 0, 1, 1]` | slow start into a heavy blow |
+| Overshoot | `[0.2, 0, 0.4, 1.4]` | a kick that over-extends and settles |
+| Anticipation | `[0.3, -0.3, 0.6, 1]` | a pull-back before a punch |
+
+**Example:** for a hammer swing that winds up and then slams through, set the strike key to bezier and drag the left handle below the box (anticipation) and the right handle above it (overshoot): `[0.35, -0.25, 0.55, 1.3]`.
 
 ## Gallery
 
