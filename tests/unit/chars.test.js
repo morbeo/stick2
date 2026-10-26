@@ -5,16 +5,16 @@ const engine = require('../../tools/lib/engine');
 const { rebuild, PAGES } = require('../../tools/dev/char-scripts');
 const ROOT = path.join(__dirname, '..', '..'), DIR = path.join(ROOT, 'src', 'engine', 'chars');
 
-test('chars/index.json lists every character file exactly once, the kit first', () => {
+test('chars/index.json lists every character file but the base stick exactly once, the kit first', () => {
   const listed = engine.CHAR_FILES.map(f => path.basename(f));
   assert.equal(listed[0], '_kit');
   assert.equal(new Set(listed).size, listed.length);
-  assert.deepEqual([...listed].sort(), fs.readdirSync(DIR).filter(f => f.endsWith('.js')).map(f => f.slice(0, -3)).sort());
+  assert.deepEqual(['stick', ...listed].sort(), fs.readdirSync(DIR).filter(f => f.endsWith('.js')).map(f => f.slice(0, -3)).sort());
 });
 
 test('each roster character file defines the character it is named after', () => {
   const { run } = engine();
-  for (const f of engine.CHAR_FILES.map(f => path.basename(f)).filter(f => f !== '_kit'))
+  for (const f of ['stick', ...engine.CHAR_FILES.map(f => path.basename(f)).filter(f => f !== '_kit')])
     assert.ok(run(`CHAR_DEFS[${JSON.stringify(f)}] && CHARS[${JSON.stringify(f)}]`), f);
 });
 
