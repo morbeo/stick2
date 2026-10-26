@@ -1,0 +1,982 @@
+'use strict';
+// ---------- studio: editable character definitions (plain JSON), undo/redo, body operations ----------
+const clone = o => JSON.parse(JSON.stringify(o));
+// definitions persist in localStorage: saved characters override the built-ins, custom ones are added
+const STORE = 'stick2.chars';
+const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } })();
+const DEFS = { ...mapVals(CHAR_DEFS, clone), ...saved.defs };
+for (const d of Object.values(saved.defs || {})) d.moves = { ...clone(WEAPON_MOVES), ...d.moves }; // characters saved before weapons get their moves
+for (const k in DEFS) CHARS[k] = makeCharacter(DEFS[k]);
+if (DEFS[saved.current]) CURRENT = saved.current;
+// only edited built-ins are stored, so improved built-ins reach characters nobody changed
+const edited = () => Object.fromEntries(Object.entries(DEFS).filter(([k, d]) => !CHAR_DEFS[k] || JSON.stringify(d) !== JSON.stringify(CHAR_DEFS[k])));
+// a built-in can't be deleted (revert needs it to stay around), so "delete" disables it instead: hidden from every
+// picker, random pick and the live random-character roster, until re-enabled or reverted. Custom characters are unaffected
+const disabledChars = new Set(saved.disabled || []);
+const isDisabled = k => disabledChars.has(k);
+const rosterKeys = () => Object.keys(DEFS).filter(k => !disabledChars.has(k));
+function setDisabled(name, v) { if (v) disabledChars.add(name); else disabledChars.delete(name); save(); }
+
+// debounced: a drag (a joint in animate, a settings slider) can call a save on every event, far more often than the
+// JSON + localStorage write needs to happen; flush() forces it now (used on beforeunload, and where a caller needs the
+// write to have happened, like a test reading localStorage straight back)
+function debounce(fn, ms = 250) {
+  let t = null;
+  const d = () => { clearTimeout(t); t = setTimeout(fn, ms); };
+  d.flush = () => { if (t) { clearTimeout(t); t = null; fn(); } };
+  if (typeof addEventListener === 'function') addEventListener('beforeunload', d.flush);
+  return d;
+}
+let saveFailed = false;
+const save = debounce(() => {
+  try { localStorage.setItem(STORE, JSON.stringify({ defs: edited(), current: CURRENT, disabled: [...disabledChars] })); saveFailed = false; }
+  catch (e) { if (!saveFailed) { saveFailed = true; notice('Could not save characters', `Your changes are only in this tab for now: ${e.message}`); } }
+});
+// settings persist too: the ones changed from the defaults, checked on the way in (known, the right type, in range)
+const CFG_STORE = 'stick2.settings';
+// a value a setting can take: known, its type, one of its options; numbers any finite value (outside the usual range is only flagged, riskOf)
+const cfgOk = (k, v) => k in DEFAULTS && typeof v === typeof DEFAULTS[k] && (SPEC[k].opts ? SPEC[k].opts.includes(v) : typeof v !== 'number' || Number.isFinite(v));
+const saveCfg = debounce(() => { try { localStorage.setItem(CFG_STORE, JSON.stringify(Object.fromEntries(Object.keys(DEFAULTS).filter(k => CFG[k] !== DEFAULTS[k]).map(k => [k, CFG[k]])))); } catch {} });
+const loadCfg = () => { try { for (const [k, v] of Object.entries(JSON.parse(localStorage.getItem(CFG_STORE)) || {})) if (cfgOk(k, v)) CFG[k] = v; } catch {}
+  if (!currentChar().by[CFG.scope]) CFG.scope = currentChar().ids[0]; };
+loadCfg();
+// the display aids (ghost, boxes, scope, hud, labels, timer): saved, but not undo steps
+const setDisplay = (k, v) => { CFG[k] = v; saveCfg(); };
+const studio = { sel: 'uarmF', also: new Set(), undo: [], redo: [], lastKey: null, lastT: 0, fold: new Set(), stance: 0, own: false };
+layFlag(studio, 'colors', 'colours');
+// the stance being edited (0 = main): its pose as drawn, its pose and own binds in the definition (what edits change)
+const curStance = (ch = viewChar()) => ch.stances[studio.stance] || ch.stances[0];
+const editPose = def => studio.stance ? def.stances[studio.stance - 1].pose : def.poses.stance;
+// the character as the editors show it: in the stance picked, with its body (stanceChar)
+const viewChar = () => stanceChar(currentChar(), studio.stance);
+// "this stance only" (own): bone, size, stat, gait, effect and chain edits go to the stance's body (def.stances[i].body
+// for a stance, def.main.body for main itself, see bodyDef) instead of every stance at once
+const stanceOnly = () => studio.own && (studio.stance ? !!DEFS[CURRENT].stances?.[studio.stance - 1] : true);
+const editBody = def => (studio.stance ? def.stances[studio.stance - 1] : (def.main ??= {})).body ??= {};
+const stanceBody = (def = DEFS[CURRENT]) => studio.stance ? def.stances?.[studio.stance - 1]?.body : def.main?.body;
+// clears an empty def.main left behind once its last req / morph / fly / body override is removed
+const pruneMain = def => { if (def.main && !Object.keys(def.main).length) delete def.main; };
+// the definition a bone edit changes: a bone the stance adds is its own entry; else the stance's override (stance only) or the bone
+function boneDef(def, id) {
+  const add = stanceBody(def)?.add?.find(b => b.id === id);
+  if (add) return add;
+  if (!stanceOnly()) return def.bones.find(b => b.id === id);
+  const o = editBody(def).bones ??= {};
+  return o[id] ??= {};
+}
+// a move's chain links as the combo editors see and change them: in stance only, the stance body's own (chains)
+const nextOf = (def, n) => (stanceOnly() && stanceBody(def)?.chains?.[n]) || def.moves[n].next;
+function setNext(def, n, next) {
+  const has = next && Object.keys(next).length;
+  if (stanceOnly()) (editBody(def).chains ??= {})[n] = has ? next : {};
+  else if (has) def.moves[n].next = next; else delete def.moves[n].next;
+}
+// binds follow the plane setting: 2D and 2.5D each have their own table (see BINDS)
+const bkey = () => bindsKey(CFG.plane);
+const curBinds = ch => curStance(ch)[bkey()];
+const editBinds = def => (studio.stance ? def.stances[studio.stance - 1] : def)[bkey()] ??= {};
+// (in stance only: with the stance's overrides; a bone the stance adds: its own entry)
+const boneView = id => { const def = DEFS[CURRENT], b = def.bones.find(b => b.id === id), body = stanceBody(def);
+  return body?.add?.find(x => x.id === id) || (b && stanceOnly() && body?.bones?.[b.id] ? { ...b, ...body.bones[b.id] } : b); };
+const selBone = () => boneView(studio.sel);
+// the selection: the bone the panel shows (sel) and the others ⌘/Ctrl-clicked with it (also); bone edits go to all of them
+const selIds = () => [studio.sel, ...[...studio.also].filter(id => id !== studio.sel && viewChar().by[id])];
+const selDefs = def => selIds().map(id => boneDef(def, id)).filter(Boolean);
+function pickBoneSel(id, add) {
+  const ids = selIds();
+  if (!add) { studio.sel = id; studio.also.clear(); }
+  else if (!ids.includes(id)) { studio.also = new Set(ids); studio.sel = id; } // the clicked bone joins and is shown
+  else if (ids.length > 1) { studio.also = new Set(ids.filter(x => x !== id)); if (id === studio.sel) studio.sel = ids.find(x => x !== id); }
+}
+
+// every bone property the creator exposes, with its hover text
+const BONE_PROPS = [
+  { k: 'len', min: 2, max: 60, step: 1, tip: 'Length (px). For circles, the radius.' },
+  { k: 'thick', min: 1, max: 16, step: 1, tip: 'Stroke width (px).' },
+  { k: 'hurt', min: 0, max: 20, step: 1, tip: 'Hurtbox radius around the bone (px). 0 = blows pass through it.' },
+  { k: 'lag', min: 0, max: 4, step: 0.1, tip: 'Follow-through: each step lowers the spring frequency (× followThru^lag), so the bone trails its parent.' },
+  { k: 'level', min: 0, max: 1, step: 0.05, tip: '0 = turns rigidly with its parent. 1 = keeps its rest world angle whatever the parent does (feet stay flat).' },
+  { k: 'stretch', min: 0, max: 1, step: 0.05, tip: 'Stretchiness: lengthens while swinging fast (0.3 = up to +30%), then eases back.' },
+  { k: 'stiff', min: 0.2, max: 3, step: 0.05, tip: 'Multiplies the spring frequency: >1 snappier, <1 floppier than the rest of the body.' },
+  { k: 'damp', min: 0.2, max: 3, step: 0.05, tip: 'Multiplies the spring damping: <1 wobbles longer, >1 settles without overshoot.' },
+  { k: 'react', min: 0, max: 3, step: 0.05, tip: 'Hit reaction: how hard blows, blocks and bounces jolt this bone. 0 = unmoved by impacts, 2 = flops loosely.' },
+  { k: 'sway', min: 0, max: 3, step: 0.05, tip: 'Idle sway: how much the bone drifts on its own while standing (deeper bones more). 0 = still.' },
+  { k: 'dangle', min: 0, max: 1.5, step: 0.05, tip: 'Secondary motion: how much the bone hangs like a rope (tails, scarves, hair): it droops with gravity, trails a run and a jump and lifts in a fall. 0 = only its animation.' },
+  { k: 'whip', min: 0, max: 0.1, step: 0.002, tip: 'Bends back from a fast-turning parent\'s own angular velocity, springing past straight into the next turn (a nunchuck\'s loose end). 0 = rigid to its parent.' },
+  { k: 'shade', min: 0, max: 0.9, step: 0.05, tip: 'Grey level: 0 is the figure\'s own ink, higher fades it toward paper white (stays monochrome).' },
+  { k: 'taper', min: 0, max: 1, step: 0.05, tip: 'Line ends thinner than it starts: 0 = even, 1 = to a point (claws, horns, tails).' },
+  { k: 'aim', min: 0, max: 1, step: 0.05, tip: 'Look-at: how far the bone turns toward the nearest foe\'s upper body in a fight (1 = straight at it). Heads that watch, an arm that tracks.' },
+  { k: 'z', min: -3, max: 3, step: 1, tip: 'Draw order layer: lower draws underneath every higher layer, whatever its side. Side orders bones within a layer.' },
+  { k: 'segs', min: 2, max: 16, step: 1, tip: 'Chain shape only: how many segments the rope is split into. More = smoother and floppier.' },
+  { k: 'alpha', min: 0, max: 1, step: 0.05, tip: 'Visibility: 1 is fully visible (the default). 0 hides the bone and everything below it completely: no draw, no hurtbox, no part in walking or chains. Between, it draws translucent but stays solid.' },
+];
+const ROLE_TIPS = {
+  spine: 'Torso: breathes, leans into movement, carries arms and head.',
+  head: 'Head and neck: nods with hits and follows the torso.',
+  arm: 'Swings against the legs while walking; hands leave trails.',
+  leg: 'Walk cycle, knees absorb landings, feet leave trails.',
+  tail: 'Free appendage: no walk cycle, just follow-through and wander.',
+};
+// role colours for the editors' colour-coded view: [front / centre, back]
+const ROLE_COLS = { spine: ['#222', '#8a8580'], head: ['#8e44ad', '#c6a2d6'], arm: ['#2c6fb0', '#94b7d8'], leg: ['#2e8b57', '#97c5ab'], tail: ['#b9770e', '#e0c08a'] };
+const roleTint = () => studio.colors ? b => ROLE_COLS[b.role]?.[b.side === 'b' ? 1 : 0] : null; // a weapon keeps its own colours
+const colorsToggle = () => toggle(':palette:', 'Colours: colour bones by role: spine black · head purple · arms blue · legs green · tails amber (back side paler)',
+  () => studio.colors, v => { studio.colors = v; });
+const SIDE_TIPS = { f: 'Front: drawn over the body in the main colour.', '': 'Centre: drawn with the body.', b: 'Back: drawn behind the body in the second colour.' };
+const CAP_TIPS = { round: 'Rounded ends (the default stick look).', square: 'Squared ends pushed out by half the width (boxy limbs, robots).',
+  flat: 'Cut flat at the joints (plates, pills with flat ends).', point: 'Narrows to a tip at its end (blades, claws, horns).' };
+const SHAPE_TIPS = { line: 'A stroke from the parent joint to this one.', circle: 'A disc centred on the joint, radius = length (heads, fists).',
+  spline: 'One smooth curve through this bone and the single chain of line bones below it, tapering to the last one\'s thickness (tails, tentacles).',
+  fill: 'A filled shape through the parent joint, this joint and the single chain of bones below it, closed back (or through the fill-to bone\'s joint): capes, wing membranes, skirts. Lighter than the ink unless it has a shade.',
+  socket: 'An invisible attach point: not drawn, never hit, in no limb chain. A held weapon goes on it (front side first) instead of the hand.',
+  chain: 'A rope: the bone splits into segs loose, dangling segments drawn as one smooth curve (whips, scarves, hair). Children hang from its end.' };
+
+// ---------- edits: snapshot for undo, change the definition, recompile, swap it into running fights ----------
+// key: repeated edits with the same key (a slider or joint drag) merge into one undo step.
+// One stack for both: character snapshots (JSON strings) and settings snapshots ({ cfg })
+function snapshot(entry, key) {
+  const now = performance.now();
+  if (!key || key !== studio.lastKey || now - studio.lastT > 1000) {
+    studio.undo.push(entry());
+    if (studio.undo.length > 200) studio.undo.shift();
+    studio.redo = [];
+  }
+  studio.lastKey = key; studio.lastT = now;
+}
+function edit(fn, key = null) {
+  snapshot(() => JSON.stringify(DEFS[CURRENT]), key);
+  fn(DEFS[CURRENT]);
+  recompile();
+}
+// settings changes (sliders, presets, group buttons, grid picks) are undoable too
+function setCfg(vals, key = null) {
+  snapshot(() => ({ cfg: { ...CFG } }), key);
+  Object.assign(CFG, vals); saveCfg();
+}
+function undoRedo(from, to) {
+  if (!from.length) return;
+  const e = from.pop();
+  studio.lastKey = null;
+  if (e.cfg) { to.push({ cfg: { ...CFG } }); Object.assign(CFG, e.cfg); saveCfg(); syncAll(); return; }
+  if (e.reel) { to.push({ reel: reelSnap() }); reelRestore(e.reel); return; } // a replay edit (replay.js)
+  if (e.movie) { to.push({ movie: JSON.stringify(rp.movie) }); rp.movie = JSON.parse(e.movie); panels(); return; } // a movie edit (replay.js)
+  if (e.scene) { to.push({ scene: JSON.stringify({ pose: rp.pose, props: rp.props }) }); const s = JSON.parse(e.scene); rp.pose = s.pose; rp.props = s.props; panels(); return; } // a scene edit (replay.js)
+  to.push(JSON.stringify(DEFS[CURRENT]));
+  DEFS[CURRENT] = JSON.parse(e);
+  recompile();
+}
+const undo = () => undoRedo(studio.undo, studio.redo), redo = () => undoRedo(studio.redo, studio.undo);
+
+function recompile() {
+  const old = CHARS[CURRENT], ch = CHARS[CURRENT] = makeCharacter(DEFS[CURRENT]), v = viewChar();
+  if (!v.by[studio.sel]) studio.sel = v.ids[0];
+  if (!ch.by[CFG.scope]) CFG.scope = ch.ids[0];
+  for (const w of mode().worlds()) w.swapChar(old, ch);
+  save();
+  mode().changed?.();
+  if (v.ids.join() !== stanceChar(old, studio.stance).ids.join()) panels(); else syncAll();
+}
+
+// every pose a definition holds (named poses, move keys, hit reactions), to rename or drop bones everywhere
+function forEachPose(def, fn) {
+  for (const k in def.poses) fn(def.poses[k]);
+  for (const m of Object.values(def.moves)) for (const k of m.keys) if (k.p) fn(k.p);
+  for (const set of Object.values(def.hurt)) set.forEach(fn);
+}
+
+// ---------- characters: pick, copy, revert, delete, export / import ----------
+function pickChar(name) {
+  CURRENT = name; studio.stance = 0; studio.undo = []; studio.redo = []; studio.lastKey = null;
+  studio.also.clear();
+  if (!currentChar().by[studio.sel]) studio.sel = currentChar().ids[0];
+  if (!currentChar().by[CFG.scope]) CFG.scope = currentChar().ids[0];
+  save(); setMode(app.mode); // every mode rebuilds its fights with the new character
+}
+function addChar(def, base = def.name || 'char') {
+  let name = base, n = 2;
+  while (DEFS[name]) name = base + n++;
+  DEFS[name] = { ...clone(def), name };
+  CHARS[name] = makeCharacter(DEFS[name]);
+  pickChar(name);
+}
+const revertChar = () => CHAR_DEFS[CURRENT] && (setDisabled(CURRENT, false), edit(def => {
+  for (const k in def) delete def[k];
+  Object.assign(def, clone(CHAR_DEFS[CURRENT]));
+}));
+// built-ins keep their name (revert needs it), so renaming one makes a renamed copy
+async function renameChar() {
+  const old = CURRENT, name = (await askText('Rename the character', old))?.trim();
+  if (!name || name === old || old !== CURRENT) return;
+  if (DEFS[name]) return notice('Name taken', `"${name}" already exists`);
+  if (CHAR_DEFS[old]) return addChar(DEFS[old], name);
+  DEFS[name] = { ...DEFS[old], name }; CHARS[name] = makeCharacter(DEFS[name]);
+  delete DEFS[old]; delete CHARS[old];
+  pickChar(name);
+}
+// scenarios (built in the browser) that still name this character, directly or in a select-mode roster
+const scensUsing = name => Object.entries(myScens()).filter(([, u]) => u.p.some(f => f.char === name) || u.roster?.includes(name)).map(([k]) => k);
+// a built-in can't truly be deleted (revert needs it to stay around), so "delete" disables it instead: out of every
+// picker, random pick and the live random-character roster until re-enabled or reverted
+async function disableChar() {
+  const name = CURRENT;
+  if (!await askYes(`Disable the character "${name}"?`, `"${name}" ships with the app so it can't be deleted - this hides it from pickers and random picks instead. Enable or revert brings it back.`, ':block: disable') || name !== CURRENT) return;
+  setDisabled(name, true);
+  pickChar('stick');
+}
+async function deleteChar() {
+  const name = CURRENT;
+  if (CHAR_DEFS[name]) return disableChar();
+  if (!await askYes(`Delete the character "${name}"?`, 'This cannot be undone.', ':delete: delete') || name !== CURRENT) return;
+  const used = scensUsing(name);
+  delete DEFS[CURRENT]; delete CHARS[CURRENT];
+  pickChar('stick');
+  if (used.length) notice('Deleted, but still named elsewhere', `"${name}" is gone, but these scenarios still name it and will fall back to another character when played: ${used.join(', ')}.`);
+}
+// a character export is a diff against its matching built-in by default (small, and what a diff viewer can use
+// directly) - like a git patch, not the whole file. full: the whole def anyway (the only option for a wholly new
+// character, with no built-in to diff against; also offered explicitly for sharing one standalone)
+// lenLock is a posing-tool option (how dragging a joint behaves in the editor), not something worth sharing or
+// diffing against - stripped before either runs
+const stripLocal = def => ({ ...def, bones: def.bones.map(({ lenLock, ...b }) => b) });
+function charExport(full) {
+  const base = CHAR_DEFS[CURRENT];
+  if (full || !base) return DEFS[CURRENT];
+  const d = diffObj(base, stripLocal(DEFS[CURRENT]));
+  return { format: 'stick2.character.diff', base: CURRENT, diff: d || {} };
+}
+function exportChar(clip, full) { (clip ? copyData : d => download(CURRENT + (full || !CHAR_DEFS[CURRENT] ? '' : '.diff') + '.json', d))(charExport(full)); }
+// reconstructs a full character def from a diff payload (format stick2.character.diff) - throws a readable message
+// if its base isn't a built-in here (an older roster, or a typo'd/tampered link)
+function fromCharDiff(d) {
+  const base = CHAR_DEFS[d.base];
+  if (!base) throw new Error(`This diff is against "${d.base}", which isn't a built-in here.`);
+  return applyObj(base, d.diff);
+}
+// loading a diff means "view/update this named built-in", not "add a new copy": DEFS[base] always already exists
+// (it's a built-in), so addChar() would just make base2 and leave nothing left to compare in the changes panel.
+// Confirms first if it would overwrite local edits that the diff doesn't already match
+async function applyCharDiff(def, name) {
+  const cur = DEFS[name];
+  if (cur && JSON.stringify(cur) !== JSON.stringify(def) && JSON.stringify(cur) !== JSON.stringify(CHAR_DEFS[name])) {
+    if (!await askYes(`Replace your "${name}"?`, `You have your own changes to ${name} - loading this diff replaces them in this browser (⌘Z undoes).`, ':restart_alt: replace')) return;
+  }
+  DEFS[name] = { ...clone(def), name }; CHARS[name] = makeCharacter(DEFS[name]);
+}
+function importChar(clip) {
+  (clip ? pasteJSON : openFile)(async (def, name) => {
+    if (def.format === 'stick2.character.diff') {
+      let full; try { full = fromCharDiff(def); } catch (err) { return notice('Unknown base character', err.message); }
+      try { makeCharacter(full); } catch (err) { return notice('Not a character file', err.message); }
+      await applyCharDiff(full, def.base); return pickChar(def.base);
+    }
+    try { makeCharacter(def); addChar(def, name.replace(/\.(diff\.)?json$/, '')); } catch (err) { notice('Not a character file', err.message); }
+  });
+}
+// base64url (RFC 4648 §5: + → -, / → _, no = padding), so the URL hash never needs %-escaping at all - JSON's braces,
+// quotes and colons each cost 3 chars escaped (encodeURIComponent), base64 none, so this alone shrinks a diff link by
+// more than half. atob/btoa only take Latin1 strings, so UTF-8 bytes go through one at a time, not spread (a long
+// diff could otherwise overflow the call stack through String.fromCharCode(...bytes))
+function b64url(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = ''; for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function fromB64url(s) {
+  const b64 = s.replace(/-/g, '+').replace(/_/g, '/'), bin = atob(b64 + '='.repeat((4 - b64.length % 4) % 4));
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+// ---------- #diff=<base64url json> in the URL hash (readHash, src/ui/docs.js): a direct link to a character diff, opened
+// straight into the character tab's changes panel - the same payload exportChar()/the changes panel's "embed link" produce
+async function loadEmbedDiff(raw) {
+  let d; try { d = JSON.parse(raw[0] === '{' ? raw : fromB64url(raw)); } catch (err) { return console.error('stick2: bad #diff value', err); } // raw[0]: an older %-escaped JSON link still works
+  if (d.format !== 'stick2.character.diff') return console.error('stick2: #diff is not a character diff');
+  let def; try { def = fromCharDiff(d); } catch (err) { return notice('Unknown base character', err.message); }
+  await applyCharDiff(def, d.base);
+  pickChar(d.base); setMode('character'); openStage('changes');
+}
+const diffEmbedLink = d => `${location.origin}${location.pathname}#diff=${b64url(JSON.stringify(d))}`;
+// a path-prefixed, readable line per leaf change in a diffObj()/diffArr() result - generic over whatever it's run on
+// (bones, moves, stances, gait, stats…), so a new field never needs its own formatting added here
+const fmtDiffVal = v => Array.isArray(v) ? JSON.stringify(v) : typeof v === 'object' && v !== null ? '{…}' : String(v);
+function describeDiff(d, path = []) {
+  const lines = [];
+  for (const k in d.added || {}) lines.push(`+ ${[...path, k].join('.')}: ${fmtDiffVal(d.added[k])}`);
+  for (const k in d.removed || {}) lines.push(`- ${[...path, k].join('.')}`);
+  for (const k in d.changed || {}) {
+    const v = d.changed[k], p = [...path, k];
+    if (Array.isArray(v)) lines.push(`${p.join('.')}: ${fmtDiffVal(v[0])} → ${fmtDiffVal(v[1])}`);
+    else if ('full' in v) lines.push(`${p.join('.')}: ${v.full.length} items (reordered or resized)`);
+    else lines.push(...describeDiff(v, p));
+  }
+  return lines;
+}
+// colors a describeDiff() line list like a patch: + green (added), - red (removed), a changed leaf (→) left plain
+function diffLinesEl(lines) {
+  return h('pre', { cls: 'note' }, lines.map(l => h('div', { style: `color: ${l[0] === '+' ? '#2e8b57' : l[0] === '-' ? '#c0392b' : 'inherit'}`, textContent: l })));
+}
+// composites a few labelled canvases (plus optional text lines) into one PNG and downloads it - the same visuals
+// the diff views already draw, just flattened into one shareable image for patch notes, docs, or an issue/PR
+function exportDiffImage(filename, cells, lines = []) {
+  const pad = 10, lineH = 14, cw = Math.max(...cells.map(c => c.cv.width / dpr)), ch = Math.max(...cells.map(c => c.cv.height / dpr));
+  const w = cells.length * (cw + pad) + pad, out = h('canvas');
+  out.width = w; out.height = ch + pad * 3 + 16 + (lines.length ? lines.length * lineH + pad : 0);
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#f3f0e8'; ctx.fillRect(0, 0, w, out.height);
+  ctx.font = '12px ui-monospace, Menlo, monospace'; ctx.fillStyle = '#222'; ctx.textBaseline = 'top';
+  cells.forEach((c, i) => { const x = pad + i * (cw + pad); ctx.fillText(c.label, x, pad); ctx.drawImage(c.cv, x, pad + 16, cw, ch); });
+  let y = pad * 2 + 16 + ch; for (const l of lines) { ctx.fillText(l, pad, y); y += lineH; }
+  h('a', { href: out.toDataURL('image/png'), download: filename }).click();
+}
+// a changed move, side by side: both versions looping in sync on a shared playhead, each move's own timeline below
+// it with the changed keys (by index - the diff's keys.changed map) highlighted, click a key to scrub to its start
+function moveDiffView(name) {
+  const baseCh = makeCharacter(CHAR_DEFS[CURRENT]), curCh = CHARS[CURRENT], bm = baseCh.moves[name], cm = curCh.moves[name];
+  const changedKeys = new Set(Object.keys(diffObj(bm, cm)?.changed?.keys?.changed || {}).map(Number));
+  const state = { t: 0, playing: true };
+  const cvBase = h('canvas'), cvCur = h('canvas');
+  const render = () => {
+    drawThumb(cvBase, baseCh, samplePose(baseCh, bm, state.t % Math.max(0.001, total(bm))), 110, 120);
+    drawThumb(cvCur, curCh, samplePose(curCh, cm, state.t % Math.max(0.001, total(cm))), 110, 120);
+  };
+  const timeline = m => h('div', { cls: 'bar' }, m.keys.map((k, i) => h('span', {
+    tip: `key ${i} (${k.d.toFixed(2)}s)${changedKeys.has(i) ? ' - changed' : ''} · click: scrub here`,
+    style: `display:inline-block; width:${Math.max(4, k.d * 160)}px; height:14px; margin-right:1px; cursor:pointer; background:${changedKeys.has(i) ? '#c0392b' : '#bbb'};`,
+    onclick: () => { state.t = keyStart(m, i); state.playing = false; render(); syncAll(); },
+  })));
+  const playBtn = button('', 'Play / pause both previews', () => { state.playing = !state.playing; }, 'mini');
+  reg(playBtn, () => setRich(playBtn, state.playing ? ':pause:' : ':play_arrow:'));
+  let last = performance.now();
+  const loop = now => { if (!document.body.contains(cvBase)) return; if (state.playing) { state.t += (now - last) / 1000; render(); } last = now; requestAnimationFrame(loop); };
+  requestAnimationFrame(loop); render();
+  return h('div', {}, h('b', { textContent: name }), h('div', { cls: 'bar' }, playBtn,
+    button(':download: export image', 'Download a PNG of this exact moment, both versions side by side', () =>
+      exportDiffImage(`${CURRENT}-${name}.png`, [{ cv: cvBase, label: 'built-in' }, { cv: cvCur, label: 'yours' }]), 'mini')),
+    h('div', { cls: 'bar' }, h('div', {}, h('b', { textContent: 'built-in' }), cvBase, timeline(bm)),
+      h('div', {}, h('b', { textContent: 'yours' }), cvCur, timeline(cm))));
+}
+// ---------- character diff view (a stage panel, "changes"): what differs from the matching built-in, for reviewing
+// an edit before exporting/suggesting it - the two bodies side by side with changed bones highlighted, and every
+// other change (moves, stances, stats…) as a flat list of dotted paths, from the same diff the export uses
+// bone property name -> its part, for grouping the change table (unlisted/custom bones fall under their own id)
+const partOf = (ch, id) => ch.by[id]?.role || '';
+const PART_ORDER = ['spine', 'head', 'arm', 'leg', 'tail'];
+function charDiffPanel() {
+  const wrap = h('div', { cls: 'mtable' }), base = CHAR_DEFS[CURRENT];
+  if (!base) { wrap.append(stageHead('changes', 'What differs from the matching built-in character'),
+    h('p', { cls: 'note', textContent: 'This character has no built-in to compare against (it\'s wholly your own).' })); return wrap; }
+  const baseCh = makeCharacter(base), curCh = CHARS[CURRENT];
+  const d = diffObj(base, stripLocal(DEFS[CURRENT])) || {};
+  // one row per changed bone property (not per bone - a bone with 3 changed fields gets 3 rows), grouped by part
+  const bd = d.changed?.bones || {};
+  const boneRows = [];
+  for (const id in bd.changed || {}) { const fd = bd.changed[id];
+    for (const k in fd.added || {}) boneRows.push([id, k, '—', fmtDiffVal(fd.added[k])]);
+    for (const k in fd.removed || {}) boneRows.push([id, k, fmtDiffVal(fd.removed[k]), '—']);
+    for (const k in fd.changed || {}) boneRows.push([id, k, fmtDiffVal(fd.changed[k][0]), fmtDiffVal(fd.changed[k][1])]); }
+  for (const id in bd.added || {}) boneRows.push([id, '(new bone)', '—', '—']);
+  for (const id in bd.removed || {}) boneRows.push([id, '(removed)', '—', '—']);
+  const parts = {};
+  for (const row of boneRows) (parts[partOf(curCh, row[0]) || partOf(baseCh, row[0])] ??= []).push(row);
+  const partKeys = [...PART_ORDER.filter(p => parts[p]), ...Object.keys(parts).filter(p => !PART_ORDER.includes(p))];
+  const boneTable = boneRows.length ? h('table', {}, h('tbody', {}, partKeys.flatMap(part => [
+    h('tr', {}, h('td', { colSpan: 5, textContent: part || '(other)', style: 'font-weight: bold; background: #e8e3d8' })),
+    ...parts[part].map(([id, field, from, to]) => h('tr', {},
+      h('td', { textContent: id }), h('td', { textContent: field }),
+      h('td', { textContent: from, style: to === '—' ? 'color: #c0392b' : '' }), h('td', { textContent: '→' }),
+      h('td', { textContent: to, style: from === '—' ? 'color: #2e8b57' : '' }))),
+  ]))) : null;
+  const lines = describeDiff(d).filter(l => !l.replace(/^[+-] /, '').startsWith('bones.') && !/^[+-] bones\b/.test(l)); // the bone table above covers these
+  const changedMoves = Object.keys(d.changed?.moves?.changed || {});
+  // the comparison itself is the fully interactive preview (same controls as the regular preview - scripted demo,
+  // walk, AI vs AI, driving the opponent yourself…), built-in on one side and the live edited character on the other.
+  // head-to-head swaps that for the built-in fighting your edited version directly (always ai vs ai, a balance test
+  // rather than a look at them side by side), with htControl optionally handing one side to your own keyboard
+  const htToggle = toggle(':swords: head-to-head', 'Fight the built-in against your edited version directly, instead of each against the same opponent - a balance test, not just a look', () => creator.headToHead, v => { creator.headToHead = v; creatorMode.restart(); panels(); });
+  const htControl = h('span', { cls: 'seg' }, [['none', 'the engine AI'], ['base', 'built-in: you'], ['cur', 'yours: you']].map(([v, label]) => {
+    const b = button(label, `Drive the ${v === 'none' ? 'both sides' : v === 'base' ? 'built-in' : 'edited'} side with your own keyboard instead of the engine AI`, () => { creator.htControl = v; creatorMode.restart(); });
+    reg(b, () => b.classList.toggle('on', creator.htControl === v)); return b;
+  }));
+  const cvBase = h('canvas'), cvCur = h('canvas'), cvHead = h('canvas');
+  for (const cv of [cvBase, cvCur]) { cv.width = 320 * dpr; cv.height = 200 * dpr; cv.style.width = '320px'; cv.style.height = '200px'; }
+  cvHead.width = 660 * dpr; cvHead.height = 200 * dpr; cvHead.style.width = '660px'; cvHead.style.height = '200px';
+  const paint = (cv, w) => { const c = cv.getContext('2d'), r = { x: 0, y: 0, w: cv.width, h: cv.height };
+    c.fillStyle = '#f3f0e8'; c.fillRect(r.x, r.y, r.w, r.h); w?.render(c, r); };
+  const loop = () => {
+    if (!document.body.contains(cvBase) && !document.body.contains(cvHead)) return;
+    if (creator.headToHead) paint(cvHead, creator.diffHeadW); else { paint(cvBase, creator.diffW); paint(cvCur, creator.w); }
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+  wrap.append(...[stageHead('changes', 'What differs from the matching built-in character',
+    button(':download: export diff', 'Export just this diff (the default character export)', () => exportChar(false), 'mini'),
+    button(':download: export image', 'Download a PNG of this comparison - the bodies and the change list, for patch notes or docs', () =>
+      exportDiffImage(`${CURRENT}-changes.png`, creator.headToHead ? [{ cv: cvHead, label: 'built-in vs yours' }] : [{ cv: cvBase, label: 'built-in' }, { cv: cvCur, label: 'yours' }], lines), 'mini'),
+    button(':content_copy: embed link', 'Copy a link that opens this exact diff, straight into this changes panel, for anyone (#diff=…)', () =>
+      navigator.clipboard?.writeText(diffEmbedLink(charExport(false))), 'mini')),
+    h('div', { cls: 'bar' }, htToggle, creator.headToHead ? htControl : null),
+    creator.headToHead ? null : previewBar('bar'),
+    creator.headToHead ? h('div', {}, h('b', { textContent: 'built-in vs yours' }), cvHead)
+      : h('div', { cls: 'bar' }, h('div', {}, h('b', { textContent: 'built-in' }), cvBase), h('div', {}, h('b', { textContent: 'yours' }), cvCur)),
+    boneTable,
+    lines.length ? diffLinesEl(lines) : h('p', { cls: 'note', textContent: 'No changes from the built-in.' }),
+    changedMoves.length ? h('div', { cls: 'bar' }, h('span', { textContent: 'changed moves:' }),
+      changedMoves.map(n => button(n, `Compare ${n} side by side, both versions looping in sync`, (e, el) => popup(el, moveDiffView(n)), 'mini'))) : null].filter(Boolean));
+  return wrap;
+}
+// ---------- suggest a character for the roster: an issue + an attached file, no local git, no sign-in beyond GitHub ----------
+// used to pre-fill GitHub's "new file" page instead (a PR draft) - a character alone is ~70 KB, well past any URL
+// GitHub will accept (it refuses an oversized request outright, not just truncates it), so that page almost always
+// opened empty anyway, and still needed a fork + "propose changes" even once pasted. An issue with the exported file
+// attached needs neither: any signed-in account can open one, and dragging a file in is a familiar step.
+async function suggestChar() {
+  const name = CURRENT, add = !CHAR_DEFS[name];
+  const text = `1. Export this character as a file (below) — you'll attach it to the issue.\n2. Open a new issue on GitHub (below) and drag the exported file in.\n3. Say what's new or changed; a maintainer folds it into the roster (see CONTRIBUTING.md).`;
+  for (;;) {
+    const v = await dialog(`Suggest ${add ? `adding ${name}` : `a change to ${name}`}`, text, [
+      [':download: export character file', 'export', 'Download this character as a JSON file to attach to the issue'],
+      [':north_east: open a new issue', 'issue', 'Opens a new GitHub issue on this repo — attach the exported file there'],
+      [':check: done', null, 'Close this'],
+    ]);
+    if (v === 'export') exportChar(false);
+    else if (v === 'issue') window.open(`https://github.com/morbeo/stick2/issues/new?title=${encodeURIComponent(`Suggest ${add ? `adding ${name}` : `a change to ${name}`}`)}`, '_blank');
+    else break;
+  }
+}
+// ---------- files (the menu bar): export / import the character, the settings, or everything (edited characters, settings, my scenarios, keys), to a file or the clipboard ----------
+const FILE_TIPS = { character: 'The character being edited: skeleton, poses, moves, binds',
+  settings: 'Every setting changed from its default (debug views left out)',
+  everything: 'Your edited and new characters, the settings, your scenarios and your keys and macros' };
+function download(name, data) {
+  const a = h('a', { href: URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' })), download: name });
+  a.click(); URL.revokeObjectURL(a.href);
+}
+const copyData = data => navigator.clipboard?.writeText(JSON.stringify(data, null, 1));
+function openFile(f) {
+  const inp = h('input', { type: 'file', accept: '.json,application/json' });
+  inp.onchange = async () => { let d; try { d = JSON.parse(await inp.files[0].text()); } catch (err) { return notice('Not a JSON file', err.message); } f(d, inp.files[0].name); syncAll(); };
+  inp.click();
+}
+async function pasteJSON(f) {
+  let text; try { text = await navigator.clipboard.readText(); } catch { return notice('Clipboard unavailable', 'Allow the browser to read the clipboard, or use a file instead'); }
+  let d; try { d = JSON.parse(text); } catch (err) { return notice('Not JSON', err.message); }
+  await f(d, 'clipboard'); syncAll();
+}
+const cfgData = () => Object.fromEntries(changedCfg().map(k => [k, CFG[k]]));
+// settings from a file over the defaults: known ones of the right type and in range only (the debug views stay)
+function cfgFrom(o = {}) {
+  const base = Object.keys(DEFAULTS).filter(k => !DISPLAY.includes(k)).map(k => [k, DEFAULTS[k]]);
+  return Object.fromEntries([...base, ...Object.entries(o).filter(([k, v]) => cfgOk(k, v))]);
+}
+function exportFile(kind, clip) {
+  if (kind === 'character') return exportChar(clip);
+  const put = clip ? copyData : d => download(`stick2-${kind}.json`, d);
+  if (kind === 'settings') return put({ format: 'stick2.settings', cfg: cfgData() });
+  put({ format: 'stick2.everything', chars: edited(), current: CURRENT, cfg: cfgData(), scenarios: myStore, keys: { map: keymap, macros } });
+}
+function importFile(kind, clip) {
+  if (kind === 'character') return importChar(clip);
+  (clip ? pasteJSON : openFile)(async d => {
+    if (d.format !== 'stick2.' + kind) return notice('Wrong file', `Not a${kind === 'everything' ? 'n everything' : ' settings'} file`);
+    if (kind === 'settings') { setCfg(cfgFrom(d.cfg)); return mode().restart(); }
+    if (!await askYes('Load everything in this file?', 'Characters with the same names, the settings, scenarios with the same names and your keys are replaced (⌘Z undoes only the settings).', ':restart_alt: replace')) return;
+    try { for (const def of Object.values(d.chars || {})) makeCharacter(def); } catch (err) { return notice('Nothing was loaded', 'A character in the file is broken: ' + err.message); }
+    for (const [n, def] of Object.entries(d.chars || {})) { DEFS[n] = { ...clone(def), name: n }; CHARS[n] = makeCharacter(DEFS[n]); }
+    if (d.scenarios) importScens(JSON.stringify(d.scenarios));
+    if (d.keys?.map) { Object.assign(keymap, d.keys.map); macros.splice(0, macros.length, ...(d.keys.macros || [])); saveKeys(); }
+    setCfg(cfgFrom(d.cfg));
+    pickChar(DEFS[d.current] ? d.current : CURRENT); // saves the characters, rebuilds every fight
+    syncAll(); // openFile's own syncAll ran before the question was answered
+  });
+}
+const fileMenu = (verb, f, ...extra) => (e, b) => popup(b, h('b', { textContent: verb }),
+  h('div', { cls: 'bar col', onclick: closePop }, Object.entries(FILE_TIPS).map(([k, tip]) => h('div', { cls: 'bar' },
+    button(k, `${verb} ${k} ${verb === 'export' ? 'to' : 'from'} a file: ${tip}`, () => f(k)),
+    button(verb === 'export' ? 'copy' : 'paste', `${verb} ${k} ${verb === 'export' ? 'to' : 'from'} the clipboard: ${tip}`, () => f(k, true), 'mini'),
+    verb === 'export' && k === 'character' && CHAR_DEFS[CURRENT]
+      ? button('full', `Export the whole character file instead of just a diff against the built-in ${CURRENT}`, () => exportChar(false, true), 'mini') : null)),
+    ...extra));
+
+// a random character: the stick's skeleton with random proportions and thickness, maybe extra limbs, a stance preset;
+// its moves are retimed to its size (bigger = slower and harder)
+const SYLLABLES = ['ka', 'ro', 'zu', 'mi', 'gor', 'ta', 'ven', 'shi', 'bo', 'rak', 'lu', 'dra', 'ni', 'vex', 'ul', 'ash'];
+// what the generator draws from (studio.rnd holds the current values)
+const RANDOM_VARS = [
+  { k: 'size', v: 1.05, min: 0.6, max: 1.6, step: 0.05, tip: 'Average overall size (bigger also means slower, harder hitting moves).' },
+  { k: 'sizeVar', v: 0.25, min: 0, max: 0.5, step: 0.05, tip: 'How much the size varies around the average.' },
+  { k: 'shape', v: 0.3, min: 0, max: 0.6, step: 0.05, tip: 'Proportions: how much each limb segment strays from the size (front and back partners match).' },
+  { k: 'thick', v: 2, min: -1, max: 8, step: 1, tip: 'Average extra stroke width (px); varies ±3.' },
+  { k: 'core', v: 4, min: 0, max: 10, step: 1, tip: 'Average extra thickness of the torso (px); varies from 0 to twice this.' },
+  { k: 'limbs', v: 1, min: 0, max: 3, step: 0.5, tip: 'Average number of extra arms, tails or heads (up to twice this).' },
+  { k: 'stats', v: 0.15, min: 0, max: 0.5, step: 0.05, tip: 'How much the stats (jump, weight, health, toughness, tempo, springs) stray from 1; weight and health also follow the size.' },
+];
+studio.rnd = Object.fromEntries(RANDOM_VARS.map(s => [s.k, s.v]));
+function randomDef(rand, o = studio.rnd) {
+  const pick = a => a[Math.floor(rand() * a.length)], size = rand(o.size - o.sizeVar, o.size + o.sizeVar), seg = {};
+  const thick = Math.round(rand(o.thick - 3, o.thick + 3)), core = Math.round(rand(0, 2 * o.core));
+  const def = clone(CHAR_DEFS.stick);
+  def.name = pick(SYLLABLES) + pick(SYLLABLES);
+  for (const b of def.bones) {
+    const k = seg[b.id.replace(/[FB]$/, '')] ??= size * rand(1 - o.shape, 1 + o.shape); // front and back partners match
+    b.len = Math.max(3, Math.round(b.len * k));
+    b.thick = Math.max(2, (b.thick ?? BONE.thick) + thick + (b.role === 'spine' ? core : 0));
+    if (b.hurt) b.hurt = Math.max(4, Math.round(b.hurt * Math.sqrt(k)) + Math.round(thick / 2));
+  }
+  const spine = def.bones.filter(b => b.role === 'spine');
+  for (let n = Math.round(rand(0, 2 * o.limbs)); n > 0; n--) attachLimb(def, pick(['arm', 'arm', 'tail', 'head']), pick(spine).id);
+  const preset = pick(Object.keys(POSES).filter(k => k !== 'tpose'));
+  Object.assign(def.poses.stance, presetPose(makeCharacter(def), POSES[preset]));
+  const t = size * rand(0.9, 1.1);
+  def.speed = +clamp(rand(0.9, 1.2) / size, 0.6, 1.4).toFixed(2);
+  for (const st of CHAR_STATS.slice(1)) {
+    const v = rand(1 - o.stats, 1 + o.stats) * (st.k === 'weight' || st.k === 'health' ? size : 1);
+    if (Math.abs(v - 1) > 0.02) def[st.k] = +clamp(Math.round(v / st.step) * st.step, st.min, st.max).toFixed(2);
+  }
+  def.moves = mapVals(def.moves, m => m.power ? { ...m, power: +(m.power * size).toFixed(2), knock: Math.round(m.knock * size),
+    keys: m.keys.map(k => ({ ...k, d: +(k.d * t).toFixed(4) })) } : m);
+  return def;
+}
+// a small drawing of a character (its stance, or any pose); one scale for all, so sizes compare
+function drawThumb(cv, ch, pose = ch.poses.stance, cw = 60, chh = 64, tint = null) {
+  const w = cv.width = cw * dpr, hh = cv.height = chh * dpr, c = cv.getContext('2d'), L = fk(ch, pose, 1), s = hh * 0.92 / 125;
+  let low = 0, x0 = 0, x1 = 0;
+  for (const b of ch.bones) { const p = L[b.id], r = b.shape === 'circle' ? b.len : 0; low = Math.max(low, p[1] + r); x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); }
+  c.translate(w / 2 - (x0 + x1) / 2 * s, hh - 3 * dpr - low * s); c.scale(s, s);
+  const col = ch.col || INK;
+  drawFigure(c, ch, L, col[0], col[1], 0, tint);
+}
+// hovering a card plays its select animation (the 'select' move, if it has one) once, then settles into its stance
+// pose - like the combos editor's hover preview (peekSeq), but animation-only (no World) and into the card's own
+// canvas in place, since a popup can show dozens of these at once
+let cardPeek = null; // { cv, stop } - only the hovered card animates; every other card stays a still thumbnail
+function startCardPreview(cv, k) {
+  stopCardPreview();
+  const ch = CHARS[k], m = ch.moves.select, wch = m ? withWeapon(ch, m) : null, t0 = performance.now();
+  const stop = rafLoop(cv, () => {
+    const t = (performance.now() - t0) / 1000;
+    drawThumb(cv, wch && t < total(m) ? wch : ch, wch && t < total(m) ? samplePose(wch, m, t) : ch.poses.stance);
+  });
+  cardPeek = { cv, stop };
+}
+function stopCardPreview() { cardPeek?.stop(); cardPeek = null; }
+// a character as a card; by default clicking it makes it the one every mode edits
+function charCard(k, pick = pickChar, on = k => CURRENT === k) {
+  const cv = h('canvas'), b = h('button', { cls: 'card', tip: `${CHAR_DEFS[k] ? 'Built-in' : 'Your character'}: ${k}${isDisabled(k) ? ' · disabled (hidden from pickers and random picks)' : ''} · ${CHARS[k].bones.length} bones · speed ${CHARS[k].stats.speed} · click: use it in every mode`,
+    onclick: () => { closePop(); pick(k); syncAll(); },
+    onmouseenter: () => startCardPreview(cv, k), onmouseleave: () => cardPeek?.cv === cv && stopCardPreview() }, cv, h('span', { textContent: k }));
+  reg(b, () => { b.classList.toggle('on', on(k)); b.style.opacity = isDisabled(k) ? 0.4 : ''; if (cardPeek?.cv !== cv) drawThumb(cv, CHARS[k]); });
+  return b;
+}
+// the character + stance picker: a toolbar group (pinned at the top, unlike the side panel, so it stays visible on
+// scroll), shared by the character and animate tabs - which character every mode edits (same popup-of-cards button
+// as fighterPick/scenarios.js charPick), and which of its stances (the same quick-switch seg as stanceRow, whose own
+// row stays in the side panel for the rest of a stance's own settings: key, fly, body)
+// a floating pose thumbnail shown while hovering a stance button, over the stance's own body if it has one (stanceChar)
+let stancePreview = null;
+function showStancePreview(btn, i) {
+  hideStancePreview();
+  const cv = h('canvas'), box = h('div', { cls: 'pop stancepv' }, cv);
+  document.body.append(box);
+  drawThumb(cv, stanceChar(currentChar(), i), undefined, 70, 76);
+  placeNear(box, btn.getBoundingClientRect());
+  stancePreview = box;
+}
+function hideStancePreview() { stancePreview?.remove(); stancePreview = null; }
+// the fuzzy-search character picker popup; pick/on default to switching CURRENT everywhere - pass your own to pick
+// something else (e.g. a preview's opponent). extra prepends non-character choices (e.g. "self") as plain buttons
+function charPickerPopup(el, { pick = pickChar, on = k => CURRENT === k, title = 'character', extra = [] } = {}) {
+  const list = h('div', { cls: 'cards' });
+  const fill = () => list.replaceChildren(
+    ...extra.filter(([n]) => fuzzy(q.value, n)).map(([n, tip]) => { const b = button(n, tip, () => { closePop(); pick(n); }); reg(b, () => b.classList.toggle('on', on(n))); return b; }),
+    ...Object.keys(DEFS).filter(k => fuzzy(q.value, k)).map(k => charCard(k, pick, on)));
+  const q = h('input', { cls: 'macro', placeholder: 'search…', tip: 'Fuzzy search: letters in order match the name',
+    oninput: fill, onkeydown: e => e.stopPropagation() });
+  fill();
+  popup(el, h('b', { textContent: title }), q, list);
+}
+function charStancePicker() {
+  const cv = h('canvas'), b = button('', 'The character every mode edits · click: pick another', (e, el) => charPickerPopup(el));
+  b.classList.add('fpick');
+  reg(b, () => { b.replaceChildren(cv, h('span', { textContent: CURRENT })); drawThumb(cv, currentChar(), undefined, 20, 22); });
+  const names = currentChar().stances.map(s => s.name);
+  // like seg(), but hovering a stance shows its pose (stanceChar: its own body too, if it has one) in a floating
+  // thumbnail instead of just a text tip - stances can look very different, worth seeing before switching
+  const stances = names.length > 1 ? h('span', { cls: 'seg' }, names.map((n, i) => {
+    const btn = button(n, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance: the base pose, binds and loops',
+      () => { hideStancePreview(); studio.stance = i; panels(); mode().restart(); });
+    btn.onmouseenter = () => showStancePreview(btn, i);
+    btn.onmouseleave = hideStancePreview;
+    reg(btn, () => btn.classList.toggle('on', studio.stance === i));
+    return btn;
+  })) : null;
+  // the same new/copy/rename/revert/delete/import/export actions charPanel() used to carry in the side panel - up here
+  // too, so they stay in view with the picker instead of scrolling off with the rest of the body/move panel
+  const ops = crud({
+    random: ['New random character: proportions, thickness, extra limbs, stance and stats', () => addChar(randomDef(makeRand(Math.random() * 1e9 | 0)))],
+    copy: ['New character copied from this one', () => addChar(DEFS[CURRENT], CURRENT)],
+    rename: ['Rename this character (a built-in one is copied under the new name)', renameChar],
+    ...CHAR_DEFS[CURRENT] ? {
+      ...isDisabled(CURRENT)
+        ? { enable: ['Bring this disabled built-in back into pickers and random picks', () => { setDisabled(CURRENT, false); panels(); }] }
+        : { disable: ['Remove this built-in from pickers and random picks (not a full delete - enable or revert brings it back)', disableChar] },
+      revert: ['Throw away the edits of this built-in character, and re-enable it if disabled (undoable)', revertChar],
+    } : { delete: ['Delete this character (asks first, cannot be undone)', deleteChar] },
+    import: ['Load a character JSON file as a new character', importChar],
+    export: ['Download this character as a JSON file', exportChar],
+  });
+  return grp('character', 'The character every mode edits, and which of its stances', b, stances, ops);
+}
+// the character's stances: each has its own pose, binds (unset slots use the main ones), key and idle / walk loops
+function stanceRow() {
+  const add = async () => {
+    const name = (await askText('Name of the new stance', 'stance' + currentChar().stances.length, 'It starts as a copy of the current one.'))?.trim();
+    if (!name) return;
+    edit(def => { (def.stances ??= []).push({ name, pose: { ...curStance().pose }, binds: {} }); });
+    studio.stance = currentChar().stances.length - 1; panels();
+  };
+  const del = () => { if (!studio.stance) return; const i = studio.stance - 1; studio.stance = 0; edit(def => { def.stances.splice(i, 1); if (!def.stances.length) delete def.stances; }); panels(); };
+  const names = currentChar().stances.map(s => s.name), i = studio.stance;
+  const keyTips = Object.fromEntries(Object.entries(STANCE_KEYS).map(([k, l]) => [k, `${l} switches to ${names[i]}; pressed again in it, back to main (stances sharing a key take turns)`]));
+  // a stance's own req/morph/fly/body (def.stances[i - 1]); main's the same, in def.main (no key: it's never switched "into" by one)
+  const own = i ? () => DEFS[CURRENT].stances[i - 1] : () => DEFS[CURRENT].main;
+  const ref = i ? def => def.stances[i - 1] : def => (def.main ??= {});
+  return [h('div', { cls: 'row', tip: 'Stances: their key switches to them in a fight. The stance picked here is the one the pose, input and idle / walk loop edits change, and the one previews start in.' },
+    h('span', {}, ...rich(':sports_martial_arts: stance')), h('span', { cls: 'bar' },
+      seg(names.map((_, i) => i), () => studio.stance, i => { studio.stance = i; panels(); mode().restart(); }, Object.fromEntries(names.map((n, i) => [i, i ? `Stance ${n}: its own pose, binds and loops` : 'The main stance: the base pose, binds and loops'])), i => names[i]),
+      crud({ new: ['New stance: a copy of the current one with no binds of its own', add], delete: ['Delete this stance (not the main one)', del] }))),
+    h('div', { cls: 'row', tip: i ? `The input that switches to ${names[i]} in a fight (→ = toward the opponent)` : `${names[i]} hovers instead of falling: ↑ / ↓ fly up / down, gravity and the ground are suspended while in it` },
+      h('span', {}, ...rich(i ? ':keyboard: key' : ':air: fly')), h('span', { cls: 'bar' },
+      i ? seg(Object.keys(STANCE_KEYS), () => stanceKey(own()?.key), v => edit(def => { ref(def).key = v; }), keyTips, k => STANCE_KEYS[k]) : null,
+      toggle(':air: fly', `${names[i]} hovers instead of falling: ↑ / ↓ fly up / down, gravity and the ground are suspended while in it`,
+        () => !!own()?.fly, v => edit(def => { if (v) ref(def).fly = true; else { delete ref(def).fly; if (!i) pruneMain(def); } })))),
+    h('div', { cls: 'row', tip: `The body in ${names[i]}: the same as ${i ? 'main' : 'the character as authored'}, or changed for this stance only` }, h('span', { textContent: 'body' }), h('span', { cls: 'bar' },
+      toggle(':accessibility_new: this stance only', `This stance only: bone edits (length, thickness, shape, effects…, new limbs, delete = hide), size, stats, walk and combo links go to ${names[i]}'s own body, not every stance's. Off: they change the character in every stance`,
+        () => studio.own, v => { studio.own = v; panels(); }),
+      button(':history: revert body', `Throw away ${names[i]}'s own body: back to ${i ? 'the main body' : 'the character as authored'} (undoable)`,
+        () => edit(def => { delete ref(def).body; if (!i) pruneMain(def); }), 'mini'))),
+    studio.own ? slider('size', { min: 0.5, max: 2, step: 0.05 }, () => stanceBody()?.scale ?? 1,
+      v => edit(def => { if (v === 1) delete editBody(def).scale; else editBody(def).scale = v; }, 'stance scale'),
+      `Size of the whole body in ${names[i]}: × every bone's length, thickness and hurtbox`) : null,
+    ...stanceReq(i, names[i]), ...i ? stanceMorph(i, names[i]) : []];
+}
+// a stance's switch transition (def.stances[i - 1].morph over MORPH): springs, an auto blend over T frames, or a transition move
+function stanceMorph(i, name) {
+  const mo = k => ({ ...MORPH, ...DEFS[CURRENT].stances[i - 1].morph })[k];
+  const set = (vals, key = null) => edit(def => {
+    const st = def.stances[i - 1], m = { ...st.morph, ...vals };
+    for (const k in m) if (m[k] === MORPH[k]) delete m[k];
+    if (Object.keys(m).length) st.morph = m; else delete st.morph;
+  }, key);
+  const show = (el, mode) => { reg(el, () => { el.hidden = mo('mode') !== mode; }); return el; };
+  const inName = () => mo('move') || morphName('main', name), outName = morphName(name, 'main');
+  // a new transition move: half way between the two stance poses, then on into the stance switched to; opened in animate
+  const make = (n, from, to) => {
+    const ch = currentChar(), a = ch.stances[from].pose, b = ch.stances[to].pose;
+    if (!ch.moves[n]) edit(def => { def.moves[n] = { keys: [{ d: 0.12, e: 'inOutCubic', p: Object.fromEntries(Object.keys(b).map(j => [j, Math.round(((a[j] ?? b[j]) + b[j]) / 2)])) },
+      { d: 0.12, e: 'inOutCubic', p: null }] }; });
+    studio.stance = to; openMove(n);
+  };
+  const pick = (e, b) => { const ns = Object.keys(currentChar().moves).filter(n => !currentChar().moves[n].power);
+    popup(b, h('b', { textContent: `transition into ${name}` }), seg(['', ...ns], () => mo('move'), v => { set({ move: v }); closePop(); },
+      { '': `The move named ${morphName('main', name)}`, ...Object.fromEntries(ns.map(n => [n, `Play ${n} when switching to ${name}`])) }, v => v || morphName('main', name))); };
+  const moveBtn = button(':animation: move', `The move played switching to ${name} · click: pick another`, pick, 'mini');
+  reg(moveBtn, () => setRich(moveBtn, `:animation: ${inName()}${currentChar().moves[inName()] ? '' : ' (none yet)'}`));
+  return [h('h4', { tip: `How the body changes switching to ${name} (and back to main from it)` }, ...rich(':sync_alt: transition')),
+    h('div', { cls: 'row', tip: 'The switch transition' }, h('span', { textContent: 'morph' }), seg(['springs', 'auto', 'move'], () => mo('mode'), v => set({ mode: v }),
+      { springs: 'The springs chase the new pose (the default)', auto: 'The stance pose and the bone lengths blend over the frames below, with the ease (new bones grow from nothing)',
+        move: `A keyframed transition move plays: ${morphName('main', name)} (or the one picked) switching in, ${outName} back to main` })),
+    show(slider('frames', { min: 1, max: 60, step: 1 }, () => mo('T'), v => set({ T: v }, 'morph:T'), 'How many frames (60 a second) the blend takes'), 'auto'),
+    show(h('div', { cls: 'row', tip: 'How the blend eases' }, h('span', { textContent: 'ease' }), seg(['linear', 'inOutCubic', 'outQuad', 'outBack'], () => mo('ease'), v => set({ ease: v }),
+      { linear: 'Even', inOutCubic: 'Slow in and out (the default)', outQuad: 'Fast, then settles', outBack: 'Overshoots, then settles' })), 'auto'),
+    show(h('div', { cls: 'row', tip: `The transition moves of ${name}` }, h('span', { textContent: 'move' }), h('span', { cls: 'bar' }, moveBtn,
+      button(':add: new transition move', `Make ${inName()} (half way between the poses, then into ${name}) and open it in animate`, () => make(inName(), 0, i), 'mini'),
+      button(':add: back', `Make ${outName}, played going back to main, and open it in animate`, () => make(outName, i, 0), 'mini'))), 'move')];
+}
+// a stance's requirements and limits (def.stances[i - 1].req for a stance, def.main.req for main; only what differs
+// from STANCE_REQ is stored). maxT, exit on and auto need somewhere to send it other than itself, so main skips them
+function stanceReq(i, name) {
+  const own = i ? () => DEFS[CURRENT].stances[i - 1] : () => DEFS[CURRENT].main;
+  const req = k => ({ ...STANCE_REQ, ...own()?.req })[k];
+  const set = (vals, key = null) => edit(def => {
+    const st = i ? def.stances[i - 1] : (def.main ??= {}), r = { ...st.req, ...vals };
+    for (const k in r) if (JSON.stringify(r[k]) === JSON.stringify(STANCE_REQ[k])) delete r[k];
+    if (Object.keys(r).length) st.req = r; else delete st.req;
+    if (!i) pruneMain(def);
+  }, key);
+  const row = (label, tip, ...c) => h('div', { cls: 'row', tip }, h('span', {}, ...rich(label)), h('span', { cls: 'bar' }, ...c));
+  const sl = (k, label, max, step, tip) => slider(label, { min: 0, max, step }, () => req(k), v => set({ [k]: v }, 'req:' + k), tip);
+  const where = () => req('grounded') && req('air') ? 'both' : req('air') ? 'air' : 'ground';
+  const EXITS = { hit: 'Hit (a blow that lands)', knockdown: 'Knocked down', block: 'Blocking a blow', grab: 'Grabbed by a throw' };
+  const moveOpts = i ? ['all', 'own', 'list'] : ['all', 'list']; // main has no separate "own" binds layer to fall back to
+  const moves = () => Array.isArray(req('moves')) ? 'list' : req('moves');
+  const pick = (e, b) => popup(b, h('b', { textContent: `moves allowed in ${name}` }), h('div', { cls: 'bar' }, Object.keys(currentChar().moves).map(n =>
+    toggle(n, `Allow ${n} in ${name} (its binds that play other moves are dropped)`, () => req('moves').includes?.(n),
+      on => set({ moves: on ? [...req('moves'), n] : req('moves').filter(x => x !== n) })))));
+  const listBtn = button(':tune: moves', `Pick the moves ${name} allows`, pick, 'mini');
+  reg(listBtn, () => { listBtn.hidden = moves() !== 'list'; if (moves() === 'list') setRich(listBtn, `:tune: ${req('moves').length} moves`); });
+  const title = h('h4', { tip: i ? `When ${name} can be switched to, how long it lasts and what sends it back to main. Unset: as today (on the ground, any time)`
+    : `When ${name} can be switched back into, and how long before it can be left again. Unset: as today (any time, any health)` }, ...rich(':gavel: requirements'));
+  return [title,
+    row(':my_location: where', `Where ${name} can be switched to`, seg(['ground', 'air', 'both'], where, v => set({ grounded: v !== 'air', air: v !== 'ground' }),
+      { ground: 'Only standing on the floor (the default)', air: 'Only in the air', both: 'On the floor or in the air' }, v => optLabel(v === 'ground' ? 'stand' : v))),
+    sl('hpBelow', 'hp below', 1, 0.05, `Only with at most this much health left (1 = any): a desperation stance at 0.3`),
+    sl('hpAbove', 'hp above', 1, 0.05, `Only with at least this much health left (0 = any)`),
+    sl('cooldown', 'cooldown', 10, 0.1, `Seconds after leaving ${name} before it can be taken again (0 = straight away)`),
+    sl('minT', 'min time', 5, 0.1, `Seconds in ${name} before it can be left (0 = any time)`),
+    ...i ? [sl('maxT', 'max time', 20, 0.1, `Seconds in ${name}, then back to main on its own (0 = no limit)`),
+      row('exit on', `What sends ${name} back to main`, ...Object.entries(EXITS).map(([k, tip]) =>
+        toggle(k, `${tip}: back to main`, () => req('exitOn').includes(k), on => set({ exitOn: on ? [...req('exitOn'), k] : req('exitOn').filter(x => x !== k) }))))] : [],
+    row('once', `How often ${name} can be taken`, toggle(':timer: once a round', `${name} can be taken once a round`, () => req('once'), v => set({ once: v })),
+      ...i ? [toggle(':smart_toy: auto', `No key needed: ${name} is taken the moment the requirements above hold, and left the moment they stop holding`, () => req('auto'), v => set({ auto: v }))] : []),
+    row('moves', `The moves ${name} plays`, seg(moveOpts, moves, v => set({ moves: v === 'list' ? [] : v }),
+      { all: i ? `${name}'s binds over the main ones (the default)` : 'The usual binds (the default)', own: `Only ${name}'s own binds: inputs it doesn't bind play nothing`,
+        list: `Only the moves picked: binds playing other moves are dropped` }),
+      listBtn)];
+}
+// the generator's variables; the random characters experiment shows nine of them
+function randomPanel(changed = () => {}) {
+  const set = vals => { Object.assign(studio.rnd, vals); changed(); syncAll(); };
+  const title = h('h4', { tip: 'What the random button draws from' }, ...rich(':casino: generator'));
+  title.append(groupOps(RANDOM_VARS, k => studio.rnd[k], k => RANDOM_VARS.find(s => s.k === k).v, set,
+    ['Experiment: a grid of nine random characters; click one to keep it', () => randomExp()]));
+  return [title, ...RANDOM_VARS.map(s => slider(s.k, s, () => studio.rnd[s.k], v => set({ [s.k]: v }), s.tip))];
+}
+// the picker and its new/copy/rename/revert/delete/import/export actions moved to the toolbar (charStancePicker, pinned
+// above the side panel instead of scrolling with it); this fold keeps only what has nowhere else to live
+function charPanel() {
+  const head = heading('Character', 'Pick the fighter every mode uses (the picker is in the toolbar above). Edits are saved in this browser automatically; export a file to keep or share one.',
+    '⌘Z undo · ⇧⌘Z redo');
+  head.append(button(':tune:', 'What the random characters are drawn from, and an experiment grid of them', (e, b) => popup(b, ...randomPanel()), 'mini'));
+  // its own row, not a small icon lost in the crud bar: proposing a character for the roster is a one-off, worth noticing
+  const suggestRow = h('div', { cls: 'row', tip: 'Think this character belongs in the roster? Export it and open an issue - a maintainer folds it in.' },
+    button(':upload: suggest for the roster', 'Export this character and open a GitHub issue to propose it, with instructions (see CONTRIBUTING.md)', () => suggestChar()));
+  return [head, colorRow(), suggestRow];
+}
+// a character's own colour (def.col): unset (auto) leaves it to the player slot in a fight (P1 black, P2 red…, as every
+// built-in does today); set, it is always drawn that way — in a fight too, overriding the slot. Preset swatches, or any
+// colour from the picker.
+const CHAR_COLS = { auto: null, black: '#222222', red: '#c0392b', blue: '#2c6fb0', green: '#2e8b57', purple: '#8e44ad', orange: '#b9770e' };
+const CHAR_COL_TIPS = { auto: 'No colour of its own: whichever player slot it fights in decides (P1 black, P2 red…)' };
+function colorRow() {
+  const curCol = () => { const b = stanceOnly() && stanceBody(); return (b && 'col' in b ? b.col : DEFS[CURRENT].col) || null; };
+  const cur = () => Object.keys(CHAR_COLS).find(k => CHAR_COLS[k] === curCol()) || '';
+  const set = v => edit(def => { const target = stanceOnly() ? editBody(def) : def; if (v) target.col = v; else delete target.col; });
+  const picker = colorInput(curCol() || '#222222', set, 'Any colour, not just the presets');
+  reg(picker, () => { picker.value = curCol() || '#222222'; });
+  return h('div', { cls: 'row', tip: 'This character\'s own colour. Auto: coloured by player slot instead, like every character before this existed.' },
+    h('span', {}, ...rich(':palette: colour')), h('span', { cls: 'bar' },
+      seg(Object.keys(CHAR_COLS), cur, k => set(CHAR_COLS[k]), { ...Object.fromEntries(Object.keys(CHAR_COLS).map(k => [k, k === 'auto' ? CHAR_COL_TIPS.auto : `This character is always ${k}`])) }),
+      picker));
+}
+
+// ---------- pose presets: local angles per limb chain (index 0 = the bone at the root of the limb), by role ----------
+// arms and legs have front / back values; limbs beyond the first pair take the same ones; tails are left alone
+const POSES = {
+  boxer: { tip: 'Fists up, weight forward: the default fighting stance.', spine: [172, 0], head: [0, 0], arm: { f: [-145, 115, 0], b: [-165, 125, 0] }, leg: { f: [25, -25, 90], b: [-18, 0, 90] } },
+  guard: { tip: 'High guard: hands by the face, upright.', spine: [176, 0], head: [0, 10], arm: { f: [-160, 140, 0], b: [-170, 145, 0] }, leg: { f: [20, -20, 90], b: [-15, 0, 90] } },
+  low: { tip: 'Low, wide and crouched: a grappler or a beast.', spine: [158, 0], head: [0, -15], arm: { f: [-130, 100, 0], b: [-150, 110, 0] }, leg: { f: [55, -80, 90], b: [-35, -40, 90] } },
+  karate: { tip: 'Lead hand extended, rear fist at the hip, deep front knee.', spine: [168, 0], head: [0, 0], arm: { f: [-110, 40, 0], b: [-185, 150, 0] }, leg: { f: [40, -30, 90], b: [-30, -5, 90] } },
+  relaxed: { tip: 'Standing loose, arms hanging.', spine: [178, 0], head: [0, 5], arm: { f: [-175, 20, 0], b: [-185, 20, 0] }, leg: { f: [8, -5, 90], b: [-8, -3, 90] } },
+  wide: { tip: 'Arms spread forward and back, feet apart: a showy or clumsy stance.', spine: [178, 0], head: [0, 0], arm: { f: [-110, 40, 0], b: [-240, 40, 0] }, leg: { f: [35, -10, 90], b: [-35, -10, 90] } },
+  southpaw: { tip: 'The boxer mirrored: the other hand and foot lead.', spine: [172, 0], head: [0, 0], arm: { f: [-165, 125, 0], b: [-145, 115, 0] }, leg: { f: [-18, 0, 90], b: [25, -25, 90] } },
+  muay: { tip: 'Tall, hands high, lead heel light: ready to check and knee.', spine: [178, 0], head: [0, 5], arm: { f: [-165, 140, 0], b: [-172, 150, 0] }, leg: { f: [15, -30, 115], b: [-20, -5, 90] } },
+  tiger: { tip: 'Low and forward, claws out: a pouncing animal style.', spine: [160, 0], head: [0, -10], arm: { f: [-100, 70, 0], b: [-120, 85, 0] }, leg: { f: [45, -55, 90], b: [-30, -30, 90] } },
+  crane: { tip: 'On one leg, the front knee raised, arms spread like wings.', spine: [178, 0], head: [0, 0], arm: { f: [-70, -40, 0], b: [-280, 40, 0] }, leg: { f: [85, -110, 90], b: [-4, 0, 90] } },
+  sumo: { tip: 'Very wide and low, hands forward: a wall of a stance.', spine: [168, 0], head: [0, -5], arm: { f: [-125, 35, 0], b: [-135, 35, 0] }, leg: { f: [55, -55, 90], b: [-55, -35, 90] } },
+  drunken: { tip: 'Leaning back, one hand high, loose knees: unpredictable.', spine: [190, 0], head: [0, 20], arm: { f: [-125, 125, 0], b: [-205, 60, 0] }, leg: { f: [30, -40, 90], b: [-5, -25, 90] } },
+  tpose: { tip: 'Straight limbs: a neutral pose to edit the body from.', spine: [180, 0], head: [0, 0], arm: { f: [-90, 0, 0], b: [-270, 0, 0] }, leg: { f: [0, 0, 90], b: [0, 0, 90] } },
+};
+// the preset's angles for every bone of a character (partial: only chains the preset covers)
+function presetPose(ch, preset) {
+  const p = {};
+  for (const role of ['spine', 'head', 'arm', 'leg']) for (const c of ch.chains[role]) {
+    const v = Array.isArray(preset[role]) ? preset[role] : preset[role][c[0].side === 'b' ? 'b' : 'f'];
+    c.forEach((b, i) => { if (v[i] !== undefined) p[b.id] = v[i]; });
+  }
+  return p;
+}
+// ---------- my poses: a literal per-bone snapshot (not role-generalized like POSES above), captured from a specific
+// character - the replay scene editor's "save as" button (replay.js sceneSide) feeds this; the animate editor's own
+// "start this key from a preset pose" (editor.js) and the character editor's stance presets (creator.js) both read
+// it too, alongside the built-in POSES, so a pose posed once in either place is a preset everywhere
+const POSE_STORE = 'stick2.myPoses';
+const myPoses = (() => { try { return JSON.parse(localStorage.getItem(POSE_STORE)) || {}; } catch { return {}; } })();
+function snapshotPose(name, ch, pose) { myPoses[name] = { char: ch.name, pose, tip: `Saved from ${ch.name}` }; saveMyPoses(); }
+function deleteMyPose(name) { delete myPoses[name]; saveMyPoses(); }
+function saveMyPoses() { try { localStorage.setItem(POSE_STORE, JSON.stringify(myPoses)); } catch {} }
+// every pose a character can be set to right now: the built-ins (role-generalized, presetPose) plus any custom ones
+// that were captured from this same character (a custom one's literal bone ids only make sense on its own rig)
+function posesFor(ch) {
+  return { ...Object.fromEntries(Object.entries(POSES).map(([k, p]) => [k, { tip: p.tip, pose: () => presetPose(ch, p) }])),
+    ...Object.fromEntries(Object.entries(myPoses).filter(([, p]) => p.char === ch.name).map(([k, p]) => [k, { tip: p.tip, pose: () => p.pose, custom: true }])) };
+}
+// locked bones rotate only with their parent: IK and dragging turn the first unlocked bone above instead
+const unlockedAbove = (ch, b) => { while (b?.lock) b = ch.by[b.parent]; return b; };
+
+// collapsible bone tree: ▾/▸ folds a branch, the stripe is the role colour, 🔒 = locked
+function boneTree() {
+  const ch = viewChar();
+  const kidsOf = b => b.kids.flatMap(k => k.chainOf ? kidsOf(k) : [k]); // a chain's segments list as the chain bone itself
+  const walk = (b, depth) => {
+    const fold = studio.fold.has(b.id);
+    const tw = kidsOf(b).length ? button(fold ? '▸' : '▾', fold ? `Show the bones under ${b.id}` : `Hide the bones under ${b.id} in this list`, () => { studio.fold[fold ? 'delete' : 'add'](b.id); panels(); }, 'twist')
+      : h('span', { cls: 'twist' });
+    const nb = button('', '', e => pickBoneSel(b.id, e.shiftKey || e.metaKey || e.ctrlKey));
+    nb.ondblclick = e => { e.stopPropagation(); renameBone(b.id).then(panels); };
+    nb.style.borderLeft = `4px solid ${ROLE_COLS[b.role]?.[b.side === 'b' ? 1 : 0] || '#888'}`; // a weapon (or other roleless) bone keeps a neutral colour
+    // label and tip rebuilt live (not just the .on class): hiding/unhiding a bone (stance-only delete/undo) keeps the
+    // same bone ids, so recompile() only calls syncAll(), not a full panels() rebuild - this still has to catch it
+    reg(nb, () => {
+      nb.classList.toggle('on', selIds().includes(b.id));
+      const live = viewChar().by[b.id] || b, stanceOwn = studio.stance > 0 && !!stanceBody()?.add?.some(x => x.id === b.id);
+      setRich(nb, live.id + (live.lock ? ' 🔒' : '') + (live.hidden ? ' (hidden)' : '') + (stanceOwn ? ' (this stance)' : ''));
+      nb.dataset.tip = `${live.role}${live.side ? ' · ' + (live.side === 'f' ? 'front' : 'back') : ''} · ${live.len}px${fold ? ` · ${subtree(DEFS[CURRENT], b.id).length - 1} hidden` : ''}` +
+        (stanceOwn ? ' · only exists in this stance' : '') + ' · click: select it (Shift / ⌘: add to the selection) · double-click: rename · drag onto a bone: hang it from that bone (Alt: move before it)';
+    });
+    // drag a bone onto another: it (and everything below it) hangs from that one; Alt+drop: moves before it in the draw order instead
+    Object.assign(nb, { draggable: true, ondragstart: e => e.dataTransfer?.setData('text/plain', b.id),
+      ondragover: e => { e.preventDefault(); nb.classList.add('dropto'); }, ondragleave: () => nb.classList.remove('dropto'),
+      ondrop: e => { e.preventDefault(); nb.classList.remove('dropto'); treeDrop(e.dataTransfer?.getData('text/plain'), b.id, e.altKey); } });
+    // laid out sideways like an org chart: a bone over the row of the bones hanging from it
+    const kids = fold ? [] : kidsOf(b);
+    return h('div', { cls: 'tnode' }, h('div', { cls: 'tree' }, tw, nb), kids.length ? h('div', { cls: 'tkids' }, ...kids.map(k => walk(k, depth + 1))) : null);
+  };
+  const roots = ch.bones.filter(b => !b.parent).map(b => walk(b, 0));
+  const hip = h('div', { cls: 'tree note thip', textContent: 'hip',  tip: 'Drag a bone here to make it a root (it hangs from the hip, like the legs and the waist)',
+    ondragover: e => e.preventDefault(), ondrop: e => { e.preventDefault(); treeDrop(e.dataTransfer?.getData('text/plain'), 'hip'); } });
+  return h('div', { cls: 'tnode troot' }, hip, h('div', { cls: 'tkids' }, ...roots));
+}
+
+// ---------- body operations ----------
+// limb templates: [name, len, props]; the first bone gets a world angle (w), the rest are relative to their parent
+const LIMBS = {
+  arm: { w: 0, pair: true, bones: [['uarm', 17, { lag: 1 }], ['farm', 13, { lag: 2, min: -10, max: 165 }], ['hand', 4, { lag: 2.5, thick: 6, min: -70, max: 70 }]] },
+  leg: { w: 0, pair: true, bones: [['thigh', 22, { hurt: 8, lag: 0 }], ['shin', 23, { hurt: 8, lag: 1, min: -165, max: 8 }],
+    ['foot', 7, { a: 90, hurt: 6, lag: 1.5, level: 1, thick: 4, min: 40, max: 140 }]] },
+  tail: { w: -120, bones: [['tail', 14, { lag: 1, thick: 4 }], ['tailMid', 12, { a: -20, lag: 2, thick: 3, min: -70, max: 70 }],
+    ['tailEnd', 10, { a: -20, lag: 3, thick: 2, stretch: 0.2, min: -70, max: 70 }]] },
+  head: { w: 180, bones: [['neck', 5, { hurt: 12, level: 0.5, min: -45, max: 45 }], ['head', 8, { shape: 'circle', hurt: 12, min: -50, max: 50 }]] },
+};
+const LIMB_TIPS = {
+  arm: 'Add a pair of arms (front + back) at the selected torso bone, or at the top of the spine.',
+  leg: 'Add a pair of legs at the selected torso bone, or at the hips.',
+  tail: 'Add a 3-bone tail at the selected torso bone, or at the hips.',
+  head: 'Add a neck and head at the selected torso bone, or at the top of the spine.',
+};
+// (stance only: the stance's body adds it)
+function addLimb(kind) {
+  edit(def => {
+    if (!stanceOnly()) { studio.sel = attachLimb(def, kind, studio.sel); return; }
+    const body = editBody(def), all = { bones: [...def.bones, ...body.add || []] }, n = all.bones.length;
+    studio.sel = attachLimb(all, kind, studio.sel); body.add = [...body.add || [], ...all.bones.slice(n)];
+  });
+  studio.also.clear();
+}
+// adds a limb to a definition at torso bone `at` (or the default place); returns its first bone's id
+function attachLimb(def, kind, at) {
+  {
+    const L = LIMBS[kind], by = Object.fromEntries(def.bones.map(b => [b.id, b])), sel = by[at];
+    const spine = def.bones.filter(b => b.role === 'spine'), top = spine.find(b => !spine.some(k => k.parent === b.id));
+    // arms and heads hang off the top of the torso, legs and tails off the hips, unless a torso bone is selected
+    const parent = sel?.role === 'spine' ? sel.id : kind === 'arm' || kind === 'head' ? top?.id ?? null : null;
+    const restW = id => id ? restW(by[id].parent) + (by[id].a ?? 0) : 0;
+    const sides = L.pair ? ['F', 'B'] : [''];
+    let n = 1; // one number for the whole limb so F/B partners keep matching names
+    const name = (base, S) => base + (n > 1 ? n : '') + S;
+    while (sides.some(S => L.bones.some(([base]) => by[name(base, S)]))) n++;
+    for (const S of sides) L.bones.forEach(([base, len, props], i) => def.bones.push({
+      id: name(base, S), parent: i ? name(L.bones[i - 1][0], S) : parent, len, role: kind === 'head' ? 'head' : kind,
+      side: S.toLowerCase(), ...props, a: i ? props.a ?? 0 : L.w - restW(parent) }));
+    return name(L.bones[0][0], sides[0]);
+  }
+}
+// one more joint at the end of the selected bone, same role and side
+function addBone() {
+  edit(def => {
+    const p = selBone(), into = stanceOnly() ? editBody(def).add ??= [] : def.bones, ids = new Set([...def.bones, ...stanceBody(def)?.add || []].map(b => b.id));
+    let id = 'bone', n = 1;
+    while (ids.has(id + n)) n++;
+    into.push({ id: id + n, parent: p?.id ?? null, len: 10, role: p?.role ?? 'tail', side: p?.side ?? '', lag: (p?.lag ?? 0) + 0.5 });
+    studio.sel = id + n; studio.also.clear();
+  });
+}
+// every stance body override (main's and each named stance's): where a bone id can also appear, besides def.bones
+const allBodies = def => [def.main?.body, ...(def.stances || []).map(s => s.body)].filter(Boolean);
+// rename a bone: follows it into its parent pointers, the stance bodies that add or override it, and every pose that poses it
+async function renameBone(id = studio.sel) {
+  const was = id, name = (await askText('Rename the bone', was))?.trim();
+  if (!name || name === was) return;
+  const def = DEFS[CURRENT];
+  if ([...def.bones, ...allBodies(def).flatMap(b => b.add || [])].some(b => b.id === name)) return notice('Name taken', `"${name}" already exists`);
+  edit(def => {
+    for (const b of [...def.bones, ...allBodies(def).flatMap(b => b.add || [])]) { if (b.id === was) b.id = name; if (b.parent === was) b.parent = name; }
+    for (const body of allBodies(def)) if (body.bones?.[was]) { body.bones[name] = body.bones[was]; delete body.bones[was]; }
+    forEachPose(def, p => { if (Object.prototype.hasOwnProperty.call(p, was)) { p[name] = p[was]; delete p[was]; } });
+  });
+  if (studio.sel === was) studio.sel = name;
+  if (studio.also.has(was)) { studio.also.delete(was); studio.also.add(name); }
+}
+// every bone in the current stance's view, selected together (⌘/Ctrl+click adds one at a time; this adds them all)
+function selectAllBones() {
+  const ids = viewChar().ids;
+  if (selIds().length === ids.length) { studio.also.clear(); return; } // already all selected: deselect, back to just the focused bone
+  studio.sel = ids[0]; studio.also = new Set(ids);
+}
+function selectAllBtn() {
+  const b = button(':select_all:', '', selectAllBones, 'mini');
+  reg(b, () => { const all = selIds().length === viewChar().ids.length;
+    b.classList.toggle('on', all); b.dataset.tip = all ? 'Deselect: back to just the focused bone' : 'Select every bone, so an edit goes to all of them at once'; });
+  return b;
+}
+const subtree = (def, id) => [id, ...def.bones.filter(b => b.parent === id).flatMap(b => subtree(def, b.id))];
+// rearranging: a bone moves before another in the list (inside a side, earlier bones draw underneath; a parent stays before its children),
+// or hangs from another bone (null: the hip), never from one hanging from it
+function moveBone(id, before) {
+  if (id === before) return;
+  edit(def => { const b = def.bones.find(b => b.id === id); def.bones.splice(def.bones.indexOf(b), 1); def.bones.splice(def.bones.findIndex(x => x.id === before), 0, b); });
+}
+const parentChoices = (def, id) => { const sub = new Set(subtree(def, id)); return def.bones.filter(b => !sub.has(b.id)).map(b => b.id); };
+function setParent(id, p) { edit(def => { def.bones.find(b => b.id === id).parent = p; }); }
+// a drop in the bone tree: onto a bone reparents (never under itself), Alt reorders, the hip row makes a root
+function treeDrop(id, to, reorder = false) {
+  const def = DEFS[CURRENT];
+  if (!id || id === to || !def.bones.some(b => b.id === id)) return;
+  if (to === 'hip') setParent(id, null);
+  else if (reorder) moveBone(id, to);
+  else if (parentChoices(def, id).includes(to)) setParent(id, to);
+  panels();
+}
+// a bone the stance adds goes from its body; in stance only, any other bone is hidden in the stance (with all below it)
+function deleteBone() {
+  const body = stanceBody();
+  if (body?.add?.some(b => b.id === studio.sel)) {
+    const gone = new Set(subtree({ bones: [...DEFS[CURRENT].bones, ...body.add] }, studio.sel));
+    studio.sel = selBone().parent ?? currentChar().ids[0]; studio.also.clear();
+    return edit(def => { const b = editBody(def); b.add = b.add.filter(x => !gone.has(x.id)); if (!b.add.length) delete b.add; });
+  }
+  if (stanceOnly()) return edit(def => { for (const b of selDefs(def)) b.hidden = true; });
+  const def = DEFS[CURRENT], gone = new Set(subtree(def, studio.sel));
+  if (gone.size >= def.bones.length) return; // keep at least one bone
+  studio.sel = selBone().parent ?? studio.sel; studio.also.clear();
+  edit(def => {
+    def.bones = def.bones.filter(b => !gone.has(b.id));
+    forEachPose(def, p => { for (const id of gone) delete p[id]; });
+  });
+}
+// copy the selected bone and everything under it to the other side (front <-> back), stance included
+function copyLimb() {
+  edit(def => {
+    const src = subtree(def, studio.sel), ids = new Set(def.bones.map(b => b.id)), map = {};
+    const flip = { f: 'b', b: 'f', '': '' };
+    for (const id of src) {
+      let nid = /[FB]$/.test(id) ? id.slice(0, -1) + (id.endsWith('F') ? 'B' : 'F') : id + '2';
+      while (ids.has(nid)) nid += '2';
+      ids.add(nid); map[id] = nid;
+    }
+    for (const id of src) {
+      const b = def.bones.find(b => b.id === id);
+      def.bones.push({ ...clone(b), id: map[id], parent: map[b.parent] ?? b.parent, side: flip[b.side ?? ''] });
+      if (id in def.poses.stance) def.poses.stance[map[id]] = def.poses.stance[id];
+    }
+    studio.sel = map[studio.sel]; studio.also.clear();
+  });
+}
