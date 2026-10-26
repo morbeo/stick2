@@ -25,6 +25,8 @@ const BONE = {
   followMix: 1,        // how much of that turn it copies (0.5 = half, -1 = mirrored)
   reach: undefined,    // constraint (IK): this bone and its parent bend so its end reaches that bone's end (a hand on a prop, a foot on a pedal)
   reachMix: 1,         // how far toward reaching it (0 = its own pose, 1 = all the way)
+  morphDelay: 0,       // auto stance blends: the share of the blend (0 … 0.9) this bone waits before it starts, so it lands
+                        // later than the rest (hair and tails settle after the body)
   aim: 0,              // how far the bone turns toward the nearest foe's upper body (1 = points straight at it): heads that watch, tracking arms
   z: 0,                // draw order layer: lower draws underneath everything above it, whatever the side (side orders bones within a layer)
   thick: 5, hurt: 0,   // stroke width; hurtbox radius (0 = can't be hit here)
@@ -620,7 +622,13 @@ const STANCE_KEYS = { 'S+G': 'S+G', '↓S+G': '↓ S+G', '→S+G': '→ S+G', '�
 const STANCE_REQ = { grounded: true, air: false, hpBelow: 1, hpAbove: 0, cooldown: 0, minT: 0, maxT: 0, exitOn: [], once: false, moves: 'all', auto: false };
 // switching into a stance (and back to main from it): springs = the springs chase the new pose; auto = the stance pose and the bone
 // lengths blend over T frames (60 fps) with the ease; move = a keyframed transition move plays (move, or one named <from>To<To>)
+// ease 'bezier' uses bz [x1, y1, x2, y2] (the key easing curve); each bone's morphDelay holds it back for part of the blend
 const MORPH = { mode: 'springs', T: 12, ease: 'inOutCubic', move: '' };
+// how far bone b is through morph m (0 … 1, eased)
+function morphAt(m, b) {
+  const d = clamp(b?.morphDelay || 0, 0, 0.9), u = clamp((Math.min(1, m.t / m.T) - d) / (1 - d), 0, 1);
+  return easeKey({ e: m.ease, bz: m.bz }, u);
+}
 // stance keys were K+G before K+G became the second throw
 const stanceKey = k => (k || 'S+G').replace('K+G', 'S+G');
 // a stance's keyframed idle / walk loop: the moves idle / walk for the main stance, craneIdle / craneWalk for a stance named crane
