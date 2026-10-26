@@ -95,11 +95,10 @@ function layDelete() {
 // ---------- stage panels: the tables over the stage, one open per tab (kept in its layout), opened from the toolbar's panels group; Esc or × closes ----------
 // closing a panel goes back to the tab's home panel if it has one (character: the bones), so a look at combos doesn't lose them
 function openStage(name) {
-  unpeek(); const home = mode().homePanel;
-  lay().panel = name || (home && stageOpen() !== home ? home : null); saveLay(); panels();
+  unpeek(); panelSet(lay(), panelNext(stageOpen(), name, mode().homePanel)); saveLay(); panels();
 }
 const closeStage = () => openStage(null);
-const stageOpen = () => lay().panel;
+const stageOpen = () => panelOpen(lay());
 // the head row of every stage panel: its name, its own tools, then × (Esc) pinned to the panel's own top-right corner
 // (not just pushed to the end of the tools, which can wrap to another line and land it anywhere)
 const stageHead = (title, tip, ...tools) => h('div', { cls: 'bar stagehead' }, h('b', { textContent: title, tip }),
