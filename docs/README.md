@@ -7,6 +7,7 @@ The full reference behind the [landing page](../README.md). The app has its own 
 | [Modes](modes.md) | what each tab and view does: play, grid, experiment (sweep, breed, attacks, compare, impact, vary body), character, animate, gallery, tests |
 | [Fighting](fighting.md) | the engine: guard, combos, throws, specials, projectiles, weapons, power, falls, 2D / 2.5D, stances |
 | [Editing](editing.md) | the roster, stats, the move table, movement layers, the input table, combos |
+| [Characters in code](characters.md) | one file per character: adding one by hand or from the editor (export as code, `npm run char:add`), diffs, load order |
 | [Contributing to the roster](roster-contributing.md) | what help is needed, the contribution workflow, and where to learn the tools (animate, movement, physics, combos) |
 | [Interface](interface.md) | the top bar, export / import, debug, ⌘K, keys and macros, panels, undo, phones and the touch pad, sound |
 | [Development](development.md) | code layout, build info, the screenshot and animation tools, the icon font |

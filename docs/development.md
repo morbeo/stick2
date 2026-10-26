@@ -10,7 +10,13 @@ How the code is laid out, and the tools that build its generated files.
 - Everything is drawn in code. The only asset is the icon font (see [Icons](#icons)).
 - Tests live in `tests/`, see [Testing](testing.md).
 - The scripts share one global scope, so a new top-level name must not exist in any other `src/` file (a repeated `const` stops the later script).
-- The engine runs without a page too: `tools/lib/engine.js` loads the scripts that need no DOM (core, rig, fx, roster, fighter, world, brain, checks, events) into a Node vm context. The tests and the MCP server use it.
+- The engine runs without a page too: `tools/lib/engine.js` loads the scripts that need no DOM (core, shapes, the rig group, fx, the roster group, fighter, world, stage, brain, checks, events) into a Node vm context. The tests and the MCP server use it.
+- Some scripts come as groups, listed in `tools/lib/engine.js` (`GROUPS`) and loaded in that order:
+  - `rig`: `rig.js` (bones, `fromOld`, `attack`), `rig-chars.js` (binds, stances, stats, `makeCharacter`, `CHAR_DEFS`), `chars/stick.js` (the base stick), `rig-weapons.js`, `rig-pose.js` (stance bodies, sampling, frame data, combos, `fk`, `constrain`), `rig-draw.js`.
+  - `roster`: `objdiff.js`, then every file in `src/engine/chars/index.json` (`_kit.js` first, then one file per character), then `roster.js` (supers, exported characters, `CHARS`).
+  - `replay`: `replay.js` (reel, editing, branches, seeking), `replay-timeline.js`, `replay-scene.js`, `replay-footage.js`, `replay-movie.js`, `replay-panel.js`.
+- `npm run chars:sync` (`tools/dev/char-scripts.js`) rewrites the script tags of these groups in every page; `--check` only reports. A unit test fails when a page is out of date.
+- Replay files carry `fv`, the file layout's version (separate from `ENGINE_VERSION`). `readReplay` in `world.js` upgrades older layouts; bump `REPLAY_FV` and add a step to `REPLAY_UPGRADES` when the layout changes.
 - `src/engine/events.js` turns a fight into events (moves, hits, falls, inputs, combos), per-fighter lanes and stats (`recordFight`, `fightStats`), for the replay tab and anything else.
 
 ## Tools
