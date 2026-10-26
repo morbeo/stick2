@@ -1,0 +1,121 @@
+name: itch.io · publish
+run-name: "Publish ${{ inputs.ref || github.ref_name }} to itch.io${{ inputs.dry-run && ' (dry run)' || '' }}"
+
+# Manual: tests, packs dist/stick2-itch.zip (npm run itch) and pushes it with butler
+# to morbeo/stick2:<channel>, versioned by the commit. Optionally renders the store
+# screenshots and promo images (out/itch/) as a run artifact: itch.io has no API for
+# page screenshots, so those are uploaded by hand on the project's edit page.
+# Needs the BUTLER_API_KEY secret (itch.io → Settings → API keys).
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to publish (default: the branch picked above)
+        required: false
+        type: string
+      channel:
+        description: butler channel (html is the browser build)
+        required: false
+        default: html
+        type: string
+      screenshots:
+        description: Also render store screenshots + promo images as an artifact
+        required: false
+        default: true
+        type: boolean
+      dry-run:
+        description: Pack only, don't push to itch.io
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: itch-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Pack and push
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TARGET: morbeo/stick2:${{ inputs.channel }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0 # build-info reads the commit history
+      - name: Check the API key
+        if: ${{ !inputs.dry-run }}
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: '[ -n "$BUTLER_API_KEY" ] || { echo "::error::Add the BUTLER_API_KEY repository secret (itch.io → Settings → API keys)"; exit 1; }'
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Test
+        run: npm test
+      - name: Pack
+        run: npm run itch
+      - name: Keep the zip
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: stick2-itch
+          path: dist/stick2-itch.zip
+      - name: Install butler
+        if: ${{ !inputs.dry-run }}
+        run: |
+          curl -fsSL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          unzip -q butler.zip -d "$RUNNER_TEMP/butler" && rm butler.zip
+          chmod +x "$RUNNER_TEMP/butler/butler" && echo "$RUNNER_TEMP/butler" >> "$GITHUB_PATH"
+      - name: Push to itch.io
+        if: ${{ !inputs.dry-run }}
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          butler -V
+          butler push dist/stick2-itch.zip "$TARGET" --userversion "$(git rev-parse --short HEAD)"
+          butler status "$TARGET" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  screenshots:
+    name: Render store images
+    if: ${{ inputs.screenshots }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 20
+          cache: npm
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@c785b87e244131f27c9f19c1a33e2ead956ab7ce # v1
+        id: chrome
+        with:
+          install-dependencies: true
+      - name: Install dependencies
+        run: npm ci
+      - name: Render
+        env:
+          CHROME: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          node tools/itch/itch-assets.js
+          node tools/itch/itch-showcase.js
+          echo "Store images are in the **itch-images** artifact; upload them on the itch.io edit page." >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the images
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: itch-images
+          path: out/itch/
