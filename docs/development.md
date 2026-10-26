@@ -83,3 +83,12 @@ Notes for the itch.io page:
 ## Branch previews
 
 `.github/workflows/pages.yml` publishes the site to the `gh-pages` branch: `master` at the root (https://morbeo.github.io/stick2/), every other branch at `https://morbeo.github.io/stick2/preview/<branch>/` (characters outside `A-Za-z0-9._-` become `-`). Opening a PR comments its preview link; deleting the branch removes the preview. One-time setup: Settings → Pages → Source "Deploy from a branch", branch `gh-pages`, folder `/ (root)`, after the first run has created that branch.
+
+## Any build
+
+`build.html?sha=<commit, branch or tag>` plays the game as it was at that commit (palette: **load build**). Add `&page=docs.html` (or any entry page) for another page.
+
+- It resolves the ref with the GitHub API, then loads that commit's page from jsDelivr (`cdn.jsdelivr.net/gh/morbeo/stick2@<sha>/`), so every commit works without being deployed.
+- `BUILD` is filled in from the commit, so the debug popup names it; the update check stays quiet.
+- Saves are a read-only copy: the old build reads your local data, but its writes stay in memory and vanish on reload.
+- Needs network access to api.github.com (60 lookups an hour without sign-in) and jsDelivr.
