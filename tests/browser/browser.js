@@ -1409,9 +1409,22 @@ const sinkOk = await shows('kitchen-sink.html', `document.body.classList.contain
 const galleryOk = await shows('gallery.html', `document.querySelector('[data-part="target"]') && document.querySelector('.fpick')`);
 // gallery-demo.html opens the same gallery view in theater mode: no toolbar, side panel or picker, just the loop
 const demoOk = await shows('gallery-demo.html', `document.body.classList.contains('theater')`);
+// embed presets (src/ui/embed.js, profiles/embeds/): each shows and hides what it claims
+const visible = id => `getComputedStyle(document.getElementById('${id}')).display !== 'none'`;
+const EMBED_CHECKS = {
+  arcade: `document.body.classList.contains('embed') && !(${visible('top')}) && !(${visible('side')}) && document.querySelectorAll('#embbar button').length === 5 && CFG.hud && CFG.timer && localStorage !== window.Storage`,
+  demo: `app.mode === 'play' && lab.scen === 'ai vs ai' && !(${visible('top')}) && !EMBED.cfg.input.length && !CFG.timer`,
+  showcase: `app.mode === 'gallery' && !MODES.play && !(${visible('top')})`,
+  'editor-lite': `${visible('top')} && ${visible('side')} && MODES.character && MODES.animate && !MODES.fx && !MODES.replay`,
+  full: `${visible('top')} && Object.keys(MODES).length === EMBED_MODES.length && !document.getElementById('embbar')?.children.length`,
+};
+const embedOk = {};
+for (const [p, expr] of Object.entries(EMBED_CHECKS)) embedOk[p] = await shows(`index.html#preset=${p}`, expr);
+const embedFailed = Object.keys(embedOk).filter(p => !embedOk[p]);
 // only an explicit OK passes: anything else in the title (the app's own, empty) means the probe never finished
 if (!/^(OK|ERR)/.test(title)) console.error(`FAIL: the page never finished its checks (title: ${JSON.stringify(title)})`);
 console.log(title, docsOk ? '· docs.html OK' : '· docs.html FAILED', randomOk ? '· random.html OK' : '· random.html FAILED', sinkOk ? '· kitchen-sink.html OK' : '· kitchen-sink.html FAILED',
-  galleryOk ? '· gallery.html OK' : '· gallery.html FAILED', demoOk ? '· gallery-demo.html OK' : '· gallery-demo.html FAILED');
-process.exit(title === 'OK' && docsOk && randomOk && sinkOk && galleryOk && demoOk ? 0 : 1);
+  galleryOk ? '· gallery.html OK' : '· gallery.html FAILED', demoOk ? '· gallery-demo.html OK' : '· gallery-demo.html FAILED',
+  embedFailed.length ? `· embed presets FAILED: ${embedFailed.join(', ')}` : '· embed presets OK');
+process.exit(title === 'OK' && docsOk && randomOk && sinkOk && galleryOk && demoOk && !embedFailed.length ? 0 : 1);
 })();

@@ -128,3 +128,20 @@ test('a real lobby and match through the server: both sides fight the same fight
     assert.match(await (await get(s, '/metrics')).text(), /stick2_matches_total 1/);
   });
 });
+
+test('short embed links: POST /api/embeds stores a hash, /e/<id> redirects to the game with it', async () => {
+  const s = await boot();
+  await quiet(s, async () => {
+    const post = body => fetch(`http://127.0.0.1:${s.port}/api/embeds`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const r = await post({ hash: 'preset=arcade&p1=bonko' });
+    assert.equal(r.status, 200); assert.equal(r.headers.get('access-control-allow-origin'), '*');
+    const { id } = await r.json();
+    assert.equal((await (await post({ hash: 'preset=arcade&p1=bonko' })).json()).id, id); // the same hash, the same id
+    const go = await fetch(`http://127.0.0.1:${s.port}/e/${id}`, { redirect: 'manual' });
+    assert.equal(go.status, 302); assert.equal(go.headers.get('location'), '/index.html#preset=arcade&p1=bonko');
+    assert.equal((await get(s, '/e/nothere')).status, 404);
+    assert.equal((await post({ hash: 'a b' })).status, 400);
+    assert.equal((await post({ hash: 'x'.repeat(70000) })).status, 413);
+    assert.equal((await fetch(`http://127.0.0.1:${s.port}/api/embeds`, { method: 'OPTIONS' })).status, 204);
+  });
+});
