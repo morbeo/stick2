@@ -35,4 +35,4 @@ The screenshots in [img/](img/) come from `node tools/render/screenshots.js`, an
 
 `node tools/render/release-notes.js` lists each PR merged since the last tag, with before / after screenshots of the screens it touched: "before" renders the previous tag from a temporary git worktree, "after" the release. It writes `release-notes/notes.md` and the PNGs. `--from` / `--to` pick the range, `--max` the shots per PR, `--url` the image link prefix.
 
-The **Release · notes in pictures** workflow runs it on every published release (or by hand with a tag), attaches the images to the release and appends the notes to its body; running it again replaces that section.
+The `notes` job of **Release · publish & assets** runs it on every release (or by hand with a tag and only `notes` ticked), attaches the images to the release and appends the notes to its body; running it again replaces that section.
