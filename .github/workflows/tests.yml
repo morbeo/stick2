@@ -62,6 +62,10 @@ jobs:
         run: npm run test:browser
         env:
           CHROME: /usr/bin/google-chrome
+      - name: Character editor across a reload
+        run: npm run test:editor
+        env:
+          CHROME: /usr/bin/google-chrome
 
   netplay:
     name: Two-browser netplay
