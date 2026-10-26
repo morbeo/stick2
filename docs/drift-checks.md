@@ -19,7 +19,7 @@ A weekly automated review opens one GitHub issue labelled `drift` listing anythi
 
 ## Tests
 - Every `src/` module has unit coverage or is loaded by a test; list modules with none.
-- Coverage not below the CI floor; new code since the last check has tests.
+- Coverage not below the CI floor (80% lines, `tools/dev/coverage-check.js`) and every `FULL` file still at 100%; new code since the last check has tests; a module now at 100% is added to `FULL`.
 - No skipped or `.only` tests committed.
 
 ## Docs and palette
