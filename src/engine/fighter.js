@@ -66,7 +66,7 @@ class Fighter {
     if (ch !== this.ch) this.setChar(ch, true);
     const mo = (i ? this.st : old).morph;
     if (how === 'instant') return;
-    if (mo.mode === 'auto') this.morph = { from, lens, t: 0, T: Math.max(1, mo.T) / 60, ease: EASE[mo.ease] ? mo.ease : 'linear' };
+    if (mo.mode === 'auto') this.morph = { from, lens, t: 0, T: Math.max(1, mo.T) / 60, ease: EASE[mo.ease] || mo.ease === 'bezier' ? mo.ease : 'linear', bz: mo.bz };
     else if (mo.mode === 'move' && how === 'switch' && this.free && !this.action) {
       const n = (i && mo.move) || morphName(old.name, this.st.name);
       if (this.ch.moves[n]) { this.used = []; this.start(n); }
@@ -76,8 +76,8 @@ class Fighter {
   stancePose() {
     const m = this.morph, to = this.st.pose;
     if (!m) return to;
-    const e = EASE[m.ease](Math.min(1, m.t / m.T)), p = {};
-    for (const j in to) p[j] = (m.from[j] ?? to[j]) + (to[j] - (m.from[j] ?? to[j])) * e;
+    const p = {};
+    for (const j in to) p[j] = (m.from[j] ?? to[j]) + (to[j] - (m.from[j] ?? to[j])) * morphAt(m, this.ch.by[j]);
     return p;
   }
   // its limits send it back to main (maxT, exitOn)
@@ -733,7 +733,7 @@ class Fighter {
     constrain(this.ch, this.target);
 
     // filter layer: displayed pose chases the target pose
-    const mode = c('filter'), mo = this.morph, me = mo && EASE[mo.ease](Math.min(1, mo.t / mo.T));
+    const mode = c('filter'), mo = this.morph;
     // dangling bones (dangle) hang like a rope: turned toward gravity plus the drag of the body's motion, so they droop at rest,
     // stream back from a run and lift in a fall; wa: world angles of the drawn pose, parents first (|| 0: a restored checkpoint has no -0)
     const wa = {}, dd = c('dangleDrag'), blow = Math.atan2(-this.vx * this.dir / dd || 0, 1 - this.vy / dd) / R, gust = this.rag ? 0 : c('dangle');
@@ -757,7 +757,7 @@ class Fighter {
       if (b.min !== undefined) this.disp[j] = clamp(this.disp[j], Math.min(b.min, x), Math.max(b.max, x));
       // stretch: fast-swinging bones lengthen, then ease back; a move's own key.len (this.mul.len) stretches it on purpose (a Dhalsim limb)
       // (an auto morph blends the lengths from the old body's, new bones from nothing)
-      const len = (mo ? (mo.lens[j] ?? 0) + (b.len - (mo.lens[j] ?? 0)) * me : b.len) * this.mul.len[j];
+      const len = (mo ? (mo.lens[j] ?? 0) + (b.len - (mo.lens[j] ?? 0)) * morphAt(mo, b) : b.len) * this.mul.len[j];
       const want = len * (1 + b.stretch * Math.min(1, Math.abs(this.disp[j] - this.prev[j]) / dt / 1500));
       this.lens[j] = mo ? want : this.lens[j] + (want - this.lens[j]) * (1 - Math.exp(-30 * dt));
       wa[j] = wp + this.disp[j];

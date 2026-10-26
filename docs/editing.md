@@ -128,8 +128,11 @@ Next to the stance's key, **fly** makes it hover instead of fall: gravity and th
 
 - **springs** (the default): the springs chase the new pose.
 - **auto:** the stance pose and the bone lengths blend over **frames** (60 a second) with the **ease**. New bones grow from nothing, hidden ones shrink away.
+  - **ease** **bezier** draws a curve graph under the switch, the same as a key's [bezier easing](modes.md#bezier-easing): drag its two handles (above the box overshoots, below it anticipates), double-click to reset. Saved as `morph.bz`. `stance blend: bezier` in the palette switches the selected stance to it.
+  - **Per-bone timing:** a bone's **morphDelay** (bone properties, 0 … 0.9) is the share of the blend it waits before it moves. Every bone still lands by the end of the blend, so a delayed bone moves later and faster.
+  - **Example:** a 20-frame blend with `morphDelay` 0.5 on the hair and 0.3 on the tail. The body turns over all 20 frames, the tail starts at frame 6, and the hair at frame 10, so they settle last, like follow-through.
 - **move:** a keyframed transition move plays: `mainToCrane` switching into a stance named crane (or the move picked), `craneToMain` back to main. **new transition move** and **back** make them (half way between the two poses, then into the stance) and open them in animate. The move eases from wherever the body is, like any move; a switch forced by the stance's limits (max time, exit on) skips it.
-- In the JSON: `stances[i].morph = { mode, T, ease, move }`, only what differs.
+- In the JSON: `stances[i].morph = { mode, T, ease, bz, move }`, only what differs; `morphDelay` is on each bone.
 
 ### In the air
 
@@ -165,6 +168,7 @@ Line bones also have:
 - **taper:** how much thinner the line ends than it starts (0 even, 1 a point).
 - **shade:** a grey level, from the figure's own ink (0) toward paper white. Grey only, so characters stay monochrome.
 - **z:** a draw-order layer. Lower layers draw under higher ones whatever their side; side (back, centre, front) orders bones inside a layer.
+- **morphDelay:** in an auto stance blend, the share of the blend (0 … 0.9) the bone waits before it moves, so it lands after the rest. See [Stance transitions](#stance-transitions).
 - **aim:** in a fight, how far the bone turns toward the nearest foe's upper body (1 = straight at it): heads that watch, an arm that tracks.
 
 ### Reorganizing bones
