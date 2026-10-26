@@ -83,10 +83,10 @@ test('character stats and gait vars: unique keys, a tooltip, sane ranges — the
     }`), []);
 });
 
-// MOVE_PROPS/MOVE_FLAGS live in src/editor/editor.js (a DOM-dependent UI file), not the headless engine list every other test
+// MOVE_PROPS/MOVE_FLAGS live in src/editor/keyedit.js (a DOM-dependent UI file), not the headless engine list every other test
 // in this file shares — loaded here on its own, isolated context so a UI-only dependency can't affect the other tests
 test('move properties and flags: unique keys, a tooltip, sane ranges — the fields the move table and grid tab read from', () => {
-  const { run: runEditor } = load(['core', 'rig', 'fx', 'roster', 'fighter', 'world', 'stage', 'brain', 'checks', 'events', 'editor']);
+  const { run: runEditor } = load(['core', 'rig', 'fx', 'roster', 'fighter', 'world', 'stage', 'brain', 'checks', 'events', 'editor', 'keyedit']);
   const bad = JSON.parse(runEditor(`JSON.stringify((() => { const bad = [];
     const seen = new Set();
     for (const p of MOVE_PROPS) {

@@ -11,7 +11,7 @@ How the code is laid out, and the tools that build its generated files.
 - Tests live in `tests/`, see [Testing](testing.md).
 - The scripts share one global scope, so a new top-level name must not exist in any other `src/` file (a repeated `const` stops the later script).
 - Panel and mode state: `src/ui/panelstate.js` holds which tab a mode belongs to (`VIEWS`, `tabOf`) and the rules for the stage panel a tab shows (`panelInit`, `panelNext`, `panelSet`); `src/ui/layout.js` keeps the panel in the tab's layout. Change panel behaviour there, not in a mode.
-- The editors are split by job: `studio.js` (definitions, undo) + `files.js` (export / import), `lab.js` (fight modes) + `labpanel.js` (side panel, movelist, debug), `editor.js` (animate) + `movetable.js` (move table) + `soundlab.js` (sounds, looks, tracker editors).
+- The editors are split by job: `studio.js` (definitions, undo) + `files.js` (export / import), `lab.js` (fight modes) + `labpanel.js` (side panel, movelist, debug), `editor.js` (animate: layout, posing, preview, mouse) + `keyedit.js` (key and move edits) + `movetable.js` (move table) + `soundlab.js` (sounds, looks, tracker editors).
 - The engine runs without a page too: `tools/lib/engine.js` loads the scripts that need no DOM (core, rig, fx, roster, fighter, world, brain, checks, events) into a Node vm context. The tests and the MCP server use it.
 - `src/engine/events.js` turns a fight into events (moves, hits, falls, inputs, combos), per-fighter lanes and stats (`recordFight`, `fightStats`), for the replay tab and anything else.
 
