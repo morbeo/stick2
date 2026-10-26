@@ -1,4 +1,0 @@
-{
-  "tip": "A small editor: fight, character and animate tabs with the toolbar and side panel; edits stay in memory.",
-  "cfg": { "tools": ["play", "character", "animate", "gallery"], "edit": true, "ui": ["menubar", "toolbar", "side", "hud", "timer", "palette"], "controls": ["play", "restart", "mute", "fullscreen", "open", "edit"] }
-}
