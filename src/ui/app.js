@@ -298,7 +298,7 @@ addEventListener('mouseup', e => { if (splitting) { splitting = false; saveLay()
 layInit();
 buildTop();
 setMode('play');
-readHash();
+if (EMBED) embedStart(); else readHash(); // an embed (src/ui/embed.js) reads the hash itself, after setting itself up
 addEventListener('hashchange', readHash); // a #tool=/#panel=/#docs=… link clicked from inside an already-open page (e.g. from docs) takes effect live, not just on first load
 // the welcome modal, once, unless the page was opened straight into something specific (a #tool=/#embed=/… link)
 if (!ui.seen.welcome && !location.hash) { ui.seen.welcome = true; saveUi(); openWelcome(); }

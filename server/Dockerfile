@@ -11,7 +11,7 @@ ARG COMMIT=dev
 ENV NODE_ENV=production PORT=8080 COMMIT=${COMMIT} DB_PATH=/data
 WORKDIR /app
 # the game's static files (served at /), then the server
-COPY index.html docs.html gallery.html gallery-demo.html random.html kitchen-sink.html LICENSE ./
+COPY index.html docs.html gallery.html gallery-demo.html random.html kitchen-sink.html embed.html stick2-embed.js LICENSE ./
 COPY src ./src
 RUN printf '// generated in the image\nconst BUILD = {"commit":"%s","branch":"","date":"","subject":"server image","dirty":false,"built":"%s"};\n' "$COMMIT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > src/build.js
 COPY fonts ./fonts

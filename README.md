@@ -23,6 +23,8 @@ A scenario is a fight already set up for you — who's fighting, who controls th
 | [ninja flip](https://morbeo.github.io/stick2/#embed=ninja%20flip) | A hop forward, then back, in the 2.5D belt plane. | *movement* |
 | [weapon clash](https://morbeo.github.io/stick2/#embed=weapon%20clash) | Two drawn swords meeting mid-swing. | *weapons* |
 
+**[Embed builder](https://morbeo.github.io/stick2/embed.html)**: put stick2 in your own page and pick exactly what it holds (the fight, characters, UI, tools, controls, a replay to jump into); see [docs/embed.md](docs/embed.md).
+
 Any scenario named anywhere in these docs plays the same way: `https://morbeo.github.io/stick2/#embed=<name>` (spaces and all, URL-encoded). It opens in [theater mode](docs/modes.md#theater-mode) — press Esc for the full interface, the scenario picker and every setting.
 
 **[Character gallery](https://morbeo.github.io/stick2/gallery.html)**: pick any character and watch every one of its moves and movements loop, with frame data. **[Theatrical demo](https://morbeo.github.io/stick2/gallery-demo.html)** is the same view with no toolbar or side panel — just the loop, for embedding.
