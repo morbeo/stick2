@@ -74,3 +74,10 @@ test('docs/embed.md lists every option and every preset', () => {
   for (const k of run('EMBED_KEYS')) assert.match(md, new RegExp('\\| `' + k + '` \\|'), `option ${k}`);
   for (const p of Object.keys(run('EMBED_PRESETS'))) assert.match(md, new RegExp('\\| `' + p + '` \\|'), `preset ${p}`);
 });
+test('sections, accent, poster and host input', () => {
+  const { cfg, warnings } = parse('ui=side&sections=movelist,netplay&accent=#2c6fb0&poster=https://x.org/p.png&input=%2Bhost');
+  assert.deepEqual(cfg.sections, ['movelist', 'netplay']); assert.equal(cfg.accent, '#2c6fb0');
+  assert.deepEqual(cfg.input, ['keyboard', 'touch', 'gamepad', 'host']); assert.deepEqual(warnings, []);
+  const bad = parse('ui=hud&accent=red&poster=http://x.org/p.png').warnings;
+  assert.ok(bad.some(w => /accent/.test(w)) && bad.some(w => /poster/.test(w)));
+});
