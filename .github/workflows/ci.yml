@@ -1,5 +1,5 @@
-name: Tests · lint, coverage & browser
-run-name: "Tests on ${{ github.head_ref || github.ref_name }}"
+name: CI · lint, coverage & browser
+run-name: "CI on ${{ github.head_ref || github.ref_name }}"
 
 # Every push and PR: unit tests with a line-coverage floor, the server's tests, the headless-Chrome
 # smoke test, two-browser netplay (peer to peer, and through the relay server), and a check that src/ has no test-only branches. Raise the floor in tools/dev/coverage-check.js
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: tests-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }} # a new push supersedes the PR's older run
 
 jobs:
