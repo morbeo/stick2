@@ -128,7 +128,7 @@ A long config (an inline replay) makes a long link. The [dedicated server](serve
 
 ## Gamepads
 
-A standard-mapping gamepad plays P1 anywhere in the app: D-pad or left stick moves, A punch, B kick, X special, Y hop, LB / RB guard, Start pauses. In an embed it needs `gamepad` in `input` (on by default).
+A standard-mapping gamepad plays P1 anywhere in the app, after the first click or key press: D-pad or left stick moves, A punch, B kick, X special, Y hop, LB / RB guard, Start pauses. In an embed it needs `gamepad` in `input` (on by default).
 
 ## Accessibility
 

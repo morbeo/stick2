@@ -18,8 +18,18 @@ function gpPoll() {
   if (start && !gp.start && inFight()) { app.paused = !app.paused; syncAll(); }
   gp.start = start;
 }
-addEventListener('gamepadconnected', () => { gp.timer ??= setInterval(gpPoll, 1000 / 120); });
-addEventListener('gamepaddisconnected', () => {
+// listened for only after the first real click or key press: a page that never sees a person (the headless smoke test)
+// never starts the browser's gamepad service
+function gpListen(e) {
+  if (!e.isTrusted) return;
+  removeEventListener('pointerdown', gpListen, true); removeEventListener('keydown', gpListen, true);
+  addEventListener('gamepadconnected', gpStart);
+  addEventListener('gamepaddisconnected', gpStop);
+  if ([...(navigator.getGamepads?.() || [])].some(p => p?.connected)) gpStart(); // already plugged in and pressed
+}
+addEventListener('pointerdown', gpListen, true); addEventListener('keydown', gpListen, true);
+function gpStart() { gp.timer ??= setInterval(gpPoll, 1000 / 120); }
+function gpStop() {
   if ([...(navigator.getGamepads?.() || [])].some(p => p?.connected)) return;
   clearInterval(gp.timer); gp.timer = null; for (const k of gp.held) keys.delete(k); gp.held.clear();
-});
+}

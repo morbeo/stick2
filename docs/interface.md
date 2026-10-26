@@ -251,7 +251,7 @@ stick2 runs on a phone or tablet in the browser, nothing to install.
 
 ## Gamepads
 
-A standard-mapping gamepad (Xbox, PlayStation, most USB and Bluetooth pads) plays P1 as soon as it's connected: D-pad or left stick moves, A punch, B kick, X special, Y hop, LB / RB guard, Start pauses. It feeds the same inputs as the keyboard, so replays and macros can't tell them apart.
+A standard-mapping gamepad (Xbox, PlayStation, most USB and Bluetooth pads) plays P1 once the page has had a click or a key press: D-pad or left stick moves, A punch, B kick, X special, Y hop, LB / RB guard, Start pauses. It feeds the same inputs as the keyboard, so replays and macros can't tell them apart.
 
 ## Sound
 
