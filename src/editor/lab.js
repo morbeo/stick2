@@ -804,13 +804,15 @@ const debugBtn = () => [...$('global').querySelectorAll('button')].find(b => b.d
 const dbgWorld = () => mode() === labMode ? lab.focus?.w || lab.cells[0]?.w : mode().debugWorld?.() || mode().worlds()[0];
 // the debug information: build, engine and runtime numbers and the shown fight's state, refreshed twice a second
 const dbgInfo = h('pre', { cls: 'note dbg', tip: 'Debug information: the build (npm run build-info writes it), engine version, frame rate, and the focused fight: seed, frame, state hash, each fighter' });
+// a checkout served locally: src/build.js is only rewritten by npm run build-info (and npm test), so it can lag behind HEAD
+const localBuild = () => location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 // build, engine and runtime numbers and the shown fight's state, computed fresh (not just refreshed while the debug popup is open)
 function debugText() {
   const b = typeof BUILD === 'object' ? BUILD : null, w = dbgWorld();
   const name = f => f.action ? (f.action.m.hurt ? 'hurt' : Object.keys(f.ch.moves).find(k => f.ch.moves[k] === f.action.m) || 'move') : f.kd || '';
   let kb = 0; try { for (const k in localStorage) if (localStorage.hasOwnProperty(k)) kb += (k.length + localStorage[k].length) / 512; } catch {}
   return [
-    b ? `build ${b.commit}${b.dirty ? ' + changes' : ''} (${b.branch}) · ${b.date.slice(0, 16).replace('T', ' ')}` : `build ${document.querySelector('script[src*="?v="]')?.src.split('?v=')[1] || 'local checkout'} (no src/build.js: npm run build-info)`,
+    b ? `build ${b.commit}${b.dirty ? ' + changes' : ''} (${b.branch}) · ${b.date.slice(0, 16).replace('T', ' ')}${localBuild() ? ` · as of ${b.built.slice(0, 16).replace('T', ' ')}: npm run build-info after a commit or checkout` : ''}` : `build ${document.querySelector('script[src*="?v="]')?.src.split('?v=')[1] || 'local checkout'} (no src/build.js: npm run build-info)`,
     `engine v${ENGINE_VERSION} · ${app.fps} fps · ${app.frameMs.toFixed(1)} ms/frame, worst ${app.worstMs.toFixed(0)} ms`,
     `${app.mode} / ${lab.mode} · ${mode().worlds().length} worlds · ${Object.keys(DEFAULTS).filter(k => CFG[k] !== DEFAULTS[k]).length} settings changed`,
     ...w ? [`fight: seed ${w.seed} · frame ${w.log.length} · ${w.simT.toFixed(2)} s · hash ${w.stateHash()} · ${w.hits} hits`,
