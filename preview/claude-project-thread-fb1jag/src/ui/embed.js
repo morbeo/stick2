@@ -248,7 +248,11 @@ function embedStart() {
   embedEmit('ready', { version: EMBED_VERSION, engine: ENGINE_VERSION, build: typeof BUILD !== 'undefined' ? BUILD.commit : null, warnings: EMBED.warnings, tools: EMBED.tools });
 }
 // ---------- from the full app: the builder, started on what's open now ----------
+// the builder's tab opens first, while the click still counts as one (a popup opened after an await is blocked), then gets its link
 async function embedThis() {
+  const win = open('about:blank', '_blank');
+  if (!win) return;
+  win.opener = null;
   const cfg = embedDefaults(), tab = app.mode;
   if (!['play', 'replay', 'gallery', 'grid'].includes(tab)) { cfg.edit = true; cfg.ui = ['menubar', 'toolbar', 'side', 'hud', 'timer']; }
   cfg.tools = tab === 'play' ? ['play'] : [tab, 'play'];
@@ -258,7 +262,7 @@ async function embedThis() {
     const z = await embedPackReplay(rp.reel.rep);
     if (z.length < 24000) cfg.replay = z; // a longer one would make a link too long to paste: add a replay URL in the builder
   }
-  open(`${location.origin}${location.pathname.replace(/[^/]*$/, '')}embed.html#${embedHash(cfg)}`, '_blank', 'noopener');
+  win.location = `${location.origin}${location.pathname.replace(/[^/]*$/, '')}embed.html#${embedHash(cfg)}`;
 }
 // a replay as a z: value (deflate-raw, base64url), about 6× smaller than its JSON
 async function embedPackReplay(rep) {
