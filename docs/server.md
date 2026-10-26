@@ -2,9 +2,9 @@
 
 [← docs index](README.md)
 
-The dedicated server (`server/`) makes online play "just connect": the host opens a room and gets a short room code, players join with the code, a link or a QR code. No codes travel back and forth, and nobody sees anyone else's IP address. It also serves the game itself, reports its health, and exports Prometheus metrics. Later phases add a lobby browser, spectating mid-match, gameplay stats and an MCP endpoint.
+The dedicated server (`server/`) makes online play "just connect": the host opens a room and gets a short room code, players join with the code, a link or a QR code. No codes travel back and forth, and nobody sees anyone else's IP address. It also serves the game itself, reports its health, and exports Prometheus metrics. It has a room browser, player names and moderation. Later phases add spectating mid-match, gameplay stats and an MCP endpoint.
 
-Status: **phase 1, the relay.** Peer-to-peer [netplay](netplay.md) still works without a server.
+Status: **phase 2, the lobby:** the relay, the room browser, names and moderation. Peer-to-peer [netplay](netplay.md) still works without a server.
 
 ## How it works
 
@@ -55,6 +55,9 @@ Environment variables, each with a default:
 | `METRICS_TOKEN` | (none) | If set, `/metrics` needs `Authorization: Bearer <token>` |
 | `TRUST_PROXY` | off | `1`: take the client address from `X-Forwarded-For` |
 | `LOG_LEVEL` | `info` | `debug`, `info` or `quiet`; logs are JSON lines on stdout |
+| `ADMIN_TOKEN` | (none) | Turns on the [admin API](#moderation); requests need `Authorization: Bearer <token>` |
+| `DB_PATH` | (none; `/data` in the image) | Folder for `bans.json`; none: bans last until a restart |
+| `NAME_BLOCKLIST` | (none) | More words names may not contain, comma separated |
 | `COMMIT` | `dev` | Shown in `stick2_build_info` (the image sets it) |
 
 ## Routes
@@ -64,7 +67,8 @@ Environment variables, each with a default:
 | `GET /` | The game (`STATIC_DIR`). Server code, `tools/`, `tests/`, dependencies and dotfiles are never served |
 | `GET /healthz` | `200 ok`, or `503 draining` while shutting down |
 | `GET /metrics` | Prometheus metrics |
-| `GET /api/rooms` | `{ server, region, version, rooms: [{ room, name, phase, players, watchers }] }`, public rooms only |
+| `GET /api/rooms` | `{ server, region, version, rooms: [{ room, name, host, phase, players, watchers, locked }] }`, public rooms only (the room browser) |
+| `/api/admin/…` | Moderation, with `ADMIN_TOKEN` (404 without one) |
 | `WS /ws` | The relay |
 
 ## Shutting down
@@ -73,7 +77,33 @@ Environment variables, each with a default:
 
 ## Abuse limits
 
-Connections per address and in total, a per-connection message rate (a connection that keeps flooding is closed), a size cap on messages, pings every 15 s that drop dead connections, room codes from 32⁶ (about a billion) so they can't be guessed, and no IP addresses ever passed to other players. Moderation, chat filters and bans come with the lobby phase.
+Connections per address and in total, a per-connection message rate (a connection that keeps flooding is closed), a size cap on messages, pings every 15 s that drop dead connections, room codes from 32⁶ (about a billion) so they can't be guessed, and no IP addresses ever passed to other players.
+
+## Names
+
+Every player has a name on the server. The app sends the name typed in the netplay section, or the one generated from this device's seed (`src/net/names.js`: gogili, shpinga, kobokobo, zuga-zuga…; **reroll** picks a new seed). Both the app and the server run it through the same filter: 3-16 letters, digits, spaces and `. _ -`, invisible characters dropped, lookalikes and leetspeak folded before the check, reserved names (admin, server, host, …) and rude words refused, plus `NAME_BLOCKLIST`. A refused name falls back to the generated one. If someone on the server already has the name, the newcomer gets a `#2`, `#3`… tag.
+
+## Moderation
+
+- **The host** can **kick** a guest, **ban** them from the room (by device id, or hashed address), and **lock** the room against newcomers.
+- **Anyone** can **report** a player (a guest can report the host) with a reason. The report keeps the last 50 chat lines the reporter saw. The server holds the last 200 reports in memory.
+- **Admins** (`ADMIN_TOKEN`), each action written to the log as a `moderation` line:
+
+| Route | Body | What |
+|---|---|---|
+| `GET /api/admin/rooms` | | Every room, public or not, with its players' names |
+| `GET /api/admin/reports` | | The reports |
+| `GET /api/admin/bans` | | Running bans |
+| `POST /api/admin/kick` | `{ player, reason? }` | Send a player off (a host's room closes) |
+| `POST /api/admin/ban` | `{ player? , device?, reason?, minutes? }` | Ban by name; an online player's device and hashed address too. No `minutes`: permanent |
+| `POST /api/admin/unban` | `{ id }` | Lift a ban |
+| `POST /api/admin/close` | `{ room }` | Close a room |
+
+```sh
+curl -H "Authorization: Bearer $ADMIN_TOKEN" -d '{"player":"gogili","minutes":60,"reason":"spam"}' http://localhost:8080/api/admin/ban
+```
+
+Bans live in `DB_PATH/bans.json`. Addresses are only stored hashed with a salt kept in the same file, so the file never holds a real IP. Chat filtering is not done on the server: chat travels inside the host's lobby messages.
 
 ## Metrics
 
@@ -90,6 +120,7 @@ All prefixed `stick2_`. Labels never carry names, ids or room codes.
 | `matches_total`, `matches_finished_total` | counter | Matches started, played to the end |
 | `match_duration_seconds`, `room_lifetime_seconds`, `rtt_seconds` | histogram | Match length, room length, ping to clients |
 | `http_requests_total{route,status}` | counter | HTTP |
+| `kicks_total{by}`, `bans_total`, `reports_total` | counter | Moderation (`by`: host or admin) |
 
 ## Protocol
 
@@ -97,12 +128,15 @@ JSON, one object per WebSocket message. On connecting, the server sends `{ t: 'h
 
 | From | Message | Answer |
 |---|---|---|
-| host | `{ t: 'host', name?, public? }` | `{ t: 'room', room }` |
-| guest | `{ t: 'join', room }` | `{ t: 'joined', room }`; the host gets `{ t: 'peer', id }` |
+| host | `{ t: 'host', name?, public?, player?, device? }` | `{ t: 'room', room, player }` (`player`: the name the server gave) |
+| guest | `{ t: 'join', room, player?, device? }` | `{ t: 'joined', room, player }`; the host gets `{ t: 'peer', id, player }` |
 | host | `{ t: 'to', id, m }` | that guest gets `{ t: 'msg', m }` |
 | guest | `{ t: 'msg', m }` | the host gets `{ t: 'from', id, m }` |
 | either | `{ t: 'leave' }` | the host gets `{ t: 'gone', id, why }`; if the host leaves, guests get `{ t: 'closed', why }` |
 | either | `{ t: 'list' }` | `{ t: 'rooms', rooms }` |
-| server | `{ t: 'error', error }` | a refused request: `full: …`, `no room: …`, `draining: …`, `bad message`, … |
+| host | `{ t: 'kick', id, ban? }` | the guest gets `{ t: 'closed', why }`, the host `{ t: 'gone', id, why }` |
+| host | `{ t: 'lock', locked }` | joins are refused while locked |
+| either | `{ t: 'report', id?, reason, lines? }` | `{ t: 'reported' }` |
+| server | `{ t: 'error', error }` | a refused request: `full: …`, `no room: …`, `locked: …`, `kicked: …`, `banned: …`, `draining: …`, `bad message`, … |
 
 `m` is a [lobby](netplay.md) or match message, passed on untouched.
