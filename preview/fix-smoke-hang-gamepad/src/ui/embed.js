@@ -39,7 +39,7 @@ function embedState() {
     fighters: w ? w.fighters.map((f, i) => ({ slot: i + 1, char: f.ch.name, hp: +f.hp.toFixed(1), ko: !!f.ko, team: f.team ?? i })) : [] };
 }
 const EMBED_CMDS = {
-  config: m => { embedMerge(EMBED.cfg, m.config, 'postMessage'); embedTools(); embedRoster(); embedApply(); },
+  config: m => { embedMerge(EMBED.cfg, m.config, 'postMessage'); embedApply(); },
   play: () => { app.paused = false; },
   pause: () => { app.paused = true; },
   restart: () => { app.mode === 'replay' ? rpSeek(0) : mode().restart(); },
@@ -48,17 +48,7 @@ const EMBED_CMDS = {
   jumpIn: m => embedJumpIn(m.side === 2 ? 2 : 1),
   load: m => embedOpenReplay(m.replay),
   state: () => embedEmit('state', embedState()),
-  // the host page plays P1 (input=host): press holds keys until release; tap presses for one frame
-  press: m => embedKeys(m.keys, true), release: m => embedKeys(m.keys, false),
-  tap: m => { embedKeys(m.keys, true); setTimeout(() => embedKeys(m.keys, false), 1000 / 60); },
 };
-function embedKeys(list, down) {
-  if (!EMBED.cfg.input.includes('host')) throw new Error('host input is off in this embed (input=+host)');
-  for (const k of [].concat(list || [])) {
-    if (!FIGHT.includes(k)) throw new Error(`no key "${k}" (one of ${FIGHT.join(', ')})`);
-    if (down) { if (!keys.has(k)) pressed.add(k); keys.add(k); } else keys.delete(k);
-  }
-}
 function embedListen() {
   addEventListener('touchstart', e => { if (!e.target.closest('#embbar')) document.body.classList.toggle('embtouch'); }, { passive: true });
   addEventListener('message', e => {
@@ -81,18 +71,7 @@ function embedApply() {
   CFG.hud = c.ui.includes('hud'); CFG.timer = c.ui.includes('timer'); CFG.labels = c.ui.includes('labels');
   lab.meter = c.ui.includes('meter'); lab.inputs = c.ui.includes('inputs');
   ui.mute = c.mute; app.speed = c.speed;
-  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c.accent)) document.documentElement.style.setProperty('--emb-accent', c.accent);
-  else document.documentElement.style.removeProperty('--emb-accent');
-  embedSections();
   embedBar(); resize();
-}
-// side panel sections: only the ones named in sections (by heading, any case), after every rebuild of the panel
-function embedSections() {
-  const keep = EMBED.cfg.sections.map(x => x.toLowerCase());
-  for (const f of document.querySelectorAll('#side .fold')) {
-    const t = (f.querySelector('h3')?.firstChild?.textContent || f.querySelector('h3')?.textContent || '').trim().toLowerCase();
-    f.hidden = keep.length > 0 && !keep.some(k => t === k || t.startsWith(k + ' '));
-  }
 }
 // tabs: the ones not allowed are taken out of the top bar and setMode won't open them
 function embedTools() {
@@ -100,28 +79,17 @@ function embedTools() {
   if (EMBED.cfg.replay && !allowed.includes('replay')) allowed.unshift('replay');
   if (EMBED.cfg.replay && EMBED.cfg.branch && !allowed.includes('play')) allowed.push('play'); // a jump-in plays on in the play tab
   EMBED.tools = allowed;
-  EMBED.modes ??= { ...MODES }; // every tab, kept so a live config can bring one back
-  for (const m of Object.keys(MODES)) delete MODES[m];
-  for (const [m, t] of Object.entries(EMBED.modes)) if (allowed.includes(m) || (VIEWS[m] || []).some(v => allowed.includes(v))) MODES[m] = t;
-  if (!EMBED.setMode) {
-    EMBED.setMode = setMode;
-    setMode = m => EMBED.setMode(EMBED.tools.includes(m) ? m : EMBED.tools.includes(app.mode) ? app.mode : EMBED.tools[0]);
-    const inner = panels; panels = (...a) => { inner(...a); embedSections(); };
-  }
-  if (!allowed.includes(app.mode)) setMode(allowed[0]);
+  for (const m of Object.keys(MODES)) if (!allowed.includes(m) && !(VIEWS[m] || []).some(v => allowed.includes(v))) delete MODES[m];
+  const inner = setMode;
+  setMode = m => inner(allowed.includes(m) ? m : allowed.includes(app.mode) ? app.mode : allowed[0]);
   buildTop();
 }
 // roster: everything outside the allow-list disabled (in memory: disabledChars, not setDisabled, which saves); p1/p2 fill the slots
 function embedRoster() {
   const c = EMBED.cfg;
-  for (const k of EMBED.offRoster || []) disabledChars.delete(k); // a live config: undo the last allow-list first
-  EMBED.offRoster = c.chars.length ? Object.keys(DEFS).filter(k => !c.chars.includes(k) && !disabledChars.has(k)) : [];
-  for (const k of EMBED.offRoster) disabledChars.add(k);
-  const slots = c.p1 + '|' + c.p2; if (slots === EMBED.slots) return; // a live config that leaves the slots alone keeps the fight going
-  EMBED.slots = slots;
+  if (c.chars.length) for (const k of Object.keys(DEFS)) if (!c.chars.includes(k)) disabledChars.add(k);
   if (!c.p1 && !c.p2) return;
-  const base = SCENARIOS[lab.scen === EMBED_KEY && EMBED.baseScen ? EMBED.baseScen : lab.scen]; if (!base) return;
-  if (lab.scen !== EMBED_KEY) EMBED.baseScen = lab.scen;
+  const base = SCENARIOS[lab.scen]; if (!base) return;
   const chars = [...(base.chars || [null, null])];
   if (DEFS[c.p1]) chars[0] = c.p1; if (DEFS[c.p2]) chars[1] = c.p2;
   SCENARIOS[EMBED_KEY] = { ...base, chars }; lab.scen = EMBED_KEY; build();
@@ -207,7 +175,6 @@ function embedPoster(on) {
   const p = embedEl('embposter'); p.hidden = !on;
   if (!on) return;
   app.paused = true;
-  p.style.backgroundImage = /^https:\/\//.test(EMBED.cfg.poster) ? `url("${encodeURI(EMBED.cfg.poster)}")` : '';
   p.replaceChildren(h('button', { cls: 'embplay', title: 'Play', textContent: '▶' }));
   p.onclick = () => { embedPoster(false); app.paused = false; embedBar(); };
 }
@@ -248,25 +215,11 @@ function embedStart() {
   embedEmit('ready', { version: EMBED_VERSION, engine: ENGINE_VERSION, build: typeof BUILD !== 'undefined' ? BUILD.commit : null, warnings: EMBED.warnings, tools: EMBED.tools });
 }
 // ---------- from the full app: the builder, started on what's open now ----------
-// the builder's tab opens first, while the click still counts as one (a popup opened after an await is blocked), then gets its link
-async function embedThis() {
-  const win = open('about:blank', '_blank');
-  if (!win) return;
-  win.opener = null;
+function embedThis() {
   const cfg = embedDefaults(), tab = app.mode;
   if (!['play', 'replay', 'gallery', 'grid'].includes(tab)) { cfg.edit = true; cfg.ui = ['menubar', 'toolbar', 'side', 'hud', 'timer']; }
   cfg.tools = tab === 'play' ? ['play'] : [tab, 'play'];
   if (SCENARIOS[lab.scen] && lab.scen !== EMBED_KEY) cfg.scenario = lab.scen;
-  if (tab === 'replay' && rp.reel) {
-    cfg.controls = [...cfg.controls, 'jumpin', 'branches']; cfg.at = rp.n;
-    const z = await embedPackReplay(rp.reel.rep);
-    if (z.length < 24000) cfg.replay = z; // a longer one would make a link too long to paste: add a replay URL in the builder
-  }
-  win.location = `${location.origin}${location.pathname.replace(/[^/]*$/, '')}embed.html#${embedHash(cfg)}`;
-}
-// a replay as a z: value (deflate-raw, base64url), about 6× smaller than its JSON
-async function embedPackReplay(rep) {
-  const bytes = new Uint8Array(await new Response(new Blob([JSON.stringify(rep)]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
-  let bin = ''; for (const b of bytes) bin += String.fromCharCode(b);
-  return 'z:' + b64urlEncode(bin);
+  if (tab === 'replay') { cfg.controls = [...cfg.controls, 'jumpin', 'branches']; cfg.at = rp.n; }
+  open(`${location.origin}${location.pathname.replace(/[^/]*$/, '')}embed.html#${embedHash(cfg)}`, '_blank', 'noopener');
 }
