@@ -51,6 +51,7 @@ The only asset is `fonts/icons.woff2`, a subset of [Material Symbols](https://gi
    - turn on the fullscreen button;
    - leave mobile friendly off.
 4. To publish a new version, commit and run `npm run itch:push`. It runs the tests, packs the zip and uploads it with [butler](https://itch.io/docs/butler/) to the `html` channel of `morbeo/stick2`, labelled with the commit. Set up butler once with `butler login`. Uploads after the first keep the "played in the browser" setting. `butler status morbeo/stick2` shows the live version.
+   - **From GitHub instead:** run **itch.io · publish** (`.github/workflows/itch-publish.yml`) from the Actions tab, or `gh workflow run itch-publish.yml -f ref=v0.2.0`. It tests, packs and pushes to `morbeo/stick2:<channel>` (default `html`) with the commit as the version; `dry-run` only packs. Inputs: `ref`, `channel`, `screenshots`, `dry-run`. One-time setup: create an API key under itch.io → Settings → API keys and add it as the `BUTLER_API_KEY` repo secret.
    - **If the live page shows a stale build** after `butler status` confirms the new one processed: check the project's edit page for more than one uploaded file marked "This file will be played in the browser" (e.g. an old manually-uploaded file alongside the one butler manages) — itch can serve the wrong one when two are flagged. Only the current upload should have it checked.
 5. **Promotional images** (all optional on itch.io): `npm run itch:assets` writes the images below to `out/itch/` — drawn from the app's own rendering code and icon font (`tools/itch/itch-assets.js`, `tools/itch/itch-render.html`), not external files or an image editor. It records a couple of short AI free-for-alls and picks the frame where the camera shake peaks; re-run it for different moments.
 
@@ -62,6 +63,8 @@ The only asset is `fonts/icons.woff2`, a subset of [Material Symbols](https://gi
    | `background.png` (1920×1080) | the page's **Edit theme → Background image**; blurred and darkened to sit behind page content, not be looked at directly |
    | `embed-bg.png` (1920×1080) | **Embed options**' background image, shown around the game's 1400×800 viewport on wider screens |
    | `favicon.png`, `logo.png` | the tab icon mark, and a transparent horizontal wordmark for promo modules |
+
+6. **Store screenshots**: `node tools/itch/itch-showcase.js` writes `showcase-*.png` (character, animate, replay, experiment, fx, grid) to `out/itch/`. The publish workflow renders these and the promo images as the **itch-images** run artifact when `screenshots` is on. itch.io has no API or butler command for page screenshots, the cover or the theme: upload them on the project's edit page (Screenshots, Cover image, Edit theme). butler only pushes downloadable/playable builds.
 
 Notes for the itch.io page:
 - The game runs in an iframe, so the player clicks it before keys work. In fullscreen, the browser may take Esc.
