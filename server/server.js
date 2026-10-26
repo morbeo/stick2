@@ -4,6 +4,7 @@
 //   GET /healthz     200 "ok", or 503 "draining" while shutting down
 //   GET /metrics     Prometheus metrics (a bearer token if METRICS_TOKEN is set)
 //   GET /api/rooms   the public rooms, as JSON (the lobby browser)
+//   POST /api/embeds  a short embed link: {hash} -> {id} (embeds.js); GET /e/<id> redirects to the game with that hash
 //   /api/admin/…     moderation, with the ADMIN_TOKEN as a bearer token (off without one): rooms, reports, bans, kick, ban, unban, close
 //   WS  /ws          the relay (relay.js)
 // Configured by environment variables, every one with a default (see docs/server.md):
@@ -12,6 +13,7 @@ const { WebSocketServer } = require('ws');
 const { Relay } = require('./relay');
 const { Registry } = require('./metrics');
 const { Bans } = require('./moderation');
+const { Embeds, MAX_HASH } = require('./embeds');
 
 const num = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 0 ? n : d; };
 function config(env = process.env) {
@@ -29,7 +31,8 @@ function config(env = process.env) {
     drainMs: num(env.DRAIN_TIMEOUT, 600) * 1000,
     metricsToken: env.METRICS_TOKEN || '',
     adminToken: env.ADMIN_TOKEN || '',
-    dbPath: env.DB_PATH || '', // a folder for bans.json; none: bans live in memory only
+    dbPath: env.DB_PATH || '', // a folder for bans.json and embeds.json; none: they live in memory only
+    maxEmbeds: num(env.MAX_EMBEDS, 10000), // short embed links kept (0: short links off)
     blocklist: (env.NAME_BLOCKLIST || '').split(',').map(w => w.trim()).filter(Boolean),
     trustProxy: env.TRUST_PROXY === '1',
     log: env.LOG_LEVEL || 'info',
@@ -75,6 +78,8 @@ function start(cfg = config()) {
     reports: reg.counter('reports_total', 'Players reported'),
   };
   const bans = new Bans({ file: cfg.dbPath ? path.join(cfg.dbPath, 'bans.json') : null });
+  const embeds = new Embeds({ file: cfg.dbPath ? path.join(cfg.dbPath, 'embeds.json') : null, max: cfg.maxEmbeds });
+  const embedRate = new Map(); // address -> [window start, count]: 60 short links an hour each
   const audit = (action, detail) => log('info', 'moderation', { action, ...detail });
   const relay = new Relay({ maxRooms: cfg.maxRooms, metrics: M, bans, blocklist: cfg.blocklist, audit });
 
@@ -113,6 +118,23 @@ function start(cfg = config()) {
     });
   }
 
+  // ---------- short embed links (the embed builder posts here from any page, so CORS is open; nothing in it is private) ----------
+  function shortLink(req, res) {
+    const cors = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-allow-headers': 'content-type' };
+    const json = (status, body) => { M.http.inc({ route: 'embeds', status }); res.writeHead(status, { 'content-type': 'application/json', ...cors }); res.end(JSON.stringify(body)); };
+    if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
+    if (req.method !== 'POST' || !cfg.maxEmbeds) return json(cfg.maxEmbeds ? 405 : 404, { error: cfg.maxEmbeds ? 'POST only' : 'short links are off' });
+    const ip = (cfg.trustProxy && String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket.remoteAddress || '?', now = Date.now();
+    const r = embedRate.get(ip); if (!r || now - r[0] > 3600e3) embedRate.set(ip, [now, 1]); else if (++r[1] > 60) return json(429, { error: 'too many short links, try later' });
+    let body = '', big = false;
+    req.on('data', c => { if (!big) body += c; if (body.length > MAX_HASH + 100) { big = true; body = ''; } }); // read on, keep nothing: a 413, not a dropped connection
+    req.on('end', () => {
+      if (big) return json(413, { error: `hash must be 1..${MAX_HASH} characters` });
+      let b; try { b = JSON.parse(body || '{}'); } catch { return json(400, { error: 'bad json' }); }
+      try { return json(200, { id: embeds.add(b.hash) }); } catch (e) { return json(400, { error: e.message }); }
+    });
+  }
+
   // ---------- HTTP ----------
   const send = (res, status, body, type = 'text/plain; charset=utf-8', route = 'other') => {
     M.http.inc({ route, status });
@@ -123,6 +145,14 @@ function start(cfg = config()) {
     const url = new URL(req.url, 'http://x');
     const adm = url.pathname.match(/^\/api\/admin\/([a-z]+)$/);
     if (adm && (req.method === 'GET' || req.method === 'POST')) return admin(req, res, adm[1]);
+    if (url.pathname === '/api/embeds') return shortLink(req, res);
+    const short = url.pathname.match(/^\/e\/([\w-]{1,20})$/);
+    if (short && req.method === 'GET') {
+      const hash = cfg.maxEmbeds ? embeds.get(short[1]) : null;
+      if (!hash) return send(res, 404, 'no such embed link\n', undefined, 'embed');
+      M.http.inc({ route: 'embed', status: 302 });
+      res.writeHead(302, { location: '/index.html#' + hash, 'cache-control': 'public, max-age=86400' }); return res.end();
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'method not allowed');
     if (url.pathname === '/healthz') return relay.draining ? send(res, 503, 'draining\n', undefined, 'healthz') : send(res, 200, 'ok\n', undefined, 'healthz');
     if (url.pathname === '/metrics') {

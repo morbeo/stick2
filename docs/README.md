@@ -13,6 +13,7 @@ The full reference behind the [landing page](../README.md). The app has its own 
 | [Testing](testing.md) | `npm test`, snapshots, replays, the browser test, seeds, the move matrix, fuzzing |
 | [Netplay](netplay.md) | online play with no server: connection, invite codes, the lobby; what's built and what's next |
 | [Server](server.md) | the dedicated server: rooms through a relay, no codes; running it (Node, Docker), settings, `/healthz`, Prometheus metrics, the protocol |
+| [Embedding](embed.md) | stick2 in any page: the embed builder, every option, presets, replays with jump-in and branches, the postMessage API, short links |
 | [MCP server](mcp.md) | stick2 as an MCP server: fights, settings, characters, replays and pictures for an AI assistant; the live bridge; the Discord bot |
 
 ## Where to start
@@ -23,6 +24,7 @@ The full reference behind the [landing page](../README.md). The app has its own 
 - **Play someone online:** [Modes → Online](modes.md#online).
 - **Tune the feel:** [Modes → Experiment](modes.md#experiment).
 - **Save or share your work:** [Interface → Export and import](interface.md#export-and-import).
+- **Put stick2 in your page:** [Embedding](embed.md), or the [embed builder](https://morbeo.github.io/stick2/embed.html).
 - **Contribute to the roster:** [Contributing to the roster](roster-contributing.md).
 
 ## Pictures
