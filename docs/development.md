@@ -33,6 +33,10 @@ How the code is laid out, and the tools that build its generated files.
 
 Rerun the screenshots and animations after a visible change. Both find Chrome on their own; `CHROME=/path/to/chrome` overrides it. Running as root (a container), Chrome needs `--no-sandbox`: point `CHROME` at a two-line wrapper script that adds it.
 
+## Agents
+
+`.claude/agents/` holds subagent definitions for AI-assisted work: `net-tester` (netplay tests), `editor-refactorer` (editor splits behind tests), `reviewer` (pre-PR project rule check, read-only) and `ci-watcher` (CI failure diagnosis, read-only).
+
 ## Icons
 
 The only asset is `fonts/icons.woff2`, a subset of [Material Symbols](https://github.com/google/material-design-icons) (Apache License 2.0); its license is in `fonts/LICENSE`, and ships with it.
