@@ -307,7 +307,7 @@ function inside() {
     },
     // a replay file played through: the same summary, plus the first frame that came out differently (null = in sync)
     importReplay(r, o = {}) {
-      if (r?.format !== REPLAY_FORMAT) fail('not a stick2 replay (format "stick2-replay")');
+      try { r = readReplay(r); } catch (err) { fail(err.message); }
       const w = replayWorld(r); w.loop = false;
       const rec = recordFight(w);
       if (!w.done) w.advance(0, NOIN); // past the last frame: the end checksum

@@ -569,7 +569,7 @@ function pickReplay(then) {
   inp.onchange = async () => {
     let r;
     try { r = JSON.parse(await inp.files[0].text()); } catch (err) { return notice('Not a replay file', err.message); }
-    if (r.format !== REPLAY_FORMAT) return notice('Not a replay file', 'This JSON file is not a stick2 replay.');
+    try { r = readReplay(r); } catch (err) { return notice('Not a replay file', `This JSON file is ${err.message}.`); }
     if (r.version !== ENGINE_VERSION && !await askYes('Open an old replay?', `This replay was recorded with engine v${r.version}; this is v${ENGINE_VERSION}. The simulation changed since, so it will play out differently. Open it anyway?`, ':play_arrow: open')) return;
     then(r);
   };
