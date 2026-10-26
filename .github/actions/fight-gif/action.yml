@@ -12,12 +12,12 @@ runs:
   using: composite
   steps:
     - name: Set up Node
-      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
         node-version: 20
         cache: npm
     - name: Set up Chrome
-      uses: browser-actions/setup-chrome@19ae4b339ee18925ab85cf12c1041150ea4a44c8 # v1
+      uses: browser-actions/setup-chrome@c785b87e244131f27c9f19c1a33e2ead956ab7ce # v1
       id: chrome
       with:
         install-dependencies: true # bare ubuntu-latest is missing libnss3 etc. that Chrome for Testing needs to start

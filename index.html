@@ -176,6 +176,10 @@
   #over > .btable > .vgrip { position: sticky; top: -8px; height: 6px; margin: -8px -8px 2px; cursor: ns-resize; background: #ddd8cc; z-index: 2; }
   #over > .btable > .vgrip:hover { background: #c9c2b2; }
   .btree button.dropto { box-shadow: inset 0 0 0 2px #c33; }
+  /* rig tools: docked at the right edge of the character view; a bottom sheet on narrow screens */
+  #over > .rigcol { top: 0; width: 210px; max-height: 55%; box-sizing: border-box; display: block; overflow: auto; background: #f3f0e8; border-left: 1px solid #ccc; border-bottom: 1px solid #ccc; padding: 6px 8px; z-index: 1; }
+  .rigcol .righead { display: flex; justify-content: space-between; align-items: center; } .rigcol h4 { margin: 8px 0 3px; } .rigcol .bar { display: flex; flex-wrap: wrap; gap: 3px; }
+  @media (max-width: 700px) { #over > .rigcol { left: 0 !important; right: 0; top: auto; bottom: 0; width: auto; max-height: 40%; border-left: 0; border-top: 1px solid #ccc; } }
   #over > .etable { top: 0; right: 0; left: auto; width: 45%; padding-top: 0; border-left: 1px solid #ccc; }
   .chip { display: inline-flex; align-items: center; gap: 2px; padding: 0 5px; border-radius: 8px; color: #fff; font-size: 11px; line-height: 16px; }
   .nowf { display: grid; grid-template-columns: auto 1fr; gap: 0 6px; align-items: center; margin: 2px 0; } .nowf .note { grid-column: 1 / -1; margin: 0; }
@@ -387,6 +391,7 @@
 <script src="src/net/lobby.js"></script>
 <script src="src/net/netmatch.js"></script>
 <script src="src/net/qr.js"></script>
+<script src="src/net/names.js"></script>
 <script src="src/net/netserver.js"></script>
 <script src="src/net/netui.js"></script>
 <script src="src/ui/welcome.js"></script>
