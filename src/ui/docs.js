@@ -137,7 +137,7 @@ function showTopic(el, t, q) {
 // an easing's example: its curve with a dot riding it over time, and the same progress as a dot sliding along a track
 function easeCurve(n) {
   const cv = h('canvas', { width: 150, height: 56, cls: 'ease' });
-  docs.curves.push({ cv, f: EASE[n] }); return cv;
+  docs.curves.push({ cv, f: EASE[n] || (t => bezier(BZ, t)) }); return cv;
 }
 function drawCurve({ cv, f }, now) {
   const c = cv.getContext('2d'), W = cv.width, H = cv.height, x0 = 4, w = 70, y0 = H - 10, hh = 34;
