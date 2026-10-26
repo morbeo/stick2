@@ -357,7 +357,11 @@ let shadowCv = null; // the body shadow is drawn opaque here first, then laid do
 function drawShadow(ctx, f) {
   const sh = f.ch.shadow || SHADOW, s = Math.max(0.3, 1 + sh.lift * f.y / 200), x = f.x + sh.dx, y = f.groundY + sh.dy, rgb = FX_COLS[sh.col] || '0,0,0';
   if (sh.shape === 'none' || !(sh.alpha > 0)) return;
-  if (sh.shape !== 'body') { ctx.fillStyle = `rgba(${rgb},${sh.alpha})`; ctx.beginPath(); ctx.ellipse(x, y, sh.w * s, (sh.shape === 'circle' ? sh.w : sh.h) * s, 0, 0, 7); ctx.fill(); return; }
+  if (sh.shape !== 'body') {
+    // a blob sits under the whole body, not just the hips: centred on its extent and as wide as it (a centaur's horse body)
+    const [bk, fw] = f.ch.extent || [19, 19], cx = x + (f.dir || 1) * (fw - bk) / 2, k = Math.max(1, (bk + fw) / 38);
+    ctx.fillStyle = `rgba(${rgb},${sh.alpha})`; ctx.beginPath(); ctx.ellipse(cx, y, sh.w * k * s, (sh.shape === 'circle' ? sh.w * k : sh.h) * s, 0, 0, 7); ctx.fill(); return;
+  }
   const cv = typeof document === 'object' && ctx.canvas?.width ? shadowCv ??= document.createElement('canvas') : null, c = cv ? cv.getContext('2d') : ctx, col = `rgb(${rgb})`;
   if (cv) {
     if (cv.width !== ctx.canvas.width || cv.height !== ctx.canvas.height) Object.assign(cv, { width: ctx.canvas.width, height: ctx.canvas.height });
