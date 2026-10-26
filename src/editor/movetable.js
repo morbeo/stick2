@@ -86,3 +86,35 @@ function moveTable() {
   requestAnimationFrame(() => { wrap.scrollTop = anim.tscroll || 0; });
   return wrap;
 }
+
+// ---------- dopesheet: bones × keys of the open move; a dot where the key turns the bone (radius by how far), click to go there ----------
+// Shift+click holds the bone (its angle from the key before), Alt+click sends it back to the stance in that key; both undoable
+const DOPE_MIN = 0.5; // degrees: smaller changes count as none
+function dopeTurns(ch, m) {
+  const st = ch.poses.stance;
+  return m.keys.map((k, i) => { const p = keyPose(ch, m, i), q = i ? keyPose(ch, m, i - 1) : st;
+    return Object.fromEntries(ch.ids.map(id => [id, { a: p[id] ?? 0, d: (p[id] ?? 0) - (q[id] ?? 0), own: !!k.p && id in k.p }])); });
+}
+function dopeEdit(i, id, how) {
+  const ch = edChar(), m = curMove(), prev = i ? keyPose(ch, m, i - 1)[id] : ch.poses.stance[id];
+  edit(def => { const k = def.moves[anim.move].keys[i];
+    if (how === 'hold') (k.p ??= {})[id] = prev; else if (k.p) delete k.p[id]; });
+}
+function dopeSheet() {
+  const wrap = h('div', { cls: 'mtable dope' }), table = h('table');
+  const fill = () => {
+    const ch = edChar(), m = curMove(), turns = dopeTurns(ch, m), T = total(m), frames = k => Math.max(1, Math.round(k.d * 60));
+    const head = h('tr', {}, h('th', { textContent: 'bone', tip: 'Bones of the character, parents first' }),
+      ...m.keys.map((k, i) => h('th', { cls: i === anim.key ? 'on' : '', textContent: `${i + 1} · ${frames(k)}f`, tip: `Key ${i + 1}: ${frames(k)} frames · click: go to it`,
+        style: `min-width:${Math.max(28, Math.round(frames(k) / Math.max(1, T * 60) * 600))}px`, onclick: () => { selectKey(i); panels(); } })));
+    const rows = ch.bones.filter(b => !b.hidden).map(b => h('tr', {}, h('td', { textContent: b.id, tip: `${b.id} · ${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''}` }),
+      ...turns.map((t, i) => { const c = t[b.id], moved = Math.abs(c.d) >= DOPE_MIN, r = moved ? Math.round(3 + Math.min(1, Math.abs(c.d) / 90) * 6) : 0;
+        return h('td', { cls: 'dcell' + (i === anim.key ? ' on' : ''), tip: `${b.id} in key ${i + 1}: ${Math.round(c.a)}°${moved ? ` (turns ${c.d > 0 ? '+' : ''}${Math.round(c.d)}°)` : ' (no change)'}${c.own ? '' : ' · from the stance'} · click: go · Shift+click: hold · Alt+click: back to stance`,
+          onclick: e => { if (e.shiftKey) dopeEdit(i, b.id, 'hold'); else if (e.altKey) dopeEdit(i, b.id, 'stance'); selectKey(i); panels(); } },
+          moved ? h('span', { cls: 'ddot' + (c.own ? '' : ' st'), style: `width:${r * 2}px;height:${r * 2}px` }) : h('span', { cls: 'dline' })); })));
+    table.replaceChildren(h('thead', {}, head), h('tbody', {}, ...rows));
+  };
+  reg(table, fill);
+  wrap.append(stageHead('dopesheet', VIEW_TIPS.dope), table);
+  return wrap;
+}

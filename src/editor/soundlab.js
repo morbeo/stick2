@@ -295,8 +295,8 @@ function movesGrp() {
     popup(b, h('div', { cls: 'bar' }, Object.keys(currentChar().moves).sort().map(n => button(n, `Open ${n} in the keyframe editor`, () => { closePop(); openMove(n); })))));
   return grp('moves', 'The character\'s moves: pick one to open in the keyframe editor (or click a move in the table, inputs or combos)', pick);
 }
-const MOVE_PANELS = ['table', 'inputs', 'combos'],
-  moveStage = () => ({ table: moveTable, inputs: inputTable, combos: comboView })[stageOpen()];
+const MOVE_PANELS = ['table', 'dope', 'inputs', 'combos'],
+  moveStage = () => ({ table: moveTable, dope: dopeSheet, inputs: inputTable, combos: comboView })[stageOpen()];
 // the move toolbar (animate): previous / next, the move being edited with the picker, its actions and the stance
 function moveGrp() {
   const ch = currentChar(), names = Object.keys(ch.moves), step = d => pickMove(names[(names.indexOf(anim.move) + d + names.length) % names.length]);
