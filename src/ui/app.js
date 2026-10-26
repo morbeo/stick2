@@ -54,11 +54,8 @@ const MODES = {
   replay: 'A recorded fight (the play fight or a replay file) as a timeline of colour-coded events and an event table: filter by type, find a moment, go there.',
 };
 const mode = () => ({ character: creatorMode, animate: animMode, tests: testMode, replay: replayMode, fx: fxMode, sounds: soundsMode, tracker: trackerMode, grid: gridMode, props: propsMode, weapons: weaponsMode })[app.mode] || labMode;
-// the top bar's tabs: gallery and tests are views of animate, sounds/tracker/props/weapons of fx, picked first in their toolbar
-// (impact used to be a view of experiment; it is now one of its kinds, alongside sweep/breed/attacks/compare — see BREED_TIPS)
-const VIEWS = { animate: ['animate', 'gallery', 'tests'], fx: ['fx', 'sounds', 'tracker', 'props', 'weapons'] };
+// the tabs and their views (VIEWS, tabOf): src/ui/panelstate.js
 const MODE_ICONS = { play: 'sports_kabaddi', grid: 'grid_view', experiment: 'science', gallery: 'animation', tests: 'fact_check', character: 'accessibility_new', animate: 'timeline', fx: 'auto_awesome', sounds: 'waves', tracker: 'view_module', replay: 'history', props: 'category', weapons: 'swords' };
-const tabOf = m => Object.keys(VIEWS).find(t => VIEWS[t].includes(m)) || m;
 
 function setMode(m) {
   app.mode = m; closePop(); cursor('default');
