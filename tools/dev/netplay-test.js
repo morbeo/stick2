@@ -8,11 +8,16 @@ const path = require('path'), { pathToFileURL } = require('url');
 const { launch } = require('../lib/chrome');
 const APP = pathToFileURL(path.join(__dirname, '..', '..', 'index.html')).href;
 // several headless windows at once: without these, Chrome starves the ones it thinks are in the background of animation frames
-const FLAGS = ['--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'];
-const open = url => launch(url, FLAGS);
+const FLAGS = ['--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
+  '--disable-features=IntensiveWakeUpThrottling,CalculateNativeWinOcclusion'];
+// and each page held active and focused: a page Chrome freezes still answers DevTools, but runs none of its own events (no channel
+// open, no message), which on a busy CI runner left the host deaf to the guest while every check still read 'open'
+const open = async url => { const side = await launch(url, FLAGS);
+  await side.send('Page.enable'); await side.send('Page.setWebLifecycleState', { state: 'active' }); await side.send('Emulation.setFocusEmulationEnabled', { enabled: true });
+  return side; };
 // what each side looks like when a wait runs out: the connection's state, and the lobby's and the match's
 const STATE = `JSON.stringify((() => { const N = window.T || (typeof net !== 'undefined' ? net : null), p = N?.peer || N?.peers?.at(-1), L = N?.lobby, m = N?.match;
-  return { pc: p?.pc?.connectionState, ch: p?.ch?.readyState, peers: (N?.peers || [p]).filter(Boolean).map(x => x.ch?.readyState + ':' + x.sent + '/' + x.got).join(' '), phase: L?.phase, id: L?.id, rev: L?.state?.rev, error: L?.state?.error, log: N?.log?.slice(-4),
+  return { vis: document.visibilityState, focus: document.hasFocus(), pc: p?.pc?.connectionState, ch: p?.ch?.readyState, peers: (N?.peers || [p]).filter(Boolean).map(x => x.ch?.readyState + ':' + x.sent + '/' + x.got).join(' '), phase: L?.phase, id: L?.id, rev: L?.state?.rev, error: L?.state?.error, log: N?.log?.slice(-4),
     match: m && { f: m.f, c: m.c, waits: m.stalls, behind: m.behind } }; })())`;
 let sides = [];
 const until = async (side, expr, what, ms = 20000) => {
