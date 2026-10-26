@@ -14,6 +14,10 @@ on:
 permissions:
   contents: write # to attach the gif to the release's assets
 
+concurrency:
+  group: release-assets-${{ inputs.tag }} # both edit the same release
+  cancel-in-progress: false
+
 jobs:
   attach:
     name: Render and attach GIF

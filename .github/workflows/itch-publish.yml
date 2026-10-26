@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: Branch, tag or commit to publish (default: the branch picked above)
+        description: "Branch, tag or commit to publish (default: the branch picked above)"
         required: false
         type: string
       channel:
@@ -57,10 +57,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
+          node-version: 22
       - name: Test
         run: npm test
       - name: Pack
@@ -98,15 +95,12 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
-          cache: npm
+          node-version: 22
       - name: Set up Chrome
         uses: browser-actions/setup-chrome@c785b87e244131f27c9f19c1a33e2ead956ab7ce # v1
         id: chrome
         with:
           install-dependencies: true
-      - name: Install dependencies
-        run: npm ci
       - name: Render
         env:
           CHROME: ${{ steps.chrome.outputs.chrome-path }}
