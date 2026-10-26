@@ -53,6 +53,8 @@ function paletteEntries() {
       ['stance blend: bezier', 'Make the selected stance\'s transition an auto blend on your own bezier curve (edit it under transition)', () => {
         if (studio.stance) edit(d => { const st = d.stances[studio.stance - 1]; st.morph = { ...st.morph, mode: 'auto', ease: 'bezier' }; });
       }],
+      ['skin: save', 'Save the bones\' current look as a new skin', saveSkin],
+      ...Object.keys(DEFS[CURRENT]?.skins || {}).map(n => ['skin: ' + n, `Apply the ${n} skin`, () => applySkin(n)]),
       ['rig: clear constraints', 'Remove follow and reach from the selected bones', () => edit(d => { for (const b of selDefs(d)) for (const k of ['follow', 'followMix', 'reach', 'reachMix']) delete b[k]; })]]
       .map(([name, tip, f]) => ({ kind: 'action', name, tip: tip + ' (in the character tab)', run: () => { if (app.mode !== 'character') setMode('character'); f(); panels(); } })),
     ...[...Object.keys(EASE), 'bezier'].map(e => ({ kind: 'action', name: 'key easing: ' + e, tip: `Ease the selected key ${e}: ${EASE_TIPS[e]} (in animate)`, run: () => {

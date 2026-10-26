@@ -83,7 +83,8 @@ function h(tag, props = {}, ...kids) {
 const syncs = new Set();
 function reg(el, f) {
   let seen = false;
-  const s = () => { if (el.isConnected) seen = true; else if (seen) return syncs.delete(s); f(); };
+  // a control not in the page yet is skipped: one built and never added would otherwise refresh on every sync for good
+  const s = () => { if (el.isConnected) seen = true; else return seen && syncs.delete(s); f(); };
   syncs.add(s); f();
 }
 function syncAll() { for (const s of [...syncs]) s(); }

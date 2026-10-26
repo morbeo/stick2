@@ -10,6 +10,8 @@ How the code is laid out, and the tools that build its generated files.
 - Everything is drawn in code. The only asset is the icon font (see [Icons](#icons)).
 - Tests live in `tests/`, see [Testing](testing.md).
 - The scripts share one global scope, so a new top-level name must not exist in any other `src/` file (a repeated `const` stops the later script).
+- Panel and mode state: `src/ui/panelstate.js` holds which tab a mode belongs to (`VIEWS`, `tabOf`) and the rules for the stage panel a tab shows (`panelInit`, `panelNext`, `panelSet`); `src/ui/layout.js` keeps the panel in the tab's layout. Change panel behaviour there, not in a mode.
+- The editors are split by job: `studio.js` (definitions, undo) + `files.js` (export / import), `lab.js` (fight modes) + `labpanel.js` (side panel, movelist, debug), `editor.js` (animate: layout, posing, preview, mouse) + `keyedit.js` (key and move edits) + `movetable.js` (move table) + `soundlab.js` (sounds, looks, tracker editors).
 - The engine runs without a page too: `tools/lib/engine.js` loads the scripts that need no DOM (core, shapes, the rig group, fx, the roster group, fighter, world, stage, brain, checks, events) into a Node vm context. The tests and the MCP server use it.
 - Some scripts come as groups, listed in `tools/lib/engine.js` (`GROUPS`) and loaded in that order:
   - `rig`: `rig.js` (bones, `fromOld`, `attack`), `rig-chars.js` (binds, stances, stats, `makeCharacter`, `CHAR_DEFS`), `chars/stick.js` (the base stick), `rig-weapons.js`, `rig-pose.js` (stance bodies, sampling, frame data, combos, `fk`, `constrain`), `rig-draw.js`.
@@ -61,7 +63,7 @@ The only asset is `fonts/icons.woff2`, a subset of [Material Symbols](https://gi
    - turn on the fullscreen button;
    - leave mobile friendly off.
 4. To publish a new version, commit and run `npm run itch:push`. It runs the tests, packs the zip and uploads it with [butler](https://itch.io/docs/butler/) to the `html` channel of `morbeo/stick2`, labelled with the commit. Set up butler once with `butler login`. Uploads after the first keep the "played in the browser" setting. `butler status morbeo/stick2` shows the live version.
-   - **From GitHub instead:** run **itch.io · publish** (`.github/workflows/itch-publish.yml`) from the Actions tab, or `gh workflow run itch-publish.yml -f ref=v0.2.0`. It tests, packs and pushes to `morbeo/stick2:<channel>` (default `html`) with the commit as the version; `dry-run` only packs. Inputs: `ref`, `channel`, `screenshots`, `dry-run`. One-time setup: create an API key under itch.io → Settings → API keys and add it as the `BUTLER_API_KEY` repo secret.
+   - **From GitHub instead:** it's the `itch` job of **Release · publish & assets** (see [Releasing](#releasing)): every release pushes the tag to `morbeo/stick2:html` with the tag as the version. To push only to itch.io, run the workflow with the release's tag and tick just `itch` (`itch-channel` picks another channel, `itch-dry-run` only packs). One-time setup: create an API key under itch.io → Settings → API keys and add it as the `BUTLER_API_KEY` repo secret; without it the push is skipped with a warning.
    - **If the live page shows a stale build** after `butler status` confirms the new one processed: check the project's edit page for more than one uploaded file marked "This file will be played in the browser" (e.g. an old manually-uploaded file alongside the one butler manages) — itch can serve the wrong one when two are flagged. Only the current upload should have it checked.
 5. **Promotional images** (all optional on itch.io): `npm run itch:assets` writes the images below to `out/itch/` — drawn from the app's own rendering code and icon font (`tools/itch/itch-assets.js`, `tools/itch/itch-render.html`), not external files or an image editor. It records a couple of short AI free-for-alls and picks the frame where the camera shake peaks; re-run it for different moments.
 
@@ -74,18 +76,30 @@ The only asset is `fonts/icons.woff2`, a subset of [Material Symbols](https://gi
    | `embed-bg.png` (1920×1080) | **Embed options**' background image, shown around the game's 1400×800 viewport on wider screens |
    | `favicon.png`, `logo.png` | the tab icon mark, and a transparent horizontal wordmark for promo modules |
 
-6. **Store screenshots**: `node tools/itch/itch-showcase.js` writes `showcase-*.png` (character, animate, replay, experiment, fx, grid) to `out/itch/`. The publish workflow renders these and the promo images as the **itch-images** run artifact when `screenshots` is on. itch.io has no API or butler command for page screenshots, the cover or the theme: upload them on the project's edit page (Screenshots, Cover image, Edit theme). butler only pushes downloadable/playable builds.
+6. **Store screenshots**: `node tools/itch/itch-showcase.js` writes `showcase-*.png` (character, animate, replay, experiment, fx, grid) to `out/itch/`. The release workflow renders these and the promo images as the **itch-images** run artifact when `itch-images` is ticked. itch.io has no API or butler command for page screenshots, the cover or the theme: upload them on the project's edit page (Screenshots, Cover image, Edit theme). butler only pushes downloadable/playable builds.
 
 Notes for the itch.io page:
 - The game runs in an iframe, so the player clicks it before keys work. In fullscreen, the browser may take Esc.
 - Saved data (settings, layouts, characters) is stored per site. The itch.io copy starts empty, so use export and import to bring data over.
 
+## Releasing
+
+One click: Actions → **Release · publish & assets** → Run workflow (or `gh workflow run release.yml`, `-f tag=v0.2.0` for a specific version). With the tag blank it takes the next patch after the latest `v*` tag, tags `master`, and publishes the release with notes generated from the merged PRs. Then, in parallel:
+
+- unit + server tests at the tag (the image and itch.io jobs wait for them);
+- picture notes appended to the release body ([Release notes in pictures](README.md#release-notes-in-pictures));
+- the fight GIF attached as `fight.gif` and the release posted to Discord;
+- the server image pushed to `ghcr.io/morbeo/stick2-server` as `<tag>`, `sha-<commit>` and `latest` (amd64 + arm64);
+- the build pushed to itch.io (`morbeo/stick2:html`, versioned by the tag).
+
+A release published by hand on GitHub runs the same jobs. Run the workflow with an existing tag to redo some of them: untick the rest (e.g. only `gif` to backfill a missing GIF).
+
 ## Publishing to Discord
 
-- Workflows are named `<Area> · <what>`, jobs and steps by what they do, and each run writes a one-line job summary. Third-party actions are pinned to a commit SHA with a `# vN` comment; Dependabot (`.github/dependabot.yml`) bumps them and npm deps weekly. Steps shared by several workflows live in a composite action under `.github/actions/` (e.g. `fight-gif`). Every workflow uses the same pinned SHA per action and Node 22. Push/PR workflows cancel a PR's superseded run (`concurrency`); release workflows queue instead. The root `npm ci` is skipped in CI because its only dependency (`discord.js`) is for the fight bot. Server tests run once, in **Tests**; **Server · image** (`server.yml`) only runs on a release or by hand.
+- Four workflows: **CI** (`ci.yml`: lint, unit + coverage floor, server, browser, netplay on every PR and master), **Pages** (`pages.yml`: site + branch previews), **Release** (`release.yml`, below) and **Discord** (`discord.yml`). Workflows are named `<Area> · <what>`, jobs and steps by what they do, and each run writes a one-line job summary. Third-party actions are pinned to a commit SHA with a `# vN` comment, the same SHA everywhere; Dependabot (`.github/dependabot.yml`) bumps them and npm deps weekly. Steps shared by several workflows live in a composite action under `.github/actions/` (e.g. `fight-gif`). Node 22 everywhere. CI cancels a PR's superseded run; release runs queue instead. The root `npm ci` is skipped in CI because its only dependency (`discord.js`) is for the fight bot.
 - A weekly drift check reviews the repo against [drift-checks.md](drift-checks.md) and opens one `drift` issue with its findings.
-- `.github/workflows/discord-notify.yml` posts a fight GIF and the commit message/SHA to a Discord webhook (the `DISCORD_WEBHOOK` repo secret) on every push to `master`, and the release notes/tag plus the same kind of GIF (also attached to the release's assets) when a release is published — no manual step either way. The GIF is seeded by the commit SHA or the release tag, so it's reproducible: `node tools/discord/render-notify-gif.js <sha-or-tag>`. To add the GIF to a release that's missing one, run **Release · attach fight GIF** (`.github/workflows/release-gif.yml`) from the Actions tab with the release's tag, or `gh workflow run release-gif.yml -f tag=<tag>`.
-- `.github/workflows/discord-feature-request.yml` posts every `enhancement` issue (labelled on open or later) to the `#feature-requests` channel (the `DISCORD_FEATURE_REQUESTS_WEBHOOK` repo secret) — also no manual step. Point that secret at a webhook scoped to `#feature-requests` before relying on it.
+- `.github/workflows/discord.yml` posts a fight GIF and the commit message/SHA to a Discord webhook (the `DISCORD_WEBHOOK` repo secret) on every push to `master`. Releases are announced by the release workflow, with the same kind of GIF (also attached to the release). The GIF is seeded by the commit SHA or the release tag, so it's reproducible: `node tools/discord/render-notify-gif.js <sha-or-tag>`. Set the `DISCORD_NOTIFY_GIF` variable to `false` to skip the GIF on master posts.
+- The same workflow posts every `enhancement` issue (labelled on open or later) to the `#feature-requests` channel (the `DISCORD_FEATURE_REQUESTS_WEBHOOK` repo secret) — also no manual step. Point that secret at a webhook scoped to `#feature-requests` before relying on it.
 - The fight bot (`tools/discord/discord-bot.js`, a separate always-on process) is unrelated to either workflow: see [MCP server → The Discord bot](mcp.md#the-discord-bot).
 
 ### Feature request guidelines (`#feature-requests`)
