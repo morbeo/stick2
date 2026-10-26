@@ -685,7 +685,7 @@ const creatorMode = {
   ctxBar: creatorCtx,
   side: () => creator.expOn ? expPanel() : bodyPanel(),
   overlay: () => creator.expOn ? [] : [...rigOn() ? [rigColumn()] : [],
-    ...(lay().panel === undefined && (lay().panel = 'bones'), stageOpen() === 'bones') ? [bonePanelStage(), previewBar('over pvbar pvtop')] : stageOpen() === 'changes' ? [charDiffPanel()] : moveStage() ? [moveStage()()] : [previewBar()]],
+    ...(panelInit(lay(), creatorMode.homePanel), stageOpen() === 'bones') ? [bonePanelStage(), previewBar('over pvbar pvtop')] : stageOpen() === 'changes' ? [charDiffPanel()] : moveStage() ? [moveStage()()] : [previewBar()]],
   open: ['character', 'body', 'bone', 'stance pose', 'random characters'],
   mouse: creatorMouse,
   key: creatorKey,

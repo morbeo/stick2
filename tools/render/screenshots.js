@@ -72,10 +72,10 @@ const TOUCHES = {
   gallery: ['src/engine/roster.js', 'gallery.html'], experiment: ['src/editor/lab.js', 'src/editor/matrix.js'], grid: ['src/editor/gridlab.js'],
   fx: ['src/editor/fxlab.js', 'src/engine/fx.js'], tests: ['src/engine/checks.js'], impact: ['src/engine/fighter.js', 'src/engine/world.js'],
   ragdoll: ['src/engine/fighter.js', 'src/engine/world.js'], hip: ['src/editor/creator.js'], movepicker: ['src/editor/studio.js', 'src/editor/propedit.js'],
-  compare: ['src/editor/compare.js'], effects: ['src/engine/fx.js'], combos: ['src/engine/combos.js'], movetable: ['src/editor/studio.js', 'src/editor/tracker.js'],
+  compare: ['src/editor/compare.js'], effects: ['src/engine/fx.js'], combos: ['src/engine/combos.js'], movetable: ['src/editor/movetable.js', 'src/editor/studio.js', 'src/editor/tracker.js'],
   inputs: ['src/engine/inputs.js'], bonetable: ['src/editor/creator.js', 'src/engine/shapes.js'], builder: ['src/engine/scenarios.js', 'src/engine/brain.js'],
   stancereq: ['src/editor/creator.js'], fighters: ['src/engine/roster.js', 'src/editor/lab.js'], menubar: ['src/ui/layout.js', 'src/ui/app.js'],
-  layout: ['src/ui/layout.js'], debug: ['src/ui/app.js'], palette: ['src/ui/palette.js'], statsradar: ['src/editor/creator.js'], keys: ['src/ui/keys.js'],
+  layout: ['src/ui/layout.js', 'src/ui/panelstate.js'], debug: ['src/ui/app.js'], palette: ['src/ui/palette.js'], statsradar: ['src/editor/creator.js'], keys: ['src/ui/keys.js'],
   docspanel: ['src/ui/docs.js'], replay: ['src/engine/replay.js'], netplay: ['src/net/'], phone: ['src/ui/touch.js'],
 };
 // the shots that show any of the changed files, closest match first (a file named outright beats a whole folder)
