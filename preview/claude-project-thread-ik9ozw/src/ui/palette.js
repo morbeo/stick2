@@ -5,7 +5,7 @@ function paletteEntries() {
   const tipName = t => (t || '').split(/[:·(]/)[0].trim();
   // the small persistent bars under a preview (timelineBar, targetBar, blowBar) count as tools too; the rest of #over
   // (stage panels, popups) does not — too much, and mostly not meaningful out of context
-  const tools = [...document.querySelectorAll('#global button[data-tip], #ctx button[data-tip], .tlbar button[data-tip], .tgt button[data-tip], .blowbar button[data-tip], .cmpbar button[data-tip], .pvbar button[data-tip]')].filter(b => b.offsetParent || b.closest('#ctx > .grp.ovf')).map(b => {
+  const tools = [...document.querySelectorAll('#global button[data-tip], #ctx button[data-tip], .tlbar button[data-tip], .tgt button[data-tip], .blowbar button[data-tip], .cmpbar button[data-tip], .pvbar button[data-tip], .rigcol button[data-tip]')].filter(b => b.offsetParent || b.closest('#ctx > .grp.ovf')).map(b => {
     const text = b.textContent.replace(/[\uE000-\uF8FF]/g, '').trim(), name = text && !/^[\d½¼⅒×]+$/.test(text) ? text : tipName(b.dataset.tip);
     return { kind: 'tool', name, tip: b.dataset.tip, run: () => b.click() };
   });
@@ -43,6 +43,14 @@ function paletteEntries() {
       if (hd?.parentElement.classList.contains('shut')) hd.click();
       hd?.scrollIntoView({ block: 'start' });
     } })),
+    ...[['rig tools', 'Show or hide the rig tools column beside the character view', () => { rig.hidden = !rig.hidden; panels(); }],
+      ['rig: setup mode', RIG_MODE_TIPS.setup, () => { rig.mode = 'setup'; }], ['rig: animate mode', RIG_MODE_TIPS.animate, () => { rig.mode = 'animate'; }],
+      ['rig: copy pose', 'Copy the stance pose', copyPose], ['rig: paste pose', 'Paste the copied pose onto every bone it has', () => pastePose()],
+      ['rig: paste pose to selected', 'Paste the copied pose onto the selected bones only', () => pastePose(selIds())],
+      ['rig: reset selected bones', 'Reset the selected bones to the bind pose', () => resetBones()],
+      ['rig: isolate selection', 'Ghost every bone but the selected ones', () => { rig.isolate = !rig.isolate; }],
+      ['rig: ghost tip', 'Trail the selected bone\'s tip in the preview fight', () => { rig.ghost = !rig.ghost; rig.trail.length = 0; }]]
+      .map(([name, tip, f]) => ({ kind: 'action', name, tip: tip + ' (in the character tab)', run: () => { if (app.mode !== 'character') setMode('character'); f(); panels(); } })),
     ...Object.keys(SHAPE_TIPS).map(sh => ({ kind: 'action', name: 'bone shape: ' + sh, tip: `Draw the selected bones as ${sh}: ${SHAPE_TIPS[sh]} (in the character tab)`, run: () => {
       if (app.mode !== 'character') setMode('character');
       edit(d => { for (const b of selDefs(d)) b.shape = sh; });
@@ -61,6 +69,7 @@ function paletteEntries() {
     { kind: 'table', name: 'compare settings', tip: CMP_PANEL_TIP, run: openCompare },
     { kind: 'action', name: 'reset settings', tip: 'Every setting back to its default; the display aids (ghost, boxes, scope, hud, labels, timer) stay (⌘Z undoes)', run: () => { applyPreset('juicy'); mode().restart(); } },
     { kind: 'action', name: 'check for update', tip: 'Ask the server for the newest version now; reloads to it when there is one (the build running is in the debug popup)', run: async () => { await checkStale(); if (appStale) reloadLatest(); } },
+    { kind: 'action', name: 'load build', tip: 'Play stick2 as it was at any commit, branch or tag (build.html?sha=…); your saves are copied in read-only', run: () => { const r = prompt('Commit id, branch or tag', typeof BUILD === "object" ? BUILD.commit : ''); if (r) open('build.html?sha=' + encodeURIComponent(r.trim()), '_blank'); } },
     { kind: 'action', name: 'factory reset', tip: 'Delete all local data (characters, settings, keys, macros, layout) and reload; asks first', run: () => factoryReset() },
     { kind: 'action', name: 'suggest this character', tip: 'Export the current character and open a GitHub issue to propose it for the roster, with instructions (see CONTRIBUTING.md)', run: suggestChar },
     { kind: 'action', name: 'copy embed link', tip: 'Copy a link that embeds the current scenario, pre-loaded (paste as an <iframe> src)', run: () => { const u = curU(); if (u) navigator.clipboard?.writeText(embedLink(u)); } },
@@ -68,6 +77,8 @@ function paletteEntries() {
     { kind: 'action', name: 'netplay', tip: 'Fight someone online: the play tab\'s netplay section (browser to browser with an invite, or through a stick2 server)', run: () => openNetplay(false) },
     { kind: 'action', name: 'netplay: host', tip: 'Open an online lobby and make an invite link to send to the other player', run: () => openNetplay(true) },
     { kind: 'action', name: 'netplay: server', tip: 'Play through a stick2 server: host a room or join one by its code, no codes to copy back and forth (docs/server.md)', run: () => openNetplay(false, true) },
+    { kind: 'action', name: 'netplay: rooms', tip: 'Browse a stick2 server\'s public rooms and join or watch one (the last server used)', run: () => { openNetplay(false, true); netRooms(netServerSaved()); } },
+    { kind: 'action', name: 'netplay: reroll name', tip: 'Get a new made-up netplay name (gogili, shpinga, kobokobo…); it stays on this device', run: () => { netReroll(); openNetplay(false); } },
     { kind: 'action', name: 'netplay: chat', tip: 'Jump to the netplay chat (Enter sends, Esc back to the fight)', run: () => openNetChat() },
     { kind: 'action', name: 'netplay: scan', tip: 'Scan an invite or an answer QR code with the camera (where the browser can read QR codes)', run: () => { openNetplay(false); netScan(t => net.lobby?.host && net.inviting === 'waiting' ? netAnswer(t) : netEnter(t)); } },
     { kind: 'action', name: 'welcome', tip: 'What stick2 can do and where to go for each activity, with a little demo of each (shown once on the first visit)', run: openWelcome },

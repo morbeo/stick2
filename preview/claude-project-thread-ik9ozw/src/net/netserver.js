@@ -49,37 +49,46 @@ class ServerLink {
 }
 
 // ---------- the lobby (src/net/lobby.js) over a server ----------
+// who we are to the server: the name we picked (the server may add a #tag) and this device's id (src/net/names.js), for bans
+const netServerWho = (lobby, device) => ({ player: lobby.name, device });
 // host: opens a room; room(code) once the server has given it one. Each guest the server announces is linked like a data channel.
-function netServerHost(lobby, url, { room = () => {}, isPublic = false, WS } = {}) {
+// The link can kick(lobbyId, ban), lock(on) and report(lobbyId, reason, lines).
+function netServerHost(lobby, url, { room = () => {}, isPublic = false, device = '', WS } = {}) {
   const ids = new Map(); // the server's guest id → the lobby's
   const link = new ServerLink(url, {
-    open: () => link.send({ t: 'host', name: lobby.name, public: isPublic }),
+    open: () => link.send({ t: 'host', name: '', public: isPublic, ...netServerWho(lobby, device) }),
     message: m => {
-      if (m.t === 'room') { link.room = m.room; room(m.room); }
+      if (m.t === 'room') { link.room = m.room; link.player = m.player; if (m.player && lobby.state?.slots[0]) lobby.state.slots[0].name = lobby.name = m.player; room(m.room); }
       else if (m.t === 'peer') ids.set(m.id, lobby.link(x => link.send({ t: 'to', id: m.id, m: x })));
       else if (m.t === 'from' && ids.has(m.id)) lobby.receive(ids.get(m.id), m.m);
       else if (m.t === 'gone' && ids.has(m.id)) { lobby.unlink(ids.get(m.id), m.why === 'left' ? 'left' : m.why); ids.delete(m.id); }
-      else if (m.t === 'error') lobby.close(m.error);
+      else if (m.t === 'error' || m.t === 'closed') lobby.close(m.error || m.why);
     },
     close: why => lobby.close(why),
   }, WS);
+  const sid = lobbyId => [...ids].find(([, v]) => v === lobbyId)?.[0];
+  link.kick = (lobbyId, ban = false) => { const id = sid(lobbyId); if (id) link.send({ t: 'kick', id, ban }); };
+  link.lock = on => { link.locked = !!on; link.send({ t: 'lock', locked: !!on }); };
+  link.report = (lobbyId, reason, lines = []) => link.send({ t: 'report', id: sid(lobbyId), reason, lines });
   return link;
 }
 // guest: joins a room; want 'play' (a free slot, else watch) or 'watch'
-function netServerJoin(lobby, url, roomCode, want = 'play', { WS } = {}) {
+function netServerJoin(lobby, url, roomCode, want = 'play', { device = '', WS } = {}) {
   const link = new ServerLink(url, {
-    open: () => link.send({ t: 'join', room: roomCode }),
+    open: () => link.send({ t: 'join', room: roomCode, ...netServerWho(lobby, device) }),
     message: m => {
-      if (m.t === 'joined') { link.room = m.room; lobby.toHost = x => link.send({ t: 'msg', m: x }); lobby.join(want); }
+      if (m.t === 'joined') { link.room = m.room; link.player = m.player; if (m.player) lobby.name = m.player; lobby.toHost = x => link.send({ t: 'msg', m: x }); lobby.join(want); }
       else if (m.t === 'msg') lobby.receive(null, m.m);
       else if (m.t === 'closed') lobby.close(m.why);
       else if (m.t === 'error') lobby.close(m.error);
     },
     close: why => lobby.close(why === 'closed' ? 'lost the server' : why),
   }, WS);
+  // a guest can only report the host (or the room)
+  link.report = (lobbyId, reason, lines = []) => link.send({ t: 'report', id: lobbyId === 'h' ? 'h' : null, reason, lines });
   return link;
 }
-// the public rooms of a server, over HTTP (GET /api/rooms) → { server, rooms: [{ room, name, phase, players, watchers }] }
+// the public rooms of a server, over HTTP (GET /api/rooms) → { server, region, rooms: [{ room, name, host, phase, players, watchers, locked }] }
 async function netServerRooms(url) {
   const u = new URL(url.replace(/^ws/, 'http')); u.pathname = '/api/rooms';
   const r = await fetch(u); if (!r.ok) throw new Error(`the server said ${r.status}`);
