@@ -20,6 +20,7 @@ const EMBED_OPTS = [
   { key: 'controls', group: 'controls', type: 'list', values: EMBED_CONTROLS, def: ['play', 'restart', 'mute', 'fullscreen', 'open'], tip: 'The embed\'s own control bar (shown on hover or tap)' },
   { key: 'tools', group: 'tools', type: 'list', values: EMBED_MODES, def: ['play'], tip: 'Which tabs can be opened (the first is where it starts, unless a replay is given)' },
   { key: 'edit', group: 'tools', type: 'bool', def: false, tip: 'Allow the editing tabs (character, animate, fx…) and the edit drawer; edits stay in memory unless persist is on' },
+  { key: 'readonly', group: 'tools', type: 'bool', def: false, tip: 'View only: the editing tabs open (with edit off too) so people can look around, but nothing can be changed' },
   { key: 'input', group: 'input', type: 'list', values: ['keyboard', 'touch', 'gamepad', 'host'], def: ['keyboard', 'touch', 'gamepad'], tip: 'Which inputs drive the player (none: watch only; host: the host page presses keys through postMessage)' },
   { key: 'focus', group: 'input', type: 'enum', values: ['click', 'auto'], def: 'click', tip: 'click: keys reach the game only after it is clicked, so the host page keeps its own keys' },
   { key: 'autoplay', group: 'playback', type: 'bool', def: true, tip: 'Start running at once (off: a still poster frame until clicked; also off with reduced motion)' },
@@ -99,8 +100,9 @@ function parseEmbed(params, presets = {}) {
 // combinations that work but likely aren't meant
 function embedCheck(cfg) {
   const w = [];
-  if (cfg.edit && !cfg.persist) w.push('edit is on but persist is off: edits are lost on reload');
-  if (!cfg.edit && cfg.tools.some(t => !['play', 'replay', 'gallery', 'grid'].includes(t))) w.push('editing tabs need edit=on; they are left out');
+  if (cfg.edit && !cfg.readonly && !cfg.persist) w.push('edit is on but persist is off: edits are lost on reload');
+  if (!cfg.edit && !cfg.readonly && cfg.tools.some(t => !['play', 'replay', 'gallery', 'grid'].includes(t))) w.push('editing tabs need edit=on or readonly=on; they are left out');
+  if (cfg.edit && cfg.readonly) w.push('readonly wins over edit: nothing can be changed');
   if (cfg.challenge && (!cfg.replay || cfg.side === '0')) w.push('a challenge needs a replay, a frame (at) and a side');
   if (cfg.side !== '0' && !cfg.replay) w.push('side only applies to a replay');
   if (!cfg.tools.length) w.push('no tools: play is used');
@@ -110,7 +112,7 @@ function embedCheck(cfg) {
   return w;
 }
 // the tabs the embed may open: the editing ones only with edit on, play when nothing is left
-const embedToolsFor = cfg => { const t = cfg.tools.filter(m => cfg.edit || ['play', 'replay', 'gallery', 'grid'].includes(m)); return t.length ? t : ['play']; };
+const embedToolsFor = cfg => { const t = cfg.tools.filter(m => cfg.edit || cfg.readonly || ['play', 'replay', 'gallery', 'grid'].includes(m)); return t.length ? t : ['play']; };
 // the shortest hash for cfg: only what differs from the preset (or from the defaults), as hash keys; long values go in cfg=
 function embedHash(cfg, preset = null, presets = {}) {
   const base = embedDefaults();
