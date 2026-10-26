@@ -724,12 +724,13 @@ class Fighter {
     }
     if (this.action) {
       const a = this.action, k = a.m.keys[a.i], to = resolve(base, k.p);
-      const e = EASE[c('easing') === 'authored' ? k.e || 'linear' : c('easing')](a.t / k.d);
+      const e = easeKey(k, a.t / k.d, c('easing'));
       for (const j of this.ch.ids) {
         this.target[j] = a.from[j] + (to[j] - a.from[j]) * e;
         for (const p of KEY_MULS) this.mul[p][j] = a.fromMul[p][j] + ((k[p]?.[j] ?? 1) - a.fromMul[p][j]) * e;
       }
     } else { Object.assign(this.target, base); for (const j of this.ch.ids) for (const p of KEY_MULS) this.mul[p][j] = 1; }
+    constrain(this.ch, this.target);
 
     // filter layer: displayed pose chases the target pose
     const mode = c('filter'), mo = this.morph, me = mo && EASE[mo.ease](Math.min(1, mo.t / mo.T));

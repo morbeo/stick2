@@ -334,7 +334,7 @@ Each key block shows:
 
 ### Key properties
 
-- Easing, active frames, lunge and hit properties.
+- Easing, active frames, lunge and hit properties. **bezier** easing draws the key's own curve under the switch: drag its two handles (above the box overshoots, below it anticipates), double-click to reset. Every easing is in the palette as `key easing: …`.
 - **events:** the hit spark (hit, heavy, slash, blunt, none), a sound as the key is reached, after-images while it plays, screen shake. Effects only: the fight plays out the same. A key with events shows a spark icon.
 - **Striking bones:** limb, head and tail ends as buttons, any bone from the list, or Shift+click a joint. Shift+click a button or ⌘/Ctrl+Shift+click a joint to add or remove one, so several limbs strike at once; whichever lands counts, once per target.
 

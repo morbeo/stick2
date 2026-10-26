@@ -173,7 +173,7 @@ function drawTimeline() {
     const cw = Math.min(26 * dpr, bw - 40 * dpr), ch = 14 * dpr, cx = x + w - cw - 7 * dpr, cy = y + 4 * dpr;
     if (cw > 10 * dpr) {
       ctx.strokeStyle = '#666'; ctx.lineWidth = 1.2 * dpr; ctx.beginPath();
-      for (let j = 0; j <= 16; j++) { const t = j / 16, v = EASE[k.e || 'linear'](t); ctx[j ? 'lineTo' : 'moveTo'](cx + t * cw, cy + ch - v * ch); }
+      for (let j = 0; j <= 16; j++) { const t = j / 16, v = easeKey(k, t); ctx[j ? 'lineTo' : 'moveTo'](cx + t * cw, cy + ch - v * ch); }
       ctx.stroke();
     }
     if (w > 70 * dpr) text(k.p ? hold ? 'hold' : k.e || 'linear' : 'to stance', x + 5 * dpr, y + 27 * dpr, '#777', 9);
@@ -513,7 +513,42 @@ const EASE_TIPS = {
   step: 'Snap to the pose at the end of the key (no in-between).', linear: 'Constant speed.',
   outQuad: 'Fast start, gentle stop.', outCubic: 'Faster start, softer stop.', outExpo: 'Explosive start, long settle: strikes.',
   inOutCubic: 'Slow in, slow out: recoveries.', outBack: 'Overshoots the pose, then settles back.', outElastic: 'Overshoots and wobbles.',
+  bezier: 'Your own curve: drag its two handles in the graph (above the box overshoots, below it anticipates).',
 };
+// the key's bezier curve as a graph: time across, pose up; the two round handles drag (y may leave the box: overshoot,
+// anticipation); double-click resets to ease in-out. One undo step per drag
+function bezierGraph(k) {
+  const W = 200, H = 140, PAD = 22, PY = 35, cv = h('canvas', { cls: 'bzgraph', tip: 'Drag a handle to shape the curve · double-click to reset' });
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  const bz = () => k()?.bz || BZ, px = (x, y) => [PAD + x * (W - 2 * PAD), H - PY - y * (H - 2 * PY)];
+  let drag = -1;
+  const draw = () => {
+    if (k()?.e !== 'bezier') return;
+    const g = cv.getContext('2d'), b = bz(), [x0, y0] = px(0, 0), [x3, y3] = px(1, 1), h1 = px(b[0], b[1]), h2 = px(b[2], b[3]);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    g.fillStyle = '#fafaf7'; g.fillRect(x0, y3, x3 - x0, y0 - y3); g.strokeStyle = '#ddd'; g.strokeRect(x0, y3, x3 - x0, y0 - y3);
+    g.strokeStyle = '#aaa'; g.beginPath(); g.moveTo(x0, y0); g.lineTo(...h1); g.moveTo(x3, y3); g.lineTo(...h2); g.stroke();
+    g.strokeStyle = '#2b6cb0'; g.lineWidth = 2; g.beginPath();
+    for (let i = 0; i <= 40; i++) { const t = i / 40; g[i ? 'lineTo' : 'moveTo'](...px(t, bezier(b, t))); }
+    g.stroke(); g.lineWidth = 1;
+    for (const q of [h1, h2]) { g.fillStyle = '#fff'; g.beginPath(); g.arc(q[0], q[1], 5, 0, 7); g.fill(); g.stroke(); }
+  };
+  const at = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left - PAD) / (W - 2 * PAD), (H - PY - (e.clientY - r.top)) / (H - 2 * PY)]; };
+  cv.onpointerdown = e => {
+    const [x, y] = at(e), b = bz(), d = i => Math.hypot(x - b[i * 2], (y - b[i * 2 + 1]) * (H - 2 * PY) / (W - 2 * PAD));
+    drag = d(0) < d(1) ? 0 : 1; cv.setPointerCapture(e.pointerId);
+  };
+  cv.onpointermove = e => {
+    if (drag < 0) return;
+    const [x, y] = at(e), b = [...bz()], r2 = v => Math.round(v * 100) / 100;
+    b[drag * 2] = r2(clamp(x, 0, 1)); b[drag * 2 + 1] = r2(clamp(y, -0.5, 1.5));
+    setKey('bz', b, 'key.bz'); draw();
+  };
+  cv.onpointerup = () => { drag = -1; };
+  cv.ondblclick = () => setKey('bz', undefined);
+  reg(cv, draw);
+  return cv;
+}
 const MOVE_PROPS = [
   { k: 'power', min: 0.2, max: 3, step: 0.1, tip: 'Scales hit stop, shake, sparks and the impact spin. Moves with power are sped up by attackSpeed.' },
   { k: 'knock', min: 0, max: 600, step: 10, tip: 'Knockback speed given to the victim (px/s).' },
@@ -653,7 +688,8 @@ function keyPanel() {
       button(':accessibility_new: pose', 'Start this key from a preset pose (built-in, or one saved from the replay scene editor)', (e, b) => popup(b, h('div', { cls: 'bar' }, Object.entries(posesFor(edChar())).map(([n, p]) =>
         button(n, p.tip, () => setKey('p', { ...keyPose(edChar(), curMove(), anim.key), ...p.pose() }))))))),
     h('div', { cls: 'row', tip: 'Easing: how the motion into this key\'s pose speeds up and slows down' }, h('span', { textContent: 'easing' }),
-      seg(Object.keys(EASE), () => k().e || 'linear', v => setKey('e', v), EASE_TIPS)),
+      seg([...Object.keys(EASE), 'bezier'], () => k().e || 'linear', v => setKey('e', v), EASE_TIPS)),
+    ...(k().e === 'bezier' ? [bezierGraph(k)] : []),
     h('div', { cls: 'row', tip: 'Active: the keys during which the strike can hit (red on the frame meter)' }, h('span', { textContent: 'active' }),
       toggle(':my_location: hits', 'Active: the strike can connect during this key', () => !!k().active, v => setKey('active', v || undefined))),
     ...boneMulRows(),

@@ -348,6 +348,21 @@ const EASE = {
   outBack: t => { const c = 1.70158; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; },
   outElastic: t => t <= 0 ? 0 : t >= 1 ? 1 : 2 ** (-10 * t) * Math.sin((t * 10 - 0.75) * 2 * Math.PI / 3) + 1,
 };
+// a key's own curve: e 'bezier' with handles bz [x1, y1, x2, y2] (x in 0..1, y free so it can overshoot or anticipate),
+// solved for x by bisection (fixed 24 steps: deterministic everywhere); any other e is an EASE name
+const BZ = [0.42, 0, 0.58, 1];
+function bezier(bz, t) {
+  if (t <= 0) return 0; if (t >= 1) return 1;
+  const [x1, y1, x2, y2] = bz, c = (a, b, u) => 3 * a * u * (1 - u) ** 2 + 3 * b * u * u * (1 - u) + u ** 3;
+  let lo = 0, hi = 1, u = t;
+  for (let i = 0; i < 24; i++) { u = (lo + hi) / 2; if (c(clamp(x1, 0, 1), clamp(x2, 0, 1), u) < t) lo = u; else hi = u; }
+  return c(y1, y2, u);
+}
+// how far into key k at fraction t, under the easing setting (authored: the key's own e)
+function easeKey(k, t, easing = 'authored') {
+  if (easing !== 'authored') return EASE[easing](t);
+  return k.e === 'bezier' ? bezier(k.bz || BZ, t) : (EASE[k.e] || EASE.linear)(t);
+}
 
 // Second-order dynamics (t3ssel8r, "Giving Personality to Procedural Animations").
 // f = natural frequency (Hz, speed), z = damping (<1 overshoots), r = initial response (<0 anticipates, >1 overshoots early).

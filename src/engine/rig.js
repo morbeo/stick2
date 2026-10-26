@@ -21,6 +21,10 @@ const BONE = {
   taper: 0,            // how much thinner the line ends than it starts (0 = even, 1 = to a point)
   cap: 'round',        // line ends: round | square (boxy limbs, pills squared off) | flat (cut at the joint) | point (narrows to a tip: blades, claws)
   fillTo: undefined,   // fill only: a bone whose joint closes the filled shape (a cape from the neck to a hand)
+  follow: undefined,   // constraint: a bone whose turn away from its stance this bone copies (hair follows the head, a cape the torso)
+  followMix: 1,        // how much of that turn it copies (0.5 = half, -1 = mirrored)
+  reach: undefined,    // constraint (IK): this bone and its parent bend so its end reaches that bone's end (a hand on a prop, a foot on a pedal)
+  reachMix: 1,         // how far toward reaching it (0 = its own pose, 1 = all the way)
   aim: 0,              // how far the bone turns toward the nearest foe's upper body (1 = points straight at it): heads that watch, tracking arms
   z: 0,                // draw order layer: lower draws underneath everything above it, whatever the side (side orders bones within a layer)
   thick: 5, hurt: 0,   // stroke width; hurtbox radius (0 = can't be hit here)
@@ -747,7 +751,7 @@ function makeCharacter(def) {
     for (const r of b.also || []) (chains[r] ??= []).push(c);
   }
   const rest = Object.fromEntries(order.map(b => [b.id, b.a]));
-  const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains, aims: order.some(b => b.aim > 0),
+  const ch = { name: def.name, bones: order, by, ids: order.map(b => b.id), chains, aims: order.some(b => b.aim > 0), cons: order.some(b => by[b.follow] && b.follow !== b.id || by[b.reach] && b.reach !== b.id && b.parent),
     tips: [...chains.arm, ...chains.leg, ...chains.head, ...chains.tail, ...chains.weapon].map(c => c[c.length - 1]),
     poses: { ...def.poses, stance: { ...rest, ...def.poses.stance } }, moves: def.moves, hurt: def.hurt, motions: customMotions(def), binds: { ...BINDS, ...def.binds }, binds25: { ...BINDS_25, ...def.binds25 },
     stats: Object.fromEntries(CHAR_STATS.map(s => [s.k, def[s.k] ?? 1])), gait: { ...Object.fromEntries(GAIT_VARS.map(s => [s.k, s.v])), ...def.gait },
@@ -1006,7 +1010,7 @@ function samplePose(ch, m, t, easing = CFG.easing, base = m.ref || ch.poses.stan
   for (const k of m.keys) {
     const to = resolve(base, k.p);
     if (t < k.d) {
-      const e = EASE[easing === 'authored' ? k.e || 'linear' : easing](t / k.d), p = {};
+      const e = easeKey(k, t / k.d, easing), p = {};
       // base's own ids, not ch.ids: a shared movement layer (dashLayer etc.) is authored once for the stick's bones, so a
       // character with extra ones (wings, a tail…) must not blend bones the layer's ref never defined (NaN: from/to undefined)
       for (const j in base) p[j] = from[j] + (to[j] - from[j]) * e;
@@ -1065,6 +1069,30 @@ function fk(ch, p, dir, lens, wa = {}) {
     P[b.id] = [o[0] + Math.sin(w * R) * l * dir, o[1] + Math.cos(w * R) * l];
   }
   return P;
+}
+
+// constraints, in place on pose p (bone order, so a constraint sees its parents' result): follow adds followMix × the
+// followed bone's turn away from ref (the stance); reach bends the bone and its parent toward the reached bone's end
+// (two-bone IK, keeping the knee or elbow on the side it already bends to), blended by reachMix. Pure and deterministic
+function constrain(ch, p, ref = ch.poses?.stance || {}) {
+  if (!ch.cons) return p;
+  for (const b of ch.bones) {
+    const f = b.follow !== b.id && ch.by[b.follow];
+    if (f) p[b.id] += b.followMix * wrap180((p[f.id] ?? 0) - (ref[f.id] ?? 0));
+  }
+  for (const b of ch.bones) {
+    const t = b.reach !== b.id && ch.by[b.reach], pa = t && ch.by[b.parent];
+    if (!pa || !b.reachMix) continue;
+    const wa = {}, P = fk(ch, p, 1, null, wa), gp = ch.by[pa.parent], gw = gp ? wa[gp.id] : 0, o = P[pa.parent || 'hip'];
+    const l1 = pa.len, l2 = b.len, tx = P[t.id][0] - o[0], ty = P[t.id][1] - o[1];
+    const d = clamp(Math.hypot(tx, ty), Math.abs(l1 - l2) + 0.01, l1 + l2 - 0.01);
+    const base = Math.atan2(tx, ty) / R, al = Math.acos(clamp((l1 * l1 + d * d - l2 * l2) / (2 * l1 * d), -1, 1)) / R;
+    const w1 = [base + al, base - al].reduce((m, w) => Math.abs(wrap180(w - wa[pa.id])) < Math.abs(wrap180(m - wa[pa.id])) ? w : m);
+    const kn = [o[0] + Math.sin(w1 * R) * l1, o[1] + Math.cos(w1 * R) * l1], w2 = Math.atan2(o[0] + tx - kn[0], o[1] + ty - kn[1]) / R;
+    const m = clamp(b.reachMix, 0, 1), set = (x, w, pw, prw) => { p[x.id] += m * wrap180(w - pw + x.level * (pw - prw) - p[x.id]); };
+    set(pa, w1, gw, gp ? gp.restW : 0); set(b, w2, w1, pa.restW);
+  }
+  return p;
 }
 
 // back limbs first in the second colour, then the body, then front limbs. extra = added stroke width (outlines)
