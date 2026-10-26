@@ -17,7 +17,7 @@ How the code is laid out, and the tools that build its generated files.
 
 | Tool | What it does |
 |---|---|
-| `node tools/dev/build-info.js` | writes `src/build.js`: git commit, branch, date, uncommitted changes (`npm test` runs it) |
+| `node tools/dev/build-info.js` | writes `src/build.js`: git commit, branch, date, uncommitted changes (`npm test` runs it). Locally it is a snapshot: rerun after a commit or checkout; the Debug popup shows when it was written |
 | `node tools/render/screenshots.js [name …]` | regenerates the screenshots in `docs/img/` (headless Chrome; no name = every shot) |
 | `node tools/render/animations.js [name …]` | regenerates the short animations (`anim-*.png`): each loops one scenario, saved as an animated PNG (no name = every clip) |
 | `node tools/render/screenshots.js --changed [ref]` | regenerates only the shots whose sources changed since `ref` (default `origin/master`) |
