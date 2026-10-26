@@ -56,7 +56,7 @@ function fakeServer() {
 function context() {
   const ctx = vm.createContext({ console, Math, Object, Array, JSON, String, RegExp, Error, Map, Set, Promise, URL, URLSearchParams, setTimeout, clearTimeout, queueMicrotask,
     btoa, atob, Blob, Response, CompressionStream, DecompressionStream, TextEncoder, TextDecoder, Uint8Array, crypto, RTCPeerConnection: fakeRtc() });
-  for (const f of [...engine.ENGINE, 'lobby', 'netplay', 'netserver']) vm.runInContext(fs.readFileSync(engine.srcFile(f), 'utf8'), ctx, { filename: engine.srcFile(f) });
+  for (const f of engine.expand([...engine.ENGINE, 'lobby', 'netplay', 'netserver'])) vm.runInContext(fs.readFileSync(engine.srcFile(f), 'utf8'), ctx, { filename: engine.srcFile(f) });
   return code => vm.runInContext(code, ctx);
 }
 const settle = async (cond, max = 200) => { for (let i = 0; i < max && !cond(); i++) await flush(); return cond(); };
