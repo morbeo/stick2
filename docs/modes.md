@@ -393,7 +393,10 @@ The move table, input table and combos are on the [Editing](editing.md) page.
 
 ### Dopesheet
 
-The dopesheet shows which bones each key moves. Open it with **dopesheet** in the toolbar's panels group, or `dopesheet` in the palette. It opens over the stage in the animate or character tab.
+The dopesheet shows which bones each key moves. Open it with the dopesheet button (the timeline icon) on the timeline bar, **dopesheet** in the toolbar's panels group (it may sit under **more** on narrow screens), or `dopesheet` in the palette. It docks above the timeline, so the character and the preview stay in view.
+
+- **Hover a row** to light that bone up on the figure.
+- **Hover a cell** while paused to show that key's pose on the character.
 
 - **Rows** are the character's bones, parents first. **Columns** are the move's keys, each as wide as its frames, with the selected key highlighted.
 - A **dot** means the key turns that bone. Bigger dots are bigger turns, from 0.5° up to 90° and more. A pale dot means the angle comes from the stance (the key doesn't set that bone itself). A thin line means no change.

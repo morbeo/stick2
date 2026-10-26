@@ -88,7 +88,8 @@ function moveTable() {
 }
 
 // ---------- dopesheet: bones × keys of the open move; a dot where the key turns the bone (radius by how far), click to go there ----------
-// Shift+click holds the bone (its angle from the key before), Alt+click sends it back to the stance in that key; both undoable
+// it docks above the timeline so the character stays in view: hovering a row lights that bone up on the figure, hovering a cell
+// (paused) shows that key's pose. Shift+click holds the bone (its angle from the key before), Alt+click sends it back to the stance in that key; both undoable
 const DOPE_MIN = 0.5; // degrees: smaller changes count as none
 function dopeTurns(ch, m) {
   const st = ch.poses.stance;
@@ -107,9 +108,10 @@ function dopeSheet() {
     const head = h('tr', {}, h('th', { textContent: 'bone', tip: 'Bones of the character, parents first' }),
       ...m.keys.map((k, i) => h('th', { cls: i === anim.key ? 'on' : '', textContent: `${i + 1} · ${frames(k)}f`, tip: `Key ${i + 1}: ${frames(k)} frames · click: go to it`,
         style: `min-width:${Math.max(28, Math.round(frames(k) / Math.max(1, T * 60) * 600))}px`, onclick: () => { selectKey(i); panels(); } })));
-    const rows = ch.bones.filter(b => !b.hidden).map(b => h('tr', {}, h('td', { textContent: b.id, tip: `${b.id} · ${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''}` }),
+    const rows = ch.bones.filter(b => !b.hidden).map(b => h('tr', { onmouseenter: () => { anim.hover = b.id; }, onmouseleave: () => { anim.hover = null; } }, h('td', { textContent: b.id, tip: `${b.id} · ${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''}` }),
       ...turns.map((t, i) => { const c = t[b.id], moved = Math.abs(c.d) >= DOPE_MIN, r = moved ? Math.round(3 + Math.min(1, Math.abs(c.d) / 90) * 6) : 0;
         return h('td', { cls: 'dcell' + (i === anim.key ? ' on' : ''), tip: `${b.id} in key ${i + 1}: ${Math.round(c.a)}°${moved ? ` (turns ${c.d > 0 ? '+' : ''}${Math.round(c.d)}°)` : ' (no change)'}${c.own ? '' : ' · from the stance'} · click: go · Shift+click: hold · Alt+click: back to stance`,
+          onmouseenter: () => { if (!anim.playing && anim.key !== i) selectKey(i); },
           onclick: e => { if (e.shiftKey) dopeEdit(i, b.id, 'hold'); else if (e.altKey) dopeEdit(i, b.id, 'stance'); selectKey(i); panels(); } },
           moved ? h('span', { cls: 'ddot' + (c.own ? '' : ' st'), style: `width:${r * 2}px;height:${r * 2}px` }) : h('span', { cls: 'dline' })); })));
     table.replaceChildren(h('thead', {}, head), h('tbody', {}, ...rows));
