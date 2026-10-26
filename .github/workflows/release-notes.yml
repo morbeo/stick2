@@ -1,0 +1,60 @@
+name: Release · notes in pictures
+run-name: "Picture notes for ${{ inputs.tag || github.event.release.tag_name }}"
+
+# On a published release (or by hand for an older one): renders before / after screenshots of the
+# screens each merged PR touched, attaches them to the release and appends the picture notes to its body.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (e.g. v0.2.0)
+        required: true
+        type: string
+      from:
+        description: Ref to compare against (default the tag before it)
+        required: false
+        type: string
+
+permissions:
+  contents: write # to attach the images and edit the release body
+
+jobs:
+  notes:
+    name: Render and attach picture notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+      FROM: ${{ inputs.from }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0 # the merges since the last tag, and a worktree of it
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@19ae4b339ee18925ab85cf12c1041150ea4a44c8 # v1
+        id: chrome
+        with:
+          install-dependencies: true
+      - name: Render picture notes
+        env:
+          CHROME: ${{ steps.chrome.outputs.chrome-path }}
+        run: node tools/render/release-notes.js --to "$TAG" ${FROM:+--from "$FROM"} --url "https://github.com/${{ github.repository }}/releases/download/$TAG/"
+      - name: Attach images and append notes
+        run: |
+          shopt -s nullglob
+          pngs=(release-notes/*.png)
+          if [ ${#pngs[@]} -gt 0 ]; then gh release upload "$TAG" "${pngs[@]}" --clobber --repo "${{ github.repository }}"; fi
+          # replace an earlier run's section rather than stacking another
+          gh release view "$TAG" --repo "${{ github.repository }}" --json body -q .body | sed '/^## What.s new, in pictures/,$d' > body.md
+          { echo; cat release-notes/notes.md; } >> body.md
+          gh release edit "$TAG" --notes-file body.md --repo "${{ github.repository }}"
+          cat release-notes/notes.md >> "$GITHUB_STEP_SUMMARY"

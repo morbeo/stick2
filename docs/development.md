@@ -20,6 +20,8 @@ How the code is laid out, and the tools that build its generated files.
 | `node tools/dev/build-info.js` | writes `src/build.js`: git commit, branch, date, uncommitted changes (`npm test` runs it) |
 | `node tools/render/screenshots.js [name …]` | regenerates the screenshots in `docs/img/` (headless Chrome; no name = every shot) |
 | `node tools/render/animations.js [name …]` | regenerates the short animations (`anim-*.png`): each loops one scenario, saved as an animated PNG (no name = every clip) |
+| `node tools/render/screenshots.js --changed [ref]` | regenerates only the shots whose sources changed since `ref` (default `origin/master`) |
+| `node tools/render/release-notes.js [--from ref] [--to ref]` | release notes with before / after screenshots per merged PR, into `release-notes/` |
 | `node tools/render/social.js` | composites a few of the screenshots into `docs/img/social.png`, the GitHub repo's social preview image |
 | `node tools/mcp/mcp.js [--serve PORT]` | the MCP server (`npm run mcp`): fights, settings, characters, scenarios, sounds, fx looks, the tracker, replays and pictures over MCP; `--serve` also serves the app for the live bridge (see [MCP server](mcp.md)) |
 | `DISCORD_BOT_TOKEN=... node tools/discord/discord-bot.js` | the Discord fight bot (`npm run discord-bot`); `tools/discord/deploy-bot.sh` installs it as a systemd user service (see [MCP server → The Discord bot](mcp.md#the-discord-bot)) |
