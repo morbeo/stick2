@@ -522,6 +522,11 @@ try {
     const missing = PREVIEW_PRESETS.filter(v => !pv(v)); if (missing.length) errs.push('preview presets missing ' + missing);
     pv('walk').click(); if (creator.preview !== 'walk') errs.push('preview pick ' + creator.preview);
     pv('showcase').click(); if (creator.preview !== 'showcase' || document.querySelector('.blowbar')) errs.push('creator preview back ' + creator.preview); }
+  // ...and with the bones panel open (its default since the panel moved under the character view), the picker stays reachable
+  { setMode('character'); lay('character').panel = 'bones'; panels(); const pv = t => [...document.querySelectorAll('.pvbar button')].find(b => b.textContent.trim().endsWith(t));
+    if (!document.querySelector('#over > .btable')) errs.push('bones panel not open');
+    if (!pv('walk')) errs.push('preview picker hidden by the bones panel');
+    else { pv('walk').click(); if (creator.preview !== 'walk') errs.push('preview pick with bones open ' + creator.preview); pv('showcase')?.click(); } }
   // animate's move group: the current move opens the picker (filter focused), a card picks and closes it; cards / list is kept in the layout, apart from the stage panels; ‹ › step
   { setMode('animate'); pickChar('stick'); studio.stance = 0; anim.move = 'jab'; anim.filter = ''; panels();
     const cur = () => [...document.querySelectorAll('#ctx [data-part="move"] button')].find(b => b.textContent.includes('jab'));
