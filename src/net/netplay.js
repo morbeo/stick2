@@ -125,7 +125,10 @@ function netGathered(pc, ms = NET_GATHER_MS) {
 class NetPeer {
   constructor(on = {}, rtc = NET_RTC) {
     Object.assign(this, { on, ch: null, closed: false, sent: 0, got: 0, pc: new RTCPeerConnection(rtc) }); // sent / got: messages, for a status line
-    this.pc.ondatachannel = e => this.wire(e.channel);
+    // one pre-agreed channel (negotiated, id 0) made on both sides at once: no in-band open handshake, and no channel arriving
+    // later through ondatachannel. With that handshake, Chrome now and then left the host's end open but deaf: the guest's
+    // first messages (sent the moment its end appeared) went out and never came in
+    this.wire(this.pc.createDataChannel('stick2', { ordered: true, negotiated: true, id: 0 }));
     this.pc.onconnectionstatechange = () => { if (this.pc.connectionState === 'failed') this.close('connection failed'); };
   }
   wire(ch) {
@@ -142,7 +145,7 @@ class NetPeer {
   async local(desc) { await this.pc.setLocalDescription(desc); await netGathered(this.pc); const c = await netEncode(this.pc.localDescription); return this.pin ? netSeal(c, this.pin) : c; }
   async remote(code) { await this.pc.setRemoteDescription(await netDecode(await netUnseal(code, this.pin))); }
   // host: make the channel and the offer code; then accept the guest's answer code
-  async offer() { this.wire(this.pc.createDataChannel('stick2', { ordered: true })); return this.local(await this.pc.createOffer()); }
+  async offer() { return this.local(await this.pc.createOffer()); }
   async accept(code) { await this.remote(code); }
   // guest: the host's offer code in, our answer code out
   async answer(code) { await this.remote(code); return this.local(await this.pc.createAnswer()); }

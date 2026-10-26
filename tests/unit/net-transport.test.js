@@ -23,9 +23,9 @@ function fakeRtc() {
     async setLocalDescription(d) { this.localDescription = d; setTimeout(() => { this.iceGatheringState = 'complete'; for (const f of this.listeners.icegatheringstatechange || []) f(); }); }
     async setRemoteDescription(d) {
       const other = conns.get(/o=- (pc\d+)/.exec(d.sdp)[1]); this.remote = other;
-      if (d.type === 'answer') { // the host's end: the channel opens on both sides, the guest's arrives through ondatachannel
-        const mine = this.ch, theirs = new Channel(mine.label); mine.other = theirs; theirs.other = mine;
-        setTimeout(() => { mine.readyState = theirs.readyState = 'open'; other.ondatachannel?.({ channel: theirs }); mine.onopen?.(); });
+      if (d.type === 'answer') { // the host's end: each side made its own negotiated channel; both open together
+        const mine = this.ch, theirs = other.ch; mine.other = theirs; theirs.other = mine;
+        setTimeout(() => { mine.readyState = theirs.readyState = 'open'; theirs.onopen?.(); mine.onopen?.(); });
       }
     }
     close() { this.connectionState = 'closed'; }

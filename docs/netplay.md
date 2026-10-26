@@ -15,7 +15,7 @@ Online play between two browsers, with no server: the design, and what's built s
 
 | Layer | File | Job |
 |---|---|---|
-| 1. Transport | `src/net/netplay.js` (`NetPeer`) | One `RTCPeerConnection` with one ordered, reliable data channel, carrying JSON messages |
+| 1. Transport | `src/net/netplay.js` (`NetPeer`) | One `RTCPeerConnection` with one ordered, reliable data channel (negotiated: both sides make it, id 0, no in-band open handshake), carrying JSON messages |
 | 2. Signaling | `src/net/netplay.js` (`ManualSignal`, `netHost`, `netJoin`) | Gets the host's offer code to the guest, and the guest's answer code back |
 | 3. Lobby | `src/net/lobby.js` (`Lobby`) | Who's in, who plays which character, ready, start, rematch, leave |
 | 4. Match | `src/net/netmatch.js` (`NetMatch`) | Inputs every frame with a fixed input delay, desync checks, the result, the replay |
