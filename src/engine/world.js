@@ -33,7 +33,7 @@ function itemSeg(it, r = 0) {
   const w = WEAPONS[it.type], l = it.kind === 'prop' ? PROPS[it.type].size : (w.len + (w.back || 0)) / 2, ux = Math.cos(it.rot) * l, uy = Math.sin(it.rot) * l;
   return [[it.x - ux, it.y - uy], [it.x + ux, it.y + uy], r];
 }
-// a thrown prop's one blow (see thrownMove, rig.js, for a weapon's): scaled by its own toughness if breakable, else
+// a thrown prop's one blow (see thrownMove, rig-pose.js, for a weapon's): scaled by its own toughness if breakable, else
 // a flat modest hit (reed/spring, moveable but not breakable) — k: a charged throw's multiplier
 function thrownPropMove(type, k = 1) { const p = PROPS[type]; return { power: k, damage: Math.round((4 + (p.hp ?? 10) / 3) * k), knock: 150 * k, stun: 0.35, height: 'mid' }; }
 // a hit's default spark style by the attacker's weapon class, when the striking key doesn't name its own (onHit)

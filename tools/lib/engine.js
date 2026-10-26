@@ -8,9 +8,14 @@ const srcFile = name => {
   for (const d of fs.readdirSync(SRC, { withFileTypes: true })) if (d.isDirectory() && fs.existsSync(path.join(SRC, d.name, name + '.js'))) return path.join(SRC, d.name, name + '.js');
   return path.join(SRC, name + '.js');
 };
-// 'roster' stands for every character file (src/engine/chars/index.json, in order) and then roster.js itself
+// a group stands for its files, in load order: 'rig' for the rig split over several files (with the base stick in it),
+// 'roster' for every character file (src/engine/chars/index.json) and then roster.js itself
 const CHAR_FILES = JSON.parse(fs.readFileSync(path.join(SRC, 'engine', 'chars', 'index.json'), 'utf8')).map(c => 'engine/chars/' + c);
-const expand = files => files.flatMap(f => f === 'roster' ? [...CHAR_FILES, 'roster'] : [f]);
+const GROUPS = {
+  rig: ['engine/rig', 'engine/rig-chars', 'engine/chars/stick', 'engine/rig-weapons', 'engine/rig-pose', 'engine/rig-draw'],
+  roster: [...CHAR_FILES, 'engine/roster'],
+};
+const expand = files => files.flatMap(f => GROUPS[f] || [f]);
 module.exports = function engine(files = ENGINE) {
   const ctx = vm.createContext({ console, Math, Object, Array, JSON });
   for (const f of expand(files)) vm.runInContext(fs.readFileSync(srcFile(f), 'utf8'), ctx, { filename: srcFile(f) });
@@ -20,3 +25,4 @@ module.exports.ENGINE = ENGINE;
 module.exports.srcFile = srcFile;
 module.exports.CHAR_FILES = CHAR_FILES;
 module.exports.expand = expand;
+module.exports.GROUPS = GROUPS;

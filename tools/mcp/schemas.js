@@ -1,7 +1,7 @@
 // hand-written descriptions of the data the MCP server takes: a character definition and a scenario (stick2://schema/…)
-// Written from src/engine/rig.js (BONE, makeCharacter, CHAR_STATS, GAIT_VARS), src/engine/fighter.js, src/editor/editor.js (MOVE_PROPS, MOVE_FLAGS) and src/engine/brain.js.
+// Written from src/engine/rig.js (BONE) and rig-chars.js (makeCharacter, CHAR_STATS, GAIT_VARS), src/engine/fighter.js, src/editor/editor.js (MOVE_PROPS, MOVE_FLAGS) and src/engine/brain.js.
 const character = {
-  about: 'A character definition: plain JSON, what makeCharacter (src/engine/rig.js) compiles and the app exports as a character file. get_character shows a real one; '
+  about: 'A character definition: plain JSON, what makeCharacter (src/engine/rig-chars.js) compiles and the app exports as a character file. get_character shows a real one; '
     + 'create_character takes one, edit_character takes a JSON merge patch of one. Angles are degrees; a world angle of 0 points straight down, 90 forward (the way the fighter faces), 180 up.',
   fields: {
     name: 'string: the name (unique; a taken one gets a number on create)',
@@ -9,7 +9,7 @@ const character = {
     poses: '{ stance (required), crouch, air, airFall, fall, lie }: each a pose. stance is the rest pose; bones it leaves out stay at their rest angle a',
     moves: '{ name: move }: every move, attacks and others (idle / walk loops, <state>Layer movement layers, taunts, win…)',
     hurt: '{ high: [pose], mid: [pose], low: [pose], … }: hit-reaction poses picked by where a blow lands',
-    binds: '{ slot: move name }: input slots (punch, kick, fwdPunch, downKick, airPunch, qcfPunch, special, throw, …) over the default table (BINDS in src/engine/rig.js), 2D plane',
+    binds: '{ slot: move name }: input slots (punch, kick, fwdPunch, downKick, airPunch, qcfPunch, special, throw, …) over the default table (BINDS in src/engine/rig-chars.js), 2D plane',
     binds25: 'the same for the 2.5D planes (lanes, belt)',
     stances: '[{ name, key ("S+G" | "↓S+G" | "→S+G" | "←S+G"), pose, binds, binds25 }]: extra stances; pose and binds go over the main ones',
     motions: '{ name: numpad digits }: own special motions (m41236: "41236"); each makes slots <name>Punch and <name>Kick',

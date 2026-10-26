@@ -1,18 +1,23 @@
-// keeps the <script> tags for the character files (src/engine/chars/index.json) in every page that loads the roster,
-// in order, right before roster.js. Run after adding a character; --check only reports (exit 1 if a page is stale)
+// keeps the <script> tags of the engine's file groups (tools/lib/engine.js GROUPS: the rig files, and every character
+// file in src/engine/chars/index.json plus roster.js) in every page, in load order where the group's first tag was.
+// Run after adding a character; --check only reports (exit 1 if a page is stale)
 // usage: node tools/dev/char-scripts.js [--check]
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..', '..');
-const { CHAR_FILES } = require('../lib/engine');
+const { GROUPS } = require('../lib/engine');
 const PAGES = ['index.html', 'tools/render/render.html', 'tools/render/icons.html', 'tools/itch/itch-render.html'];
 
-// the page's text with the character tags rebuilt (null if it doesn't load roster.js)
+const src = f => `src/${f}.js"></script>`;
+// the page's text with each group's tags rebuilt (null if it doesn't load the roster)
 function rebuild(html) {
-  const lines = html.split('\n').filter(l => !/src\/engine\/chars\//.test(l));
-  const i = lines.findIndex(l => /src\/engine\/roster\.js"><\/script>/.test(l));
-  if (i < 0) return null;
-  const tag = lines[i];
-  lines.splice(i, 0, ...CHAR_FILES.map(f => tag.replace('engine/roster', f)));
+  let lines = html.split('\n');
+  for (const files of Object.values(GROUPS)) {
+    const i = lines.findIndex(l => files.some(f => l.endsWith(src(f))));
+    if (i < 0) return null;
+    const tag = lines[i], at = files.find(f => tag.endsWith(src(f)));
+    lines = lines.filter((l, j) => j === i || !files.some(f => l.endsWith(src(f))));
+    lines.splice(i, 1, ...files.map(f => tag.replace(src(at), src(f))));
+  }
   return lines.join('\n');
 }
 module.exports = { rebuild, PAGES };
@@ -22,7 +27,7 @@ if (require.main === module) {
   let stale = 0;
   for (const p of PAGES) {
     const file = path.join(ROOT, p), html = fs.readFileSync(file, 'utf8'), next = rebuild(html);
-    if (next === null) { console.error(`${p}: no roster.js script tag`); process.exit(2); }
+    if (next === null) { console.error(`${p}: no rig or roster script tags`); process.exit(2); }
     if (next === html) continue;
     stale++;
     if (check) console.error(`${p}: character script tags out of date (run node tools/dev/char-scripts.js)`);
