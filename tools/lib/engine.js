@@ -1,7 +1,7 @@
 // the engine without a page: the scripts that need no DOM loaded into one vm context, the way index.html loads them (tests, the MCP server)
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const SRC = path.join(__dirname, '..', '..', 'src');
-const ENGINE = ['core', 'shapes', 'rig', 'fx', 'roster', 'fighter', 'world', 'stage', 'brain', 'checks', 'events', 'objdiff'];
+const ENGINE = ['core', 'shapes', 'rig', 'fx', 'roster', 'fighter', 'world', 'stage', 'brain', 'checks', 'events'];
 // src/ is grouped into folders (engine, net, editor, ui): a script is named by its file name alone
 const srcFile = name => {
   if (name.includes('/')) return path.join(SRC, name + '.js');
@@ -9,11 +9,11 @@ const srcFile = name => {
   return path.join(SRC, name + '.js');
 };
 // a group stands for its files, in load order: 'rig' for the rig split over several files (with the base stick in it),
-// 'roster' for every character file (src/engine/chars/index.json) and then roster.js itself, 'replay' for replay mode
+// 'roster' for objdiff.js (exported characters are diffs), every character file (src/engine/chars/index.json) and roster.js, 'replay' for replay mode
 const CHAR_FILES = JSON.parse(fs.readFileSync(path.join(SRC, 'engine', 'chars', 'index.json'), 'utf8')).map(c => 'engine/chars/' + c);
 const GROUPS = {
   rig: ['engine/rig', 'engine/rig-chars', 'engine/chars/stick', 'engine/rig-weapons', 'engine/rig-pose', 'engine/rig-draw'],
-  roster: [...CHAR_FILES, 'engine/roster'],
+  roster: ['engine/objdiff', ...CHAR_FILES, 'engine/roster'],
   replay: ['engine/replay', 'engine/replay-timeline', 'engine/replay-scene', 'engine/replay-footage', 'engine/replay-movie', 'engine/replay-panel'],
 };
 const expand = files => files.flatMap(f => GROUPS[f] || [f]);

@@ -14,6 +14,7 @@
     "coverage:check": "node tools/dev/coverage-check.js",
     "lint:src": "node tools/dev/no-test-hooks.js",
     "chars:sync": "node tools/dev/char-scripts.js",
+    "char:add": "node tools/dev/char-add.js",
     "coverage:browser": "COVERAGE=1 node tests/browser/browser.js",
     "pretest": "node tools/dev/build-info.js",
     "test": "node --test tests/unit/*.test.js",

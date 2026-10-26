@@ -245,6 +245,12 @@ function charExport(full) {
   const d = diffObj(base, stripLocal(DEFS[CURRENT]));
   return { format: 'stick2.character.diff', base: CURRENT, diff: d || {} };
 }
+// the character as a ready-to-commit src/engine/chars/<name>.js (npm run char:add takes this file or a JSON export)
+function exportCharCode() {
+  const def = stripLocal(DEFS[CURRENT]), base = CHAR_DEFS[CURRENT] ? CURRENT : closestBase(def);
+  const blob = new Blob([charSource(CURRENT, base, diffObj(CHAR_DEFS[base], def) || {})], { type: 'text/javascript' });
+  const a = h('a', { href: URL.createObjectURL(blob), download: CURRENT + '.js' }); a.click(); URL.revokeObjectURL(a.href);
+}
 function exportChar(clip, full) { (clip ? copyData : d => download(CURRENT + (full || !CHAR_DEFS[CURRENT] ? '' : '.diff') + '.json', d))(charExport(full)); }
 // reconstructs a full character def from a diff payload (format stick2.character.diff) - throws a readable message
 // if its base isn't a built-in here (an older roster, or a typo'd/tampered link)
@@ -494,7 +500,9 @@ const fileMenu = (verb, f, ...extra) => (e, b) => popup(b, h('b', { textContent:
     button(k, `${verb} ${k} ${verb === 'export' ? 'to' : 'from'} a file: ${tip}`, () => f(k)),
     button(verb === 'export' ? 'copy' : 'paste', `${verb} ${k} ${verb === 'export' ? 'to' : 'from'} the clipboard: ${tip}`, () => f(k, true), 'mini'),
     verb === 'export' && k === 'character' && CHAR_DEFS[CURRENT]
-      ? button('full', `Export the whole character file instead of just a diff against the built-in ${CURRENT}`, () => exportChar(false, true), 'mini') : null)),
+      ? button('full', `Export the whole character file instead of just a diff against the built-in ${CURRENT}`, () => exportChar(false, true), 'mini') : null,
+    verb === 'export' && k === 'character'
+      ? button('code', 'Export as src/engine/chars/<name>.js, ready to commit (docs/characters.md)', exportCharCode, 'mini') : null)),
     ...extra));
 
 // a random character: the stick's skeleton with random proportions and thickness, maybe extra limbs, a stance preset;

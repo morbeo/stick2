@@ -41,3 +41,7 @@ const PALMS_BACK = { torso: -10, afU: -40, afL: 120, abU: -50, abL: 120, lfU: 35
 const SPLITS = { torso: 10, lfU: 95, lfL: 0, lbU: -85, lbL: 0, afU: 100, afL: 20, abU: 80, abL: 30 }; // legs out level: spinning kicks
 const FLYING = { torso: 88, head: -40, afU: 170, afL: 5, abU: 160, abL: 10, lfU: -80, lfL: 0, lbU: -95, lbL: 0 }; // level, head first
 const { stick } = CHAR_DEFS;
+// a character exported as code from the editor (character: export as code; npm run char:add): its base built-in plus a
+// diff (objdiff.js), applied by roster.js once every built-in is finished (supers added), which is what the export diffed
+const CHAR_DIFFS = [];
+const charFromDiff = (name, base, diff) => { CHAR_DIFFS.push({ name, base, diff }); };
