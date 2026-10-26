@@ -3,13 +3,15 @@
 //   GET /            the game itself (the repository's static files), so a #server= link opens it from here
 //   GET /healthz     200 "ok", or 503 "draining" while shutting down
 //   GET /metrics     Prometheus metrics (a bearer token if METRICS_TOKEN is set)
-//   GET /api/rooms   the public rooms, as JSON
+//   GET /api/rooms   the public rooms, as JSON (the lobby browser)
+//   /api/admin/…     moderation, with the ADMIN_TOKEN as a bearer token (off without one): rooms, reports, bans, kick, ban, unban, close
 //   WS  /ws          the relay (relay.js)
 // Configured by environment variables, every one with a default (see docs/server.md):
 const fs = require('fs'), path = require('path'), http = require('http');
 const { WebSocketServer } = require('ws');
 const { Relay } = require('./relay');
 const { Registry } = require('./metrics');
+const { Bans } = require('./moderation');
 
 const num = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 0 ? n : d; };
 function config(env = process.env) {
@@ -26,6 +28,9 @@ function config(env = process.env) {
     maxBytes: num(env.MAX_MESSAGE_BYTES, 1 << 20), // a match header carries whole character definitions
     drainMs: num(env.DRAIN_TIMEOUT, 600) * 1000,
     metricsToken: env.METRICS_TOKEN || '',
+    adminToken: env.ADMIN_TOKEN || '',
+    dbPath: env.DB_PATH || '', // a folder for bans.json; none: bans live in memory only
+    blocklist: (env.NAME_BLOCKLIST || '').split(',').map(w => w.trim()).filter(Boolean),
     trustProxy: env.TRUST_PROXY === '1',
     log: env.LOG_LEVEL || 'info',
   };
@@ -65,8 +70,48 @@ function start(cfg = config()) {
     roomSeconds: reg.histogram('room_lifetime_seconds', 'How long rooms stay open', [30, 60, 300, 900, 1800, 3600, 7200]),
     rtt: reg.histogram('rtt_seconds', 'Round trip between the server and its clients (WebSocket ping)', [0.01, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3, 0.5, 1]),
     http: reg.counter('http_requests_total', 'HTTP requests, by route and status'),
+    kicks: reg.counter('kicks_total', 'Players sent away, by who did it'),
+    bans: reg.counter('bans_total', 'Bans added'),
+    reports: reg.counter('reports_total', 'Players reported'),
   };
-  const relay = new Relay({ maxRooms: cfg.maxRooms, metrics: M });
+  const bans = new Bans({ file: cfg.dbPath ? path.join(cfg.dbPath, 'bans.json') : null });
+  const audit = (action, detail) => log('info', 'moderation', { action, ...detail });
+  const relay = new Relay({ maxRooms: cfg.maxRooms, metrics: M, bans, blocklist: cfg.blocklist, audit });
+
+  // ---------- moderation over HTTP (admin token) ----------
+  function admin(req, res, route) {
+    if (!cfg.adminToken) return send(res, 404, 'not found\n', undefined, 'admin');
+    if (req.headers.authorization !== `Bearer ${cfg.adminToken}`) return send(res, 401, 'unauthorized\n', undefined, 'admin');
+    const json = (status, body) => send(res, status, JSON.stringify(body), 'application/json', 'admin');
+    if (req.method === 'GET') {
+      if (route === 'rooms') return json(200, { rooms: relay.detail() });
+      if (route === 'reports') return json(200, { reports: relay.reports });
+      if (route === 'bans') return json(200, { bans: bans.active() });
+      return json(404, { error: 'unknown' });
+    }
+    let body = '';
+    req.on('data', c => { body += c; if (body.length > 1e4) req.destroy(); });
+    req.on('end', () => {
+      let b; try { b = JSON.parse(body || '{}'); } catch { return json(400, { error: 'bad json' }); }
+      if (route === 'kick') {
+        const ok = relay.kickPlayer(b.player, b.reason ? `kicked: ${b.reason}` : 'kicked by the server');
+        if (ok) { M.kicks.inc({ by: 'admin' }); audit('kick', { by: 'admin', player: b.player }); }
+        return json(ok ? 200 : 404, { ok });
+      }
+      if (route === 'close') { const ok = relay.close(String(b.room || '').toUpperCase()); if (ok) audit('close', { by: 'admin', room: b.room }); return json(ok ? 200 : 404, { ok }); }
+      if (route === 'ban') {
+        // an online player by name takes their device and address too; or a device id, or just a name
+        const c = b.player && relay.names.get(String(b.player).toLowerCase());
+        let ban;
+        try { ban = bans.add({ device: b.device || c?.device, ip: c?.ip, name: b.player, reason: b.reason, minutes: Number(b.minutes) || 0 }); } catch (e) { return json(400, { error: e.message }); }
+        M.bans.inc(); audit('ban', { by: 'admin', player: b.player || null, minutes: Number(b.minutes) || 0, id: ban.id });
+        if (c) relay.kickPlayer(b.player, `banned: ${ban.reason || 'by the server'}`);
+        return json(200, { ok: true, ban });
+      }
+      if (route === 'unban') { const ok = bans.remove(b.id); if (ok) audit('unban', { by: 'admin', id: b.id }); return json(ok ? 200 : 404, { ok }); }
+      return json(404, { error: 'unknown' });
+    });
+  }
 
   // ---------- HTTP ----------
   const send = (res, status, body, type = 'text/plain; charset=utf-8', route = 'other') => {
@@ -76,6 +121,8 @@ function start(cfg = config()) {
   };
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
+    const adm = url.pathname.match(/^\/api\/admin\/([a-z]+)$/);
+    if (adm && (req.method === 'GET' || req.method === 'POST')) return admin(req, res, adm[1]);
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'method not allowed');
     if (url.pathname === '/healthz') return relay.draining ? send(res, 503, 'draining\n', undefined, 'healthz') : send(res, 200, 'ok\n', undefined, 'healthz');
     if (url.pathname === '/metrics') {
@@ -106,7 +153,7 @@ function start(cfg = config()) {
     // a token bucket: msgRate a second, bursts of twice that
     let tokens = cfg.msgRate * 2, last = Date.now(), strikes = 0, alive = true, pingAt = 0;
     const client = {
-      room: null, role: null, id: null,
+      room: null, role: null, id: null, player: null, device: '', ip: bans.hash(ip),
       send: obj => { if (ws.readyState !== 1) return; const s = JSON.stringify(obj); ws.send(s); M.msgs.inc({ dir: 'out', type: obj.t }); M.bytes.inc({ dir: 'out' }, s.length); },
       close: (code, why) => ws.close(code, why),
     };
@@ -120,11 +167,11 @@ function start(cfg = config()) {
       M.bytes.inc({ dir: 'in' }, data.length);
       if (binary) return client.send({ t: 'error', error: 'bad message' });
       let m; try { m = JSON.parse(data); } catch { return client.send({ t: 'error', error: 'bad message' }); }
-      M.msgs.inc({ dir: 'in', type: typeof m?.t === 'string' && /^(host|join|to|msg|leave|list)$/.test(m.t) ? m.t : 'other' });
+      M.msgs.inc({ dir: 'in', type: typeof m?.t === 'string' && /^(host|join|to|msg|leave|list|kick|lock|report)$/.test(m.t) ? m.t : 'other' });
       relay.receive(client, m);
     });
     ws.on('close', code => {
-      relay.leave(client, 'lost connection');
+      relay.leave(client, 'lost connection'); relay.release(client);
       M.conns.dec(); M.disconnects.inc({ reason: code === 1000 || code === 1001 ? 'normal' : code === 1006 ? 'dropped' : 'other' });
       const n = (perIp.get(ip) || 1) - 1; if (n) perIp.set(ip, n); else perIp.delete(ip);
     });
