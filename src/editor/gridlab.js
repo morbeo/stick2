@@ -36,7 +36,7 @@ function gridSort(items, fields, shownKeys) {
     return s.dir * (typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))); });
 }
 
-// every character's own stats (CHAR_STATS, rig.js) plus a few basics, each a documented { k, tip, get(name) } —
+// every character's own stats (CHAR_STATS, rig-chars.js) plus a few basics, each a documented { k, tip, get(name) } —
 // no new registry: these are the exact tables the stats panel and radar graph already read from
 const CHAR_BASE_FIELDS = [
   { k: 'bones', tip: 'Number of bones', get: n => CHARS[n].bones.length },

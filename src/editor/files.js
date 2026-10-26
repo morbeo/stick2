@@ -51,7 +51,9 @@ const fileMenu = (verb, f, ...extra) => (e, b) => popup(b, h('b', { textContent:
     button(k, `${verb} ${k} ${verb === 'export' ? 'to' : 'from'} a file: ${tip}`, () => f(k)),
     button(verb === 'export' ? 'copy' : 'paste', `${verb} ${k} ${verb === 'export' ? 'to' : 'from'} the clipboard: ${tip}`, () => f(k, true), 'mini'),
     verb === 'export' && k === 'character' && CHAR_DEFS[CURRENT]
-      ? button('full', `Export the whole character file instead of just a diff against the built-in ${CURRENT}`, () => exportChar(false, true), 'mini') : null)),
+      ? button('full', `Export the whole character file instead of just a diff against the built-in ${CURRENT}`, () => exportChar(false, true), 'mini') : null,
+    verb === 'export' && k === 'character'
+      ? button('code', 'Export as src/engine/chars/<name>.js, ready to commit (docs/characters.md)', exportCharCode, 'mini') : null)),
     ...extra));
 
 // a random character: the stick's skeleton with random proportions and thickness, maybe extra limbs, a stance preset;

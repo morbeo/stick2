@@ -1,6 +1,6 @@
 'use strict';
 // ---------- props and weapons editor: both are built from the same primitive shapes (src/engine/shapes.js) ----------
-// a thin, utilitarian editor over shared data (BASE_PROPS/PROPS, src/engine/stage.js; BASE_WEAPONS/WEAPONS, src/engine/rig.js):
+// a thin, utilitarian editor over shared data (BASE_PROPS/PROPS, src/engine/stage.js; BASE_WEAPONS/WEAPONS, src/engine/rig-weapons.js):
 // pick a built-in or custom one (side panel: a card grid or a table), tune its own fields and its shape list
 // (overlay), revert or delete — same pattern as sounds
 let propSel = null, weaponSel = null, propView = 'cards', weaponView = 'cards';
@@ -203,7 +203,7 @@ function weaponCanvas(name) {
   return cv;
 }
 // a character (the one being edited, or the class's own default) holding it, in its normal stance pose — the variant
-// cache (src/engine/rig.js variant()) is keyed by stance + weapon name only, so it must be cleared first or a live edit
+// cache (src/engine/rig-pose.js variant()) is keyed by stance + weapon name only, so it must be cleared first or a live edit
 // (length, a shape) would keep showing whatever was compiled the first time this weapon was ever previewed
 function weaponHandPreview(name) {
   const ch = currentChar(), base = ch.base || ch; base.variants = {};

@@ -435,7 +435,7 @@ try {
   // the menu bar's files: export / import character, settings or everything; settings round-trip, out-of-range values fall back to the default
   { setMode('play'); const top = t => [...document.querySelectorAll('#global button')].find(b => b.textContent.includes(t) || b.dataset.tip?.toLowerCase().startsWith(t)), /* icon-only: matched by tip */ got = [], dl = download, of = openFile;
     top('export').click(); const menu = [...document.querySelectorAll('.pop button')].map(b => b.textContent).join(); closePop();
-    if (menu !== 'character,copy,full,settings,copy,everything,copy,replay' || !top('import')) errs.push('file menu ' + menu);
+    if (menu !== 'character,copy,full,code,settings,copy,everything,copy,replay' || !top('import')) errs.push('file menu ' + menu);
     download = (n, d) => got.push(JSON.parse(JSON.stringify(d))); let feed; openFile = f => f(feed, 'test.json');
     setCfg({ hitstop: 0.12 }); exportFile('settings'); setCfg({ hitstop: DEFAULTS.hitstop }); feed = got[0]; importFile('settings');
     if (CFG.hitstop !== 0.12) errs.push('settings import ' + CFG.hitstop);

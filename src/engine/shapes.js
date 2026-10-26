@@ -26,7 +26,7 @@ function shapePts(s, vars) {
 // draws one primitive. toXY(x, y) -> [screenX, screenY] maps its local point to the screen (rotation/stretch and
 // all); resolveCol(s.col) turns a primitive's own colour field (a literal, or a owner-specific keyword like
 // 'wood' / 'metal') into the string to actually draw with; vars: named live values 'len'-style coordinates can reach
-// for; extra: added to every line width (a weapon's active-strike thickening, src/engine/rig.js drawWeapon)
+// for; extra: added to every line width (a weapon's active-strike thickening, src/engine/rig-draw.js drawWeapon)
 function drawShape(ctx, s, toXY, resolveCol, vars = {}, extra = 0) {
   const col = resolveCol(s.col);
   if (s.kind === 'line') {

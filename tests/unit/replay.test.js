@@ -72,3 +72,15 @@ test('a branch: P2 taken over at a frame (takeover), P1 fed its recorded inputs,
   })())`));
   assert.deepEqual(r, ['human2', true, null, true]);
 });
+
+test('replay files carry their layout version; older ones are upgraded, newer and foreign ones refused', () => {
+  const r = JSON.parse(run(`(() => { const w = new World(SCENARIOS['ai vs ai'], {}, 3); w.loop = false; for (let i = 0; i < 20; i++) w.advance(1/60, NOIN);
+    return JSON.stringify(makeReplay(w, 'ai vs ai')); })()`));
+  const fv = run('REPLAY_FV'), read = x => JSON.parse(run(`JSON.stringify(readReplay(${JSON.stringify(x)}))`));
+  assert.equal(r.fv, fv);
+  assert.deepEqual(read(r), r);
+  const { fv: _, ...old } = r;
+  assert.deepEqual(read(old), r, 'a file from before fv opens as the current layout');
+  assert.throws(() => read({ ...r, fv: fv + 1 }), /newer stick2/);
+  assert.throws(() => read({ format: 'other' }), /not a stick2 replay/);
+});

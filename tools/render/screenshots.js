@@ -66,17 +66,17 @@ const SHOTS = {
 };
 // the sources each shot shows: a change to one of these (path prefixes) puts the shot in --changed and in the release notes.
 // every shot also depends on src/ui/ui.js and index.html, which would select all of them, so those are left out
-const PLAY = ['src/editor/lab.js', 'src/engine/'], ANIM = ['src/editor/studio.js', 'src/engine/clip.js', 'src/engine/rig.js'];
+const PLAY = ['src/editor/lab.js', 'src/engine/'], ANIM = ['src/editor/studio.js', 'src/engine/clip.js', 'src/engine/rig'];
 const TOUCHES = {
-  play: PLAY, animate: ANIM, character: ['src/editor/creator.js', 'src/engine/roster.js', 'src/engine/shapes.js', 'src/engine/rig.js'],
-  gallery: ['src/engine/roster.js', 'gallery.html'], experiment: ['src/editor/lab.js', 'src/editor/matrix.js'], grid: ['src/editor/gridlab.js'],
+  play: PLAY, animate: ANIM, character: ['src/editor/creator.js', 'src/engine/roster.js', 'src/engine/chars/', 'src/engine/shapes.js', 'src/engine/rig'],
+  gallery: ['src/engine/roster.js', 'src/engine/chars/', 'gallery.html'], experiment: ['src/editor/lab.js', 'src/editor/matrix.js'], grid: ['src/editor/gridlab.js'],
   fx: ['src/editor/fxlab.js', 'src/engine/fx.js'], tests: ['src/engine/checks.js'], impact: ['src/engine/fighter.js', 'src/engine/world.js'],
   ragdoll: ['src/engine/fighter.js', 'src/engine/world.js'], hip: ['src/editor/creator.js'], movepicker: ['src/editor/studio.js', 'src/editor/propedit.js'],
   compare: ['src/editor/compare.js'], effects: ['src/engine/fx.js'], combos: ['src/engine/combos.js'], movetable: ['src/editor/movetable.js', 'src/editor/keyedit.js', 'src/editor/studio.js', 'src/editor/tracker.js'],
   inputs: ['src/engine/inputs.js'], bonetable: ['src/editor/creator.js', 'src/engine/shapes.js'], builder: ['src/engine/scenarios.js', 'src/engine/brain.js'],
-  stancereq: ['src/editor/creator.js'], fighters: ['src/engine/roster.js', 'src/editor/lab.js'], menubar: ['src/ui/layout.js', 'src/ui/app.js'],
+  stancereq: ['src/editor/creator.js'], fighters: ['src/engine/roster.js', 'src/engine/chars/', 'src/editor/lab.js'], menubar: ['src/ui/layout.js', 'src/ui/app.js'],
   layout: ['src/ui/layout.js', 'src/ui/panelstate.js'], debug: ['src/ui/app.js'], palette: ['src/ui/palette.js'], statsradar: ['src/editor/creator.js'], keys: ['src/ui/keys.js'],
-  docspanel: ['src/ui/docs.js'], replay: ['src/engine/replay.js'], netplay: ['src/net/'], phone: ['src/ui/touch.js'],
+  docspanel: ['src/ui/docs.js'], replay: ['src/engine/replay'], netplay: ['src/net/'], phone: ['src/ui/touch.js'],
 };
 // the shots that show any of the changed files, closest match first (a file named outright beats a whole folder)
 const affected = files => Object.keys(SHOTS).map(n => [n, Math.max(0, ...(TOUCHES[n] || []).filter(t => files.some(f => f.startsWith(t))).map(t => t.length))])

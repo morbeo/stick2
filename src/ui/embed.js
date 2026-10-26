@@ -144,7 +144,7 @@ async function embedReplayData(src) {
 async function embedOpenReplay(src, at = 0, side = 0) {
   let rep;
   try { rep = await embedReplayData(src); } catch (err) { embedEmit('error', { error: 'replay: ' + err.message }); return embedCaption('The replay could not be opened.'); }
-  if (rep?.format !== REPLAY_FORMAT) { embedEmit('error', { error: 'not a stick2 replay' }); return embedCaption('That is not a stick2 replay.'); }
+  try { rep = readReplay(rep); } catch (err) { embedEmit('error', { error: err.message }); return embedCaption('That is not a stick2 replay this page can open.'); }
   loadReel(rep, rep.scenario || 'replay'); setMode('replay'); app.paused = true;
   rpSeek(Math.min(at, rp.N));
   if (side) embedJumpIn(side); else app.paused = !EMBED.cfg.autoplay;
