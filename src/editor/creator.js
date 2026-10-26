@@ -668,6 +668,7 @@ const creatorMode = {
   preview: () => creator.expOn ? null : edLayout().pv,
   clipRects: () => creator.expOn ? cellRects(9, 3, fullArea()).map((r, i) => ({ key: creator.exp.cells[i], r })) : [{ key: 'preview', r: edLayout().pv }],
   split: () => !creator.expOn,
+  homePanel: 'bones',
   enter() {
     creator.w = newWorld(previewScen(), {}, 7, previewChars());
     // the changes panel's "built-in" side: the same scenario/opponent, fighting as the matching built-in instead

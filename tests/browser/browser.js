@@ -584,12 +584,12 @@ try {
     const n = chip?.textContent; chip?.click(); if (app.mode !== 'animate' || anim.move !== n) errs.push('combo chip opens ' + app.mode + anim.move);
     setMode('character'); if (!document.querySelector('.ctable')) errs.push('character combos stay open (kept per tab)');
     sb('table').click(); if (document.querySelectorAll('.mtable tbody tr').length !== Object.keys(currentChar().moves).length) errs.push('character move table');
-    document.querySelector('.mtable .stagehead button[data-tip^="Close"]').click(); if (document.querySelector('.mtable') || app.mode !== 'character') errs.push('character move table close');
+    document.querySelector('.mtable .stagehead button[data-tip^="Close"]').click(); if (stageOpen() !== 'bones' || app.mode !== 'character') errs.push('character move table close (back to the bones) ' + stageOpen());
     sb('inputs').click(); if (!document.querySelector('.mtable')) errs.push('character inputs');
     const esc = () => dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape' }));
     popup($('ctx').querySelector('button'), 'x'); esc(); if (pop || !document.querySelector('.mtable')) errs.push('Esc closes the popup only');
-    esc(); if (document.querySelector('.mtable') || lay().panel) errs.push('Esc closes the stage panel');
-    sb('bones').click(); if (!document.querySelector('.btable') || !document.querySelector('.btable .stagehead')) errs.push('bone table in the panels group'); lay('character').panel = null; panels(); }
+    esc(); if (lay().panel !== 'bones') errs.push('Esc closes the stage panel (back to the bones) ' + lay().panel);
+    if (!document.querySelector('.btable') || !document.querySelector('.btable .stagehead')) errs.push('bone table in the panels group'); lay('character').panel = null; panels(); }
   // effect stacks: + adds a second effect to a move (a list) and to a bone, the arrows reorder, the bin removes; a key's own stack replaces the move's
   { pickChar('stick'); studio.stance = 0; setMode('animate'); anim.move = 'jab'; selectKey(0); panels();
     // the key's own fx section comes first, the move's after it: each found by its own heading
@@ -830,6 +830,13 @@ try {
     setMode('play'); if (document.querySelector('.cmptable')) errs.push('compare per tab');
     if ([...document.querySelectorAll('#ctx button')].some(b => b.dataset.tip?.startsWith(CMP_PANEL_TIP))) errs.push('compare button in play');
     setMode('experiment'); if (!document.querySelector('.cmptable')) errs.push('compare back in experiment'); closeStage(); if (document.querySelector('.cmptable')) errs.push('compare close'); }
+  // character tab: another stage panel (combos, table, inputs) closed goes back to the bone tree, which keeps its view and folds
+  { setMode('character'); creator.boneView = 'tree'; openStage('bones'); const tree = () => document.querySelector('.btree');
+    if (!tree()) errs.push('bone tree open');
+    openStage('combos'); closeStage(); if (stageOpen() !== 'bones' || !tree()) errs.push('bone tree after combos ' + stageOpen());
+    openStage('table'); openStage(null); if (stageOpen() !== 'bones') errs.push('bone tree after table ' + stageOpen());
+    closeStage(); if (stageOpen()) errs.push('bones closes ' + stageOpen());
+    openStage('bones'); setMode('play'); setMode('character'); if (!tree()) errs.push('bone tree across tabs'); }
   // survival: the side panel has the Survival settings, the fight draws with its time counter
   { setMode('play'); lab.scen = 'survival'; build(); panels(); const w = lab.cells[0].w; for (let i = 0; i < 200; i++) w.advance(1/60, NOIN); labRender();
     if (!w.scen.survival || w.survT < 3 || ![...document.querySelectorAll('#side h3')].some(e => e.textContent.includes('Survival'))) errs.push('survival ' + w.survT);
