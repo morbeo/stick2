@@ -169,6 +169,11 @@ Line bones also have:
 
 ### Reorganizing bones
 
+- **Rig tools** (a column at the right edge of the character view; the toolbar's **rig** button or `rig tools` in the palette shows or hides it, and on narrow screens it is a sheet at the bottom):
+  - **mode**: **setup** drags set a joint's angle and length and Alt+drag reparents; **animate** drags only turn joints, so posing can't change lengths or parents.
+  - **Pose**: **copy** the stance pose, **paste** it onto every bone it has (on this or another character, matched by bone name) or onto the **selected** bones only, and **reset** the selected bones to the bind pose (the built-in character's stance, else the pose when you opened the character). All undoable.
+  - **Selection**: **isolate** ghosts every bone but the selection in the character view; **ghost tip** trails the selected bone's tip in the preview fight, to judge the arc of a strike.
+  - Every tool is in the palette as `rig: …`.
 - **Bone tree** (the bones panel under the character view: drag its top edge to resize it, double-click it for the default size; its **tree / table** switch flips it to the bone table): drag a bone onto another to hang it, and everything below it, from that bone. Hold Alt as you drop to move it before that bone in the draw order instead. Drop it on the **hang from the hip** row to make it a root.
 - **Canvas:** Alt+drag a joint onto another joint (or the hip square) to reparent it. A dashed line shows where it goes.
 - **Bone table:** click a bone's parent cell to pick a new parent; drag an id onto another row to reorder.

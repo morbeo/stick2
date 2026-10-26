@@ -14,6 +14,7 @@ The engine tests run in Node with no dependencies. A headless Chrome test covers
 | `npm run test:server` | the relay server's tests (installs `server/` dependencies first) |
 | `npm run coverage:check` | unit tests that fail if line coverage of `src/` drops below the floor (CI runs this) |
 | `npm run lint:src` | fails if `src/` branches on being under test (`process.env.CI`, `isTest`…) |
+| `npm run test:editor` | the character editor in headless Chrome: make, edit, add, undo / redo, revert, all kept across a page reload |
 | `npm run test:netplay` | two headless browsers, peer to peer: lobby, synced match, spectator, forfeit |
 | `npm run test:server-browser` | two browsers through the relay server (installs `server/` deps first) |
 | `npm run test:all` | `npm test`, then the browser test |
@@ -143,4 +144,10 @@ seed 10: frame 75, gogili: a position, speed or health became NaN
 
 ## CI
 
-`.github/workflows/tests.yml` runs on every PR and on master: `lint:src`, `coverage:check`, `test:server`, `test:browser`, `test:netplay` and `test:server-browser`. The coverage floor lives in `package.json` (`coverage:check`); raise it as coverage grows, never lower it to get green.
+`.github/workflows/tests.yml` runs on every PR and on master: `lint:src`, `coverage:check`, `test:server`, `test:browser`, `test:editor`, `test:netplay` and `test:server-browser`. The coverage floor lives in `package.json` (`coverage:check`); raise it as coverage grows, never lower it to get green.
+
+## Pictures and rig fuzz
+
+`tests/unit/pictures.test.js` pins how every roster character looks. Each one is drawn with `drawFigure`, the game's own draw call, into a recording context: in its rest pose and 40% of the way through each move. The drawing commands, rounded to 0.1 px, are hashed per pose into `tests/unit/snapshots/pictures.txt`. This is vector, not pixels, so it is the same on every machine. After an intended look change, run `UPDATE=1 npm test` and check which poses changed in the diff.
+
+`tests/unit/rig-fuzz.test.js` makes random editor-style body edits (lengths, angles, limits, lag, level, reparenting, added and removed bones) on random characters. Each result must compile, keep a valid bone tree and fight with finite numbers. It runs 40 seeds by default; `FUZZ_RIG=500 npm test` runs more.
