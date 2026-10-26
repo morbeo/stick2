@@ -1,14 +1,9 @@
-name: Server · test & image
-run-name: "${{ github.event_name == 'release' && format('Server image {0}', github.event.release.tag_name) || github.event_name == 'workflow_dispatch' && 'Server image (manual)' || format('Server tests on {0}', github.ref_name) }}"
+name: Server · image
+run-name: "${{ github.event_name == 'release' && format('Server image {0}', github.event.release.tag_name) || 'Server image (manual)' }}"
 
-# Tests the dedicated server (server/) on every change to it; builds the multi-arch Docker image and pushes it to GHCR
-# (ghcr.io/<owner>/stick2-server) on a release or by hand.
+# Builds the multi-arch Docker image and pushes it to GHCR (ghcr.io/<owner>/stick2-server) on a release or by hand,
+# after the server tests pass. Pushes and PRs get the same server tests from tests.yml.
 on:
-  push:
-    branches: [master] # branches are covered by their PR run; avoids testing every push twice
-    paths: ["server/**", "src/net/**", ".github/workflows/server.yml"]
-  pull_request:
-    paths: ["server/**", "src/net/**", ".github/workflows/server.yml"]
   release:
     types: [published]
   workflow_dispatch:
@@ -18,7 +13,7 @@ permissions:
 
 concurrency:
   group: server-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -44,7 +39,6 @@ jobs:
   image:
     name: Build and push image
     needs: test
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
