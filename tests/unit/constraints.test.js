@@ -35,3 +35,9 @@ test('a fight with constraints stays deterministic', () => {
     return [go() === go(), go().includes('NaN')]; })()`);
   assert.deepEqual(r, [true, false]);
 });
+
+test('morphAt: no delay matches the plain ease; a delayed bone waits, then lands with the rest; bezier blends work', () => {
+  const r = json(`(() => { const m = { t: 0.1, T: 0.2, ease: 'inOutCubic' }, mb = { t: 0.1, T: 0.2, ease: 'bezier', bz: [0.3, 0.3, 0.7, 0.7] };
+    return [morphAt(m, {}), EASE.inOutCubic(0.5), morphAt(m, { morphDelay: 0.5 }), morphAt({ ...m, t: 0.2 }, { morphDelay: 0.9 }), morphAt(mb, {}), morphAt(m, { morphDelay: 0.25 }), EASE.inOutCubic(1 / 3)]; })()`);
+  near(r[0], r[1]); assert.equal(r[2], 0); assert.equal(r[3], 1); near(r[4], 0.5, 1e-5); near(r[5], r[6]);
+});

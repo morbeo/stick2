@@ -517,7 +517,7 @@ const EASE_TIPS = {
 };
 // the key's bezier curve as a graph: time across, pose up; the two round handles drag (y may leave the box: overshoot,
 // anticipation); double-click resets to ease in-out. One undo step per drag
-function bezierGraph(k) {
+function bezierGraph(k, setBz = (v, key) => setKey('bz', v, key)) {
   const W = 200, H = 140, PAD = 22, PY = 35, cv = h('canvas', { cls: 'bzgraph', tip: 'Time → progress toward this key\'s pose. Drag a handle: left shapes the start, right the end; above the box overshoots, below it anticipates · double-click: reset to slow in, slow out' });
   cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
   const bz = () => k()?.bz || BZ, px = (x, y) => [PAD + x * (W - 2 * PAD), H - PY - y * (H - 2 * PY)];
@@ -542,10 +542,10 @@ function bezierGraph(k) {
     if (drag < 0) return;
     const [x, y] = at(e), b = [...bz()], r2 = v => Math.round(v * 100) / 100;
     b[drag * 2] = r2(clamp(x, 0, 1)); b[drag * 2 + 1] = r2(clamp(y, -0.5, 1.5));
-    setKey('bz', b, 'key.bz'); draw();
+    setBz(b, 'bz'); draw();
   };
   cv.onpointerup = () => { drag = -1; };
-  cv.ondblclick = () => setKey('bz', undefined);
+  cv.ondblclick = () => setBz(undefined);
   reg(cv, draw);
   return cv;
 }
