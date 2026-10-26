@@ -61,6 +61,8 @@ test('the editing tabs need edit on', () => {
   assert.deepEqual(runJ(`embedToolsFor(parseEmbed(new URLSearchParams('tools=play,animate,gallery'), EMBED_PRESETS).cfg)`), ['play', 'gallery']);
   assert.deepEqual(runJ(`embedToolsFor(parseEmbed(new URLSearchParams('tools=play,animate&edit=1'), EMBED_PRESETS).cfg)`), ['play', 'animate']);
   assert.deepEqual(runJ(`embedToolsFor(parseEmbed(new URLSearchParams('tools=animate'), EMBED_PRESETS).cfg)`), ['play']);
+  assert.deepEqual(runJ(`embedToolsFor(parseEmbed(new URLSearchParams('tools=play,animate&readonly=1'), EMBED_PRESETS).cfg)`), ['play', 'animate']);
+  assert.ok(runJ(`embedCheck(parseEmbed(new URLSearchParams('edit=1&readonly=1'), EMBED_PRESETS).cfg)`).some(w => /readonly wins/.test(w)));
 });
 test('src/ui/embed-presets.js is generated from profiles/embeds/', () => {
   execFileSync(process.execPath, [path.join(root, 'tools/dev/embed-presets.js'), '--check'], { stdio: 'pipe' });
