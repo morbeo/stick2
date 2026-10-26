@@ -518,7 +518,7 @@ const EASE_TIPS = {
 // the key's bezier curve as a graph: time across, pose up; the two round handles drag (y may leave the box: overshoot,
 // anticipation); double-click resets to ease in-out. One undo step per drag
 function bezierGraph(k) {
-  const W = 200, H = 140, PAD = 22, PY = 35, cv = h('canvas', { cls: 'bzgraph', tip: 'Drag a handle to shape the curve · double-click to reset' });
+  const W = 200, H = 140, PAD = 22, PY = 35, cv = h('canvas', { cls: 'bzgraph', tip: 'Time → progress toward this key\'s pose. Drag a handle: left shapes the start, right the end; above the box overshoots, below it anticipates · double-click: reset to slow in, slow out' });
   cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
   const bz = () => k()?.bz || BZ, px = (x, y) => [PAD + x * (W - 2 * PAD), H - PY - y * (H - 2 * PY)];
   let drag = -1;
