@@ -169,18 +169,116 @@ Line bones also have:
 
 ### Reorganizing bones
 
-- **Rig tools** (a column at the right edge of the character view; the toolbar's **rig** button or `rig tools` in the palette shows or hides it, and on narrow screens it is a sheet at the bottom):
-  - **mode**: **setup** drags set a joint's angle and length and Alt+drag reparents; **animate** drags only turn joints, so posing can't change lengths or parents.
-  - **Pose**: **copy** the stance pose, **paste** it onto every bone it has (on this or another character, matched by bone name) or onto the **selected** bones only, and **reset** the selected bones to the bind pose (the built-in character's stance, else the pose when you opened the character). All undoable.
-  - **Selection**: **isolate** ghosts every bone but the selection in the character view; **ghost tip** trails the selected bone's tip in the preview fight, to judge the arc of a strike.
-  - **Constraints** (on the selected bones, applied in every fight and the preview, deterministic): **follow** a bone to copy its turn away from the stance, scaled by **follow mix** (1 = all, 0.5 = half, below 0 = the other way): hair after the head, a cape after the torso. **reach** a bone to bend this bone and its parent so its end touches that bone's end (two-bone IK, the elbow or knee keeps its side), by **reach mix**: a hand on a prop, both hands on a staff. Saved as `follow`/`followMix` and `reach`/`reachMix` on the bone.
-  - Every tool is in the palette as `rig: …`.
+- **Rig tools:** see [Rig tools](#rig-tools) below. In **setup** mode, Alt+drag on the canvas reparents.
 - **Bone tree** (the bones panel under the character view: drag its top edge to resize it, double-click it for the default size; its **tree / table** switch flips it to the bone table): drag a bone onto another to hang it, and everything below it, from that bone. Hold Alt as you drop to move it before that bone in the draw order instead. Drop it on the **hang from the hip** row to make it a root.
 - **Canvas:** Alt+drag a joint onto another joint (or the hip square) to reparent it. A dashed line shows where it goes.
 - **Bone table:** click a bone's parent cell to pick a new parent; drag an id onto another row to reorder.
 - **copy** (bones panel head) copies the selected bone and its subtree to the other side. The **+** limb buttons beside it add an arm, leg, head or tail to the selected torso bone.
 
 A bone can never hang from its own subtree.
+
+## Rig tools
+
+A column docked at the right edge of the character view, for posing and rigging. Show or hide it with the toolbar's **rig** button, or with `rig tools` in the palette (⌘K). On screens narrower than 700 px it becomes a sheet at the bottom of the stage. It is hidden while the experiment grid is open.
+
+Every tool is also in the palette as `rig: …`, and every change is undoable (⌘Z).
+
+### Mode: setup and animate
+
+| Mode | Dragging a joint | Alt+drag a joint | Use it for |
+|------|------------------|------------------|------------|
+| **setup** (default) | sets the bone's stance angle **and length** | drops the bone onto another joint to reparent it | building or reshaping the rig |
+| **animate** | only turns the bone; lengths and parents stay put | same as a plain drag | posing a stance without changing the rig by accident |
+
+**Example:** you've finished building a tail and want to tune the stance without stretching it. Switch to **animate**, drag the tail joints, and the lengths stay as built.
+
+### Pose
+
+The pose clipboard holds the stance pose: every bone's angle, by bone name. It is kept in your browser, so it survives a reload and switching characters.
+
+| Button | What it does |
+|--------|--------------|
+| **copy** | Copies the current stance's pose. |
+| **paste** | Pastes onto every bone the clip and this character share. Bones the clip doesn't have are left alone. |
+| **selected** | Pastes onto the selected bones only. |
+| **reset** | Puts the selected bones back to the bind pose: the built-in character's stance, or for your own character, the pose it had when you opened it. |
+
+**Examples:**
+- *Copy a guard from another character:* open `boxer`, **copy**, open your character, **paste**. Arms and legs named the same (`uarmF`, `farmF`, `thighF`…) take the pose.
+- *Fix just the arms:* select `uarmF`, `farmF`, `handF` (⌘/Ctrl+click), then **selected**.
+- *Undo an experiment on the legs:* select the leg bones and press **reset**.
+
+### Selection
+
+The line under **Selection** names the selected bone (or how many are selected) and shows *pose copied* when the clipboard is full.
+
+- **isolate** fades every unselected bone to 20% in the character view, so you can see a single limb on a crowded rig (a centaur, a winged character).
+- **ghost tip** draws a fading red trail of the selected bone's tip in the preview fight (about 1.5 s long). Use it to judge a strike's arc: a jab should trace a straight line, a hook a wide curve, a kick a clean sweep.
+
+**Example:** select `handF`, turn on **ghost tip**, and watch the preview fight. If the jab's trail curves up at the end, lower the arm in the strike key.
+
+### Constraints
+
+Constraints make one bone react to another automatically, in every fight and in the preview fight. They act on the pose the springs chase, so springs, lag and follow-through still apply on top. They are deterministic, so replays and online play stay in sync. Characters without constraints play exactly as before.
+
+They are set on the **selected** bones (several at once works). Pick **—** to remove one, or run `rig: clear constraints` from the palette to remove both. The static character view shows the stance as authored, so watch the preview fight to see a constraint at work.
+
+#### follow
+
+The bone copies how far another bone has turned **away from the stance**, multiplied by **follow mix**.
+
+| follow mix | Effect |
+|------------|--------|
+| `1` | turns exactly as much as the followed bone |
+| `0.5` | half as much: a softer echo |
+| `0` | no effect (same as off) |
+| `-1` | the same amount the other way: a counter-swing |
+
+The followed bone's turn is measured from its stance angle, so in the stance the follower sits where you posed it.
+
+**Examples:**
+- *Hair that follows the head:* select the hair bone, **follow** `head`, mix `0.6`. When the head snaps back from a hit, the hair turns 60% as far, and its own springs and `dangle` add the swing.
+- *A cape that follows the torso:* select the cape's first bone, **follow** `chest`, mix `0.5`.
+- *Tail counterbalance:* select the tail root, **follow** `chest`, mix `-0.4`. Leaning forward swings the tail back.
+
+#### reach (IK)
+
+The bone and its **parent** bend so the bone's end touches the end of the **reached** bone (two-bone IK). The elbow or knee stays on the side it already bends to. **reach mix** blends between the animated pose (`0`) and full contact (`1`).
+
+- The bone needs a parent: the two bones it bends are the bone and its parent (forearm and upper arm, shin and thigh).
+- If the target is out of reach, the limb stretches straight toward it as far as it can.
+- A bone can't reach itself, and it shouldn't reach a bone inside its own limb.
+
+**Examples:**
+- *Two-handed staff:* select `handB`, **reach** the staff's tip bone (or `handF` for a grip on the same spot), mix `1`. However the front arm swings, the back hand stays on the staff.
+- *Hand on a hip prop:* add a `socket` on the hip, select `handB`, **reach** the socket, mix `0.7`. The hand rests near it but still moves a little with the animation.
+- *Feet on a ledge:* select `footF`, **reach** a socket bone on a prop, mix `1`.
+
+#### In the JSON
+
+Constraints are saved on the bone, and only values that differ from the default are written:
+
+```json
+{ "id": "hair", "parent": "head", "len": 18, "follow": "head", "followMix": 0.6 }
+{ "id": "handB", "parent": "farmB", "len": 6, "reach": "staffTip", "reachMix": 1 }
+```
+
+| Field | Default | Range | Meaning |
+|-------|---------|-------|---------|
+| `follow` | none | a bone id | the bone whose turn this one copies |
+| `followMix` | `1` | `-1` … `1` | how much of that turn |
+| `reach` | none | a bone id | the bone whose end this one's end goes to |
+| `reachMix` | `1` | `0` … `1` | how far toward it |
+
+Follow constraints are applied before reach ones, and each pass goes parents first. A reach can therefore land on a bone that is itself following another.
+
+### Reparenting
+
+There are three ways to hang a bone (and everything below it) from another bone:
+
+- **Bone tree** (under the character view): drag a bone onto another. Hold Alt as you drop to reorder it in the draw order instead. Drop it on **hang from the hip** to make it a root.
+- **Canvas** (setup mode): Alt+drag a joint onto another joint, or onto the hip square. A dashed line shows where it will go.
+- **Bone table:** click the parent cell and pick a new parent.
 
 ## Moves and inputs
 
