@@ -36,6 +36,7 @@ The hash still takes the app's own links too (`tool=`, `char=`, `move=`…), lim
 | `controls` | controls | list (play, restart, speed, mute, jumpin, branches, fullscreen, open, share, edit) | `play,restart,mute,fullscreen,open` | The embed's own control bar (shown on hover or tap) |
 | `tools` | tools | list (play, replay, grid, experiment, gallery, character, tests, animate, fx, sounds, tracker, props, weapons) | `play` | Which tabs can be opened (the first is where it starts, unless a replay is given) |
 | `edit` | tools | bool | `false` | Allow the editing tabs (character, animate, fx…) and the edit drawer; edits stay in memory unless persist is on |
+| `readonly` | tools | bool | `false` | View only: the editing tabs open (with edit off too) so people can look around, but nothing can be changed |
 | `input` | input | list (keyboard, touch, gamepad, host) | `keyboard,touch,gamepad` | Which inputs drive the player (none: watch only; host: the host page presses keys through postMessage) |
 | `focus` | input | enum (click, auto) | `click` | click: keys reach the game only after it is clicked, so the host page keeps its own keys |
 | `autoplay` | playback | bool | `true` | Start running at once (off: a still poster frame until clicked; also off with reduced motion) |

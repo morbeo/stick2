@@ -78,6 +78,7 @@ function embedApply() {
   b.classList.toggle('emb-clear', c.bg === 'transparent');
   b.classList.toggle('emb-notouch', !c.input.includes('touch'));
   b.classList.toggle('emb-nonet', !c.net);
+  b.classList.toggle('emb-readonly', c.readonly);
   CFG.hud = c.ui.includes('hud'); CFG.timer = c.ui.includes('timer'); CFG.labels = c.ui.includes('labels');
   lab.meter = c.ui.includes('meter'); lab.inputs = c.ui.includes('inputs');
   ui.mute = c.mute; app.speed = c.speed;
@@ -194,7 +195,7 @@ function embedBar() {
     sel.onchange = () => { const r = rp.reels[+sel.value]; if (lab.branch) keepBranch(); loadReel(r.rep, r.name, r); setMode('replay'); app.paused = true; panels(); syncAll(); embedBar(); };
     items.push(sel);
   }
-  if (has('edit') && c.edit) items.push(btn(':edit:', 'Edit: the toolbar and side panel', () => { document.body.classList.toggle('emb-drawer'); resize(); }, document.body.classList.contains('emb-drawer')));
+  if (has('edit') && (c.edit || c.readonly)) items.push(btn(':edit:', 'Edit: the toolbar and side panel', () => { document.body.classList.toggle('emb-drawer'); resize(); }, document.body.classList.contains('emb-drawer')));
   if (has('share')) items.push(btn(':link:', 'Copy a link to this moment', embedShare));
   if (has('fullscreen')) items.push(btn(':theaters:', 'Fullscreen', () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.().catch(() => {})));
   if (has('open')) items.push(btn(':home:', 'Open in stick2', embedOpenFull));
@@ -230,8 +231,22 @@ function embedWatch() {
     } else embedCaption(winner ? `K.O. P${winner} wins.` : 'K.O.');
   }, 100);
 }
+// view only (readonly): every edit goes through snapshot() (studio.js) for undo before it changes anything, so refusing there
+// stops character, settings, replay, footage, movie and scene edits alike; the refusal is caught below, not reported as a crash
+class EmbedViewOnly extends Error {}
+function embedViewOnly() {
+  const inner = snapshot;
+  snapshot = (...a) => {
+    if (!EMBED.cfg.readonly) return inner(...a);
+    embedCaption('View only: this embed can\'t be changed.');
+    throw new EmbedViewOnly('view only');
+  };
+  addEventListener('error', e => { if (e.error instanceof EmbedViewOnly) e.preventDefault(); });
+  addEventListener('unhandledrejection', e => { if (e.reason instanceof EmbedViewOnly) e.preventDefault(); });
+}
 function embedStart() {
   const c = EMBED.cfg;
+  embedViewOnly();
   if (!c.net) { netJoinFromLink = () => embedEmit('error', { error: 'netplay is off in this embed (net=1)' }); netServerFromLink = netJoinFromLink; }
   if (!c.ui.includes('palette')) openPalette = () => {};
   if (!c.ui.includes('welcome')) openWelcome = () => {};
