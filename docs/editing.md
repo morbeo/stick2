@@ -276,6 +276,26 @@ Constraints are saved on the bone, and only values that differ from the default 
 
 Follow constraints are applied before reach ones, and each pass goes parents first. A reach can therefore land on a bone that is itself following another.
 
+### Skins
+
+A skin is a named look for one character, made only of bone **drawing** settings: `thick`, `cap`, `taper`, `shade`, `curve` and `z` (draw layer). A skin never touches lengths, hurtboxes or motion, so it can't change a fight, and replays stay valid. Skins are procedural, with no images, and they keep the character monochrome because `shade` is grey only.
+
+| Control | What it does |
+|---------|--------------|
+| **save skin** | Asks for a name and saves every bone's current drawing settings as a new skin, which becomes the applied one. |
+| a skin's button | Applies it: each bone the skin names takes its saved values, and fields the skin doesn't set go back to their defaults. Bones the skin doesn't name keep their look. Undoable. The applied skin shows a ✓. |
+| Alt+click a skin | Updates that skin from the bones as they are now. |
+| **delete** | Deletes the applied skin. The bones keep their current look. |
+
+The palette has `skin: save` and `skin: <name>` for each of the open character's skins.
+
+**Examples:**
+- *Heavy:* select every limb, set **thick** 9 and **cap** square, then **save skin** as `heavy`.
+- *Sketch:* set **thick** 2, **taper** 0.6 and **curve** 0.1 on the limbs, then save it as `sketch`.
+- *Ghost:* set **shade** 0.6 on every bone and save it as `ghost`. Click **heavy**, **sketch** or **ghost** to switch between them.
+
+In the JSON: `skins: { "heavy": { "uarmF": { "thick": 9, "cap": "square" }, … } }` and `skin: "heavy"` for the one applied last.
+
 ### Reparenting
 
 There are three ways to hang a bone (and everything below it) from another bone:
