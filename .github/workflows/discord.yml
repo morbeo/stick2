@@ -1,0 +1,118 @@
+name: Discord · updates & feature requests
+run-name: "${{ github.event_name == 'push' && format('Announce master update: {0}', github.event.head_commit.message) || format('Feature request #{0}: {1}', github.event.issue.number, github.event.issue.title) }}"
+
+# Posts every master update (with a fight GIF) and every enhancement issue to Discord.
+# Releases are announced by release.yml. Set the variable DISCORD_NOTIFY_GIF to "false" to skip the GIF.
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['docs/**', '**.md']
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discord-${{ github.event_name }}-${{ github.event.issue.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
+jobs:
+  master:
+    name: Announce master update
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      WANT_GIF: ${{ vars.DISCORD_NOTIFY_GIF != 'false' }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Render fight GIF
+        # chars/seed are derived from the commit SHA, so the same fight can be
+        # replayed later with: node tools/discord/render-notify-gif.js <sha>
+        if: env.WANT_GIF == 'true'
+        id: gif
+        uses: ./.github/actions/fight-gif
+        with:
+          seed: ${{ github.sha }}
+      - name: Post embed to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          GIF_PATH: ${{ steps.gif.outputs.path }}
+          TITLE: Hear ye, hear ye! stick2 updated
+          DESC: ${{ github.event.head_commit.message }}
+          URL: ${{ github.event.head_commit.url }}
+          AUTHOR: ${{ github.event.head_commit.author.name }}
+          FIELD_NAME: Commit
+          FIELD_VALUE: ${{ github.sha }}
+          TS: ${{ github.event.head_commit.timestamp }}
+        run: |
+          FIELD_VALUE="${FIELD_VALUE:0:7}" # short SHA
+          PAYLOAD=$(jq -n \
+            --arg title "$TITLE" \
+            --arg desc "$DESC" \
+            --arg url "$URL" \
+            --arg author "$AUTHOR" \
+            --arg fname "$FIELD_NAME" \
+            --arg fvalue "$FIELD_VALUE" \
+            --arg ts "$TS" \
+            --argjson hasGif "$([ -n "$GIF_PATH" ] && echo true || echo false)" \
+            '{
+              embeds: [{
+                title: $title,
+                url: $url,
+                description: $desc,
+                color: 5793266,
+                author: { name: $author },
+                fields: [{ name: $fname, value: $fvalue, inline: true }]
+              } + (if $ts != "" then { timestamp: $ts } else {} end)
+                + (if $hasGif then { image: { url: "attachment://fight.gif" } } else {} end)]
+            }')
+          # --fail-with-body so a Discord-side error (bad webhook, rate limit) fails the job loudly instead of
+          # silently; one retry after a couple seconds covers a transient 5xx / rate limit
+          send() { if [ -n "$GIF_PATH" ]; then
+              curl -sS --fail-with-body -F "payload_json=$PAYLOAD" -F "files[0]=@${GIF_PATH};filename=fight.gif" "$DISCORD_WEBHOOK"
+            else
+              curl -sS --fail-with-body -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK"
+            fi; }
+          send || { echo "::warning::First attempt failed, retrying in 5s"; sleep 5; send; }
+          echo "Posted **$TITLE** ($FIELD_NAME \`$FIELD_VALUE\`, GIF: $([ -n "$GIF_PATH" ] && echo yes || echo no)) to Discord" >> "$GITHUB_STEP_SUMMARY"
+
+  feature-request:
+    name: Post feature request
+    if: >-
+      github.event_name == 'issues' && (
+      (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'enhancement')) ||
+      (github.event.action == 'labeled' && github.event.label.name == 'enhancement'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Post issue to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_FEATURE_REQUESTS_WEBHOOK }}
+          TITLE: ${{ github.event.issue.title }}
+          URL: ${{ github.event.issue.html_url }}
+          BODY: ${{ github.event.issue.body }}
+          AUTHOR: ${{ github.event.issue.user.login }}
+          LABELS: ${{ join(github.event.issue.labels.*.name, ', ') }}
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg title "$TITLE" \
+            --arg url "$URL" \
+            --arg desc "${BODY:0:1500}" \
+            --arg author "$AUTHOR" \
+            --arg labels "$LABELS" \
+            '{
+              embeds: [{
+                title: $title,
+                url: $url,
+                description: $desc,
+                color: 2201331,
+                author: { name: $author },
+                fields: [{ name: "Labels", value: $labels, inline: true }]
+              }]
+            }')
+          send() { curl -sS --fail-with-body -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK"; }
+          send || { echo "::warning::First attempt failed, retrying in 5s"; sleep 5; send; }
+          echo "Posted [$TITLE]($URL) to Discord" >> "$GITHUB_STEP_SUMMARY"

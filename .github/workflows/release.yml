@@ -1,0 +1,297 @@
+name: Release · publish & assets
+run-name: "Release ${{ inputs.tag || github.event.release.tag_name || '(next patch)' }}"
+
+# One click: run it from the Actions tab (or `gh workflow run release.yml`). With a new tag (blank = next
+# patch after the latest v* tag) it tags master and publishes the release with notes from the merged PRs;
+# with an existing tag it re-runs only the jobs ticked below (backfills). A release published by hand
+# runs every job. Jobs: tests, picture notes, fight GIF + Discord post, server image (GHCR), itch.io push.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v0.2.0 (blank: next patch). A new tag is created from master"
+        required: false
+        type: string
+      notes:
+        description: Render the picture notes
+        type: boolean
+        default: true
+      gif:
+        description: Attach the fight GIF and post to Discord
+        type: boolean
+        default: true
+      image:
+        description: Build and push the server image
+        type: boolean
+        default: true
+      itch:
+        description: Push to itch.io
+        type: boolean
+        default: true
+      itch-channel:
+        description: itch.io channel (html is the browser build)
+        type: string
+        default: html
+      itch-images:
+        description: Also render the itch.io store screenshots and promo images (artifact)
+        type: boolean
+        default: false
+      itch-dry-run:
+        description: Pack only, don't push to itch.io
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # create the release, attach assets, edit its body
+
+concurrency:
+  group: release # one release at a time; queue, never cancel
+  cancel-in-progress: false
+
+# A published release runs every job; a manual run follows its checkboxes.
+jobs:
+  publish:
+    name: Tag and publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # tags, for the next patch version
+      - name: Pick the tag
+        id: tag
+        run: |
+          if [ -z "$TAG" ]; then
+            latest=$(git tag -l 'v*' --sort=-v:refname | head -1); IFS=. read -r major minor patch <<< "${latest#v}"
+            TAG="v${major:-0}.${minor:-0}.$(( ${patch:-0} + 1 ))"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Publish release if new
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "Release \`$TAG\` exists; re-running the chosen jobs" >> "$GITHUB_STEP_SUMMARY"
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes --title "$TAG"
+            echo "Published \`$TAG\` from \`${GITHUB_SHA::7}\`" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  test:
+    name: Unit and server tests
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.publish.outputs.tag }}
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Run unit tests
+        run: npm test
+      - name: Run server tests
+        run: npm run test:server
+
+  notes:
+    name: Render and attach picture notes
+    needs: publish
+    if: github.event_name == 'release' || inputs.notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TAG: ${{ needs.publish.outputs.tag }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check out tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.publish.outputs.tag }}
+          fetch-depth: 0 # the merges since the last tag, and a worktree of it
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@c785b87e244131f27c9f19c1a33e2ead956ab7ce # v1
+        id: chrome
+        with:
+          install-dependencies: true
+      - name: Render picture notes
+        env:
+          CHROME: ${{ steps.chrome.outputs.chrome-path }}
+        run: node tools/render/release-notes.js --to "$TAG" --url "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/"
+      - name: Attach images and append notes
+        run: |
+          shopt -s nullglob
+          pngs=(release-notes/*.png)
+          if [ ${#pngs[@]} -gt 0 ]; then gh release upload "$TAG" "${pngs[@]}" --clobber --repo "$GITHUB_REPOSITORY"; fi
+          # replace an earlier run's section rather than stacking another
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body | sed '/^## What.s new, in pictures/,$d' > body.md
+          { echo; cat release-notes/notes.md; } >> body.md
+          gh release edit "$TAG" --notes-file body.md --repo "$GITHUB_REPOSITORY"
+          cat release-notes/notes.md >> "$GITHUB_STEP_SUMMARY"
+
+  gif:
+    name: Attach fight GIF and announce
+    needs: publish
+    if: github.event_name == 'release' || inputs.gif
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TAG: ${{ needs.publish.outputs.tag }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check out tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.publish.outputs.tag }}
+      - name: Render fight GIF
+        # seeded by the tag: node tools/discord/render-notify-gif.js <tag> replays it
+        id: gif
+        uses: ./.github/actions/fight-gif
+        with:
+          seed: ${{ needs.publish.outputs.tag }}
+      - name: Attach GIF to release
+        env:
+          GIF_PATH: ${{ steps.gif.outputs.path }}
+        run: gh release upload "$TAG" "$GIF_PATH#fight.gif" --clobber --repo "$GITHUB_REPOSITORY"
+      - name: Post release to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          GIF_PATH: ${{ steps.gif.outputs.path }}
+        run: |
+          [ -n "$DISCORD_WEBHOOK" ] || { echo "::warning::No DISCORD_WEBHOOK secret; skipped the post"; exit 0; }
+          rel=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json name,body,url,author)
+          PAYLOAD=$(jq -n --argjson r "$rel" --arg tag "$TAG" '{
+            embeds: [{
+              title: "stick2 \($r.name // $tag) is out!",
+              url: $r.url,
+              description: ($r.body | .[0:3500]),
+              color: 5793266,
+              author: { name: $r.author.login },
+              fields: [{ name: "Release", value: $tag, inline: true }],
+              image: { url: "attachment://fight.gif" }
+            }]
+          }')
+          send() { curl -sS --fail-with-body -F "payload_json=$PAYLOAD" -F "files[0]=@${GIF_PATH};filename=fight.gif" "$DISCORD_WEBHOOK"; }
+          send || { echo "::warning::First attempt failed, retrying in 5s"; sleep 5; send; }
+          echo "Attached fight.gif to \`$TAG\` and posted it to Discord" >> "$GITHUB_STEP_SUMMARY"
+
+  image:
+    name: Build and push server image
+    needs: [publish, test]
+    if: github.event_name == 'release' || inputs.image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TAG: ${{ needs.publish.outputs.tag }}
+    steps:
+      - name: Check out tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.publish.outputs.tag }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pick image tags
+        id: tags
+        run: |
+          img="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/stick2-server"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "tags=$img:$TAG,$img:sha-$(git rev-parse --short HEAD),$img:latest" >> "$GITHUB_OUTPUT"
+      - name: Build and push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: server/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: ${{ steps.tags.outputs.tags }}
+          build-args: COMMIT=${{ steps.tags.outputs.commit }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.publish.outputs.tag }}
+
+  itch:
+    name: Pack and push to itch.io
+    needs: [publish, test]
+    if: github.event_name == 'release' || inputs.itch
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      TARGET: morbeo/stick2:${{ inputs.itch-channel || 'html' }}
+      DRY_RUN: ${{ inputs.itch-dry-run || false }}
+      TAG: ${{ needs.publish.outputs.tag }}
+    steps:
+      - name: Check out tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.publish.outputs.tag }}
+          fetch-depth: 0 # build-info reads the commit history
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Pack
+        run: npm run build-info && npm run itch
+      - name: Keep the zip
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: stick2-itch
+          path: dist/stick2-itch.zip
+      - name: Push with butler
+        if: env.DRY_RUN != 'true'
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          [ -n "$BUTLER_API_KEY" ] || { echo "::warning::No BUTLER_API_KEY secret (itch.io → Settings → API keys); skipped the push"; exit 0; }
+          curl -fsSL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          unzip -q butler.zip -d "$RUNNER_TEMP/butler" && rm butler.zip && chmod +x "$RUNNER_TEMP/butler/butler"
+          "$RUNNER_TEMP/butler/butler" push dist/stick2-itch.zip "$TARGET" --userversion "$TAG"
+          "$RUNNER_TEMP/butler/butler" status "$TARGET" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Set up Chrome
+        if: inputs.itch-images
+        uses: browser-actions/setup-chrome@c785b87e244131f27c9f19c1a33e2ead956ab7ce # v1
+        id: chrome
+        with:
+          install-dependencies: true
+      - name: Render store images
+        if: inputs.itch-images
+        env:
+          CHROME: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          node tools/itch/itch-assets.js
+          node tools/itch/itch-showcase.js
+          echo "Store images are in the **itch-images** artifact; upload them on the itch.io edit page." >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the store images
+        if: inputs.itch-images
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: itch-images
+          path: out/itch/

@@ -33,7 +33,7 @@ docker run -p 8080:8080 -v stick2:/data stick2-server
 docker compose -f server/docker-compose.yml up -d
 ```
 
-Releases publish `ghcr.io/morbeo/stick2-server` for amd64 and arm64 (`.github/workflows/server.yml`). Open `http://<host>:8080/` to play from the server itself. For players on the internet, put it behind HTTPS (Caddy, nginx, Cloudflare) and set `TRUST_PROXY=1`: a game page served over HTTPS can only open `wss://`.
+Releases publish `ghcr.io/morbeo/stick2-server` for amd64 and arm64 (the `image` job of `.github/workflows/release.yml`). Open `http://<host>:8080/` to play from the server itself. For players on the internet, put it behind HTTPS (Caddy, nginx, Cloudflare) and set `TRUST_PROXY=1`: a game page served over HTTPS can only open `wss://`.
 
 ## Settings
 
