@@ -129,7 +129,7 @@ test('a real lobby and match through the server: both sides fight the same fight
   });
 });
 
-test('short embed links: POST /api/embeds stores a hash, /e/<id> redirects to the game with it', async () => {
+test('short embed links: POST /api/embeds stores a hash, /e/<id> is a link card that goes on to the game', async () => {
   const s = await boot();
   await quiet(s, async () => {
     const post = body => fetch(`http://127.0.0.1:${s.port}/api/embeds`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -138,7 +138,11 @@ test('short embed links: POST /api/embeds stores a hash, /e/<id> redirects to th
     const { id } = await r.json();
     assert.equal((await (await post({ hash: 'preset=arcade&p1=bonko' })).json()).id, id); // the same hash, the same id
     const go = await fetch(`http://127.0.0.1:${s.port}/e/${id}`, { redirect: 'manual' });
-    assert.equal(go.status, 302); assert.equal(go.headers.get('location'), '/index.html#preset=arcade&p1=bonko');
+    const card = await go.text();
+    assert.equal(go.status, 200); assert.match(card, /og:title" content="stick2: arcade"/);
+    assert.match(card, /location\.replace\("\/index\.html#preset=arcade&p1=bonko"\)/);
+    const evil = (await (await post({ hash: 'scenario=%3Cb%3E&ui=hud' })).json()).id; // names are escaped in the card
+    assert.doesNotMatch(await (await get(s, '/e/' + evil)).text(), /<b>/);
     assert.equal((await get(s, '/e/nothere')).status, 404);
     assert.equal((await post({ hash: 'a b' })).status, 400);
     assert.equal((await post({ hash: 'x'.repeat(70000) })).status, 413);

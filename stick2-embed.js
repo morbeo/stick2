@@ -35,6 +35,8 @@
       restart: function () { send('restart'); }, scenario: function (name) { send('scenario', { name: name }); },
       seek: function (frame) { send('seek', { frame: frame }); }, jumpIn: function (side) { send('jumpIn', { side: side }); },
       load: function (replay) { send('load', { replay: replay }); }, state: function () { send('state'); },
+      // P1's keys from the host page (needs input to include host): press holds, release lets go, tap is one frame
+      press: function (keys) { send('press', { keys: keys }); }, release: function (keys) { send('release', { keys: keys }); }, tap: function (keys) { send('tap', { keys: keys }); },
     };
   }
   window.Stick2 = { mount: mount, version: 1 };

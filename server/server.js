@@ -47,6 +47,17 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
 // nothing from the server itself, dependencies, git or dotfiles
 const HIDDEN = /(^|\/)(\.|node_modules(\/|$)|server(\/|$)|tools(\/|$)|tests(\/|$)|package(-lock)?\.json$)/;
 
+// the card for a short link: a title from what the hash plays (a preset, a scenario, a replay), then on to the game
+const esc = t => String(t).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+function embedCard(hash, origin) {
+  const p = new URLSearchParams(hash), what = p.get('challenge') === '1' ? 'a challenge' : p.get('replay') ? 'a replay' : p.get('scenario') || p.get('embed') || p.get('preset') || 'a fight';
+  const title = `stick2: ${what}`, to = '/index.html#' + hash;
+  return `<!doctype html><meta charset="utf-8"><title>${esc(title)}</title>
+<meta property="og:title" content="${esc(title)}"><meta property="og:description" content="A stick-figure fight you can play, replay and jump into.">
+<meta property="og:image" content="${esc(origin)}/docs/img/anim-fireball.png"><meta name="twitter:card" content="summary_large_image">
+<meta http-equiv="refresh" content="0;url=${esc(to)}"><script>location.replace(${JSON.stringify(to)})</script><a href="${esc(to)}">${esc(title)}</a>`;
+}
+
 function start(cfg = config()) {
   const log = (level, msg, extra = {}) => { if (cfg.log === 'quiet' || (level === 'debug' && cfg.log !== 'debug')) return; process.stdout.write(JSON.stringify({ time: new Date().toISOString(), level, msg, ...extra }) + '\n'); };
   const reg = new Registry(), started = Date.now();
@@ -150,8 +161,8 @@ function start(cfg = config()) {
     if (short && req.method === 'GET') {
       const hash = cfg.maxEmbeds ? embeds.get(short[1]) : null;
       if (!hash) return send(res, 404, 'no such embed link\n', undefined, 'embed');
-      M.http.inc({ route: 'embed', status: 302 });
-      res.writeHead(302, { location: '/index.html#' + hash, 'cache-control': 'public, max-age=86400' }); return res.end();
+      // a page, not a bare redirect: link unfurlers (Discord, Slack…) read its card, browsers go straight on to the game
+      return send(res, 200, embedCard(hash, `${cfg.trustProxy && req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`), 'text/html; charset=utf-8', 'embed');
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'method not allowed');
     if (url.pathname === '/healthz') return relay.draining ? send(res, 503, 'draining\n', undefined, 'healthz') : send(res, 200, 'ok\n', undefined, 'healthz');

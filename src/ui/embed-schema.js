@@ -16,10 +16,11 @@ const EMBED_OPTS = [
   { key: 'p1', group: 'characters', type: 'string', def: '', tip: 'Character in slot 1 (empty: the scenario\'s own)' },
   { key: 'p2', group: 'characters', type: 'string', def: '', tip: 'Character in slot 2 (empty: the scenario\'s own)' },
   { key: 'ui', group: 'ui', type: 'list', values: EMBED_UI, def: ['hud', 'timer'], tip: 'Which parts of the app show' },
+  { key: 'sections', group: 'ui', type: 'list', def: [], tip: 'Side panel sections to keep, by heading (e.g. netplay,movelist; empty: all)' },
   { key: 'controls', group: 'controls', type: 'list', values: EMBED_CONTROLS, def: ['play', 'restart', 'mute', 'fullscreen', 'open'], tip: 'The embed\'s own control bar (shown on hover or tap)' },
   { key: 'tools', group: 'tools', type: 'list', values: EMBED_MODES, def: ['play'], tip: 'Which tabs can be opened (the first is where it starts, unless a replay is given)' },
   { key: 'edit', group: 'tools', type: 'bool', def: false, tip: 'Allow the editing tabs (character, animate, fx…) and the edit drawer; edits stay in memory unless persist is on' },
-  { key: 'input', group: 'input', type: 'list', values: ['keyboard', 'touch'], def: ['keyboard', 'touch'], tip: 'Which inputs drive the player (none: watch only)' },
+  { key: 'input', group: 'input', type: 'list', values: ['keyboard', 'touch', 'gamepad', 'host'], def: ['keyboard', 'touch', 'gamepad'], tip: 'Which inputs drive the player (none: watch only; host: the host page presses keys through postMessage)' },
   { key: 'focus', group: 'input', type: 'enum', values: ['click', 'auto'], def: 'click', tip: 'click: keys reach the game only after it is clicked, so the host page keeps its own keys' },
   { key: 'autoplay', group: 'playback', type: 'bool', def: true, tip: 'Start running at once (off: a still poster frame until clicked; also off with reduced motion)' },
   { key: 'replay', group: 'playback', type: 'string', def: '', tip: 'A replay to open: an https URL of a replay file, or inline (z:<deflated base64url>, j:<base64url JSON>)' },
@@ -29,6 +30,8 @@ const EMBED_OPTS = [
   { key: 'challenge', group: 'playback', type: 'bool', def: false, tip: 'A challenge: jump in at the frame and win the round from there' },
   { key: 'net', group: 'netplay', type: 'bool', def: false, tip: 'Allow online play (#join= / #server= links and the online panel)' },
   { key: 'bg', group: 'look', type: 'enum', values: ['paper', 'transparent'], def: 'paper', tip: 'Page background around the stage (light theme only)' },
+  { key: 'accent', group: 'look', type: 'string', def: '', tip: 'Accent colour of the embed\'s own bar and play button, as #rgb or #rrggbb (empty: the game\'s)' },
+  { key: 'poster', group: 'look', type: 'string', def: '', tip: 'A still image shown before play when autoplay is off: an https URL (empty: the paused first frame)' },
   { key: 'watermark', group: 'look', type: 'bool', def: true, tip: 'A small "stick2" link back to the full game' },
   { key: 'persist', group: 'security', type: 'bool', def: false, tip: 'Save to this browser\'s stick2 storage (off: everything stays in memory, the visitor\'s own saves are untouched)' },
   { key: 'mute', group: 'security', type: 'bool', def: true, tip: 'Start muted' },
@@ -101,6 +104,8 @@ function embedCheck(cfg) {
   if (cfg.challenge && (!cfg.replay || cfg.side === '0')) w.push('a challenge needs a replay, a frame (at) and a side');
   if (cfg.side !== '0' && !cfg.replay) w.push('side only applies to a replay');
   if (!cfg.tools.length) w.push('no tools: play is used');
+  if (cfg.accent && !/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(cfg.accent)) w.push('accent must be #rgb or #rrggbb: ignored');
+  if (cfg.poster && !/^https:\/\//.test(cfg.poster)) w.push('poster must be an https URL: ignored');
   if (cfg.ui.includes('menubar') && !cfg.edit) w.push('the menubar has import, reset and save buttons: consider edit=on or leave it out');
   return w;
 }
