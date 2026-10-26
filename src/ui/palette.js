@@ -49,8 +49,13 @@ function paletteEntries() {
       ['rig: paste pose to selected', 'Paste the copied pose onto the selected bones only', () => pastePose(selIds())],
       ['rig: reset selected bones', 'Reset the selected bones to the bind pose', () => resetBones()],
       ['rig: isolate selection', 'Ghost every bone but the selected ones', () => { rig.isolate = !rig.isolate; }],
-      ['rig: ghost tip', 'Trail the selected bone\'s tip in the preview fight', () => { rig.ghost = !rig.ghost; rig.trail.length = 0; }]]
+      ['rig: ghost tip', 'Trail the selected bone\'s tip in the preview fight', () => { rig.ghost = !rig.ghost; rig.trail.length = 0; }],
+      ['rig: clear constraints', 'Remove follow and reach from the selected bones', () => edit(d => { for (const b of selDefs(d)) for (const k of ['follow', 'followMix', 'reach', 'reachMix']) delete b[k]; })]]
       .map(([name, tip, f]) => ({ kind: 'action', name, tip: tip + ' (in the character tab)', run: () => { if (app.mode !== 'character') setMode('character'); f(); panels(); } })),
+    ...[...Object.keys(EASE), 'bezier'].map(e => ({ kind: 'action', name: 'key easing: ' + e, tip: `Ease the selected key ${e}: ${EASE_TIPS[e]} (in animate)`, run: () => {
+      if (app.mode !== 'animate') setMode('animate');
+      setKey('e', e); panels();
+    } })),
     ...Object.keys(SHAPE_TIPS).map(sh => ({ kind: 'action', name: 'bone shape: ' + sh, tip: `Draw the selected bones as ${sh}: ${SHAPE_TIPS[sh]} (in the character tab)`, run: () => {
       if (app.mode !== 'character') setMode('character');
       edit(d => { for (const b of selDefs(d)) b.shape = sh; });
