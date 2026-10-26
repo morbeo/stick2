@@ -144,7 +144,7 @@ seed 10: frame 75, gogili: a position, speed or health became NaN
 
 ## CI
 
-`.github/workflows/tests.yml` runs on every PR and on master: `lint:src`, `coverage:check`, `test:server`, `test:browser`, `test:editor`, `test:netplay` and `test:server-browser`. The coverage floor lives in `package.json` (`coverage:check`); raise it as coverage grows, never lower it to get green.
+`.github/workflows/tests.yml` (**Tests · lint, coverage & browser**) runs on every PR and on master: `lint:src`, `coverage:check`, `test:server`, `test:browser`, `test:editor`, `test:netplay` and `test:server-browser`. The coverage floor lives in `package.json` (`coverage:check`); raise it as coverage grows, never lower it to get green.
 
 ## Pictures and rig fuzz
 
