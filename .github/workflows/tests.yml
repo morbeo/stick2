@@ -2,7 +2,7 @@ name: Tests · lint, coverage & browser
 run-name: "Tests on ${{ github.head_ref || github.ref_name }}"
 
 # Every push and PR: unit tests with a line-coverage floor, the server's tests, the headless-Chrome
-# smoke test, two-browser netplay (peer to peer, and through the relay server), and a check that src/ has no test-only branches. Raise the floor in package.json
+# smoke test, two-browser netplay (peer to peer, and through the relay server), and a check that src/ has no test-only branches. Raise the floor in tools/dev/coverage-check.js
 # (coverage:check) as coverage grows; never lower it to get green.
 on:
   push:

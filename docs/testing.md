@@ -12,7 +12,7 @@ The engine tests run in Node with no dependencies. A headless Chrome test covers
 | `npm run test:update` | rewrites the snapshots after an intended change |
 | `npm run test:browser` | loads the page in headless Chrome and goes through every mode, character and stance, checking for errors |
 | `npm run test:server` | the relay server's tests (installs `server/` dependencies first) |
-| `npm run coverage:check` | unit tests that fail if line coverage of `src/` drops below the floor (CI runs this) |
+| `npm run coverage:check` | unit tests that fail if line coverage of `src/` drops below 80%, or any file kept at 100% loses a line (CI runs this) |
 | `npm run lint:src` | fails if `src/` branches on being under test (`process.env.CI`, `isTest`…) |
 | `npm run test:editor` | the character editor in headless Chrome: make, edit, add, undo / redo, revert, all kept across a page reload |
 | `npm run test:netplay` | two headless browsers, peer to peer: lobby, synced match, spectator, forfeit |
@@ -46,7 +46,8 @@ The build info is shown in the debug popup (the chart button in the menu bar), n
 `npm run coverage` runs the Node tests with V8 coverage of the engine and prints line / branch / function coverage per file.
 
 - Covered: the engine in `src/` (core, rig, fighter, world, brain), loaded into a vm context by `tests/unit/load.js` under their real paths.
-- The UI modules need the DOM, so the browser test covers them instead.
+- The UI modules need the DOM, so the browser test covers them instead; the few that only draw or play sound run against stand-ins (a call-recording canvas, localStorage and WebAudio).
+- `npm run coverage:check` (`tools/dev/coverage-check.js`, `--floor N` to try another) fails below 80% of lines overall, or if a file in its `FULL` list (brain, checks, core, events, objdiff, roster, shapes, stage, netmatch, netplay, tracker, sound) is not fully covered.
 - The browser test passes only when its page reports `OK` (exit code 0). It parses the page's check script first, and prints `FAIL` if that script is broken or the page never finishes. It ends with a ⌘K sweep: every safe palette command runs without throwing, every shortcut is in the palette, and the shipped keys don't clash.
 - `CHROME=/path/to/chrome` picks the browser; run as root (CI, containers) the tests add `--no-sandbox` themselves.
 
@@ -71,6 +72,8 @@ The build info is shown in the debug popup (the chart button in the menu bar), n
 | `tests/unit/fuzz.test.js` | 25 AI fights (10 s each) between random characters with 8 random settings each (any value the side panel allows): nothing throws, nothing becomes NaN, health stays within 0 … its maximum, nobody leaves the stage |
 | `tests/unit/determinism.test.js` | the same seed plays the same AI fight frame for frame (also in a fresh engine); another seed plays another |
 | `tests/browser/browser.js` | headless Chrome: every mode, character and stance, no errors |
+| `tests/unit/small-modules.test.js` | shapes, stages and props, looks, sounds and the tracker against stand-in canvas, storage and WebAudio |
+| `tests/unit/replay-timeline.test.js` | the replay editor's input edits, timeline window, jumps, and timeline drawing and mouse on a stand-in canvas |
 | `tests/browser/browser-coverage.js` | the browser test under Chrome's coverage (`npm run coverage:browser`) |
 
 A data check lists every problem it finds, one line each (`stick.jab: punch chains into nothing, not a move`), so one run shows all of them.
@@ -144,7 +147,7 @@ seed 10: frame 75, gogili: a position, speed or health became NaN
 
 ## CI
 
-`.github/workflows/tests.yml` (**Tests · lint, coverage & browser**) runs on every PR and on master: `lint:src`, `coverage:check`, `test:server`, `test:browser`, `test:editor`, `test:netplay` and `test:server-browser`. The coverage floor lives in `package.json` (`coverage:check`); raise it as coverage grows, never lower it to get green.
+`.github/workflows/tests.yml` (**Tests · lint, coverage & browser**) runs on every PR and on master: `lint:src`, `coverage:check`, `test:server`, `test:browser`, `test:editor`, `test:netplay` and `test:server-browser`. The coverage floor (80%) and the files kept at 100% (`FULL`) live in `tools/dev/coverage-check.js`; raise the floor and add files as coverage grows, never lower it or drop one to get green.
 
 ## Pictures and rig fuzz
 
