@@ -245,6 +245,12 @@ function charExport(full) {
   const d = diffObj(base, stripLocal(DEFS[CURRENT]));
   return { format: 'stick2.character.diff', base: CURRENT, diff: d || {} };
 }
+// the character as a ready-to-commit src/engine/chars/<name>.js (npm run char:add takes this file or a JSON export)
+function exportCharCode() {
+  const def = stripLocal(DEFS[CURRENT]), base = CHAR_DEFS[CURRENT] ? CURRENT : closestBase(def);
+  const blob = new Blob([charSource(CURRENT, base, diffObj(CHAR_DEFS[base], def) || {})], { type: 'text/javascript' });
+  const a = h('a', { href: URL.createObjectURL(blob), download: CURRENT + '.js' }); a.click(); URL.revokeObjectURL(a.href);
+}
 function exportChar(clip, full) { (clip ? copyData : d => download(CURRENT + (full || !CHAR_DEFS[CURRENT] ? '' : '.diff') + '.json', d))(charExport(full)); }
 // reconstructs a full character def from a diff payload (format stick2.character.diff) - throws a readable message
 // if its base isn't a built-in here (an older roster, or a typo'd/tampered link)

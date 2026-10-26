@@ -33,7 +33,7 @@ function itemSeg(it, r = 0) {
   const w = WEAPONS[it.type], l = it.kind === 'prop' ? PROPS[it.type].size : (w.len + (w.back || 0)) / 2, ux = Math.cos(it.rot) * l, uy = Math.sin(it.rot) * l;
   return [[it.x - ux, it.y - uy], [it.x + ux, it.y + uy], r];
 }
-// a thrown prop's one blow (see thrownMove, rig.js, for a weapon's): scaled by its own toughness if breakable, else
+// a thrown prop's one blow (see thrownMove, rig-pose.js, for a weapon's): scaled by its own toughness if breakable, else
 // a flat modest hit (reed/spring, moveable but not breakable) — k: a charged throw's multiplier
 function thrownPropMove(type, k = 1) { const p = PROPS[type]; return { power: k, damage: Math.round((4 + (p.hp ?? 10) / 3) * k), knock: 150 * k, stun: 0.35, height: 'mid' }; }
 // a hit's default spark style by the attacker's weapon class, when the striking key doesn't name its own (onHit)
@@ -848,15 +848,24 @@ class World {
 
 // ---------- replay files: the fight's inputs (not its results), pinned to ENGINE_VERSION ----------
 // everything the simulation reads goes in: scenario, seed, every setting, the characters' definitions; sums = checkpoint checksums
-const REPLAY_FORMAT = 'stick2-replay', REPLAY_SKIP = ['boxes', 'hud', 'hudPos', 'hudNames', 'labels', 'timer']; // display settings stay live
+// fv: the file layout's own version (not the simulation's): bump it when the layout changes and add the step from the
+// previous one to REPLAY_UPGRADES, so older files still open. Files from before fv existed are version 1
+const REPLAY_FORMAT = 'stick2-replay', REPLAY_FV = 2, REPLAY_UPGRADES = { 1: r => ({ ...r, fv: 2 }) }, REPLAY_SKIP = ['boxes', 'hud', 'hudPos', 'hudNames', 'labels', 'timer']; // display settings stay live
 function makeReplay(w, name) {
   const keys = Object.keys(NOIN);
-  return { format: REPLAY_FORMAT, version: ENGINE_VERSION, scenario: name, scen: JSON.parse(JSON.stringify(w.scen)), seed: w.seed,
+  return { format: REPLAY_FORMAT, fv: REPLAY_FV, version: ENGINE_VERSION, scenario: name, scen: JSON.parse(JSON.stringify(w.scen)), seed: w.seed,
     cfg: Object.fromEntries(Object.keys(SPEC).filter(k => !REPLAY_SKIP.includes(k)).map(k => [k, w.cfg[k]])),
     chars: (w.chars || [currentChar()]).map(c => c.def), keys,
     frames: w.log.map(([dt, inp, mq, inp2]) => { const mask = x => keys.reduce((m, k, i) => m | (x[k] ? 1 << i : 0), 0); // [dt, keys, macro?, P2 keys?]
       return [dt, mask(inp), ...mq || inp2 ? [mq || 0] : [], ...inp2 ? [mask(inp2)] : []]; }),
     sums: w.sums, end: w.stateHash() };
+}
+// a replay file as this build lays it out (upgraded step by step from an older fv); throws a readable message if it isn't one
+function readReplay(r) {
+  if (r?.format !== REPLAY_FORMAT) throw new Error('not a stick2 replay (format "stick2-replay")');
+  if ((r.fv || 1) > REPLAY_FV) throw new Error(`saved by a newer stick2 (replay file version ${r.fv}, this reads up to ${REPLAY_FV})`);
+  for (let v = r.fv || 1; v < REPLAY_FV; v++) r = REPLAY_UPGRADES[v](r);
+  return r;
 }
 // a world that plays the replay (check r.version against ENGINE_VERSION first); w.desync = first frame that came out differently
 function replayWorld(r) {

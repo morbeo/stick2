@@ -22,7 +22,7 @@ Three rows, the same in every tab:
 
 | Item | What's in the file |
 |---|---|
-| character | the current character |
+| character | the current character (a diff against its built-in; **full** for the whole definition; **code** for `src/engine/chars/<name>.js`, see [Characters in code](characters.md)) |
 | settings | every setting changed from its default (the debug views left out) |
 | everything | your edited and new characters, the changed settings, your scenarios and your keys, as one JSON file |
 | replay | **export**: the play fight so far (needs one running); **import**: play a saved replay file in play — the **replay** group's **stop** button (disabled until one is loaded) returns to the live fight |

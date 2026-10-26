@@ -24,7 +24,7 @@
       return { name: CURRENT };
     },
     open_replay({ replay, name }) {
-      if (replay?.format !== REPLAY_FORMAT) throw new Error('not a stick2 replay');
+      replay = readReplay(replay);
       loadReel(replay, name); setMode('replay');
       return { frames: rp.N, desync: rp.reel.desync, ...(replay.version !== ENGINE_VERSION ? { warning: `recorded with engine v${replay.version}, this is v${ENGINE_VERSION}` } : {}) };
     },
