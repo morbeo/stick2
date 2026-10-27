@@ -94,6 +94,8 @@ function button(label, tip, fn, cls = '') {
   setRich(b, label);
   return b;
 }
+// one labelled row of a dock (docs/ui.md): a fixed-width muted label, then its controls; '' for an unlabelled row
+function dockRow(label, tip, ...kids) { return h('div', { cls: 'drow', tip }, h('span', { cls: 'dlab', textContent: label }), ...kids); }
 function toggle(label, tip, get, set) {
   const b = button(label, tip, () => set(!get()), 'tog');
   reg(b, () => b.classList.toggle('on', !!get()));

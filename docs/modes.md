@@ -384,7 +384,9 @@ The picker shows the moves as:
 
 ### Compare
 
-**compare**, a bar under the preview (not the toolbar), picks a second move:
+The preview's controls sit in one dock under it, a row each: **compare**, **target** (who and how it stands), **state**, **facing** (and distance) and **preview** (loop, hit stop and juice, side by side, speed, send to play).
+
+**compare**, the dock's first row, picks a second move:
 
 - **overlay** draws it over the edited one in amber at the same moment, feet on the same ground.
 - **strip** shows both as filmstrips: a frame every few frames on one time scale, tinted by phase, with their frame data. The playhead's frame is outlined; click a frame to go there.
@@ -393,8 +395,9 @@ The move table, input table and combos are on the [Editing](editing.md) page.
 
 ### Dopesheet
 
-The dopesheet shows which bones each key moves. Open it with the dopesheet button (the timeline icon) on the timeline bar, **dopesheet** in the toolbar's panels group (it may sit under **more** on narrow screens), or `dopesheet` in the palette. It docks above the timeline, so the character and the preview stay in view.
+The dopesheet shows which bones each key moves. Open it with the **dopesheet** button on the timeline bar, **dopesheet** in the toolbar's panels group (it may sit under **more** on narrow screens), or `dopesheet` in the palette. It docks above the timeline, so the character and the preview stay in view.
 
+- It starts compact, listing only the bones the move turns. Turn on **all bones** to list the still ones too.
 - **Hover a row** to light that bone up on the figure.
 - **Hover a cell** while paused to show that key's pose on the character.
 

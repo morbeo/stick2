@@ -142,7 +142,8 @@ function dopeSheet() {
     const head = h('tr', {}, h('th', { textContent: 'bone', tip: 'Bones of the character, parents first' }),
       ...m.keys.map((k, i) => h('th', { cls: i === anim.key ? 'on' : '', textContent: `${i + 1} · ${frames(k)}f`, tip: `Key ${i + 1}: ${frames(k)} frames · click: go to it`,
         style: `min-width:${Math.max(28, Math.round(frames(k) / Math.max(1, T * 60) * 600))}px`, onclick: () => { selectKey(i); panels(); } })));
-    const sel = selIds(), bones = ch.bones.filter(b => !b.hidden && (!anim.dopeSel || sel.includes(b.id)));
+    const sel = selIds(), still = id => turns.every(t => Math.abs(t[id].d) < DOPE_MIN); // compact: bones the move never turns stay out unless all bones is on
+    const bones = ch.bones.filter(b => !b.hidden && (!anim.dopeSel || sel.includes(b.id)) && (anim.dopeAll || !still(b.id)));
     // overview: one row over every bone, a dot sized by the biggest turn in the key (Spine's summary row)
     const all = h('tr', { cls: 'dall' }, h('td', { textContent: 'all', tip: 'Every bone: the dot is the biggest turn in that key · click: go to it' }),
       ...turns.map((t, i) => { const d = Math.max(0, ...ch.ids.map(id => Math.abs(t[id].d))), r = d >= DOPE_MIN ? Math.round(3 + Math.min(1, d / 90) * 6) : 0;
@@ -185,6 +186,7 @@ function dopeSheet() {
   const bar = h('div', { cls: 'dbar' });
   reg(table, fill);
   const only = toggle('selected', 'Show only the bones selected on the figure (click a bone name, or ⌘/Ctrl+click bones in the character view)', () => !!anim.dopeSel, v => { anim.dopeSel = v; panels(); });
-  wrap.append(stageHead('dopesheet', VIEW_TIPS.dope), h('div', { cls: 'dtools' }, only, bar), table);
+  const allB = toggle('all bones', 'Also list the bones this move never turns (off: only the moving ones, to keep the sheet small)', () => !!anim.dopeAll, v => { anim.dopeAll = v; panels(); });
+  wrap.append(stageHead('dopesheet', VIEW_TIPS.dope), h('div', { cls: 'dtools' }, only, allB, bar), table);
   return wrap;
 }
