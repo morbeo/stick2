@@ -2,7 +2,7 @@
 
 [← docs index](README.md)
 
-Online play between two browsers, with no server: the design, and what's built so far. Status: **all four layers, rollback, spectators, and the play tab's netplay section are built and tested.** Time sync and spectators joining mid-match are next.
+Online play between two browsers, with no server: the design, and what's built so far. Status: **all four layers, rollback, spectators, and the play tab's netplay section are built and tested.** Spectators can join mid-match. Time sync is next.
 
 ## Constraints
 
@@ -152,7 +152,9 @@ A spectator's match is a `NetWatch`, not a `NetMatch`:
 - **How the spectator plays it.** The spectator never guesses, so it never rolls back. It waits for a cushion of 4 frames, then plays one frame per tick, or 3 per tick when it falls more than 12 behind.
 - **Checks.** It compares its own state hashes with the host's (`desync`), reaches the same end, and saves the same replay.
 - **The last frames** reach the spectator just after the host's lobby has moved to `post`, so `watch` messages are accepted in `post` too.
-- **Joining.** A spectator has to be in the lobby when the match starts, since that's when it gets the match header. Someone who joins mid-match waits for the next one.
+- **Joining mid-match.** A spectator who joins during a fight gets `start {header}` right after `welcome` (it answers `synced`, which the host ignores), then the snapshot, then `hooks.catchup(id)`: the host sends one `watch` with every frame shown so far. More than 60 frames behind, the spectator fast-forwards (up to 600 frames a tick, silently).
+- **Delay.** The host's `WatchFeed` (`src/net/netmatch.js`) holds spectators a number of frames behind the players (0 browser to browser; a server sets `SPECTATE_DELAY`), so they can't call out what's coming. The catch-up never goes past what's been shown, and the rest goes out when the fight ends.
+- **Watch again.** After the fight, **watch again** plays it in the play tab as a replay. On a server, the host also sends it to the server's [replays](server.md#spectating-and-replays).
 
 ## In the app
 
@@ -180,7 +182,6 @@ The fight uses the host's play-tab scenario if it's a one-on-one, otherwise `you
 ## Next
 
 - **Time sync:** each side reports how far ahead it runs, and the side that's ahead skips a tick now and then. Today, a side that runs ahead only finds out when it reaches the rollback window and waits.
-- **Spectators joining mid-match:** send them the header and every confirmed frame so far, so they can catch up.
 - **A server signaler,** for short room codes and a room list. It only replaces `ManualSignal`.
 
 ## Using it

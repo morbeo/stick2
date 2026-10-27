@@ -146,8 +146,9 @@ class NetMatch {
 // ---------- a spectator's match: the fight from the host's confirmed frames (both real inputs), never a guess ----------
 // The host batches what its match confirms ({ t: 'watch', f, a: P1 masks, b: P2 masks, s: { frame: hash } }); the spectator plays
 // it a little behind (NETWATCH.buffer frames, so an uneven arrival doesn't stutter), one frame per tick, faster when it falls
-// further behind, and checks its own state hashes against the host's.
-const NETWATCH = { buffer: 4, catchUp: 3, far: 12 };
+// further behind, and checks its own state hashes against the host's. Far behind (a spectator who joined mid-match and got every
+// frame so far at once) it fast-forwards, silently, up to NETWATCH.jumpMax frames a tick.
+const NETWATCH = { buffer: 4, catchUp: 3, far: 12, jump: 60, jumpMax: 600 };
 class NetWatch {
   constructor({ header, hooks = {} }) {
     const w = this.world = new World({ ...SCENARIOS[header.scenario], ...header.scen }, header.cfg, header.seed, header.chars.map(makeCharacter));
@@ -168,13 +169,15 @@ class NetWatch {
     if (this.result) return 0;
     if (!this.started && this.behind >= NETWATCH.buffer) this.started = true; // wait for a small cushion first
     if (!this.started) return 0;
-    const n = this.behind > NETWATCH.far ? NETWATCH.catchUp : 1;
+    const jump = this.behind > NETWATCH.jump, n = jump ? Math.min(this.behind - NETWATCH.buffer, NETWATCH.jumpMax) : this.behind > NETWATCH.far ? NETWATCH.catchUp : 1;
+    const sfx = this.world.sfx; if (jump) this.world.sfx = null; // no burst of sounds while skipping ahead
     let ran = 0;
     for (; ran < n && this.p1[this.f] !== undefined && !this.world.done; ran++) {
       this.world.advance(NETMATCH.dt, this.unmask(this.p1[this.f]), this.unmask(this.p2[this.f]));
       this.f++;
       if (this.f % NETMATCH.sumEvery === 0) { this.sums[this.f] = this.world.stateHash(); this.check(this.f); }
     }
+    this.world.sfx = sfx;
     if (!ran && !this.world.done) this.stalls++;
     if (this.world.done && !this.result) { this.result = NetMatch.prototype.outcome.call(this); this.hooks.end?.(this.result); }
     return ran;
@@ -184,4 +187,21 @@ class NetWatch {
     this.desync = f; this.hooks.desync?.(f);
   }
   replay() { return makeReplay(this.world, this.header.scenario); }
+}
+
+// ---------- what the host shows its spectators: the confirmed frames, held back delay frames (so a spectator can't call out what a
+// player is about to see: anti-ghosting), and, for a spectator who joins mid-match, every frame shown so far in one message ----------
+class WatchFeed {
+  constructor(delay = 0) { Object.assign(this, { delay: Math.max(0, delay | 0), a: [], b: [], s: {}, sent: 0 }); }
+  // the host's match confirmed frame k (both real inputs; hash: the state after it, at checks)
+  push(k, p1, p2, hash) { this.a[k] = p1; this.b[k] = p2; if (hash !== undefined) this.s[k + 1] = hash; }
+  batch(from, to) {
+    if (to <= from) return null;
+    const s = {}; for (const f in this.s) if (+f > from && +f <= to) s[f] = this.s[f];
+    return { t: 'watch', f: from, a: this.a.slice(from, to), b: this.b.slice(from, to), s };
+  }
+  // the frames old enough to show now (end: all of them, the match is over); null when there's nothing new
+  take(end = false) { const to = end ? this.a.length : Math.max(this.sent, this.a.length - this.delay), m = this.batch(this.sent, to); this.sent = Math.max(this.sent, to); return m; }
+  // everything shown so far: a late spectator's catch-up
+  all() { return this.batch(0, this.sent); }
 }

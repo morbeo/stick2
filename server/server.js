@@ -4,6 +4,7 @@
 //   GET /healthz     200 "ok", or 503 "draining" while shutting down
 //   GET /metrics     Prometheus metrics (a bearer token if METRICS_TOKEN is set)
 //   GET /api/rooms   the public rooms, as JSON (the lobby browser)
+//   GET /api/replays  finished matches, newest first; GET /api/replays/<id> one, as a replay file (replays.js)
 //   POST /api/embeds  a short embed link: {hash} -> {id} (embeds.js); GET /e/<id> redirects to the game with that hash
 //   /api/admin/…     moderation, with the ADMIN_TOKEN as a bearer token (off without one): rooms, reports, bans, kick, ban, unban, close
 //   WS  /ws          the relay (relay.js)
@@ -14,6 +15,7 @@ const { Relay } = require('./relay');
 const { Registry } = require('./metrics');
 const { Bans } = require('./moderation');
 const { Embeds, MAX_HASH } = require('./embeds');
+const { Replays } = require('./replays');
 
 const num = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 0 ? n : d; };
 function config(env = process.env) {
@@ -33,6 +35,9 @@ function config(env = process.env) {
     adminToken: env.ADMIN_TOKEN || '',
     dbPath: env.DB_PATH || '', // a folder for bans.json and embeds.json; none: they live in memory only
     maxEmbeds: num(env.MAX_EMBEDS, 10000), // short embed links kept (0: short links off)
+    maxReplays: num(env.MAX_REPLAYS, 200), // finished matches kept as replays (0: off)
+    spectateDelay: num(env.SPECTATE_DELAY, 180), // frames (60 a second) spectators watch behind the players
+    maxSpectators: num(env.MAX_SPECTATORS, 6), // spectators a room may have
     blocklist: (env.NAME_BLOCKLIST || '').split(',').map(w => w.trim()).filter(Boolean),
     trustProxy: env.TRUST_PROXY === '1',
     log: env.LOG_LEVEL || 'info',
@@ -87,12 +92,17 @@ function start(cfg = config()) {
     kicks: reg.counter('kicks_total', 'Players sent away, by who did it'),
     bans: reg.counter('bans_total', 'Bans added'),
     reports: reg.counter('reports_total', 'Players reported'),
+    replays: reg.counter('replays_saved_total', 'Finished matches saved as replays'),
+    replayBytes: reg.gauge('replay_storage_bytes', 'Bytes of the saved replays', () => replays.bytes()),
+    spectatorPeak: reg.gauge('spectator_peak', 'Most spectators in rooms at once since the server started', () => relay.spectatorPeak),
   };
   const bans = new Bans({ file: cfg.dbPath ? path.join(cfg.dbPath, 'bans.json') : null });
   const embeds = new Embeds({ file: cfg.dbPath ? path.join(cfg.dbPath, 'embeds.json') : null, max: cfg.maxEmbeds });
   const embedRate = new Map(); // address -> [window start, count]: 60 short links an hour each
   const audit = (action, detail) => log('info', 'moderation', { action, ...detail });
-  const relay = new Relay({ maxRooms: cfg.maxRooms, metrics: M, bans, blocklist: cfg.blocklist, audit });
+  const replays = new Replays({ dir: cfg.dbPath ? path.join(cfg.dbPath, 'replays') : null, max: cfg.maxReplays });
+  const relay = new Relay({ maxRooms: cfg.maxRooms, metrics: M, bans, blocklist: cfg.blocklist, audit, replays: cfg.maxReplays ? replays : null,
+    delay: cfg.spectateDelay, watchers: Math.min(cfg.maxSpectators, 6) });
 
   // ---------- moderation over HTTP (admin token) ----------
   function admin(req, res, route) {
@@ -170,6 +180,9 @@ function start(cfg = config()) {
       if (cfg.metricsToken && req.headers.authorization !== `Bearer ${cfg.metricsToken}`) return send(res, 401, 'unauthorized\n', undefined, 'metrics');
       return send(res, 200, reg.text(), 'text/plain; version=0.0.4; charset=utf-8', 'metrics');
     }
+    if (url.pathname === '/api/replays') return send(res, 200, JSON.stringify({ server: cfg.name, replays: replays.list() }), 'application/json', 'replays');
+    const rep = url.pathname.match(/^\/api\/replays\/([\w-]{1,20})$/);
+    if (rep) { const text = replays.get(rep[1]); return text ? send(res, 200, text, 'application/json', 'replays') : send(res, 404, 'no such replay\n', undefined, 'replays'); }
     if (url.pathname === '/api/rooms') return send(res, 200, JSON.stringify({ server: cfg.name, region: cfg.region, version: VERSION, rooms: relay.list() }), 'application/json', 'api');
     if (!cfg.staticDir) return send(res, 404, 'not found\n');
     let rel;
@@ -208,7 +221,7 @@ function start(cfg = config()) {
       M.bytes.inc({ dir: 'in' }, data.length);
       if (binary) return client.send({ t: 'error', error: 'bad message' });
       let m; try { m = JSON.parse(data); } catch { return client.send({ t: 'error', error: 'bad message' }); }
-      M.msgs.inc({ dir: 'in', type: typeof m?.t === 'string' && /^(host|join|to|msg|leave|list|kick|lock|report)$/.test(m.t) ? m.t : 'other' });
+      M.msgs.inc({ dir: 'in', type: typeof m?.t === 'string' && /^(host|join|to|msg|leave|list|kick|lock|report|replay)$/.test(m.t) ? m.t : 'other' });
       relay.receive(client, m);
     });
     ws.on('close', code => {

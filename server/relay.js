@@ -4,7 +4,7 @@
 // replaces the WebRTC data channel and the copy-and-paste codes. Each connection is a "client" with send(obj) and close(code, why).
 // Protocol (JSON, one object per WebSocket message; see docs/server.md):
 //   client → server   { t: 'host', name?, public?, player?, device? }
-//                                                       open a room, as its host        → { t: 'room', room, player }
+//                                                       open a room, as its host        → { t: 'room', room, player, delay, watchers }
 //                     { t: 'join', room, player?, device? }
 //                                                       join a room, as a guest         → { t: 'joined', room, player }, host gets { t: 'peer', id, player }
 //                     { t: 'to', id, m }                host → one guest                → guest gets { t: 'msg', m }
@@ -14,6 +14,7 @@
 //                     { t: 'kick', id, ban? }           (host) send a guest away; ban: not back into this room
 //                     { t: 'lock', locked }             (host) refuse new guests while locked
 //                     { t: 'report', id?, reason, lines? }  report a player (or the room) to the server's admins → { t: 'reported' }
+//                     { t: 'replay', replay, result?, players? }  (host) the finished match, for the server's replays → { t: 'saved', id }
 //   server → client   { t: 'gone', id, why }            (host) a guest left
 //                     { t: 'closed', why }              (guest) the room closed (or the guest was kicked)
 //                     { t: 'error', error }             a request was refused
@@ -23,8 +24,9 @@ const { nameClean, nameGen } = require('../src/net/names');
 class Relay {
   // limits: { maxRooms }; metrics: the counters and gauges it updates (server.js); rng: () → [0, 1), the tests pass their own
   // bans: a Bans (moderation.js) or null; blocklist: more words the name filter refuses; audit(action, detail): the moderation log
-  constructor({ maxRooms = 500, guests = RELAY.guests, metrics = null, rng = Math.random, now = () => Date.now(), bans = null, blocklist = [], audit = () => {} } = {}) {
-    Object.assign(this, { maxRooms, guests, metrics, rng, now, bans, blocklist, audit, rooms: new Map(), names: new Map(), reports: [], draining: false });
+  // replays: a Replays (replays.js) or null; delay: frames spectators watch behind (anti-ghosting); watchers: spectators a room may have
+  constructor({ maxRooms = 500, guests = RELAY.guests, metrics = null, rng = Math.random, now = () => Date.now(), bans = null, blocklist = [], audit = () => {}, replays = null, delay = 0, watchers = 6 } = {}) {
+    Object.assign(this, { maxRooms, guests, metrics, rng, now, bans, blocklist, audit, replays, delay, watchers, rooms: new Map(), names: new Map(), reports: [], draining: false, spectatorPeak: 0 });
   }
   // the name a connection plays under on this server: its own if the filter takes it, else the one its device id generates;
   // a #tag only when someone else already has it
@@ -62,6 +64,7 @@ class Relay {
       case 'kick': return this.kick(client, m);
       case 'lock': return this.lock(client, m);
       case 'report': return this.report(client, m);
+      case 'replay': return this.replay(client, m);
       default: return this.error(client, 'unknown message');
     }
   }
@@ -75,7 +78,7 @@ class Relay {
     this.rooms.set(room, { code: room, name, public: !!m.public, host: client, guests: new Map(), n: 0, phase: 'lobby', players: 1, watchers: 0, created: this.now(), started: 0, locked: false, banned: new Set() });
     Object.assign(client, { room, role: 'host', id: 'h' });
     this.metrics?.rooms.inc({});
-    client.send({ t: 'room', room, player });
+    client.send({ t: 'room', room, player, delay: this.delay, watchers: this.watchers });
   }
   join(client, m) {
     if (this.draining) return this.error(client, 'draining: the server is restarting, try again in a moment');
@@ -140,6 +143,17 @@ class Relay {
     this.audit('report', { by: client.player, room: client.room, player: who?.player || null });
     client.send({ t: 'reported' });
   }
+  // the host's finished match, kept as a replay (once per match)
+  replay(client, m) {
+    const r = client.role === 'host' && this.rooms.get(client.room);
+    if (!r) return this.error(client, 'not hosting');
+    if (!this.replays) return this.error(client, 'off: this server keeps no replays');
+    if (r.saved) return this.error(client, 'already saved: one replay per match');
+    let id; try { id = this.replays.add(m.replay, { room: r.code, players: m.players, result: m.result }); } catch (e) { return this.error(client, `bad replay: ${e.message}`); }
+    r.saved = true;
+    this.metrics?.replays?.inc({});
+    client.send({ t: 'saved', id });
+  }
   // admin: every room with who's in it (names only: no addresses)
   detail() {
     return [...this.rooms.values()].map(r => ({ room: r.code, name: r.name, public: r.public, locked: r.locked, phase: r.phase, host: r.host.player, created: new Date(r.created).toISOString(),
@@ -166,9 +180,11 @@ class Relay {
     if (m?.t !== 'lobby' || !m.state) return;
     const s = m.state, was = r.phase;
     r.players = (s.slots || []).filter(Boolean).length; r.watchers = (s.watch || []).length;
+    let n = 0; for (const x of this.rooms.values()) n += x.watchers;
+    this.spectatorPeak = Math.max(this.spectatorPeak, n);
     if (s.phase === was) return;
     r.phase = String(s.phase);
-    if (r.phase === 'match') { r.started = this.now(); this.metrics?.matches.inc({}); }
+    if (r.phase === 'match') { r.started = this.now(); r.saved = false; this.metrics?.matches.inc({}); }
     if (was === 'match' && r.phase === 'post') { this.metrics?.finished.inc({}); this.metrics?.matchSeconds.observe((this.now() - r.started) / 1000); }
   }
   // a connection leaving its room (it left, or the socket closed)

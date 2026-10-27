@@ -11,8 +11,10 @@ class Lobby {
   // role: 'host' | 'guest'; name: ours; send (guest): message → the host; now: a ms clock (the tests pass their own)
   // hooks: change(lobby) on every new snapshot; event(e) for chat, errors and phase changes (the match's carries its header); match(m) the match's messages;
   //        header(state, seed, defs) → the match a start sends (default: lobbyHeader); verify(header) → its hash (default: lobbyHash)
-  constructor({ role, name = 'player', send = null, hooks = {}, now = () => Date.now(), engine = typeof ENGINE_VERSION !== 'undefined' ? ENGINE_VERSION : 0 }) {
-    Object.assign(this, { role, name: lobbyClip(name, LOBBY.name), toHost: send, hooks, now, engine, header: null, id: null, peers: new Map(), n: 0, defs: {}, lastPing: 0, heard: now() });
+  //        catchup(id): a spectator joined mid-match (it has the header already): send it the fight so far
+  // watchers: how many may watch (a server can set fewer)
+  constructor({ role, name = 'player', send = null, hooks = {}, now = () => Date.now(), engine = typeof ENGINE_VERSION !== 'undefined' ? ENGINE_VERSION : 0, watchers = LOBBY.watchers }) {
+    Object.assign(this, { role, name: lobbyClip(name, LOBBY.name), toHost: send, hooks, now, engine, watchers, header: null, id: null, peers: new Map(), n: 0, defs: {}, lastPing: 0, heard: now() });
     if (role === 'host') {
       this.id = 'h';
       this.state = { rev: 0, phase: 'lobby', scenario: 'you vs ai', over: {}, slots: [{ id: 'h', name: this.name, char: null, ready: false, rtt: 0 }, null], watch: [], error: null, result: null };
@@ -95,12 +97,16 @@ class Lobby {
     if (m.engine !== this.engine) return no(`engine v${m.engine}, the host runs v${this.engine}: both reload the page`);
     const who = { id, name: this.freeName(lobbyClip(m.name, LOBBY.name) || 'guest') }, free = s.slots.indexOf(null);
     if (m.want !== 'watch' && free >= 0 && s.phase === 'lobby') s.slots[free] = { ...who, char: null, ready: false, rtt: 0 };
-    else if (s.watch.length < LOBBY.watchers) s.watch.push(who);
+    else if (s.watch.length < this.watchers) s.watch.push(who);
     else return no('the lobby is full');
     p.hello = true;
     p.send({ t: 'welcome', id });
+    // mid-match: the match header first, so the snapshot that follows starts its spectator's match; then the fight so far
+    const late = s.phase === 'match' && this.header;
+    if (late) p.send({ t: 'start', header: this.header });
     this.emit({ type: 'joined', id, name: who.name });
     this.broadcast();
+    if (late) this.hooks.catchup?.(id);
   }
   // two players called the same get told apart: player, player 2, player 3…
   freeName(name) {
