@@ -210,7 +210,7 @@ The Specials settings have a switch for each one. All of them are moves edited i
 ### Moving
 
 - **Rolls** (rollFwd, rollBack; move flag roll): tumble through the foe or away from it, invincible and passing through fighters for **rollInv**.
-- **Teleport:** reappears **teleportDist** behind the foe at its key marked **warp**, turned to face it, leaving after-images.
+- **Teleport:** reappears **teleportDist** behind the foe at its key marked **warp**, turned to face it, leaving after-images. The key's **warp look** picks how it looks: **jump** (after-images along the jump) or **streak**, a Raiden teleport: the body breaks into sideways streaks that fade where it stood, then flashes in at the new spot and snaps out to full width. The look is drawing only, so both land in the same spot and replay the same online (in the JSON, `warp: true` or `warp: 'streak'`).
 
 | Roll: tumbles through the foe, invincible | Teleport: reappears behind the foe, after-images |
 | --- | --- |

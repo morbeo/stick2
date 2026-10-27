@@ -245,6 +245,8 @@ function stanceMorph(i, name) {
       { springs: 'The springs chase the new pose (the default)', auto: 'The stance pose and the bone lengths blend over the frames below, with the ease (new bones grow from nothing)',
         move: `A keyframed transition move plays: ${morphName('main', name)} (or the one picked) switching in, ${outName} back to main` })),
     show(slider('frames', { min: 1, max: 60, step: 1 }, () => mo('T'), v => set({ T: v }, 'morph:T'), 'How many frames (60 a second) the blend takes'), 'auto'),
+    show(h('div', { cls: 'row', tip: 'Limbs this stance adds or takes away' }, h('span', { textContent: 'grow' }),
+      toggle(':accessibility_new: grow limbs', 'Grow: a limb the new stance adds grows out of its parent joint by joint (thickness too), and one it loses pulls back in from the tip; a bone\'s own blend delay still wins', () => !!mo('grow'), v => set({ grow: !!v }))), 'auto'),
     show(h('div', { cls: 'row', tip: 'How the blend eases' }, h('span', { textContent: 'ease' }), seg(['linear', 'inOutCubic', 'outQuad', 'outBack', 'bezier'], () => mo('ease'), v => set({ ease: v }),
       { linear: 'Even', inOutCubic: 'Slow in and out (the default)', outQuad: 'Fast, then settles', outBack: 'Overshoots, then settles',
         bezier: 'Your own curve: drag the two handles in the graph below (above the box overshoots, below it anticipates; double-click resets)' })), 'auto'),
