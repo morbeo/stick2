@@ -16,10 +16,21 @@ const STANCE_REQ = { grounded: true, air: false, hpBelow: 1, hpAbove: 0, cooldow
 // switching into a stance (and back to main from it): springs = the springs chase the new pose; auto = the stance pose and the bone
 // lengths blend over T frames (60 fps) with the ease; move = a keyframed transition move plays (move, or one named <from>To<To>)
 // ease 'bezier' uses bz [x1, y1, x2, y2] (the key easing curve); each bone's morphDelay holds it back for part of the blend
-const MORPH = { mode: 'springs', T: 12, ease: 'inOutCubic', move: '' };
+const MORPH = { mode: 'springs', T: 12, ease: 'inOutCubic', move: '', grow: false };
+// grow: the bones a stance switch adds or takes away, each with a delay by its depth among them (0 … 0.75 of the blend), so
+// a new limb grows out of its parent bone joint by joint and a lost one pulls back in from the tip. from / to: bone lengths
+function growDelays(ch, from, to) {
+  const moving = id => (from[id] ?? 0) < 0.5 !== (to[id] ?? 0) < 0.5, depth = {}, out = {};
+  const d = b => depth[b.id] ??= b.parent && ch.by[b.parent] && moving(b.parent) ? d(ch.by[b.parent]) + 1 : 0;
+  const ids = ch.bones.filter(b => moving(b.id)).map(b => b.id); if (!ids.length) return null;
+  const max = Math.max(...ids.map(id => d(ch.by[id])));
+  for (const id of ids) { const g = (to[id] ?? 0) >= 0.5; out[id] = max ? 0.75 * (g ? depth[id] : max - depth[id]) / (max + 1) : 0; }
+  return out;
+}
 // how far bone b is through morph m (0 … 1, eased)
+// (grow: limbs that appear or vanish in the switch get their own delay down the chain, gd, unless the bone sets morphDelay)
 function morphAt(m, b) {
-  const d = clamp(b?.morphDelay || 0, 0, 0.9), u = clamp((Math.min(1, m.t / m.T) - d) / (1 - d), 0, 1);
+  const d = clamp(b?.morphDelay || m.gd?.[b?.id] || 0, 0, 0.9), u = clamp((Math.min(1, m.t / m.T) - d) / (1 - d), 0, 1);
   return easeKey({ e: m.ease, bz: m.bz }, u);
 }
 // stance keys were K+G before K+G became the second throw

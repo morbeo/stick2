@@ -131,8 +131,10 @@ Next to the stance's key, **fly** makes it hover instead of fall: gravity and th
   - **ease** **bezier** draws a curve graph under the switch, the same as a key's [bezier easing](modes.md#bezier-easing): drag its two handles (above the box overshoots, below it anticipates), double-click to reset. Saved as `morph.bz`. `stance blend: bezier` in the palette switches the selected stance to it.
   - **Per-bone timing:** a bone's **morphDelay** (bone properties, 0 … 0.9) is the share of the blend it waits before it moves. Every bone still lands by the end of the blend, so a delayed bone moves later and faster.
   - **Example:** a 20-frame blend with `morphDelay` 0.5 on the hair and 0.3 on the tail. The body turns over all 20 frames, the tail starts at frame 6, and the hair at frame 10, so they settle last, like follow-through.
+  - **Grow limbs** (auto only): limbs the stance adds grow out of their parent joint one bone after the next, root first, and their thickness (a circle's size too) swells with their length. Limbs it hides pull back in from the tip. Each bone's delay comes from its depth in the limb, up to 0.75 of the blend; a bone's own `morphDelay` still wins.
+  - **Example:** a demon stance that adds a two-bone horn with an orb at the end, 40 frames, grow on. The horn's root starts at once, the tip at about frame 13 and the orb at frame 20, so the horn extrudes from the head. Back to main, a lost arm folds into the shoulder hand first.
 - **move:** a keyframed transition move plays: `mainToCrane` switching into a stance named crane (or the move picked), `craneToMain` back to main. **new transition move** and **back** make them (half way between the two poses, then into the stance) and open them in animate. The move eases from wherever the body is, like any move; a switch forced by the stance's limits (max time, exit on) skips it.
-- In the JSON: `stances[i].morph = { mode, T, ease, bz, move }`, only what differs; `morphDelay` is on each bone.
+- In the JSON: `stances[i].morph = { mode, T, ease, bz, move, grow }`, only what differs; `morphDelay` is on each bone.
 
 ### In the air
 
