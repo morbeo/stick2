@@ -92,6 +92,7 @@ function paletteEntries() {
     { kind: 'action', name: 'netplay: host', tip: 'Open an online lobby and make an invite link to send to the other player', run: () => openNetplay(true) },
     { kind: 'action', name: 'netplay: server', tip: 'Play through a stick2 server: host a room or join one by its code, no codes to copy back and forth (docs/server.md)', run: () => openNetplay(false, true) },
     { kind: 'action', name: 'netplay: rooms', tip: 'Browse a stick2 server\'s public rooms and join or watch one (the last server used)', run: () => { openNetplay(false, true); netRooms(netServerSaved()); } },
+    { kind: 'action', name: 'netplay: replays', tip: 'Watch a stick2 server\'s saved fights again (the last server used)', run: () => { openNetplay(false, true); netReplays(netServerSaved()); } },
     { kind: 'action', name: 'netplay: reroll name', tip: 'Get a new made-up netplay name (gogili, shpinga, kobokobo…); it stays on this device', run: () => { netReroll(); openNetplay(false); } },
     { kind: 'action', name: 'netplay: chat', tip: 'Jump to the netplay chat (Enter sends, Esc back to the fight)', run: () => openNetChat() },
     { kind: 'action', name: 'netplay: scan', tip: 'Scan an invite or an answer QR code with the camera (where the browser can read QR codes)', run: () => { openNetplay(false); netScan(t => net.lobby?.host && net.inviting === 'waiting' ? netAnswer(t) : netEnter(t)); } },

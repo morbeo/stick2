@@ -4,7 +4,7 @@
 // A match's world is the play tab's fight while it lasts (build() asks netWorld()); it carries .net, so the app drives it here, at
 // a fixed 60 frames a second, and leaves it out of everything that would change it locally (rewind, scrub, loop, macros).
 const NET_NAME = 'stick2-netname', NET_SEED = 'stick2-nameseed', NET_DEVICE = 'stick2-device';
-const net = { public: true, rooms: null, rollback: true, peers: [], server: null, lobby: null, sig: null, pin: null, match: null, code: null, codeKind: null, inviting: null, pending: null, err: null, log: [], box: null, status: null, acc: 0, edges: {} };
+const net = { public: true, rooms: null, replays: null, feed: null, rollback: true, peers: [], server: null, lobby: null, sig: null, pin: null, match: null, code: null, codeKind: null, inviting: null, pending: null, err: null, log: [], box: null, status: null, acc: 0, edges: {} };
 const netStatus = () => { const m = net.match; if (m.watching) return `watching · frame ${m.f} · ${m.behind} behind${m.desync !== null ? ' · DESYNC' : ''}`; return `frame ${m.f} · delay ${m.delay}${m.roll ? ` · rollbacks ${m.rollbacks}` : ''} · waits ${m.stalls}${m.desync !== null ? ' · DESYNC' : ''}`; };
 const ownWorlds = () => mode().worlds().filter(w => !w.net); // the fights only this page runs
 const netWorld = () => net.match?.world || null;
@@ -43,6 +43,7 @@ function netLobby(role, server = null, pin = null) {
   net.lobby = new Lobby({ role, name: netName(), hooks: {
     change: () => netDraw(),
     match: m => net.match?.receive(m),
+    catchup: id => { const m = net.feed?.all(); if (m) net.lobby.sendTo(id, m); },
     // the host picks the input delay from the guest's round trip, and puts it in the match, so both sides use the same
     header: (state, seed, defs) => ({ ...lobbyHeader({ ...state, scenario: netScen() }, seed, defs), netDelay: netDelay(state), netRoll: net.rollback ? NETMATCH.roll : 0 }),
     event: e => {
@@ -121,12 +122,12 @@ function netJoinFromLink(code, pin = null) {
 function netPhase(e) {
   if (e.phase === 'match' && e.header) {
     const desync = f => netSay(`:close: the fights went different ways at frame ${f}: save the replay and report it`);
-    net.relay = { f: null, a: [], b: [], s: {} };
+    net.feed = new WatchFeed(net.server?.delay || 0); // a server can hold spectators back (SPECTATE_DELAY)
     // a spectator watches the host's confirmed frames; a player plays (and the host passes what it confirms on to the spectators)
     const m = net.match = !net.lobby.me
       ? new NetWatch({ header: e.header, hooks: { desync, end: r => netSay(r.winner === null ? 'draw' : `P${r.winner + 1} wins`) } })
       : new NetMatch({ header: e.header, side: net.lobby.host ? 0 : 1, send: msg => net.lobby.matchSend(msg), hooks: { desync,
-        end: r => { netSay(r.winner === null ? 'draw' : r.winner === m.side ? 'you win' : 'you lose'); if (net.lobby.host) net.lobby.finish(r); },
+        end: r => { netSay(r.winner === null ? 'draw' : r.winner === m.side ? 'you win' : 'you lose'); if (net.lobby.host) { net.lobby.finish(r); net.server?.saveReplay?.(m.replay(), r, net.lobby.state.slots.map(s => s?.name)); } },
         confirmed: net.lobby.host ? netRelay : undefined } });
     m.world.sfx = playSound;
     net.acc = 0;
@@ -155,18 +156,32 @@ function netFrame(raw, inp) {
     m.tick({ ...inp, ...net.edges }); net.edges = {};
     if (net.status?.isConnected && m.f % 15 === 0) net.status.textContent = netStatus();
   }
-  // the host: what its match confirmed since the last frame, in one message to every spectator
-  const r = net.relay;
-  if (net.lobby?.host && r?.a.length) {
-    if (net.lobby.state.watch.length) net.lobby.watchSend({ t: 'watch', f: r.f, a: r.a, b: r.b, s: r.s });
-    Object.assign(r, { f: null, a: [], b: [], s: {} });
+  // the host: what its match confirmed since the last frame (less the spectator delay; all of it once the fight is over), in one
+  // message to every spectator
+  if (net.lobby?.host && net.feed) {
+    const msg = net.feed.take(net.lobby.phase !== 'match');
+    if (msg && net.lobby.state.watch.length) net.lobby.watchSend(msg);
   }
 }
 // the host's match confirmed frame k (both real inputs; hash: the state after it, at checks)
-function netRelay(k, p1, p2, hash) {
-  const r = net.relay;
-  r.f ??= k; r.a.push(p1); r.b.push(p2);
-  if (hash !== undefined) r.s[k + 1] = hash;
+const netRelay = (k, p1, p2, hash) => net.feed?.push(k, p1, p2, hash);
+// a finished fight (this one, or one from a server's replays) played again in the play tab, as a replay
+function netWatchAgain(r) {
+  try { r = readReplay(JSON.parse(JSON.stringify(r))); } catch (e) { net.err = e.message; return netDraw(); }
+  net.match = null;
+  lab.playback = r; lab.branch = null; app.paused = false;
+  if (mode() !== labMode || lab.mode !== 'play') setMode('play'); else build();
+  syncAll(); netDraw();
+}
+// a server's saved replays (GET /api/replays): the newest first, each with watch and save
+async function netReplays(server) {
+  let url; try { url = netServerUrl(server); } catch (e) { net.err = e.message; return netDraw(); }
+  net.replays = { url, loading: true, replays: [] }; netDraw();
+  try { net.replays = { url, ...(await netServerReplays(url)) }; net.err = null; } catch (e) { net.replays = null; net.err = `couldn't list the replays: ${e.message}`; }
+  netDraw();
+}
+async function netReplayOpen(url, id, then) {
+  try { then(await netServerReplay(url, id)); } catch (e) { net.err = `couldn't get replay ${id}: ${e.message}`; netDraw(); }
 }
 
 // ---------- the side section ----------
@@ -241,10 +256,12 @@ function netDraw() {
       rows.push(h('p', { textContent: 'or through a server:' }), h('div', { cls: 'netrow' }, srv),
         h('div', { cls: 'bar' }, button(':link: host on server', 'Open a room on the server and share its code or link', () => netLobby('host', { url: srv.value })),
           toggle(':visibility: public', 'List the room in the server\'s room browser (off: only people with the code or link can join)', () => net.public, v => { net.public = v; }),
-          button(':list: rooms', 'Browse the server\'s public rooms', () => netRooms(srv.value))),
+          button(':list: rooms', 'Browse the server\'s public rooms', () => netRooms(srv.value)),
+          button(':replay: replays', 'The server\'s saved fights: watch one again or save it', () => netReplays(srv.value))),
         h('div', { cls: 'netrow' }, roomIn, button(':check: join room', 'Join a room on the server by its code', () => netLobby('guest', { url: srv.value, room: roomIn.value })),
           button(':visibility: watch', 'Watch the room\'s fight as a spectator', () => netLobby('guest', { url: srv.value, room: roomIn.value, want: 'watch' }))));
       if (net.rooms) rows.push(netRoomList(net.rooms));
+      if (net.replays) rows.push(netReplayList(net.replays));
     }
   } else {
     const st = L.state, me = L.me;
@@ -293,6 +310,7 @@ function netDraw() {
       if (st.phase === 'sync') rows.push(h('p', { textContent: 'starting: checking both sides built the same fight…' }));
       if (st.phase === 'match' && net.match) rows.push(net.status = h('p', { textContent: netStatus(), tip: 'The online fight: frames run, input delay (frames between a press and its move, the same on both sides), how many frames waited on the other player' }));
       if (st.phase === 'post') rows.push(h('div', { cls: 'bar' }, L.host ? button(':replay: rematch', 'Back to the lobby for another fight', () => L.rematch()) : null,
+        net.match ? button(':replay: watch again', 'Play this fight again in the play tab, as a replay', () => netWatchAgain(net.match.replay())) : null,
         net.match ? button(':save: replay', 'Save this fight as a replay file', () => download(`netplay-${Date.now()}.json`, net.match.replay())) : null));
       rows.push(netChat(L));
     }
@@ -312,6 +330,15 @@ function netRoomList({ url, server, region, rooms, loading }) {
     h('b', { textContent: r.name }), ` · ${r.room} · ${r.phase} · ${r.players}/2${r.watchers ? ` · ${r.watchers} watching` : ''}${r.locked ? ' · locked' : ''}`,
     r.locked ? null : button(':check: join', `Join ${r.name}`, () => netLobby('guest', { url, room: r.room })),
     button(':visibility: watch', `Watch ${r.name}`, () => netLobby('guest', { url, room: r.room, want: 'watch' })))));
+}
+// a server's saved replays, each with watch and save
+function netReplayList({ url, server, replays, loading }) {
+  const head = h('p', {}, h('b', { textContent: server || netServerName(url) }), loading ? ' · loading…' : ` · ${replays.length} replay${replays.length === 1 ? '' : 's'}`,
+    button(':replay:', 'List the replays again', () => netReplays(url)), button(':close:', 'Hide the replays', () => { net.replays = null; netDraw(); }));
+  return h('div', { cls: 'netrooms' }, head, replays.map(r => h('div', { cls: 'netslot' },
+    h('b', { textContent: (r.players || []).join(' vs ') || r.id }), ` · ${r.scenario} · ${Math.round(r.frames / 60)} s · ${netTime(new Date(r.at))}`,
+    button(':play_arrow: watch', 'Watch this fight again', () => netReplayOpen(url, r.id, netWatchAgain)),
+    button(':save:', 'Save it as a replay file', () => netReplayOpen(url, r.id, rep => download(`netplay-${r.id}.json`, rep))))));
 }
 // on a server: the host can kick (and ban from the room) anyone; anyone can report someone else, with the chat as it is
 function netModerate(L, who) {

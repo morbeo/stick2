@@ -2,7 +2,7 @@
 
 [← docs index](README.md)
 
-The dedicated server (`server/`) makes online play "just connect": the host opens a room and gets a short room code, players join with the code, a link or a QR code. No codes travel back and forth, and nobody sees anyone else's IP address. It also serves the game itself, reports its health, and exports Prometheus metrics. It has a room browser, player names and moderation. Later phases add spectating mid-match, gameplay stats and an MCP endpoint.
+The dedicated server (`server/`) makes online play "just connect": the host opens a room and gets a short room code, players join with the code, a link or a QR code. No codes travel back and forth, and nobody sees anyone else's IP address. It also serves the game itself, reports its health, and exports Prometheus metrics. It has a room browser, player names, moderation, spectating (mid-match too, held back against ghosting) and saved replays. Later phases add gameplay stats and an MCP endpoint.
 
 Status: **phase 2, the lobby:** the relay, the room browser, names and moderation. Peer-to-peer [netplay](netplay.md) still works without a server.
 
@@ -57,6 +57,9 @@ Environment variables, each with a default:
 | `LOG_LEVEL` | `info` | `debug`, `info` or `quiet`; logs are JSON lines on stdout |
 | `ADMIN_TOKEN` | (none) | Turns on the [admin API](#moderation); requests need `Authorization: Bearer <token>` |
 | `DB_PATH` | (none; `/data` in the image) | Folder for `bans.json` and `embeds.json`; none: they last until a restart |
+| `SPECTATE_DELAY` | `180` | Frames (60 a second) spectators watch behind the players, so they can't call out what's coming; `0` for live |
+| `MAX_SPECTATORS` | `6` | Spectators a room may have (at most 6) |
+| `MAX_REPLAYS` | `200` | Finished matches kept as replays (in `DB_PATH/replays/` if set, else in memory), oldest dropped first; `0` turns them off |
 | `MAX_EMBEDS` | `10000` | Short embed links kept ([embed short links](embed.md#short-links)); `0` turns them off |
 | `NAME_BLOCKLIST` | (none) | More words names may not contain, comma separated |
 | `COMMIT` | `dev` | Shown in `stick2_build_info` (the image sets it) |
@@ -72,7 +75,16 @@ Environment variables, each with a default:
 | `POST /api/embeds` | `{ hash }` → `{ id }`: a short embed link (CORS open, 60 an hour per address, hash up to 64 KB) |
 | `GET /e/<id>` | Redirects to `/index.html#<hash>` |
 | `/api/admin/…` | Moderation, with `ADMIN_TOKEN` (404 without one) |
+| `GET /api/replays` | `{ server, replays: [{ id, at, room, players, scenario, frames, winner }] }`, newest first |
+| `GET /api/replays/<id>` | One saved match, as a [replay file](fighting.md) |
 | `WS /ws` | The relay |
+
+## Spectating and replays
+
+- **Watching.** Anyone can watch a room: **watch** in the room browser, a watch link or QR code, or **join** once both places are taken. The host's browser sends spectators the confirmed frames (see [spectators](netplay.md#spectators)).
+- **Joining mid-match.** A spectator who arrives during a fight gets the match header and every frame shown so far, and fast-forwards to the live fight.
+- **Delay.** The server tells the host `SPECTATE_DELAY` when the room opens. The host holds spectators that many frames behind, catch-up included. The last frames go out when the fight ends.
+- **Replays.** When a fight ends, the host sends its replay (once per match). The netplay section's **replays** lists the server's saved fights, with **watch** (plays it in the play tab) and save. After any online fight, **watch again** plays it back.
 
 ## Shutting down
 
@@ -124,6 +136,7 @@ All prefixed `stick2_`. Labels never carry names, ids or room codes.
 | `match_duration_seconds`, `room_lifetime_seconds`, `rtt_seconds` | histogram | Match length, room length, ping to clients |
 | `http_requests_total{route,status}` | counter | HTTP |
 | `kicks_total{by}`, `bans_total`, `reports_total` | counter | Moderation (`by`: host or admin) |
+| `replays_saved_total`, `replay_storage_bytes`, `spectator_peak` | counter, gauge, gauge | Saved replays, their size, most spectators at once |
 
 ## Protocol
 
@@ -131,7 +144,7 @@ JSON, one object per WebSocket message. On connecting, the server sends `{ t: 'h
 
 | From | Message | Answer |
 |---|---|---|
-| host | `{ t: 'host', name?, public?, player?, device? }` | `{ t: 'room', room, player }` (`player`: the name the server gave) |
+| host | `{ t: 'host', name?, public?, player?, device? }` | `{ t: 'room', room, player, delay, watchers }` (`player`: the name the server gave; `delay`, `watchers`: the spectator rules) |
 | guest | `{ t: 'join', room, player?, device? }` | `{ t: 'joined', room, player }`; the host gets `{ t: 'peer', id, player }` |
 | host | `{ t: 'to', id, m }` | that guest gets `{ t: 'msg', m }` |
 | guest | `{ t: 'msg', m }` | the host gets `{ t: 'from', id, m }` |
@@ -140,6 +153,7 @@ JSON, one object per WebSocket message. On connecting, the server sends `{ t: 'h
 | host | `{ t: 'kick', id, ban? }` | the guest gets `{ t: 'closed', why }`, the host `{ t: 'gone', id, why }` |
 | host | `{ t: 'lock', locked }` | joins are refused while locked |
 | either | `{ t: 'report', id?, reason, lines? }` | `{ t: 'reported' }` |
+| host | `{ t: 'replay', replay, result?, players? }` | `{ t: 'saved', id }`: the finished match, kept for `/api/replays` |
 | server | `{ t: 'error', error }` | a refused request: `full: …`, `no room: …`, `locked: …`, `kicked: …`, `banned: …`, `draining: …`, `bad message`, … |
 
 `m` is a [lobby](netplay.md) or match message, passed on untouched.
