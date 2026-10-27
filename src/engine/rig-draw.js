@@ -20,11 +20,11 @@ function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
     if (!o || !e) continue;
     let c = tint ? tint(b) : side === 'b' ? back : col;
     if (b.shade && !tint && !extra) c = mixWhite(c, b.shade);
-    if (b.hidden && (b.shape === 'circle' || Math.hypot(e[0] - o[0], e[1] - o[1]) < 0.5)) continue; // a stance's hidden bone (drawn while it shrinks away)
+    if (b.hidden && (b.shape === 'circle' ? !(mul?.r?.[b.id] > 0.3) : Math.hypot(e[0] - o[0], e[1] - o[1]) < 0.5)) continue; // a stance's hidden bone (drawn while it shrinks away)
     const a = (b.alpha ?? 1) * (mul?.alpha?.[b.id] ?? 1), thick = b.thick * (mul?.thick?.[b.id] ?? 1);
     if (a < 1) { ctx.save(); ctx.globalAlpha *= a; }
     if (b.shape === 'socket') { if (a < 1) ctx.restore(); continue; }
-    if (b.shape === 'circle') { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(e[0], e[1], b.len + extra / 2, 0, 7); ctx.fill(); }
+    if (b.shape === 'circle') { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(e[0], e[1], (mul?.r?.[b.id] ?? b.len) + extra / 2, 0, 7); ctx.fill(); }
     else if (b.role === 'weapon') drawWeapon(ctx, b, o, e, extra || tint?.(b) ? c : null, extra);
     else if (b.shape === 'spline') {
       const run = splineRun(ch, b); run.slice(1).forEach(k => inSpline.add(k.id));
