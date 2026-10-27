@@ -15,3 +15,14 @@ test('no top-level name is declared in two src/ scripts (or twice in one)', () =
   }
   assert.deepEqual(twice, []);
 });
+
+// a script that doesn't parse loses every name in it, and the page breaks only where those names are used: a stray quote in
+// docs.js's help text once took readHash with it, so #join= links did nothing and only the netplay test noticed
+test('every script index.html loads parses', () => {
+  const vm = require('vm');
+  const files = [...fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').matchAll(/<script src="(src\/[^"]+\.js)"/g)].map(m => m[1]);
+  const bad = files.filter(f => fs.existsSync(path.join(ROOT, f))).flatMap(f => {
+    try { new vm.Script(fs.readFileSync(path.join(ROOT, f), 'utf8'), { filename: f }); return []; } catch (e) { return [f + ': ' + e.message]; }
+  });
+  assert.deepEqual(bad, []);
+});
