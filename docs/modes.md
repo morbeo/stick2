@@ -226,7 +226,7 @@ Nine bodies, each struck by the stick fighter: jab, kick, sweep, roundhouse, lau
 
 **ragdoll** (next to **hits**, in the **kind** group) is one big body alone.
 
-- A bar under the preview, not the toolbar, holds the blow controls.
+- A dock under the preview, not the toolbar, holds the blow controls: a **blow** row, a **power** row (light, normal, heavy; front or back) and **stand up**.
 - The **blow** buttons strike it: high, mid, low, sweep, launcher, overhead, knockdown, crumple, K.O. Each is a stick move's hit without damage, on the bone at that height.
 - **light / normal / heavy** set how hard; **front / back** where from.
 - **stand up** puts it back on its feet.
@@ -279,7 +279,7 @@ Stretch, follow-through, stiffness and secondary motion:
 
 ### Preview
 
-A live fight next to the editor, picked in a bar under the preview: **showcase**, **walk**, **vs ai**, or **impact** (the body alone with the [ragdoll](#ragdoll) blow buttons, stacked above them, to see it fall). **you control it** drives the opponent with your own keyboard instead of its script or AI, to hold it still or move it into reach for testing a weapon or a throw.
+A live fight next to the editor, picked in the dock under the preview (its **preview** row, with **opponent** below): **showcase**, **walk**, **vs ai**, or **impact** (the body alone with the [ragdoll](#ragdoll) blow buttons, stacked above them, to see it fall). **you control it** drives the opponent with your own keyboard instead of its script or AI, to hold it still or move it into reach for testing a weapon or a throw.
 
 ### Bone table
 
