@@ -295,8 +295,8 @@ function movesGrp() {
     popup(b, h('div', { cls: 'bar' }, Object.keys(currentChar().moves).sort().map(n => button(n, `Open ${n} in the keyframe editor`, () => { closePop(); openMove(n); })))));
   return grp('moves', 'The character\'s moves: pick one to open in the keyframe editor (or click a move in the table, inputs or combos)', pick);
 }
-const MOVE_PANELS = ['table', 'inputs', 'combos'],
-  moveStage = () => ({ table: moveTable, inputs: inputTable, combos: comboView })[stageOpen()];
+const MOVE_PANELS = ['table', 'dope', 'inputs', 'combos'],
+  moveStage = () => ({ table: moveTable, dope: dopeSheet, inputs: inputTable, combos: comboView })[stageOpen()];
 // the move toolbar (animate): previous / next, the move being edited with the picker, its actions and the stance
 function moveGrp() {
   const ch = currentChar(), names = Object.keys(ch.moves), step = d => pickMove(names[(names.indexOf(anim.move) + d + names.length) % names.length]);
@@ -356,6 +356,7 @@ function timelineBar() {
     h('span', { cls: 'sep' }),
     toggle(':layers:', 'Onion skin: ghosts of the previous (blue) and next (green) keys' + keyTip('onion'), () => anim.onion, v => { anim.onion = v; }),
     toggle(':my_location:', 'Aim: the striking limb follows the cursor through IK; click to set the pose. Double-click any joint to make that one follow' + keyTip('aim'), () => anim.aim, v => { anim.aim = v; anim.aimId = null; }),
+    toggle(':timeline:', 'Dopesheet: which bones each key turns, docked above the timeline with the character still in view (also in the panels group and the palette)', () => stageOpen() === 'dope', v => openStage(v ? 'dope' : null)),
     seg(Object.keys(REACH_TIPS), () => anim.reach, v => { anim.reach = v; }, REACH_TIPS),
     fd);
 }
@@ -400,7 +401,8 @@ const animMode = {
   split: () => true,
   side: movePanel,
   open: ['move', 'key'],
-  overlay: () => moveStage() ? [moveStage()()] : [timelineBar(), compareBar(), targetBar()],
+  // the dopesheet docks above the timeline, so the timeline's own bars stay with it
+  overlay: () => stageOpen() === 'dope' ? [dopeSheet(), timelineBar(), compareBar(), targetBar()] : moveStage() ? [moveStage()()] : [timelineBar(), compareBar(), targetBar()],
   mouse: animMouse,
   key: animKey,
   hint: () => 'drag a joint: IK · Alt+drag: one bone · timeline: click a key to select, drag it to reorder, drag its edge to retime, double-click to split, drag the ruler to scrub · , . frame step · Delete key',

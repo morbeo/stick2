@@ -391,6 +391,35 @@ The picker shows the moves as:
 
 The move table, input table and combos are on the [Editing](editing.md) page.
 
+### Dopesheet
+
+The dopesheet shows which bones each key moves. Open it with the dopesheet button (the timeline icon) on the timeline bar, **dopesheet** in the toolbar's panels group (it may sit under **more** on narrow screens), or `dopesheet` in the palette. It docks above the timeline, so the character and the preview stay in view.
+
+- **Hover a row** to light that bone up on the figure.
+- **Hover a cell** while paused to show that key's pose on the character.
+
+- **Rows** are the character's bones, parents first. **Columns** are the move's keys, each as wide as its frames, with the selected key highlighted.
+- A **dot** means the key turns that bone. Bigger dots are bigger turns, from 0.5° up to 90° and more. A pale dot means the angle comes from the stance (the key doesn't set that bone itself). A thin line means no change.
+- Hover a cell to see the bone's angle in that key and how far it turns.
+- The **all** row at the top sums every bone: its dot is the biggest turn in that key, so you can spot quiet and busy keys at a glance.
+- Behind each dot is a faint **easing curve**: the key's tween from the key before (steep where the bone moves fast, flat where it eases in or out). Set it with the key's easing, or the bezier graph.
+- **Click a bone name** to select it on the figure; selected bones are red. Turn on **selected** in the header to list only the selected bones (⌘/Ctrl+click more in the character view), handy on many-boned characters.
+
+Example: animating a jab, turn on **selected**, pick `uarmF` and `farmF`, and check the arm moves in key 2 with an outCubic curve while the all row shows key 3 as a hold.
+
+| Click | What it does |
+|-------|--------------|
+| a cell or key header | goes to that key in the editor |
+| Shift+click a cell | **holds** the bone: the key copies its angle from the key before, so the bone stays still |
+| Alt+click a cell | sends the bone back to the stance in that key |
+
+All edits are undoable.
+
+**Examples:**
+- *Find a stray wobble:* in a jab, only the front arm should move in the strike key. A dot on `head` there means the head jerks; Shift+click it to hold the head still.
+- *Check follow-through:* in a kick, the recovery key should show dots on the leg and smaller ones on the arms (balance). No arm dots means the arms are frozen.
+- *Clean up a copied move:* Alt+click the bones a key shouldn't touch to give them back to the stance.
+
 ### Bezier easing
 
 Pick **bezier** in a key's easing switch to give the key a curve of your own. The graph under the switch shows time from left to right and progress toward the key's pose from bottom to top. The grey box is the range from the previous pose (bottom) to this key's pose (top).

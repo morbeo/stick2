@@ -86,3 +86,53 @@ function moveTable() {
   requestAnimationFrame(() => { wrap.scrollTop = anim.tscroll || 0; });
   return wrap;
 }
+
+// ---------- dopesheet: bones × keys of the open move; a dot where the key turns the bone (radius by how far), click to go there ----------
+// it docks above the timeline so the character stays in view: hovering a row lights that bone up on the figure, hovering a cell
+// (paused) shows that key's pose. Shift+click holds the bone (its angle from the key before), Alt+click sends it back to the stance in that key; both undoable
+const DOPE_MIN = 0.5; // degrees: smaller changes count as none
+function dopeTurns(ch, m) {
+  const st = ch.poses.stance;
+  return m.keys.map((k, i) => { const p = keyPose(ch, m, i), q = i ? keyPose(ch, m, i - 1) : st;
+    return Object.fromEntries(ch.ids.map(id => [id, { a: p[id] ?? 0, d: (p[id] ?? 0) - (q[id] ?? 0), own: !!k.p && id in k.p }])); });
+}
+function dopeEdit(i, id, how) {
+  const ch = edChar(), m = curMove(), prev = i ? keyPose(ch, m, i - 1)[id] : ch.poses.stance[id];
+  edit(def => { const k = def.moves[anim.move].keys[i];
+    if (how === 'hold') (k.p ??= {})[id] = prev; else if (k.p) delete k.p[id]; });
+}
+function easeName(k) { return k.e === 'bezier' ? `bezier ${(k.bz || BZ).join(' ')}` : (k.e || 'linear'); }
+// the key's easing as a faint curve across the cell: steep where the bone moves fast
+function easeSpark(k) {
+  const pts = Array.from({ length: 9 }, (_, j) => `${j * 3},${(1 - easeKey(k, j / 8)) * 12}`).join(' ');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'dease'); svg.setAttribute('viewBox', '0 -1 24 14'); svg.setAttribute('preserveAspectRatio', 'none');
+  svg.innerHTML = `<polyline points="${pts}"/>`; return svg;
+}
+function dopeSheet() {
+  const wrap = h('div', { cls: 'mtable dope' }), table = h('table');
+  const fill = () => {
+    const ch = edChar(), m = curMove(), turns = dopeTurns(ch, m), T = total(m), frames = k => Math.max(1, Math.round(k.d * 60));
+    const head = h('tr', {}, h('th', { textContent: 'bone', tip: 'Bones of the character, parents first' }),
+      ...m.keys.map((k, i) => h('th', { cls: i === anim.key ? 'on' : '', textContent: `${i + 1} · ${frames(k)}f`, tip: `Key ${i + 1}: ${frames(k)} frames · click: go to it`,
+        style: `min-width:${Math.max(28, Math.round(frames(k) / Math.max(1, T * 60) * 600))}px`, onclick: () => { selectKey(i); panels(); } })));
+    const sel = selIds(), bones = ch.bones.filter(b => !b.hidden && (!anim.dopeSel || sel.includes(b.id)));
+    // overview: one row over every bone, a dot sized by the biggest turn in the key (Spine's summary row)
+    const all = h('tr', { cls: 'dall' }, h('td', { textContent: 'all', tip: 'Every bone: the dot is the biggest turn in that key · click: go to it' }),
+      ...turns.map((t, i) => { const d = Math.max(0, ...ch.ids.map(id => Math.abs(t[id].d))), r = d >= DOPE_MIN ? Math.round(3 + Math.min(1, d / 90) * 6) : 0;
+        return h('td', { cls: 'dcell' + (i === anim.key ? ' on' : ''), tip: `Key ${i + 1}: biggest turn ${Math.round(d)}° · ${easeName(m.keys[i])}`, onclick: () => { selectKey(i); panels(); } },
+          r ? h('span', { cls: 'ddot', style: `width:${r * 2}px;height:${r * 2}px` }) : h('span', { cls: 'dline' })); }));
+    const rows = bones.map(b => h('tr', { cls: sel.includes(b.id) ? 'sel' : '', onmouseenter: () => { anim.hover = b.id; }, onmouseleave: () => { anim.hover = null; } },
+      h('td', { textContent: b.id, tip: `${b.id} · ${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''} · click: select it on the figure`, onclick: () => { studio.sel = b.id; studio.also.clear(); panels(); } }),
+      ...turns.map((t, i) => { const c = t[b.id], moved = Math.abs(c.d) >= DOPE_MIN, r = moved ? Math.round(3 + Math.min(1, Math.abs(c.d) / 90) * 6) : 0;
+        return h('td', { cls: 'dcell' + (i === anim.key ? ' on' : ''), tip: `${b.id} in key ${i + 1}: ${Math.round(c.a)}°${moved ? ` (turns ${c.d > 0 ? '+' : ''}${Math.round(c.d)}°)` : ' (no change)'}${c.own ? '' : ' · from the stance'} · click: go · Shift+click: hold · Alt+click: back to stance`,
+          onmouseenter: () => { if (!anim.playing && anim.key !== i) selectKey(i); },
+          onclick: e => { if (e.shiftKey) dopeEdit(i, b.id, 'hold'); else if (e.altKey) dopeEdit(i, b.id, 'stance'); selectKey(i); panels(); } },
+          // a moving key draws its tween as a line into the dot, its easing curve as a little graph behind it
+          moved ? [easeSpark(m.keys[i]), h('span', { cls: 'ddot' + (c.own ? '' : ' st'), style: `width:${r * 2}px;height:${r * 2}px` })] : h('span', { cls: 'dline' })); })));
+    table.replaceChildren(h('thead', {}, head), h('tbody', {}, all, ...rows));
+  };
+  reg(table, fill);
+  const only = toggle('selected', 'Show only the bones selected on the figure (click a bone name, or ⌘/Ctrl+click bones in the character view)', () => !!anim.dopeSel, v => { anim.dopeSel = v; panels(); });
+  wrap.append(stageHead('dopesheet', VIEW_TIPS.dope), only, table);
+  return wrap;
+}
