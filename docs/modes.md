@@ -401,6 +401,11 @@ The dopesheet shows which bones each key moves. Open it with the dopesheet butto
 - **Rows** are the character's bones, parents first. **Columns** are the move's keys, each as wide as its frames, with the selected key highlighted.
 - A **dot** means the key turns that bone. Bigger dots are bigger turns, from 0.5° up to 90° and more. A pale dot means the angle comes from the stance (the key doesn't set that bone itself). A thin line means no change.
 - Hover a cell to see the bone's angle in that key and how far it turns.
+- The **all** row at the top sums every bone: its dot is the biggest turn in that key, so you can spot quiet and busy keys at a glance.
+- Behind each dot is a faint **easing curve**: the key's tween from the key before (steep where the bone moves fast, flat where it eases in or out). Set it with the key's easing, or the bezier graph.
+- **Click a bone name** to select it on the figure; selected bones are red. Turn on **selected** in the header to list only the selected bones (⌘/Ctrl+click more in the character view), handy on many-boned characters.
+
+Example: animating a jab, turn on **selected**, pick `uarmF` and `farmF`, and check the arm moves in key 2 with an outCubic curve while the all row shows key 3 as a hold.
 
 | Click | What it does |
 |-------|--------------|
