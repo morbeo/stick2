@@ -200,3 +200,53 @@ test('a spectator waits for a small cushion, then catches up when it falls behin
   while (w.behind > 12) w.tick();
   assert.equal(w.tick(), 1, 'close: one frame a tick');
 });
+
+test('a spectator far behind fast-forwards, silently', () => {
+  const NetWatch = run('NetWatch'), w = new NetWatch({ header: header() }), heard = [];
+  w.world.sfx = n => heard.push(n);
+  w.receive({ t: 'watch', f: 0, a: Array(400).fill(0), b: Array(400).fill(0) });
+  assert.equal(w.tick(), 396, 'all but the cushion in one tick');
+  assert.equal(heard.length, 0);
+  assert.equal(typeof w.world.sfx, 'function', 'the sound is back after the jump');
+});
+
+test('the watch feed holds spectators back by its delay, flushes at the end, and gives a late spectator everything shown so far', () => {
+  const WatchFeed = run('WatchFeed'), f = new WatchFeed(10);
+  for (let k = 0; k < 25; k++) f.push(k, k, 100 + k, k === 14 ? 'h15' : undefined);
+  const m = plain(f.take());
+  assert.deepEqual([m.f, m.a.length, m.b[0]], [0, 15, 100]);
+  assert.deepEqual(m.s, { 15: 'h15' });
+  assert.equal(f.take(), null, 'nothing new is old enough yet');
+  assert.deepEqual(plain(f.all()).a, m.a, 'catch-up: only what was shown, never the held-back frames');
+  const end = plain(f.take(true));
+  assert.deepEqual([end.f, end.a.length], [15, 10]);
+  assert.equal(new WatchFeed(0).take(), null);
+});
+
+test('a spectator who joins mid-match gets the header and the fight so far, and reaches the same end', () => {
+  const NetWatch = run('NetWatch'), WatchFeed = run('WatchFeed'), q = [], flush = () => { while (q.length) q.shift()(); };
+  const ms = {}, feed = new WatchFeed(20);
+  const host = new Lobby({ role: 'host', now: () => 0, hooks: { match: m => ms[0]?.receive(m), catchup: id => { const m = feed.all(); if (m) host.sendTo(id, plain(m)); } } });
+  const join = (id, want) => { const g = new Lobby({ role: 'guest', now: () => 0, send: m => q.push(() => host.receive(g.id, plain(m))), hooks: { match: m => ms[id]?.receive(m) } });
+    g.id = host.link(m => q.push(() => g.receive(null, plain(m)))); g.join(want); return g; };
+  const g = join(1, 'play');
+  flush();
+  host.hooks.header = (st, seed, defs) => { const h = run('lobbyHeader')(st, seed, defs); h.scen.period = 3; h.netRoll = 7; h.netDelay = 1; return plain(h); };
+  host.hooks.event = e => { if (e.phase === 'match') ms[0] = new NetMatch({ header: e.header, side: 0, send: m => host.matchSend(m), hooks: { end: r => host.finish(r), confirmed: (...a) => feed.push(...a) } }); };
+  g.hooks.event = e => { if (e.phase === 'match') ms[1] = new NetMatch({ header: e.header, side: 1, send: m => g.matchSend(m) }); };
+  host.pick('stick'); g.pick('zippa'); host.ready(); g.ready(); flush();
+  host.start(9); flush();
+  let watcher;
+  for (let t = 0; t < 600 && !ms[2]?.result; t++) {
+    if (t === 90) { watcher = join(2, 'watch'); watcher.hooks.event = e => { if (e.phase === 'match') ms[2] = new NetWatch({ header: e.header }); }; }
+    ms[0].tick(press(0, t)); ms[1].tick(press(1, t)); ms[2]?.tick();
+    const m = feed.take(host.phase !== 'match');
+    if (m) host.watchSend(plain(m));
+    flush();
+    if (t === 91) { assert.ok(ms[2], 'the late spectator made its match'); assert.ok(ms[2].p1.length > 40, 'and got the fight so far'); assert.ok(ms[2].p1.length <= ms[0].f - 20, 'never closer than the delay'); }
+  }
+  assert.ok(ms[2].result, 'the late spectator\'s fight never ended');
+  assert.deepEqual(plain(ms[2].result), plain(ms[0].result));
+  assert.equal(ms[2].desync, null);
+  assert.deepEqual(plain(ms[2].replay()).frames, plain(ms[0].replay()).frames);
+});

@@ -58,7 +58,8 @@ function netServerHost(lobby, url, { room = () => {}, isPublic = false, device =
   const link = new ServerLink(url, {
     open: () => link.send({ t: 'host', name: '', public: isPublic, ...netServerWho(lobby, device) }),
     message: m => {
-      if (m.t === 'room') { link.room = m.room; link.player = m.player; if (m.player && lobby.state?.slots[0]) lobby.state.slots[0].name = lobby.name = m.player; room(m.room); }
+      // the server's spectator rules: how far behind they watch (frames) and how many may
+      if (m.t === 'room') { link.room = m.room; link.player = m.player; link.delay = m.delay | 0; if (m.watchers >= 0) lobby.watchers = Math.min(lobby.watchers, m.watchers); if (m.player && lobby.state?.slots[0]) lobby.state.slots[0].name = lobby.name = m.player; room(m.room); }
       else if (m.t === 'peer') ids.set(m.id, lobby.link(x => link.send({ t: 'to', id: m.id, m: x })));
       else if (m.t === 'from' && ids.has(m.id)) lobby.receive(ids.get(m.id), m.m);
       else if (m.t === 'gone' && ids.has(m.id)) { lobby.unlink(ids.get(m.id), m.why === 'left' ? 'left' : m.why); ids.delete(m.id); }
@@ -70,6 +71,8 @@ function netServerHost(lobby, url, { room = () => {}, isPublic = false, device =
   link.kick = (lobbyId, ban = false) => { const id = sid(lobbyId); if (id) link.send({ t: 'kick', id, ban }); };
   link.lock = on => { link.locked = !!on; link.send({ t: 'lock', locked: !!on }); };
   link.report = (lobbyId, reason, lines = []) => link.send({ t: 'report', id: sid(lobbyId), reason, lines });
+  // a finished match, for the server's replays (GET /api/replays)
+  link.saveReplay = (replay, result, players = []) => link.send({ t: 'replay', replay, result, players });
   return link;
 }
 // guest: joins a room; want 'play' (a free slot, else watch) or 'watch'
@@ -94,4 +97,15 @@ async function netServerRooms(url) {
   const r = await fetch(u); if (!r.ok) throw new Error(`the server said ${r.status}`);
   return r.json();
 }
-
+// a server's saved replays (GET /api/replays) → { server, replays: [{ id, at, room, players, scenario, frames, winner }] }, newest first;
+// and one of them, as a replay file (GET /api/replays/<id>)
+async function netServerReplays(url) {
+  const u = new URL(url.replace(/^ws/, 'http')); u.pathname = '/api/replays';
+  const r = await fetch(u); if (!r.ok) throw new Error(`the server said ${r.status}`);
+  return r.json();
+}
+async function netServerReplay(url, id) {
+  const u = new URL(url.replace(/^ws/, 'http')); u.pathname = `/api/replays/${encodeURIComponent(id)}`;
+  const r = await fetch(u); if (!r.ok) throw new Error(`the server said ${r.status}`);
+  return r.json();
+}
