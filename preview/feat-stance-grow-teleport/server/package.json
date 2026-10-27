@@ -1,0 +1,9 @@
+{
+  "name": "stick2-server",
+  "private": true,
+  "description": "stick2 dedicated server: lobby rooms, input relay, spectators, Prometheus metrics",
+  "main": "server.js",
+  "scripts": { "start": "node server.js", "test": "node --test test/*.test.js" },
+  "engines": { "node": ">=22" },
+  "dependencies": { "ws": "^8.18.0" }
+}
