@@ -320,7 +320,7 @@ const CMP_TIPS = { off: 'Off: show only the move being edited', overlay: 'The co
 function compareBar() {
   const pick = button('', 'The move to compare with', () => pickCompare(pick), 'mini');
   reg(pick, () => setRich(pick, `:theaters: ${cmpMove() ? anim.cmp : 'pick'}`));
-  return h('div', { cls: 'over cmpbar' }, pick,
+  return dockRow('compare', 'Compare this move with another one', pick,
     seg(Object.keys(CMP_TIPS), () => anim.cmpView, v => { anim.cmpView = v; if (v === 'overlay' && !cmpMove()) pickCompare(pick); }, CMP_TIPS));
 }
 function pickCompare(anchor) {
@@ -356,8 +356,9 @@ function timelineBar() {
     h('span', { cls: 'sep' }),
     toggle(':layers:', 'Onion skin: ghosts of the previous (blue) and next (green) keys' + keyTip('onion'), () => anim.onion, v => { anim.onion = v; }),
     toggle(':my_location:', 'Aim: the striking limb follows the cursor through IK; click to set the pose. Double-click any joint to make that one follow' + keyTip('aim'), () => anim.aim, v => { anim.aim = v; anim.aimId = null; }),
-    toggle(':timeline:', 'Dopesheet: which bones each key turns, docked above the timeline with the character still in view (also in the panels group and the palette)', () => stageOpen() === 'dope', v => openStage(v ? 'dope' : null)),
-    seg(Object.keys(REACH_TIPS), () => anim.reach, v => { anim.reach = v; }, REACH_TIPS),
+    toggle(':timeline: dopesheet', 'Dopesheet: which bones each key turns, docked above the timeline with the character still in view (also in the panels group and the palette)', () => stageOpen() === 'dope', v => openStage(v ? 'dope' : null)),
+    // icons only here so the bar fits on one line; the tips name each option
+    seg(Object.keys(REACH_TIPS), () => anim.reach, v => { anim.reach = v; }, Object.fromEntries(Object.entries(REACH_TIPS).map(([k, t]) => [k, `Reach ${k}: ${t}`])), v => optLabel(v).match(/^:\w+:/)?.[0] || v),
     fd);
 }
 function targetBar() {
@@ -367,16 +368,18 @@ function targetBar() {
   reg(who, () => { setRich(who, ':person: ' + (tg.char && DEFS[tg.char] ? tg.char : 'same')); });
   const sg = (k, opts) => seg(opts, () => tg[k], v => set(k, v), TARGET_TIPS);
   const speedTips = { 0.25: 'Quarter speed', 0.5: 'Half speed', 1: 'Real time', 2: 'Double speed' };
-  return h('div', { cls: 'over tgt', tip: 'The preview\'s target: who, how it stands, its state, facing and distance; changing it restarts the preview' }, who, sg('stance', Object.keys(STANCES)), sg('state', ['idle', 'jump', 'air', 'down', 'dizzy']), sg('facing', ['toward', 'away']), sg('dist', ['near', 'far']),
-    h('span', { cls: 'sep' }),
-    toggle(':repeat:', 'Loop the preview when the move ends; off: play once and hold the last frame', () => anim.pvLoop, v => { anim.pvLoop = v; anim.pv.loop = v; }),
+  const tip = 'The preview\'s target: who, how it stands, its state, facing and distance; changing it restarts the preview';
+  return [dockRow('target', tip, who, sg('stance', Object.keys(STANCES))), dockRow('state', tip, sg('state', ['idle', 'jump', 'air', 'down', 'dizzy'])),
+    dockRow('facing', tip, sg('facing', ['toward', 'away']), sg('dist', ['near', 'far'])),
+    dockRow('preview', 'How the preview plays', toggle(':repeat:', 'Loop the preview when the move ends; off: play once and hold the last frame', () => anim.pvLoop, v => { anim.pvLoop = v; anim.pv.loop = v; }),
     toggle(':flash_on:', 'Hit stop, screen shake and juice in the preview; off: a clean, undisturbed look at the raw motion', () => anim.pvFx, v => { anim.pvFx = v; buildPreview(); }),
     CHAR_DEFS[CURRENT] ? toggle(':compare_arrows:', 'Side by side: the built-in move (before) next to your edited one (after), same move, same moment. Record it with the clips toolbar to export the comparison',
       () => anim.cmpOld, v => { anim.cmpOld = v; buildPreview(); previewAt(anim.t); }) : null,
-    seg(Object.keys(speedTips).map(Number), () => anim.pvSpeed, v => { anim.pvSpeed = v; }, speedTips, v => ({ 0.25: '¼×', 0.5: '½×', 1: '1×', 2: '2×' })[v]),
-    h('span', { cls: 'sep' }),
-    button(':sports_kabaddi: send to play', 'Jump into Play against this target, keyboard in hand', () => sendToPlay('you vs ai', tg.char), 'mini'));
+    seg(Object.keys(speedTips).map(Number), () => anim.pvSpeed, v => { anim.pvSpeed = v; }, speedTips, v => ({ 0.25: '¼×', 0.5: '½×', 1: '1×', 2: '2×' })[v])),
+    dockRow('', '', button(':sports_kabaddi: send to play', 'Jump into Play against this target, keyboard in hand', () => sendToPlay('you vs ai', tg.char), 'mini'))];
 }
+// the preview's controls as one dock under it: labelled rows, the UI standard for a group of controls over the stage (docs/ui.md)
+function previewDock() { return h('div', { cls: 'over dock pvdock' }, compareBar(), ...targetBar()); }
 
 const animMode = {
   preview: () => anLayout().pv,
@@ -402,7 +405,7 @@ const animMode = {
   side: movePanel,
   open: ['move', 'key'],
   // the dopesheet docks above the timeline, so the timeline's own bars stay with it
-  overlay: () => stageOpen() === 'dope' ? [dopeSheet(), timelineBar(), compareBar(), targetBar()] : moveStage() ? [moveStage()()] : [timelineBar(), compareBar(), targetBar()],
+  overlay: () => stageOpen() === 'dope' ? [dopeSheet(), timelineBar(), previewDock()] : moveStage() ? [moveStage()()] : [timelineBar(), previewDock()],
   mouse: animMouse,
   key: animKey,
   hint: () => 'drag a joint: IK · Alt+drag: one bone · timeline: click a key to select, drag it to reorder, drag its edge to retime, double-click to split, drag the ruler to scrub · , . frame step · Delete key',
