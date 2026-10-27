@@ -3,9 +3,9 @@
 // entries are gathered when it opens, so they follow the current mode's toolbar; ↑ ↓ pick, Enter runs, Esc closes
 function paletteEntries() {
   const tipName = t => (t || '').split(/[:·(]/)[0].trim();
-  // the small persistent bars under a preview (timelineBar, targetBar, blowBar) count as tools too; the rest of #over
+  // the small persistent bars under a preview (timelineBar, the preview dock, blowBar) count as tools too; the rest of #over
   // (stage panels, popups) does not — too much, and mostly not meaningful out of context
-  const tools = [...document.querySelectorAll('#global button[data-tip], #ctx button[data-tip], .tlbar button[data-tip], .tgt button[data-tip], .blowbar button[data-tip], .cmpbar button[data-tip], .pvbar button[data-tip], .rigcol button[data-tip]')].filter(b => b.offsetParent || b.closest('#ctx > .grp.ovf')).map(b => {
+  const tools = [...document.querySelectorAll('#global button[data-tip], #ctx button[data-tip], .tlbar button[data-tip], .dock button[data-tip], .blowbar button[data-tip], .pvbar button[data-tip], .rigcol button[data-tip]')].filter(b => b.offsetParent || b.closest('#ctx > .grp.ovf')).map(b => {
     const text = b.textContent.replace(/[\uE000-\uF8FF]/g, '').trim(), name = text && !/^[\d½¼⅒×]+$/.test(text) ? text : tipName(b.dataset.tip);
     return { kind: 'tool', name, tip: b.dataset.tip, run: () => b.click() };
   });

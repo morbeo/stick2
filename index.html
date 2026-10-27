@@ -88,12 +88,15 @@
   #over { position: absolute; inset: 0; pointer-events: none; }
   #over > * { position: absolute; pointer-events: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
   .tlbar { left: 8px; bottom: 94px; width: calc(58% - 16px); flex-wrap: nowrap !important; }
+  .tlbar .seg { flex-wrap: nowrap; display: inline-flex; } .tlbar button, .tlbar .seg button { padding: 0 6px; font-size: 11px; line-height: 18px; white-space: nowrap; }
   .tlbar .sep { width: 1px; height: 14px; background: #cfc8bb; margin: 0 3px; }
   .tlbar .fd { flex: 1; min-width: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #888; font-size: 11px; }
-  .tgt { right: 8px; bottom: 6px; max-width: calc(50% - 16px); justify-content: flex-end; }
+  /* UI standard (docs/ui.md): a dock is one boxed group of labelled rows; every button in it the same mini size */
+  #over > .dock { display: grid; gap: 2px; padding: 4px 6px; background: rgba(243,240,232,.92); border: 1px solid #d8d2c4; border-radius: 4px; }
+  .dock .drow { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; } .dock .dlab { width: 52px; flex: none; color: #888; font-size: 11px; }
+  .dock button, .dock .seg button { padding: 0 6px; font-size: 11px; line-height: 18px; }
+  .pvdock { right: 8px; bottom: 6px; max-width: calc(42% - 16px); }
   .pvbar.pvtop { top: 32px; bottom: auto; } /* above the bones panel */
-  .tgt .seg button { padding: 0 5px; font-size: 11px; line-height: 16px; }
-  .cmpbar { right: 8px; bottom: 78px; max-width: calc(50% - 16px); justify-content: flex-end; }
   .blowbar { left: 8px; right: 8px; bottom: 6px; justify-content: center; }
   .blowbar.inpv { left: auto; right: 8px; max-width: calc(42% - 16px); justify-content: flex-end; }
   .blowbar .sep { width: 1px; height: 14px; background: #cfc8bb; margin: 0 3px; }
@@ -176,7 +179,8 @@
   canvas.wave { width: 100%; height: 60px; display: block; background: #1a1a1a; border-radius: 3px; margin: 4px 0; }
   .trk { border-collapse: collapse; margin: 4px 0; } .trk button.cell { width: 14px; padding: 0; }
   .trk button.cell.cur { outline: 2px solid #c33; outline-offset: -2px; }
-  #over > .mtable.dope { top: auto; bottom: 160px; right: 42%; max-height: 32%; border-top: 1px solid #ccc; padding: 4px 8px; }
+  #over > .mtable.dope { top: auto; bottom: 160px; right: 42%; max-height: 26%; border-top: 1px solid #ccc; padding: 2px 8px; }
+  .mtable.dope td, .mtable.dope th { padding-top: 0; padding-bottom: 0; line-height: 16px; } .mtable.dope .ddot { max-width: 14px; max-height: 14px; }
   .mtable.dope td.dcell { text-align: center; cursor: pointer; padding: 2px; } .mtable.dope .on { background: #efe9da; }
   .mtable.dope .ddot { display: inline-block; border-radius: 50%; background: #2b6cb0; vertical-align: middle; } .mtable.dope .ddot.st { background: #9bb4cf; }
   .mtable.dope .dline { display: inline-block; width: 100%; height: 1px; background: #ddd; vertical-align: middle; }

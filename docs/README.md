@@ -11,6 +11,7 @@ The full reference behind the [landing page](../README.md). The app has its own 
 | [Contributing to the roster](roster-contributing.md) | what help is needed, the contribution workflow, and where to learn the tools (animate, movement, physics, combos) |
 | [Interface](interface.md) | the top bar, export / import, debug, ⌘K, keys and macros, panels, undo, phones and the touch pad, sound |
 | [Development](development.md) | code layout, build info, the screenshot and animation tools, the icon font |
+| [UI standards](ui.md) | how docks, bars, buttons and panels look and behave, with a checklist for new controls |
 | [Testing](testing.md) | `npm test`, snapshots, replays, the browser test, seeds, the move matrix, fuzzing |
 | [Netplay](netplay.md) | online play with no server: connection, invite codes, the lobby; what's built and what's next |
 | [Server](server.md) | the dedicated server: rooms through a relay, no codes; running it (Node, Docker), settings, `/healthz`, Prometheus metrics, the protocol |
