@@ -21,6 +21,7 @@ function paletteEntries() {
     ...tools,
     ...ACTIONS.filter(([a, g]) => SHORTCUTS[a] && g !== 'modes').map(([a, , , tip]) => ({ kind: 'action', name: a, tip, key: keyOf(a), run: SHORTCUTS[a] })),
     { kind: 'table', name: 'move table', tip: VIEW_TIPS.table + over, run: overView('table') },
+    { kind: 'table', name: 'dopesheet', tip: VIEW_TIPS.dope + over, run: overView('dope') },
     { kind: 'table', name: 'input table', tip: VIEW_TIPS.inputs + over, run: () => { inputs.table = true; overView('inputs')(); } },
     { kind: 'editor', name: 'combos', tip: VIEW_TIPS.combos + over, run: overView('combos') },
     { kind: 'editor', name: 'looks', tip: VIEW_TIPS.looks, run: () => setMode('fx') }, // 'sounds'/'tracker' are their own mode entries (above) now that they're fx views

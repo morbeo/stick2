@@ -436,6 +436,7 @@ function moveCard(n, tip, pick = pickMove) {
   return b;
 }
 const VIEW_TIPS = { cards: 'A drawing of each move (hover to play it)', list: 'Compact: names only',
+  dope: 'Dopesheet: the move\'s bones down the side, its keys across (as wide as their frames); a dot where a key turns that bone, bigger for a bigger turn, over a faint curve of the key\'s easing; the all row is the biggest turn in each key. Click a bone name to select it; selected lists only the selected bones. Docked above the timeline: hover a row to light that bone up on the figure, hover a cell (paused) to see that key\'s pose. Click: go to that key · Shift+click: hold the bone (copy the key before) · Alt+click: send the bone back to the stance in that key',
   table: 'Every move in a table over the stage: sort by any column, fuzzy filter, edit the values in place, hover a row to see it play',
   inputs: 'Every input over the stage: direction pads per button show which directions have no move of their own, and a table of all inputs; click one to give it a move',
   combos: 'The combos over the stage: the chain links (P / K, or a direction with it like 6P, after a move chains into the next, chains setting authored) as a tree per starter or a table of routes with damage and frames; add, change and cut links in place',
