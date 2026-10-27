@@ -405,6 +405,13 @@ The dopesheet shows which bones each key moves. Open it with the dopesheet butto
 - Behind each dot is a faint **easing curve**: the key's tween from the key before (steep where the bone moves fast, flat where it eases in or out). Set it with the key's easing, or the bezier graph.
 - **Click a bone name** to select it on the figure; selected bones are red. Turn on **selected** in the header to list only the selected bones (⌘/Ctrl+click more in the character view), handy on many-boned characters.
 
+**Box select and drag:**
+- **Drag across cells** to box them (blue). A bar appears with **hold** (every boxed bone copies its angle from the key before), **to stance** (back to the stance in those keys), **copy** and **clear**. Each is one undo step.
+- **Paste** puts the copied angles back from the selected key on, onto the same bones, so a block of keys can be reused later in the move.
+- **Drag a dark dot** (a key's own angle) to another key column to move it there. If the dot is inside the box, every boxed dark dot moves by the same number of keys. Pale dots come from the stance and don't move.
+
+Example: to delay an arm swing by one key, box `uarmF` and `farmF` over keys 2 and 3, then drag one of their dots one column right.
+
 Example: animating a jab, turn on **selected**, pick `uarmF` and `farmF`, and check the arm moves in key 2 with an outCubic curve while the all row shows key 3 as a hold.
 
 | Click | What it does |
