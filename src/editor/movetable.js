@@ -108,6 +108,33 @@ function easeSpark(k) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'dease'); svg.setAttribute('viewBox', '0 -1 24 14'); svg.setAttribute('preserveAspectRatio', 'none');
   svg.innerHTML = `<polyline points="${pts}"/>`; return svg;
 }
+// box select: cells dragged over (bones × keys), then hold / to stance / copy / paste them at once; dragging a dark dot
+// (a key's own angle) to another key moves it there, with every boxed own angle when the dot is in the box
+const dope = { box: null, drag: null, clip: null };
+const inBox = (bx, bi, i) => bx && bi >= Math.min(bx.b0, bx.b1) && bi <= Math.max(bx.b0, bx.b1) && i >= Math.min(bx.k0, bx.k1) && i <= Math.max(bx.k0, bx.k1);
+function boxCells(ids) { const bx = dope.box, out = []; if (!bx) return out;
+  ids.forEach((id, bi) => { for (let i = Math.min(bx.k0, bx.k1); i <= Math.max(bx.k0, bx.k1); i++) if (inBox(bx, bi, i)) out.push([i, id]); }); return out; }
+function dopeBulk(ids, how) {
+  const ch = edChar(), m = curMove(), cells = boxCells(ids); if (!cells.length) return;
+  if (how === 'copy') { const k0 = Math.min(dope.box.k0, dope.box.k1); dope.clip = cells.map(([i, id]) => [i - k0, id, keyPose(ch, m, i)[id] ?? 0]); return; }
+  // hold chains: every boxed key of a bone takes its angle from the key before the box, so the bone stays still across it
+  const k0 = Math.min(dope.box.k0, dope.box.k1), prev = cells.map(([, id]) => k0 ? keyPose(ch, m, k0 - 1)[id] : ch.poses.stance[id]);
+  edit(def => { const keys = def.moves[anim.move].keys;
+    cells.forEach(([i, id], n) => { const k = keys[i]; if (how === 'hold') (k.p ??= {})[id] = prev[n]; else if (k.p) delete k.p[id]; }); });
+}
+function dopePaste() {
+  if (!dope.clip) return; const n = curMove().keys.length;
+  edit(def => { const keys = def.moves[anim.move].keys;
+    for (const [o, id, a] of dope.clip) { const k = keys[anim.key + o]; if (k && anim.key + o < n) (k.p ??= {})[id] = a; } });
+}
+function dopeMoveDots(ids, from, id, to) {
+  const m = curMove(), d = to - from; if (!d) return;
+  const cells = (inBox(dope.box, ids.indexOf(id), from) ? boxCells(ids) : [[from, id]]).filter(([i, b]) => m.keys[i].p && b in m.keys[i].p && m.keys[i + d]);
+  if (!cells.length) return;
+  edit(def => { const keys = def.moves[anim.move].keys, vals = cells.map(([i, b]) => keys[i].p[b]);
+    cells.forEach(([i, b]) => delete keys[i].p[b]); cells.forEach(([i, b], n) => { (keys[i + d].p ??= {})[b] = vals[n]; }); });
+  if (dope.box) { dope.box.k0 += d; dope.box.k1 += d; }
+}
 function dopeSheet() {
   const wrap = h('div', { cls: 'mtable dope' }), table = h('table');
   const fill = () => {
@@ -121,18 +148,43 @@ function dopeSheet() {
       ...turns.map((t, i) => { const d = Math.max(0, ...ch.ids.map(id => Math.abs(t[id].d))), r = d >= DOPE_MIN ? Math.round(3 + Math.min(1, d / 90) * 6) : 0;
         return h('td', { cls: 'dcell' + (i === anim.key ? ' on' : ''), tip: `Key ${i + 1}: biggest turn ${Math.round(d)}° · ${easeName(m.keys[i])}`, onclick: () => { selectKey(i); panels(); } },
           r ? h('span', { cls: 'ddot', style: `width:${r * 2}px;height:${r * 2}px` }) : h('span', { cls: 'dline' })); }));
-    const rows = bones.map(b => h('tr', { cls: sel.includes(b.id) ? 'sel' : '', onmouseenter: () => { anim.hover = b.id; }, onmouseleave: () => { anim.hover = null; } },
+    ids = bones.map(b => b.id);
+    const rows = bones.map((b, bi) => h('tr', { cls: sel.includes(b.id) ? 'sel' : '', onmouseenter: () => { anim.hover = b.id; }, onmouseleave: () => { anim.hover = null; } },
       h('td', { textContent: b.id, tip: `${b.id} · ${b.role}${b.side ? ' · ' + (b.side === 'f' ? 'front' : 'back') : ''} · click: select it on the figure`, onclick: () => { studio.sel = b.id; studio.also.clear(); panels(); } }),
       ...turns.map((t, i) => { const c = t[b.id], moved = Math.abs(c.d) >= DOPE_MIN, r = moved ? Math.round(3 + Math.min(1, Math.abs(c.d) / 90) * 6) : 0;
-        return h('td', { cls: 'dcell' + (i === anim.key ? ' on' : ''), tip: `${b.id} in key ${i + 1}: ${Math.round(c.a)}°${moved ? ` (turns ${c.d > 0 ? '+' : ''}${Math.round(c.d)}°)` : ' (no change)'}${c.own ? '' : ' · from the stance'} · click: go · Shift+click: hold · Alt+click: back to stance`,
-          onmouseenter: () => { if (!anim.playing && anim.key !== i) selectKey(i); },
+        const td = h('td', { cls: 'dcell' + (i === anim.key ? ' on' : ''), tip: `${b.id} in key ${i + 1}: ${Math.round(c.a)}°${moved ? ` (turns ${c.d > 0 ? '+' : ''}${Math.round(c.d)}°)` : ' (no change)'}${c.own ? '' : ' · from the stance'} · click: go · drag: box select · drag a dark dot: move it to another key · Shift+click: hold · Alt+click: back to stance`,
+          onmouseenter: () => { const dr = dope.drag; if (dr) { dr.moved ||= dr.i !== i || dr.bi !== bi; if (dr.dot) dr.to = i; else Object.assign(dope.box ??= {}, { k1: i, b1: bi }); paint(); }
+            else if (!anim.playing && anim.key !== i) selectKey(i); },
+          onmousedown: e => { if (e.button || e.shiftKey || e.altKey) return; e.preventDefault();
+            dope.drag = { i, bi, id: b.id, to: i, dot: moved && c.own && e.target.classList.contains('ddot'), moved: false }; if (!dope.drag.dot) dope.box = null;
+            addEventListener('mouseup', () => { const dr = dope.drag; dope.drag = null;
+              if (dr.dot && dr.to !== dr.i) dopeMoveDots(ids, dr.i, dr.id, dr.to); else if (!dr.moved && !dr.dot) dope.box = null; panels(); }, { once: true });
+            if (!dope.drag.dot) dope.box = { k0: i, k1: i, b0: bi, b1: bi }; },
           onclick: e => { if (e.shiftKey) dopeEdit(i, b.id, 'hold'); else if (e.altKey) dopeEdit(i, b.id, 'stance'); selectKey(i); panels(); } },
           // a moving key draws its tween as a line into the dot, its easing curve as a little graph behind it
-          moved ? [easeSpark(m.keys[i]), h('span', { cls: 'ddot' + (c.own ? '' : ' st'), style: `width:${r * 2}px;height:${r * 2}px` })] : h('span', { cls: 'dline' })); })));
+          moved ? [easeSpark(m.keys[i]), h('span', { cls: 'ddot' + (c.own ? '' : ' st'), style: `width:${r * 2}px;height:${r * 2}px` })] : h('span', { cls: 'dline' }));
+        Object.assign(td.dataset, { bi, i, id: b.id }); return td; })));
     table.replaceChildren(h('thead', {}, head), h('tbody', {}, all, ...rows));
+    paint();
   };
+  // the box and the drop target repaint in place while dragging (a rebuild would drop the cell under the pointer), and so
+  // does the bar, only when what it offers changes, so its buttons stay put under a click
+  let ids = [], barKey = '';
+  const paint = () => {
+    const dr = dope.drag;
+    for (const td of table.querySelectorAll('td[data-bi]')) { const bi = +td.dataset.bi, i = +td.dataset.i;
+      td.classList.toggle('box', !!inBox(dope.box, bi, i)); td.classList.toggle('drop', !!(dr?.dot && dr.to === i && dr.id === td.dataset.id && dr.to !== dr.i)); }
+    const n = boxCells(ids).length, key = `${n}|${dope.clip?.length}|${anim.key}`; if (key === barKey) return; barKey = key;
+    bar.replaceChildren(...(n ? [h('span', { cls: 'dnote', textContent: `${n} cell${n > 1 ? 's' : ''}` }),
+      button(':pause: hold', 'Hold every boxed bone: each key copies its angle from the key before', () => dopeBulk(ids, 'hold')),
+      button(':accessibility_new: to stance', 'Send every boxed bone back to the stance in those keys', () => dopeBulk(ids, 'stance')),
+      button(':content_copy: copy', 'Copy the boxed angles (paste them from the selected key on)', () => { dopeBulk(ids, 'copy'); panels(); }),
+      button(':close: clear', 'Clear the box', () => { dope.box = null; panels(); })] : []),
+      ...(dope.clip ? [button(':download: paste', `Paste ${dope.clip.length} copied angle${dope.clip.length > 1 ? 's' : ''} from key ${anim.key + 1} on`, dopePaste)] : []));
+  };
+  const bar = h('div', { cls: 'dbar' });
   reg(table, fill);
   const only = toggle('selected', 'Show only the bones selected on the figure (click a bone name, or ⌘/Ctrl+click bones in the character view)', () => !!anim.dopeSel, v => { anim.dopeSel = v; panels(); });
-  wrap.append(stageHead('dopesheet', VIEW_TIPS.dope), only, table);
+  wrap.append(stageHead('dopesheet', VIEW_TIPS.dope), h('div', { cls: 'dtools' }, only, bar), table);
   return wrap;
 }
