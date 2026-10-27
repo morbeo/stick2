@@ -49,7 +49,7 @@ const character = {
     d: 'duration s (required)', e: 'ease: step | linear | outQuad | outCubic | outExpo | inOutCubic | outBack | outElastic', p: 'pose or null (back to the stance)',
     active: 'strikes during this key', lunge: 'forward push px/s during it', cancel: 'the cancel window opens here (else after the last active key)', rehit: 'may hit again',
     shoot: 'fires the move\'s shot', turn: 'true = half turn over the key, 2 = a whole turn', unblock: 'cannot be blocked', inv: 'invincible during it', armor: 'takes hits without flinching',
-    catch: 'counter window (catches a strike)', catchH: 'counter height', grip: 'weapon pick-up grip key', release: 'a held weapon or victim is let go here', warp: 'teleport', sound: 'whoosh …', shake: 'screen shake',
+    catch: 'counter window (catches a strike)', catchH: 'counter height', grip: 'weapon pick-up grip key', release: 'a held weapon or victim is let go here', warp: "teleport: true (after-images) or 'streak' (Raiden-style streaks and flash)", sound: 'whoosh …', shake: 'screen shake',
   },
 };
 

@@ -2,6 +2,22 @@
 // a key's per-bone multipliers (key.len, key.thick, key.alpha): tweened toward like the pose, 1 = no change, eased back after
 // (len feeds the hurtbox and reach too, a Dhalsim limb; thick and alpha are drawing only)
 const KEY_MULS = ['len', 'thick', 'alpha'];
+const WARP_T = 0.45; // seconds a streak teleport's look takes (drawing only)
+// the streak teleport's look: the old body as sideways streaks that stretch away and fade (first 35%), then a flash at the new spot
+function drawWarp(ctx, f, wf, u) {
+  const out = clamp(u / 0.35, 0, 1), col = f.col[0];
+  if (out < 1) {
+    ctx.save(); ctx.strokeStyle = col; ctx.lineCap = 'round';
+    for (const id in wf.P) { const [x, y] = wf.P[id], n = (id.length * 7 + id.charCodeAt(0)) % 5; // a steady spread per joint, no randomness
+      ctx.globalAlpha = (1 - out) * 0.8; ctx.lineWidth = 3 * (1 - out) + 0.5;
+      ctx.beginPath(); ctx.moveTo(x - wf.dx * out * 10, y); ctx.lineTo(x + wf.dx * out * (40 + n * 14), y + (n - 2) * out * 2); ctx.stroke(); }
+    ctx.globalAlpha = 1 - out; drawFigure(ctx, f.ch, wf.P, col, f.col[1], 0, null, null); ctx.restore();
+  }
+  const fl = clamp((u - 0.3) / 0.35, 0, 1);
+  if (fl > 0 && fl < 1) { const P = f.body(), cy = (P.hip?.[1] ?? f.groundY - 60) - 10;
+    ctx.save(); ctx.globalAlpha = (1 - fl) * 0.9; ctx.fillStyle = '#fff'; ctx.strokeStyle = col; ctx.lineWidth = 3 * (1 - fl) + 1;
+    ctx.beginPath(); ctx.ellipse(f.x, cy, 8 + fl * 34, 30 + fl * 50, 0, 0, 7); ctx.fill(); ctx.stroke(); ctx.restore(); }
+}
 // the hit-flash colour, hotter the longer the combo landing on this fighter runs: white -> yellow -> red
 const FLASH_STOPS = [[0, 255, 255, 255], [4, 255, 221, 63], [8, 255, 59, 48]];
 function flashCol(combo) {
@@ -58,7 +74,7 @@ class Fighter {
   // switch to stance i: its body (stanceChar; a running move goes on) and its transition (MORPH; back to main: the left stance's).
   // how: 'switch' (the stance key), 'exit' (its limits: no transition move), 'instant' (previews: no transition)
   setStance(i, how = 'switch') {
-    const old = this.st, from = this.stancePose(), lens = Object.fromEntries(this.ch.ids.map(j => [j, this.lens[j]]));
+    const old = this.st, from = this.stancePose(), lens = Object.fromEntries(this.ch.ids.map(j => [j, this.lens[j]])), had = Object.fromEntries(this.ch.bones.map(b => [b.id, b.len]));
     this.stanceCd[this.stanceI] = this.w.simT; // cooldown for the one being left (main's too: req.cooldown can gate a return to it)
     this.stanceI = i; this.stanceT = 0; this.morph = null;
     if (this.st.req.once) this.stanceUsed.push(i);
@@ -66,7 +82,8 @@ class Fighter {
     if (ch !== this.ch) this.setChar(ch, true);
     const mo = (i ? this.st : old).morph;
     if (how === 'instant') return;
-    if (mo.mode === 'auto') this.morph = { from, lens, t: 0, T: Math.max(1, mo.T) / 60, ease: EASE[mo.ease] || mo.ease === 'bezier' ? mo.ease : 'linear', bz: mo.bz };
+    if (mo.mode === 'auto') this.morph = { from, lens, t: 0, T: Math.max(1, mo.T) / 60, ease: EASE[mo.ease] || mo.ease === 'bezier' ? mo.ease : 'linear', bz: mo.bz,
+      gd: mo.grow ? growDelays(this.ch, had, Object.fromEntries(this.ch.bones.map(b => [b.id, b.len]))) : null };
     else if (mo.mode === 'move' && how === 'switch' && this.free && !this.action) {
       const n = (i && mo.move) || morphName(old.name, this.st.name);
       if (this.ch.moves[n]) { this.used = []; this.start(n); }
@@ -392,7 +409,7 @@ class Fighter {
       const i = this.w.props.indexOf(p); if (i >= 0) this.w.props.splice(i, 1); // gone already (destroyed meanwhile)? still fine to hold the type
       this.heldProp = p.type; this.action = a; this.say(p.type.toUpperCase());
     }
-    if (k.warp) this.warp();
+    if (k.warp) this.warp(k.warp);
     if (k.shoot) this.shoot(a);
     if (k.beam) this.fireBeam(a);
     if (k.shake) this.w.trauma = Math.min(1, this.w.trauma + k.shake); // key events: screen shake, a sound
@@ -451,11 +468,23 @@ class Fighter {
     if (v) v.dir = -this.dir; else this.away = !this.away;
   }
   // teleport (key flag warp): reappear teleportDist behind the nearest foe, turned to face it, leaving after-images on the way
-  warp() {
+  // style (the key's warp): true leaves after-images along the jump; 'streak' (a Raiden teleport) breaks the body into streaks that
+  // fade where it stood, then it flashes in at the new spot and snaps to full width. Where it lands is the same either way
+  warp(style = true) {
     const o = this.w.nearestFoe(this), side = o ? Math.sign(o.x - this.x) || this.dir : this.dir, P = this.body(), x0 = this.x;
     this.x = clamp((o ? o.x : this.x) + side * this.c('teleportDist'), 40, W - 40); this.vx = 0; this.dir = -side;
     this.trail = []; this.poseHist = []; // no streak across the jump
+    if (style === 'streak') { this.after = []; this.warpFx = { P, dx: Math.sign(this.x - x0) || 1, t: 0 }; return; }
     this.after = [0, 1, 2].map(i => { const dx = (this.x - x0) * i / 3, Q = {}; for (const k in P) Q[k] = [P[k][0] + dx, P[k][1]]; return { P: Q, t: 0.3 - i * 0.08 }; });
+  }
+  // grow morph (drawing only): a growing or shrinking bone's thickness and a circle's radius follow its length, so a limb
+  // swells out of the joint instead of popping in at full width
+  growMul() {
+    const m = this.morph; if (!m?.gd) return null;
+    const thick = { ...this.mul.thick }, r = {};
+    for (const id in m.gd) { const b = this.ch.by[id], full = Math.max(m.lens[id] ?? 0, b?.len ?? 0), k = full ? clamp(this.lens[id] / full, 0, 1) : 1;
+      thick[id] = (thick[id] ?? 1) * k; if (b?.shape === 'circle') r[id] = full * k; }
+    return { ...this.mul, thick, r };
   }
   // a weapon move's blow, by the weight of the weapon held
   weaponHit(m) {
@@ -624,6 +653,7 @@ class Fighter {
     if (this.flip && (this.action || this.kd)) this.flip = 0;
     if (!this.grounded) this.airT += dt;
     for (const g of this.after) g.t -= dt;
+    if (this.warpFx && (this.warpFx.t += dt) > WARP_T) this.warpFx = null;
     // key event after: after-images trail the body while the key plays
     if (this.action?.m.keys[this.action.i]?.after && (this.afterT -= dt) <= 0) { this.afterT = 0.035; const P = this.body(), Q = {}; for (const k in P) Q[k] = [P[k][0], P[k][1]]; this.after.push({ P: Q, t: 0.2 }); }
     this.after = this.after.filter(g => g.t > 0);
@@ -1292,13 +1322,20 @@ class Fighter {
 
     for (const g of this.after) { ctx.globalAlpha = g.t; drawFigure(ctx, this.ch, g.P, this.col[0], this.col[1]); } // teleport after-images
     ctx.globalAlpha = 1;
+    const wf = this.warpFx, wu = wf ? wf.t / WARP_T : 1;
+    if (wf) drawWarp(ctx, this, wf, wu);
     if (this.c('ghost')) { ctx.globalAlpha = 0.2; drawFigure(ctx, this.ch, this.points(this.target), '#07f', '#07f', -2); ctx.globalAlpha = 1; }
     const P = this.body(), fxs = fxNow(this.ch, this.action), aux = { hist: this.poseHist, vx: this.vx, vy: this.vy };
     drawFx(ctx, P, fxs, this.time, true, aux);
     // the hit flash shifts white -> yellow -> red as the combo landing on this fighter grows, so a long string of hits reads hotter
     if (this.flashT > 0 && this.c('flash')) { const fc = flashCol(this.combo); drawFigure(ctx, this.ch, P, '#111', '#111', 4); drawFigure(ctx, this.ch, P, fc, fc); }
     else if (this.dodgeT > 0) { ctx.globalAlpha = 0.4; drawFigure(ctx, this.ch, P, this.col[0], this.col[1]); ctx.globalAlpha = 1; } // air dodge: see-through
-    else drawFigure(ctx, this.ch, P, this.col[0], this.col[1], 0, null, this.mul);
+    else if (wu < 1) { // streak teleport: hidden while the old body breaks up, then squeezed thin and snapping out to full width
+      const u = clamp((wu - 0.35) / 0.4, 0, 1);
+      if (u > 0) { ctx.save(); ctx.translate(this.x, 0); ctx.scale(0.15 + 0.85 * EASE.outBack(u), 1); ctx.translate(-this.x, 0); ctx.globalAlpha = Math.min(1, u * 2);
+        drawFigure(ctx, this.ch, P, this.col[0], this.col[1], 0, null, this.mul); ctx.restore(); }
+    }
+    else drawFigure(ctx, this.ch, P, this.col[0], this.col[1], 0, null, this.growMul() || this.mul);
     if (this.heldProp) { // no held-prop bone (props aren't rigged like a weapon): a small version of it over the head instead
       ctx.save(); ctx.translate(this.x, this.groundY + this.y - 95);
       drawShapes(ctx, PROPS[this.heldProp].shapes, (x, y) => [x * 0.4, y * 0.4], c => c || '#888', { sway: 0 });

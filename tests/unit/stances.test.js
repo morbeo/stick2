@@ -218,3 +218,26 @@ test('def.main.fly makes main itself hover', () => {
   assert.ok(r.y < -10, `rose while flying up: ${r.y}`);
   assert.equal(r.grounded, false);
 });
+
+test('grow: added limbs grow root first, lost ones retract tip first; off leaves no delays', () => {
+  const r = R(`(() => { const body = { bones: { uarmB: { hidden: true } }, add: [{ id: 'horn', parent: 'head', len: 10, role: 'tail' }, { id: 'hornTip', parent: 'horn', len: 8, role: 'tail' }] };
+    const go = grow => { const w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 400, period: 9 }, {}, 7, [stanced(body, { morph: { mode: 'auto', T: 20, grow } }), CHARS.stick]), f = w.a;
+      f.setStance(1); const gd = f.morph.gd; for (let i = 0; i < 6; i++) w.advance(1 / 60, NOIN);
+      const mid = [f.lens.horn, f.lens.hornTip], m = f.growMul(); f.setStance(0); return { gd, mid, thick: m && m.thick.horn, back: f.morph.gd }; };
+    return [go(true), go(false)]; })()`);
+  const [on, off] = r;
+  assert.equal(on.gd.horn, 0, 'the root of a new limb starts at once'); assert.ok(on.gd.hornTip > 0, 'its tip waits');
+  assert.ok(on.gd.uarmB > on.gd.farmB, 'a lost arm pulls in from the tip: the upper arm waits for the forearm');
+  assert.ok(on.mid[0] > 0 && on.mid[1] < 0.5, 'early on the root grows while the tip has not started: ' + on.mid);
+  assert.ok(on.thick > 0 && on.thick < 1, 'its thickness follows its length');
+  assert.ok(on.back.uarmB < on.back.farmB, 'switching back the arm grows again, upper arm first');
+  assert.equal(off.gd, null); assert.equal(off.thick, null);
+});
+
+test('a streak warp lands in the same spot as a plain one and leaves no after-images', () => {
+  const r = R(`(() => { const go = style => { const w = new World({ a: 'dummy', b: 'dummy', ax: 300, bx: 420, period: 9 }, {}, 7, [CHARS.stick, CHARS.stick]), f = w.a;
+    f.warp(style); const x = f.x, n = f.after.length, fx = !!f.warpFx; for (let i = 0; i < 40; i++) w.advance(1 / 60, NOIN); return [x, n, fx, !!f.warpFx]; };
+    return [go(true), go('streak')]; })()`);
+  assert.equal(r[0][0], r[1][0], 'same landing spot');
+  assert.deepEqual([r[0][1] > 0, r[0][2]], [true, false]); assert.deepEqual([r[1][1], r[1][2], r[1][3]], [0, true, false], 'streak look plays, then ends');
+});
