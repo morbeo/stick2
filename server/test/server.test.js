@@ -149,3 +149,41 @@ test('short embed links: POST /api/embeds stores a hash, /e/<id> is a link card 
     assert.equal((await fetch(`http://127.0.0.1:${s.port}/api/embeds`, { method: 'OPTIONS' })).status, 204);
   });
 });
+
+test('replays: the host saves its finished match once, /api/replays lists it and serves the file; the room tells the spectator rules', async () => {
+  const s = await boot({ SPECTATE_DELAY: '120', MAX_SPECTATORS: '3' });
+  await quiet(s, async () => {
+    const h = client(s), g = client(s);
+    await h.next('hello'); await g.next('hello');
+    h.send({ t: 'host', player: 'hana' });
+    const room = await h.next('room');
+    assert.deepEqual([room.delay, room.watchers], [120, 3]);
+    g.send({ t: 'replay', replay: {} });
+    assert.match((await g.next('error')).error, /^not hosting/);
+    const replay = { format: 'stick2-replay', fv: 1, scenario: 'you vs ai', chars: [], frames: Array(90).fill([1 / 60, 0]) };
+    h.send({ t: 'replay', replay: { nope: 1 } });
+    assert.match((await h.next('error')).error, /^bad replay/);
+    h.send({ t: 'replay', replay, result: { winner: 1 }, players: ['hana', 'gus\n'] });
+    const { id } = await h.next('saved');
+    h.send({ t: 'replay', replay });
+    assert.match((await h.next('error')).error, /^already saved/);
+    const list = (await (await get(s, '/api/replays')).json()).replays;
+    assert.equal(list.length, 1);
+    assert.deepEqual([list[0].id, list[0].room, list[0].players, list[0].frames, list[0].winner], [id, room.room, ['hana', 'gus'], 90, 1]);
+    assert.deepEqual(await (await get(s, `/api/replays/${id}`)).json(), JSON.parse(JSON.stringify(replay)));
+    assert.equal((await get(s, '/api/replays/nope')).status, 404);
+    const m = await (await get(s, '/metrics')).text();
+    assert.match(m, /stick2_replays_saved_total 1/);
+    assert.match(m, /stick2_replay_storage_bytes [1-9]/);
+  });
+});
+
+test('replays off: MAX_REPLAYS=0 refuses them', async () => {
+  const s = await boot({ MAX_REPLAYS: '0' });
+  await quiet(s, async () => {
+    const h = client(s); await h.next('hello');
+    h.send({ t: 'host' }); await h.next('room');
+    h.send({ t: 'replay', replay: { format: 'stick2-replay', chars: [], frames: [] } });
+    assert.match((await h.next('error')).error, /^off/);
+  });
+});
