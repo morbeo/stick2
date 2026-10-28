@@ -45,7 +45,7 @@ const combo = e => (e.altKey ? 'Alt+' : '') + (e.shiftKey ? 'Shift+' : '') + e.c
 // animate and character shortcuts in the editor only, transport, view and mode keys in both
 const FIGHT_MODES = ['play'];
 // character mode also counts while its preview or head-to-head hands a fighter to your keyboard (creator.js)
-const inFight = () => FIGHT_MODES.includes(app.mode) || (app.mode === 'character' && (creator.controlDummy || creator.htControl !== 'none'));
+const inFight = () => FIGHT_MODES.includes(app.mode) || (app.mode === 'character' && (creator.controlDummy || typeof previewYou === 'function' && previewYou() || creator.htControl !== 'none'));
 const CTX_OF = { fight: ['fight'], macro: ['fight'], animate: ['editor'], character: ['editor'], replay: ['editor'] };
 const ctxOf = g => CTX_OF[g] || ['fight', 'editor'];
 const groupOf = a => ACTIONS.find(x => x[0] === a)?.[1];
