@@ -13,6 +13,7 @@ const character = {
     binds25: 'the same for the 2.5D planes (lanes, belt)',
     stances: '[{ name, key ("S+G" | "↓S+G" | "→S+G" | "←S+G"), pose, binds, binds25 }]: extra stances; pose and binds go over the main ones',
     skins: '{ name: { boneId: { thick, cap, taper, shade, curve, z } } } (optional): named looks made of bone drawing settings only; applying one copies its values onto the bones',
+    groups: '{ name: [boneId, …] } (optional): named bone selections for the editor; no effect on drawing or fights',
     skin: 'string (optional): the skin applied last',
     motions: '{ name: numpad digits }: own special motions (m41236: "41236"); each makes slots <name>Punch and <name>Kick',
     weapon: 'string (optional): a WEAPONS type held from the start (dagger, sword, axe, bat, nunchucks, hammer, staff)',

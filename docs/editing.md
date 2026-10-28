@@ -278,6 +278,17 @@ Constraints are saved on the bone, and only values that differ from the default 
 
 Follow constraints are applied before reach ones, and each pass goes parents first. A reach can therefore land on a bone that is itself following another.
 
+### Bone groups
+
+The **Groups** section of the rig tools picks a set of bones in one click, handy on big rigs like the centaur.
+
+- **Role groups** come from the rig: **arms**, **legs**, **tails**, **heads** and so on, every visible bone with that role.
+- **Your groups:** select bones (⌘/Ctrl+click in the character view, Shift+click in the tree), then **save group** and name it. It is saved with the character (`groups` in the JSON) and listed under the role groups; × deletes it (undoable, the bones stay).
+- **Click** a group to select its bones; **Shift+click** adds them to the current selection. Every selected bone takes the next property change, isolate ghosts the rest, and the dopesheet's **selected** filter lists just them.
+- The palette has **group: save** and **group: \<name>** for each group.
+
+Example: on a centaur, save `horse` (the four horse legs and the barrel) and `rider` (the torso and arms). Pick `horse`, turn on isolate, and tune the gait without the rider in the way; Shift+click `tails` to add the tail.
+
 ### Skins
 
 A skin is a named look for one character, made only of bone **drawing** settings: `thick`, `cap`, `taper`, `shade`, `curve` and `z` (draw layer). A skin never touches lengths, hurtboxes or motion, so it can't change a fight, and replays stay valid. Skins are procedural, with no images, and they keep the character monochrome because `shade` is grey only.

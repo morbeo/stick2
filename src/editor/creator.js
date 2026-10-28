@@ -641,6 +641,8 @@ function rigColumn() {
     h('div', { cls: 'bar' },
       toggle(':visibility: isolate', 'Ghost every bone but the selected ones in the character view', () => rig.isolate, v => { rig.isolate = v; }),
       toggle(':timeline: ghost tip', 'Trail the selected bone\'s tip in the preview fight: the arc of its strikes', () => rig.ghost, v => { rig.ghost = v; rig.trail.length = 0; })),
+    h('h4', { tip: 'Bone groups: pick a set of bones in one click. By role (every arm, leg, tail… bone) or your own named sets, saved with the character. Click: select it · Shift+click: add it to the selection' }, 'Groups'),
+    ...groupRows(),
     h('h4', { tip: 'Constraints on the selected bones, applied in every fight and the preview fight (the still view shows the stance as authored): follow copies another bone\'s turn, reach bends the bone and its parent so its end touches another bone\'s end (IK). Springs still play on top. rig: clear constraints in the palette removes both' }, 'Constraints'),
     ...consRows(),
     h('h4', { tip: 'Skins: named looks for this character, made only of bone drawing settings (thickness, cap, taper, shade, curve, draw layer). Applying one changes how it is drawn, never how it fights' }, 'Skins'),
@@ -671,6 +673,29 @@ function consRows() {
 const SKIN_KEYS = ['thick', 'cap', 'taper', 'shade', 'curve', 'z'];
 function skinOf(def) {
   return Object.fromEntries(def.bones.map(b => [b.id, Object.fromEntries(SKIN_KEYS.filter(k => b[k] !== undefined).map(k => [k, b[k]]))]));
+}
+// ---------- bone groups: role sets from the rig, named sets in def.groups ({ name: [bone ids] }); selecting only, never drawing or fighting ----------
+function roleGroups(ch) { const g = {}; for (const b of ch.bones) if (!b.hidden && b.role) (g[b.role + 's'] ??= []).push(b.id); return g; }
+function selectGroup(ids, add) {
+  const ch = viewChar(), ok = ids.filter(id => ch.by[id]); if (!ok.length) return;
+  const all = add ? [...new Set([...selIds(), ...ok])] : ok;
+  studio.sel = all[0]; studio.also = new Set(all.slice(1)); panels();
+}
+async function saveGroup() {
+  const def = DEFS[CURRENT], name = (await askText('Name of the group', 'group' + (Object.keys(def.groups || {}).length + 1), `Saves the ${selIds().length} selected bones as a group you can pick in one click.`))?.trim();
+  if (name) edit(d => { (d.groups ??= {})[name] = selIds(); });
+}
+function deleteGroup(name) { edit(d => { if (d.groups) { delete d.groups[name]; if (!Object.keys(d.groups).length) delete d.groups; } }); }
+function groupRows() {
+  const wrap = h('div'), fill = () => {
+    const pick = (name, ids, tip) => button(name, `${tip} (${ids.length}: ${ids.join(' ')}) · click: select · Shift+click: add to the selection`, e => selectGroup(ids, e.shiftKey), 'mini');
+    const own = DEFS[CURRENT].groups || {};
+    wrap.replaceChildren(h('div', { cls: 'bar' }, ...Object.entries(roleGroups(viewChar())).map(([n, ids]) => pick(n, ids, `Every ${n.slice(0, -1)} bone`))),
+      Object.keys(own).length ? h('div', { cls: 'bar' }, ...Object.entries(own).flatMap(([n, ids]) => [pick(n, ids, `Your group ${n}`),
+        button(':close:', `Delete the group ${n} (the bones stay; undoable)`, () => deleteGroup(n), 'mini')])) : h('div', { cls: 'note', textContent: 'no own groups yet' }),
+      h('div', { cls: 'bar' }, button(':add: save group', 'Save the selected bones as a named group', saveGroup)));
+  };
+  reg(wrap, fill); return [wrap];
 }
 async function saveSkin() {
   const def = DEFS[CURRENT], name = (await askText('Name of the skin', 'skin' + (Object.keys(def.skins || {}).length + 1), 'Saves every bone\'s thickness, cap, taper, shade, curve and draw layer as they are now.'))?.trim();
