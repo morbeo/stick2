@@ -279,7 +279,7 @@ Stretch, follow-through, stiffness and secondary motion:
 
 ### Preview
 
-A live fight next to the editor, picked in the dock under the preview (its **preview** row, with **opponent** below): **showcase**, **walk**, **vs ai**, or **impact** (the body alone with the [ragdoll](#ragdoll) blow buttons, stacked above them, to see it fall). **you control it** drives the opponent with your own keyboard instead of its script or AI, to hold it still or move it into reach for testing a weapon or a throw.
+A live fight next to the editor, picked in the dock under the preview (its **preview** row, with **opponent** below): **showcase**, **walk**, **vs ai**, or **impact** (the body alone with the [ragdoll](#ragdoll) blow buttons, stacked above them, to see it fall). **you control it** drives the opponent with your own keyboard instead of its script or AI, to hold it still or move it into reach for testing a weapon or a throw. Pick a scenario where you play (**you vs dummy**, **you vs ai** and the like, from the scenario button) and your keyboard drives the character you are editing instead, so you can try its moves by hand; with the opponent control on, the keys go to the opponent and your character stands still.
 
 ### Bone table
 
