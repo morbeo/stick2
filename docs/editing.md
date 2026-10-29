@@ -53,7 +53,7 @@ The character panel shows a grid of drawings, all at one scale.
 
 ### Preview
 
-The bar under the live preview picks what it plays: **showcase** (a scripted demo: punches, a kick, a sweep, a jump kick, a dash into a grab and throw, a special, then backs off), **walk** (forward and back, to check the walk cycle), **ai vs ai** (two copies fight with the engine AI), or **solo** (just the one character, standing still, no opponent). A scenario button next to them opens every other scenario, built-in or your own, fuzzy-searchable.
+The bar under the live preview picks what it plays: **showcase** (a scripted demo: punches, a kick, a sweep, a jump kick, a dash into a grab and throw, a special, then backs off), **walk** (forward and back, to check the walk cycle), **ai vs ai** (two copies fight with the engine AI), or **solo** (just the one character, no opponent, on your keyboard: it stands still until you press keys). A scenario button next to them opens every other scenario, built-in or your own, fuzzy-searchable.
 
 Outside solo, a fuzzy-searchable character picker next to it sets the opponent — **self** (a copy of the one you're editing, the default) or any character in the roster — so you can see how your edits read against a specific foe instead of only against a copy of yourself. The controller icon next to it hands your keyboard to the opponent instead of its script/AI — handy for holding it still, guarding, or moving it into a weapon or throw's reach.
 
