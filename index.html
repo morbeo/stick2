@@ -93,14 +93,13 @@
   .tlbar .fd { flex: 1; min-width: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #888; font-size: 11px; }
   /* UI standard (docs/ui.md): a dock is one boxed group of labelled rows; every button in it the same mini size */
   #over > .dock { display: grid; gap: 2px; padding: 4px 6px; background: rgba(243,240,232,.92); border: 1px solid #d8d2c4; border-radius: 4px; }
-  .dock .drow { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; } .dock .dlab { width: 52px; flex: none; color: #888; font-size: 11px; }
+  .dock .drow { display: flex; align-items: center; gap: 3px; } .dock .dlab { width: 52px; flex: none; color: #888; font-size: 11px; align-self: flex-start; line-height: 20px; }
+  .dock .dctl { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
   .dock button, .dock .seg button { padding: 0 6px; font-size: 11px; line-height: 18px; }
   .pvdock { right: 8px; bottom: 6px; max-width: calc(42% - 16px); }
   .pvbar.pvtop { top: 32px; bottom: auto; } /* above the bones panel */
-  .blowbar { left: 8px; right: 8px; bottom: 6px; justify-content: center; }
-  .blowbar.inpv { left: auto; right: 8px; max-width: calc(42% - 16px); justify-content: flex-end; }
-  .blowbar .sep { width: 1px; height: 14px; background: #cfc8bb; margin: 0 3px; }
-  .pvbar { right: 8px; bottom: 36px; max-width: calc(42% - 16px); justify-content: flex-end; }
+  .blowbar { right: 8px; bottom: 6px; max-width: calc(50% - 16px); }
+  .pvbar { right: 8px; bottom: 6px; max-width: calc(42% - 16px); }
   .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.25); }
   #over > .fxgrid { display: block; overflow: auto; background: #f3f0e8; padding: 8px; box-sizing: border-box; } /* max-height/width set inline (fxState.gridSize), resized by .fxresize */
   #over > .fxgrid.bottom { inset: auto 0 0 0; border-top: 1px solid #ccc; }
