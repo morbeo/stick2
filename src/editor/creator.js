@@ -496,7 +496,20 @@ function boneTable() {
 }
 // the bones panel under the character view: the bone tree (default) or the bone table, switched from its head
 // add a limb (role-based: legs walk, arms swing, tails follow through); it attaches to the selected torso bone
-const limbAdd = () => h('span', { cls: 'seg' }, ...Object.keys(LIMBS).map(k => button(`:add: :${OPT_ICONS[k]}:`, `Add a ${k}: ${LIMB_TIPS[k]} (attaches to the selected torso bone)`, () => addLimb(k), 'mini')));
+// the parts picker (appendages library, studio.js PARTS): options, then one button per part; a part attaches to the
+// selected bone (any bone, a socket too) or its home, and stays plain bones to edit after
+const partOpt = { size: 'M', segs: 'auto', mirror: 'auto' };
+const PART_SIZES = { S: 0.7, M: 1, L: 1.4 };
+const partOpts = k => ({ size: PART_SIZES[partOpt.size], ...partOpt.segs !== 'auto' && PARTS[k].segs ? { segs: +partOpt.segs } : null,
+  ...partOpt.mirror !== 'auto' ? { pair: partOpt.mirror === 'pair' } : null });
+const partsPop = () => h('div', { cls: 'dock' },
+  dockRow('size', 'How big the part is: lengths and thickness', seg(Object.keys(PART_SIZES), () => partOpt.size, v => { partOpt.size = v; }, { S: 'Small (×0.7)', M: 'Medium (×1)', L: 'Large (×1.4)' })),
+  dockRow('joints', 'Tails, tentacles, wings and horns: how many bones in the chain (auto: the part\'s own)', seg(['auto', '2', '3', '5', '8'], () => partOpt.segs, v => { partOpt.segs = v; })),
+  dockRow('mirror', 'pair: a front and a back copy (like arms) · single: one · auto: the part\'s own', seg(['auto', 'pair', 'single'], () => partOpt.mirror, v => { partOpt.mirror = v; })),
+  dockRow('add', 'Click a part to add it at the selected bone (or its usual place)', h('span', { cls: 'seg' }, ...Object.keys(PARTS).map(k =>
+    button(`:${OPT_ICONS[k]}: ${k}`, `Add ${k}: ${PARTS[k].tip} At the selected bone, or ${PARTS[k].at === 'head' ? 'the head' : PARTS[k].at ? 'the top of the spine' : 'the hips'}.`,
+      () => { closePop(); addLimb(k, partOpts(k)); }, 'mini')))));
+const limbAdd = () => button(':add: parts', 'Parts: add arms, legs, a head, tails, tentacles, wings or horns at the selected bone, sized and mirrored (they become normal bones)', (e, b) => popup(b, partsPop()), 'mini');
 const boneCrud = () => crud({
   new: ['Add one bone at the end of the selected bone (same role and side)', addBone],
   copy: ['Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb],

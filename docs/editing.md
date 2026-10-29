@@ -179,7 +179,7 @@ Line bones also have:
 - **Bone tree** (the bones panel under the character view: drag its top edge to resize it, double-click it for the default size; its **tree / table** switch flips it to the bone table): drag a bone onto another to hang it, and everything below it, from that bone. Hold Alt as you drop to move it before that bone in the draw order instead. Drop it on the **hang from the hip** row to make it a root.
 - **Canvas:** Alt+drag a joint onto another joint (or the hip square) to reparent it. A dashed line shows where it goes.
 - **Bone table:** click a bone's parent cell to pick a new parent; drag an id onto another row to reorder.
-- **copy** (bones panel head) copies the selected bone and its subtree to the other side. The **+** limb buttons beside it add an arm, leg, head or tail to the selected torso bone.
+- **copy** (bones panel head) copies the selected bone and its subtree to the other side. **parts** beside it opens the [appendages library](#parts-appendages-library).
 
 A bone can never hang from its own subtree.
 
@@ -288,6 +288,23 @@ The **Groups** section of the rig tools picks a set of bones in one click, handy
 - The palette has **group: save** and **group: \<name>** for each group.
 
 Example: on a centaur, save `horse` (the four horse legs and the barrel) and `rider` (the torso and arms). Pick `horse`, turn on isolate, and tune the gait without the rider in the way; Shift+click `tails` to add the tail.
+
+### Parts (appendages library)
+
+**parts** in the bones panel head adds a ready-made part: **arm**, **leg**, **head**, **tail**, **tentacle**, **wing** or **horn**. A part becomes plain bones, so you can edit, recolour, constrain, skin and group it like any other bone afterwards.
+
+| Option | What it does |
+|---|---|
+| **size** | S, M or L: ×0.7, ×1 or ×1.4 on lengths (thickness grows more slowly). |
+| **joints** | For tails, tentacles, wings and horns: how many bones in the chain. **auto** uses the part's own count (tentacle 6, tail and wing 3, horn 2). |
+| **mirror** | **pair** adds a front and a back copy, like arms. **single** adds one. **auto** follows the part (arms, legs, wings and horns come in pairs). |
+
+- A part goes on the **selected bone**, any bone, a socket too. A pair on a sided bone puts its back copy on the partner bone, so wings on `uarmF` land on `uarmF` and `uarmB`.
+- Wings and horns curl back, and tentacles and tails taper toward the tip. Each bone down a chain lags a little more, so a part sways and follows through on its own (tail role: no walk cycle, just follow-through and wander).
+- Extra pairs number themselves (`uarm2F`, `wing2F`), so a part never overwrites a bone.
+- The palette has **part: \<name>** for each part, using the picker's current options.
+
+Example: select `chest`, pick **L** and **pair**, then **wing**. Select `head` and add **horn**. Add a **tentacle** with **joints 8** at the hips for a long, floppy tail.
 
 ### Skins
 
