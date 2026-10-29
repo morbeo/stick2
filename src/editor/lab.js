@@ -545,14 +545,13 @@ function stopReplayButton() {
 // the blow controls (impact's ragdoll, the creator's impact preview): what, how hard, from which side, and stand it up again
 // under the preview, not the toolbar — it is its own thing to play with, not a setting of the view
 // (inPv: the creator/animate split layout, where the preview is only the right-hand pane, not the whole canvas)
-function blowBar(w, reset, inPv) {
-  return h('div', { cls: 'over blowbar' + (inPv ? ' inpv' : '') },
-    ...Object.entries(BLOWS).map(([k, [, , tip]]) => button(k, tip, () => blow(w(), k), 'mini')),
-    h('span', { cls: 'sep' }),
-    seg(Object.keys(BLOW_POWER), () => lab.blowPower, v => { lab.blowPower = v; }, { light: 'Light blows: power × 0.6', normal: 'The move\'s own power', heavy: 'Heavy blows: power × 1.7' }),
-    seg(['front', 'back'], () => lab.blowSide, v => { lab.blowSide = v; }, { front: 'Blows from in front of the body', back: 'Blows from behind it' }),
-    h('span', { cls: 'sep' }),
-    button(':restart_alt: stand up', 'Put the body back on its feet', reset, 'mini'));
+function blowBar(w, reset) {
+  return h('div', { cls: 'over dock blowbar' },
+    dockRow('blow', 'Hit the body with a blow', ...Object.entries(BLOWS).map(([k, [, , tip]]) => button(k, tip, () => blow(w(), k), 'mini'))),
+    dockRow('power', 'How hard, and from which side',
+      seg(Object.keys(BLOW_POWER), () => lab.blowPower, v => { lab.blowPower = v; }, { light: 'Light blows: power × 0.6', normal: 'The move\'s own power', heavy: 'Heavy blows: power × 1.7' }),
+      seg(['front', 'back'], () => lab.blowSide, v => { lab.blowSide = v; }, { front: 'Blows from in front of the body', back: 'Blows from behind it' })),
+    dockRow('', '', button(':restart_alt: stand up', 'Put the body back on its feet', reset, 'mini')));
 }
 // replay files (see makeReplay): download the play fight, or load one and play it in place of the scenario
 function saveReplay() {

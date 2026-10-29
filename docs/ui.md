@@ -6,8 +6,8 @@ Rules for controls over the stage and in the side panels, so new tools look and 
 
 ## Controls over the stage
 
-- **Group related controls in a dock.** A dock is one boxed panel (`.dock`) of labelled rows, built with `dockRow(label, tip, ...controls)` in `src/ui/ui.js`. Example: the preview dock in animate (compare, target, state, facing, preview).
-- **One row, one subject.** The row label is a short lowercase noun (`target`, `state`), muted, in a fixed 52px column so the controls line up. Use `''` for an unlabelled row (a lone action button).
+- **Group related controls in a dock.** A dock is one boxed panel (`.dock`) of labelled rows, built with `dockRow(label, tip, ...controls)` in `src/ui/ui.js`. Examples: the preview docks in animate (compare, target, state, facing, preview) and the character tab (preview, opponent), and the blow dock in experiment's ragdoll impact (blow, power).
+- **One row, one subject.** The row label is a short lowercase noun (`target`, `state`), muted, in a fixed 52px column so the controls line up; a row's controls wrap under each other, never under the label. Use `''` for an unlabelled row (a lone action button).
 - **Bars stay on one line.** A strip like the timeline bar (`.tlbar`) never wraps. When it runs out of room, drop text and keep the icon, and move the name into the tip (the reach options there are icons only).
 - **Anchor to an edge, never float over the figure.** Bars sit at the stage's bottom or side edges. Stage panels (the dopesheet, the move table) dock above the timeline or along an edge so the character stays visible.
 

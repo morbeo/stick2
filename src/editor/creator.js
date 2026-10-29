@@ -251,9 +251,12 @@ function previewBar(cls = 'over pvbar') {
   const controlB = toggle(':stadia_controller:', 'Drive the opponent with your own keyboard instead of its script/AI - handy for holding it still, guarding, or moving it into a weapon or throw\'s reach',
     () => creator.controlDummy, v => { creator.controlDummy = v; creatorMode.restart(); });
   const pick = v => { creator.preview = v; creator.controlDummy = false; creatorMode.restart(); panels(); };
-  return h('div', { cls }, seg(PREVIEW_PRESETS, () => creator.preview, pick, mapVals(Object.fromEntries(PREVIEW_PRESETS.map(v => [v, v])), v => scenTip(SCENARIOS[v])), v => v),
-    scenButton(pick, () => creator.preview), solo ? null : oppB, solo ? null : controlB,
-    button(':sports_kabaddi: send to play', 'Jump into Play with this scenario and opponent', () => sendToPlay(creator.preview, creator.opponent)));
+  const fight = [seg(PREVIEW_PRESETS, () => creator.preview, pick, mapVals(Object.fromEntries(PREVIEW_PRESETS.map(v => [v, v])), v => scenTip(SCENARIOS[v])), v => v),
+    scenButton(pick, () => creator.preview)], send = button(':sports_kabaddi: send to play', 'Jump into Play with this scenario and opponent', () => sendToPlay(creator.preview, creator.opponent));
+  // over the stage: a dock of labelled rows (docs/ui.md); in the side panel: one plain bar
+  if (!cls.startsWith('over')) return h('div', { cls }, ...fight, solo ? null : oppB, solo ? null : controlB, send);
+  return h('div', { cls: cls + ' dock' }, dockRow('preview', 'The live fight next to the editor', ...fight),
+    solo ? null : dockRow('opponent', 'Who the preview fights, and whether you drive it', oppB, controlB), dockRow('', '', send));
 }
 const setProp = (k, v) => edit(def => { for (const b of selDefs(def)) b[k] = v; }, selIds() + '.' + k);
 const prop = k => selBone()?.[k] ?? BONE[k];
