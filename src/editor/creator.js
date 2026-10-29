@@ -8,9 +8,10 @@ const PREVIEW_PRESETS = ['showcase', 'walk', 'ai vs ai', 'solo'];
 // the preview's scenario. A human-vs-something one (you vs dummy, you vs ai…) hands your keyboard to the character being
 // edited (previewYou; inFight() turns the keys on for it). controlDummy: your keyboard drives the opponent instead, and
 // then a is forced off 'human' (there's only one keyboard: both fighters would move together)
-const previewYou = () => SCENARIOS[creator.preview]?.a === 'human' && !creator.controlDummy;
+// solo is a lone dummy as a scenario, but in the preview it's yours to drive
+const previewYou = () => (creator.preview === 'solo' || SCENARIOS[creator.preview]?.a === 'human') && !creator.controlDummy;
 const previewScen = () => { const s = SCENARIOS[creator.preview] || SCENARIOS.showcase;
-  return { ...s, ...s.a === 'human' && creator.controlDummy ? { a: 'dummy' } : null, ...creator.controlDummy && s.b ? { b: 'human' } : null,
+  return { ...s, ...creator.preview === 'solo' && !creator.controlDummy ? { a: 'human' } : null, ...s.a === 'human' && creator.controlDummy ? { a: 'dummy' } : null, ...creator.controlDummy && s.b ? { b: 'human' } : null,
     init: w => { s.init?.(w); w.a.setStance(studio.stance, 'instant'); } }; };
 // the opponent's character model for the main preview (not the body-experiment cells, which bring their own)
 const previewChars = () => [currentChar(), CHARS[creator.opponent] || currentChar()];
