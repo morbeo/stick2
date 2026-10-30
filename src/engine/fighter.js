@@ -838,17 +838,22 @@ class Fighter {
       const y = Math.min(R0[a.id][1] - Math.max(0, Math.cos(q)) * ll * 0.22 * g.lift * k, o[1] + Math.sqrt(Math.max(0, top * top - dx * dx)));
       legIK(ch, Q, wa, L, th, a, x, y);
       for (const b of [th, a]) P[b.id] += (Q[b.id] - P[b.id]) * mix; // eased in from standing
+      // foot roll: toes up as the heel strikes in front, down as the toes push off behind, flat in between
+      const ft = cn[ai + 1];
+      if (ft && g.footRoll) P[ft.id] += Math.sin(q) * 22 * g.footRoll * k * Math.sign(Math.sin(ft.restW * R) || 1);
     });
   }
   // in the air the legs are never still: they trail the body's speed (airDrag) and cycle a little (airKick) on top of the
   // air / airFall poses, and reach down for the floor as the fighter drops toward it (airReach)
   airLegs(P, turn, flex) {
     const g = this.ch.gait, t = this.airT, fall = clamp(this.vy / 600, -1, 1), near = clamp(1 + this.y / 90, 0, 1);
-    const drag = clamp(-this.vx * this.dir / 400, -1, 1) * 18 * g.airDrag;
+    // an air dash streams the legs out behind the burst, knees folded back, easing out with it
+    const dash = this.airDashT > 0 ? clamp(this.airDashT / 0.1, 0, 1) * Math.sign(this.vx * this.dir || 1) : 0;
+    const drag = (clamp(-this.vx * this.dir / 400, -1, 1) * 18 - dash * 22) * g.airDrag;
     this.ch.chains.leg.forEach((c, i) => {
-      const q = t * 7 + i * Math.PI, ease = Math.min(1, t * 4);
+      const q = t * 7 + i * Math.PI, ease = Math.max(Math.abs(dash), Math.min(1, t * 4));
       turn(c[0], (drag + Math.sin(q) * 10 * g.airKick) * ease);
-      flex(c[1], (Math.max(0, Math.cos(q)) * 14 * g.airKick - (fall > 0 ? fall * near * 30 * g.airReach : 0)) * ease);
+      flex(c[1], (Math.abs(dash) * 35 * g.airDrag + Math.max(0, Math.cos(q)) * 14 * g.airKick - (fall > 0 ? fall * near * 30 * g.airReach : 0)) * ease);
     });
   }
   // foot planting (plant setting): a foot the animation puts on the floor stays at its spot in the world and its leg bends to reach it
