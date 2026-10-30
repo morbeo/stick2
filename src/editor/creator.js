@@ -522,7 +522,9 @@ const boneCrud = () => crud({
   new: ['Add one bone at the end of the selected bone (same role and side)', addBone],
   copy: ['Copy the selected bone and everything below it to the other side (front ↔ back)', copyLimb],
   rename: ['Rename the selected bone (follows it into moves, poses and stance bodies)', () => renameBone()],
-  delete: ['Delete the selected bone and everything below it (Del)', deleteBone] }, selectAllBtn());
+  delete: ['Delete the selected bone and everything below it (Del)', deleteBone] },
+  button(':content_cut:', 'Split: cut the selected bone into two halves (the new outer half takes its children)', splitBone, 'mini'),
+  button(':unfold_less:', 'Merge: join the selected bone with its only child into one bone (lengths add up)', mergeBone, 'mini'), selectAllBtn());
 const BONE_VIEW_TIPS = { tree: 'The bones as a tree: click to select, ▾ ▸ fold a branch, drag a bone onto another to reparent it (Alt: reorder)',
   table: 'The bones as a table: every property, edited in place, sortable and filterable',
   radar: 'The character\'s stats on a radar, other characters overlaid to compare' };
