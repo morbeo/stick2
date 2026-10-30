@@ -278,7 +278,7 @@ test('endless waves: the next wave comes once every enemy is down, knocked-out o
 });
 
 test('survival: enemies keep coming up to survMax, tougher with time and enemies down, the downed leave, rewinding plays the same', () => {
-  const sim = `const w = new World(SCENARIOS['ai survival'], { health: 60, survMax: 2, survEvery: 1, survHp: 0.2, survHpTime: 1, survHpKill: 0.5 }, 3, [CHARS.stick]); w.loop = false;`;
+  const sim = `const w = new World(SCENARIOS['ai survival'], { health: 60, survMax: 2, survEvery: 1, survHp: 0.2, survHpTime: 1, survHpKill: 0.5 }, 7, [CHARS.stick]); w.loop = false;`; // a seed where the player outlasts three downs
   const r = run(`(() => { ${sim} const first = w.b.c('health'); let most = 0, at = 0;
     for (let i = 0; i < 60 * 90 && w.downs < 3 && !w.done; i++) { w.advance(1/60, NOIN); most = Math.max(most, w.foes(w.a).length); if (w.downs && !at) at = i; }
     return { first, downs: w.downs, most, at, last: w.fighters[w.fighters.length - 1].c('health'), n: w.fighters.length, spawned: w.spawned }; })()`);
