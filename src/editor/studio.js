@@ -685,6 +685,41 @@ function treeDrop(id, to, reorder = false) {
   panels();
 }
 // a bone the stance adds goes from its body; in stance only, any other bone is hidden in the stance (with all below it)
+// split the selected bone in two halves: the new outer half hangs from it, straight on, and takes over its children
+function splitBone() {
+  if (stanceOnly()) return notice('Split works on the main body', 'Switch the stance to main to split a bone');
+  const b = selBone();
+  if (!b || b.shape === 'circle' || b.shape === 'socket') return notice('Can\'t split this bone', 'Pick a line bone (not a circle or a socket)');
+  const ids = new Set(DEFS[CURRENT].bones.map(x => x.id)), base = b.id.replace(/[FB]$/, ''), S = b.id.slice(base.length);
+  let n = 2; while (ids.has(base + n + S)) n++;
+  const id = base + n + S;
+  edit(def => {
+    const o = def.bones.find(x => x.id === b.id), half = Math.max(1, Math.round(o.len / 2));
+    for (const k of def.bones) if (k.parent === o.id) k.parent = id;
+    const { id: _, parent: __, a: ___, len, ...props } = o;
+    def.bones.splice(def.bones.indexOf(o) + 1, 0, { ...props, id, parent: o.id, len: len - half, lag: +((o.lag ?? 0) + 0.25).toFixed(2) });
+    o.len = half;
+  });
+  studio.sel = id; studio.also.clear();
+}
+// merge the selected bone with its only child into one bone: lengths add up, the grandchildren hang from it (keeping
+// their angles), and the child's poses, constraints and group places go to it
+function mergeBone() {
+  if (stanceOnly()) return notice('Merge works on the main body', 'Switch the stance to main to merge bones');
+  const def = DEFS[CURRENT], b = selBone(), kids = def.bones.filter(x => x.parent === b?.id);
+  if (kids.length !== 1) return notice('Can\'t merge', `Merge joins a bone with its only child; ${b?.id} has ${kids.length} children`);
+  const c = kids[0].id;
+  edit(def => {
+    const o = def.bones.find(x => x.id === b.id), k = def.bones.find(x => x.id === c);
+    o.len += k.len;
+    for (const g of def.bones) { if (g.parent === c) { g.parent = o.id; g.a = (g.a ?? 0) + (k.a ?? 0); }
+      for (const f of ['follow', 'reach']) if (g[f] === c) g[f] = o.id; }
+    def.bones = def.bones.filter(x => x !== k);
+    for (const [n, ids] of Object.entries(def.groups || {})) def.groups[n] = [...new Set(ids.map(i => i === c ? o.id : i))];
+    forEachPose(def, p => { delete p[c]; });
+  });
+  studio.also.clear();
+}
 function deleteBone() {
   const body = stanceBody();
   if (body?.add?.some(b => b.id === studio.sel)) {

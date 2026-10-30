@@ -180,6 +180,7 @@ Line bones also have:
 - **Canvas:** Alt+drag a joint onto another joint (or the hip square) to reparent it. A dashed line shows where it goes.
 - **Bone table:** click a bone's parent cell to pick a new parent; drag an id onto another row to reorder.
 - **copy** (bones panel head) copies the selected bone and its subtree to the other side. **parts** beside it opens the [appendages library](#parts-appendages-library).
+- **Split** (scissors, bones panel head) cuts the selected bone into two halves. The new outer half (`farmF` → `farm2F`) hangs straight on from it and takes over its children, so the limb looks the same but gains a joint. **Merge** joins the selected bone with its only child: the lengths add up, the grandchildren keep their angles, and the child's constraints and group places move to it. Both work on the main body, and the palette has **bone: split** and **bone: merge**.
 
 A bone can never hang from its own subtree.
 
