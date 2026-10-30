@@ -57,6 +57,7 @@ function paletteEntries() {
       ['skin: save', 'Save the bones\' current look as a new skin', saveSkin],
       ...Object.keys(DEFS[CURRENT]?.skins || {}).map(n => ['skin: ' + n, `Apply the ${n} skin`, () => applySkin(n)]),
       ['group: save', 'Save the selected bones as a named group', saveGroup],
+      ['part: save', 'Save the selected bone and everything below it as your own part', savePart],
       ...Object.keys(PARTS).map(k => ['part: ' + k, `Add ${k} at the selected bone: ${PARTS[k].tip}`, () => addLimb(k, partOpts(k))]),
       ...Object.entries({ ...roleGroups(viewChar()), ...DEFS[CURRENT]?.groups }).map(([n, ids]) => ['group: ' + n, `Select the bones of ${n} (${ids.length})`, () => selectGroup(ids)]),
       ['rig: clear constraints', 'Remove follow and reach from the selected bones', () => edit(d => { for (const b of selDefs(d)) for (const k of ['follow', 'followMix', 'reach', 'reachMix']) delete b[k]; })]]

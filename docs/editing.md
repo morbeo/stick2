@@ -291,18 +291,20 @@ Example: on a centaur, save `horse` (the four horse legs and the barrel) and `ri
 
 ### Parts (appendages library)
 
-**parts** in the bones panel head adds a ready-made part: **arm**, **leg**, **head**, **tail**, **tentacle**, **wing** or **horn**. A part becomes plain bones, so you can edit, recolour, constrain, skin and group it like any other bone afterwards.
+**parts** in the bones panel head adds a ready-made part: **arm**, **leg**, **head**, **tail**, **tentacle**, **wing**, **horn** or **socket** (an invisible attach point: a held weapon goes on the first socket instead of the front hand), or one of your own saved parts. A part becomes plain bones, so you can edit, recolour, constrain, skin and group it like any other bone afterwards.
 
 | Option | What it does |
 |---|---|
 | **size** | S, M or L: ×0.7, ×1 or ×1.4 on lengths (thickness grows more slowly). |
 | **joints** | For tails, tentacles, wings and horns: how many bones in the chain. **auto** uses the part's own count (tentacle 6, tail and wing 3, horn 2). |
 | **mirror** | **pair** adds a front and a back copy, like arms. **single** adds one. **auto** follows the part (arms, legs, wings and horns come in pairs). |
+| **hit** | **cosmetic** parts are never hit (no hurtbox). **hittable** ones get a hurtbox about their thickness. **auto** keeps the part's own. |
 
 - A part goes on the **selected bone**, any bone, a socket too. A pair on a sided bone puts its back copy on the partner bone, so wings on `uarmF` land on `uarmF` and `uarmB`.
 - Wings and horns curl back, and tentacles and tails taper toward the tip. Each bone down a chain lags a little more, so a part sways and follows through on its own (tail role: no walk cycle, just follow-through and wander).
 - Extra pairs number themselves (`uarm2F`, `wing2F`), so a part never overwrites a bone.
-- The palette has **part: \<name>** for each part, using the picker's current options.
+- **Your parts:** select the first bone of a part (say `uarmF` or a tail root), then **save part** in the picker's **mine** row and name it. It and every bone below it are saved in this browser and listed under **mine**, ready to add to any character with the same options. × deletes one. Side letters are dropped (`uarmF` saves as `uarm`), so mirror can make a pair of it.
+- The palette has **part: \<name>** for each part, using the picker's current options, and **part: save**.
 
 Example: select `chest`, pick **L** and **pair**, then **wing**. Select `head` and add **horn**. Add a **tentacle** with **joints 8** at the hips for a long, floppy tail.
 
