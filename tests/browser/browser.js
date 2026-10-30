@@ -1152,7 +1152,8 @@ try {
     if (!rp.reel || rp.N !== 600 || !rp.events.some(e => e.type === 'hit') || !rp.events.some(e => e.type === 'input')) errs.push('replay load ' + [rp.N, rp.events.length]);
     const rows = () => [...document.querySelectorAll('.etable tbody tr')].filter(r => r.cells.length), q = document.querySelector('.etable input');
     q.value = 'hit'; q.dispatchEvent(new Event('input'));
-    if (!rows().length || rows().some(r => !/hit/.test(r.textContent))) errs.push('replay filter ' + rows().length);
+    // fuzzy: letters in order over the columns then the type (shown first in the row, so the text is doubled here)
+    if (!rows().some(r => /hit/.test(r.textContent)) || rows().some(r => !fuzzy('hit', r.textContent + ' ' + r.textContent))) errs.push('replay filter ' + rows().length);
     const r0 = rows()[0], f0 = +r0.cells[0].textContent.split(' f')[1]; r0.click();
     if (rp.n !== f0 || !rp.sel.size) errs.push('replay row ' + [rp.n, f0]);
     q.value = ''; q.dispatchEvent(new Event('input'));
