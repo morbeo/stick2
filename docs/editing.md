@@ -122,6 +122,10 @@ Under a stance's body row, **requirements** set when it can be taken and what en
 
 Next to the stance's key, **fly** makes it hover instead of fall: gravity and the ground are suspended while in it, and ↑ / ↓ fly up / down instead of jumping. Leaving the stance (a key, `exitOn`, `maxT`, or a hit) hands it back to normal gravity wherever it is. In the JSON: `stances[i].fly`; main can fly too, in `main.fly`.
 
+**floor → off the floor** detaches a stance from the floor anchor: normally the body's lowest point always stands on the floor, so one foot is glued to it. Off the floor, the hip stands **hip height** px above the floor and the feet are free to leave it, so stances like a boxer's shuffle or a raised knee can be authored; dragging the hip in the character view then raises or lowers the whole body. Crouching, the jump squat and knockdowns still stand on their lowest point. In the JSON: `stances[i].hipH` (`main.hipH` for main); palette: `stance: off the floor`.
+
+**Walk & idle** (Stats): the walk steps each foot evenly forward and back around its spot (**stride**, **swing** to lean the steps forward or back, **stepCenter** to centre them under the hip, **backStride** for walking backwards, **lift**); in the air the legs trail the drift (**airDrag**), keep cycling (**airKick**) and reach for the floor as it comes up (**airReach**).
+
 ### Stance transitions
 
 **transition** (under the requirements) sets how the body changes switching to the stance, and back to main from it:

@@ -32,7 +32,9 @@ function edLayout() {
 function edFrame() {
   const ch = viewChar(), r = edLayout().ed, s = Math.min(r.h / 190, r.w / 130), ground = r.y + r.h * 0.85;
   const wa = {}, L = fk(ch, curStance(ch).pose, 1, null, wa);
-  if (!creator.drag) {
+  const hipH = curStance(ch).hipH;
+  if (hipH != null) creator.anchor = [creator.drag === 'hip' ? creator.anchor[0] : r.x + r.w / 2, ground - hipH * s]; // off the floor: the hip at its set height
+  else if (!creator.drag) {
     let low = 0;
     for (const b of ch.bones) low = Math.max(low, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
     creator.anchor = [r.x + r.w / 2, ground - low * s];
@@ -110,9 +112,14 @@ function dragTo(x, y, shift) {
     if (!shift && rig.mode !== 'animate' && !b.lenLock && b.shape !== 'circle') boneDef(def, b.id).len = Math.max(2, Math.round(Math.hypot(dx, dy) * (b.chainN || 1) / (stanceBody()?.scale || 1))); // (drawn × the stance's size)
   }, 'drag:' + b.id);
 }
-// dragging the hip moves the body over the feet in the stance: every leg bends so its ankle stays (as in animate, see hipTo)
+// dragging the hip moves the body over the feet in the stance: every leg bends so its ankle stays (as in animate, see hipTo);
+// in a stance off the floor (hipH) it raises or lowers the body instead
 function hipDrag(x, y) {
   const f = edFrame(), h0 = creator.hip0, dx = (x - h0.x) / f.s, dy = (y - h0.y) / f.s, pose = { ...h0.pose }, chain = [];
+  if (h0.hipH != null) { // off the floor: the hip drag only raises or lowers the whole body (the stance's hipH), the legs as they are
+    edit(def => { (studio.stance ? def.stances[studio.stance - 1] : (def.main ??= {})).hipH = Math.max(0, Math.round(h0.hipH - dy)); }, 'hipH');
+    return;
+  }
   creator.anchor = [h0.a[0] + x - h0.x, h0.a[1] + y - h0.y];
   for (const c of f.ch.chains.leg) {
     const a = ankleOf(c), legs = c.slice(0, c.indexOf(a) + 1).filter(b => !b.lock).reverse();
@@ -213,7 +220,7 @@ function creatorMouse(type, x, y, e) {
     const id = pickBone(x, y);
     if (id && (e.metaKey || e.ctrlKey)) { pickBoneSel(id, true); syncAll(); } // ⌘/Ctrl+click: add to / take out of the selection
     else if (id && id !== 'hip' && e.altKey && rig.mode !== 'animate') { pickBoneSel(id, false); creator.rep = { id, x, y }; syncAll(); } // Alt+drag: reparent onto the joint it's dropped on
-    else if (id === 'hip') { const f = edFrame(); creator.hip0 = { x, y, a: [...f.o], pose: { ...curStance(f.ch).pose }, L: f.L }; creator.drag = 'hip'; }
+    else if (id === 'hip') { const f = edFrame(); creator.hip0 = { x, y, a: [...f.o], pose: { ...curStance(f.ch).pose }, L: f.L, hipH: curStance(f.ch).hipH }; creator.drag = 'hip'; }
     else if (id) { pickBoneSel(id, false); creator.drag = id; syncAll(); }
   } else if (type === 'move') {
     if (creator.rep) { Object.assign(creator.rep, { x, y }); creator.hover = pickBone(x, y); cursor('alias'); return; }

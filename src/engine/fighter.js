@@ -29,6 +29,23 @@ function flashCol(combo) {
 }
 // a lying body (pose falls): turned about the hips to the angle where its joints sit lowest over its lowest point,
 // so no pose leaves the torso or head hanging in the air above the floor
+// two-bone IK: thigh th and shin a turn so a's end reaches (tx, ty), in the unflipped rig space of L / wa (fk of P); the
+// knee bends the way it bends now. P is changed in place
+function legIK(ch, P, wa, L, th, a, tx, ty, lens) {
+  const pb = ch.by[th.parent], pw = pb ? wa[pb.id] : 0, o = L[th.parent || 'hip'], l1 = lens?.[th.id] ?? th.len, l2 = lens?.[a.id] ?? a.len;
+  tx -= o[0]; ty -= o[1];
+  const d = clamp(Math.hypot(tx, ty), Math.abs(l1 - l2) + 0.01, l1 + l2 - 0.01);
+  const base = Math.atan2(tx, ty) / R, al = Math.acos(clamp((l1 * l1 + d * d - l2 * l2) / (2 * l1 * d), -1, 1)) / R;
+  const local = (b, w, pw, prw) => P[b.id] + wrap180(w - pw + b.level * (pw - prw) - P[b.id]);
+  const out = (b, v) => Math.max(0, (b.min ?? -1e9) - v, v - (b.max ?? 1e9)); // how far past its joint limits
+  // the two knee solutions: the one inside the joint limits (the knee never bends backwards), else the nearer to the pose now
+  const sol = [base + al, base - al].map(w1 => {
+    const kn = [o[0] + Math.sin(w1 * R) * l1, o[1] + Math.cos(w1 * R) * l1], w2 = Math.atan2(o[0] + tx - kn[0], o[1] + ty - kn[1]) / R;
+    const v1 = local(th, w1, pw, pb ? pb.restW : 0), v2 = local(a, w2, w1, th.restW);
+    return { v1, v2, cost: (out(th, v1) + out(a, v2)) * 1e3 + Math.abs(wrap180(w1 - wa[th.id])) };
+  }).reduce((m, x) => x.cost < m.cost ? x : m);
+  P[th.id] = sol.v1; P[a.id] = sol.v2;
+}
 function settle(ch, L) {
   const rot = (a, f) => { const c = Math.cos(a), s = Math.sin(a); for (const k in L) f(k, L[k][0] * c - L[k][1] * s, L[k][0] * s + L[k][1] * c); };
   const gap = a => { let lo = -Infinity, sum = 0; const ys = [];
@@ -160,10 +177,11 @@ class Fighter {
     if (!this.grounded && !this.st.fly) {
       const k = this.flip ? 0 : clamp(this.vy / 500, 0, 1); // tuck while rising (and through a flip), reach for the ground while falling
       for (const j in ps.air) P[j] = ps.air[j] + ((ps.airFall[j] ?? ps.air[j]) - ps.air[j]) * k;
+      this.airLegs(P, turn, flex);
     } else if (this.crouching || this.squatT > 0) Object.assign(P, ps.crouch);
     else {
       const w = Math.min(1.6, Math.hypot(this.vx, this.vz) / this.c('maxSpeed')), ph = this.walkPh, back = this.vx * this.dir < 0;
-      const st = back ? 0.7 : 1, id = Math.max(0, 1 - w), s = this.seed, amp = id * g.idleAmt;
+      const st = back ? g.backStride : 1, id = Math.max(0, 1 - w), s = this.seed, amp = id * g.idleAmt;
       // keyframed loops (moves named idle / walk) replace the procedural cycles, blended by how fast the fighter moves
       const loop = (m, time, k) => { const L = samplePose(ch, m, time, this.c('easing'), base); for (const j in L) P[j] += (L[j] - base[j]) * k; };
       const idleL = ch.moves[loopName(ch, this.stanceI, 'idle')], walkL = ch.moves[loopName(ch, this.stanceI, 'walk')];
@@ -182,7 +200,7 @@ class Fighter {
       // shorter steps and a raised guard walking backwards; a walk loop plays one cycle (two steps) per 2π of the phase
       if (walkL) loop(walkL, ((ph / (2 * Math.PI)) % 1 + 1) % 1 * total(walkL), Math.min(1, w));
       else {
-        ch.chains.leg.forEach((c, i) => { const q = ph + i * Math.PI; turn(c[0], Math.sin(q) * 28 * g.stride * w * st); flex(c[1], Math.max(0, Math.cos(q)) * 40 * g.lift * w * st); });
+        this.walkLegs(P, base, ph, w * (back ? g.backStride : 1), w);
         ch.chains.arm.forEach((c, i) => { const q = ph + (i + 1) * Math.PI; turn(c[0], Math.sin(q) * 22 * g.armSwing * w * st * st); flex(c[1], Math.max(0, Math.sin(q)) * 15 * g.armSwing * w + (back ? 20 * w : 0)); });
       }
       turn(spine, 4 * g.lean * w * Math.sign(this.vx * this.dir));
@@ -608,7 +626,7 @@ class Fighter {
     }
     this.depth(dt, inp, busy);
     const leg = this.ch.chains.leg[0], ll = leg ? leg[0].len + (leg[1]?.len || 0) : 45, back = this.vx * this.dir < 0;
-    this.walkPh += Math.hypot(this.vx, this.vz) * (back ? -1 : 1) * dt * 3.3 / ll / (back ? 0.7 : 1); // one step per stride, feet stay planted
+    this.walkPh += Math.hypot(this.vx, this.vz) * (back ? -1 : 1) * dt * 3.3 / ll / (back ? this.ch.gait.backStride : 1) / Math.max(0.3, this.ch.gait.stride); // one cycle per two strides: the feet keep pace with the floor
     this.face = approach(this.face, this.dir, dt * Math.max(c('turnSpeed'), this.turnRate)); // turn through a squashed profile instead of flipping
     if (this.face === this.dir && !this.turnMid) this.turnRate = 0;
 
@@ -797,6 +815,42 @@ class Fighter {
     this.plantFeet(dt);
     this.gripWeapon();
   }
+  // where the floor is under the rig-space joints L: the body's lowest point stands on it, or, in a stance off the floor
+  // anchor (hipH), the hip stands hipH above it whatever the feet do (not knocked down, crouching or in the jump squat)
+  floorY(L) {
+    const h = this.st.hipH;
+    if (h != null && !this.kd && !this.rag && !this.crouching && !(this.squatT > 0)) return h;
+    let fy = 0; for (const b of this.ch.bones) fy = Math.max(fy, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
+    return fy;
+  }
+  // the procedural walk's legs: each ankle follows a step path in the hip's space, solved with two-bone IK, so a foot
+  // travels as far forward as back (stride, swing), lifts on the way forward (lift) and steps around its stance spot or
+  // under its hip (stepCenter); legs alternate (a centaur trots: diagonal pairs). A one-bone leg just swings
+  walkLegs(P, base, ph, k, w) {
+    if (!w) return; // standing: the stance as authored (an IK round trip would nudge a straight leg)
+    const ch = this.ch, g = ch.gait, wa = {}, L = fk(ch, P, 1, null, wa), R0 = fk(ch, base, 1), mix = Math.min(1, w * 4), Q = { ...P };
+    ch.chains.leg.forEach((cn, i) => {
+      const q = ph + i * Math.PI, ai = cn.length >= 3 ? cn.length - 2 : cn.length - 1, a = cn[ai], th = cn[ai - 1];
+      if (!th) { P[cn[0].id] += cn[0].fwd * Math.sin(q) * 28 * g.stride * k; return; }
+      const o = L[th.parent || 'hip'], ll = th.len + a.len, x0 = R0[a.id][0], cx = x0 + (o[0] - x0) * g.stepCenter * Math.min(1, w);
+      const amp = Math.sin(28 * R) * ll * g.stride * k, x = cx + amp * (Math.sin(q) + g.swing), dx = x - o[0], top = ll * 0.97;
+      // out of the leg's reach at that height the foot rises onto the reach circle, so it still gets as far as the other way
+      const y = Math.min(R0[a.id][1] - Math.max(0, Math.cos(q)) * ll * 0.22 * g.lift * k, o[1] + Math.sqrt(Math.max(0, top * top - dx * dx)));
+      legIK(ch, Q, wa, L, th, a, x, y);
+      for (const b of [th, a]) P[b.id] += (Q[b.id] - P[b.id]) * mix; // eased in from standing
+    });
+  }
+  // in the air the legs are never still: they trail the body's speed (airDrag) and cycle a little (airKick) on top of the
+  // air / airFall poses, and reach down for the floor as the fighter drops toward it (airReach)
+  airLegs(P, turn, flex) {
+    const g = this.ch.gait, t = this.airT, fall = clamp(this.vy / 600, -1, 1), near = clamp(1 + this.y / 90, 0, 1);
+    const drag = clamp(-this.vx * this.dir / 400, -1, 1) * 18 * g.airDrag;
+    this.ch.chains.leg.forEach((c, i) => {
+      const q = t * 7 + i * Math.PI, ease = Math.min(1, t * 4);
+      turn(c[0], (drag + Math.sin(q) * 10 * g.airKick) * ease);
+      flex(c[1], (Math.max(0, Math.cos(q)) * 14 * g.airKick - (fall > 0 ? fall * near * 30 * g.airReach : 0)) * ease);
+    });
+  }
   // foot planting (plant setting): a foot the animation puts on the floor stays at its spot in the world and its leg bends to reach it
   // (two-bone IK on the bones above the ankle, the knee bending the way the animation bends it); a foot left more than plantStep
   // from where the animation puts it steps there, one foot at a time. The result (planted) is what is drawn and hit; the springs keep disp
@@ -805,7 +859,7 @@ class Fighter {
     this.planted = null;
     if (!c('plant') || !this.grounded || this.kd || this.rag || this.spin || this.y < 0) { this.feet = []; return; }
     const wa = {}, L = fk(ch, this.disp, 1, this.lens, wa), p = { ...this.disp }, k = this.xs * (1 - this.sq * 0.5);
-    let fy = 0; for (const b of ch.bones) fy = Math.max(fy, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
+    const fy = this.floorY(L);
     ch.chains.leg.forEach((cn, i) => {
       const ai = cn.length >= 3 ? cn.length - 2 : cn.length - 1, a = cn[ai], th = cn[ai - 1], tip = cn[cn.length - 1];
       // lifted by the animation: it leads · forcePlant (cn[0]) skips this for a leg that never reaches the body's own lowest point
@@ -1258,8 +1312,7 @@ class Fighter {
     // and a head that should squash normally with the body can opt out with turnSnap: false
     const L = fk(this.ch, p, b => (b.turnSnap ?? b.role === 'head') ? this.dir : this.xs, lens);
     if (this.kd === 'down' && !this.rag) settle(this.ch, L); // the lie pose rolls to the angle it lies flattest at
-    let fy = 0;
-    if (!free) for (const b of this.ch.bones) fy = Math.max(fy, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
+    let fy = free ? 0 : this.floorY(L);
     if (this.spin) {
       let top = 0; for (const k in L) top = Math.min(top, L[k][1]);
       const r = this.spin * this.dir * R, c = Math.cos(r), s = Math.sin(r), cy = (top + fy) / 2;

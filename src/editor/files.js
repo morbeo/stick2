@@ -208,6 +208,7 @@ function stanceRow() {
       i ? seg(Object.keys(STANCE_KEYS), () => stanceKey(own()?.key), v => edit(def => { ref(def).key = v; }), keyTips, k => STANCE_KEYS[k]) : null,
       toggle(':air: fly', `${names[i]} hovers instead of falling: ↑ / ↓ fly up / down, gravity and the ground are suspended while in it`,
         () => !!own()?.fly, v => edit(def => { if (v) ref(def).fly = true; else { delete ref(def).fly; if (!i) pruneMain(def); } })))),
+    ...floorRow(i, names[i], own, ref),
     h('div', { cls: 'row', tip: `The body in ${names[i]}: the same as ${i ? 'main' : 'the character as authored'}, or changed for this stance only` }, h('span', { textContent: 'body' }), h('span', { cls: 'bar' },
       toggle(':accessibility_new: this stance only', `This stance only: bone edits (length, thickness, shape, effects…, new limbs, delete = hide), size, stats, walk and combo links go to ${names[i]}'s own body, not every stance's. Off: they change the character in every stance`,
         () => studio.own, v => { studio.own = v; panels(); }),
@@ -217,6 +218,16 @@ function stanceRow() {
       v => edit(def => { if (v === 1) delete editBody(def).scale; else editBody(def).scale = v; }, 'stance scale'),
       `Size of the whole body in ${names[i]}: × every bone's length, thickness and hurtbox`) : null,
     ...stanceReq(i, names[i]), ...i ? stanceMorph(i, names[i]) : []];
+}
+// a stance off the floor anchor (hipH): the hip stands hipH px above the floor and the feet are free to leave it; on, it
+// starts where the body stands now, so nothing jumps; in the character editor dragging the hip then raises or lowers it
+function floorRow(i, name, own, ref) {
+  const tip = `Off the floor: in ${name} the hip stands at a set height and the feet may leave the floor (a boxer's shuffle, one foot raised); dragging the hip in the editor raises or lowers it. Off: the lowest foot always stands on the floor`;
+  const lowest = () => { const ch = currentChar(), L = fk(ch, ch.stances[i].pose, 1); let fy = 0; for (const b of ch.bones) fy = Math.max(fy, L[b.id][1] + (b.shape === 'circle' ? b.len : 0)); return Math.round(fy); };
+  const set = v => edit(def => { if (v == null) { delete ref(def).hipH; if (!i) pruneMain(def); } else ref(def).hipH = v; }, 'hipH');
+  return [h('div', { cls: 'row', tip }, h('span', {}, ...rich(':footprint: floor')), h('span', { cls: 'bar' },
+    toggle(':air: off the floor', tip, () => own()?.hipH != null, v => { set(v ? lowest() : null); panels(); }))),
+    own()?.hipH != null ? slider('hip height', { min: 0, max: 160, step: 1 }, () => own()?.hipH ?? 0, v => set(v), `How high the hip stands above the floor in ${name} (px)`) : null];
 }
 // a stance's switch transition (def.stances[i - 1].morph over MORPH): springs, an auto blend over T frames, or a transition move
 function stanceMorph(i, name) {
