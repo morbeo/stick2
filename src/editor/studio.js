@@ -537,36 +537,65 @@ const LIMBS = {
     ['tailEnd', 10, { a: -20, lag: 3, thick: 2, stretch: 0.2, min: -70, max: 70 }]] },
   head: { w: 180, bones: [['neck', 5, { hurt: 12, level: 0.5, min: -45, max: 45 }], ['head', 8, { shape: 'circle', hurt: 12, min: -50, max: 50 }]] },
 };
-const LIMB_TIPS = {
-  arm: 'Add a pair of arms (front + back) at the selected torso bone, or at the top of the spine.',
-  leg: 'Add a pair of legs at the selected torso bone, or at the hips.',
-  tail: 'Add a 3-bone tail at the selected torso bone, or at the hips.',
-  head: 'Add a neck and head at the selected torso bone, or at the top of the spine.',
+// the appendages library: parts with a size, a segment count and mirroring, built as normal bones (edit them freely
+// after). Each returns a LIMBS-style template; at: where it goes when no bone is selected ('top' of the spine, the
+// 'head', or null = the hips). Free parts take the tail role: no walk cycle, just follow-through and wander (their idle).
+const PARTS = {
+  arm: { at: 'top', pair: true, tip: 'Arms (front + back): extra pairs number themselves (uarm2F…).', make: () => LIMBS.arm },
+  leg: { at: null, pair: true, tip: 'Legs (front + back): they join the walk cycle.', make: () => LIMBS.leg },
+  head: { at: 'top', tip: 'A neck and a head.', make: () => LIMBS.head },
+  tail: { at: null, segs: 3, tip: 'A tail that tapers to its tip.', make: o => chainPart('tail', -120, 14, o, { thick: 4, end: 2, bend: -20 }) },
+  tentacle: { at: null, segs: 6, tip: 'A long, floppy tentacle: each segment thinner and laggier.', make: o => chainPart('tentacle', -60, 11, o, { thick: 5, end: 1, bend: 10, lag: 0.7, give: 80 }) },
+  wing: { at: 'top', pair: true, segs: 3, tip: 'Wings: up and back from the shoulders, swept tips.', make: o => chainPart('wing', -150, 16, o, { thick: 3, end: 1, bend: -35, lag: 0.8, give: 40 }) },
+  horn: { at: 'head', pair: true, segs: 2, tip: 'Horns: stiff, pointed, curling back.', make: o => chainPart('horn', -70, 6, o, { thick: 3, end: 0, bend: -30, lag: 0.1, give: 10, point: true }) },
 };
+// a chain of segs bones from w (world angle), each bent by bend, shorter and thinner toward the tip
+function chainPart(name, w, len, o, { thick, end, bend, lag = 1, give = 70, point }) {
+  const n = o.segs, k = o.size;
+  return { w, pair: o.pair, bones: Array.from({ length: n }, (_, i) => {
+    const t = n > 1 ? i / (n - 1) : 0, last = i === n - 1;
+    return [name + (i ? (last ? 'End' : 'Mid' + (n > 3 ? i : '')) : ''), Math.round(len * k * (1 - t * 0.3)), {
+      ...i ? { a: bend, min: -give, max: give } : null, lag: +(lag * (i + 1)).toFixed(2),
+      thick: Math.max(1, Math.round((thick - (thick - end) * t) * Math.sqrt(k))), ...last && point ? { cap: 'point' } : null }];
+  }) };
+}
+// a part's template for its options ({ size, segs, pair }; missing ones take the part's own defaults)
+function partSpec(kind, opt = {}) {
+  const P = PARTS[kind], o = { size: 1, segs: P.segs ?? 3, pair: !!P.pair, ...opt };
+  return { ...P.make(o), pair: o.pair, size: o.size, at: P.at };
+}
 // (stance only: the stance's body adds it)
-function addLimb(kind) {
+function addLimb(kind, opt) {
   edit(def => {
-    if (!stanceOnly()) { studio.sel = attachLimb(def, kind, studio.sel); return; }
+    if (!stanceOnly()) { studio.sel = attachLimb(def, kind, studio.sel, opt); return; }
     const body = editBody(def), all = { bones: [...def.bones, ...body.add || []] }, n = all.bones.length;
-    studio.sel = attachLimb(all, kind, studio.sel); body.add = [...body.add || [], ...all.bones.slice(n)];
+    studio.sel = attachLimb(all, kind, studio.sel, opt); body.add = [...body.add || [], ...all.bones.slice(n)];
   });
   studio.also.clear();
 }
-// adds a limb to a definition at torso bone `at` (or the default place); returns its first bone's id
-function attachLimb(def, kind, at) {
+// adds a limb or part to a definition at bone `at` (or the part's default place); opt: partSpec's options, given
+// only from the parts picker. Returns its first bone's id
+function attachLimb(def, kind, at, opt) {
   {
-    const L = LIMBS[kind], by = Object.fromEntries(def.bones.map(b => [b.id, b])), sel = by[at];
+    const L = opt ? partSpec(kind, opt) : LIMBS[kind], by = Object.fromEntries(def.bones.map(b => [b.id, b])), sel = by[at];
     const spine = def.bones.filter(b => b.role === 'spine'), top = spine.find(b => !spine.some(k => k.parent === b.id));
-    // arms and heads hang off the top of the torso, legs and tails off the hips, unless a torso bone is selected
-    const parent = sel?.role === 'spine' ? sel.id : kind === 'arm' || kind === 'head' ? top?.id ?? null : null;
+    const where = opt ? L.at : kind === 'arm' || kind === 'head' ? 'top' : null;
+    const home = where === 'head' ? def.bones.find(b => b.role === 'head' && b.shape === 'circle')?.id ?? top?.id : where === 'top' ? top?.id : null;
+    // limbs hang off the selected torso bone or socket, parts off any selected bone; else their home (top of the
+    // torso, the head, or the hips)
+    const parent = sel && (opt || sel.role === 'spine' || sel.shape === 'socket') ? sel.id : home ?? null;
+    // a mirrored pair on a sided bone (uarmF): its back copy goes on the partner (uarmB), when there is one
+    const partner = S => S === 'B' && sel?.side === 'f' && parent === sel.id && by[sel.id.replace(/F$/, 'B')] ? sel.id.replace(/F$/, 'B') : parent;
     const restW = id => id ? restW(by[id].parent) + (by[id].a ?? 0) : 0;
     const sides = L.pair ? ['F', 'B'] : [''];
     let n = 1; // one number for the whole limb so F/B partners keep matching names
     const name = (base, S) => base + (n > 1 ? n : '') + S;
     while (sides.some(S => L.bones.some(([base]) => by[name(base, S)]))) n++;
+    const k = opt && !PARTS[kind].segs ? L.size : 1; // a sized arm, leg or head: scale its fixed bones
+    const role = kind === 'head' ? 'head' : LIMBS[kind] ? kind : 'tail';
     for (const S of sides) L.bones.forEach(([base, len, props], i) => def.bones.push({
-      id: name(base, S), parent: i ? name(L.bones[i - 1][0], S) : parent, len, role: kind === 'head' ? 'head' : kind,
-      side: S.toLowerCase(), ...props, a: i ? props.a ?? 0 : L.w - restW(parent) }));
+      id: name(base, S), parent: i ? name(L.bones[i - 1][0], S) : partner(S), len: Math.round(len * k), role,
+      side: S.toLowerCase(), ...props, a: i ? props.a ?? 0 : L.w - restW(partner(S)) }));
     return name(L.bones[0][0], sides[0]);
   }
 }

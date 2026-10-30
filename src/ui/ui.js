@@ -38,7 +38,7 @@ const OPT_ICONS = { cards: 'view_module', list: 'list', table: 'table_rows', inp
   bone: 'straighten', body: 'accessibility_new', stand: 'man', crouch: 'keyboard_double_arrow_down', guard: 'shield', idle: 'man', air: 'air',
   down: 'airline_seat_flat', dizzy: 'cyclone', toward: 'arrow_forward', away: 'arrow_back', sweep: 'tune', breed: 'science', attacks: 'sports_mma',
   dummy: 'person', whiff: 'air', ai: 'smart_toy', showcase: 'theaters', walk: 'directions_walk', 'vs ai': 'smart_toy', '2d': 'crop_landscape',
-  lanes: 'view_stream', belt: 'view_in_ar', spine: 'accessibility', head: 'face', arm: 'front_hand', leg: 'footprint', tail: 'pets',
+  lanes: 'view_stream', belt: 'view_in_ar', spine: 'accessibility', head: 'face', arm: 'front_hand', leg: 'footprint', tail: 'pets', tentacle: 'waves', wing: 'air', horn: 'north_east',
   line: 'horizontal_rule', circle: 'circle', ragdoll: 'sports_kabaddi', pose: 'accessibility_new',
   raw: 'grain', tweened: 'animation', spring: 'waves', floaty: 'cloud', juicy: 'auto_awesome', overlay: 'layers', strip: 'theaters' };
 const optLabel = o => OPT_ICONS[o] ? `:${OPT_ICONS[o]}: ${o}` : String(o);
