@@ -4,7 +4,7 @@
 // A match's world is the play tab's fight while it lasts (build() asks netWorld()); it carries .net, so the app drives it here, at
 // a fixed 60 frames a second, and leaves it out of everything that would change it locally (rewind, scrub, loop, macros).
 const NET_NAME = 'stick2-netname', NET_SEED = 'stick2-nameseed', NET_DEVICE = 'stick2-device';
-const net = { public: true, rooms: null, replays: null, feed: null, rollback: true, peers: [], server: null, lobby: null, sig: null, pin: null, match: null, code: null, codeKind: null, inviting: null, pending: null, err: null, log: [], box: null, status: null, acc: 0, edges: {} };
+const net = { public: true, home: null, p2p: false, rooms: null, replays: null, feed: null, rollback: true, peers: [], server: null, lobby: null, sig: null, pin: null, match: null, code: null, codeKind: null, inviting: null, pending: null, err: null, log: [], box: null, status: null, acc: 0, edges: {} };
 const netStatus = () => { const m = net.match; if (m.watching) return `watching · frame ${m.f} · ${m.behind} behind${m.desync !== null ? ' · DESYNC' : ''}`; return `frame ${m.f} · delay ${m.delay}${m.roll ? ` · rollbacks ${m.rollbacks}` : ''} · waits ${m.stalls}${m.desync !== null ? ' · DESYNC' : ''}`; };
 const ownWorlds = () => mode().worlds().filter(w => !w.net); // the fights only this page runs
 const netWorld = () => net.match?.world || null;
@@ -20,13 +20,22 @@ function netRename(text) {
   try { localStorage.setItem(NET_NAME, n); } catch {}
   net.err = null; netDraw();
 }
-// the lobby browser: a server's public rooms (GET /api/rooms)
-async function netRooms(server) {
+// the lobby browser: a server's public rooms (GET /api/rooms); quiet: keep the list showing while it reloads
+async function netRooms(server, quiet = false) {
   let url; try { url = netServerUrl(server); } catch (e) { net.err = e.message; return netDraw(); }
-  net.rooms = { url, loading: true, rooms: [] }; netDraw();
+  if (!quiet || !net.rooms) { net.rooms = { url, loading: true, rooms: [] }; netDraw(); }
   try { net.rooms = { url, ...(await netServerRooms(url)) }; net.err = null; } catch (e) { net.rooms = null; net.err = `couldn't list the rooms: ${e.message}`; }
   netDraw();
 }
+// served by a stick2 server (src/net/netserver.js netServerHome): its rooms show straight away, and stay fresh while nobody's in a lobby
+async function netHome() {
+  const home = await netServerHome(); if (!home) return;
+  net.home = home; net.rooms = { ...home };
+  try { if (!netServerSaved()) localStorage.setItem(NET_SERVER, netServerName(home.url)); } catch {}
+  netDraw();
+  setInterval(() => { if (!net.p2p && (!net.lobby || net.lobby.phase === 'closed') && net.box?.isConnected && !document.hidden) netRooms(home.url, true); }, 5000);
+}
+netHome();
 // the lobby's log: chat (from: a name) and the app's own lines (no from), kept to the last 50
 const netSay = (text, from = null) => { net.log.push({ text, from, at: new Date() }); if (net.log.length > 50) net.log.shift(); netDraw(); };
 const netCodeIn = text => /s2[abc]\.[A-Za-z0-9_~-]{20,}/.test(String(text || '')); // a code (or a link with one) in what was typed or pasted
@@ -247,19 +256,9 @@ function netDraw() {
     } else {
       const name = h('input', { cls: 'macro', value: netName(), maxLength: NAMES.max, tip: `Your name in the lobby (${NAMES.min}-${NAMES.max} characters); a server adds a #tag if someone there has it already`, onkeydown: e => e.stopPropagation(), onchange: e => netRename(e.target.value) });
       rows.push(h('div', { cls: 'netrow' }, 'name ', name, button(':casino: reroll', 'A new made-up name (it stays on this device until the next reroll)', () => { netReroll(); netDraw(); })),
-        h('div', { cls: 'bar' }, button(':link: host', 'Open a lobby and make an invite to send to the other player', () => netLobby('host'))),
-        h('p', { textContent: 'or join with the invite you got:' }),
-        ...netCodeField('paste an invite link or code', 'The link or code the host sent you; it joins as soon as it\'s all here', t => netEnter(t)));
-      // or through a dedicated server: no codes, just a room code
-      const srv = h('input', { cls: 'macro', value: netServerSaved(), placeholder: 'server address', tip: 'A stick2 server (see docs/server.md), e.g. play.example.org', onkeydown: e => e.stopPropagation() });
-      const roomIn = h('input', { cls: 'macro', placeholder: 'room code', tip: 'The room code the host gave you; Enter joins', onkeydown: e => { e.stopPropagation(); if (e.code === 'Enter') netLobby('guest', { url: srv.value, room: roomIn.value }); } });
-      rows.push(h('p', { textContent: 'or through a server:' }), h('div', { cls: 'netrow' }, srv),
-        h('div', { cls: 'bar' }, button(':link: host on server', 'Open a room on the server and share its code or link', () => netLobby('host', { url: srv.value })),
-          toggle(':visibility: public', 'List the room in the server\'s room browser (off: only people with the code or link can join)', () => net.public, v => { net.public = v; }),
-          button(':list: rooms', 'Browse the server\'s public rooms', () => netRooms(srv.value)),
-          button(':replay: replays', 'The server\'s saved fights: watch one again or save it', () => netReplays(srv.value))),
-        h('div', { cls: 'netrow' }, roomIn, button(':check: join room', 'Join a room on the server by its code', () => netLobby('guest', { url: srv.value, room: roomIn.value })),
-          button(':visibility: watch', 'Watch the room\'s fight as a spectator', () => netLobby('guest', { url: srv.value, room: roomIn.value, want: 'watch' }))));
+        ...net.home && !net.p2p ? netHomeRows(net.home) : netOtherRows());
+      if (net.home) rows.push(h('div', { cls: 'bar' }, button(net.p2p ? `:arrow_back: back to ${net.home.server || 'this server'}` : ':more_horiz: other ways to play',
+        net.p2p ? 'Rooms on the server this page came from' : 'Browser to browser with an invite, or another server', () => { net.p2p = !net.p2p; netDraw(); })));
       if (net.rooms) rows.push(netRoomList(net.rooms));
       if (net.replays) rows.push(netReplayList(net.replays));
     }
@@ -321,6 +320,32 @@ function netDraw() {
   // a redraw (any lobby change) mustn't eat a half-typed chat line
   const say = box.querySelector('.netsay'); if (say) { say.value = draft; if (focused) say.focus(); }
   const log = box.querySelector('.netlog'); if (log) log.scrollTop = log.scrollHeight;
+}
+// the page came from a stick2 server: its rooms first, nothing to type but a room code
+function netHomeRows(home) {
+  const url = home.url, roomIn = h('input', { cls: 'macro', placeholder: 'room code', tip: 'The room code someone gave you; Enter joins', onkeydown: e => { e.stopPropagation(); if (e.code === 'Enter') netLobby('guest', { url, room: roomIn.value }); } });
+  return [h('p', {}, 'playing on ', h('b', { textContent: home.server || netServerName(url) }), home.region ? ` · ${home.region}` : ''),
+    h('div', { cls: 'bar' }, button(':add: new room', 'Open a room here and share its code, link or QR code', () => netLobby('host', { url })),
+      toggle(':visibility: public', 'List the room below for everyone on this server (off: only people with the code or link can join)', () => net.public, v => { net.public = v; }),
+      button(':replay: replays', 'This server\'s saved fights: watch one again or save it', () => netReplays(url))),
+    h('div', { cls: 'netrow' }, roomIn, button(':check: join', 'Join a room by its code', () => netLobby('guest', { url, room: roomIn.value })),
+      button(':visibility: watch', 'Watch the room\'s fight as a spectator', () => netLobby('guest', { url, room: roomIn.value, want: 'watch' })))];
+}
+// browser to browser (an invite and its PIN), or any server by its address
+function netOtherRows() {
+  const srv = h('input', { cls: 'macro', value: netServerSaved(), placeholder: 'server address', tip: 'A stick2 server (see docs/server.md), e.g. play.example.org, or localhost (port 8080 unless you type one)', onkeydown: e => e.stopPropagation() });
+  const roomIn = h('input', { cls: 'macro', placeholder: 'room code', tip: 'The room code the host gave you; Enter joins', onkeydown: e => { e.stopPropagation(); if (e.code === 'Enter') netLobby('guest', { url: srv.value, room: roomIn.value }); } });
+  return [h('div', { cls: 'bar' }, button(':link: host', 'Open a lobby and make an invite to send to the other player', () => netLobby('host'))),
+    h('p', { textContent: 'or join with the invite you got:' }),
+    ...netCodeField('paste an invite link or code', 'The link or code the host sent you; it joins as soon as it\'s all here', t => netEnter(t)),
+    // or through a dedicated server: no codes, just a room code
+    h('p', { textContent: 'or through a server:' }), h('div', { cls: 'netrow' }, srv),
+    h('div', { cls: 'bar' }, button(':link: host on server', 'Open a room on the server and share its code or link', () => netLobby('host', { url: srv.value })),
+      toggle(':visibility: public', 'List the room in the server\'s room browser (off: only people with the code or link can join)', () => net.public, v => { net.public = v; }),
+      button(':list: rooms', 'Browse the server\'s public rooms', () => netRooms(srv.value)),
+      button(':replay: replays', 'The server\'s saved fights: watch one again or save it', () => netReplays(srv.value))),
+    h('div', { cls: 'netrow' }, roomIn, button(':check: join room', 'Join a room on the server by its code', () => netLobby('guest', { url: srv.value, room: roomIn.value })),
+      button(':visibility: watch', 'Watch the room\'s fight as a spectator', () => netLobby('guest', { url: srv.value, room: roomIn.value, want: 'watch' })))];
 }
 // a server's public rooms, each with join and watch
 function netRoomList({ url, server, region, rooms, loading }) {

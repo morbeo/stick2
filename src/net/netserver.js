@@ -5,17 +5,21 @@
 // room code; guests join with it, or with a #server=…&room=… link or its QR code.
 const NET_SERVER = 'stick2-server'; // the last server used (localStorage)
 const NET_ROOM_RE = /^[A-Z0-9]{4,8}$/;
+const NET_PORT = 8080; // the server's default port: a local address typed without one gets it
+const NET_LAN = /^(localhost|127\.|\[?::1\]?|192\.168\.|10\.)/;
 
 // what a person types → the WebSocket URL: "example.org", "example.org:8080", "https://example.org", "ws://localhost:8080/ws"
 function netServerUrl(text, page = typeof location !== 'undefined' ? location : null) {
   let s = String(text || '').trim();
   if (!s) throw new Error('no server address');
+  const typed = s;
   if (!/^[a-z]+:\/\//i.test(s)) {
-    const local = /^(localhost|127\.|\[?::1\]?|192\.168\.|10\.)/.test(s) || page?.protocol === 'http:';
+    const local = NET_LAN.test(s) || page?.protocol === 'http:';
     s = (local ? 'ws://' : 'wss://') + s;
   }
   const u = new URL(s.replace(/^http/i, 'ws'));
   if (u.protocol !== 'ws:' && u.protocol !== 'wss:') throw new Error('not a server address');
+  if (!u.port && NET_LAN.test(u.hostname) && !/^(\w+:\/\/)?(\[[^\]]*\]|[^/:]+)(:\d+|\/\w)/.test(typed)) u.port = NET_PORT; // a local server: its port, unless one (or a full /ws address) was typed
   if (u.pathname === '/' || u.pathname === '') u.pathname = '/ws';
   u.hash = '';
   return u.toString();
@@ -90,6 +94,17 @@ function netServerJoin(lobby, url, roomCode, want = 'play', { device = '', WS } 
   // a guest can only report the host (or the room)
   link.report = (lobbyId, reason, lines = []) => link.send({ t: 'report', id: lobbyId === 'h' ? 'h' : null, reason, lines });
   return link;
+}
+// the server this page came from, if a stick2 server serves it (its GET /api/rooms answers): { url, server, region, rooms } or null.
+// A static host (GitHub Pages, a file) answers 404 or nothing, so the app stays as it is there.
+async function netServerHome(page = typeof location !== 'undefined' ? location : null, get = typeof fetch !== 'undefined' ? fetch : null, ms = 1500) {
+  if (!page || !get || !/^https?:$/.test(page.protocol)) return null;
+  try {
+    const r = await Promise.race([get(`${page.protocol}//${page.host}/api/rooms`), new Promise((_, no) => setTimeout(() => no(new Error('timeout')), ms))]);
+    const j = r.ok ? await r.json() : null;
+    if (!Array.isArray(j?.rooms)) return null;
+    return { url: `${page.protocol === 'https:' ? 'wss' : 'ws'}://${page.host}/ws`, ...j };
+  } catch { return null; }
 }
 // the public rooms of a server, over HTTP (GET /api/rooms) → { server, region, rooms: [{ room, name, host, phase, players, watchers, locked }] }
 async function netServerRooms(url) {
