@@ -108,13 +108,35 @@ test('server addresses: what people type becomes a ws(s) URL on /ws; links carry
   const run = context();
   const urls = plain(run(`['example.org', 'example.org:8080', 'https://example.org', 'http://example.org/x', 'localhost:8080', '192.168.1.4', 'ws://h/ws', 'wss://h/custom']
     .map(s => netServerUrl(s, { protocol: 'https:' }))`));
-  assert.deepEqual(urls, ['wss://example.org/ws', 'wss://example.org:8080/ws', 'wss://example.org/ws', 'ws://example.org/x', 'ws://localhost:8080/ws', 'ws://192.168.1.4/ws', 'ws://h/ws', 'wss://h/custom']);
+  assert.deepEqual(urls, ['wss://example.org/ws', 'wss://example.org:8080/ws', 'wss://example.org/ws', 'ws://example.org/x', 'ws://localhost:8080/ws', 'ws://192.168.1.4:8080/ws', 'ws://h/ws', 'wss://h/custom']);
   assert.equal(run(`netServerUrl('example.org', { protocol: 'http:' })`), 'ws://example.org/ws');
   assert.throws(() => run(`netServerUrl('  ')`), /no server address/);
   assert.throws(() => run(`netServerUrl('ftp://x')`), /not a server address/);
   assert.deepEqual(plain(run(`['wss://example.org/ws', 'ws://localhost:8080/ws', 'wss://h/custom'].map(netServerName)`)), ['example.org', 'ws://localhost:8080', 'h/custom']);
   assert.equal(run(`netServerLink('wss://example.org/ws', 'AB12', true, 'https://g.io/stick2/#old')`), 'https://g.io/stick2/#server=example.org&room=AB12&spectate=1');
   assert.equal(run(`netServerLink('wss://example.org/ws', null, false, 'https://g.io/')`), 'https://g.io/#server=example.org');
+});
+
+test('a local server without a port gets the default 8080, unless a port or a full /ws address was typed', () => {
+  const run = context();
+  const urls = plain(run(`['localhost', 'ws://127.0.0.1', '10.0.0.5/', 'localhost:9000', 'localhost:80', '[::1]', 'ws://localhost/ws', 'example.org']
+    .map(s => netServerUrl(s, { protocol: 'https:' }))`));
+  assert.deepEqual(urls, ['ws://localhost:8080/ws', 'ws://127.0.0.1:8080/ws', 'ws://10.0.0.5:8080/ws', 'ws://localhost:9000/ws', 'ws://localhost/ws', 'ws://[::1]:8080/ws', 'ws://localhost/ws', 'wss://example.org/ws']);
+});
+
+test('the home server: a page a stick2 server serves finds it; a static host, a file or a slow answer doesn\'t', async () => {
+  const run = context();
+  const home = run('netServerHome'), seen = [];
+  const answer = (status, body) => async u => { seen.push(u); return { ok: status === 200, json: async () => body }; };
+  const rooms = { server: 'arena', region: 'eu', rooms: [] };
+  assert.deepEqual(plain(await home({ protocol: 'http:', host: 'localhost:8080' }, answer(200, rooms))), { url: 'ws://localhost:8080/ws', ...rooms });
+  assert.equal(seen[0], 'http://localhost:8080/api/rooms');
+  assert.equal((await home({ protocol: 'https:', host: 'play.example.org' }, answer(200, rooms))).url, 'wss://play.example.org/ws');
+  assert.equal(await home({ protocol: 'https:', host: 'morbeo.github.io' }, answer(404, null)), null);
+  assert.equal(await home({ protocol: 'https:', host: 'x' }, answer(200, { other: 1 })), null);
+  assert.equal(await home({ protocol: 'file:', host: '' }, answer(200, rooms)), null);
+  assert.equal(await home({ protocol: 'http:', host: 'x' }, async () => { throw new Error('offline'); }), null);
+  assert.equal(await home({ protocol: 'http:', host: 'x' }, () => new Promise(() => {}), 20), null);
 });
 
 test('two lobbies through a relay server: the host gets a room code, the guest joins it, leaves, and a closed host closes the guest', async () => {
