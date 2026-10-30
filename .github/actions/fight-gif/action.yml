@@ -16,7 +16,7 @@ runs:
       with:
         node-version: 22
     - name: Set up Chrome
-      uses: browser-actions/setup-chrome@c785b87e244131f27c9f19c1a33e2ead956ab7ce # v1
+      uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4 # v2.2.0
       id: chrome
       with:
         install-dependencies: true # bare ubuntu-latest is missing libnss3 etc. that Chrome for Testing needs to start
