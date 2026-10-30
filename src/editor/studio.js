@@ -548,7 +548,34 @@ const PARTS = {
   tentacle: { at: null, segs: 6, tip: 'A long, floppy tentacle: each segment thinner and laggier.', make: o => chainPart('tentacle', -60, 11, o, { thick: 5, end: 1, bend: 10, lag: 0.7, give: 80 }) },
   wing: { at: 'top', pair: true, segs: 3, tip: 'Wings: up and back from the shoulders, swept tips.', make: o => chainPart('wing', -150, 16, o, { thick: 3, end: 1, bend: -35, lag: 0.8, give: 40 }) },
   horn: { at: 'head', pair: true, segs: 2, tip: 'Horns: stiff, pointed, curling back.', make: o => chainPart('horn', -70, 6, o, { thick: 3, end: 0, bend: -30, lag: 0.1, give: 10, point: true }) },
+  socket: { at: 'top', tip: 'A socket: an invisible attach point. A held weapon goes on the first socket instead of the front hand.', make: () => ({ w: 0, bones: [['socket', 6, { shape: 'socket', hurt: 0, lag: 0 }]] }) },
 };
+// my parts: subtrees saved from any character (this browser only, like my weapons); a template whose bones name their
+// parent by index ([base, len, props, parent index]), so a part can branch
+const PART_STORE = 'stick2.parts';
+const myParts = (() => { try { return JSON.parse(localStorage.getItem(PART_STORE)) || {}; } catch { return {}; } })();
+const ownPart = (name, t) => ({ own: true, at: null, tip: `Your part (${t.bones.length} bones), saved from ${t.from || 'a character'}.`, make: () => t });
+for (const [n, t] of Object.entries(myParts)) PARTS[n] ??= ownPart(n, t);
+function savePartsStore() { try { localStorage.setItem(PART_STORE, JSON.stringify(myParts)); } catch {} }
+// the selected bone and everything below it as a part template: side letters and sides dropped (the picker's mirror
+// sets them), the root's rest angle kept as a world angle
+function partFromBone(def, id) {
+  const by = Object.fromEntries(def.bones.map(b => [b.id, b])), restW = i => i ? restW(by[i].parent) + (by[i].a ?? 0) : 0;
+  const ids = subtree(def, id), cut = i => i.replace(/[FB]$/, '') || i;
+  const base = i => ids.filter(j => cut(j) === cut(i)).length > 1 ? i : cut(i); // uarmF + uarmB in one part: keep both names
+  const bones = ids.map((i, n) => { const { id: _, parent, side, a, ...props } = by[i];
+    return [base(i), props.len, { ...props, ...n && a !== undefined ? { a } : null }, n ? ids.indexOf(parent) : undefined]; });
+  return { w: restW(id), from: def.name || CURRENT, bones: bones.map(([b, len, { len: _, ...p }, pi]) => pi === undefined ? [b, len, p] : [b, len, p, pi]) };
+}
+async function savePart() {
+  const def = DEFS[CURRENT];
+  if (!def.bones.some(b => b.id === studio.sel)) return notice('No bone selected', 'Select the first bone of the part: it and everything below it are saved');
+  const name = (await askText('Save the part as', (studio.sel || 'part').replace(/[FB]$/, '')))?.trim();
+  if (!name) return;
+  if (PARTS[name] && !PARTS[name].own) return notice('Name taken', `"${name}" is a built-in part`);
+  myParts[name] = partFromBone(def, studio.sel); PARTS[name] = ownPart(name, myParts[name]); savePartsStore();
+}
+function deletePart(name) { if (!PARTS[name]?.own) return; delete myParts[name]; delete PARTS[name]; savePartsStore(); }
 // a chain of segs bones from w (world angle), each bent by bend, shorter and thinner toward the tip
 function chainPart(name, w, len, o, { thick, end, bend, lag = 1, give = 70, point }) {
   const n = o.segs, k = o.size;
@@ -562,8 +589,10 @@ function chainPart(name, w, len, o, { thick, end, bend, lag = 1, give = 70, poin
 // a part's template for its options ({ size, segs, pair }; missing ones take the part's own defaults)
 function partSpec(kind, opt = {}) {
   const P = PARTS[kind], o = { size: 1, segs: P.segs ?? 3, pair: !!P.pair, ...opt };
-  return { ...P.make(o), pair: o.pair, size: o.size, at: P.at };
+  return { ...P.make(o), pair: o.pair, size: o.size, at: P.at, hit: o.hit };
 }
+// the picker's hit option: cosmetic parts are never hit; hittable ones get a hurtbox about their thickness
+const partHurt = (hit, props) => hit === 'cosmetic' ? { hurt: 0 } : hit === 'hittable' && props.shape !== 'socket' ? { hurt: Math.max(4, (props.thick ?? BONE.thick) + 3) } : null;
 // (stance only: the stance's body adds it)
 function addLimb(kind, opt) {
   edit(def => {
@@ -591,11 +620,11 @@ function attachLimb(def, kind, at, opt) {
     let n = 1; // one number for the whole limb so F/B partners keep matching names
     const name = (base, S) => base + (n > 1 ? n : '') + S;
     while (sides.some(S => L.bones.some(([base]) => by[name(base, S)]))) n++;
-    const k = opt && !PARTS[kind].segs ? L.size : 1; // a sized arm, leg or head: scale its fixed bones
+    const k = opt && !PARTS[kind].segs ? L.size : 1; // a sized arm, leg, head or own part: scale its fixed bones
     const role = kind === 'head' ? 'head' : LIMBS[kind] ? kind : 'tail';
-    for (const S of sides) L.bones.forEach(([base, len, props], i) => def.bones.push({
-      id: name(base, S), parent: i ? name(L.bones[i - 1][0], S) : partner(S), len: Math.round(len * k), role,
-      side: S.toLowerCase(), ...props, a: i ? props.a ?? 0 : L.w - restW(partner(S)) }));
+    for (const S of sides) L.bones.forEach(([base, len, props, pi], i) => def.bones.push({
+      id: name(base, S), parent: i ? name(L.bones[pi ?? i - 1][0], S) : partner(S), len: Math.round(len * k), role: props.role ?? role,
+      ...props, side: S ? S.toLowerCase() : props.side ?? '', ...partHurt(L.hit, props), a: i ? props.a ?? 0 : L.w - restW(partner(S)) }));
     return name(L.bones[0][0], sides[0]);
   }
 }
