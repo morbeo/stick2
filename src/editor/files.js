@@ -229,6 +229,16 @@ function floorRow(i, name, own, ref) {
     toggle(':air: off the floor', tip, () => own()?.hipH != null, v => { set(v ? lowest() : null); panels(); }))),
     own()?.hipH != null ? slider('hip height', { min: 0, max: 160, step: 1 }, () => own()?.hipH ?? 0, v => set(v), `How high the hip stands above the floor in ${name} (px)`) : null];
 }
+// a ready boxer stance to start from: off the floor at the main stance's height (so the bounce idle lifts the feet),
+// its own body bouncing on its toes with short quick steps and a strong foot roll; switch with S+G
+function addBoxerStance() {
+  const ch = currentChar(), L = fk(ch, ch.stances[0].pose, 1);
+  let low = 0; for (const b of ch.bones) low = Math.max(low, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
+  edit(def => { (def.stances ??= []).push({ name: 'boxer', key: 'S+G', pose: {}, binds: {}, hipH: Math.round(low),
+    body: { gait: { idle: 'bounce', idleAmt: 1.8, stride: 0.6, backStride: 0.9, footRoll: 1.6, bob: 1.5, run: 0 } } }); });
+  studio.stance = DEFS[CURRENT].stances.length;
+  panels(); mode().restart();
+}
 // a stance's switch transition (def.stances[i - 1].morph over MORPH): springs, an auto blend over T frames, or a transition move
 function stanceMorph(i, name) {
   const mo = k => ({ ...MORPH, ...DEFS[CURRENT].stances[i - 1].morph })[k];

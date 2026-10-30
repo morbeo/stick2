@@ -199,7 +199,7 @@ function creatorRender() {
   if (pv.x > ed.w) { ctx.fillStyle = '#f3f0e8'; ctx.fillRect(ed.w, 0, pv.x - ed.w, ed.h); } // under the rig tools column
   drawEditor();
   drawCell({ w: creator.w, label: 'preview' }, pv, { plot: false });
-  drawTipGhost();
+  drawTipGhost(); drawStepPath();
 }
 // keeping a random cell adds it once; clicking it again offers to update that character instead of adding a copy
 async function keepRandom(i) {
@@ -386,7 +386,10 @@ function gaitPanel() {
   title.append(groupOps(GAIT_VARS, get, dflt, set,
     ['Experiment: nine bodies varying the walk and idle; click the best to breed around it', () => { creator.exp.vars = new Set(GAIT_VARS.filter(s => !s.opts).map(s => s.k)); creator.preview = 'walk'; openBodyVary(); }]));
   const loops = ['idle', 'walk'].map(n => loopName(currentChar(), studio.stance, n)).filter(n => currentChar().moves[n]);
-  return [title, loops.length ? h('div', { cls: 'note', textContent: `keyframed ${loops.join(' and ')} loop replaces the procedural one` }) : null,
+  const path = h('div', { cls: 'row', tip: 'Draw each foot\'s path in the preview (walk preview: one full cycle)' }, h('span', {}, ...rich(':timeline: preview')), h('span', { cls: 'bar' },
+    toggle(':footprint: step path', 'Trail every foot in the preview fight: each one should go as far forward as back', () => rig.steps, v => { rig.steps = v; rig.stepTrail = []; if (v) creator.preview = 'walk'; })));
+  return [title, h('div', { cls: 'note', textContent: own ? 'this stance only: these change this stance\'s walk alone' : 'a stance can walk its own way: pick it and switch on this stance only (stance row)' }), path,
+    loops.length ? h('div', { cls: 'note', textContent: `keyframed ${loops.join(' and ')} loop replaces the procedural one` }) : null,
     ...GAIT_VARS.map(s => s.opts ? h('div', { cls: 'row', tip: s.tip }, h('span', { textContent: s.k }), seg(s.opts, () => get(s.k), v => set({ [s.k]: v }), s.optTips))
       : bodyExpLink(slider(s.k, s, () => get(s.k), v => set({ [s.k]: v }), s.tip), s.k, 'walk'))];
 }
@@ -611,7 +614,7 @@ function expPanel() {
 // ---------- rig tools: a docked column beside the character view (setup / animate, pose clipboard, isolate, tip ghost) ----------
 // setup: dragging a joint sets its angle and length, Alt+drag reparents · animate: angles only, the rig itself can't change
 const RIG_W = 210; // css px
-const rig = { mode: 'setup', isolate: false, ghost: false, trail: [],
+const rig = { mode: 'setup', isolate: false, ghost: false, trail: [], steps: false, stepTrail: [],
   clip: (() => { try { return JSON.parse(localStorage.getItem('stick2.poseClip')) || null; } catch { return null; } })() };
 layFlag(rig, 'hidden', 'rigHidden');
 const rigShown = () => !rig.hidden && !creator.expOn && innerWidth > 700; // narrow screens: a bottom sheet over the stage instead (css)
@@ -649,6 +652,24 @@ function drawTipGhost() {
   for (let i = 1; i < rig.trail.length; i++) {
     const a = rig.trail[i - 1], b = rig.trail[i];
     ctx.globalAlpha = i / rig.trail.length;
+    ctx.beginPath(); ctx.moveTo(a[0] * s + ox, a[1] * s + oy); ctx.lineTo(b[0] * s + ox, b[1] * s + oy); ctx.stroke();
+  }
+  ctx.restore();
+}
+// the walk's step path: every foot's ankle in the preview fight, kept ~1.5 s and drawn as fading trails, to see each
+// foot travel as far forward as back while tuning stride, swing, lift and bob (walk & idle; the walk preview shows it best)
+function drawStepPath() {
+  const w = creator.w, f = w?.a;
+  if (!rig.steps || !w?.view || !f) { rig.stepTrail = []; return; }
+  const P = f.body(), ank = f.ch.chains.leg.map(c => c[c.length >= 3 ? c.length - 2 : c.length - 1]);
+  (rig.stepTrail ??= []).push(ank.map(b => P[b.id]));
+  if (rig.stepTrail.length > 90) rig.stepTrail.shift();
+  const { s, ox, oy } = w.view, r = edLayout().pv, T = rig.stepTrail;
+  ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
+  ctx.strokeStyle = '#2c7be5'; ctx.lineWidth = 2 * dpr; ctx.lineCap = 'round';
+  for (let i = 1; i < T.length; i++) for (let j = 0; j < T[i].length; j++) {
+    const a = T[i - 1][j], b = T[i][j]; if (!a || !b) continue;
+    ctx.globalAlpha = i / T.length;
     ctx.beginPath(); ctx.moveTo(a[0] * s + ox, a[1] * s + oy); ctx.lineTo(b[0] * s + ox, b[1] * s + oy); ctx.stroke();
   }
   ctx.restore();
