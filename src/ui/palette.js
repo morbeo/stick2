@@ -54,6 +54,9 @@ function paletteEntries() {
       ['stance blend: bezier', 'Make the selected stance\'s transition an auto blend on your own bezier curve (edit it under transition)', () => {
         if (studio.stance) edit(d => { const st = d.stances[studio.stance - 1]; st.morph = { ...st.morph, mode: 'auto', ease: 'bezier' }; });
       }],
+      ['stance: off the floor', 'Toggle the selected stance off the floor anchor: the hip stands at a set height and the feet may leave the floor (a boxer\'s shuffle)', () => {
+        edit(d => { const st = studio.stance ? d.stances[studio.stance - 1] : (d.main ??= {}); if (st.hipH != null) { delete st.hipH; pruneMain(d); } else { const ch = currentChar(), L = fk(ch, ch.stances[studio.stance].pose, 1); st.hipH = Math.round(Math.max(0, ...ch.bones.map(b => L[b.id][1] + (b.shape === 'circle' ? b.len : 0)))); } }); panels();
+      }],
       ['skin: save', 'Save the bones\' current look as a new skin', saveSkin],
       ...Object.keys(DEFS[CURRENT]?.skins || {}).map(n => ['skin: ' + n, `Apply the ${n} skin`, () => applySkin(n)]),
       ['group: save', 'Save the selected bones as a named group', saveGroup],

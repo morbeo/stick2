@@ -119,11 +119,18 @@ const STAT_GROUPS = { ground: 'Ground: walking, dashing, turning, weight', air: 
 // walk and idle, per character: the procedural cycle's knobs (moves named idle / walk, if any, replace it with keyframed loops)
 const GAIT_VARS = [
   { k: 'stride', v: 1, min: 0, max: 2, step: 0.05, tip: 'How far the legs swing walking.' },
-  { k: 'lift', v: 1, min: 0, max: 2.5, step: 0.05, tip: 'How high the knees come up on each step.' },
+  { k: 'swing', v: 0, min: -0.5, max: 0.5, step: 0.05, tip: 'Step balance: 0 = each foot goes as far forward as back; + steps more in front of the body, − more behind.' },
+  { k: 'stepCenter', v: 0, min: 0, max: 1, step: 0.05, tip: 'Where the steps are centred: 0 = around the foot\'s spot in the stance (a wide stance walks wide), 1 = under the hip.' },
+  { k: 'backStride', v: 0.7, min: 0.2, max: 1.5, step: 0.05, tip: 'Walking backwards: its steps (and speed of the cycle) × this.' },
+  { k: 'footRoll', v: 1, min: 0, max: 2.5, step: 0.05, tip: 'Heel-to-toe roll: the toes come up as the heel strikes in front and point down as they push off behind; 0 = the feet stay as their level keeps them.' },
+  { k: 'lift', v: 1, min: 0, max: 2.5, step: 0.05, tip: 'How high the foot lifts on the way forward each step.' },
   { k: 'armSwing', v: 1, min: 0, max: 2.5, step: 0.05, tip: 'How much the arms counter-swing the legs.' },
   { k: 'lean', v: 1, min: -2, max: 3, step: 0.1, tip: 'Torso lean into the walking direction.' },
   { k: 'idle', v: 'auto', opts: ['auto', 'shift', 'bounce', 'sway', 'still'], tip: 'Idle style: weight shift, boxer bounce, sway or still; auto picks one per fighter.',
     optTips: { auto: 'Each fighter picks one of the styles', shift: 'Shifts its weight from foot to foot', bounce: 'Bounces on its toes like a boxer', sway: 'Sways side to side', still: 'Stands still' } },
+  { k: 'airKick', v: 1, min: 0, max: 3, step: 0.05, tip: 'In the air: how much the legs keep cycling (a loose run in the air), 0 = held in the air pose.' },
+  { k: 'airDrag', v: 1, min: 0, max: 3, step: 0.05, tip: 'In the air: how far the legs trail behind the body\'s drift, and stream out behind an air dash.' },
+  { k: 'airReach', v: 1, min: 0, max: 3, step: 0.05, tip: 'In the air: how much the legs straighten to reach for the floor as it comes up.' },
   { k: 'idleAmt', v: 1, min: 0, max: 3, step: 0.05, tip: 'Strength of the idle motion.' },
   { k: 'breath', v: 1, min: 0, max: 3, step: 0.1, tip: 'Breathing: the chest and arms rise and fall.' },
 ];
@@ -173,15 +180,17 @@ function makeCharacter(def) {
     col: def.col ? [def.col, tint(def.col, 0.6)] : null };
   // stances: main (index 0) plus any extra; each has its pose, its own binds over the main ones, the key that switches to it and
   // its requirements (STANCE_REQ; req.moves 'own': only its own binds, a list: only those moves) and its transition (MORPH)
+  // hipH: off the floor anchor, the hip sits hipH px above the floor and the feet may leave it (a boxer's shuffle, a hop on
+  // one foot); null = the body's lowest point stands on the floor
   // fly: the stance hovers instead of falling — ↑ / ↓ fly up / down, gravity and landing are suspended while in it
   // main is a stance like the others, just with no key and no body/req/morph of its own unless def.main sets them (main: true marks it)
   const binds = (s, k) => { const m = s.req?.moves, b = m === 'own' ? { ...s[k] } : { ...ch[k], ...s[k] };
     return Array.isArray(m) ? Object.fromEntries(Object.entries(b).filter(([, n]) => m.includes(n))) : b; };
   const mainS = def.main || {};
   ch.stances = [{ name: 'main', pose: ch.poses.stance, binds: binds(mainS, 'binds'), binds25: binds(mainS, 'binds25'),
-      req: { ...STANCE_REQ, ...mainS.req }, morph: { ...MORPH, ...mainS.morph }, fly: !!mainS.fly, main: true },
+      req: { ...STANCE_REQ, ...mainS.req }, morph: { ...MORPH, ...mainS.morph }, fly: !!mainS.fly, hipH: mainS.hipH ?? null, main: true },
     ...(def.stances || []).map(s => ({ name: s.name, key: stanceKey(s.key), pose: { ...ch.poses.stance, ...s.pose }, binds: binds(s, 'binds'), binds25: binds(s, 'binds25'),
-      req: { ...STANCE_REQ, ...s.req }, morph: { ...MORPH, ...s.morph }, fly: !!s.fly, main: false }))];
+      req: { ...STANCE_REQ, ...s.req }, morph: { ...MORPH, ...s.morph }, fly: !!s.fly, hipH: s.hipH ?? null, main: false }))];
   // armed (see armed): the weapon class's binds go over every stance's, where the move exists
   ch.def = def;
   if (def.weapon) {
