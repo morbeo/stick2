@@ -25,6 +25,10 @@ npm run test:server       # installs server deps, then its tests: routes, rooms,
 npm run test:server-browser  # two browsers: host a room in the play tab, join by its link, fight, no desync
 ```
 
+Then open http://localhost:8080 and go to the play tab. A page the server serves finds the server by itself (it asks `/api/rooms` on its own address), so the netplay section skips the address box. It shows **playing on** the server's name, **new room**, a room code field with **join** and **watch**, **replays**, and the public rooms, refreshed every 5 seconds. **other ways to play** brings back invites and other servers. From another device on your network, open `http://<your computer's address>:8080`.
+
+Typed by hand, a local address without a port (`localhost`, `127.0.0.1`, `192.168.…`, `10.…`) gets port 8080.
+
 Docker (build from the repo root):
 
 ```sh
