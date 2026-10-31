@@ -57,6 +57,8 @@ function paletteEntries() {
       ['stance: off the floor', 'Toggle the selected stance off the floor anchor: the hip stands at a set height and the feet may leave the floor (a boxer\'s shuffle)', () => {
         edit(d => { const st = studio.stance ? d.stances[studio.stance - 1] : (d.main ??= {}); if (st.hipH != null) { delete st.hipH; pruneMain(d); } else { const ch = currentChar(), L = fk(ch, ch.stances[studio.stance].pose, 1); st.hipH = Math.round(Math.max(0, ...ch.bones.map(b => L[b.id][1] + (b.shape === 'circle' ? b.len : 0)))); } }); panels();
       }],
+      ['stance: boxer shuffle', 'Add a boxer stance: off the floor, bouncing on its toes, short quick steps with a strong foot roll (tune it like any stance)', addBoxerStance],
+      ['walk: step path', 'Trail every foot in the preview fight while tuning the walk', () => { rig.steps = !rig.steps; rig.stepTrail = []; if (rig.steps) creator.preview = 'walk'; }],
       ['skin: save', 'Save the bones\' current look as a new skin', saveSkin],
       ...Object.keys(DEFS[CURRENT]?.skins || {}).map(n => ['skin: ' + n, `Apply the ${n} skin`, () => applySkin(n)]),
       ['group: save', 'Save the selected bones as a named group', saveGroup],

@@ -27,8 +27,8 @@ function anFrame() {
   const ch = edChar(), r = anLayout().ed, s = Math.min(r.h / 170, r.w / 150), ground = r.y + r.h * 0.86;
   const pose = samplePose(ch, curMove(), anim.t), wa = {}, L = fk(ch, pose, 1, null, wa);
   if (!anim.drag) {
-    let low = 0;
-    for (const b of ch.bones) low = Math.max(low, L[b.id][1] + (b.shape === 'circle' ? b.len : 0));
+    let low = ch.stances[studio.stance]?.hipH; // a stance off the floor: the hip at its set height, the feet free to leave the floor
+    if (low == null) { low = 0; for (const b of ch.bones) low = Math.max(low, L[b.id][1] + (b.shape === 'circle' ? b.len : 0)); }
     anim.anchor = [r.x + r.w * 0.45, ground - low * s];
   }
   const o = anim.anchor, toScreen = p => [o[0] + p[0] * s, o[1] + p[1] * s];
