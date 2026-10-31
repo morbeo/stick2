@@ -4,14 +4,14 @@ solo           hits 0 blocks 0 hp 100.0 100.0 x 300 760
 jab spam       hits 10 blocks 0 hp 100.0 50.0 x 387 444
 J,J,J          hits 3 blocks 0 hp 100.0 79.0 x 357 479
 K,K            hits 2 blocks 0 hp 100.0 78.4 x 341 608
-J,J,K          hits 3 blocks 0 hp 100.0 77.4 x 347 639
+J,J,K          hits 3 blocks 0 hp 100.0 77.4 x 347 632
 J,K,K          hits 3 blocks 0 hp 100.0 75.6 x 341 607
 juggle         hits 3 blocks 0 hp 100.0 79.0 x 362 479
 sweep          hits 1 blocks 0 hp 100.0 90.0 x 330 458
 dash punch     hits 1 blocks 0 hp 100.0 89.0 x 430 572
 air kick       hits 1 blocks 0 hp 100.0 91.0 x 330 406
 J→rush         hits 2 blocks 0 hp 100.0 84.2 x 439 477
-J,K→spin       hits 3 blocks 0 hp 100.0 74.8 x 359 639
+J,K→spin       hits 3 blocks 0 hp 100.0 74.8 x 359 640
 rising         hits 1 blocks 0 hp 100.0 86.0 x 341 443
 chase jump     hits 3 blocks 0 hp 100.0 76.4 x 371 522
 air combo      hits 3 blocks 0 hp 100.0 79.0 x 362 479
@@ -64,13 +64,13 @@ win pose       hits 1 blocks 0 hp 5.0 0.0 x 330 524
 pounce         hits 2 blocks 0 hp 100.0 81.9 x 437 475
 wall bounce    hits 2 blocks 0 hp 100.0 76.9 x 589 726
 OTG stomp      hits 2 blocks 0 hp 100.0 82.8 x 413 471
-ai 2v2         hits 17 blocks 0 hp 35.7 100.0 x 95 139
-ai 1v3         hits 10 blocks 0 hp 14.6 100.0 x 92 45
+ai 2v2         hits 18 blocks 0 hp 35.7 91.3 x 79 144
+ai 1v3         hits 4 blocks 0 hp 62.8 100.0 x 296 139
 ai 3-way       hits 9 blocks 0 hp 82.0 82.5 x 447 377
-ai free-for-all hits 11 blocks 1 hp 41.4 65.9 x 354 246
-ai vs waves    hits 4 blocks 0 hp 83.8 76.1 x 611 749
-ai survival    hits 5 blocks 0 hp 44.4 50.0 x 532 437
-ai rumble      hits 12 blocks 0 hp 94.0 47.2 x 127 560
+ai free-for-all hits 12 blocks 0 hp 38.2 78.8 x 272 184
+ai vs waves    hits 4 blocks 0 hp 83.8 76.1 x 610 748
+ai survival    hits 5 blocks 0 hp 44.4 50.0 x 532 436
+ai rumble      hits 13 blocks 0 hp 57.5 76.2 x 275 623
 sandwich       hits 5 blocks 0 hp 100.0 77.4 x 330 637
 crowd          hits 1 blocks 0 hp 100.0 92.0 x 66 107
 showcase       hits 5 blocks 0 hp 100.0 54.4 x 754 715
@@ -87,7 +87,7 @@ jump           hits 0 blocks 0 hp 100.0 100.0 x 450 550
 hadoo showcase hits 1 blocks 0 hp 100.0 91.0 x 284 424
 grumbo showcase hits 2 blocks 0 hp 125.0 91.0 x 307 266
 jabbo showcase hits 2 blocks 0 hp 105.0 80.0 x 655 693
-sneeko showcase hits 3 blocks 0 hp 90.0 44.0 x 190 213
+sneeko showcase hits 3 blocks 0 hp 90.0 44.0 x 214 257
 zippa showcase hits 0 blocks 0 hp 95.0 95.0 x 311 400
 hicco showcase hits 2 blocks 0 hp 105.0 65.0 x 580 586
 lumpo showcase hits 5 blocks 0 hp 120.0 81.9 x 512 550
@@ -95,10 +95,10 @@ sarj showcase  hits 2 blocks 0 hp 110.0 72.0 x 445 483
 noodo showcase hits 3 blocks 0 hp 90.0 46.0 x 449 381
 gogili showcase hits 7 blocks 0 hp 105.0 33.2 x 580 633
 honky showcase hits 1 blocks 0 hp 110.0 92.0 x 431 580
-gloomo showcase hits 4 blocks 0 hp 130.0 95.6 x 563 507
+gloomo showcase hits 4 blocks 0 hp 130.0 95.6 x 563 514
 centaur showcase hits 3 blocks 0 hp 100.0 67.0 x 514 647
 houndo showcase hits 2 blocks 0 hp 95.0 57.0 x 422 494
 otkopod showcase hits 2 blocks 0 hp 110.0 88.0 x 388 582
-clampo showcase hits 3 blocks 0 hp 120.0 69.0 x 519 553
+clampo showcase hits 3 blocks 0 hp 120.0 69.0 x 513 547
 bonko showcase hits 2 blocks 0 hp 85.0 70.0 x 441 485
 stick showcase hits 3 blocks 0 hp 100.0 76.0 x 478 577

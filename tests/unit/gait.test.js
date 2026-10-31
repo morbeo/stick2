@@ -37,3 +37,29 @@ test('off the floor (hipH): the hip stands at its height, the feet may leave the
   assert.ok(Math.abs(r.main) <= 4, 'main: on the floor');
   assert.equal(r.hip, 70, 'the hip 70 px up');
 });
+
+// one fighter's procPose with some state set; returns the thigh / shin angles of leg 0 and the spine's
+run(`var legAt = (set, gait = {}) => { const w = new World({ a: 'dummy', b: 'dummy' }, {}, 7, [CHARS.stick, CHARS.stick]), f = w.a, ch = f.ch, c = ch.chains.leg[0];
+  const g0 = { ...ch.gait }; Object.assign(ch.gait, gait); Object.assign(f, set); const P = f.procPose(); Object.assign(ch.gait, g0);
+  return [P[c[0].id], P[c[1].id], P[ch.chains.spine[0][0].id]]; };`);
+
+test('landing keeps the knees bent a moment (landBend), straight with it off', () => {
+  const [, bent] = R(`legAt({ landT: 0.2, landK: 1 })`), [, flat] = R(`legAt({ landT: 0.2, landK: 1 }, { landBend: 0 })`), [, none] = R(`legAt({})`);
+  assert.ok(Math.abs(bent - none) > 10, 'bent'); assert.ok(Math.abs(flat - none) < 1e-9, 'off');
+});
+
+test('past runAt the walk becomes a run: longer steps and a lean; run 0 keeps the walk', () => {
+  const r = R(`(() => { const sp = k => { const w = new World({ a: 'dummy', b: 'dummy' }, {}, 7, [CHARS.stick, CHARS.stick]), f = w.a; f.vx = f.dir * f.c('maxSpeed') * 1.5; f.walkPh = Math.PI / 2;
+    Object.assign(f.ch.gait, { run: k }); const L = fk(f.ch, f.procPose(), 1); Object.assign(f.ch.gait, { run: 1 }); return L[f.ch.chains.leg[0][1].id][0]; };
+    return [sp(1), sp(0)]; })()`);
+  assert.ok(r[0] > r[1] + 3, `the run steps further: ${r}`);
+});
+
+test('turning on the ground swings a foot through (turnStep)', () => {
+  const [a] = R(`legAt({ face: 0 })`), [b] = R(`legAt({ face: 0 }, { turnStep: 0 })`);
+  assert.ok(Math.abs(a - b) > 5);
+});
+
+test('the stance pose fk is cached per pose and character', () => {
+  assert.ok(R(`(() => { const ch = CHARS.stick, p = ch.stances[0].pose; return baseFk(ch, p) === baseFk(ch, p) && baseFk(ch, { ...p }) !== baseFk(ch, p); })()`));
+});

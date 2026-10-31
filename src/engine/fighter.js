@@ -31,6 +31,14 @@ function flashCol(combo) {
 // so no pose leaves the torso or head hanging in the air above the floor
 // two-bone IK: thigh th and shin a turn so a's end reaches (tx, ty), in the unflipped rig space of L / wa (fk of P); the
 // knee bends the way it bends now. P is changed in place
+// fk of a stance's own pose, per character (stance bodies share a pose object but not their lengths): the walk's rest
+// spots, recomputed only when the pose object changes (an edit or a morph makes a new one)
+const BASE_FK = new WeakMap();
+function baseFk(ch, pose) {
+  let m = BASE_FK.get(pose); if (!m) BASE_FK.set(pose, m = new WeakMap());
+  let L = m.get(ch); if (!L) m.set(ch, L = fk(ch, pose, 1));
+  return L;
+}
 function legIK(ch, P, wa, L, th, a, tx, ty, lens) {
   const pb = ch.by[th.parent], pw = pb ? wa[pb.id] : 0, o = L[th.parent || 'hip'], l1 = lens?.[th.id] ?? th.len, l2 = lens?.[a.id] ?? a.len;
   tx -= o[0]; ty -= o[1];
@@ -64,7 +72,7 @@ class Fighter {
       sq: 0, sqv: 0, trail: [], poseHist: [], dirs: [], pressT: { punch: -1e9, kick: -1e9, special: -1e9 }, guardHeld: false, guardPressT: -1e9, used: [], juggles: 0, jugUsed: 0,
       z: 0, vz: 0, lane: 0, dashT: 0, wallJumpT: 0, passT: 0, invT: 0, after: [], afterT: 0, running: false, tap: null, prevIn: NOIN, flip: 0, spin: 0, airT: 0,
       guarding: false, blockT: 0, parryT: 0, ko: false, label: '', labelT: 0, stunM: 0, power: 0, dizzyT: 0, reelT: 0, splatT: 0, splat: false, gb: false, heldBy: null, heldM: null, heldT: 0, heldAt: 0, blocked: null, flyT: 0, guardT: -9, stanceI: 0,
-      airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, feet: [], planted: null, layerAt: {}, away: false, turnRate: 0, turnMid: null,
+      airJumps: 0, taking: null, lowAt: -9, superJ: false, airDodged: false, airDashed: false, dodgeT: 0, airDashT: 0, landT: 0, landK: 0, feet: [], planted: null, layerAt: {}, away: false, turnRate: 0, turnMid: null,
       stanceT: 0, stanceCd: {}, stanceUsed: [], morph: null, moveCount: {}, flyHit: [], chainN: 0 }); // time in the stance, when each stance was left, the stances taken (req.once), an auto morph, times each move has started (over.limits); flyHit: ids already clipped this flight (flyHits setting) - a plain array, not a Set, so it survives the replay checkpoint system's JSON state cloning; chainN: how many flyHits dominoes deep this flight is (0 = launched by a real attack)
     this.hp = this.c('health'); this.ch0 = ch.weapon ? armed(ch, '') : ch; // ch0: the character without its weapon
     this.target = this.basePose();
@@ -200,7 +208,9 @@ class Fighter {
       // shorter steps and a raised guard walking backwards; a walk loop plays one cycle (two steps) per 2π of the phase
       if (walkL) loop(walkL, ((ph / (2 * Math.PI)) % 1 + 1) % 1 * total(walkL), Math.min(1, w));
       else {
-        this.walkLegs(P, base, ph, w * (back ? g.backStride : 1), w);
+        const run = back ? 0 : clamp((w - g.runAt) / 0.25, 0, 1) * g.run; // past runAt × top speed the walk becomes a run
+        this.walkLegs(P, base, ph, w * (back ? g.backStride : 1), w, run);
+        if (run) { turn(spine, 10 * run); ch.chains.arm.forEach(c => flex(c[1], 55 * run)); }
         ch.chains.arm.forEach((c, i) => { const q = ph + (i + 1) * Math.PI; turn(c[0], Math.sin(q) * 22 * g.armSwing * w * st * st); flex(c[1], Math.max(0, Math.sin(q)) * 15 * g.armSwing * w + (back ? 20 * w : 0)); });
       }
       turn(spine, 4 * g.lean * w * Math.sign(this.vx * this.dir));
@@ -215,7 +225,13 @@ class Fighter {
     }
     if (this.guarding) ch.chains.arm.forEach((c, i) => { turn(c[0], i ? 50 : 40); flex(c[1], 25); }); // guard: forearms up in front of the face
     // mid turn the body gathers in (turnTuck): knees bend, arms pull in, the spine hunches, so it reads as a pivot, not a card flipping
-    const tk = (1 - Math.abs(this.face)) * this.c('turnTuck');
+    // landing: the knees stay bent a moment after touchdown, as deep as the fall was fast, and straighten (landBend)
+    if (this.landT > 0 && this.grounded) { const lk = this.landK * Math.min(1, this.landT / 0.25) * g.landBend; ch.chains.leg.forEach(c => { flex(c[1], 45 * lk); turn(c[0], 22 * lk); }); turn(spine, 8 * lk); }
+    // turning on the ground: one pivot step, the back foot swinging through as the body comes round (turnStep)
+    const tp = 1 - Math.abs(this.face);
+    if (tp && this.grounded && g.turnStep && !this.action) ch.chains.leg.forEach((c, i) => { const sw = Math.sin(Math.PI * (this.face * this.dir + 1) / 2) * (i % 2 ? -1 : 1);
+      turn(c[0], sw * 18 * g.turnStep); flex(c[1], Math.max(0, sw) * 30 * g.turnStep); });
+    const tk = tp * this.c('turnTuck');
     if (tk) { ch.chains.leg.forEach(c => flex(c[1], 30 * tk)); ch.chains.arm.forEach(c => flex(c[1], 40 * tk)); turn(spine, -10 * tk); }
     turn(spine, this.lean);
     return P;
@@ -589,7 +605,7 @@ class Fighter {
     const upTap = inp.up && !this.prevIn.up;
     this.prevIn = inp;
     if (!inp[fwdK] || !this.free || this.action) this.running = false;
-    this.dashT -= dt; this.wallJumpT -= dt; this.passT -= dt; this.invT -= dt; this.blockT -= dt; this.parryT -= dt; this.labelT -= dt; this.dodgeT -= dt; this.airDashT -= dt; this.dizzyT -= dt; this.reelT -= dt; this.splatT -= dt;
+    this.dashT -= dt; this.wallJumpT -= dt; this.passT -= dt; this.invT -= dt; this.blockT -= dt; this.parryT -= dt; this.labelT -= dt; this.dodgeT -= dt; this.airDashT -= dt; this.landT -= dt; this.dizzyT -= dt; this.reelT -= dt; this.splatT -= dt;
     if (this.free) this.stunM = Math.max(0, this.stunM - c('dizzyDrain') * dt);
     if (this.grounded && !this.kd) this.jugUsed = 0; // back on its feet: the juggle pool refills
     // guard: held while free on the ground (or in the air: airGuard), and kept through blockstun; with ↓ it is a low guard (in the belt too)
@@ -702,6 +718,7 @@ class Fighter {
         this.airJumps = 0; this.airDodged = this.airDashed = false; this.dodgeT = this.airDashT = 0;
         this.sqv -= c('squash') * 25 * imp;
         this.ch.chains.leg.forEach((c, i) => { if (c[1]) this.flt[c[1].id].yd += c[1].flex * (i ? 400 : 500) * imp; }); // knees absorb
+        this.landT = 0.25 * imp; this.landK = imp; // and stay bent a moment (landBend)
         this.jolt(this.ch.chains.spine[0]?.[0], 250 * imp);
         this.w.dust(this.x, this.groundY, imp, this.z);
         if (this.action?.m.air && !this.action.m.otg) this.action = null; // an air move ends on landing, but an off-the-ground one (pounce) lands into its strike
@@ -826,21 +843,26 @@ class Fighter {
   // the procedural walk's legs: each ankle follows a step path in the hip's space, solved with two-bone IK, so a foot
   // travels as far forward as back (stride, swing), lifts on the way forward (lift) and steps around its stance spot or
   // under its hip (stepCenter); legs alternate (a centaur trots: diagonal pairs). A one-bone leg just swings
-  walkLegs(P, base, ph, k, w) {
+  walkLegs(P, base, ph, k, w, run = 0) {
     if (!w) return; // standing: the stance as authored (an IK round trip would nudge a straight leg)
-    const ch = this.ch, g = ch.gait, wa = {}, L = fk(ch, P, 1, null, wa), R0 = fk(ch, base, 1), mix = Math.min(1, w * 4), Q = { ...P };
+    const ch = this.ch, g = ch.gait, wa = {}, L = fk(ch, P, 1, null, wa), R0 = baseFk(ch, base), mix = Math.min(1, w * 4), Q = { ...P };
     ch.chains.leg.forEach((cn, i) => {
       const q = ph + i * Math.PI, ai = cn.length >= 3 ? cn.length - 2 : cn.length - 1, a = cn[ai], th = cn[ai - 1];
       if (!th) { P[cn[0].id] += cn[0].fwd * Math.sin(q) * 28 * g.stride * k; return; }
       const o = L[th.parent || 'hip'], ll = th.len + a.len, x0 = R0[a.id][0], cx = x0 + (o[0] - x0) * g.stepCenter * Math.min(1, w);
-      const amp = Math.sin(28 * R) * ll * g.stride * k, x = cx + amp * (Math.sin(q) + g.swing), dx = x - o[0], top = ll * 0.97;
+      const amp = Math.sin(28 * R) * ll * g.stride * k * (1 + 0.35 * run), x = cx + amp * (Math.sin(q) + g.swing), dx = x - o[0], top = ll * 0.97;
       // out of the leg's reach at that height the foot rises onto the reach circle, so it still gets as far as the other way
-      const y = Math.min(R0[a.id][1] - Math.max(0, Math.cos(q)) * ll * 0.22 * g.lift * k, o[1] + Math.sqrt(Math.max(0, top * top - dx * dx)));
+      // bob: both feet a little higher when both are down (the hip dips between steps, the floor snap carries it)
+      const y = Math.min(R0[a.id][1] - Math.max(0, Math.cos(q)) * ll * 0.22 * g.lift * k * (1 + 0.8 * run) - Math.abs(Math.sin(q)) * ll * 0.06 * g.bob * k, o[1] + Math.sqrt(Math.max(0, top * top - dx * dx)));
       legIK(ch, Q, wa, L, th, a, x, y);
       for (const b of [th, a]) P[b.id] += (Q[b.id] - P[b.id]) * mix; // eased in from standing
       // foot roll: toes up as the heel strikes in front, down as the toes push off behind, flat in between
       const ft = cn[ai + 1];
-      if (ft && g.footRoll) P[ft.id] += Math.sin(q) * 22 * g.footRoll * k * Math.sign(Math.sin(ft.restW * R) || 1);
+      const roll = ft && g.footRoll ? Math.sin(q) * 22 * g.footRoll * k * Math.sign(Math.sin(ft.restW * R) || 1) : 0;
+      if (roll) P[ft.id] += roll;
+      // a toe after the foot bends at the ball: it stays on the floor as the heel lifts behind (push-off)
+      const toe = cn[ai + 2];
+      if (toe && roll && Math.sin(q) < 0) P[toe.id] -= roll;
     });
   }
   // in the air the legs are never still: they trail the body's speed (airDrag) and cycle a little (airKick) on top of the

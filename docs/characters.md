@@ -50,7 +50,7 @@ The diff is `objdiff.js` format: `changed` (`[from, to]` for a value, nested for
 2. Edit the definition. A character is `CHAR_DEFS.<name> = { ...stick, name, ...stats, gait, bones, poses, moves, binds, binds25, motions, stances }`:
    - **bones:** `sizedBones({ chest: 1.1, uarm: 0.9 }, thick)` rescales the stick; add parts with `pair`, `horns`, `tail3`, `ribbon` or plain bone objects (see `BONE` in `rig.js`).
    - **stats:** speed, weight, jump, health, tough, tempo... (`CHAR_STATS` in `rig-chars.js`). 1 is the stick.
-   - **gait:** idle style, lean, stride, swing (step balance), stepCenter, backStride, lift, footRoll (heel-to-toe), arm swing, breath, and the air legs airKick, airDrag, airReach (`GAIT_VARS` in `rig-chars.js`). The walk moves each ankle along a step path solved with two-bone IK, so a foot goes as far forward as back.
+   - **gait:** idle style, lean, stride, swing (step balance), stepCenter, backStride, lift, footRoll (heel-to-toe), bob, run, runAt, turnStep, landBend, arm swing, breath, and the air legs airKick, airDrag, airReach (`GAIT_VARS` in `rig-chars.js`). The walk moves each ankle along a step path solved with two-bone IK, so a foot goes as far forward as back.
    - **moves:** `retimed(k)` gives the stick's moves scaled to the body; `sig({ ... })` adds signature moves written in the old 10-joint notation (`fromOld` in `rig.js`), or use `attack(...)` for the usual wind-up, strike, hold, recover shape.
    - **binds:** `...bind({ special: 'kiBlast', upSpecial: 'riser' })` maps input slots to moves (`BINDS` in `rig-chars.js`).
    - **stances:** at least one more, `[{ name, pose, body, req, ...bind({...}) }]`. Without its own, a character inherits the stick's powered stance.
