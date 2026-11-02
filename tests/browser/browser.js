@@ -515,6 +515,12 @@ try {
     if (creator.exp.parent === parent0) errs.push('body: click a cell did not breed around it');
     if (!labMode.key({ code: 'Escape' }) || lab.kind !== 'sweep' || creator.expOn) errs.push('body vary escape ' + [lab.kind, creator.expOn]);
     lab.kind = 'sweep'; }
+  // the side panel's tabs: one section each, all shows every one; the checks below reach across sections, so they run on all
+  { setMode('character'); const heads = () => [...document.querySelectorAll('#side .fold > h3')].map(x => x.firstChild?.textContent.trim().split(' ')[0]).filter(Boolean);
+    sideTab('stats'); if (heads().join() !== 'Stats') errs.push('side tab stats ' + heads());
+    sideTab('character'); if (heads().join() !== 'Character') errs.push('side tab character ' + heads());
+    if (!document.querySelector('#side > .sidetabs:first-child')) errs.push('side tabs not on top');
+    sideTab('all'); if (heads().length < 4) errs.push('side tab all ' + heads()); }
   // the character tab's preview picker: under the preview pane (with the bones panel closed), not the toolbar; one button per preset
   // (impact and its blow buttons moved to the experiment tab: see the ragdoll impact checks there)
   { setMode('character'); closeStage(); panels(); const pv = t => [...document.querySelectorAll('.pvbar button')].find(b => b.textContent.trim().endsWith(t));
