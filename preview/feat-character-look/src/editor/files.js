@@ -338,7 +338,7 @@ function charPanel() {
 }
 // the character's look (def.look): drawing only, so it never changes a fight or a replay
 const LOOK_TIPS = { outline: { none: 'No outline', halo: 'A paper-coloured rim: the figure stands out from whatever is behind it', ink: 'A dark rim around every bone, like an inked drawing' },
-  line: { solid: 'Plain strokes', dashed: 'Dashed strokes (round and pointed ends stay solid)', sketch: 'A faint second pass slightly off, like a pencil redraw' } };
+  line: { solid: 'Plain strokes', dashed: 'Dashed strokes (round and pointed ends stay solid)', sketch: 'Loose pencil strokes on every bone, just off it and running past the joints' } };
 function lookRows() {
   const get = k => DEFS[CURRENT].look?.[k], set = (k, v, dflt) => edit(def => { const L = { ...def.look }; if (v === dflt) delete L[k]; else L[k] = v;
     if (Object.keys(L).length) def.look = L; else delete def.look; }, 'look.' + k);
