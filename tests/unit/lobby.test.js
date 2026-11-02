@@ -330,7 +330,47 @@ test('loser stays, both rotate, a draw, a forfeit, and nobody waiting', () => {
   fought(host, { winner: 1 }); host.next();
   assert.deepEqual(ids(host.state), ['h', 'g1'], 'nobody waiting: everyone stays');
   host.setRules({ rotation: 'nope', cap: 99 });
-  assert.deepEqual(plain(host.state.rules), { rotation: 'off', cap: 20 });
+  assert.deepEqual(plain(host.state.rules), { rotation: 'off', cap: 20, bestOf: 1, timer: 0, bans: [], rollback: true });
   fought(host, { forfeit: 'g1' });
   assert.deepEqual(plain(host.state.last), { win: 'h', lose: 'g1' });
+});
+
+// ---------- room rules ----------
+test('room rules: checked, lobby only, clear readies; a banned character can\'t be picked and loses its pick', () => {
+  const r = room(); const { host, g, flush } = r;
+  ready(r);
+  host.setRules({ bans: ['sneeko', 'sneeko', ''], bestOf: 4, timer: 60, rollback: false }); flush();
+  assert.deepEqual(plain(host.state.rules), { rotation: 'off', cap: 0, bestOf: 1, timer: 60, bans: ['sneeko'], rollback: false });
+  assert.equal(host.state.slots[1].char, null, 'the banned pick is gone');
+  assert.equal(host.state.slots[0].ready, false, 'and every ready');
+  g.pick('sneeko'); flush();
+  assert.equal(host.state.slots[1].char, null, 'a banned character can\'t be picked');
+  g.pick('zippa'); flush();
+  assert.equal(host.state.slots[1].char, 'zippa');
+  assert.deepEqual(plain(g.state.rules), plain(host.state.rules), 'everyone sees the rules');
+  host.state.phase = 'match'; host.setRules({ timer: 30 });
+  assert.equal(host.state.rules.timer, 60, 'not mid-fight');
+});
+
+test('the timer rule sets how long the fight lasts', () => {
+  const st = { scenario: 'you vs ai', over: {}, slots: [{ id: 'h', char: 'stick' }, { id: 'g1', char: 'sneeko' }], rules: { timer: 45 } };
+  assert.equal(plain(run('lobbyHeader')(st, 7)).scen.period, 45);
+  assert.notEqual(plain(run('lobbyHeader')({ ...st, rules: { timer: 0 } }, 7)).scen.period, 45);
+});
+
+test('best of 3: the same two until one has 2 wins (draws don\'t count), then the rotation; streaks count sets', () => {
+  const { host, flush } = room({ guests: 2 }); flush();
+  host.setRules({ rotation: 'winner', bestOf: 3 });
+  fought(host, { winner: 1 }); host.next();
+  assert.deepEqual(ids(host.state), ['h', 'g1'], 'one win: the set goes on');
+  assert.deepEqual(plain(host.state.series), { g1: 1 });
+  fought(host, { winner: null }); host.next();
+  assert.deepEqual(ids(host.state), ['h', 'g1'], 'a draw: still on');
+  fought(host, { winner: 0 }); host.next();
+  fought(host, { winner: 1 }); host.next();
+  assert.deepEqual(ids(host.state), ['g2', 'g1'], 'g1 took the set 2-1: the host steps out');
+  assert.deepEqual(plain(host.state.score.g1), { wins: 2, streak: 1 });
+  assert.deepEqual(plain(host.state.series), {}, 'a new set');
+  fought(host, { forfeit: 'g2' }); host.next();
+  assert.equal(host.state.score.g1.streak, 2, 'a forfeit ends the set at once');
 });
