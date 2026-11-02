@@ -334,7 +334,19 @@ function charPanel() {
   // its own row, not a small icon lost in the crud bar: proposing a character for the roster is a one-off, worth noticing
   const suggestRow = h('div', { cls: 'row', tip: 'Think this character belongs in the roster? Export it and open an issue - a maintainer folds it in.' },
     button(':upload: suggest for the roster', 'Export this character and open a GitHub issue to propose it, with instructions (see CONTRIBUTING.md)', () => suggestChar()));
-  return [head, colorRow(), suggestRow];
+  return [head, colorRow(), ...lookRows(), suggestRow];
+}
+// the character's look (def.look): drawing only, so it never changes a fight or a replay
+const LOOK_TIPS = { outline: { none: 'No outline', halo: 'A paper-coloured rim: the figure stands out from whatever is behind it', ink: 'A dark rim around every bone, like an inked drawing' },
+  line: { solid: 'Plain strokes', dashed: 'Dashed strokes (round and pointed ends stay solid)', sketch: 'A faint second pass slightly off, like a pencil redraw' } };
+function lookRows() {
+  const get = k => DEFS[CURRENT].look?.[k], set = (k, v, dflt) => edit(def => { const L = { ...def.look }; if (v === dflt) delete L[k]; else L[k] = v;
+    if (Object.keys(L).length) def.look = L; else delete def.look; }, 'look.' + k);
+  return [h('div', { cls: 'row', tip: 'Outline around the whole character (drawing only: it never changes a fight)' }, h('span', {}, ...rich(':circle: outline')),
+      h('span', { cls: 'bar' }, seg(['none', 'halo', 'ink'], () => get('outline') || 'none', v => set('outline', v, 'none'), LOOK_TIPS.outline),
+        seg(['1', '2', '4'], () => String(get('ow') ?? 2), v => set('ow', +v, 2), { 1: 'Thin outline (1px)', 2: 'Outline 2px', 4: 'Thick outline (4px)' }))),
+    h('div', { cls: 'row', tip: 'How the bones are stroked (drawing only)' }, h('span', {}, ...rich(':edit: line')),
+      h('span', { cls: 'bar' }, seg(['solid', 'dashed', 'sketch'], () => get('line') || 'solid', v => set('line', v, 'solid'), LOOK_TIPS.line)))];
 }
 // a character's own colour (def.col): unset (auto) leaves it to the player slot in a fight (P1 black, P2 red…, as every
 // built-in does today); set, it is always drawn that way — in a fight too, overriding the slot. Preset swatches, or any

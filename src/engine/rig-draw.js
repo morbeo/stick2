@@ -11,7 +11,17 @@ function drawWeapon(ctx, b, o, e, col, extra = 0) {
   drawShapes(ctx, WEAPONS[b.type].shapes, toXY, resolveCol, { len: l }, extra);
 }
 // mul: a fighter's live per-bone key.thick / key.alpha multipliers (mid-move), or null outside one
+// a character's look (def.look, drawing only): outline 'halo' (paper-coloured, separates it from what's behind) or
+// 'ink' (a dark rim), ow px wide; line 'dashed' or 'sketch' (a faint second pass, a little off, like a pencil redraw)
+const LOOK_INK = '#111111', LOOK_PAPER = '#f3f0e8';
 function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
+  const lk = !extra && !tint ? ch.look : null;
+  if (lk?.outline) { const oc = lk.outline === 'ink' ? LOOK_INK : LOOK_PAPER; drawFigure(ctx, ch, P, oc, oc, 2 * (lk.ow ?? 2), () => oc, mul); }
+  if (lk?.line === 'dashed') { ctx.save(); ctx.setLineDash([6, 4]); drawBones(ctx, ch, P, col, back, extra, tint, mul); ctx.restore(); }
+  else drawBones(ctx, ch, P, col, back, extra, tint, mul);
+  if (lk?.line === 'sketch') { ctx.save(); ctx.globalAlpha *= 0.35; ctx.translate(1.2, -0.9); drawBones(ctx, ch, P, col, back, 0, null, mul); ctx.restore(); }
+}
+function drawBones(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
   ctx.lineCap = ctx.lineJoin = 'round';
   const inSpline = new Set(), SIDES = { b: 0, '': 1, f: 2 };
   const rank = b => (b.z || 0) * 3 + (SIDES[b.side ?? ''] ?? 1), order = ch.bones.map((b, i) => [rank(b), i, b]).sort((x, y) => x[0] - y[0] || x[1] - y[1]).map(x => x[2]);

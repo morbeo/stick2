@@ -315,6 +315,17 @@ Example: on a centaur, save `horse` (the four horse legs and the barrel) and `ri
 
 Example: select `chest`, pick **L** and **pair**, then **wing**. Select `head` and add **horn**. Add a **tentacle** with **joints 8** at the hips for a long, floppy tail.
 
+### Character look
+
+The **character** tab of the side panel has two look rows under the colour. They're drawing only, so they never change a fight or a replay.
+
+| Row | Options |
+|---|---|
+| **outline** | **none**, **halo** (a paper-coloured rim that separates the figure from what's behind it) or **ink** (a dark rim, like an inked drawing). **1 / 2 / 4** sets its width in px. |
+| **line** | **solid**, **dashed** or **sketch** (a faint second pass a little off, like a pencil redraw). |
+
+The look is saved with the character as `look` in the JSON, and the palette has **look: outline \<kind>** and **look: line \<kind>**. A skin changes single bones, while the look covers the whole figure, so the two combine.
+
 ### Skins
 
 A skin is a named look for one character, made only of bone **drawing** settings: `thick`, `cap`, `taper`, `shade`, `curve` and `z` (draw layer). A skin never touches lengths, hurtboxes or motion, so it can't change a fight, and replays stay valid. Skins are procedural, with no images, and they keep the character monochrome because `shade` is grey only.
