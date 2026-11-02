@@ -14,6 +14,7 @@ const character = {
     stances: '[{ name, key ("S+G" | "↓S+G" | "→S+G" | "←S+G"), pose, binds, binds25 }]: extra stances; pose and binds go over the main ones',
     skins: '{ name: { boneId: { thick, cap, taper, shade, curve, z } } } (optional): named looks made of bone drawing settings only; applying one copies its values onto the bones',
     groups: '{ name: [boneId, …] } (optional): named bone selections for the editor; no effect on drawing or fights',
+    look: "{ outline: 'halo' | 'ink' | 'double' | 'glow' | 'shadow', ow: px (default 2), oc: '#rrggbb' (default: the style's own), oa: opacity 0..1, blur: glow px (default 6), line: 'dashed' | 'sketch' | 'brush' | 'calligraphy' | 'hand' } (optional): how the whole character is drawn; never changes a fight",
     skin: 'string (optional): the skin applied last',
     motions: '{ name: numpad digits }: own special motions (m41236: "41236"); each makes slots <name>Punch and <name>Kick',
     weapon: 'string (optional): a WEAPONS type held from the start (dagger, sword, axe, bat, nunchucks, hammer, staff)',
