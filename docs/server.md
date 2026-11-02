@@ -62,7 +62,7 @@ Environment variables, each with a default:
 | `ADMIN_TOKEN` | (none) | Turns on the [admin API](#moderation); requests need `Authorization: Bearer <token>` |
 | `DB_PATH` | (none; `/data` in the image) | Folder for `bans.json` and `embeds.json`; none: they last until a restart |
 | `SPECTATE_DELAY` | `180` | Frames (60 a second) spectators watch behind the players, so they can't call out what's coming; `0` for live |
-| `MAX_SPECTATORS` | `6` | Spectators a room may have (at most 6) |
+| `MAX_SPECTATORS` | `14` | People a room may have besides its two fighters: spectators and the queue (at most 14; a room holds 16) |
 | `MAX_REPLAYS` | `200` | Finished matches kept as replays (in `DB_PATH/replays/` if set, else in memory), oldest dropped first; `0` turns them off |
 | `MAX_EMBEDS` | `10000` | Short embed links kept ([embed short links](embed.md#short-links)); `0` turns them off |
 | `NAME_BLOCKLIST` | (none) | More words names may not contain, comma separated |
@@ -82,6 +82,10 @@ Environment variables, each with a default:
 | `GET /api/replays` | `{ server, replays: [{ id, at, room, players, scenario, frames, winner }] }`, newest first |
 | `GET /api/replays/<id>` | One saved match, as a [replay file](fighting.md) |
 | `WS /ws` | The relay |
+
+## Rooms as pools
+
+A server room holds up to 16 people. Two fight, the rest watch and queue, and the host picks a rotation (winner stays, loser stays, both rotate, or the same two) with an optional streak cap. The host can sit out and still run the room. See [the pool](netplay.md#the-pool-queue-and-rotation). Next: room rules (stage, timer, best-of, character bans) and host handover, so a room survives its host leaving.
 
 ## Spectating and replays
 
