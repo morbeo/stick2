@@ -5,7 +5,10 @@ const { spawnSync } = require('child_process'), fs = require('fs'), os = require
 const ROOT = path.join(__dirname, '..', '..');
 const FLOOR = 80;
 const FULL = ['engine/brain', 'engine/checks', 'engine/core', 'engine/events', 'engine/objdiff', 'engine/roster', 'engine/shapes', 'engine/stage',
-  'net/netmatch', 'net/netplay', 'editor/tracker', 'ui/sound', 'ui/panelstate'];
+  'net/netmatch', 'net/netplay', 'editor/tracker', 'ui/sound', 'ui/panelstate',
+  'engine/rig', 'engine/rig-pose', 'engine/rig-chars', 'net/names',
+  // every character file (not the shared _kit), so a new one joins on arrival
+  ...fs.readdirSync(path.join(ROOT, 'src', 'engine', 'chars')).filter(f => /^[a-z]\w*\.js$/.test(f)).map(f => `engine/chars/${f.slice(0, -3)}`)];
 
 const i = process.argv.indexOf('--floor'), floor = i > 0 ? Number(process.argv[i + 1]) : FLOOR;
 if (!(floor >= 0 && floor <= 100)) { console.error('usage: node tools/dev/coverage-check.js [--floor 0-100]'); process.exit(2); }
