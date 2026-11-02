@@ -4,6 +4,8 @@
 
 Every built-in character is one file in `src/engine/chars/`. This page shows how to add one, either from the editor or by hand.
 
+![Every built-in character, drawn at one scale](img/fighters.png)
+
 ## Where things are
 
 | File | What it holds |
