@@ -16,6 +16,8 @@
 //                     { t: 'report', id?, reason, lines? }  report a player (or the room) to the server's admins → { t: 'reported' }
 //                     { t: 'replay', replay, result?, players? }  (host) the finished match, for the server's replays → { t: 'saved', id }
 //   server → client   { t: 'gone', id, why }            (host) a guest left
+//                     { t: 'promoted', room, player, peers: [{ id, player }], delay, watchers }  (guest) the host left: you host the room now
+//                     { t: 'newhost', player }          (guest) the host left and someone else hosts now: say hello to them
 //                     { t: 'closed', why }              (guest) the room closed (or the guest was kicked)
 //                     { t: 'error', error }             a request was refused
 const RELAY = { code: 6, alphabet: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', guests: 16, name: 24, reports: 200, reason: 200, lines: 50 };
@@ -164,7 +166,7 @@ class Relay {
     const r = this.rooms.get(code); if (!r) return false;
     for (const id of [...r.guests.keys()]) this.drop(r, id, why);
     r.host.send({ t: 'closed', why });
-    this.leave(r.host, why);
+    this.leave(r.host, why, false);
     return true;
   }
   kickPlayer(name, why = 'kicked by the server') {
@@ -194,10 +196,22 @@ class Relay {
     if (r.phase === 'match') { r.started = this.now(); r.saved = false; this.metrics?.matches.inc({}); }
     if (was === 'match' && r.phase === 'post') { this.metrics?.finished.inc({}); this.metrics?.matchSeconds.observe((this.now() - r.started) / 1000); }
   }
-  // a connection leaving its room (it left, or the socket closed)
-  leave(client, why = 'left') {
+  // a connection leaving its room (it left, or the socket closed). A host that leaves a room with guests in it hands it over to the
+  // guest who has been there longest (handover: false, an admin closing it or a drain, closes it instead)
+  leave(client, why = 'left', handover = !this.draining) {
     const r = this.rooms.get(client.room);
     if (!r) return;
+    if (client.role === 'host' && handover && r.guests.size) {
+      const [nid, next] = r.guests.entries().next().value;
+      r.guests.delete(nid);
+      r.host = next; Object.assign(next, { role: 'host', id: 'h' });
+      client.room = client.role = client.id = null;
+      next.send({ t: 'promoted', room: r.code, player: next.player, peers: [...r.guests].map(([id, g]) => ({ id, player: g.player })), delay: this.delay, watchers: this.watchers });
+      for (const g of r.guests.values()) g.send({ t: 'newhost', player: next.player });
+      this.metrics?.handovers?.inc({});
+      this.audit('handover', { room: r.code, from: client.player, to: next.player });
+      return;
+    }
     if (client.role === 'host') {
       for (const g of r.guests.values()) { g.send({ t: 'closed', why: 'the host closed the room' }); g.room = g.role = g.id = null; }
       this.rooms.delete(r.code);

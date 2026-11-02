@@ -93,6 +93,7 @@ function start(cfg = config()) {
     bans: reg.counter('bans_total', 'Bans added'),
     reports: reg.counter('reports_total', 'Players reported'),
     replays: reg.counter('replays_saved_total', 'Finished matches saved as replays'),
+    handovers: reg.counter('host_handovers_total', 'Rooms handed to a guest when their host left'),
     replayBytes: reg.gauge('replay_storage_bytes', 'Bytes of the saved replays', () => replays.bytes()),
     spectatorPeak: reg.gauge('spectator_peak', 'Most spectators in rooms at once since the server started', () => relay.spectatorPeak),
   };

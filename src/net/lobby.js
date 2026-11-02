@@ -28,7 +28,8 @@ class Lobby {
 
   // ---------- host: links ----------
   // a new guest's link; their hello comes through receive(id, …). Returns the id to receive with.
-  link(send) { const id = 'g' + ++this.n; this.peers.set(id, { send, hello: false, heard: this.now(), rtt: 0 }); return id; }
+  // rekey(id): told the link's id when a guest rejoins under its old one (a handover, see promote)
+  link(send, rekey = null) { const id = 'g' + ++this.n; this.peers.set(id, { send, rekey, hello: false, heard: this.now(), rtt: 0 }); return id; }
   unlink(id, why = 'left') {
     const p = this.peers.get(id); if (!p) return;
     this.peers.delete(id);
@@ -101,6 +102,12 @@ class Lobby {
   hello(id, p, m) {
     const s = this.state, no = reason => { p.send({ t: 'reject', reason }); this.peers.delete(id); };
     if (p.hello) return;
+    // back after a handover: the same id and place as before
+    if (m.rejoin && this.away?.has(m.rejoin) && !this.peers.has(m.rejoin)) {
+      this.away.delete(m.rejoin); this.peers.delete(id); this.peers.set(m.rejoin, p); p.rekey?.(m.rejoin);
+      p.hello = true; p.send({ t: 'welcome', id: m.rejoin });
+      return this.broadcast();
+    }
     if (m.proto !== NET_PROTO) return no(`lobby protocol v${m.proto}, the host runs v${NET_PROTO}: both reload the page`);
     if (m.engine !== this.engine) return no(`engine v${m.engine}, the host runs v${this.engine}: both reload the page`);
     const who = { id, name: this.freeName(lobbyClip(m.name, LOBBY.name) || 'guest') }, free = s.slots.indexOf(null);
@@ -204,7 +211,35 @@ class Lobby {
   sit() { if (this.host) this.request('h', { t: 'sit' }); else this.toHost?.({ t: 'sit' }); }
   // a guest's hello, once its link is open: want 'play' (a free slot, else watch) or 'watch'
   join(want = 'play') { this.want = want; this.helloAt = this.now(); this.toHost?.({ t: 'hello', proto: NET_PROTO, engine: this.engine, name: this.name, want }); }
-  leave() { if (this.host) { for (const p of this.peers.values()) p.send({ t: 'bye', reason: 'the host closed the lobby' }); this.peers.clear(); } else this.toHost?.({ t: 'leave' }); this.close('you left'); }
+  // handover: the host goes quietly, so a server can give the room to a guest (promote) instead of closing it
+  leave(handover = false) { if (this.host) { if (!handover) for (const p of this.peers.values()) p.send({ t: 'bye', reason: 'the host closed the lobby' }); this.peers.clear(); } else this.toHost?.({ t: 'leave' }); this.close('you left'); }
+
+  // ---------- a handover: the host left a server room and the server gave it to us ----------
+  // We host from our last snapshot: the old host leaves it, we become 'h', and everyone else is away until they say hello again
+  // with their old id (rejoin); anyone still away after the timeout is dropped. A fight the old host was in is its forfeit; one it
+  // only watched is called off. (The old host forfeits as 'host': 'h' is us now.)
+  promote() {
+    if (this.host || !this.state || this.phase === 'closed') return false;
+    const s = JSON.parse(JSON.stringify(this.state)), me = this.id, played = s.slots.some(x => x?.id === 'h');
+    const swap = id => id === me ? 'h' : id;
+    s.slots = s.slots.map(x => x?.id === 'h' ? null : x && { ...x, id: swap(x.id) });
+    s.watch = s.watch.filter(x => x.id !== 'h').map(x => ({ ...x, id: swap(x.id) }));
+    s.queue = (s.queue || []).filter(x => x !== 'h').map(swap);
+    const rekey = o => Object.fromEntries(Object.entries(o || {}).filter(([k]) => k !== 'h').map(([k, v]) => [swap(k), v]));
+    s.score = rekey(s.score); s.series = rekey(s.series); s.last = {};
+    s.rev += 1000; // ahead of any snapshot the old host sent, so every guest takes ours
+    const ids = [...s.slots, ...s.watch].filter(Boolean).map(x => x.id);
+    Object.assign(this, { role: 'host', id: 'h', state: s, peers: new Map(), defs: {}, toHost: null, waiting: null, lastPing: 0,
+      n: Math.max(0, ...ids.map(x => +String(x).slice(1) || 0)), away: new Map(ids.filter(x => x !== 'h').map(x => [x, this.now()])) });
+    this.emit({ type: 'host' });
+    if (s.phase === 'sync') this.abort('the host left while the match was starting');
+    else if (s.phase === 'match') { if (played) this.finish({ forfeit: 'host', why: 'left' }, false); else { s.phase = 'lobby'; s.error = 'the host left mid-fight: fight called off'; this.emit({ type: 'phase', phase: 'lobby' }); } }
+    if (s.phase === 'lobby') this.fill();
+    this.broadcast();
+    return true;
+  }
+  // a guest whose host left: hello again, to whoever hosts now, as who we were
+  rejoin() { if (this.host || !this.id) return; this.emit({ type: 'rejoin' }); this.heard = this.now(); this.helloAt = this.now(); this.toHost?.({ t: 'hello', proto: NET_PROTO, engine: this.engine, name: this.name, want: this.want, rejoin: this.id }); }
   close(why) { if (this.phase === 'closed') return; this.state = { ...(this.state || { rev: 0, slots: [], watch: [] }), phase: 'closed', error: why }; this.emit({ type: 'phase', phase: 'closed', why }); this.hooks.change?.(this); }
 
   // ---------- host: the match ----------
@@ -283,6 +318,7 @@ class Lobby {
     if (!this.host && !this.id && this.helloAt !== undefined && t - this.helloAt > 2000) this.join(this.want);
     if (!this.host) { if (this.state && t - this.heard > LOBBY.timeoutMs) this.close('lost the host'); return; }
     for (const [id, p] of this.peers) if (t - p.heard > LOBBY.timeoutMs) this.unlink(id, 'timed out');
+    for (const [id, since] of this.away || []) if (t - since > LOBBY.timeoutMs) { this.away.delete(id); this.peers.set(id, { hello: true, send: () => {} }); this.unlink(id, 'didn\'t come back'); }
     if (t - this.lastPing < LOBBY.pingMs) return;
     this.lastPing = t;
     for (const p of this.peers.values()) if (p.hello) p.send({ t: 'ping', at: t });
