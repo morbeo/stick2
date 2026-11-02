@@ -61,6 +61,8 @@ function netLobby(role, server = null, pin = null) {
       else if (e.type === 'joined') { if (net.inviting === 'connecting') net.inviting = null; net.err = null; netSay(`${e.name} joined`); }
       else if (e.type === 'left') netSay(`${e.name} ${e.why}`);
       else if (e.type === 'error') netSay(':close: ' + e.error);
+      else if (e.type === 'host') netSay('the host left: you host the room now');
+      else if (e.type === 'rejoin') netSay('the host left: the room has a new host');
       else if (e.type === 'phase') netPhase(e);
     } } });
   if (server) netServerConnect(role, server);
@@ -353,7 +355,7 @@ function netDraw() {
         net.match ? button(':save: replay', 'Save this fight as a replay file', () => download(`netplay-${Date.now()}.json`, net.match.replay())) : null));
       rows.push(netChat(L));
     }
-    rows.push(h('div', { cls: 'bar' }, button(':close: leave', 'Leave the lobby (mid-fight, that\'s a forfeit)', () => { L.leave(); netHangUp(); net.match = null; net.code = null; net.err = null; build(); netDraw(); })));
+    rows.push(h('div', { cls: 'bar' }, button(':close: leave', `Leave the lobby (mid-fight, that's a forfeit)${L.host && net.server ? '; the room stays open, with the longest-staying guest as its host' : ''}`, () => { L.leave(!!net.server); netHangUp(); net.match = null; net.code = null; net.err = null; build(); netDraw(); })));
   }
   const keep = box.querySelector('.netsay'), focused = keep && document.activeElement === keep, draft = keep?.value || '';
   box.replaceChildren(...rows.filter(Boolean));

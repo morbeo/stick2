@@ -374,3 +374,49 @@ test('best of 3: the same two until one has 2 wins (draws don\'t count), then th
   fought(host, { forfeit: 'g2' }); host.next();
   assert.equal(host.state.score.g1.streak, 2, 'a forfeit ends the set at once');
 });
+
+// ---------- a handover: the host left, a guest hosts from its snapshot, the others rejoin ----------
+test('a guest takes over: it becomes h, the old host leaves the state, the others rejoin under their old ids; no-shows are dropped', () => {
+  const r = room({ guests: 3, want: ['play', 'play', 'watch'] });
+  const { host, gs, flush, clock } = r;
+  host.state.score = { h: { wins: 2, streak: 2 }, g2: { wins: 1, streak: 0 } }; host.broadcast(); flush();
+  const [g1, g2, g3] = gs, rev = g2.state.rev;
+  assert.equal(g2.promote(), true);
+  assert.equal(g2.host, true); assert.equal(g2.id, 'h');
+  assert.deepEqual(ids(g2.state), ['h', 'g1'], 'the old host\'s place goes to the next in line: g2 was queued, so it plays, as h');
+  assert.deepEqual(plain(g2.state.queue), []);
+  assert.deepEqual(plain(g2.state.score), { h: { wins: 1, streak: 0 } }, 'the old host\'s score goes, ours is h\'s now');
+  assert.ok(g2.state.rev > rev + 100);
+  // the others say hello again to the new host, over new links
+  const q = [], post = (to, from, m) => q.push(() => to.receive(from, JSON.parse(JSON.stringify(m)))), keys = {};
+  for (const g of [g1, g3]) { const id = g2.link(m => post(g, null, m), to => { keys[g.id] = to; }); g.toHost = m => post(g2, id, m); g.rejoin(); }
+  while (q.length) q.shift()();
+  assert.deepEqual(plain(keys), { g1: 'g1', g3: 'g3' }, 'the links learn their old ids');
+  assert.equal(g1.id, 'g1'); assert.equal(g3.id, 'g3');
+  assert.deepEqual(plain(g1.state), plain(g2.state), 'and take the new host\'s snapshot');
+  assert.equal(g1.me.id, 'g1');
+  g1.chat('still here'); while (q.length) q.shift()();
+  assert.equal(g3.state.rev, g2.state.rev);
+  // someone who never comes back is dropped after the timeout
+  const r2 = room({ guests: 2 }); const p = r2.gs[1]; p.promote();
+  r2.clock.t += 20000; p.tick();
+  assert.deepEqual(ids(p.state), ['h', null], 'g1 never came back');
+  assert.equal(p.away.size, 0);
+});
+
+test('a handover mid-fight: the old host\'s forfeit if it played, else the fight is called off; and a host leaving to hand over says no bye', () => {
+  let r = room({ guests: 2 }); ready(r);
+  r.host.state.phase = 'match'; r.host.broadcast(); r.flush();
+  r.gs[0].promote();
+  assert.equal(r.gs[0].phase, 'post'); assert.deepEqual(plain(r.gs[0].state.result), { forfeit: 'host', why: 'left' });
+  assert.equal(r.gs[0].state.last.win, 'h', 'the one left standing (us, now h) wins');
+  r = room({ guests: 3 }); r.host.sit(); r.flush();
+  r.host.state.phase = 'match'; r.host.broadcast(); r.flush();
+  r.gs[2].promote();
+  assert.equal(r.gs[2].phase, 'lobby'); assert.match(r.gs[2].state.error, /called off/);
+  r = room(); const seen = [];
+  r.g.hooks.event = e => seen.push(e.phase);
+  r.host.leave(true); r.flush();
+  assert.notEqual(r.g.phase, 'closed', 'no bye: the server hands the room over');
+  assert.equal(r.g.promote(), true);
+});

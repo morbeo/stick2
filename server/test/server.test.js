@@ -60,11 +60,14 @@ test('a host opens a room, a guest joins it, messages pass both ways, leaving te
     assert.equal((await h.next('gone')).id, id);
     const g2 = client(s); await g2.next('hello');
     g2.send({ t: 'join', room }); await g2.next('joined'); await h.next('peer');
-    h.ws.close();
-    assert.equal((await g2.next('closed')).t, 'closed');
-    g2.send({ t: 'join', room });
-    assert.match((await g2.next('error')).error, /^no room/);
-    g2.ws.close();
+    h.ws.close(); // a host leaving a room with a guest in it hands it over (see the handover test)
+    const pro = await g2.next('promoted');
+    assert.deepEqual([pro.room, pro.peers], [room, []]);
+    g2.send({ t: 'leave' }); // the last one out closes it
+    const g3 = client(s); await g3.next('hello');
+    g3.send({ t: 'join', room });
+    assert.match((await g3.next('error')).error, /^no room/);
+    g2.ws.close(); g3.ws.close();
   });
 });
 
@@ -203,5 +206,31 @@ test('the room browser shows each room\'s rules, queue and longest streak, from 
     await g.next('msg');
     const [r] = (await (await get(s, '/api/rooms')).json()).rooms;
     assert.deepEqual([r.rules, r.queue, r.streak], [{ rotation: 'winner', cap: 3, bestOf: 3, timer: 60, rollback: true, bans: 2 }, 1, { name: 'hana', streak: 4 }]);
+  });
+});
+
+test('a host leaves a room with guests: the longest-staying guest hosts it now, the others rejoin under their old ids, same room code', async () => {
+  const { ctx, run } = engine([...engine.ENGINE, 'lobby', 'netmatch', 'netserver']);
+  ctx.URL = URL;
+  const s = await boot();
+  await quiet(s, async () => {
+    const url = run('netServerUrl')(`127.0.0.1:${s.port}`), Lobby = run('Lobby'), ev = [];
+    const until = (fn, ms = 5000) => new Promise((done, fail) => { const t0 = Date.now(), t = setInterval(() => { if (fn()) { clearInterval(t); done(); } else if (Date.now() - t0 > ms) { clearInterval(t); fail(new Error('timed out')); } }, 5); });
+    const host = new Lobby({ role: 'host', name: 'hana' });
+    let room; const hl = run('netServerHost')(host, url, { room: r => { room = r; }, isPublic: true, WS: WebSocket });
+    await until(() => room);
+    const gs = ['gus', 'zed'].map(n => new Lobby({ role: 'guest', name: n, hooks: { event: e => ev.push([n, e.type]) } }));
+    for (const g of gs) { run('netServerJoin')(g, url, room, 'play', { WS: WebSocket }); await until(() => g.id); }
+    await until(() => gs[1].state?.watch.length === 1);
+    const [gus, zed] = gs, zedId = zed.id;
+    hl.ws.close(); // the host's tab goes away
+    await until(() => gus.host && zed.state?.rev > 1000 && zed.id === zedId && zed.me?.id === zedId, 8000);
+    assert.equal(gus.id, 'h');
+    assert.deepEqual(JSON.parse(JSON.stringify(gus.state.slots.map(x => x?.id ?? null))), [zedId, 'h'], 'zed was next in line: it takes the old host\'s place');
+    assert.ok(ev.some(([n, t]) => n === 'gus' && t === 'host')); assert.ok(ev.some(([n, t]) => n === 'zed' && t === 'rejoin'));
+    const rooms = (await (await get(s, '/api/rooms')).json()).rooms;
+    assert.deepEqual(rooms.map(r => [r.room, r.host]), [[room, gus.name]]);
+    zed.chat('hi'); await until(() => gus.state.rev > 1000);
+    assert.match(await (await get(s, '/metrics')).text(), /stick2_host_handovers_total 1/);
   });
 });

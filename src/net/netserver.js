@@ -58,25 +58,35 @@ const netServerWho = (lobby, device) => ({ player: lobby.name, device });
 // host: opens a room; room(code) once the server has given it one. Each guest the server announces is linked like a data channel.
 // The link can kick(lobbyId, ban), lock(on) and report(lobbyId, reason, lines).
 function netServerHost(lobby, url, { room = () => {}, isPublic = false, device = '', WS } = {}) {
-  const ids = new Map(); // the server's guest id → the lobby's
   const link = new ServerLink(url, {
     open: () => link.send({ t: 'host', name: '', public: isPublic, ...netServerWho(lobby, device) }),
-    message: m => {
-      // the server's spectator rules: how far behind they watch (frames) and how many may
-      if (m.t === 'room') { link.room = m.room; link.player = m.player; link.delay = m.delay | 0; if (m.watchers >= 0) lobby.watchers = m.watchers; if (m.player && lobby.state?.slots[0]) lobby.state.slots[0].name = lobby.name = m.player; room(m.room); }
-      else if (m.t === 'peer') ids.set(m.id, lobby.link(x => link.send({ t: 'to', id: m.id, m: x })));
-      else if (m.t === 'from' && ids.has(m.id)) lobby.receive(ids.get(m.id), m.m);
-      else if (m.t === 'gone' && ids.has(m.id)) { lobby.unlink(ids.get(m.id), m.why === 'left' ? 'left' : m.why); ids.delete(m.id); }
-      else if (m.t === 'error' || m.t === 'closed') lobby.close(m.error || m.why);
-    },
     close: why => lobby.close(why),
   }, WS);
-  const sid = lobbyId => [...ids].find(([, v]) => v === lobbyId)?.[0];
+  netServerHosting(lobby, link, room);
+  return link;
+}
+// a link that hosts: the server's messages to the lobby, and the host's tools (kick, lock, report, saveReplay). A guest's link
+// turns into one when the server hands it the room (promoted)
+function netServerHosting(lobby, link, room = () => {}) {
+  const ids = new Map(); // the server's guest id → the lobby's
+  const add = sid => { const ref = { id: null }; ref.id = lobby.link(x => link.send({ t: 'to', id: sid, m: x }), to => { ref.id = to; }); ids.set(sid, ref); };
+  // the server's spectator rules: how far behind they watch (frames) and how many may
+  const rules = m => { link.room = m.room; link.player = m.player; link.delay = m.delay | 0; if (m.watchers >= 0) lobby.watchers = m.watchers; };
+  link.on.message = m => {
+    if (m.t === 'room') { rules(m); if (m.player && lobby.state?.slots[0]) lobby.state.slots[0].name = lobby.name = m.player; room(m.room); }
+    else if (m.t === 'promoted') { rules(m); for (const p of m.peers || []) add(p.id); }
+    else if (m.t === 'peer') add(m.id);
+    else if (m.t === 'from' && ids.has(m.id)) lobby.receive(ids.get(m.id).id, m.m);
+    else if (m.t === 'gone' && ids.has(m.id)) { lobby.unlink(ids.get(m.id).id, m.why === 'left' ? 'left' : m.why); ids.delete(m.id); }
+    else if (m.t === 'error' || m.t === 'closed') lobby.close(m.error || m.why);
+  };
+  const sid = lobbyId => [...ids].find(([, v]) => v.id === lobbyId)?.[0];
   link.kick = (lobbyId, ban = false) => { const id = sid(lobbyId); if (id) link.send({ t: 'kick', id, ban }); };
   link.lock = on => { link.locked = !!on; link.send({ t: 'lock', locked: !!on }); };
   link.report = (lobbyId, reason, lines = []) => link.send({ t: 'report', id: sid(lobbyId), reason, lines });
   // a finished match, for the server's replays (GET /api/replays)
   link.saveReplay = (replay, result, players = []) => link.send({ t: 'replay', replay, result, players });
+  link.hosting = true;
   return link;
 }
 // guest: joins a room; want 'play' (a free slot, else watch) or 'watch'
@@ -86,6 +96,9 @@ function netServerJoin(lobby, url, roomCode, want = 'play', { device = '', WS } 
     message: m => {
       if (m.t === 'joined') { link.room = m.room; link.player = m.player; if (m.player) lobby.name = m.player; lobby.toHost = x => link.send({ t: 'msg', m: x }); lobby.join(want); }
       else if (m.t === 'msg') lobby.receive(null, m.m);
+      // the host left: we host now (from our last snapshot), or someone else does and we say hello to them again
+      else if (m.t === 'promoted') { if (lobby.promote()) { netServerHosting(lobby, link); link.on.message(m); } else link.send({ t: 'leave' }); }
+      else if (m.t === 'newhost') lobby.rejoin();
       else if (m.t === 'closed') lobby.close(m.why);
       else if (m.t === 'error') lobby.close(m.error);
     },
