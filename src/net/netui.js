@@ -4,7 +4,7 @@
 // A match's world is the play tab's fight while it lasts (build() asks netWorld()); it carries .net, so the app drives it here, at
 // a fixed 60 frames a second, and leaves it out of everything that would change it locally (rewind, scrub, loop, macros).
 const NET_NAME = 'stick2-netname', NET_SEED = 'stick2-nameseed', NET_DEVICE = 'stick2-device';
-const net = { public: true, home: null, p2p: false, rooms: null, replays: null, feed: null, rollback: true, peers: [], server: null, lobby: null, sig: null, pin: null, match: null, code: null, codeKind: null, inviting: null, pending: null, err: null, log: [], box: null, status: null, acc: 0, edges: {} };
+const net = { public: true, home: null, p2p: false, rooms: null, replays: null, feed: null, bans: false, peers: [], server: null, lobby: null, sig: null, pin: null, match: null, code: null, codeKind: null, inviting: null, pending: null, err: null, log: [], box: null, status: null, acc: 0, edges: {} };
 const netStatus = () => { const m = net.match; if (m.watching) return `watching · frame ${m.f} · ${m.behind} behind${m.desync !== null ? ' · DESYNC' : ''}`; return `frame ${m.f} · delay ${m.delay}${m.roll ? ` · rollbacks ${m.rollbacks}` : ''} · waits ${m.stalls}${m.desync !== null ? ' · DESYNC' : ''}`; };
 const ownWorlds = () => mode().worlds().filter(w => !w.net); // the fights only this page runs
 const netWorld = () => net.match?.world || null;
@@ -55,7 +55,7 @@ function netLobby(role, server = null, pin = null) {
     match: m => { net.match?.receive(m); if (m.t === 'watch' && net.lobby?.host && net.match?.watching) m.a.forEach((x, i) => net.feed?.push(m.f + i, x, m.b[i], m.s?.[m.f + i + 1])); },
     catchup: id => { const m = net.feed?.all(); if (m) net.lobby.sendTo(id, m); },
     // the host picks the input delay from the guest's round trip, and puts it in the match, so both sides use the same
-    header: (state, seed, defs) => ({ ...lobbyHeader({ ...state, scenario: netScen() }, seed, defs), netDelay: netDelay(state), netRoll: net.rollback ? NETMATCH.roll : 0 }),
+    header: (state, seed, defs) => ({ ...lobbyHeader({ ...state, scenario: netScen() }, seed, defs), netDelay: netDelay(state), netRoll: state.rules?.rollback === false ? 0 : NETMATCH.roll }),
     event: e => {
       if (e.type === 'chat') netSay(e.text, e.name);
       else if (e.type === 'joined') { if (net.inviting === 'connecting') net.inviting = null; net.err = null; netSay(`${e.name} joined`); }
@@ -93,7 +93,7 @@ const netScen = () => { const s = SCENARIOS[lab.scen]; return s && !s.waves && !
 // about 3 frames of it, guessing the rest (deeper rollbacks cost more each time and show as bigger corrections)
 const netDelay = state => {
   const oneWay = Math.ceil((Math.max(0, ...state.slots.map(s => s?.rtt || 0)) / 2) / (1000 / 60));
-  return net.rollback ? clamp(oneWay - 2, 1, NETMATCH.maxDelay) : clamp(oneWay + 1, 2, NETMATCH.maxDelay);
+  return state.rules?.rollback !== false ? clamp(oneWay - 2, 1, NETMATCH.maxDelay) : clamp(oneWay + 1, 2, NETMATCH.maxDelay);
 };
 function netInvite() {
   net.code = null; net.inviting = 'making'; net.err = null;
@@ -183,6 +183,10 @@ function netFrame(raw, inp) {
 }
 // rotation: who fights next (the lobby's rules); the host's "next" comes by itself NET_NEXT_S seconds after a fight
 const NET_ROTATIONS = { off: 'same two (rematch)', winner: 'winner stays', loser: 'loser stays', round: 'both rotate' }, NET_NEXT_S = 10;
+// the rules in a line, and a best-of's score so far
+const netRulesText = r => [NET_ROTATIONS[r.rotation], r.rotation === 'winner' && r.cap ? `streak cap ${r.cap}` : '', r.bestOf > 1 ? `best of ${r.bestOf}` : '',
+  r.timer ? `${r.timer} s fights` : '', r.rollback === false ? 'lockstep' : '', r.bans?.length ? `banned: ${r.bans.join(', ')}` : ''].filter(Boolean).join(' · ');
+const netSet = st => { if (!(st.rules?.bestOf > 1) || !Object.keys(st.series || {}).length) return ''; const [a, b] = st.slots; return a && b ? ` · set ${a.name} ${st.series?.[a.id] || 0} – ${st.series?.[b.id] || 0} ${b.name}` : ''; };
 const netScore = (st, id) => { const c = st.score?.[id]; return c?.wins ? ` · ${c.wins} win${c.wins === 1 ? '' : 's'}${c.streak > 1 ? ` · streak ${c.streak}` : ''}` : ''; };
 // the host's match confirmed frame k (both real inputs; hash: the state after it, at checks)
 const netRelay = (k, p1, p2, hash) => net.feed?.push(k, p1, p2, hash);
@@ -317,11 +321,20 @@ function netDraw() {
           Object.entries(NET_ROTATIONS).map(([k, t]) => h('option', { value: k, textContent: t, selected: k === st.rules?.rotation })));
         const cap = h('select', { tip: 'Winner stays: the winner steps out too after this many wins in a row', onchange: e => L.setRules({ cap: +e.target.value }) },
           [0, 2, 3, 5, 10].map(n => h('option', { value: n, textContent: n ? `streak cap ${n}` : 'no streak cap', selected: n === (st.rules?.cap || 0) })));
-        rows.push(h('div', { cls: 'netrow' }, rot, st.rules?.rotation === 'winner' ? cap : null));
+        const pickOf = (tip, list, label, key) => h('select', { tip, onchange: e => L.setRules({ [key]: +e.target.value }) },
+          list.map(n => h('option', { value: n, textContent: label(n), selected: n === st.rules?.[key] })));
+        rows.push(h('div', { cls: 'netrow' }, rot, st.rules?.rotation === 'winner' ? cap : null),
+          h('div', { cls: 'netrow' }, pickOf('A set: the same two fight until one has won more than half', LOBBY.bestOf, n => n === 1 ? 'one fight' : `best of ${n}`, 'bestOf'),
+            pickOf('How long a fight lasts (the one with more health left wins at the end)', LOBBY.timers, n => n ? `${n} s` : 'scenario time', 'timer')),
+          h('div', { cls: 'bar' }, toggle(':sync_alt: rollback', 'Rollback: run on without waiting for the other player\'s input (guessing it), and correct the moment it arrives; less input delay, a slight snap on a wrong guess. Off: lockstep, every frame waits for both inputs (more delay, never a correction)', () => st.rules?.rollback !== false, v => L.setRules({ rollback: v })),
+            button(':block: bans', 'Characters nobody may pick in this room', () => { net.bans = !net.bans; netDraw(); }, net.bans ? 'tog on' : 'tog')));
+        if (net.bans) rows.push(h('div', { cls: 'bar netbans' }, Object.keys(CHARS).map(k => toggle(k, `${k}: banned in this room`, () => st.rules.bans.includes(k),
+          v => L.setRules({ bans: v ? [...st.rules.bans, k] : st.rules.bans.filter(x => x !== k) })))));
       }
+      if (st.rules) rows.push(h('p', { cls: 'netrules', tip: 'The room\'s rules (the host sets them in the lobby)' }, netRulesText(st.rules), netSet(st)));
       if (L.host && net.server?.room) rows.push(h('div', { cls: 'bar' }, toggle(':lock: lock room', 'Turn away anyone new (the people already here stay)', () => !!net.server.locked, v => net.server.lock(v))));
       if (st.phase === 'lobby' && me) {
-        const pick = h('select', { tip: 'Your character', onchange: e => L.pick(e.target.value) }, Object.keys(CHARS).map(k => h('option', { value: k, textContent: k, selected: k === (me.char || CURRENT) })));
+        const pick = h('select', { tip: 'Your character', onchange: e => L.pick(e.target.value) }, Object.keys(CHARS).filter(k => !st.rules?.bans.includes(k)).map(k => h('option', { value: k, textContent: k, selected: k === (me.char || CURRENT) })));
         if (!me.char) setTimeout(() => L.pick(pick.value));
         rows.push(h('div', { cls: 'netrow' }, pick, button(me.ready ? ':check: ready' : ':close: not ready', 'Ready to fight (needs a character; any change clears it)', () => L.ready(!me.ready), me.ready ? 'tog on' : 'tog')));
       }
@@ -329,7 +342,7 @@ function netDraw() {
         const go = button(':play_arrow: start', `Start the fight (${netScen()}, with the stage and settings as they are here) once both are ready`, () => L.start());
         go.disabled = !L.canStart();
         rows.push(h('div', { cls: 'bar' }, go, net.server ? null : button(':person: invite', 'Make another invite: a second player if the slot is open, else a spectator', netInvite),
-          toggle(':sync_alt: rollback', 'Rollback: run on without waiting for the other player\'s input (guessing it), and correct the moment it arrives; less input delay, a slight snap on a wrong guess. Off: lockstep, every frame waits for both inputs (more delay, never a correction)', () => net.rollback, v => { net.rollback = v; })));
+));
       }
       if (st.phase === 'sync') rows.push(h('p', { textContent: 'starting: checking both sides built the same fight…' }));
       if (st.phase === 'match' && net.match) rows.push(net.status = h('p', { textContent: netStatus(), tip: 'The online fight: frames run, input delay (frames between a press and its move, the same on both sides), how many frames waited on the other player' }));
@@ -376,10 +389,15 @@ function netOtherRows() {
 }
 // a server's public rooms, each with join and watch
 function netRoomList({ url, server, region, rooms, loading }) {
-  const head = h('p', {}, h('b', { textContent: server || netServerName(url) }), region ? ` · ${region}` : '', loading ? ' · loading…' : ` · ${rooms.length} public room${rooms.length === 1 ? '' : 's'}`,
+  // open only: rooms you'd get to fight in soon (a free place, or one that rotates)
+  const shown = net.roomsOpen ? rooms.filter(r => !r.locked && (r.players < 2 || (r.rules && r.rules.rotation !== 'off'))) : rooms;
+  const head = h('p', {}, h('b', { textContent: server || netServerName(url) }), region ? ` · ${region}` : '', loading ? ' · loading…' : ` · ${shown.length} public room${shown.length === 1 ? '' : 's'}`,
+    toggle('open', 'Only rooms you could fight in soon: a free place, or a rotation', () => !!net.roomsOpen, v => { net.roomsOpen = v; netDraw(); }),
     button(':replay:', 'List the rooms again', () => netRooms(url)), button(':close:', 'Hide the room list', () => { net.rooms = null; netDraw(); }));
-  return h('div', { cls: 'netrooms' }, head, rooms.map(r => h('div', { cls: 'netslot' },
-    h('b', { textContent: r.name }), ` · ${r.room} · ${r.phase} · ${r.players}/2${r.watchers ? ` · ${r.watchers} watching` : ''}${r.locked ? ' · locked' : ''}`,
+  return h('div', { cls: 'netrooms' }, head, shown.map(r => h('div', { cls: 'netslot' },
+    h('b', { textContent: r.name }), ` · ${r.room} · ${r.phase} · ${r.players}/2${r.queue ? ` · ${r.queue} in line` : ''}${r.watchers ? ` · ${r.watchers} watching` : ''}${r.locked ? ' · locked' : ''}`,
+    r.streak ? ` · ${r.streak.name} on a ${r.streak.streak}-streak` : '',
+    r.rules ? h('div', { cls: 'netrules', textContent: netRulesText({ ...r.rules, bans: r.rules.bans ? [`${r.rules.bans} character${r.rules.bans === 1 ? '' : 's'}`] : [] }) }) : null,
     r.locked ? null : button(':check: join', `Join ${r.name}`, () => netLobby('guest', { url, room: r.room })),
     button(':visibility: watch', `Watch ${r.name}`, () => netLobby('guest', { url, room: r.room, want: 'watch' })))));
 }

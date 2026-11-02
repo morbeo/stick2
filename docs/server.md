@@ -75,7 +75,7 @@ Environment variables, each with a default:
 | `GET /` | The game (`STATIC_DIR`). Server code, `tools/`, `tests/`, dependencies and dotfiles are never served |
 | `GET /healthz` | `200 ok`, or `503 draining` while shutting down |
 | `GET /metrics` | Prometheus metrics |
-| `GET /api/rooms` | `{ server, region, version, rooms: [{ room, name, host, phase, players, watchers, locked }] }`, public rooms only (the room browser) |
+| `GET /api/rooms` | `{ server, region, version, rooms: [{ room, name, host, phase, players, watchers, locked, rules, queue, streak }] }`, public rooms only (the room browser). `rules`: `{ rotation, cap, bestOf, timer, rollback, bans }` (`bans` a count), `queue`: how many are in line, `streak`: `{ name, streak }` of the longest one, from the host's lobby |
 | `POST /api/embeds` | `{ hash }` → `{ id }`: a short embed link (CORS open, 60 an hour per address, hash up to 64 KB) |
 | `GET /e/<id>` | Redirects to `/index.html#<hash>` |
 | `/api/admin/…` | Moderation, with `ADMIN_TOKEN` (404 without one) |
@@ -85,7 +85,7 @@ Environment variables, each with a default:
 
 ## Rooms as pools
 
-A server room holds up to 16 people. Two fight, the rest watch and queue, and the host picks a rotation (winner stays, loser stays, both rotate, or the same two) with an optional streak cap. The host can sit out and still run the room. See [the pool](netplay.md#the-pool-queue-and-rotation). Next: room rules (stage, timer, best-of, character bans) and host handover, so a room survives its host leaving.
+A server room holds up to 16 people. Two fight, the rest watch and queue, and the host picks a rotation (winner stays, loser stays, both rotate, or the same two) with an optional streak cap. The host can sit out and still run the room. See [the pool](netplay.md#the-pool-queue-and-rotation). Rooms have rules (best of, fight length, character bans, rollback), and the room browser shows them with the queue and the longest streak; **open** shows only rooms you could fight in soon. Next: host handover, so a room survives its host leaving.
 
 ## Spectating and replays
 
