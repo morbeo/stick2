@@ -4,6 +4,8 @@
 
 Online play between two browsers, with no server: the design, and what's built so far. Status: **all four layers, rollback, spectators, and the play tab's netplay section are built and tested.** Spectators can join mid-match. Time sync is next.
 
+![The netplay section with a hosted lobby: the invite link, its QR code and the answer box](img/netplay.png)
+
 ## Constraints
 
 - **No server.** The app is static files (GitHub Pages, itch.io). Players connect directly over a WebRTC data channel. A public STUN server only tells each browser its own address.
