@@ -116,6 +116,38 @@ function renderDocs(root) {
       docs.page ? button(':sports_kabaddi: app', 'Leave the docs and open the app', closeDocs, 'mini') : button(':close:', 'Close the docs (Esc)', closeDocs, 'mini')), toc), body));
   fill();
 }
+// a topic about a tool shows that tool live: the app itself in a view-only embed (readonly, nothing kept), opened where the
+// topic points; keys are embed options, tool / panel / move / char / scenario are the app's own #links (docs/embed.md)
+const TOPIC_VIEWS = {
+  character: { tools: 'character', char: 'stick' },
+  rig: { tools: 'character', char: 'stick', ui: 'toolbar' },
+  animate: { tools: 'animate', move: 'roundhouse' },
+  hitflags: { tools: 'animate', panel: 'table' },
+  tests: { tools: 'tests' },
+  events: { tools: 'animate', move: 'roundhouse', ui: 'side' },
+  effects: { tools: 'fx', look: 'lightning' },
+  experiment: { tools: 'experiment', scenario: 'J,J,K' },
+  embed: { preset: 'arcade', ui: 'hud,timer', readonly: 0 },
+  layout: { tools: 'play', ui: 'menubar,toolbar,side' },
+  compare: { tools: 'experiment', panel: 'compare' },
+  clips: { tools: 'play', scenario: 'ai vs ai', ui: 'menubar,hud' },
+  sound: { tools: 'sounds', sound: 'hit' },
+  movelist: { tools: 'play', ui: 'side', sections: 'movelist' },
+};
+const APP_LINK = ['tool', 'panel', 'move', 'char', 'scenario', 'look', 'sound'];
+const topicView = id => {
+  const v = TOPIC_VIEWS[id];
+  if (!v || (typeof EMBED !== 'undefined' && EMBED) || window !== top) return null; // no embeds inside an embed
+  const o = { readonly: 1, ui: 'toolbar,side', controls: 'play,restart', watermark: 0, tool: v.tools, ...v };
+  const hash = Object.entries(o).filter(([, x]) => x != null).map(([k, x]) => `${k}=${encodeURIComponent(x)}`).join('&');
+  const W = 1280, H = 720, fr = h('iframe', { src: `${location.pathname}#${hash}`, loading: 'lazy', title: 'Live view (read only)' });
+  fr.style.cssText = `width:${W}px;height:${H}px;border:0;transform-origin:0 0`;
+  const box = h('div', { cls: 'tview' }, fr), fit = () => { const k = Math.min(1, (box.clientWidth || 800) / W); fr.style.transform = `scale(${k})`; box.style.height = H * k + 'px'; };
+  new ResizeObserver(fit).observe(box);
+  const open = () => { closeDocs(); location.hash = APP_LINK.filter(k => o[k]).map(k => `${k}=${encodeURIComponent(o[k])}`).join('&'); };
+  return h('div', { cls: 'demo tv' }, box, h('div', { cls: 'bar' }, h('b', { textContent: 'live view · read only' }),
+    v.preset ? null : button(':edit: open', 'Open this in the app, where it can be edited', open, 'mini')));
+};
 // a demo shows the engine as shipped: default settings and the built-in stick, whatever the editors have changed
 const demoWorld = s => Object.assign(new World(SCENARIOS[s], { ...DEFAULTS, ...SCENARIOS[s].cfg }, 7, [docs.ch ??= makeCharacter(CHAR_DEFS.stick)]), { loop: true });
 // one topic: its text, live demo fights, items (settings link to themselves), try buttons; matches of the search are marked
@@ -134,6 +166,7 @@ function showTopic(el, t, q) {
   const mark = s => q && s.toLowerCase().includes(q.toLowerCase());
   const run = fn => () => { closeDocs(); fn(); syncAll(); };
   el.replaceChildren(...[h('h2', { textContent: t.title }), ...t.body.split('\n\n').map(p => h('p', {}, ...rich(p))),
+    topicView(t.id),
     docs.demos.length && h('div', { cls: 'demos' }, docs.demos.map(d => d.el)),
     t.items?.length && h('dl', {}, t.items.flatMap(([n, txt, fn]) => [
       h('dt', { cls: mark(n) || mark(txt) ? 'hit' : '' }, ...rich(n), fn && button(':chevron_right:', `Open ${n} in the app`, run(fn), 'mini')),

@@ -120,7 +120,12 @@ The docs button (ⓘ) in the top bar opens interactive docs over the app. ⌘K f
 
 - **Guide:** topics with live demo fights: pause, step, restart, or **try it in play**. The demos always run on the default settings and the built-in stick, so your edits can't break them; try it uses yours.
 - **Reference:** generated from the app's own tables: every setting group with its defaults, move flags and properties, heights, input slots, easing (an animated curve per curve type), and the keyboard as bound now.
+- **Live views:** a topic about a tool (the character editor, rig tools, the move editor, testing moves, key events, effects, experiment, embedding, layouts, compare, clips, sound, movelist, hit flags) shows that tool live under its text: the app itself in a view-only [embed](embed.md) (`readonly=1`, nothing kept), opened where the topic points. **open** takes you there in the app to edit.
 - Everything is searchable.
+
+| A guide topic with its live view |
+| --- |
+| ![The character editor topic, with the editor live underneath](img/docsview.png) |
 
 | A guide topic, with its live demos |
 | --- |
