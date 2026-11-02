@@ -5,7 +5,7 @@
 // with a send function and feeds in what arrives (receive), so it runs the same over WebRTC, a server relay or, in the tests,
 // plain function calls. Pure logic, no DOM.
 const NET_PROTO = 1; // the lobby protocol's version: a hello with another one is turned away
-const LOBBY = { slots: 2, watchers: 6, pingMs: 1000, timeoutMs: 10000, name: 24, char: 40, chat: 200 };
+const LOBBY = { slots: 2, watchers: 6, cap: 20, rotations: ['off', 'winner', 'loser', 'round'], pingMs: 1000, timeoutMs: 10000, name: 24, char: 40, chat: 200 };
 
 class Lobby {
   // role: 'host' | 'guest'; name: ours; send (guest): message → the host; now: a ms clock (the tests pass their own)
@@ -17,7 +17,8 @@ class Lobby {
     Object.assign(this, { role, name: lobbyClip(name, LOBBY.name), toHost: send, hooks, now, engine, watchers, header: null, id: null, peers: new Map(), n: 0, defs: {}, lastPing: 0, heard: now() });
     if (role === 'host') {
       this.id = 'h';
-      this.state = { rev: 0, phase: 'lobby', scenario: 'you vs ai', over: {}, slots: [{ id: 'h', name: this.name, char: null, ready: false, rtt: 0 }, null], watch: [], error: null, result: null };
+      this.state = { rev: 0, phase: 'lobby', scenario: 'you vs ai', over: {}, slots: [{ id: 'h', name: this.name, char: null, ready: false, rtt: 0 }, null], watch: [], error: null, result: null,
+        queue: [], rules: { rotation: 'off', cap: 0 }, score: {} };
     } else this.state = null; // until the host's first snapshot
   }
   get host() { return this.role === 'host'; }
@@ -33,11 +34,12 @@ class Lobby {
     this.peers.delete(id);
     if (!p.hello) return;
     const s = this.state, who = this.nameOf(id);
-    s.slots = s.slots.map(x => x?.id === id ? null : x); s.watch = s.watch.filter(x => x.id !== id);
-    delete this.defs[id];
+    s.slots = s.slots.map(x => x?.id === id ? null : x); s.watch = s.watch.filter(x => x.id !== id); s.queue = s.queue.filter(x => x !== id);
+    delete this.defs[id]; delete s.score[id];
     this.emit({ type: 'left', id, name: who, why });
     if (s.phase === 'sync') this.abort(`${who} ${why} while the match was starting`);
     else if (s.phase === 'match') this.finish({ forfeit: id, why }, false);
+    if (s.phase === 'lobby') this.fill();
     this.broadcast();
   }
   sendTo(id, m) { this.peers.get(id)?.send(m); }
@@ -87,7 +89,13 @@ class Lobby {
       case 'chat': this.relayChat(id, m.text); break;
       case 'synced': this.synced(id, m.hash); break;
       case 'leave': this.unlink(id, 'left'); break;
-      case 'in': case 'sum': if (s.phase === 'match' && i >= 0) this.hooks.match?.(m); break; // the match's own (src/net/netmatch.js)
+      // the match's own (src/net/netmatch.js): to the host's match, or, while the host sits out, on to the other player
+      case 'in': case 'sum': if (s.phase === 'match' && i >= 0) { if (this.playing) this.hooks.match?.(m); else { const o = s.slots[1 - i]; if (o) this.sendTo(o.id, m); } } break;
+      // the fight's confirmed frames from P1 while the host sits out: the host shows them, and passes them on to the spectators
+      case 'watch': if ((s.phase === 'match' || s.phase === 'post') && id === this.feeder && id !== 'h') this.hooks.match?.(m); break;
+      case 'queue': if (i < 0 && s.watch.some(w => w.id === id)) { s.queue = s.queue.filter(x => x !== id); if (m.on) s.queue.push(id); if (s.phase === 'lobby') this.fill(); this.broadcast(); } break;
+      // a player gives up their place (lobby only): to the back of the queue, the next in line takes it
+      case 'sit': if (i >= 0 && s.phase === 'lobby') { this.out(i); this.fill(); this.broadcast(); } break;
     }
   }
   hello(id, p, m) {
@@ -97,7 +105,7 @@ class Lobby {
     if (m.engine !== this.engine) return no(`engine v${m.engine}, the host runs v${this.engine}: both reload the page`);
     const who = { id, name: this.freeName(lobbyClip(m.name, LOBBY.name) || 'guest') }, free = s.slots.indexOf(null);
     if (m.want !== 'watch' && free >= 0 && s.phase === 'lobby') s.slots[free] = { ...who, char: null, ready: false, rtt: 0 };
-    else if (s.watch.length < this.watchers) s.watch.push(who);
+    else if (s.watch.length < this.watchers) { s.watch.push(who); if (m.want !== 'watch') s.queue.push(id); }
     else return no('the lobby is full');
     p.hello = true;
     p.send({ t: 'welcome', id });
@@ -122,10 +130,72 @@ class Lobby {
     this.emit({ type: 'chat', from: id, name: m.name, text });
   }
 
+  // ---------- the pool: two fight, the rest watch; the queue (spectators who want to play) takes free places in order ----------
+  // the host plays unless it sat out; the frames spectators see come from whoever plays P1 when it doesn't (feeder)
+  get playing() { return this.state?.slots.some(x => x?.id === 'h'); }
+  get feeder() { const s = this.state; return !s ? null : s.slots.some(x => x?.id === 'h') ? 'h' : s.slots[0]?.id ?? null; }
+  // slot i's player to the watchers and the back of the queue
+  out(i) {
+    const s = this.state, p = s.slots[i]; if (!p) return;
+    s.slots[i] = null;
+    if (!s.watch.some(w => w.id === p.id)) s.watch.push({ id: p.id, name: p.name });
+    s.queue = s.queue.filter(x => x !== p.id); s.queue.push(p.id);
+  }
+  // free places to the next in the queue
+  fill() {
+    const s = this.state;
+    for (let i = 0; i < s.slots.length; i++) {
+      if (s.slots[i] || !s.queue.length) continue;
+      const id = s.queue.shift(), w = s.watch.find(x => x.id === id);
+      if (!w) { i--; continue; }
+      s.watch = s.watch.filter(x => x.id !== id);
+      s.slots[i] = { id, name: w.name, char: null, ready: false, rtt: 0 };
+    }
+  }
+  // the host's room rules: rotation 'off' (the same two, rematch), 'winner' stays, 'loser' stays, 'round' (both out); cap: the
+  // winner steps out after that many wins in a row (0: never)
+  setRules(rules) {
+    const s = this.state; if (!this.host) return;
+    const r = { ...s.rules, ...rules };
+    s.rules = { rotation: LOBBY.rotations.includes(r.rotation) ? r.rotation : 'off', cap: Math.max(0, Math.min(LOBBY.cap, r.cap | 0)) };
+    this.broadcast();
+  }
+  // after a fight: the rotation, then back to the lobby (off: a plain rematch)
+  next() {
+    const s = this.state; if (!this.host || s.phase !== 'post') return;
+    const { rotation, cap } = s.rules, last = s.last || {};
+    let out = [];
+    if (rotation === 'round') out = [0, 1];
+    else if (last.win === undefined) out = rotation === 'off' ? [] : [1]; // a draw: the challenger steps out
+    else {
+      const wi = s.slots.findIndex(x => x?.id === last.win), li = s.slots.findIndex(x => x?.id === last.lose);
+      if (rotation === 'winner') out = cap && s.score[last.win]?.streak >= cap ? [li, wi] : [li];
+      else if (rotation === 'loser') out = [wi];
+    }
+    // nobody waiting: everyone stays
+    out = out.filter(i => i >= 0).slice(0, s.queue.length);
+    for (const i of out) { const id = s.slots[i]?.id; if (s.score[id]) s.score[id].streak = 0; this.out(i); } // stepping out ends a streak
+    this.fill();
+    this.rematch();
+  }
+  // the score of a finished fight: wins, and the winner's streak (the loser's ends)
+  tally(result) {
+    const s = this.state, ids = s.slots.map(x => x?.id), sc = id => s.score[id] ??= { wins: 0, streak: 0 };
+    let win, lose;
+    if (result?.forfeit) { lose = result.forfeit; win = ids.find(x => x && x !== lose); }
+    else if (Number.isInteger(result?.winner)) { win = ids[result.winner]; lose = ids[1 - result.winner]; }
+    s.last = win ? { win, lose } : {};
+    if (!win) return;
+    sc(win).wins++; sc(win).streak++;
+    if (lose) sc(lose).streak = 0;
+  }
+
   // ---------- both sides: what we do (a guest's goes to the host as a request; the host's applies at once) ----------
   pick(char, def = null) { if (this.host) this.request('h', { t: 'pick', char, def }); else this.toHost?.({ t: 'pick', char, def }); }
   ready(on = true) { if (this.host) this.request('h', { t: 'ready', on }); else this.toHost?.({ t: 'ready', on }); }
   chat(text) { if (this.host) this.relayChat('h', text); else this.toHost?.({ t: 'chat', text }); }
+  queue(on = true) { if (this.host) this.request('h', { t: 'queue', on }); else this.toHost?.({ t: 'queue', on }); }
+  sit() { if (this.host) this.request('h', { t: 'sit' }); else this.toHost?.({ t: 'sit' }); }
   // a guest's hello, once its link is open: want 'play' (a free slot, else watch) or 'watch'
   join(want = 'play') { this.want = want; this.helloAt = this.now(); this.toHost?.({ t: 'hello', proto: NET_PROTO, engine: this.engine, name: this.name, want }); }
   leave() { if (this.host) { for (const p of this.peers.values()) p.send({ t: 'bye', reason: 'the host closed the lobby' }); this.peers.clear(); } else this.toHost?.({ t: 'leave' }); this.close('you left'); }
@@ -168,6 +238,7 @@ class Lobby {
   finish(result, send = true) {
     if (!this.host || this.state.phase !== 'match') return;
     Object.assign(this.state, { phase: 'post', result });
+    this.tally(result);
     this.emit({ type: 'phase', phase: 'post', result });
     if (send) this.broadcast();
   }
@@ -186,9 +257,11 @@ class Lobby {
     if (other) this.sendTo(other.id, m);
   }
   // the confirmed fight, to every spectator (src/net/netmatch.js NetWatch)
+  // (a guest playing P1 while the host sits out sends them to the host, which shows them and passes them on)
   watchSend(m) {
-    if (!this.host || (this.phase !== 'match' && this.phase !== 'post')) return; // (the last confirmed frames go out just after the end)
-    for (const w of this.state.watch) this.sendTo(w.id, m);
+    if (this.phase !== 'match' && this.phase !== 'post') return; // (the last confirmed frames go out just after the end)
+    if (!this.host) { if (this.feeder === this.id) this.toHost?.(m); return; }
+    for (const w of this.state.watch) if (w.id !== 'h') this.sendTo(w.id, m);
   }
   verify(header) { return (this.hooks.verify || lobbyHash)(header); }
 

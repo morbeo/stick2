@@ -88,10 +88,18 @@ lobby → sync → match → post
 | `lobby` | Players pick characters and toggle ready. The host picks the scenario and settings. |
 | `sync` | The host has sent the match. Each guest builds the fight and replies with its hash. |
 | `match` | Every hash matched. Layer 4 runs the fight. |
-| `post` | Result shown. The host can call a rematch. |
+| `post` | Result shown. The host calls a rematch, or **next** when the room rotates. |
 | `closed` | We left, were turned away, or lost the host. `state.error` says which. |
 
-**The snapshot:** `{ rev, phase, scenario, over, slots: [{ id, name, char, ready, rtt }, …], watch: [{ id, name }], error, result }`. The host's id is `h` and guests are `g1`, `g2`, …. There are two slots; anyone after that, or anyone who asks to, watches (up to 6).
+**The snapshot:** `{ rev, phase, scenario, over, slots: [{ id, name, char, ready, rtt }, …], watch: [{ id, name }], queue: [id, …], rules: { rotation, cap }, score: { id: { wins, streak } }, last, error, result }`. The host's id is `h` and guests are `g1`, `g2`, …. There are two slots; anyone after that, or anyone who asks to, watches (up to 6 browser to browser, 14 on a server).
+
+### The pool: queue and rotation
+
+A room is a pool: two fight, everyone else watches.
+- **Queue.** Someone who joins wanting to play when both places are taken watches and goes into `queue`. Watchers can `queue {on}` (in or out), and a player can `sit` in the lobby (to the back of the queue). A free place goes to the first in line.
+- **Rotation** (`setRules({ rotation, cap })`, host): `off` (the same two, rematch), `winner` stays, `loser` stays, `round` (both out). `cap`: under winner stays, the winner steps out too after that many wins in a row. A draw sends the challenger (P2) out. Nobody waiting: everyone stays.
+- **Next.** After a fight, `next()` sends the leavers to the back of the queue, fills the places, and goes back to `lobby` with everyone's ready cleared. `finish` keeps the score: wins, and a streak that a loss or stepping out ends. The app calls it 10 s after the fight, or at once with **next**.
+- **The host can sit out.** Then it passes the two players' `in` and `sum` between them, and P1 (`lobby.feeder`) sends its confirmed frames to the host as `watch`. The host plays them as a spectator (`NetWatch`), passes them on to the other spectators (held back by the delay), finishes the fight from them and saves the replay.
 
 **Rules.**
 - Ready needs a character.
@@ -109,6 +117,7 @@ lobby → sync → match → post
 | `welcome {id}` / `reject {reason}` | host | Let in, or turn away: other protocol (`NET_PROTO`) or engine version (`ENGINE_VERSION`), lobby full |
 | `lobby {state}` | host | The whole snapshot, after every change |
 | `pick {char, def?}` / `ready {on}` | guest | Requests. `def` is a full character definition, for a character the host doesn't have. |
+| `queue {on}` / `sit` | guest | Get in line (or out of it), or give up your place |
 | `chat {text}` → `chat {from, name, text}` | both | Sent to the host, which sends it to everyone |
 | `start {header}` | host | The match |
 | `synced {hash}` | guest | The hash of the fight the guest built from the header |
@@ -160,7 +169,7 @@ A spectator's match is a `NetWatch`, not a `NetMatch`:
 
 ## In the app
 
-The play tab's **netplay** section (`src/net/netui.js`), first in the side panel and unfolded by default; the command palette's **netplay**, **netplay: host**, **netplay: server**, **netplay: rooms**, **netplay: reroll name**, **netplay: chat** and **netplay: scan** entries go straight to it (`openNetplay`):
+The play tab's **netplay** section (`src/net/netui.js`), first in the side panel and unfolded by default; the command palette's **netplay**, **netplay: host**, **netplay: server**, **netplay: rooms**, **netplay: reroll name**, **netplay: chat**, **netplay: queue** and **netplay: scan** entries go straight to it (`openNetplay`):
 
 - **Before connecting:** your name (made up from this device's seed until you type one; **reroll** makes a new one, see [server names](server.md#names)), **host**, and a field for an invite. Code fields act as soon as a whole code lands in them, whether it was typed, pasted or scanned, so there's nothing to press. **paste** reads the clipboard. **scan** reads a QR code with the camera, in browsers that have `BarcodeDetector` (Chrome on Android, for example).
 - **On a page the server serves:** the server's rooms come first, with no address to type (see [running it](server.md#running-it)); **other ways to play** shows the rest of this list.
@@ -168,9 +177,9 @@ The play tab's **netplay** section (`src/net/netui.js`), first in the side panel
 - **PIN:** a sealed invite without its PIN asks for it, and joins once 8 characters are typed. Case, spaces and dashes don't matter, and O, I and L read as 0 and 1. A wrong PIN comes back to the same prompt with the invite kept.
 - **Host:** two numbered steps. Step 1 is the invite link, the PIN, the QR code, and **copy link** and **link + PIN** buttons. Step 2 is the field for the guest's answer code. A wrong or cut-off answer shows an error and keeps the field, so the guest can just send it again.
 - **Guest:** the answer code to send back, with its own QR code for the host's **scan**. A `#join=` link opens the play tab already joining; the code then leaves the address bar, so a reload doesn't reuse it.
-- **In the lobby:** the slots (name, character, ready, round trip), your character, **ready**, and chat. Chat keeps the last 50 lines, with times, and shows joins, leaves and results apart from what people say. It has quick lines (**gg**, **one more?**, **nice!**, **brb**), keeps a half-typed line through redraws, and Esc returns to the fight. The host also has **start**, **invite** (another invite: a second player if a slot is open, else a spectator), and **rollback** (on by default; off is lockstep).
+- **In the lobby:** the slots (name, character, ready, round trip), your character, **ready**, and chat. Chat keeps the last 50 lines, with times, and shows joins, leaves and results apart from what people say. It has quick lines (**gg**, **one more?**, **nice!**, **brb**), keeps a half-typed line through redraws, and Esc returns to the fight. The host also has **start**, **invite** (another invite: a second player if a slot is open, else a spectator), **rollback** (on by default; off is lockstep), and the rotation (with a streak cap for winner stays). **next up** lists the queue in order and **watching** the rest, each with wins and streaks; watchers have **queue** / **leave queue**, and players **sit out**.
 - **During the fight:** frame, delay, rollbacks and waits; a spectator sees `watching`, the frame, and how many frames behind it is.
-- **After the fight:** **rematch** (host) and **replay** (save the fight).
+- **After the fight:** **rematch** (host; **next** when the room rotates, by itself after 10 s), **watch again** and **replay** (save the fight).
 
 The fight uses the host's play-tab scenario if it's a one-on-one, otherwise `you vs ai`, always with both sides human. While a match lasts, its world is the play tab's fight. The world carries `.net`, so the frame loop drives it through `netFrame` at a steady 60 frames a second, and it keeps running while the page is paused. It is also kept out of everything that would change it on one side only: rewind, scrub, the loop toggle, and macros (`ownWorlds()`).
 

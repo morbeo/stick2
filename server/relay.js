@@ -18,14 +18,14 @@
 //   server → client   { t: 'gone', id, why }            (host) a guest left
 //                     { t: 'closed', why }              (guest) the room closed (or the guest was kicked)
 //                     { t: 'error', error }             a request was refused
-const RELAY = { code: 6, alphabet: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', guests: 8, name: 24, reports: 200, reason: 200, lines: 50 };
+const RELAY = { code: 6, alphabet: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', guests: 16, name: 24, reports: 200, reason: 200, lines: 50 };
 const { nameClean, nameGen } = require('../src/net/names');
 
 class Relay {
   // limits: { maxRooms }; metrics: the counters and gauges it updates (server.js); rng: () → [0, 1), the tests pass their own
   // bans: a Bans (moderation.js) or null; blocklist: more words the name filter refuses; audit(action, detail): the moderation log
   // replays: a Replays (replays.js) or null; delay: frames spectators watch behind (anti-ghosting); watchers: spectators a room may have
-  constructor({ maxRooms = 500, guests = RELAY.guests, metrics = null, rng = Math.random, now = () => Date.now(), bans = null, blocklist = [], audit = () => {}, replays = null, delay = 0, watchers = 6 } = {}) {
+  constructor({ maxRooms = 500, guests = RELAY.guests, metrics = null, rng = Math.random, now = () => Date.now(), bans = null, blocklist = [], audit = () => {}, replays = null, delay = 0, watchers = 14 } = {}) {
     Object.assign(this, { maxRooms, guests, metrics, rng, now, bans, blocklist, audit, replays, delay, watchers, rooms: new Map(), names: new Map(), reports: [], draining: false, spectatorPeak: 0 });
   }
   // the name a connection plays under on this server: its own if the filter takes it, else the one its device id generates;

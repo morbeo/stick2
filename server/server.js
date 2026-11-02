@@ -37,7 +37,7 @@ function config(env = process.env) {
     maxEmbeds: num(env.MAX_EMBEDS, 10000), // short embed links kept (0: short links off)
     maxReplays: num(env.MAX_REPLAYS, 200), // finished matches kept as replays (0: off)
     spectateDelay: num(env.SPECTATE_DELAY, 180), // frames (60 a second) spectators watch behind the players
-    maxSpectators: num(env.MAX_SPECTATORS, 6), // spectators a room may have
+    maxSpectators: num(env.MAX_SPECTATORS, 14), // people a room may have besides its two fighters (spectators and the queue)
     blocklist: (env.NAME_BLOCKLIST || '').split(',').map(w => w.trim()).filter(Boolean),
     trustProxy: env.TRUST_PROXY === '1',
     log: env.LOG_LEVEL || 'info',
@@ -102,7 +102,7 @@ function start(cfg = config()) {
   const audit = (action, detail) => log('info', 'moderation', { action, ...detail });
   const replays = new Replays({ dir: cfg.dbPath ? path.join(cfg.dbPath, 'replays') : null, max: cfg.maxReplays });
   const relay = new Relay({ maxRooms: cfg.maxRooms, metrics: M, bans, blocklist: cfg.blocklist, audit, replays: cfg.maxReplays ? replays : null,
-    delay: cfg.spectateDelay, watchers: Math.min(cfg.maxSpectators, 6) });
+    delay: cfg.spectateDelay, watchers: Math.min(cfg.maxSpectators, 14) }); // (the relay takes 16 guests at most)
 
   // ---------- moderation over HTTP (admin token) ----------
   function admin(req, res, route) {
