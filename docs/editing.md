@@ -317,10 +317,11 @@ Example: select `chest`, pick **L** and **pair**, then **wing**. Select `head` a
 
 ### Character look
 
-The **character** tab of the side panel has two look rows under the colour. They're drawing only, so they never change a fight or a replay.
+The **character** tab of the side panel has look rows under the colour. They're drawing only, so they never change a fight or a replay.
 
 | Row | Options |
 |---|---|
+| **preset** | One click sets every row: **plain**, **flash fight** (double outline), **ink comic** (ink outline, brush line), **chalk** (halo, sketch), **scroll** (calligraphy), **doodle** (shadow, hand) or **aura** (glow). Tweak any row after. Also in the palette as `look: <preset>`. |
 | **outline** | **none**, **halo** (a paper-coloured rim that separates the figure from what's behind it), **ink** (a dark rim, like an inked drawing), **double** (an ink rim round a paper gap, the classic flash stick-fight look), **glow** (a soft blurred rim in the figure's own colour, an energy aura) or **shadow** (a flat copy dropped down and right, like a cel shadow). |
 | **width** | Outline width in px, 1 to 8. For shadow, how far it drops. |
 | **colour** | **auto** uses the style's own colour (paper, ink, or the figure's colour for glow). The picker sets any colour. |
