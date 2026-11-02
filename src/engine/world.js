@@ -454,6 +454,7 @@ class World {
   restore(s) {
     const memo = new Map([[s, this]]);
     for (const k of Object.keys(s)) this[k] = cloneState(s[k], memo);
+    for (const f of this.fighters) { f.poseHist = []; f.trail = []; } // shared, not copied (Fighter.byRef): they'd hold frames after this one
   }
   stateHash() {
     return hashNums([this.rand.seed, this.hits, this.blocks, this.clashes, this.simT, ...this.items.flatMap(it => [it.x, it.y]), ...this.limbs.flatMap(l => [l.x, l.y, l.t]), ...this.props.flatMap(p => [p.hp ?? 0, p.bendT, p.x, p.lift, p.vx, p.vlift]), ...this.shots.flatMap(s => [s.x, s.y, s.t, s.dur]),

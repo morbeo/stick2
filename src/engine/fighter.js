@@ -64,6 +64,8 @@ function settle(ch, L) {
   if (best) rot(best, (k, x, y) => { L[k] = [x, y]; });
 }
 class Fighter {
+  // drawing-only history: a state copy shares it instead of copying it (cloneState)
+  static byRef = ['poseHist', 'trail'];
   constructor(w, x, dir, col, ch, over = {}) {
     Object.assign(this, { id: w.nid++, w, x, groundY: w.groundY, dir, face: dir, col: ch.col || col, ch, over, y: 0, vx: 0, vy: 0, grounded: true,
       time: 0, seed: w.rand(0, 100), walkPh: 0, lean: 0, inp: NOIN,
