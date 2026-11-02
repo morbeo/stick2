@@ -4,7 +4,7 @@
 
 Online play between two browsers, with no server: the design, and what's built so far. Status: **all four layers, rollback, spectators, and the play tab's netplay section are built and tested.** Spectators can join mid-match. Time sync is next.
 
-![The netplay section with a hosted lobby: the invite link, its QR code and the answer box](img/netplay.png)
+![The netplay section with a hosted lobby: the invite link, its PIN, the QR code and the answer box](img/netplay.png)
 
 ## Constraints
 
