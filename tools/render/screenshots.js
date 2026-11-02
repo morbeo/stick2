@@ -57,10 +57,14 @@ const SHOTS = {
   replay: [`lab.scen = 'you vs ai'; setMode('play'); const w = lab.cells[0].w;
     for (let i = 0; i < 400; i++) w.advance(1 / 60, { ...NOIN, right: i % 120 < 40, punch: i % 23 === 0, kick: i % 37 === 0 });
     rp.reel = null; setMode('replay'); panels();`, [0, 80, 1400, 600]],
-  // the play tab's netplay section with a hosted lobby open; the invite fills in once WebRTC has made the offer, and its
-  // link is shown as the Pages URL (the QR still holds the local file's)
-  netplay: [`closeWelcome(); lab.scen = 'you vs ai'; setMode('play'); build(); ${run(30)} openNetplay(true); $('side').scrollTop = 0;
-    setInterval(() => net.box.querySelectorAll('textarea').forEach(t => t.value = t.value.replace(/^file:.*?#/, 'https://morbeo.github.io/stick2/#')), 100);`, [600, 40, 800, 760]],
+  // the play tab's netplay section with a hosted lobby open and its invite ready: headless Chrome's virtual time doesn't wait
+  // for WebRTC's real offer, so a stand-in sealed code and a fixed PIN fill it in; links and the QR point at the Pages site
+  netplay: [`closeWelcome(); lab.scen = 'you vs ai'; setMode('play'); build(); ${run(30)} openNetplay(true);
+    Object.assign(net, { pin: 'K7QM4WZP', code: 's2c' + 'Hq3vT9xLmB2rYc8Nf5Wk'.repeat(12), codeKind: 'offer', inviting: 'waiting' }); netDraw();
+    const site = 'https://morbeo.github.io/stick2/'; setInterval(() => { const q = net.box.querySelector('canvas.netqr:not(.site)');
+      net.box.querySelectorAll('textarea').forEach(t => t.value = t.value.replace(/^file:.*?#/, site + '#'));
+      q?.replaceWith(Object.assign(netQr(netInviteLink(net.code, site, net.pin), q.dataset.tip), { className: 'netqr site' }));
+      $('side').scrollTop = net.box.offsetTop - 60; }, 100);`, [600, 40, 800, 760]],
   // a phone held upright: the mobile layout with the on-screen pad
   phone: [`closeWelcome(); touchPad(true); lab.scen = 'you vs ai'; setMode('play'); build(); panels(); ${run(60)} tpSync?.();`, [0, 0, 390, 844], [390, 844]],
 };
