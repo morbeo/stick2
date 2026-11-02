@@ -63,7 +63,7 @@ function paletteEntries() {
       ...Object.keys(DEFS[CURRENT]?.skins || {}).map(n => ['skin: ' + n, `Apply the ${n} skin`, () => applySkin(n)]),
       ['group: save', 'Save the selected bones as a named group', saveGroup],
       ...Object.keys(SIDE_TABS).map(k => ['side: ' + k, 'Show the side panel\'s ' + k + ' tab: ' + SIDE_TABS[k], () => sideTab(k)]),
-      ...['halo', 'ink', 'none'].map(o => ['look: outline ' + o, LOOK_TIPS.outline[o], () => edit(d => { d.look = { ...d.look, outline: o }; if (o === 'none') delete d.look.outline; if (!Object.keys(d.look).length) delete d.look; })]),
+      ...[...LOOK_OUTLINES, 'none'].map(o => ['look: outline ' + o, LOOK_TIPS.outline[o], () => edit(d => { d.look = { ...d.look, outline: o }; if (o === 'none') delete d.look.outline; if (!Object.keys(d.look).length) delete d.look; })]),
       ...['solid', 'dashed', 'sketch'].map(l => ['look: line ' + l, LOOK_TIPS.line[l], () => edit(d => { d.look = { ...d.look, line: l }; if (l === 'solid') delete d.look.line; if (!Object.keys(d.look).length) delete d.look; })]),
       ['bone: split', 'Cut the selected bone into two halves', splitBone],
       ['bone: merge', 'Join the selected bone with its only child', mergeBone],

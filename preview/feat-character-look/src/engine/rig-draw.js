@@ -11,12 +11,24 @@ function drawWeapon(ctx, b, o, e, col, extra = 0) {
   drawShapes(ctx, WEAPONS[b.type].shapes, toXY, resolveCol, { len: l }, extra);
 }
 // mul: a fighter's live per-bone key.thick / key.alpha multipliers (mid-move), or null outside one
-// a character's look (def.look, drawing only): outline 'halo' (paper-coloured, separates it from what's behind) or
-// 'ink' (a dark rim), ow px wide; line 'dashed' or 'sketch' (a faint second pass, a little off, like a pencil redraw)
+// a character's look (def.look, drawing only). outline: 'halo' (paper rim, separates it from what's behind), 'ink'
+// (dark rim), 'double' (ink rim round a paper gap, the classic flash-fight look), 'glow' (a soft blurred rim in the
+// figure's own colour, an energy aura) or 'shadow' (a flat copy dropped down-right). ow: width px, oc: its colour
+// (else the style's own), oa: opacity, blur: glow softness px. line: 'dashed' or 'sketch' (loose pencil strokes)
 const LOOK_INK = '#111111', LOOK_PAPER = '#f3f0e8';
+const LOOK_OUTLINES = ['halo', 'ink', 'double', 'glow', 'shadow'];
+function drawOutline(ctx, ch, P, col, lk, mul) {
+  const w = lk.ow ?? 2, rim = (c, width) => drawFigure(ctx, ch, P, c, c, width, () => c, mul);
+  ctx.save(); ctx.globalAlpha *= lk.oa ?? (lk.outline === 'shadow' ? 0.35 : 1);
+  if (lk.outline === 'double') { rim(lk.oc || LOOK_INK, 4 * w); rim(LOOK_PAPER, 2 * w); }
+  else if (lk.outline === 'glow') { const c = lk.oc || col; ctx.shadowColor = c; ctx.shadowBlur = lk.blur ?? 6; rim(c, 2 * w); }
+  else if (lk.outline === 'shadow') { ctx.translate(w + 1, w + 1); rim(lk.oc || LOOK_INK, 0); }
+  else rim(lk.oc || (lk.outline === 'ink' ? LOOK_INK : LOOK_PAPER), 2 * w);
+  ctx.restore();
+}
 function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
   const lk = !extra && !tint ? ch.look : null;
-  if (lk?.outline) { const oc = lk.outline === 'ink' ? LOOK_INK : LOOK_PAPER; drawFigure(ctx, ch, P, oc, oc, 2 * (lk.ow ?? 2), () => oc, mul); }
+  if (LOOK_OUTLINES.includes(lk?.outline)) drawOutline(ctx, ch, P, col, lk, mul);
   if (lk?.line === 'dashed') { ctx.save(); ctx.setLineDash([6, 4]); drawBones(ctx, ch, P, col, back, extra, tint, mul); ctx.restore(); }
   else drawBones(ctx, ch, P, col, back, extra, tint, mul);
   if (lk?.line === 'sketch') drawSketch(ctx, ch, P, col, back);
