@@ -8,9 +8,10 @@ function drawFrames(r, frames, w, h, opts, ctxFor) {
   world.loop = false;
   for (const k of ['hud', 'boxes', 'ghost', 'hudNames']) if (opts[k] !== undefined) world.cfg[k] = !!opts[k];
   if (opts.hudPos !== undefined) world.cfg.hudPos = opts.hudPos;
-  const shot = opts.zoom ? { zoom: opts.zoom, x: opts.x } : undefined, idle = () => () => {};
-  // a context that draws nothing: the camera eases toward the fighters on every render, so it is run ahead to where it settles
-  const none = new Proxy({}, { get: idle, set: () => true });
+  const shot = opts.zoom ? { zoom: opts.zoom, x: opts.x } : undefined;
+  // a context that draws nothing: the camera eases toward the fighters on every render, so it is run ahead to where it settles.
+  // every method returns the proxy itself, so created objects (gradients, patterns) take calls too
+  const none = new Proxy({}, { get: () => () => none, set: () => true });
   const settle = n => { for (let i = 0; i < n; i++) world.render(none, rect, !!opts.full, shot); };
   const landed = [];
   let n = 0;
