@@ -47,7 +47,7 @@ The build info is shown in the debug popup (the chart button in the menu bar), n
 
 - Covered: the engine in `src/` (core, rig, fighter, world, brain), loaded into a vm context by `tests/unit/load.js` under their real paths.
 - The UI modules need the DOM, so the browser test covers them instead; the few that only draw or play sound run against stand-ins (a call-recording canvas, localStorage and WebAudio).
-- `npm run coverage:check` (`tools/dev/coverage-check.js`, `--floor N` to try another) fails below 80% of lines overall, or if a file in its `FULL` list (brain, checks, core, events, objdiff, roster, shapes, stage, netmatch, netplay, tracker, sound) is not fully covered.
+- `npm run coverage:check` (`tools/dev/coverage-check.js`, `--floor N` to try another) fails below 80% of lines overall, or if a file in its `FULL` list (brain, checks, core, events, objdiff, roster, shapes, stage, netmatch, netplay, tracker, sound, panelstate, rig, rig-pose, rig-chars, names and every `chars/*` character file) is not fully covered.
 - The browser test passes only when its page reports `OK` (exit code 0). It parses the page's check script first, and prints `FAIL` if that script is broken or the page never finishes. It ends with a ⌘K sweep: every safe palette command runs without throwing, every shortcut is in the palette, and the shipped keys don't clash.
 - `CHROME=/path/to/chrome` picks the browser; run as root (CI, containers) the tests add `--no-sandbox` themselves.
 
