@@ -180,6 +180,13 @@ class Relay {
     if (m?.t !== 'lobby' || !m.state) return;
     const s = m.state, was = r.phase;
     r.players = (s.slots || []).filter(Boolean).length; r.watchers = (s.watch || []).length;
+    // for the room browser: the rules, the queue, who holds the longest streak (names come from the host's lobby: clipped)
+    const clip = (v, n) => String(v ?? '').slice(0, n), rl = s.rules || {};
+    r.rules = { rotation: clip(rl.rotation || 'off', 8), cap: rl.cap | 0, bestOf: rl.bestOf | 0 || 1, timer: rl.timer | 0, rollback: rl.rollback !== false, bans: Array.isArray(rl.bans) ? rl.bans.length : 0 };
+    r.queue = Array.isArray(s.queue) ? s.queue.length : 0;
+    const people = [...(s.slots || []), ...(s.watch || [])].filter(Boolean);
+    let best = null; for (const [id, sc] of Object.entries(s.score || {})) if ((sc?.streak | 0) > 1 && (!best || sc.streak > best.streak)) best = { name: clip(people.find(p => p.id === id)?.name, RELAY.name), streak: sc.streak | 0 };
+    r.streak = best;
     let n = 0; for (const x of this.rooms.values()) n += x.watchers;
     this.spectatorPeak = Math.max(this.spectatorPeak, n);
     if (s.phase === was) return;
@@ -203,7 +210,8 @@ class Relay {
     client.room = client.role = client.id = null;
   }
   list() {
-    return [...this.rooms.values()].filter(r => r.public).map(r => ({ room: r.code, name: r.name, host: r.host.player || null, phase: r.phase, players: r.players, watchers: r.watchers, locked: r.locked }));
+    return [...this.rooms.values()].filter(r => r.public).map(r => ({ room: r.code, name: r.name, host: r.host.player || null, phase: r.phase, players: r.players, watchers: r.watchers, locked: r.locked,
+      rules: r.rules || null, queue: r.queue || 0, streak: r.streak || null }));
   }
   phases() { const c = {}; for (const r of this.rooms.values()) c[r.phase] = (c[r.phase] || 0) + 1; return c; }
 }

@@ -5,7 +5,7 @@
 // with a send function and feeds in what arrives (receive), so it runs the same over WebRTC, a server relay or, in the tests,
 // plain function calls. Pure logic, no DOM.
 const NET_PROTO = 1; // the lobby protocol's version: a hello with another one is turned away
-const LOBBY = { slots: 2, watchers: 6, cap: 20, rotations: ['off', 'winner', 'loser', 'round'], pingMs: 1000, timeoutMs: 10000, name: 24, char: 40, chat: 200 };
+const LOBBY = { slots: 2, watchers: 6, cap: 20, rotations: ['off', 'winner', 'loser', 'round'], bestOf: [1, 3, 5, 7], timers: [0, 30, 45, 60, 90, 99], bans: 40, pingMs: 1000, timeoutMs: 10000, name: 24, char: 40, chat: 200 };
 
 class Lobby {
   // role: 'host' | 'guest'; name: ours; send (guest): message → the host; now: a ms clock (the tests pass their own)
@@ -18,7 +18,7 @@ class Lobby {
     if (role === 'host') {
       this.id = 'h';
       this.state = { rev: 0, phase: 'lobby', scenario: 'you vs ai', over: {}, slots: [{ id: 'h', name: this.name, char: null, ready: false, rtt: 0 }, null], watch: [], error: null, result: null,
-        queue: [], rules: { rotation: 'off', cap: 0 }, score: {} };
+        queue: [], rules: lobbyRules(), score: {}, series: {} };
     } else this.state = null; // until the host's first snapshot
   }
   get host() { return this.role === 'host'; }
@@ -83,7 +83,7 @@ class Lobby {
   request(id, m) {
     const s = this.state, i = this.slotOf(id);
     switch (m.t) {
-      case 'pick': if (i >= 0 && s.phase === 'lobby') { s.slots[i].char = lobbyClip(m.char, LOBBY.char); s.slots[i].ready = false;
+      case 'pick': if (i >= 0 && s.phase === 'lobby' && !s.rules.bans.includes(lobbyClip(m.char, LOBBY.char))) { s.slots[i].char = lobbyClip(m.char, LOBBY.char); s.slots[i].ready = false;
         if (m.def && typeof m.def === 'object') this.defs[id] = m.def; else delete this.defs[id]; this.broadcast(); } break;
       case 'ready': if (i >= 0 && s.phase === 'lobby' && (!m.on || s.slots[i].char)) { s.slots[i].ready = !!m.on; this.broadcast(); } break;
       case 'chat': this.relayChat(id, m.text); break;
@@ -152,18 +152,21 @@ class Lobby {
       s.slots[i] = { id, name: w.name, char: null, ready: false, rtt: 0 };
     }
   }
-  // the host's room rules: rotation 'off' (the same two, rematch), 'winner' stays, 'loser' stays, 'round' (both out); cap: the
-  // winner steps out after that many wins in a row (0: never)
+  // the host's room rules (lobbyRules), in the lobby only; a change clears every ready (nobody starts on rules they didn't see),
+  // and a banned character's pick
   setRules(rules) {
-    const s = this.state; if (!this.host) return;
-    const r = { ...s.rules, ...rules };
-    s.rules = { rotation: LOBBY.rotations.includes(r.rotation) ? r.rotation : 'off', cap: Math.max(0, Math.min(LOBBY.cap, r.cap | 0)) };
+    const s = this.state; if (!this.host || s.phase !== 'lobby') return;
+    s.rules = lobbyRules({ ...s.rules, ...rules });
+    for (const sl of s.slots) if (sl) { sl.ready = false; if (s.rules.bans.includes(sl.char)) sl.char = null; }
+    s.series = {};
     this.broadcast();
   }
   // after a fight: the rotation, then back to the lobby (off: a plain rematch)
   next() {
     const s = this.state; if (!this.host || s.phase !== 'post') return;
     const { rotation, cap } = s.rules, last = s.last || {};
+    if (last.pending) return this.rematch(); // a best-of still going: the same two again
+    s.series = {};
     let out = [];
     if (rotation === 'round') out = [0, 1];
     else if (last.win === undefined) out = rotation === 'off' ? [] : [1]; // a draw: the challenger steps out
@@ -178,15 +181,18 @@ class Lobby {
     this.fill();
     this.rematch();
   }
-  // the score of a finished fight: wins, and the winner's streak (the loser's ends)
+  // the score of a finished fight: wins; series (this pair's wins in a best-of): once someone has enough (or a forfeit), the set is
+  // over, its winner's streak grows and the loser's ends (last: who won the set, or pending: the set goes on)
   tally(result) {
     const s = this.state, ids = s.slots.map(x => x?.id), sc = id => s.score[id] ??= { wins: 0, streak: 0 };
     let win, lose;
     if (result?.forfeit) { lose = result.forfeit; win = ids.find(x => x && x !== lose); }
     else if (Number.isInteger(result?.winner)) { win = ids[result.winner]; lose = ids[1 - result.winner]; }
-    s.last = win ? { win, lose } : {};
-    if (!win) return;
-    sc(win).wins++; sc(win).streak++;
+    const need = Math.ceil((s.rules.bestOf || 1) / 2), series = s.series ??= {};
+    if (win) { sc(win).wins++; series[win] = (series[win] || 0) + 1; }
+    if (!result?.forfeit && (!win || series[win] < need)) { s.last = need > 1 ? { pending: true } : {}; return; } // a draw, or the set goes on
+    s.last = { win, lose };
+    sc(win).streak++;
     if (lose) sc(lose).streak = 0;
   }
 
@@ -282,6 +288,14 @@ class Lobby {
     for (const p of this.peers.values()) if (p.hello) p.send({ t: 'ping', at: t });
   }
 }
+// room rules, checked: rotation and cap (see setRules), bestOf (a set: first to more than half), timer (seconds a fight lasts, 0:
+// the scenario's own), bans (characters nobody may pick), rollback (off: lockstep)
+function lobbyRules(r = {}) {
+  const one = (v, list, d) => list.includes(v) ? v : d;
+  return { rotation: one(r.rotation, LOBBY.rotations, 'off'), cap: Math.max(0, Math.min(LOBBY.cap, r.cap | 0)), bestOf: one(r.bestOf, LOBBY.bestOf, 1),
+    timer: one(r.timer, LOBBY.timers, 0), bans: [...new Set((Array.isArray(r.bans) ? r.bans : []).map(c => lobbyClip(c, LOBBY.char)).filter(Boolean))].slice(0, LOBBY.bans),
+    rollback: r.rollback !== false };
+}
 function lobbyClip(v, n) { return String(v ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, n); }
 
 // ---------- the match a lobby starts: a replay header (makeReplay with no frames yet), so a finished match saves as a replay ----------
@@ -292,7 +306,7 @@ function lobbyHeader(state, seed, defs = {}) {
   const chars = state.slots.map(sl => defs[sl.id] ? makeCharacter(defs[sl.id]) : CHARS[sl.char]);
   const bad = state.slots.find((sl, i) => !chars[i]);
   if (bad) throw new Error(`${bad.name} picked "${bad.char}", which the host doesn't have`);
-  const w = new World({ ...base, a: 'human', b: 'human2' }, state.over, seed, chars);
+  const w = new World({ ...base, a: 'human', b: 'human2', ...state.rules?.timer ? { period: state.rules.timer } : {} }, state.over, seed, chars);
   const { frames, sums, end, ...header } = makeReplay(w, state.scenario);
   return header;
 }
