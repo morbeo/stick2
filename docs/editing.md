@@ -326,7 +326,7 @@ The **character** tab of the side panel has two look rows under the colour. They
 | **colour** | **auto** uses the style's own colour (paper, ink, or the figure's colour for glow). The picker sets any colour. |
 | **opacity** | How solid the outline is. |
 | **softness** | Glow only: blur in px. |
-| **line** | **solid**, **dashed** or **sketch** (loose pencil strokes on every bone, just off it and running past the joints; they stay put from frame to frame). |
+| **line** | **solid**, **dashed**, **sketch** (loose pencil strokes on every bone, just off it and running past the joints), **brush** (a loaded ink brush: each stroke swells in the middle and thins to soft points), **calligraphy** (a flat nib at 45°: thick across it, hairline along it, so each limb's weight follows its direction) or **hand** (a slightly shaky pen line). Brush lines and outlines follow the same shape, and none of them crawl between frames. |
 
 The look is saved with the character as `look` in the JSON, and the palette has **look: outline \<kind>** and **look: line \<kind>**. Example: **double** at width 2 for the flash-fight look; **glow** with a blue colour and softness 12 for a powered-up stance. A skin changes single bones, while the look covers the whole figure, so the two combine.
 

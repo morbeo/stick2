@@ -18,7 +18,7 @@ function drawWeapon(ctx, b, o, e, col, extra = 0) {
 const LOOK_INK = '#111111', LOOK_PAPER = '#f3f0e8';
 const LOOK_OUTLINES = ['halo', 'ink', 'double', 'glow', 'shadow'];
 function drawOutline(ctx, ch, P, col, lk, mul) {
-  const w = lk.ow ?? 2, rim = (c, width) => drawFigure(ctx, ch, P, c, c, width, () => c, mul);
+  const w = lk.ow ?? 2, rim = (c, width) => drawBones(ctx, ch, P, c, c, width, () => c, mul, BRUSHES[lk.line] ? lk.line : null); // the rim follows the brush
   ctx.save(); ctx.globalAlpha *= lk.oa ?? (lk.outline === 'shadow' ? 0.35 : 1);
   if (lk.outline === 'double') { rim(lk.oc || LOOK_INK, 4 * w); rim(LOOK_PAPER, 2 * w); }
   else if (lk.outline === 'glow') { const c = lk.oc || col; ctx.shadowColor = c; ctx.shadowBlur = lk.blur ?? 6; rim(c, 2 * w); }
@@ -30,7 +30,7 @@ function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
   const lk = !extra && !tint ? ch.look : null;
   if (LOOK_OUTLINES.includes(lk?.outline)) drawOutline(ctx, ch, P, col, lk, mul);
   if (lk?.line === 'dashed') { ctx.save(); ctx.setLineDash([6, 4]); drawBones(ctx, ch, P, col, back, extra, tint, mul); ctx.restore(); }
-  else drawBones(ctx, ch, P, col, back, extra, tint, mul);
+  else drawBones(ctx, ch, P, col, back, extra, tint, mul, BRUSHES[lk?.line] ? lk.line : null);
   if (lk?.line === 'sketch') drawSketch(ctx, ch, P, col, back);
 }
 // sketch: two thin pencil strokes per bone, each a little off the bone and running past both joints; the offsets
@@ -58,7 +58,8 @@ function drawSketch(ctx, ch, P, col, back) {
   }
   ctx.restore();
 }
-function drawBones(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
+// brush: a line style that draws each straight bone as its own filled stroke (strokeBrush) instead of a plain line
+function drawBones(ctx, ch, P, col, back, extra = 0, tint = null, mul = null, brush = null) {
   ctx.lineCap = ctx.lineJoin = 'round';
   const inSpline = new Set(), SIDES = { b: 0, '': 1, f: 2 };
   const rank = b => (b.z || 0) * 3 + (SIDES[b.side ?? ''] ?? 1), order = ch.bones.map((b, i) => [rank(b), i, b]).sort((x, y) => x[0] - y[0] || x[1] - y[1]).map(x => x[2]);
@@ -80,7 +81,8 @@ function drawBones(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
       const pts = [o, ...fillRun(ch, b).map(k => P[k.id]), ...b.fillTo && P[b.fillTo] ? [P[b.fillTo]] : []];
       ctx.fillStyle = b.shade || tint || extra ? c : mixWhite(c, 0.55); ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill();
       if (thick > 0) { ctx.strokeStyle = c; ctx.lineWidth = thick + extra; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(e[0], e[1]); ctx.stroke(); }
-    } else if ((b.taper || b.cap === 'point') && !b.curve) drawTapered(ctx, o, e, thick + extra, b.cap === 'point' ? 0 : thick * (1 - b.taper) + extra, c, b.cap);
+    } else if (brush && !b.curve) strokeBrush(ctx, o, e, thick + extra, c, brush, b.id, b.taper || (b.cap === 'point' ? 1 : 0));
+    else if ((b.taper || b.cap === 'point') && !b.curve) drawTapered(ctx, o, e, thick + extra, b.cap === 'point' ? 0 : thick * (1 - b.taper) + extra, c, b.cap);
     else {
       ctx.lineCap = LINE_CAPS[b.cap] || 'round';
       ctx.strokeStyle = c; ctx.lineWidth = thick + extra; ctx.beginPath(); ctx.moveTo(o[0], o[1]);
@@ -93,6 +95,29 @@ function drawBones(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
     }
     if (a < 1) ctx.restore();
   }
+}
+// brush line styles: a width profile along the stroke (t 0..1 from the joint out) and a sideways wobble.
+// brush: swells in the middle and thins to soft points, like a loaded ink brush; calligraphy: a flat nib held at
+// 45°, so the width follows the stroke's direction (thick across the nib, hairline along it); hand: a slightly shaky
+// pen line, its width and path wandering a little. All seeded by the bone id, so a line never crawls between frames
+const BRUSHES = {
+  brush: { width: (t, a) => 0.3 + 0.95 * Math.sin(Math.PI * t) ** 0.7, wob: 0 },
+  calligraphy: { width: (t, a) => 0.15 + 1.05 * Math.abs(Math.sin(a - Math.PI / 4)), wob: 0 },
+  hand: { width: (t, a, n) => 0.93 + 0.14 * n, wob: 1.6, caps: true }, // wob: px, the same under an outline
+};
+function strokeBrush(ctx, o, e, w, c, style, id, taper = 0) {
+  const B = BRUSHES[style], dx = e[0] - o[0], dy = e[1] - o[1], l = Math.hypot(dx, dy) || 1, ux = dx / l, uy = dy / l, a = Math.atan2(dy, dx);
+  let seed = 7; for (const ch of id) seed = (seed * 31 + ch.charCodeAt(0)) % 10007;
+  const noise = t => Math.sin(t * 3.3 + seed) * 0.65 + Math.sin(t * 6.1 + seed * 1.7) * 0.35, n = Math.max(4, Math.min(16, Math.round(l / 4)));
+  const L = [], R = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, ww = Math.max(0.3, w * B.width(t, a, noise(t)) * (1 - taper * t)) / 2, off = B.wob * noise(t + 0.5) * Math.sin(Math.PI * t);
+    const x = o[0] + dx * t - uy * off, y = o[1] + dy * t + ux * off;
+    L.push([x - uy * ww, y + ux * ww]); R.push([x + uy * ww, y - ux * ww]);
+  }
+  ctx.fillStyle = c; ctx.beginPath();
+  [...L, ...R.reverse()].forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill();
+  if (B.caps) for (const [p, k] of [[o, 0], [e, 1]]) { ctx.beginPath(); ctx.arc(p[0], p[1], Math.max(0.3, w * B.width(k, a, noise(k)) * (1 - taper * k)) / 2, 0, 7); ctx.fill(); }
 }
 const LINE_CAPS = { round: 'round', square: 'square', flat: 'butt', point: 'round' };
 // a colour (#rgb / #rrggbb) a fraction t of the way to white; anything else (named, rgba) unchanged

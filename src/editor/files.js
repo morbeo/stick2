@@ -340,7 +340,9 @@ function charPanel() {
 const LOOK_TIPS = { outline: { none: 'No outline', halo: 'A paper-coloured rim: the figure stands out from whatever is behind it',
     ink: 'A dark rim around every bone, like an inked drawing', double: 'An ink rim round a paper gap: the classic flash stick-fight look',
     glow: 'A soft blurred rim in the figure\'s own colour (or the colour below): an energy aura', shadow: 'A flat copy dropped down and right, like a cel shadow' },
-  line: { solid: 'Plain strokes', dashed: 'Dashed strokes (round and pointed ends stay solid)', sketch: 'Loose pencil strokes on every bone, just off it and running past the joints' } };
+  line: { solid: 'Plain strokes', dashed: 'Dashed strokes (round and pointed ends stay solid)', sketch: 'Loose pencil strokes on every bone, just off it and running past the joints',
+    brush: 'A loaded ink brush: each stroke swells in the middle and thins to soft points', calligraphy: 'A flat nib held at 45°: thick across it, hairline along it, so every limb\'s weight follows its direction',
+    hand: 'A slightly shaky pen line: width and path wander a little, the same every frame' } };
 function lookRows() {
   const get = k => DEFS[CURRENT].look?.[k], set = (k, v, dflt) => edit(def => { const L = { ...def.look }; if (v === dflt || v == null) delete L[k]; else L[k] = v;
     if (Object.keys(L).length) def.look = L; else delete def.look; }, 'look.' + k);
@@ -355,7 +357,7 @@ function lookRows() {
     only(on, slider('opacity', { min: 0.1, max: 1, step: 0.05 }, () => get('oa') ?? (get('outline') === 'shadow' ? 0.35 : 1), v => set('oa', v), 'How solid the outline is')),
     only(() => get('outline') === 'glow', slider('softness', { min: 0, max: 24, step: 1 }, () => get('blur') ?? 6, v => set('blur', v, 6), 'Glow blur in px')),
     h('div', { cls: 'row', tip: 'How the bones are stroked (drawing only)' }, h('span', {}, ...rich(':edit: line')),
-      h('span', { cls: 'bar' }, seg(['solid', 'dashed', 'sketch'], () => get('line') || 'solid', v => set('line', v, 'solid'), LOOK_TIPS.line)))];
+      h('span', { cls: 'bar' }, seg(['solid', 'dashed', 'sketch', 'brush', 'calligraphy', 'hand'], () => get('line') || 'solid', v => set('line', v, 'solid'), LOOK_TIPS.line)))];
 }
 // a character's own colour (def.col): unset (auto) leaves it to the player slot in a fight (P1 black, P2 red…, as every
 // built-in does today); set, it is always drawn that way — in a fight too, overriding the slot. Preset swatches, or any
