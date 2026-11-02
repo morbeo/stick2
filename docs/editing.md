@@ -321,10 +321,14 @@ The **character** tab of the side panel has two look rows under the colour. They
 
 | Row | Options |
 |---|---|
-| **outline** | **none**, **halo** (a paper-coloured rim that separates the figure from what's behind it) or **ink** (a dark rim, like an inked drawing). **1 / 2 / 4** sets its width in px. |
+| **outline** | **none**, **halo** (a paper-coloured rim that separates the figure from what's behind it), **ink** (a dark rim, like an inked drawing), **double** (an ink rim round a paper gap, the classic flash stick-fight look), **glow** (a soft blurred rim in the figure's own colour, an energy aura) or **shadow** (a flat copy dropped down and right, like a cel shadow). |
+| **width** | Outline width in px, 1 to 8. For shadow, how far it drops. |
+| **colour** | **auto** uses the style's own colour (paper, ink, or the figure's colour for glow). The picker sets any colour. |
+| **opacity** | How solid the outline is. |
+| **softness** | Glow only: blur in px. |
 | **line** | **solid**, **dashed** or **sketch** (loose pencil strokes on every bone, just off it and running past the joints; they stay put from frame to frame). |
 
-The look is saved with the character as `look` in the JSON, and the palette has **look: outline \<kind>** and **look: line \<kind>**. A skin changes single bones, while the look covers the whole figure, so the two combine.
+The look is saved with the character as `look` in the JSON, and the palette has **look: outline \<kind>** and **look: line \<kind>**. Example: **double** at width 2 for the flash-fight look; **glow** with a blue colour and softness 12 for a powered-up stance. A skin changes single bones, while the look covers the whole figure, so the two combine.
 
 ### Skins
 
