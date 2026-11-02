@@ -119,7 +119,7 @@ The **movelist** section of the side panel lists the played character's own move
 
 The **dummy** group records your inputs and lets the dummy replay them.
 
-**Rewind:** ⇧V goes one second back, C one frame back. It restores the last checkpoint before that point and replays the inputs from there, exactly as before, then pauses. Checkpoints are kept once a second, thinned to one every 10 s past the last minute.
+**Rewind:** ⇧V goes one second back, C one frame back. It restores the last checkpoint before that point and replays the inputs from there, exactly as before, then pauses. Checkpoints are kept once a second, thinned to one every 10 s past the last minute. A checkpoint leaves out what is only drawn (pose and trail histories), so taking one costs under 1 ms.
 
 ### Replays
 

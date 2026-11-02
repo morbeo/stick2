@@ -308,14 +308,16 @@ const ENGINE_VERSION = 51;
 // objects the simulation only reads (compiled characters and their moves): a state copy keeps them by reference
 const SHARED = new WeakSet();
 // deep copy of simulation state: prototypes and cycles kept, SHARED objects and functions by reference, a seeded rng copied
-// with its state; skip: own keys of the top object left out
+// with its state; skip: own keys of the top object left out. A class's static byRef keys (drawing-only history such as
+// afterimages) are kept by reference: never read by the simulation, and copying them was most of a checkpoint's cost
 function cloneState(v, memo = new Map(), skip = []) {
   if (typeof v === 'function') return v.seed === undefined ? v : memo.get(v) ?? memo.set(v, makeRand(v.seed)).get(v);
   if (!v || typeof v !== 'object' || SHARED.has(v)) return v;
   if (memo.has(v)) return memo.get(v);
   const o = Array.isArray(v) ? [] : Object.create(Object.getPrototypeOf(v));
   memo.set(v, o);
-  for (const k of Object.keys(v)) if (!skip.includes(k)) o[k] = cloneState(v[k], memo);
+  const ref = v.constructor?.byRef;
+  for (const k of Object.keys(v)) if (!skip.includes(k)) o[k] = ref?.includes(k) ? v[k] : cloneState(v[k], memo);
   return o;
 }
 // FNV-1a over numbers (rounded to 1/100), for state checksums
