@@ -807,17 +807,19 @@ class Fighter {
     // aim bones turn toward the nearest foe's upper body (look-at heads, a tracking arm): from last frame's drawn joints
     const foe = this.ch.aims && !this.rag && !this.spin && !this.kd && this.w.nearestFoe(this), P0 = foe && this.body();
     const fp = foe && foe.body()[foe.ch.chains.head[0]?.[0].parent || foe.ch.chains.spine[0]?.at(-1).id || 'hip'];
+    // settings read once per frame, not once per bone (same values: c() is pure within a frame)
+    const freq = c('freq'), fthru = c('followThru'), zeta = c('zeta'), resp = c('response'), whip = c('whip'), dk = 1 - Math.exp(-c('dampRate') * dt), lk = 1 - Math.exp(-30 * dt);
     for (const b of this.ch.bones) {
       const j = b.id, wp = b.parent ? wa[b.parent] : 0, t = this.target[j];
       let x = b.dangle && gust ? t + clamp(b.dangle * gust, 0, 1) * wrap180(blow - wp - t) : t;
       if (b.aim && fp) { const o = P0[b.parent || 'hip']; x += clamp(b.aim, 0, 1) * wrap180(Math.atan2((fp[0] - o[0]) * this.dir, fp[1] - o[1]) / R - wp - x); }
       // whip: lags behind a fast-turning parent (its angular velocity, already updated this frame), so a nunchuck's
       // tip bends back out of a swing and springs past straight into the next one instead of staying rigid
-      if (b.whip && !this.rag) x -= clamp((this.flt[b.parent]?.yd || 0) * b.whip * c('whip'), -140, 140);
+      if (b.whip && !this.rag) x -= clamp((this.flt[b.parent]?.yd || 0) * b.whip * whip, -140, 140);
       this.prev[j] = this.disp[j];
-      if (mode === 'spring') this.disp[j] = this.flt[j].update(dt, x, c('freq') * b.stiff * c('followThru') ** b.lag, c('zeta') * b.damp, c('response'));
+      if (mode === 'spring') this.disp[j] = this.flt[j].update(dt, x, freq * b.stiff * fthru ** b.lag, zeta * b.damp, resp);
       else {
-        this.disp[j] = mode === 'damp' ? this.disp[j] + (x - this.disp[j]) * (1 - Math.exp(-c('dampRate') * dt)) : x;
+        this.disp[j] = mode === 'damp' ? this.disp[j] + (x - this.disp[j]) * dk : x;
         this.flt[j].reset(this.disp[j]);
       }
       // limits are applied after the filter so spring overshoot never hyperextends a joint; a pose authored past a limit is kept
@@ -826,7 +828,7 @@ class Fighter {
       // (an auto morph blends the lengths from the old body's, new bones from nothing)
       const len = (mo ? (mo.lens[j] ?? 0) + (b.len - (mo.lens[j] ?? 0)) * morphAt(mo, b) : b.len) * this.mul.len[j];
       const want = len * (1 + b.stretch * Math.min(1, Math.abs(this.disp[j] - this.prev[j]) / dt / 1500));
-      this.lens[j] = mo ? want : this.lens[j] + (want - this.lens[j]) * (1 - Math.exp(-30 * dt));
+      this.lens[j] = mo ? want : this.lens[j] + (want - this.lens[j]) * lk;
       wa[j] = wp + this.disp[j];
     }
 
