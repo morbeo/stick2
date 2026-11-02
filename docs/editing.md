@@ -315,6 +315,21 @@ Example: on a centaur, save `horse` (the four horse legs and the barrel) and `ri
 
 Example: select `chest`, pick **L** and **pair**, then **wing**. Select `head` and add **horn**. Add a **tentacle** with **joints 8** at the hips for a long, floppy tail.
 
+### Character look
+
+The **character** tab of the side panel has two look rows under the colour. They're drawing only, so they never change a fight or a replay.
+
+| Row | Options |
+|---|---|
+| **outline** | **none**, **halo** (a paper-coloured rim that separates the figure from what's behind it), **ink** (a dark rim, like an inked drawing), **double** (an ink rim round a paper gap, the classic flash stick-fight look), **glow** (a soft blurred rim in the figure's own colour, an energy aura) or **shadow** (a flat copy dropped down and right, like a cel shadow). |
+| **width** | Outline width in px, 1 to 8. For shadow, how far it drops. |
+| **colour** | **auto** uses the style's own colour (paper, ink, or the figure's colour for glow). The picker sets any colour. |
+| **opacity** | How solid the outline is. |
+| **softness** | Glow only: blur in px. |
+| **line** | **solid**, **dashed**, **sketch** (loose pencil strokes on every bone, just off it and running past the joints), **brush** (a loaded ink brush: each stroke swells in the middle and thins to soft points), **calligraphy** (a flat nib at 45°: thick across it, hairline along it, so each limb's weight follows its direction) or **hand** (a slightly shaky pen line). Brush lines and outlines follow the same shape, and none of them crawl between frames. |
+
+The look is saved with the character as `look` in the JSON, and the palette has **look: outline \<kind>** and **look: line \<kind>**. Example: **double** at width 2 for the flash-fight look; **glow** with a blue colour and softness 12 for a powered-up stance. A skin changes single bones, while the look covers the whole figure, so the two combine.
+
 ### Skins
 
 A skin is a named look for one character, made only of bone **drawing** settings: `thick`, `cap`, `taper`, `shade`, `curve` and `z` (draw layer). A skin never touches lengths, hurtboxes or motion, so it can't change a fight, and replays stay valid. Skins are procedural, with no images, and they keep the character monochrome because `shade` is grey only.
