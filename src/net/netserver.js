@@ -63,7 +63,7 @@ function netServerHost(lobby, url, { room = () => {}, isPublic = false, device =
     open: () => link.send({ t: 'host', name: '', public: isPublic, ...netServerWho(lobby, device) }),
     message: m => {
       // the server's spectator rules: how far behind they watch (frames) and how many may
-      if (m.t === 'room') { link.room = m.room; link.player = m.player; link.delay = m.delay | 0; if (m.watchers >= 0) lobby.watchers = Math.min(lobby.watchers, m.watchers); if (m.player && lobby.state?.slots[0]) lobby.state.slots[0].name = lobby.name = m.player; room(m.room); }
+      if (m.t === 'room') { link.room = m.room; link.player = m.player; link.delay = m.delay | 0; if (m.watchers >= 0) lobby.watchers = m.watchers; if (m.player && lobby.state?.slots[0]) lobby.state.slots[0].name = lobby.name = m.player; room(m.room); }
       else if (m.t === 'peer') ids.set(m.id, lobby.link(x => link.send({ t: 'to', id: m.id, m: x })));
       else if (m.t === 'from' && ids.has(m.id)) lobby.receive(ids.get(m.id), m.m);
       else if (m.t === 'gone' && ids.has(m.id)) { lobby.unlink(ids.get(m.id), m.why === 'left' ? 'left' : m.why); ids.delete(m.id); }

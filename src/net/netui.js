@@ -51,7 +51,8 @@ function netLobby(role, server = null, pin = null) {
   net.sig = new ManualSignal((code, kind) => { net.code = code; net.codeKind = kind; if (kind === 'offer') net.inviting = 'waiting'; netDraw(); }, net.pin);
   net.lobby = new Lobby({ role, name: netName(), hooks: {
     change: () => netDraw(),
-    match: m => net.match?.receive(m),
+    // (the host sitting out shows P1's frames, and passes them on to the spectators, held back as the server says)
+    match: m => { net.match?.receive(m); if (m.t === 'watch' && net.lobby?.host && net.match?.watching) m.a.forEach((x, i) => net.feed?.push(m.f + i, x, m.b[i], m.s?.[m.f + i + 1])); },
     catchup: id => { const m = net.feed?.all(); if (m) net.lobby.sendTo(id, m); },
     // the host picks the input delay from the guest's round trip, and puts it in the match, so both sides use the same
     header: (state, seed, defs) => ({ ...lobbyHeader({ ...state, scenario: netScen() }, seed, defs), netDelay: netDelay(state), netRoll: net.rollback ? NETMATCH.roll : 0 }),
@@ -131,17 +132,24 @@ function netJoinFromLink(code, pin = null) {
 function netPhase(e) {
   if (e.phase === 'match' && e.header) {
     const desync = f => netSay(`:close: the fights went different ways at frame ${f}: save the replay and report it`);
-    net.feed = new WatchFeed(net.server?.delay || 0); // a server can hold spectators back (SPECTATE_DELAY)
-    // a spectator watches the host's confirmed frames; a player plays (and the host passes what it confirms on to the spectators)
-    const m = net.match = !net.lobby.me
-      ? new NetWatch({ header: e.header, hooks: { desync, end: r => netSay(r.winner === null ? 'draw' : `P${r.winner + 1} wins`) } })
-      : new NetMatch({ header: e.header, side: net.lobby.host ? 0 : 1, send: msg => net.lobby.matchSend(msg), hooks: { desync,
-        end: r => { netSay(r.winner === null ? 'draw' : r.winner === m.side ? 'you win' : 'you lose'); if (net.lobby.host) { net.lobby.finish(r); net.server?.saveReplay?.(m.replay(), r, net.lobby.state.slots.map(s => s?.name)); } },
-        confirmed: net.lobby.host ? netRelay : undefined } });
+    const L = net.lobby, feeds = L.feeder === L.id;
+    // the host feeds the spectators (held back as a server says: SPECTATE_DELAY); P1 feeds the host while the host sits out
+    net.feed = L.host ? new WatchFeed(net.server?.delay || 0) : feeds ? new WatchFeed(0) : null;
+    // the host's end of a fight: the result, and the replay for the server
+    const over = r => { if (!L.host) return; L.finish(r); net.server?.saveReplay?.(m.replay(), r, L.state.slots.map(s => s?.name)); };
+    // a spectator (the host too, when it sits out) watches the confirmed frames; a player plays and, if it feeds, passes them on
+    const m = net.match = !L.me
+      ? new NetWatch({ header: e.header, hooks: { desync, end: r => { netSay(r.winner === null ? 'draw' : `${L.state.slots[r.winner]?.name ?? `P${r.winner + 1}`} wins`); over(r); } } })
+      : new NetMatch({ header: e.header, side: Math.max(0, L.state.slots.findIndex(s => s?.id === L.id)), send: msg => L.matchSend(msg), hooks: { desync,
+        end: r => { netSay(r.winner === null ? 'draw' : r.winner === m.side ? 'you win' : 'you lose'); over(r); },
+        confirmed: feeds ? netRelay : undefined } });
     m.world.sfx = playSound;
     net.acc = 0;
     if (mode() !== labMode || lab.mode !== 'play') setMode('play');
     build(); netSay('fight!');
+  } else if (e.phase === 'post' && net.lobby?.host && net.lobby.state.rules?.rotation !== 'off') {
+    const L = net.lobby; clearTimeout(net.nextAt);
+    net.nextAt = setTimeout(() => { if (net.lobby === L && L.phase === 'post') L.next(); }, NET_NEXT_S * 1000);
   } else if (e.phase === 'lobby' || e.phase === 'closed') {
     if (net.match) { net.match = null; build(); }
     if (e.phase === 'closed') netSay(e.why || 'disconnected');
@@ -167,11 +175,15 @@ function netFrame(raw, inp) {
   }
   // the host: what its match confirmed since the last frame (less the spectator delay; all of it once the fight is over), in one
   // message to every spectator
-  if (net.lobby?.host && net.feed) {
-    const msg = net.feed.take(net.lobby.phase !== 'match');
-    if (msg && net.lobby.state.watch.length) net.lobby.watchSend(msg);
+  // (a guest playing P1 while the host sits out sends them to the host instead)
+  if (net.lobby && net.feed) {
+    const msg = net.feed.take(net.lobby.phase !== 'match' || !!m.result);
+    if (msg && (!net.lobby.host || net.lobby.state.watch.some(w => w.id !== 'h'))) net.lobby.watchSend(msg);
   }
 }
+// rotation: who fights next (the lobby's rules); the host's "next" comes by itself NET_NEXT_S seconds after a fight
+const NET_ROTATIONS = { off: 'same two (rematch)', winner: 'winner stays', loser: 'loser stays', round: 'both rotate' }, NET_NEXT_S = 10;
+const netScore = (st, id) => { const c = st.score?.[id]; return c?.wins ? ` · ${c.wins} win${c.wins === 1 ? '' : 's'}${c.streak > 1 ? ` · streak ${c.streak}` : ''}` : ''; };
 // the host's match confirmed frame k (both real inputs; hash: the state after it, at checks)
 const netRelay = (k, p1, p2, hash) => net.feed?.push(k, p1, p2, hash);
 // a finished fight (this one, or one from a server's replays) played again in the play tab, as a replay
@@ -292,8 +304,21 @@ function netDraw() {
     if (st) {
       if (st.error) rows.push(h('p', { cls: 'neterr', textContent: st.error }));
       rows.push(...st.slots.map((s, i) => h('div', { cls: 'netslot' + (s?.id === L.id ? ' me' : '') }, `P${i + 1} `,
-        s ? h('b', { textContent: s.name }) : h('i', { textContent: 'open' }), s ? ` · ${s.char || '…'}${s.ready ? ' · ready' : ''}${s.id !== 'h' && s.rtt ? ` · ${s.rtt} ms` : ''}` : '', s ? netModerate(L, s) : null)));
-      if (st.watch.length) rows.push(h('div', { cls: 'netrow' }, 'watching: ', ...st.watch.flatMap(w => [h('b', { textContent: w.name }), netModerate(L, w), ' '])));
+        s ? h('b', { textContent: s.name }) : h('i', { textContent: 'open' }), s ? ` · ${s.char || '…'}${s.ready ? ' · ready' : ''}${s.id !== 'h' && s.rtt ? ` · ${s.rtt} ms` : ''}${netScore(st, s.id)}` : '', s ? netModerate(L, s) : null)));
+      const queued = (st.queue || []).map(id => st.watch.find(w => w.id === id)).filter(Boolean), idle = st.watch.filter(w => !queued.includes(w));
+      if (queued.length) rows.push(h('div', { cls: 'netrow', tip: 'Who plays next, in order' }, 'next up: ', ...queued.flatMap((w, i) => [`${i + 1}. `, h('b', { textContent: w.name }), netScore(st, w.id), netModerate(L, w), ' '])));
+      if (idle.length) rows.push(h('div', { cls: 'netrow' }, 'watching: ', ...idle.flatMap(w => [h('b', { textContent: w.name }), netScore(st, w.id), netModerate(L, w), ' '])));
+      // join the queue, leave it, or give up your place
+      const inQueue = st.queue?.includes(L.id);
+      if (!me && st.watch.some(w => w.id === L.id)) rows.push(h('div', { cls: 'bar' }, button(inQueue ? ':close: leave queue' : ':add: queue', inQueue ? 'Just watch' : 'Get in line to fight: you take the next free place', () => L.queue(!inQueue), inQueue ? 'tog on' : 'tog')));
+      if (me && st.phase === 'lobby' && (st.watch.length || L.host)) rows.push(h('div', { cls: 'bar' }, button(':person_off: sit out', 'Give your place to the next in line (you go to the back of the queue, or just watch)', () => L.sit())));
+      if (L.host && st.phase === 'lobby') {
+        const rot = h('select', { tip: 'Who fights next after a fight', onchange: e => L.setRules({ rotation: e.target.value }) },
+          Object.entries(NET_ROTATIONS).map(([k, t]) => h('option', { value: k, textContent: t, selected: k === st.rules?.rotation })));
+        const cap = h('select', { tip: 'Winner stays: the winner steps out too after this many wins in a row', onchange: e => L.setRules({ cap: +e.target.value }) },
+          [0, 2, 3, 5, 10].map(n => h('option', { value: n, textContent: n ? `streak cap ${n}` : 'no streak cap', selected: n === (st.rules?.cap || 0) })));
+        rows.push(h('div', { cls: 'netrow' }, rot, st.rules?.rotation === 'winner' ? cap : null));
+      }
       if (L.host && net.server?.room) rows.push(h('div', { cls: 'bar' }, toggle(':lock: lock room', 'Turn away anyone new (the people already here stay)', () => !!net.server.locked, v => net.server.lock(v))));
       if (st.phase === 'lobby' && me) {
         const pick = h('select', { tip: 'Your character', onchange: e => L.pick(e.target.value) }, Object.keys(CHARS).map(k => h('option', { value: k, textContent: k, selected: k === (me.char || CURRENT) })));
@@ -308,7 +333,9 @@ function netDraw() {
       }
       if (st.phase === 'sync') rows.push(h('p', { textContent: 'starting: checking both sides built the same fight…' }));
       if (st.phase === 'match' && net.match) rows.push(net.status = h('p', { textContent: netStatus(), tip: 'The online fight: frames run, input delay (frames between a press and its move, the same on both sides), how many frames waited on the other player' }));
-      if (st.phase === 'post') rows.push(h('div', { cls: 'bar' }, L.host ? button(':replay: rematch', 'Back to the lobby for another fight', () => L.rematch()) : null,
+      if (st.phase === 'post') rows.push(h('div', { cls: 'bar' }, L.host ? (st.rules?.rotation && st.rules.rotation !== 'off'
+        ? button(':skip_next: next', `${NET_ROTATIONS[st.rules.rotation]}: the next fighters to the lobby (automatic in ${NET_NEXT_S} s)`, () => L.next())
+        : button(':replay: rematch', 'Back to the lobby for another fight', () => L.rematch())) : null,
         net.match ? button(':replay: watch again', 'Play this fight again in the play tab, as a replay', () => netWatchAgain(net.match.replay())) : null,
         net.match ? button(':save: replay', 'Save this fight as a replay file', () => download(`netplay-${Date.now()}.json`, net.match.replay())) : null));
       rows.push(netChat(L));
