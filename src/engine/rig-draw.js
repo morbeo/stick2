@@ -19,7 +19,32 @@ function drawFigure(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
   if (lk?.outline) { const oc = lk.outline === 'ink' ? LOOK_INK : LOOK_PAPER; drawFigure(ctx, ch, P, oc, oc, 2 * (lk.ow ?? 2), () => oc, mul); }
   if (lk?.line === 'dashed') { ctx.save(); ctx.setLineDash([6, 4]); drawBones(ctx, ch, P, col, back, extra, tint, mul); ctx.restore(); }
   else drawBones(ctx, ch, P, col, back, extra, tint, mul);
-  if (lk?.line === 'sketch') { ctx.save(); ctx.globalAlpha *= 0.35; ctx.translate(1.2, -0.9); drawBones(ctx, ch, P, col, back, 0, null, mul); ctx.restore(); }
+  if (lk?.line === 'sketch') drawSketch(ctx, ch, P, col, back);
+}
+// sketch: two thin pencil strokes per bone, each a little off the bone and running past both joints; the offsets
+// come from the bone's id, so a figure's lines stay put from frame to frame instead of crawling
+function drawSketch(ctx, ch, P, col, back) {
+  const hash = (str, k) => { let x = k * 2654435761; for (const c of str) x = Math.imul(x ^ c.charCodeAt(0), 2246822519) >>> 0; return (x % 1000) / 1000 - 0.5; };
+  ctx.save(); ctx.lineCap = 'round';
+  for (const b of ch.bones) {
+    const o = P[b.parent || 'hip'], e = P[b.id];
+    if (!o || !e || b.hidden || b.shape === 'socket' || b.role === 'weapon') continue;
+    ctx.strokeStyle = (b.side ?? '') === 'b' ? back : col;
+    if (b.shape === 'circle') {
+      for (const k of [1, 2]) { ctx.globalAlpha = 0.7; ctx.lineWidth = 1.2; ctx.beginPath();
+        ctx.ellipse(e[0] + hash(b.id, k) * 5, e[1] + hash(b.id, k + 4) * 5, b.len + 3 + hash(b.id, k + 8) * 4, b.len + 3 + hash(b.id, k + 9) * 4, hash(b.id, k + 2), 0.3, 6.5); ctx.stroke(); }
+      continue;
+    }
+    const dx = e[0] - o[0], dy = e[1] - o[1], l = Math.hypot(dx, dy) || 1, ux = dx / l, uy = dy / l, w = (b.thick || 3) / 2 + 1.5;
+    for (const k of [1, 2, 3]) { // one stroke each side of the bone, just clear of it, and one across it
+      const s = k === 3 ? hash(b.id, k) * w : (k === 1 ? 1 : -1) * (w + 1 + Math.abs(hash(b.id, k)) * 4), s1 = s + hash(b.id, k + 9) * 4;
+      const over0 = 4 + hash(b.id, k + 3) * 6, over1 = 4 + hash(b.id, k + 6) * 6;
+      ctx.globalAlpha = 0.7; ctx.lineWidth = 1.2; ctx.beginPath();
+      ctx.moveTo(o[0] - ux * over0 - uy * s, o[1] - uy * over0 + ux * s);
+      ctx.lineTo(e[0] + ux * over1 - uy * s1, e[1] + uy * over1 + ux * s1); ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 function drawBones(ctx, ch, P, col, back, extra = 0, tint = null, mul = null) {
   ctx.lineCap = ctx.lineJoin = 'round';

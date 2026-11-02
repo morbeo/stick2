@@ -322,7 +322,7 @@ The **character** tab of the side panel has two look rows under the colour. They
 | Row | Options |
 |---|---|
 | **outline** | **none**, **halo** (a paper-coloured rim that separates the figure from what's behind it) or **ink** (a dark rim, like an inked drawing). **1 / 2 / 4** sets its width in px. |
-| **line** | **solid**, **dashed** or **sketch** (a faint second pass a little off, like a pencil redraw). |
+| **line** | **solid**, **dashed** or **sketch** (loose pencil strokes on every bone, just off it and running past the joints; they stay put from frame to frame). |
 
 The look is saved with the character as `look` in the JSON, and the palette has **look: outline \<kind>** and **look: line \<kind>**. A skin changes single bones, while the look covers the whole figure, so the two combine.
 
