@@ -187,3 +187,21 @@ test('replays off: MAX_REPLAYS=0 refuses them', async () => {
     assert.match((await h.next('error')).error, /^off/);
   });
 });
+
+test('the room browser shows each room\'s rules, queue and longest streak, from the host\'s lobby', async () => {
+  const s = await boot();
+  await quiet(s, async () => {
+    const h = client(s), g = client(s);
+    await h.next('hello'); await g.next('hello');
+    h.send({ t: 'host', name: 'arena', public: true });
+    const { room } = await h.next('room');
+    g.send({ t: 'join', room }); await g.next('joined');
+    const { id } = await h.next('peer');
+    const state = { phase: 'lobby', slots: [{ id: 'h', name: 'hana' }, { id: 'g1', name: 'gus' }], watch: [{ id: 'g2', name: 'zed' }], queue: ['g2'],
+      rules: { rotation: 'winner', cap: 3, bestOf: 3, timer: 60, rollback: true, bans: ['a', 'b'] }, score: { h: { wins: 4, streak: 4 }, g1: { wins: 1, streak: 0 } } };
+    h.send({ t: 'to', id, m: { t: 'lobby', state } });
+    await g.next('msg');
+    const [r] = (await (await get(s, '/api/rooms')).json()).rooms;
+    assert.deepEqual([r.rules, r.queue, r.streak], [{ rotation: 'winner', cap: 3, bestOf: 3, timer: 60, rollback: true, bans: 2 }, 1, { name: 'hana', streak: 4 }]);
+  });
+});
