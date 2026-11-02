@@ -26,4 +26,7 @@ runs:
       env:
         CHROME: ${{ steps.chrome.outputs.chrome-path }}
         SEED: ${{ inputs.seed }}
-      run: echo "path=$(node tools/discord/render-notify-gif.js "$SEED")" >> "$GITHUB_OUTPUT"
+      # a failed render warns (the post still goes out, without the GIF) instead of silently giving an empty path
+      run: |
+        if gif=$(node tools/discord/render-notify-gif.js "$SEED"); then echo "path=$gif" >> "$GITHUB_OUTPUT"
+        else echo "::warning::Fight GIF render failed for $SEED; posting without it"; fi
