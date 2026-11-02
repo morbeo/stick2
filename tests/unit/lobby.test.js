@@ -274,3 +274,63 @@ test('a short code keeps the answer\'s role (active or passive), and falls back 
   }
   await assert.rejects(nrun(`netDecode('s2b.o~abc~def~short~hm~1')`), /damaged/);
 });
+
+// ---------- the pool: a queue and a rotation ----------
+const ids = st => plain(st.slots.map(s => s?.id ?? null));
+const fought = (host, result) => { host.state.phase = 'match'; host.finish(result); };
+
+test('people who want to play queue once both places are taken; watchers can queue and leave it; a player can sit out', () => {
+  const r = room({ guests: 4, want: ['play', 'play', 'watch', 'play'] });
+  const { host, gs, flush } = r;
+  assert.deepEqual(ids(host.state), ['h', 'g1']);
+  assert.deepEqual(plain(host.state.queue), ['g2', 'g4'], 'the ones who asked to play, in order; g3 only watches');
+  gs[2].queue(); flush();
+  assert.deepEqual(plain(host.state.queue), ['g2', 'g4', 'g3']);
+  gs[1].queue(false); flush();
+  assert.deepEqual(plain(host.state.queue), ['g4', 'g3']);
+  gs[0].queue(); flush();
+  assert.deepEqual(plain(host.state.queue), ['g4', 'g3'], 'a player can\'t queue');
+  gs[0].sit(); flush();
+  assert.deepEqual(ids(host.state), ['h', 'g4'], 'the next in line takes the place');
+  assert.deepEqual(plain(host.state.queue), ['g3', 'g1'], 'and the one who sat out goes to the back');
+  gs[3].leave(); host.unlink('g4'); flush();
+  assert.deepEqual(ids(host.state), ['h', 'g3'], 'a player who leaves: the next in line again');
+  assert.deepEqual(plain(host.state.queue), ['g1']);
+});
+
+test('winner stays: the loser goes to the back, the next comes in; wins and streaks count; a streak cap sends the winner out too', () => {
+  const { host, flush } = room({ guests: 3 });
+  flush();
+  host.setRules({ rotation: 'winner', cap: 2 });
+  assert.deepEqual(ids(host.state), ['h', 'g1']); assert.deepEqual(plain(host.state.queue), ['g2', 'g3']);
+  fought(host, { winner: 0 }); host.next();
+  assert.deepEqual(ids(host.state), ['h', 'g2']); assert.deepEqual(plain(host.state.queue), ['g3', 'g1']);
+  assert.deepEqual(plain(host.state.score.h), { wins: 1, streak: 1 });
+  assert.equal(host.phase, 'lobby');
+  fought(host, { winner: 0 }); host.next(); // the host's second win in a row: the cap, so both go
+  assert.deepEqual(ids(host.state), ['g3', 'g1']); assert.deepEqual(plain(host.state.queue), ['g2', 'h']);
+  assert.deepEqual(plain(host.state.score.h), { wins: 2, streak: 0 });
+  assert.equal(host.playing, false); assert.equal(host.feeder, 'g3', 'the host sits out: P1 feeds the fight');
+});
+
+test('loser stays, both rotate, a draw, a forfeit, and nobody waiting', () => {
+  let { host, flush } = room({ guests: 2 });
+  flush();
+  host.setRules({ rotation: 'loser' });
+  fought(host, { winner: 1 }); host.next();
+  assert.deepEqual(ids(host.state), ['h', 'g2'], 'the winner (g1) steps out');
+  host.setRules({ rotation: 'round' });
+  fought(host, { winner: 0 }); host.next();
+  assert.deepEqual(ids(host.state), ['g1', 'g2'], 'both out, but one waiting: only P1\'s place changes hands');
+  host.setRules({ rotation: 'winner' });
+  fought(host, { winner: null }); host.next();
+  assert.deepEqual(ids(host.state), ['g1', 'h'], 'a draw: the challenger (P2) steps out');
+  ({ host, flush } = room({ guests: 1 })); flush();
+  host.setRules({ rotation: 'winner' });
+  fought(host, { winner: 1 }); host.next();
+  assert.deepEqual(ids(host.state), ['h', 'g1'], 'nobody waiting: everyone stays');
+  host.setRules({ rotation: 'nope', cap: 99 });
+  assert.deepEqual(plain(host.state.rules), { rotation: 'off', cap: 20 });
+  fought(host, { forfeit: 'g1' });
+  assert.deepEqual(plain(host.state.last), { win: 'h', lose: 'g1' });
+});

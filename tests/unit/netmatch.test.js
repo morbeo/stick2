@@ -250,3 +250,37 @@ test('a spectator who joins mid-match gets the header and the fight so far, and 
   assert.equal(ms[2].desync, null);
   assert.deepEqual(plain(ms[2].replay()).frames, plain(ms[0].replay()).frames);
 });
+
+test('the host sits out: two guests fight through it, P1 feeds the host and a spectator, and all reach the same end', () => {
+  const NetWatch = run('NetWatch'), WatchFeed = run('WatchFeed'), q = [], flush = () => { while (q.length) q.shift()(); };
+  const ms = {}, feeds = { host: new WatchFeed(15), p1: new WatchFeed(0) }; // ms by lobby id: g2 plays P1 here, g1 P2
+  const host = new Lobby({ role: 'host', now: () => 0, hooks: { match: m => { ms.h?.receive(m); if (m.t === 'watch') m.a.forEach((x, i) => feeds.host.push(m.f + i, x, m.b[i], m.s?.[m.f + i + 1])); } } });
+  const lob = {};
+  const join = (id, want) => { const g = lob[id] = new Lobby({ role: 'guest', now: () => 0, send: m => q.push(() => host.receive(g.id, plain(m))), hooks: { match: m => ms[id]?.receive(m) } });
+    g.id = host.link(m => q.push(() => g.receive(null, plain(m)))); g.join(want); return g; };
+  join('g1', 'play'); join('g2', 'play'); join('g3', 'watch');
+  flush();
+  host.sit(); flush();
+  assert.deepEqual(plain(host.state.slots.map(s => s.id)), ['g2', 'g1'], 'g2 was first in line: it takes the host\'s place, P1');
+  assert.equal(host.feeder, 'g2'); assert.equal(lob.g2.feeder, 'g2');
+  host.hooks.header = (st, seed, defs) => { const h = run('lobbyHeader')(st, seed, defs); h.scen.period = 3; h.netRoll = 7; h.netDelay = 1; return plain(h); };
+  host.hooks.event = e => { if (e.phase === 'match') ms.h = new NetWatch({ header: e.header, hooks: { end: r => host.finish(r) } }); };
+  lob.g2.hooks.event = e => { if (e.phase === 'match') ms.g2 = new NetMatch({ header: e.header, side: 0, send: m => lob.g2.matchSend(m), hooks: { confirmed: (...a) => feeds.p1.push(...a) } }); };
+  lob.g1.hooks.event = e => { if (e.phase === 'match') ms.g1 = new NetMatch({ header: e.header, side: 1, send: m => lob.g1.matchSend(m) }); };
+  lob.g3.hooks.event = e => { if (e.phase === 'match') ms.g3 = new NetWatch({ header: e.header }); };
+  lob.g1.pick('stick'); lob.g2.pick('zippa'); lob.g1.ready(); lob.g2.ready(); flush();
+  host.start(9); flush();
+  assert.ok(ms.h?.watching && ms.g1 && ms.g2 && ms.g3, 'everyone made their match');
+  for (let t = 0; t < 700 && !ms.g3.result; t++) {
+    ms.g2.tick(press(0, t)); ms.g1.tick(press(1, t)); ms.h.tick(); ms.g3.tick();
+    const a = feeds.p1.take(!!ms.g2.result); if (a) lob.g2.watchSend(plain(a));
+    flush();
+    const b = feeds.host.take(host.phase !== 'match' || !!ms.h.result); if (b) host.watchSend(plain(b));
+    flush();
+  }
+  for (const k of ['h', 'g1', 'g3']) { assert.ok(ms[k].result, k + ' never ended'); assert.deepEqual(plain(ms[k].result), plain(ms.g2.result), k); }
+  assert.equal(ms.h.desync, null); assert.equal(ms.g3.desync, null);
+  assert.deepEqual(plain(ms.g3.replay()).frames, plain(ms.g2.replay()).frames);
+  assert.equal(host.phase, 'post');
+  assert.ok(host.state.last.win, 'the host tallied the result');
+});
