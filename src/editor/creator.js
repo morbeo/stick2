@@ -1,6 +1,6 @@
 'use strict';
 // ---------- character mode: drag the skeleton, tune bones, watch it fight live; body experiment grid ----------
-const creator = { statTab: (() => { try { return localStorage.getItem('stick2.statTab') || 'ground'; } catch { return 'ground'; } })(), boneView: (() => { try { return localStorage.getItem('stick2.boneView') || 'tree'; } catch { return 'tree'; } })(), preview: 'showcase', opponent: 'self', controlDummy: false, w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
+const creator = { sideTab: (() => { try { return localStorage.getItem('stick2.sideTab') || 'bone'; } catch { return 'bone'; } })(), statTab: (() => { try { return localStorage.getItem('stick2.statTab') || 'ground'; } catch { return 'ground'; } })(), boneView: (() => { try { return localStorage.getItem('stick2.boneView') || 'tree'; } catch { return 'tree'; } })(), preview: 'showcase', opponent: 'self', controlDummy: false, w: null, drag: null, hover: null, anchor: null, expOn: false, table: false, view: null, tfilter: '', tsort: { k: '', dir: 1 },
   headToHead: false, htControl: 'none', // the changes panel's built-in-vs-yours option, instead of each vs the chosen opponent
   exp: { kind: 'body', vars: new Set(['len', 'thick']), limbs: false, spread: 0.15, sym: true, seed: 1, parent: null, cells: [] } };
 // quick picks shown as buttons in the preview bar; creator.preview itself can be any SCENARIOS key (scenButton picks from all of them)
@@ -560,19 +560,33 @@ function resizableBones(wrap) {
   wrap.prepend(grip);
   return wrap;
 }
+// the side panel's top-level tabs: one section at a time (all: every section, folded as before, for scanning or search)
+const SIDE_TABS = { bone: 'The selected bone: shape, effects, every property', character: 'The character: name, look, stances and its settings',
+  stance: 'Stance pose: presets for the whole stance, and pose → animation', stats: 'Stats, walk & idle and shadow', all: 'Every section, one under the other' };
+const SIDE_HEADS = { bone: 'bone', character: 'character', stance: 'stance pose', stats: 'stats' };
+function sideTab(v) {
+  creator.sideTab = v; try { localStorage.setItem('stick2.sideTab', v); } catch {}
+  if (SIDE_HEADS[v]) delete lay().fold[app.mode + ':' + SIDE_HEADS[v]]; // a tab shows its section unfolded
+  saveLay(); panels();
+}
 function bodyPanel() {
-  return [...charPanel(),
-    ...bonePanel(),
-    heading('Stance pose', 'Set the whole stance from a preset (per limb, so it works for any body), or turn a pose into attacks', ''),
+  const t = SIDE_TABS[creator.sideTab] ? creator.sideTab : 'bone', on = k => t === 'all' || t === k;
+  return [h('div', { cls: 'bar sidetabs' }, seg(Object.keys(SIDE_TABS), () => t, sideTab, SIDE_TABS, k => k)),
+    ...on('character') ? charPanel() : [],
+    ...on('bone') ? bonePanel() : [],
+    ...on('stance') ? stancePosePanel() : [],
+    ...on('stats') ? statsSection() : [],
+  ];
+}
+function stancePosePanel() {
+  return [heading('Stance pose', 'Set the whole stance from a preset (per limb, so it works for any body), or turn a pose into attacks', ''),
     ...stanceRow(),
     h('div', { cls: 'bar' }, Object.entries(posesFor(currentChar())).flatMap(([k, p]) => [button(k, p.tip, () => edit(def => Object.assign(editPose(def), p.pose()))),
       p.custom && button(':close:', `Delete the saved pose "${k}"`, () => { deleteMyPose(k); panels(); }, 'mini')].filter(Boolean))),
     h('div', { cls: 'bar' }, button(':animation: pose → animation', 'Turn a pose into moves: nine attacks that strike into it from the main stance (each with its own anticipation and timing) in the experiment tab; click one to breed variations, then save it or edit it in animate', (e, b) =>
       popup(b, h('div', { cls: 'bar' }, Object.entries(POSE_TARGETS(currentChar())).map(([n, t]) => button(n, t.tip, () => {
         Object.assign(breed, { pose: n, atk: null }); breed.seed++; lab.kind = 'attacks'; setMode('experiment');
-      })))))),
-    ...statsSection(),
-  ];
+      }))))))];
 }
 // ground / air / fight stats, walk & idle and shadow: one section, a sub-tab each (the last one picked is remembered)
 const STAT_TABS = { ...Object.fromEntries(Object.entries(STAT_GROUPS).map(([g, tip]) => [g, [`${tip}. Multipliers on the fight settings for this character only`, () => statsPanel(g)]])),
@@ -797,7 +811,7 @@ const creatorMode = {
   side: () => creator.expOn ? expPanel() : bodyPanel(),
   overlay: () => creator.expOn ? [] : [...rigOn() ? [rigColumn()] : [],
     ...(panelInit(lay(), creatorMode.homePanel), stageOpen() === 'bones') ? [bonePanelStage(), previewBar('over pvbar pvtop')] : stageOpen() === 'changes' ? [charDiffPanel()] : moveStage() ? [moveStage()()] : [previewBar()]],
-  open: ['character', 'body', 'bone', 'stance pose', 'random characters'],
+  open: ['character', 'body', 'bone', 'stance pose', 'stats', 'random characters'],
   mouse: creatorMouse,
   key: creatorKey,
   hint: () => creator.expOn ? (creator.exp.kind === 'random' ? 'click a cell to keep it' : 'click a cell to breed around it') + ' · Esc back to the editor'
