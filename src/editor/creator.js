@@ -19,7 +19,7 @@ const previewChars = () => [currentChar(), CHARS[creator.opponent] || currentCha
 // balance test, not a demo), with htControl optionally handing one side to your own keyboard
 const diffHeadScen = () => { const s = SCENARIOS['ai vs ai'];
   return { ...s, ...creator.htControl === 'base' ? { a: 'human' } : creator.htControl === 'cur' ? { b: 'human' } : null,
-    init: w => { s.init?.(w); w.a.setStance(studio.stance, 'instant'); w.b.setStance(studio.stance, 'instant'); } }; };
+    init: w => { s.init?.(w); w.a.setStance(studio.stance, 'instant'); w.b?.setStance(studio.stance, 'instant'); } }; };
 
 // ---------- editor view: the stance pose, big, with a handle on every joint ----------
 function edLayout() {
