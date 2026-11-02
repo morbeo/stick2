@@ -15,6 +15,8 @@ Building fighters and their movesets. The editors themselves (dragging joints, t
 
 ## Characters
 
+In the character tab, the side panel has top-level tabs: **bone** (the selected bone's properties), **character**, **stance** (stance pose presets and pose → animation), **stats** (stats, walk & idle, shadow) and **all** (every section, one under the other, as before; use it to search across them). The tab you pick is remembered, and the palette has **side: \<tab>**.
+
 The character panel shows a grid of drawings, all at one scale.
 
 | Every character, drawn at one scale |

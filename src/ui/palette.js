@@ -39,7 +39,7 @@ function paletteEntries() {
     } },
     ...['ground', 'air', 'fight', 'walk', 'shadow'].map(t => ({ kind: 'editor', name: 'stats: ' + t, tip: `The ${t} tab of the character's Stats section (in the character tab)`, run: () => {
       if (app.mode !== 'character') setMode('character');
-      creator.statTab = t; try { localStorage.setItem('stick2.statTab', t); } catch {} panels();
+      creator.statTab = t; try { localStorage.setItem('stick2.statTab', t); } catch {} if (creator.sideTab !== 'all') sideTab('stats'); else panels();
       const hd = [...document.querySelectorAll('#side h3')].find(x => x.textContent.startsWith('Stats'));
       if (hd?.parentElement.classList.contains('shut')) hd.click();
       hd?.scrollIntoView({ block: 'start' });
@@ -62,6 +62,7 @@ function paletteEntries() {
       ['skin: save', 'Save the bones\' current look as a new skin', saveSkin],
       ...Object.keys(DEFS[CURRENT]?.skins || {}).map(n => ['skin: ' + n, `Apply the ${n} skin`, () => applySkin(n)]),
       ['group: save', 'Save the selected bones as a named group', saveGroup],
+      ...Object.keys(SIDE_TABS).map(k => ['side: ' + k, 'Show the side panel\'s ' + k + ' tab: ' + SIDE_TABS[k], () => sideTab(k)]),
       ['bone: split', 'Cut the selected bone into two halves', splitBone],
       ['bone: merge', 'Join the selected bone with its only child', mergeBone],
       ['part: save', 'Save the selected bone and everything below it as your own part', savePart],

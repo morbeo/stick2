@@ -194,7 +194,8 @@ function sideArrange(secs) {
     const open = out.filter(s => s.k && !s.classList.contains('shut')), keep = ctx || open[0];
     for (const s of open) if (s !== keep) s.classList.add('shut');
   }
-  return out;
+  const top = out.filter(s => s.classList?.contains('sidetabs')); // a panel's own tab bar stays above every section
+  return [...top, ...out.filter(s => !top.includes(s))];
 }
 // accordion: opening a section folds the others (after the heading's own click has opened it)
 $('side').addEventListener('click', e => {
