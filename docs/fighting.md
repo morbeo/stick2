@@ -384,6 +384,17 @@ Scenario: laser beam.
 | --- |
 | ![A beam: the laser](img/anim-laser-beam.png) |
 
+
+### Summons
+
+The **summons** and **summonFragile** settings; key flags **summon** and **command**; in animate the summon and command toggles and the summon sliders (life, side; reach, hits, rush). Demo: stick's callSpirit then spiritRush (the **summon** demo).
+
+- As the summon key is reached, the fighter's companion appears: a see-through copy of the fighter floating `side` px behind it, mirroring its pose, for `life` seconds. One per fighter; summoning again refreshes it.
+- As a command key is reached, the companion rushes `reach` px in front of the fighter and strikes `hits` times, spread over `rush` seconds, with the move's own power, damage, height and stun. The fighter stays put. With no companion out, the key does nothing.
+- It's blocked from the side it comes from; a counter can't catch it, and its owner gets no hit stop.
+- It vanishes when its owner is knocked out, or hit (summonFragile, on by default).
+- It's fight state like shots: replays, rewinding, "jump in" branches and online play keep it in step, and the desync checksum covers it.
+
 ### Charging
 
 Key flag **charge**; move field **charge** (dur, timeout, min, max); in animate the charge toggle and the charge row.

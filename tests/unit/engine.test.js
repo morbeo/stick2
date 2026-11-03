@@ -1188,6 +1188,25 @@ test('beams: a beam key holds a straight line out from the striking limb; it hit
   assert.equal(go(['@laserBeam'], 'dummy', { beams: false }).seen, 0, 'beams off: no beam');
 });
 
+test('summons: a summon key calls up one companion per fighter; a command key sends it rushing out to hit, and it vanishes when its owner is hit', () => {
+  const go = (a, b, cfg = {}, n = 90, bx = 380) => JSON.parse(run(`(() => { const w = new World({ a: ${JSON.stringify(a)}, b: ${JSON.stringify(b)}, ax: 250, bx: ${bx}, cfg: ${JSON.stringify(cfg)} }, {}, 7); w.loop = false;
+    let most = 0; const hp0 = w.b.hp;
+    for (let i = 0; i < ${n}; i++) { w.advance(1/60, NOIN); most = Math.max(most, w.summons.filter(s => s.owner === w.a).length); }
+    return JSON.stringify({ hit: hp0 - w.b.hp, most, left: w.summons.length, hits: w.hits, ax: w.a.x, h: w.stateHash() }); })()`));
+  const r = go(['@callSpirit', 0.5, '@spiritRush'], 'dummy');
+  assert.equal(r.most, 1), assert.ok(r.hits >= 2, 'a rush of hits: ' + r.hits), assert.ok(Math.abs(r.ax - 250) < 30, 'the owner stays put');
+  assert.equal(go(['@callSpirit', 0.5, '@callSpirit'], 'dummy').most, 1, 'one companion at a time');
+  assert.equal(go(['@spiritRush'], 'dummy').hit, 0, 'no companion out: a command does nothing');
+  assert.equal(go(['@callSpirit'], 'dummy', { summons: false }).most, 0, 'summons off: none');
+  assert.equal(go(['@callSpirit'], [0.5, '@jab', 0.3, '@jab'], {}, 120, 300).left, 0, 'hit owner: the companion is gone');
+  assert.equal(go(['@callSpirit'], [0.5, '@jab', 0.3, '@jab'], { summonFragile: false }, 120, 300).left, 1, 'not fragile: it stays');
+  assert.equal(go(['@callSpirit', 0.5, '@spiritRush'], 'dummy').h, r.h, 'deterministic');
+  const rw = JSON.parse(run(`(() => { const w = new World({ a: ['@callSpirit', 0.5, '@spiritRush'], b: 'dummy', ax: 250, bx: 380 }, {}, 7); w.loop = false;
+    for (let i = 0; i < 70; i++) w.advance(1/60, NOIN); const h = w.stateHash();
+    for (let i = 0; i < 30; i++) w.advance(1/60, NOIN); w.rewind(30); return JSON.stringify({ same: h === w.stateHash(), n: w.summons.length, own: w.summons[0]?.owner === w.a }); })()`));
+  assert.deepEqual(rw, { same: true, n: 1, own: true }, 'rewinding the timeline brings the companion back, still owned by its fighter');
+});
+
 test('chargeable moves: holding the move\'s button fires it bigger, faster and harder; a tap fires at minimum; charge.timeout caps how long it can be held', () => {
   const go = t => JSON.parse(run(`(() => {
     const ch = makeCharacter({ ...CHAR_DEFS.stick, binds: { special: 'fireball' } });

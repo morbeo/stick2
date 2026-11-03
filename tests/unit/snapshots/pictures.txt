@@ -35,6 +35,8 @@ stick headbutt 94 740c296e927b
 stick palms 94 771c9ae550f3
 stick fireball 94 2b55e45f0b5f
 stick laserBeam 94 b0e6119be8c1
+stick callSpirit 94 9094f99499d3
+stick spiritRush 94 a7f36bd2060a
 stick grenade 94 2b55e45f0b5f
 stick multiShot 94 d430229f8041
 stick fadeKick 94 109060c355fb
@@ -151,6 +153,8 @@ hadoo headbutt 112 49e429c642f9
 hadoo palms 112 a0621b6c9ee2
 hadoo fireball 112 4acbb5240b40
 hadoo laserBeam 112 b52939664f70
+hadoo callSpirit 112 0cb2094c20d8
+hadoo spiritRush 112 c0771ecf004f
 hadoo grenade 112 4acbb5240b40
 hadoo multiShot 112 2fd74ae85d87
 hadoo fadeKick 112 225f8230721c
@@ -273,6 +277,8 @@ grumbo headbutt 94 93140102ae45
 grumbo palms 94 cf0e15c89282
 grumbo fireball 94 b92ef9eb9d3f
 grumbo laserBeam 94 aaa6366046ff
+grumbo callSpirit 94 754b564bb0bd
+grumbo spiritRush 94 9b68a484e0ec
 grumbo grenade 94 b92ef9eb9d3f
 grumbo multiShot 94 8707512b6970
 grumbo fadeKick 94 2de77045cbaf
@@ -395,6 +401,8 @@ jabbo headbutt 94 9300325663c8
 jabbo palms 94 d225a562a35a
 jabbo fireball 94 541ee46c07e1
 jabbo laserBeam 94 ebfe14fb57c6
+jabbo callSpirit 94 9b7c52c1c131
+jabbo spiritRush 94 21baf75d3a1c
 jabbo grenade 94 541ee46c07e1
 jabbo multiShot 94 9dd6ceae8aa5
 jabbo fadeKick 94 62ed70f52798
@@ -517,6 +525,8 @@ sneeko headbutt 112 c751ec2d4d4a
 sneeko palms 112 9235e1750463
 sneeko fireball 112 908c050e8d42
 sneeko laserBeam 112 4616c94131ce
+sneeko callSpirit 112 df50524cbcdf
+sneeko spiritRush 112 142c72b4fbc7
 sneeko grenade 112 908c050e8d42
 sneeko multiShot 112 573d6fa9c28c
 sneeko fadeKick 112 c29373449484
@@ -640,6 +650,8 @@ zippa headbutt 94 bd743814c8d4
 zippa palms 94 41a9e3e043e9
 zippa fireball 94 758caa8b44e1
 zippa laserBeam 94 5cf9e93cf6c8
+zippa callSpirit 94 6b933e5898f6
+zippa spiritRush 94 63d999e1f8d0
 zippa grenade 94 758caa8b44e1
 zippa multiShot 94 4ee62b779fef
 zippa fadeKick 94 9d9754eb69fb
@@ -761,6 +773,8 @@ hicco headbutt 110 281c03295fa1
 hicco palms 110 088b6e28bdf2
 hicco fireball 110 c669f61fef49
 hicco laserBeam 110 29b7967c0644
+hicco callSpirit 110 b21af5f93317
+hicco spiritRush 110 8eada01a47cb
 hicco grenade 110 c669f61fef49
 hicco multiShot 110 498215ec2972
 hicco fadeKick 110 32354171911f
@@ -883,6 +897,8 @@ lumpo headbutt 94 811c6cb4e19f
 lumpo palms 94 7edb2b54b8b5
 lumpo fireball 94 6bdc81c152e6
 lumpo laserBeam 94 731faf44d9d9
+lumpo callSpirit 94 87fdd587b30b
+lumpo spiritRush 94 cfc34bd7eab2
 lumpo grenade 94 6bdc81c152e6
 lumpo multiShot 94 ffc954a08fda
 lumpo fadeKick 94 c3e519cf7d4f
@@ -1006,6 +1022,8 @@ sarj headbutt 94 f19da470e225
 sarj palms 94 04739ba6eb2a
 sarj fireball 94 323fabb98b2e
 sarj laserBeam 94 fa9e63a518f8
+sarj callSpirit 94 c7e34cac5891
+sarj spiritRush 94 ef6f3530e9ed
 sarj grenade 94 323fabb98b2e
 sarj multiShot 94 dd5570a9a2c6
 sarj fadeKick 94 08b35a62d311
@@ -1127,6 +1145,8 @@ noodo headbutt 94 de645ffe3182
 noodo palms 94 4be7035d6532
 noodo fireball 94 9b42a74b064e
 noodo laserBeam 94 faa2e9393105
+noodo callSpirit 94 e11aaa7ef9fc
+noodo spiritRush 94 7667f2551103
 noodo grenade 94 9b42a74b064e
 noodo multiShot 94 dd4a5449c5f1
 noodo fadeKick 94 003fd0487b7d
@@ -1249,6 +1269,8 @@ gogili headbutt 94 8d581a2d28b4
 gogili palms 94 8e233e76b587
 gogili fireball 94 73569aefbdf1
 gogili laserBeam 94 4eee96378393
+gogili callSpirit 94 ee9b02eb7348
+gogili spiritRush 94 eed076f44c78
 gogili grenade 94 73569aefbdf1
 gogili multiShot 94 bd1eb8817b1f
 gogili fadeKick 94 7f08fbabaf62
@@ -1372,6 +1394,8 @@ honky headbutt 112 98f4e0e4825e
 honky palms 112 6c122133cf50
 honky fireball 112 88c02cdf71b7
 honky laserBeam 112 5581858a2742
+honky callSpirit 112 c916d65b11b4
+honky spiritRush 112 cf3e7a763e97
 honky grenade 112 88c02cdf71b7
 honky multiShot 112 4132d005ee64
 honky fadeKick 112 7dee873e7e29
@@ -1496,6 +1520,8 @@ gloomo headbutt 196 be2814e9b12c
 gloomo palms 196 8fcb90972460
 gloomo fireball 196 26a9736e0e41
 gloomo laserBeam 196 e4cfdcd54cdd
+gloomo callSpirit 196 8600e1d6e21b
+gloomo spiritRush 196 0b4c756fd316
 gloomo grenade 196 26a9736e0e41
 gloomo multiShot 196 5027f77d7b67
 gloomo fadeKick 196 ec91dcaa8fa8
@@ -1619,6 +1645,8 @@ centaur headbutt 154 208691042eb9
 centaur palms 154 df98ffa77a59
 centaur fireball 154 273576d853af
 centaur laserBeam 154 fa5dc7837b15
+centaur callSpirit 154 da9a85215c78
+centaur spiritRush 154 51cd424aa4e6
 centaur grenade 154 273576d853af
 centaur multiShot 154 c0808608a89e
 centaur fadeKick 154 21e57b9d5692
@@ -1741,6 +1769,8 @@ houndo headbutt 112 6c7e8615524a
 houndo palms 112 57034e28c80f
 houndo fireball 112 2e79789ed83b
 houndo laserBeam 112 4a11e2b0055b
+houndo callSpirit 112 60c4a6bced67
+houndo spiritRush 112 56eb628b60ec
 houndo grenade 112 2e79789ed83b
 houndo multiShot 112 7a185fd29979
 houndo fadeKick 112 dc1791ae3453
@@ -1862,6 +1892,8 @@ otkopod headbutt 214 d0a7dacb00ae
 otkopod palms 214 5edf85b2942c
 otkopod fireball 214 4cfd38201687
 otkopod laserBeam 214 014fe3a14b17
+otkopod callSpirit 214 94dc09ced9a0
+otkopod spiritRush 214 ef7f603416ab
 otkopod grenade 214 4cfd38201687
 otkopod multiShot 214 014fe3a14b17
 otkopod fadeKick 214 6a18896e2e4d
@@ -1986,6 +2018,8 @@ clampo headbutt 94 f8a56a158c95
 clampo palms 94 a1b43c4628af
 clampo fireball 94 5d3e14424dd9
 clampo laserBeam 94 0c8be1b00915
+clampo callSpirit 94 0b4892a0ac23
+clampo spiritRush 94 03ec479c2e01
 clampo grenade 94 5d3e14424dd9
 clampo multiShot 94 f3e208d5d74d
 clampo fadeKick 94 f0e5d3715a95
@@ -2107,6 +2141,8 @@ bonko headbutt 94 740c296e927b
 bonko palms 94 771c9ae550f3
 bonko fireball 94 2b55e45f0b5f
 bonko laserBeam 94 b0e6119be8c1
+bonko callSpirit 94 9094f99499d3
+bonko spiritRush 94 a7f36bd2060a
 bonko grenade 94 2b55e45f0b5f
 bonko multiShot 94 d430229f8041
 bonko fadeKick 94 109060c355fb

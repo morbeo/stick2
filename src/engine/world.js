@@ -69,7 +69,7 @@ class World {
       { team: sp.team ?? i }));
     [this.a, this.b] = this.fighters;
     // weapons: one per fighter from the settings (on the floor in front, or in hand), plus the scenario's (items, aw / bw / more[].w = held)
-    this.items = []; this.shots = []; this.beams = []; this.limbs = [];
+    this.items = []; this.shots = []; this.beams = []; this.summons = []; this.limbs = [];
     this.props = (s.props || []).map(p => ({ type: p.type, x: p.x, z: p.z || 0, hp: PROPS[p.type].hp, bendT: 0, bendDir: 0, lift: 0, vx: 0, vlift: 0 }));
     // the random pool: the built-in arsenal, minus the synthetic 'limb' (a severed-limb weapon, never a starting pick)
     // and 'lightsaber' (a bonus weapon, picked on purpose, not handed out at random) — named explicitly, not by
@@ -317,6 +317,44 @@ class World {
     }
     if (gone.size) this.beams = this.beams.filter(b => !gone.has(b));
   }
+  // ---------- summons (Fighter.summon / command): a companion floating behind its owner; a command sends it rushing out to strike ----------
+  // it lasts its life, and vanishes early when its owner is knocked out or (summonFragile) hit
+  updateSummons(h) {
+    const cfg = this.cfg, gone = new Set();
+    for (const s of this.summons) {
+      const f = s.owner; s.t += h; s.dir = f.dir;
+      if (s.t > s.life || f.hp <= 0 || cfg.summonFragile && f.hurtT > 0) { gone.add(s); this.parts.push({ t: 'ring', x: s.x, y: f.groundY + s.y - 60, z: s.z, life: 0.2, max: 0.2, col: '#aaa', big: true }); continue; }
+      const a = s.atk, tx = a ? f.x + f.dir * a.reach : f.x - f.dir * s.side;
+      s.x = clamp(s.x + (tx - s.x) * Math.min(1, (a ? 18 : 8) * h), 20, W - 20); s.y += (f.y - 22 - s.y) * Math.min(1, 8 * h); s.z = f.z;
+      if (!a) continue;
+      a.t += h;
+      // a rush of hits spread evenly over the strike: hit k lands once k/n of it has passed
+      if (a.done < a.n && a.t >= a.dur * a.done / a.n) {
+        const y = f.groundY + s.y - 70;
+        for (const o of this.foes(f)) if (Math.abs(o.z - s.z) <= cfg.zReach && !(a.m.height === 'high' && o.crouching)) {
+          const hit = o.hurtAt([[s.x, y], [s.x + s.dir * 34, y], 12], false, false);
+          if (!hit) continue;
+          const def = o.defend(s, a.m, null), fr = f.freeze; // blocked from the side it comes from; a counter can't catch it
+          this.onHit(f, o, hit, a.m, def === 'catch' ? 'block' : def); f.freeze = fr; break;
+        }
+        a.done++;
+      }
+      if (a.t >= a.dur) s.atk = null;
+    }
+    if (gone.size) this.summons = this.summons.filter(s => !gone.has(s));
+  }
+  // the owner's own pose, moved to where the companion floats: see-through, flickering, fading in and out
+  drawSummons(ctx) {
+    for (const s of this.summons) {
+      const f = s.owner, dx = s.x - f.x, dy = s.y - f.y, P = {};
+      for (const [id, p] of Object.entries(f.body())) P[id] = [p[0] + dx, p[1] + dy, ...p.slice(2)];
+      const fade = Math.min(1, s.t / 0.15, (s.life - s.t) / 0.3);
+      const a = Math.max(0, fade), zk = 1 + s.z * ZK;
+      ctx.save(); ctx.translate(s.x, f.groundY + s.z * ZS); ctx.scale(zk, zk); ctx.translate(-s.x, -f.groundY);
+      ctx.globalAlpha = a * 0.18; drawFigure(ctx, f.ch, P, f.col[0], f.col[0], 10); // a soft halo, so it reads as a spirit, not a second fighter
+      ctx.globalAlpha = a * (0.6 + 0.1 * Math.sin(s.t * 30)); drawFigure(ctx, f.ch, P, f.col[0], f.col[1], 1); ctx.restore();
+    }
+  }
   // looks: ki (a blue ball), fire (flickering orange), dark (purple), wave (a crescent, sonic boom), star (a spinning shuriken)
   drawShots(ctx) {
     const COL = { ki: ['80,160,255', '#2c6fb0'], fire: ['240,140,30', '#c0392b'], dark: ['142,68,173', '#2c1338'], wave: ['230,200,60', '#b07a2c'], star: ['120,120,130', '#444'] };
@@ -458,7 +496,7 @@ class World {
   }
   stateHash() {
     return hashNums([this.rand.seed, this.hits, this.blocks, this.clashes, this.simT, ...this.items.flatMap(it => [it.x, it.y]), ...this.limbs.flatMap(l => [l.x, l.y, l.t]), ...this.props.flatMap(p => [p.hp ?? 0, p.bendT, p.x, p.lift, p.vx, p.vlift]), ...this.shots.flatMap(s => [s.x, s.y, s.t, s.dur]),
-      ...this.beams.flatMap(b => [b.t, b.hit ? 1 : 0]), ...this.fighters.flatMap(f => [f.x, f.y, f.z, f.vx, f.vy, f.hp, f.dir, f.action?.i ?? -1, f.action?.t ?? 0])]);
+      ...this.beams.flatMap(b => [b.t, b.hit ? 1 : 0]), ...this.summons.flatMap(s => [s.x, s.t, s.atk?.t ?? -1, s.atk?.done ?? 0]), ...this.fighters.flatMap(f => [f.x, f.y, f.z, f.vx, f.vy, f.hp, f.dir, f.action?.i ?? -1, f.action?.t ?? 0])]);
   }
   // a running key macro (keys.js) presses its steps on top of the keys held
   withMacro(inp, f, o, h) {
@@ -483,7 +521,7 @@ class World {
     this.zoom *= Math.exp(-h * 10);
     this.bank = Math.min(cfg.hitstopBudget, this.bank + h * cfg.hitstopBudget);
     if (this.frozen) this.frozenT += h;
-    this.updateParticles(h); this.updateItems(h); this.updateLimbs(h); this.updateShots(h); this.updateBeams(h);
+    this.updateParticles(h); this.updateItems(h); this.updateLimbs(h); this.updateShots(h); this.updateBeams(h); this.updateSummons(h);
 
     const fs = this.fighters, tg = fs.map(f => this.nearestFoe(f));
     const ins = this.koT ? fs.map(() => NOIN) : this.ctl.map((c, i) => c === 'human' ? this.withMacro(inp, fs[i], tg[i], h) : c === 'human2' ? inp2 : !c || !tg[i] ? NOIN : c.input(fs[i], tg[i], h));
@@ -802,6 +840,7 @@ class World {
     this.drawLimbs(ctx);
     this.drawShots(ctx);
     this.drawBeams(ctx);
+    this.drawSummons(ctx);
     this.drawParticles(ctx);
     if (cfg.impactFrames) this.drawImpact(ctx);
     this.drawProps(ctx, 'front');
