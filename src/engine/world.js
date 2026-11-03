@@ -283,13 +283,14 @@ class World {
     // clashing shots wear each other's durability down (move field shot.durability); each pair only ever clashes
     // once (s.passed), so two shots overlapping for several frames don't grind each other down frame by frame
     for (const s of this.shots) for (const o of this.shots) if (s !== o && !gone.has(s) && !gone.has(o) && !s.passed.includes(o) && s.owner.team !== o.owner.team
-      && Math.abs(s.x - o.x) < s.r + o.r && Math.abs(s.y - o.y) < s.r + o.r && Math.abs(s.z - o.z) <= cfg.zReach) {
+      && Math.abs(s.z - o.z) <= cfg.zReach && shotsTouch(s, o)) { // only hitting parts clash (effects.js)
       this.clashes++; s.passed.push(o); o.passed.push(s);
       if (--s.dur <= 0) pop(s, '#d68c14');
       if (--o.dur <= 0) pop(o, '#d68c14');
     }
     for (const s of this.shots) if (!gone.has(s)) for (const o of this.foes(s.owner)) if (!s.hits.includes(o) && Math.abs(o.z - s.z) <= cfg.zReach && !(s.m.height === 'high' && o.crouching)) { // a high shot flies over a crouch
-      const hit = o.hurtAt([[s.x - s.vx * h, s.y - (s.vy || 0) * h], [s.x, s.y], s.r], false, false);
+      let hit = null; // the nearest overlap of any hitting part, swept over this frame's move
+      for (const sh of shotHitShapes(s, s.vx * h, (s.vy || 0) * h)) { const c = o.hurtAt(sh, false, false); if (c && (!hit || c.d < hit.d)) hit = c; }
       if (!hit) continue;
       const def = o.defend(s, s.m, null), fr = s.owner.freeze; // blocked from the side it comes from; a counter can't catch it
       if (def === 'parry' && cfg.reflectShots) { // reflected: flies back at its old owner instead of despawning
