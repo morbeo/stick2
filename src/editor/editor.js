@@ -78,6 +78,7 @@ function drawAnimEditor() {
     drawFigure(ctx, hf.ch, hf.L, AMBER, AMBER, -1); ctx.restore();
   }
   ctx.restore();
+  drawShotGizmo(f); // fx edit: the shot's parts (shotedit.js)
   const editing = Math.abs(anim.t - keyEnd(m, anim.key)) < 1e-6, hits = hitIds(m);
   const hch = anim.holdEdit && hf ? hf.ch : ch, hP = anim.holdEdit && hf ? hf.P : P, hPose = anim.holdEdit && hf ? hf.pose : f.pose;
   for (const b of hch.bones) {
@@ -338,6 +339,8 @@ function animMouse(type, x, y, e) {
         else { selectKey(keyAt(m, tAt())); anim.drag = { order: anim.key, x0: x }; }
       }
     } else {
+      const sp = pickShotPart(x, y); // fx edit: a shot part's handle wins over the joints under it
+      if (sp) { anim.drag = { part: sp }; anim.fxPart = sp.i; return; }
       const id = pickJoint(x, y);
       if (id === 'hip' && (e.shiftKey || e.detail === 2)) return; // the hip neither strikes nor aims
       if (id && e.shiftKey) { pickHit(id, e.metaKey || e.ctrlKey); return; } // Shift+click: the striking bone (⌘/Ctrl too: add or remove it)
@@ -350,6 +353,7 @@ function animMouse(type, x, y, e) {
     const d = anim.drag;
     if (d?.scrub) { anim.t = tAt(); anim.key = keyAt(m, anim.t); }
     else if (d?.order !== undefined) { const to = keyAt(m, tAt()); if (Math.abs(x - d.x0) > 4 * dpr && to !== d.order) { moveKey(d.order, to); d.order = to; d.moved = true; } }
+    else if (d?.part) dragShotPart(d.part, x, y);
     else if (d?.key !== undefined) {
       const frames = Math.max(1, Math.round((d.d0 + (x - d.x0) / d.px) * 60));
       edit(def => { def.moves[anim.move].keys[d.key].d = frames / 60; }, 'dur:' + d.key);
@@ -362,7 +366,7 @@ function animMouse(type, x, y, e) {
       : inTl ? 'pointer' : anim.aim && x < L.ed.w ? 'crosshair' : anim.hover ? 'grab' : 'default');
   }
   if (type === 'up' && anim.drag) {
-    const posed = typeof anim.drag === 'string' || anim.drag.moved;
+    const posed = typeof anim.drag === 'string' || anim.drag.moved || !!anim.drag.part;
     anim.drag = null; anim.hold = false; studio.lastKey = null;
     if (posed) buildPreview();
   }
