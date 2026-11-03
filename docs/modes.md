@@ -27,6 +27,7 @@ One fight on the full stage.
 - Scenarios are grouped by who fights: you, the engine AI, a dummy.
 - The scripted tests are grouped by topic: chains, juggles & falls, guard & counters, specials, movement, weapons.
 - Type in the filter box to narrow the list; Enter picks the first one left.
+- **solo** is a real one-fighter scene: no opponent at all, not a hidden one offstage. In a scenario definition, `b: null` does the same.
 
 ### My scenarios
 
