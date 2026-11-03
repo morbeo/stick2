@@ -62,7 +62,7 @@ class World {
     if (!this.replaying) { this.log = []; this.checkpoints = []; this.sums = {}; this.desync = null; } // every frame since the start: [dt, input, macro], for rewind and replays
     // a vs b, plus any extra fighters: { c: controller, x, team, over }; over: the fighter's own settings (aover / bover for a and b: inv, aiStyle, limits, aiSkill …)
     const specs = [{ c: s.a, x: s.ax ?? (scripted ? 330 : 300), team: s.aTeam ?? 0, over: s.aover }, { c: s.b, x: s.bx ?? (scripted ? 375 : 500), team: s.bTeam ?? 1, over: s.bover }, ...(s.more || [])];
-    if (s.waves || s.survival || s.rumble) specs.length = 1; // the enemies come in waves (nextWave), one by one (spawn) or as a rumble pool (addRumbler)
+    if (s.waves || s.survival || s.rumble || s.b === null) specs.length = 1; // b: null = solo, one fighter and no opponent at all // the enemies come in waves (nextWave), one by one (spawn) or as a rumble pool (addRumbler)
     const chars = this.chars || [currentChar()];
     this.fighters = specs.map((sp, i) => Object.assign(
       new Fighter(this, sp.x, i < 2 ? 1 - 2 * i : sp.x < W / 2 ? 1 : -1, COLS[i % COLS.length], chars[Math.min(i, chars.length - 1)], sp.over),
@@ -94,7 +94,7 @@ class World {
       for (let i = 0; i < (this.cfg.rumbleStart || 4) - 1; i++) this.addRumbler();
       this.b = this.fighters[1];
     }
-    this.cam = (this.a.x + this.b.x) / 2;
+    this.cam = this.b ? (this.a.x + this.b.x) / 2 : this.a.x;
     s.init?.(this); // a scenario can set up a state (the animate preview's target: lying, dizzy, facing away)
   }
   // an enemy (a random built-in or the opponent's character) runs in from an edge, every other one from the left;
@@ -427,7 +427,7 @@ class World {
     const h = this.hist, j = this.cfg.scope;
     h.tgt.push(this.a.target[j] ?? 0); h.disp.push(this.a.disp[j] ?? 0); h.vx.push(this.a.vx); h.y.push(this.a.y);
     h.hpA.push(this.a.hp); h.hpB.push(this.b?.hp ?? 0); h.stunA.push(this.a.stunM); h.stunB.push(this.b?.stunM ?? 0);
-    h.fs.push([frameState(this.a), frameState(this.b)]);
+    h.fs.push([frameState(this.a), this.b ? frameState(this.b) : 'idle']);
     if (this.ctl[0] === 'human') this.logInput(inp);
     if (h.tgt.length > HIST) for (const k in h) h[k].shift();
   }

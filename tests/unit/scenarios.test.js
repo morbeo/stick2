@@ -12,7 +12,7 @@ const snap = (name, text) => {
 test('scenarios', () => snap('scenarios', run(`Object.keys(SCENARIOS).filter(n => SCENARIOS[n].a !== 'human' && !SCENARIOS[n].chars?.includes('random')).map(n => {
   const w = new World(SCENARIOS[n], {}, 7); w.loop = false;
   for (let i = 0; i < 360 && !w.done; i++) w.advance(1/60, NOIN);
-  return [n.padEnd(14), 'hits', w.hits, 'blocks', w.blocks, 'hp', w.a.hp.toFixed(1), w.b.hp.toFixed(1), 'x', w.a.x.toFixed(0), w.b.x.toFixed(0)].join(' ');
+  return [n.padEnd(14), 'hits', w.hits, 'blocks', w.blocks, 'hp', w.a.hp.toFixed(1), w.b?.hp.toFixed(1) ?? '-', 'x', w.a.x.toFixed(0), w.b?.x.toFixed(0) ?? '-'].join(' ');
 }).join('\\n') + '\\n'`)));
 
 test('characters', () => snap('characters', run(`Object.keys(CHARS).map(n => {
@@ -21,3 +21,9 @@ test('characters', () => snap('characters', run(`Object.keys(CHARS).map(n => {
   for (let i = 0; i < 600 && !w.done; i++) w.advance(1/60, NOIN);
   return [n.padEnd(10), 'hits', w.hits, 'hp', w.a.hp.toFixed(1), w.b.hp.toFixed(1)].join(' ');
 }).join('\\n') + '\\n'`)));
+
+test('solo: one fighter, no hidden opponent, and it still runs and loops', () => {
+  assert.equal(run(`const w = new World(SCENARIOS.solo, {}, 7);
+  for (let i = 0; i < 600; i++) w.advance(1/60, NOIN);
+  [w.fighters.length, w.b === undefined, Math.round(w.cam) === Math.round(w.a.x)].join(' ')`), '1 true true');
+});
