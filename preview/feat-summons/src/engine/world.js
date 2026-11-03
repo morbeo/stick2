@@ -325,7 +325,7 @@ class World {
       const f = s.owner; s.t += h; s.dir = f.dir;
       if (s.t > s.life || f.hp <= 0 || cfg.summonFragile && f.hurtT > 0) { gone.add(s); this.parts.push({ t: 'ring', x: s.x, y: f.groundY + s.y - 60, z: s.z, life: 0.2, max: 0.2, col: '#aaa', big: true }); continue; }
       const a = s.atk, tx = a ? f.x + f.dir * a.reach : f.x - f.dir * s.side;
-      s.x = clamp(s.x + (tx - s.x) * Math.min(1, (a ? 18 : 8) * h), 20, W - 20); s.y += (f.y - 12 - s.y) * Math.min(1, 8 * h); s.z = f.z;
+      s.x = clamp(s.x + (tx - s.x) * Math.min(1, (a ? 18 : 8) * h), 20, W - 20); s.y += (f.y - 22 - s.y) * Math.min(1, 8 * h); s.z = f.z;
       if (!a) continue;
       a.t += h;
       // a rush of hits spread evenly over the strike: hit k lands once k/n of it has passed
@@ -349,9 +349,10 @@ class World {
       const f = s.owner, dx = s.x - f.x, dy = s.y - f.y, P = {};
       for (const [id, p] of Object.entries(f.body())) P[id] = [p[0] + dx, p[1] + dy, ...p.slice(2)];
       const fade = Math.min(1, s.t / 0.15, (s.life - s.t) / 0.3);
-      ctx.save(); ctx.globalAlpha = Math.max(0, fade) * (0.4 + 0.08 * Math.sin(s.t * 30));
-      const zk = 1 + s.z * ZK; ctx.translate(s.x, f.groundY + s.z * ZS); ctx.scale(zk, zk); ctx.translate(-s.x, -f.groundY);
-      drawFigure(ctx, f.ch, P, f.col[0], f.col[1], 2); ctx.restore();
+      const a = Math.max(0, fade), zk = 1 + s.z * ZK;
+      ctx.save(); ctx.translate(s.x, f.groundY + s.z * ZS); ctx.scale(zk, zk); ctx.translate(-s.x, -f.groundY);
+      ctx.globalAlpha = a * 0.18; drawFigure(ctx, f.ch, P, f.col[0], f.col[0], 10); // a soft halo, so it reads as a spirit, not a second fighter
+      ctx.globalAlpha = a * (0.6 + 0.1 * Math.sin(s.t * 30)); drawFigure(ctx, f.ch, P, f.col[0], f.col[1], 1); ctx.restore();
     }
   }
   // looks: ki (a blue ball), fire (flickering orange), dark (purple), wave (a crescent, sonic boom), star (a spinning shuriken)
