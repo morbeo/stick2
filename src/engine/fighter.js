@@ -448,6 +448,8 @@ class Fighter {
     if (k.warp) this.warp(k.warp);
     if (k.shoot) this.shoot(a);
     if (k.beam) this.fireBeam(a);
+    if (k.summon) this.summon(a);
+    if (k.command) this.command(a);
     if (k.shake) this.w.trauma = Math.min(1, this.w.trauma + k.shake); // key events: screen shake, a sound
     if (k.sound) this.w.sound(k.sound, this.x);
     if (this.ch.weapon && a.toss && (k.release || first && !a.m.keys.some(x => x.release))) { this.letGo(true, a.charge); this.action = a; }
@@ -468,6 +470,26 @@ class Fighter {
         look: o.look || 'ki', owner: this, m, pierce: o.pierce || 1, dur: o.durability || 1, hits: [], passed: [] });
     }
     a.hit = true; // fired: not a whiff
+  }
+  // a summon key: calls up the fighter's companion (move field summon: life, side), a translucent copy of the fighter that floats
+  // beside it, mirrors its pose and strikes on command keys (summons setting). One per fighter: summoning again only refreshes it
+  summon(a) {
+    if (!this.c('summons')) return;
+    const o = a.m.summon || {}, had = this.w.summons.find(s => s.owner === this);
+    if (had) { had.t = 0; had.life = o.life ?? 6; return; }
+    const side = o.side ?? 40;
+    this.w.summons.push({ x: this.x - this.dir * side, y: this.y - 12, z: this.z, dir: this.dir, side, t: 0, life: o.life ?? 6, owner: this, atk: null });
+    this.w.parts.push({ t: 'ring', x: this.x - this.dir * side, y: this.groundY + this.y - 60, z: this.z, life: 0.25, max: 0.25, col: this.col[0], big: true });
+    a.hit = true;
+  }
+  // a command key: the companion rushes out and strikes with this move (move field summon: reach, hits, rush), while its owner
+  // stays where it is; with no companion out, the key does nothing
+  command(a) {
+    const s = this.w.summons.find(s => s.owner === this);
+    if (!s) return;
+    const o = a.m.summon || {};
+    s.atk = { m: this.chargedHit(a.m, a.charge), t: 0, dur: o.rush ?? 0.4, reach: o.reach ?? 110, n: o.hits ?? 1, done: 0 };
+    a.hit = true;
   }
   // a beam key: a straight line held out from the striking limbs for its duration, hitting once wherever it touches a foe (beams setting)
   fireBeam(a) {

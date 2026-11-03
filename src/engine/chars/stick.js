@@ -197,6 +197,17 @@ const STICK_MOVES = {
     { d: 0.05, e: 'outExpo', beam: true, p: { torso: 15, afU: 95, afL: 10, abU: 85, abL: 15, lfU: 35, lfL: -30, lbU: -25, lbL: 0 } },
     { d: 0.2, p: { torso: 15, afU: 95, afL: 10, abU: 85, abL: 15, lfU: 35, lfL: -30, lbU: -25, lbL: 0 } },
     { d: 0.2, e: 'inOutCubic', p: null }] },
+  // a summon (summon key): a palm raised to call up the companion, which floats in behind (move field summon: life, side)
+  callSpirit: { power: 0, damage: 0, hit: [], height: 'mid', special: true, summon: { life: 6, side: 40 }, keys: [
+    { d: 0.15, e: 'outQuad', p: { torso: -6, afU: 150, afL: 20, abU: 20, abL: 40, lfU: 15, lfL: -20, lbU: -10, lbL: 0 } },
+    { d: 0.1, summon: true, p: { torso: -6, afU: 160, afL: 5, abU: 20, abL: 40, lfU: 15, lfL: -20, lbU: -10, lbL: 0 } },
+    { d: 0.2, e: 'inOutCubic', p: null }] },
+  // a command (command key): a point forward, and the companion rushes out with a flurry of hits while the fighter stays put
+  spiritRush: { power: 0.7, damage: 4, hit: ['fh'], height: 'mid', knock: 30, stun: 0.25, special: true, summon: { reach: 110, hits: 4, rush: 0.45 }, keys: [
+    { d: 0.08, e: 'outQuad', p: { torso: 8, afU: 70, afL: 30, abU: 40, abL: 60, lfU: 25, lfL: -25, lbU: -20, lbL: 0 } },
+    { d: 0.05, command: true, p: { torso: 12, afU: 90, afL: 5, abU: 40, abL: 60, lfU: 30, lfL: -30, lbU: -20, lbL: 0 } },
+    { d: 0.4, p: { torso: 12, afU: 90, afL: 5, abU: 40, abL: 60, lfU: 30, lfL: -30, lbU: -20, lbL: 0 } },
+    { d: 0.2, e: 'inOutCubic', p: null }] },
   // a lobbed shot (shoot key): the same push as fireball, but thrown up and out so gravity arcs it down, bouncing
   // once before it fizzles (move field shot: angle, gravity, bounce — an arc instead of flying dead level)
   grenade: { power: 1.1, damage: 8, hit: ['fh', 'bh'], height: 'mid', knock: 200, stun: 0.4, special: true,
