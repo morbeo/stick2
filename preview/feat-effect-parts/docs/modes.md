@@ -352,6 +352,18 @@ Aura, fire, lightning and smoke drawn over the bones. Drawing only: the fight pl
 
 ![Lightning, aura, fire and smoke on four bodies](img/effects.png)
 
+### Shots: fx edit
+
+A move with a **shoot** key gets the shot rows (look, speed, size, life…) and a **shot parts** group under them. Palette: `fx edit`.
+
+- **Parts:** a shot is one or more shapes, each a **circle** or a **capsule** (a rounded line with a far end). Each part has an x/y offset from the shot's centre, a size, and **hits** on or off.
+- **Hits on** (red, dashed): the part hits fighters and clashes with other shots. **Hits off** (grey, dotted): cosmetic, drawn as a soft glow or streak only. A small hitting core inside a big glow is the usual fireball.
+- **fx edit** shows the shot on the figure where it leaves the striking limbs, with every part outlined and a green arrow for its launch speed and angle. Drag a part's centre to move it, a capsule's far end to aim it.
+- **Dopesheet:** under the bones, a **shot** row (and a **beam** row when the move has one) marks the keys that fire it. Click a key there to toggle it.
+- The boxes view rings each hitting part in a fight.
+
+![fx edit: a hitting core, a cosmetic glow and a cosmetic tail](img/fx-edit.png)
+
 ### Preview target
 
 A live preview with springs and hit stop, against a **target**:

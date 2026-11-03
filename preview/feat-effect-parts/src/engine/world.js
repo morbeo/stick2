@@ -320,24 +320,12 @@ class World {
   }
   // looks: ki (a blue ball), fire (flickering orange), dark (purple), wave (a crescent, sonic boom), star (a spinning shuriken)
   drawShots(ctx) {
-    const COL = { ki: ['80,160,255', '#2c6fb0'], fire: ['240,140,30', '#c0392b'], dark: ['142,68,173', '#2c1338'], wave: ['230,200,60', '#b07a2c'], star: ['120,120,130', '#444'] };
     for (const s of this.shots) {
-      const [rgb, edge] = COL[s.look] || COL.ki, r = s.r * (s.look === 'fire' ? 1 + 0.12 * Math.sin(s.t * 45) : 1);
       ctx.save(); ctx.translate(s.x, s.y + s.z * ZS);
-      if (s.look === 'star') {
-        ctx.rotate(s.t * 25 * s.dir); ctx.fillStyle = edge; ctx.beginPath();
-        for (let k = 0; k < 8; k++) { const q = k * Math.PI / 4, l = k % 2 ? r * 0.35 : r; ctx.lineTo(Math.cos(q) * l, Math.sin(q) * l); }
-        ctx.fill();
-      } else if (s.look === 'wave') {
-        ctx.scale(s.dir, 1); ctx.lineCap = 'round';
-        for (let k = 0; k < 3; k++) { ctx.strokeStyle = `rgba(${rgb},${0.9 - k * 0.3})`; ctx.lineWidth = 4 - k; ctx.beginPath(); ctx.arc(-k * 9, 0, r * 1.4, -1.1, 1.1); ctx.stroke(); }
-      } else {
-        for (let k = 3; k > 0; k--) { ctx.fillStyle = `rgba(${rgb},${0.12 * (4 - k)})`; ctx.beginPath(); ctx.arc(-s.dir * k * r * 0.6, 0, r * (1 - k * 0.15), 0, 7); ctx.fill(); } // trail
-        ctx.fillStyle = `rgba(${rgb},.45)`; ctx.beginPath(); ctx.arc(0, 0, r * 1.5, 0, 7); ctx.fill();
-        ctx.fillStyle = `rgba(${rgb},.9)`; ctx.strokeStyle = edge; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, r * 0.45, 0, 7); ctx.fill();
-      }
-      if (this.cfg.boxes) { ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, s.r, 0, 7); ctx.stroke(); }
+      if (isCorePart(s.parts)) drawShotLook(ctx, s.look, s.r, s.t, s.dir); // one centred ball: drawn as shots always were
+      else for (const p of s.parts) drawShotPart(ctx, p, s.look, s.k ?? 1, s.t, s.dir); // its own parts, hitting and cosmetic
+      if (this.cfg.boxes) { ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+        for (const [a, b, r] of shotHitShapes(s)) { ctx.beginPath(); if (a[0] === b[0] && a[1] === b[1]) ctx.arc(a[0] - s.x, a[1] - s.y, r, 0, 7); else { ctx.lineWidth = r * 2; ctx.strokeStyle = 'rgba(192,57,43,.3)'; ctx.moveTo(a[0] - s.x, a[1] - s.y); ctx.lineTo(b[0] - s.x, b[1] - s.y); } ctx.stroke(); } }
       ctx.restore();
     }
   }
