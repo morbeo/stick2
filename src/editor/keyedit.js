@@ -358,7 +358,7 @@ function keyPanel() {
       () => k().fx, (e, key) => setKey('fx', e, key), fxOns(edChar()), () => fxAt(curMove(), anim.key - 1))),
     ...curMove().keys.some(x => x.summon) ? [
       slider('summon life', { min: 1, max: 15, step: 0.5 }, () => curMove().summon?.life ?? 6, v => setMove('summon', { ...curMove().summon, life: v }, 'summon.life'), 'Seconds the companion stays out.'),
-      slider('summon side', { min: 10, max: 90, step: 5 }, () => curMove().summon?.side ?? 40, v => setMove('summon', { ...curMove().summon, side: v }, 'summon.side'), 'How far behind the fighter it floats (px).')] : [],
+      slider('summon side', { min: 10, max: 90, step: 5 }, () => curMove().summon?.side ?? 55, v => setMove('summon', { ...curMove().summon, side: v }, 'summon.side'), 'How far behind the fighter it floats (px).')] : [],
     ...curMove().keys.some(x => x.command) ? [
       slider('summon reach', { min: 40, max: 250, step: 10 }, () => curMove().summon?.reach ?? 110, v => setMove('summon', { ...curMove().summon, reach: v }, 'summon.reach'), 'How far in front of the fighter the companion rushes to strike (px).'),
       slider('summon hits', { min: 1, max: 12, step: 1 }, () => curMove().summon?.hits ?? 1, v => setMove('summon', { ...curMove().summon, hits: v }, 'summon.hits'), 'Hits in the rush, spread evenly over it.'),

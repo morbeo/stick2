@@ -477,8 +477,8 @@ class Fighter {
     if (!this.c('summons')) return;
     const o = a.m.summon || {}, had = this.w.summons.find(s => s.owner === this);
     if (had) { had.t = 0; had.life = o.life ?? 6; return; }
-    const side = o.side ?? 40;
-    this.w.summons.push({ x: this.x - this.dir * side, y: this.y - 12, z: this.z, dir: this.dir, side, t: 0, life: o.life ?? 6, owner: this, atk: null });
+    const side = o.side ?? 55;
+    this.w.summons.push({ x: this.x - this.dir * side, y: this.y - 22, z: this.z, dir: this.dir, side, t: 0, life: o.life ?? 6, owner: this, atk: null });
     this.w.parts.push({ t: 'ring', x: this.x - this.dir * side, y: this.groundY + this.y - 60, z: this.z, life: 0.25, max: 0.25, col: this.col[0], big: true });
     a.hit = true;
   }
