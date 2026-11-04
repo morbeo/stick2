@@ -1,7 +1,7 @@
 // my scenarios (src/engine/scenarios.js): scripts as text and bookmarks, the saved store layered over the built-ins, embed links,
 // and the random-character scenarios the snapshot test leaves out, played over several seeds
 const test = require('node:test'), assert = require('node:assert/strict'), load = require('./load');
-const { run } = load(['core', 'rig', 'fx', 'roster', 'fighter', 'world', 'stage', 'brain', 'checks', 'events', 'scenarios']);
+const { run } = load(['core', 'rig', 'fx', 'effects', 'roster', 'fighter', 'world', 'stage', 'brain', 'checks', 'events', 'scenarios']);
 run(`var panels = () => {}, lab = { scen: null }, setMode = m => { lab.mode = m; }, setTheater = () => {}, build = () => {};`);
 const js = src => JSON.parse(run(`JSON.stringify((() => { ${src} })())`));
 

@@ -86,7 +86,7 @@ test('character stats and gait vars: unique keys, a tooltip, sane ranges — the
 // MOVE_PROPS/MOVE_FLAGS live in src/editor/keyedit.js (a DOM-dependent UI file), not the headless engine list every other test
 // in this file shares — loaded here on its own, isolated context so a UI-only dependency can't affect the other tests
 test('move properties and flags: unique keys, a tooltip, sane ranges — the fields the move table and grid tab read from', () => {
-  const { run: runEditor } = load(['core', 'rig', 'fx', 'roster', 'fighter', 'world', 'stage', 'brain', 'checks', 'events', 'editor', 'keyedit']);
+  const { run: runEditor } = load(['core', 'rig', 'fx', 'effects', 'roster', 'fighter', 'world', 'stage', 'brain', 'checks', 'events', 'editor', 'keyedit']);
   const bad = JSON.parse(runEditor(`JSON.stringify((() => { const bad = [];
     const seen = new Set();
     for (const p of MOVE_PROPS) {
@@ -102,7 +102,7 @@ test('move properties and flags: unique keys, a tooltip, sane ranges — the fie
 // fromScen/toScen (src/engine/scenarios.js, the builder's own data round-trip) must be able to recreate every built-in
 // scenario, field for field — otherwise the builder silently can't reproduce something only BASE_SCENARIOS can say
 test('the scenario builder can recreate every built-in scenario: fromScen/toScen round-trips every field', () => {
-  const { run: runScen } = load(['core', 'rig', 'fx', 'roster', 'fighter', 'world', 'stage', 'brain', 'checks', 'events', 'scenarios']);
+  const { run: runScen } = load(['core', 'rig', 'fx', 'effects', 'roster', 'fighter', 'world', 'stage', 'brain', 'checks', 'events', 'scenarios']);
   const bad = JSON.parse(runScen(`JSON.stringify((() => { const bad = [];
     for (const [name, s] of Object.entries(BASE_SCENARIOS)) {
       const back = toScen(fromScen(s, null));

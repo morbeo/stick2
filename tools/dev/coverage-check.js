@@ -4,7 +4,7 @@
 const { spawnSync } = require('child_process'), fs = require('fs'), os = require('os'), path = require('path');
 const ROOT = path.join(__dirname, '..', '..');
 const FLOOR = 80;
-const FULL = ['engine/brain', 'engine/checks', 'engine/core', 'engine/events', 'engine/objdiff', 'engine/roster', 'engine/shapes', 'engine/stage',
+const FULL = ['engine/brain', 'engine/checks', 'engine/core', 'engine/effects', 'engine/events', 'engine/objdiff', 'engine/roster', 'engine/shapes', 'engine/stage',
   'net/netmatch', 'net/netplay', 'editor/tracker', 'ui/sound', 'ui/panelstate',
   'engine/rig', 'engine/rig-pose', 'engine/rig-chars', 'net/names',
   // every character file (not the shared _kit), so a new one joins on arrival

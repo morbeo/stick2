@@ -41,6 +41,8 @@ test('every projectile look, styled spark and glow draws without NaN', () => {
     w.loop = false; w.advance(1/60, NOIN);
     const looks = ['ki', 'fire', 'dark', 'wave', 'star'];
     looks.forEach((look, i) => w.shots.push({ x: 200 + i * 80, y: 300, z: 0, r: 12, t: 0.1, dir: i % 2 ? 1 : -1, look }));
+    // a shot of parts: a hitting ball off-centre, a cosmetic glow and a cosmetic capsule tail (boxes on: rings and a capsule band)
+    w.shots.push({ x: 300, y: 200, z: 0, r: 20, k: 1, t: 0.1, dir: 1, look: 'fire', parts: [{ dx: 4, r: 8 }, { r: 20, hits: false }, { shape: 'capsule', dx2: -40, r: 4, hits: false }, { shape: 'capsule', dx2: 20, dy2: 5, r: 3 }] });
     w.drawShots(ctx);
     for (const s of ['heavy', 'slash', 'blunt']) w.spark(s, [400, 300], 0, 1);
     const kinds = [...new Set(w.parts.map(p => p.t))]; w.drawParticles(ctx);
