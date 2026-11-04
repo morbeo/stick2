@@ -71,5 +71,16 @@ function shotPartRows() {
     h('div', { cls: 'row', tip: 'Edit the parts on the figure: drag a part to move it, a capsule\'s far end to aim it' }, h('span', { textContent: '' }), h('span', { cls: 'bar' },
       toggle(':auto_awesome: fx edit', 'Show the shot\'s parts on the figure where it leaves the striking limbs, to drag them (palette: fx edit)', () => !!anim.fxEdit, v => { anim.fxEdit = v; panels(); }),
       button(':add: part', 'Add a part: a cosmetic glow around the centre to start with', () => setParts([...shotParts(), { name: 'part ' + (shotParts().length + 1), shape: 'circle', dx: 0, dy: 0, r: (curMove().shot?.size ?? 12) * 2, hits: false }])))),
-    ...rows]);
+    ...rows,
+    shotSpecialRows()]);
+}
+// special properties of the whole shot (move field shot): how it behaves, not how it looks
+const setShot = (k, v, key = null) => setMove('shot', { ...curMove().shot, [k]: v }, key);
+function shotSpecialRows() {
+  return subFold(':auto_awesome: shot special', [
+    h('div', { cls: 'row', tip: 'Special properties of the shot as a whole' }, h('span', { textContent: 'special' }), h('span', { cls: 'bar' },
+      toggle('unblockable', EFFECT_PROPS.unblockable, () => !!curMove().shot?.unblockable, v => setShot('unblockable', v || undefined)),
+      toggle('pass shots', EFFECT_PROPS.noClash, () => !!curMove().shot?.noClash, v => setShot('noClash', v || undefined)))),
+    slider('grow', { min: 0.2, max: 4, step: 0.1 }, () => curMove().shot?.grow ?? 1, v => setShot('grow', v === 1 ? undefined : v, 'shot.grow'), EFFECT_PROPS.grow),
+    slider('homing', { min: 0, max: 360, step: 10 }, () => curMove().shot?.homing ?? 0, v => setShot('homing', v || undefined, 'shot.homing'), EFFECT_PROPS.homing)]);
 }
