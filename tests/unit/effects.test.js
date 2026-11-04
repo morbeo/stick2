@@ -51,3 +51,22 @@ test('shot specials: unblockable beats a guard, pass shots skips the clash, grow
   assert.ok(go({ grow: 3 }, 'dummy', ['@fireball'], 40).r > 14, 'grows'), assert.ok(go({}, 'dummy', ['@fireball'], 40).r <= 12.5, 'stays');
   assert.equal(go({}, 'dummy').vy, 0), assert.ok(go({ homing: 180, angle: 30 }, 'dummy').vy > 0, 'homing turns it');
 });
+
+test('shot spawns: split bursts it into smaller shots at the end of its life, sparks on hit and end, reflect: false only stops it on a parry', () => {
+  const go = (shot, b = 'dummy', n = 120, cfg = {}) => JSON.parse(run(`(() => { const ch = JSON.parse(JSON.stringify(CHARS.stick)); Object.assign(ch.moves.fireball.shot, ${JSON.stringify(shot)});
+    const w = new World({ a: ['@fireball'], b: ${JSON.stringify(b)}, ax: 250, bx: 700, cfg: ${JSON.stringify(cfg)} }, {}, 7, [ch, CHARS.stick]); w.loop = false; let most = 0, small = 99, flash = 0, back = false;
+    for (let i = 0; i < ${n}; i++) { w.advance(1/60, NOIN); most = Math.max(most, w.shots.length); for (const s of w.shots) { small = Math.min(small, s.r); if (s.owner === w.b) back = true; } flash += w.parts.filter(p => p.t === 'flash').length; }
+    return JSON.stringify({ most, small, flash, back }); })()`));
+  const sp = go({ life: 0.3, split: 3, splitSpread: 120, endSpark: 'explosion' });
+  assert.equal(sp.most, 3, 'one shot becomes three'), assert.ok(sp.small < 12, 'smaller: ' + sp.small), assert.ok(sp.flash > 0, 'the end spark flashes');
+  assert.equal(go({ life: 0.3 }).most, 1, 'no split: just fizzles');
+});
+
+test('shot.reflect: false: the fireball reflect scenario parries it but it does not fly back', () => {
+  const go = reflect => JSON.parse(run(`(() => { const sc = SCENARIOS['fireball reflect'], ch = JSON.parse(JSON.stringify(CHARS.stick));
+    for (const m of Object.values(ch.moves)) if (m.shot) m.shot.reflect = ${reflect};
+    const w = new World(sc, {}, 7, [ch, CHARS.stick]); w.loop = false; let back = false;
+    for (let i = 0; i < 240; i++) { w.advance(1/60, NOIN); if (w.shots.some(s => s.owner === w.b)) back = true; }
+    return JSON.stringify({ back, ahp: w.a.hp }); })()`));
+  assert.equal(go(true).back, true, 'reflected as before'), assert.equal(go(false).back, false, 'not reflectable'), assert.equal(go(false).ahp, 100);
+});
