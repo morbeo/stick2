@@ -272,6 +272,13 @@ class World {
   updateShots(h) {
     const cfg = this.cfg, gone = new Set(), pop = (s, col) => { gone.add(s); this.parts.push({ t: 'ring', x: s.x, y: s.y, z: s.z, life: 0.2, max: 0.2, col, big: true }); };
     for (const s of this.shots) {
+      if (s.homing) { // shot.homing: the velocity turns toward the nearest foe's chest, at most homing degrees a second
+        const foe = this.foes(s.owner).reduce((b, o) => !b || Math.abs(o.x - s.x) < Math.abs(b.x - s.x) ? o : b, null);
+        if (foe) { const sp = Math.hypot(s.vx, s.vy || 0), a = Math.atan2(s.vy || 0, s.vx), want = Math.atan2(foe.groundY + foe.y - 60 - s.y, foe.x - s.x);
+          let d = want - a; d = Math.atan2(Math.sin(d), Math.cos(d)); const na = a + clamp(d, -s.homing * R * h, s.homing * R * h);
+          s.vx = Math.cos(na) * sp; s.vy = Math.sin(na) * sp; s.dir = s.vx < 0 ? -1 : 1; }
+      }
+      if (s.grow && s.grow !== 1) { const g = 1 + (s.grow - 1) * Math.min(1, s.t / s.life); s.k = s.k0 * g; s.r = s.r0 * g; } // shot.grow: swells (or shrinks) over its life
       if (s.gravity) s.vy += s.gravity * h;
       s.x += s.vx * h; s.y += (s.vy || 0) * h; s.t += h;
       if (s.vy > 0 && s.y >= this.groundY - s.r) { // an arcing shot (move field shot.gravity) falls back to earth
@@ -283,7 +290,7 @@ class World {
     // clashing shots wear each other's durability down (move field shot.durability); each pair only ever clashes
     // once (s.passed), so two shots overlapping for several frames don't grind each other down frame by frame
     for (const s of this.shots) for (const o of this.shots) if (s !== o && !gone.has(s) && !gone.has(o) && !s.passed.includes(o) && s.owner.team !== o.owner.team
-      && Math.abs(s.z - o.z) <= cfg.zReach && shotsTouch(s, o)) { // only hitting parts clash (effects.js)
+      && !s.noClash && !o.noClash && Math.abs(s.z - o.z) <= cfg.zReach && shotsTouch(s, o)) { // only hitting parts clash (effects.js)
       this.clashes++; s.passed.push(o); o.passed.push(s);
       if (--s.dur <= 0) pop(s, '#d68c14');
       if (--o.dur <= 0) pop(o, '#d68c14');
@@ -292,7 +299,7 @@ class World {
       let hit = null; // the nearest overlap of any hitting part, swept over this frame's move
       for (const sh of shotHitShapes(s, s.vx * h, (s.vy || 0) * h)) { const c = o.hurtAt(sh, false, false); if (c && (!hit || c.d < hit.d)) hit = c; }
       if (!hit) continue;
-      const def = o.defend(s, s.m, null), fr = s.owner.freeze; // blocked from the side it comes from; a counter can't catch it
+      const def = o.defend(s, s.m, s.unblock ? { unblock: true } : null), fr = s.owner.freeze; // blocked from the side it comes from (unless shot.unblockable); a counter can't catch it
       if (def === 'parry' && cfg.reflectShots) { // reflected: flies back at its old owner instead of despawning
         this.onHit(s.owner, o, hit, s.m, def); s.owner.freeze = fr;
         s.vx = -s.vx; s.vy = -(s.vy || 0); s.dir = -s.dir; s.owner = o; s.t = 0; s.hits = []; break;

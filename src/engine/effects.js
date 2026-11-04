@@ -7,7 +7,8 @@
 // Only parts with hits collide (with fighters and with other effects); the others are drawn only.
 const EFFECT_KINDS = { shot: 'Flies out from its anchor', beam: 'A straight line held out from its anchor', aura: 'A look drawn on bones, no collision' };
 const PART_SHAPES = { circle: 'A ball: dx, dy, r', capsule: 'A rounded line from dx, dy to dx2, dy2, r thick' };
-const EFFECT_PROPS = { pierce: 'Foes it can hit before it is spent', durability: 'Clashes with an opposing effect it survives', unblockable: 'Cannot be blocked', noClash: 'Passes through opposing effects' };
+const EFFECT_PROPS = { pierce: 'Foes it can hit before it is spent', durability: 'Clashes with an opposing effect it survives', unblockable: 'Cannot be blocked or parried', noClash: 'Passes through opposing shots instead of clashing',
+  grow: 'Size by the end of its life (1 = stays the same, 2 = doubles)', homing: 'Turns toward the nearest foe, degrees per second (0 = flies straight)' };
 
 // the default single part: one hitting circle the effect's size, centred
 const corePart = r => ({ name: 'core', shape: 'circle', dx: 0, dy: 0, r, hits: true });
@@ -21,7 +22,8 @@ function moveEffects(m) {
     const o = m.shot || {};
     out.push({ name: 'shot', kind: 'shot', look: o.look || 'ki', life: o.life ?? 2,
       motion: { speed: o.speed ?? 360, angle: o.angle || 0, gravity: o.gravity || 0, bounce: o.bounce || 0, count: o.count || 1, spread: o.spread || 0 },
-      parts: o.parts || [corePart(o.size ?? 12)], props: { pierce: o.pierce || 1, durability: o.durability || 1, maxAlive: o.maxAlive ?? 1 } });
+      parts: o.parts || [corePart(o.size ?? 12)], props: { pierce: o.pierce || 1, durability: o.durability || 1, maxAlive: o.maxAlive ?? 1,
+        unblockable: !!o.unblockable, noClash: !!o.noClash, grow: o.grow ?? 1, homing: o.homing || 0 } });
   }
   if (m.beam) out.push({ name: 'beam', kind: 'beam', ...m.beam });
   for (const fx of [m.fx].flat().filter(Boolean)) out.push({ name: fx.look, kind: 'aura', look: fx.look, anchor: fx.on, col: fx.col });
