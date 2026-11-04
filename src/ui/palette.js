@@ -24,7 +24,7 @@ function paletteEntries() {
     { kind: 'table', name: 'dopesheet', tip: VIEW_TIPS.dope + over, run: overView('dope') },
     { kind: 'table', name: 'input table', tip: VIEW_TIPS.inputs + over, run: () => { inputs.table = true; overView('inputs')(); } },
     { kind: 'editor', name: 'combos', tip: VIEW_TIPS.combos + over, run: overView('combos') },
-    { kind: 'editor', name: 'fx edit', tip: 'Edit a special move\'s shot on the figure: its parts (hitting red, cosmetic grey) dragged into place, its launch arrow, the parts list and specials (unblockable, pass shots, grow, homing) under the shot rows (animate tab; picks a shooting move if the open one has none)', run: () => {
+    { kind: 'editor', name: 'fx edit', tip: 'Edit a special move\'s shot on the figure: its parts (hitting red, cosmetic grey) dragged into place, its launch arrow, the parts list and specials (unblockable, pass shots, grow, homing, reflectable, sparks, split) under the shot rows (animate tab; picks a shooting move if the open one has none)', run: () => {
       if (app.mode !== 'animate') setMode('animate');
       if (!curMove().keys.some(k => k.shoot)) { const n = Object.keys(currentChar().moves).find(k => currentChar().moves[k].keys.some(x => x.shoot)); if (n) { anim.move = n; anim.key = 0; } }
       anim.fxEdit = true; panels();

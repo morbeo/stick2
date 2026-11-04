@@ -74,13 +74,19 @@ function shotPartRows() {
     ...rows,
     shotSpecialRows()]);
 }
+const SHOT_SPARKS = ['hit', 'heavy', 'slash', 'blunt', 'impact', 'explosion']; // the spark kinds a shot can leave (World.spark)
 // special properties of the whole shot (move field shot): how it behaves, not how it looks
 const setShot = (k, v, key = null) => setMove('shot', { ...curMove().shot, [k]: v }, key);
 function shotSpecialRows() {
   return subFold(':auto_awesome: shot special', [
     h('div', { cls: 'row', tip: 'Special properties of the shot as a whole' }, h('span', { textContent: 'special' }), h('span', { cls: 'bar' },
       toggle('unblockable', EFFECT_PROPS.unblockable, () => !!curMove().shot?.unblockable, v => setShot('unblockable', v || undefined)),
-      toggle('pass shots', EFFECT_PROPS.noClash, () => !!curMove().shot?.noClash, v => setShot('noClash', v || undefined)))),
+      toggle('pass shots', EFFECT_PROPS.noClash, () => !!curMove().shot?.noClash, v => setShot('noClash', v || undefined)),
+      toggle('reflectable', EFFECT_PROPS.reflect, () => curMove().shot?.reflect !== false, v => setShot('reflect', v ? undefined : false)))),
+    ...[['hitSpark', 'on hit'], ['endSpark', 'on end']].map(([k, label]) => h('div', { cls: 'row', tip: EFFECT_PROPS[k] }, h('span', { textContent: label }),
+      seg(['', ...SHOT_SPARKS], () => curMove().shot?.[k] || '', v => setShot(k, v || undefined), { '': 'No extra spark', ...Object.fromEntries(SHOT_SPARKS.map(n => [n, SPARK_TIPS[n]])) }, v => v || ':block:'))),
     slider('grow', { min: 0.2, max: 4, step: 0.1 }, () => curMove().shot?.grow ?? 1, v => setShot('grow', v === 1 ? undefined : v, 'shot.grow'), EFFECT_PROPS.grow),
-    slider('homing', { min: 0, max: 360, step: 10 }, () => curMove().shot?.homing ?? 0, v => setShot('homing', v || undefined, 'shot.homing'), EFFECT_PROPS.homing)]);
+    slider('homing', { min: 0, max: 360, step: 10 }, () => curMove().shot?.homing ?? 0, v => setShot('homing', v || undefined, 'shot.homing'), EFFECT_PROPS.homing),
+    slider('split', { min: 0, max: 8, step: 1 }, () => curMove().shot?.split ?? 0, v => setShot('split', v || undefined, 'shot.split'), EFFECT_PROPS.split),
+    ...curMove().shot?.split ? [slider('split spread', { min: 0, max: 360, step: 15 }, () => curMove().shot?.splitSpread ?? 90, v => setShot('splitSpread', v === 90 ? undefined : v, 'shot.splitSpread'), EFFECT_PROPS.splitSpread)] : []]);
 }

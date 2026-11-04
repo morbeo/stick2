@@ -270,7 +270,7 @@ class World {
   }
   // ---------- projectiles (Fighter.shoot): fly straight until they hit, meet a foe's shot, leave the arena or run out of life ----------
   updateShots(h) {
-    const cfg = this.cfg, gone = new Set(), pop = (s, col) => { gone.add(s); this.parts.push({ t: 'ring', x: s.x, y: s.y, z: s.z, life: 0.2, max: 0.2, col, big: true }); };
+    const cfg = this.cfg, gone = new Set(), born = [], pop = (s, col) => { gone.add(s); this.parts.push({ t: 'ring', x: s.x, y: s.y, z: s.z, life: 0.2, max: 0.2, col, big: true }); };
     for (const s of this.shots) {
       if (s.homing) { // shot.homing: the velocity turns toward the nearest foe's chest, at most homing degrees a second
         const foe = this.foes(s.owner).reduce((b, o) => !b || Math.abs(o.x - s.x) < Math.abs(b.x - s.x) ? o : b, null);
@@ -285,7 +285,14 @@ class World {
         s.y = this.groundY - s.r;
         if (s.bounce > 0 && s.vy > 60) { s.vy *= -s.bounce; this.dust(s.x, this.groundY, 0.2, s.z); } else pop(s, '#aaa');
       }
-      if (s.t > s.life || s.x < 20 || s.x > W - 20) pop(s, '#aaa');
+      if (s.t > s.life && !gone.has(s)) { pop(s, '#aaa'); // its life ran out: shot.endSpark, and shot.split bursts it into smaller shots
+        if (s.endSpark) this.spark(s.endSpark, [s.x, s.y], s.z, s.dir);
+        const n = s.split || 0, sp = Math.hypot(s.vx, s.vy || 0), a0 = Math.atan2(s.vy || 0, s.vx);
+        for (let i = 0; i < n; i++) { const a = a0 + (n > 1 ? (i / (n - 1) - 0.5) : 0) * (s.splitSpread ?? 90) * R;
+          born.push({ ...s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dir: Math.cos(a) < 0 ? -1 : 1, t: 0, life: s.life * 0.5, split: 0, endSpark: null,
+            k: (s.k ?? 1) * 0.6, k0: (s.k0 ?? 1) * 0.6, r: s.r * 0.6, r0: (s.r0 ?? s.r) * 0.6, pierce: 1, dur: 1, hits: [], passed: [] }); }
+      }
+      if (s.x < 20 || s.x > W - 20) pop(s, '#aaa');
     }
     // clashing shots wear each other's durability down (move field shot.durability); each pair only ever clashes
     // once (s.passed), so two shots overlapping for several frames don't grind each other down frame by frame
@@ -300,17 +307,19 @@ class World {
       for (const sh of shotHitShapes(s, s.vx * h, (s.vy || 0) * h)) { const c = o.hurtAt(sh, false, false); if (c && (!hit || c.d < hit.d)) hit = c; }
       if (!hit) continue;
       const def = o.defend(s, s.m, s.unblock ? { unblock: true } : null), fr = s.owner.freeze; // blocked from the side it comes from (unless shot.unblockable); a counter can't catch it
-      if (def === 'parry' && cfg.reflectShots) { // reflected: flies back at its old owner instead of despawning
+      if (def === 'parry' && cfg.reflectShots && s.reflect !== false) { // reflected: flies back at its old owner instead of despawning (shot.reflect: false, a parry only stops it)
         this.onHit(s.owner, o, hit, s.m, def); s.owner.freeze = fr;
         s.vx = -s.vx; s.vy = -(s.vy || 0); s.dir = -s.dir; s.owner = o; s.t = 0; s.hits = []; break;
       }
       this.onHit(s.owner, o, hit, s.m, def === 'catch' ? 'block' : def);
       s.owner.freeze = fr; // the shooter is far away: no hit stop for it
+      if (s.hitSpark && !def) this.spark(s.hitSpark, hit.pt, s.z, s.dir); // shot.hitSpark: an extra spark where it lands
       s.hits.push(o); // pierce (move field shot.pierce): keeps flying until it has hit this many foes
       if (def || s.hits.length >= s.pierce) gone.add(s);
       break;
     }
     if (gone.size) this.shots = this.shots.filter(s => !gone.has(s));
+    if (born.length) this.shots.push(...born); // split shots fly from next frame
   }
   // ---------- beams (Fighter.fireBeam): a straight line held out from the muzzle for its duration, hitting once wherever it touches a foe ----------
   updateBeams(h) {
