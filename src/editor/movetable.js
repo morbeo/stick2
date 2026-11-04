@@ -165,7 +165,13 @@ function dopeSheet() {
           // a moving key draws its tween as a line into the dot, its easing curve as a little graph behind it
           moved ? [easeSpark(m.keys[i]), h('span', { cls: 'ddot' + (c.own ? '' : ' st'), style: `width:${r * 2}px;height:${r * 2}px` })] : h('span', { cls: 'dline' }));
         Object.assign(td.dataset, { bi, i, id: b.id }); return td; })));
-    table.replaceChildren(h('thead', {}, head), h('tbody', {}, all, ...rows));
+    // effects: one row per key flag that puts something in the world (shoot, beam), a mark on each key that fires it; click toggles it
+    const fxRows = [['shoot', ':grain: shot', 'fires the move\'s shot (move field shot)'], ['beam', ':remove: beam', 'holds out the move\'s beam']]
+      .filter(([f]) => f === 'shoot' || m.keys.some(k => k[f])).map(([f, label, what]) => h('tr', { cls: 'dfx' }, h('td', { tip: `Effects: the keys that ${what} · click a key: toggle it` }, ...rich(label)),
+        ...m.keys.map((k, i) => h('td', { cls: 'dcell' + (i === anim.key ? ' on' : ''), tip: `Key ${i + 1}: ${k[f] ? what : 'does not ' + f} · click: toggle`,
+          onclick: () => { edit(def => { const kk = def.moves[anim.move].keys[i]; if (kk[f]) delete kk[f]; else kk[f] = true; }); selectKey(i); panels(); } },
+          k[f] ? h('span', { cls: 'ddot dfxdot', style: 'width:12px;height:12px' }) : h('span', { cls: 'dline' })))));
+    table.replaceChildren(h('thead', {}, head), h('tbody', {}, all, ...rows, ...fxRows));
     paint();
   };
   // the box and the drop target repaint in place while dragging (a rebuild would drop the cell under the pointer), and so

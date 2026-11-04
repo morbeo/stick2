@@ -283,13 +283,14 @@ class World {
     // clashing shots wear each other's durability down (move field shot.durability); each pair only ever clashes
     // once (s.passed), so two shots overlapping for several frames don't grind each other down frame by frame
     for (const s of this.shots) for (const o of this.shots) if (s !== o && !gone.has(s) && !gone.has(o) && !s.passed.includes(o) && s.owner.team !== o.owner.team
-      && Math.abs(s.x - o.x) < s.r + o.r && Math.abs(s.y - o.y) < s.r + o.r && Math.abs(s.z - o.z) <= cfg.zReach) {
+      && Math.abs(s.z - o.z) <= cfg.zReach && shotsTouch(s, o)) { // only hitting parts clash (effects.js)
       this.clashes++; s.passed.push(o); o.passed.push(s);
       if (--s.dur <= 0) pop(s, '#d68c14');
       if (--o.dur <= 0) pop(o, '#d68c14');
     }
     for (const s of this.shots) if (!gone.has(s)) for (const o of this.foes(s.owner)) if (!s.hits.includes(o) && Math.abs(o.z - s.z) <= cfg.zReach && !(s.m.height === 'high' && o.crouching)) { // a high shot flies over a crouch
-      const hit = o.hurtAt([[s.x - s.vx * h, s.y - (s.vy || 0) * h], [s.x, s.y], s.r], false, false);
+      let hit = null; // the nearest overlap of any hitting part, swept over this frame's move
+      for (const sh of shotHitShapes(s, s.vx * h, (s.vy || 0) * h)) { const c = o.hurtAt(sh, false, false); if (c && (!hit || c.d < hit.d)) hit = c; }
       if (!hit) continue;
       const def = o.defend(s, s.m, null), fr = s.owner.freeze; // blocked from the side it comes from; a counter can't catch it
       if (def === 'parry' && cfg.reflectShots) { // reflected: flies back at its old owner instead of despawning
@@ -319,24 +320,12 @@ class World {
   }
   // looks: ki (a blue ball), fire (flickering orange), dark (purple), wave (a crescent, sonic boom), star (a spinning shuriken)
   drawShots(ctx) {
-    const COL = { ki: ['80,160,255', '#2c6fb0'], fire: ['240,140,30', '#c0392b'], dark: ['142,68,173', '#2c1338'], wave: ['230,200,60', '#b07a2c'], star: ['120,120,130', '#444'] };
     for (const s of this.shots) {
-      const [rgb, edge] = COL[s.look] || COL.ki, r = s.r * (s.look === 'fire' ? 1 + 0.12 * Math.sin(s.t * 45) : 1);
       ctx.save(); ctx.translate(s.x, s.y + s.z * ZS);
-      if (s.look === 'star') {
-        ctx.rotate(s.t * 25 * s.dir); ctx.fillStyle = edge; ctx.beginPath();
-        for (let k = 0; k < 8; k++) { const q = k * Math.PI / 4, l = k % 2 ? r * 0.35 : r; ctx.lineTo(Math.cos(q) * l, Math.sin(q) * l); }
-        ctx.fill();
-      } else if (s.look === 'wave') {
-        ctx.scale(s.dir, 1); ctx.lineCap = 'round';
-        for (let k = 0; k < 3; k++) { ctx.strokeStyle = `rgba(${rgb},${0.9 - k * 0.3})`; ctx.lineWidth = 4 - k; ctx.beginPath(); ctx.arc(-k * 9, 0, r * 1.4, -1.1, 1.1); ctx.stroke(); }
-      } else {
-        for (let k = 3; k > 0; k--) { ctx.fillStyle = `rgba(${rgb},${0.12 * (4 - k)})`; ctx.beginPath(); ctx.arc(-s.dir * k * r * 0.6, 0, r * (1 - k * 0.15), 0, 7); ctx.fill(); } // trail
-        ctx.fillStyle = `rgba(${rgb},.45)`; ctx.beginPath(); ctx.arc(0, 0, r * 1.5, 0, 7); ctx.fill();
-        ctx.fillStyle = `rgba(${rgb},.9)`; ctx.strokeStyle = edge; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, r * 0.45, 0, 7); ctx.fill();
-      }
-      if (this.cfg.boxes) { ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, s.r, 0, 7); ctx.stroke(); }
+      if (isCorePart(s.parts)) drawShotLook(ctx, s.look, s.r, s.t, s.dir); // one centred ball: drawn as shots always were
+      else for (const p of s.parts) drawShotPart(ctx, p, s.look, s.k ?? 1, s.t, s.dir); // its own parts, hitting and cosmetic
+      if (this.cfg.boxes) { ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+        for (const [a, b, r] of shotHitShapes(s)) { ctx.beginPath(); if (a[0] === b[0] && a[1] === b[1]) ctx.arc(a[0] - s.x, a[1] - s.y, r, 0, 7); else { ctx.lineWidth = r * 2; ctx.strokeStyle = 'rgba(192,57,43,.3)'; ctx.moveTo(a[0] - s.x, a[1] - s.y); ctx.lineTo(b[0] - s.x, b[1] - s.y); } ctx.stroke(); } }
       ctx.restore();
     }
   }

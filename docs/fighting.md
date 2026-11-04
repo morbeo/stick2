@@ -355,6 +355,7 @@ The **shots** setting; key flag **shoot**; in animate the shoot toggle and the s
 - It fizzles at the walls, when its life runs out, or (unless it bounces) on touching the floor.
 - One shot per fighter at a time, unless its **shot.maxAlive** says otherwise.
 - The boxes view rings its hitbox.
+- **parts** (`shot.parts`, edited in animate's [fx edit](modes.md#shots-fx-edit)) splits a shot into shapes: each a `circle` (`dx`, `dy`, `r`) or a `capsule` (`dx`, `dy` to `dx2`, `dy2`, `r` thick), placed from the shot's centre and flipped with facing. Only parts with `hits` (the default) hit fighters or clash with other shots; `hits: false` parts are cosmetic, so a fireball can have a small hitting core inside a big glow. Without parts a shot is one hitting circle its **size**. Moves read their shot, beam and fx into one effects list (`src/engine/effects.js`), which the effects editor builds on.
 - The stick's S is **palmShot** (one palm). Its library also has **fireball** (both palms pushed out), **grenade** (an arcing, bouncing lob) and **multiShot** (a three-shot spread).
 
 Scenarios: fireball, fireball clash, fireball reflect, grenade, multi shot.

@@ -456,16 +456,17 @@ class Fighter {
   // a shoot key: the move's projectile (or a count/spread fan of several) leaves from between its striking limbs
   // (shot.maxAlive per fighter at a time, default 1; shots setting)
   shoot(a) {
-    const max = a.m.shot?.maxAlive ?? 1;
-    if (!this.c('shots') || this.w.shots.filter(s => s.owner === this).length >= max) return;
-    const k = this.chargeMul(a.m, a.charge), m = this.chargedHit(a.m, a.charge), o = m.shot || {}, P = this.body(), ps = hitIds(m).map(id => P[id]).filter(Boolean);
+    const e = moveShot(a.m); // the move's shot effect (move.effects, or read from its older shot field: effects.js)
+    if (!e || !this.c('shots') || this.w.shots.filter(s => s.owner === this).length >= (e.props.maxAlive ?? 1)) return;
+    const k = this.chargeMul(a.m, a.charge), m = this.chargedHit(a.m, a.charge), mo = e.motion, P = this.body(), ps = hitIds(m).map(id => P[id]).filter(Boolean);
     const pt = ps.length ? [ps.reduce((s, p) => s + p[0], 0) / ps.length, ps.reduce((s, p) => s + p[1], 0) / ps.length] : [this.x + this.dir * 30, this.groundY + this.y - 60];
-    const n = o.count || 1, sp = (o.speed ?? 360) * k; // a spread fans count shots evenly across spread degrees, centred on angle
+    const n = mo.count || 1, sp = (mo.speed ?? 360) * k; // a spread fans count shots evenly across spread degrees, centred on angle
+    const r = Math.max(...e.parts.map(p => p.r ?? 12)) * k; // drawn size and floor contact: its biggest part
     for (let i = 0; i < n; i++) {
-      const ang = ((o.angle || 0) + (n > 1 ? (i / (n - 1) - 0.5) * (o.spread || 0) : 0)) * R;
+      const ang = ((mo.angle || 0) + (n > 1 ? (i / (n - 1) - 0.5) * (mo.spread || 0) : 0)) * R;
       this.w.shots.push({ x: pt[0], y: pt[1], z: this.z, vx: this.dir * sp * Math.cos(ang), vy: -sp * Math.sin(ang),
-        gravity: o.gravity || 0, bounce: o.bounce || 0, dir: this.dir, r: (o.size ?? 12) * k, life: o.life ?? 2, t: 0,
-        look: o.look || 'ki', owner: this, m, pierce: o.pierce || 1, dur: o.durability || 1, hits: [], passed: [] });
+        gravity: mo.gravity || 0, bounce: mo.bounce || 0, dir: this.dir, r, k, parts: e.parts, life: e.life ?? 2, t: 0,
+        look: e.look || 'ki', owner: this, m, pierce: e.props.pierce || 1, dur: e.props.durability || 1, hits: [], passed: [] });
     }
     a.hit = true; // fired: not a whiff
   }
