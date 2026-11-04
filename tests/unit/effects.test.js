@@ -38,3 +38,16 @@ test('in a fight: a fireball whose only part is cosmetic flies through the dummy
   const core = go([{ shape: 'circle', r: 6 }, { shape: 'circle', r: 30, hits: false }]);
   assert.ok(core.hit >= 6, 'core hits: ' + core.hit), assert.ok(core.r >= 30, 'drawn at its biggest part: ' + core.r);
 });
+
+test('shot specials: unblockable beats a guard, pass shots skips the clash, grow swells it, homing bends toward the foe', () => {
+  const go = (shot, b, aMoves = ['@fireball'], n = 120) => JSON.parse(run(`(() => { const ch = JSON.parse(JSON.stringify(CHARS.stick)); Object.assign(ch.moves.fireball.shot, ${JSON.stringify(shot)});
+    const w = new World({ a: ${JSON.stringify(aMoves)}, b: ${JSON.stringify(b)}, ax: 250, bx: 560 }, {}, 7, [ch, CHARS.stick]); w.loop = false; const hp0 = w.b.hp; let r = 0, vy = 0;
+    for (let i = 0; i < ${n}; i++) { w.advance(1/60, NOIN); for (const s of w.shots) if (s.owner === w.a) { r = Math.max(r, s.r); vy = Math.max(vy, Math.abs(s.vy)); } }
+    return JSON.stringify({ hit: hp0 - w.b.hp, blocks: w.blocks, clashes: w.clashes, r, vy }); })()`));
+  const guard = [{ hold: 'guard', t: 2 }];
+  assert.equal(go({}, guard).blocks, 1, 'a plain shot is blocked');
+  const ub = go({ unblockable: true }, guard); assert.equal(ub.blocks, 0), assert.ok(ub.hit >= 6, 'unblockable lands: ' + ub.hit);
+  assert.ok(go({}, ['@fireball']).clashes >= 1), assert.equal(go({ noClash: true }, ['@fireball']).clashes, 0, 'passes through the other shot');
+  assert.ok(go({ grow: 3 }, 'dummy', ['@fireball'], 40).r > 14, 'grows'), assert.ok(go({}, 'dummy', ['@fireball'], 40).r <= 12.5, 'stays');
+  assert.equal(go({}, 'dummy').vy, 0), assert.ok(go({ homing: 180, angle: 30 }, 'dummy').vy > 0, 'homing turns it');
+});
