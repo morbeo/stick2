@@ -356,6 +356,7 @@ The **shots** setting; key flag **shoot**; in animate the shoot toggle and the s
 - One shot per fighter at a time, unless its **shot.maxAlive** says otherwise.
 - The boxes view rings its hitbox.
 - Specials: **unblockable** (guards and parries can't stop it), **noClash** (passes through opposing shots), **grow** (its size by the end of its life: 2 doubles it, 0.5 halves it) and **homing** (degrees a second it turns toward the nearest foe).
+- Spawns: **hitSpark** (an extra spark where it lands), **endSpark** (a spark where its life runs out), **split** (at the end of its life it bursts into that many smaller shots, fanned across **splitSpread** degrees; they live half as long and don't split again). **reflect: false** makes a parry only stop it, even with reflectShots on.
 - **parts** (`shot.parts`, edited in animate's [fx edit](modes.md#shots-fx-edit)) splits a shot into shapes: each a `circle` (`dx`, `dy`, `r`) or a `capsule` (`dx`, `dy` to `dx2`, `dy2`, `r` thick), placed from the shot's centre and flipped with facing. Only parts with `hits` (the default) hit fighters or clash with other shots; `hits: false` parts are cosmetic, so a fireball can have a small hitting core inside a big glow. Without parts a shot is one hitting circle its **size**. Moves read their shot, beam and fx into one effects list (`src/engine/effects.js`), which the effects editor builds on.
 - The stick's S is **palmShot** (one palm). Its library also has **fireball** (both palms pushed out), **grenade** (an arcing, bouncing lob) and **multiShot** (a three-shot spread).
 
