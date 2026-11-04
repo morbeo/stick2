@@ -361,7 +361,7 @@ A move with a **shoot** key gets the shot rows (look, speed, size, life…) and 
 - **fx edit** shows the shot on the figure where it leaves the striking limbs, with every part outlined and a green arrow for its launch speed and angle. Drag a part's centre to move it, a capsule's far end to aim it.
 - **Dopesheet:** under the bones, a **shot** row (and a **beam** row when the move has one) marks the keys that fire it. Click a key there to toggle it.
 - The boxes view rings each hitting part in a fight.
-- **shot special:** **unblockable**, **pass shots** (no clash with opposing shots), **grow** over its life and **homing** toward the nearest foe.
+- **shot special:** **unblockable**, **pass shots** (no clash with opposing shots), **grow** over its life, **homing** toward the nearest foe, **reflectable**, a spark **on hit** or **on end**, and **split** into smaller shots when it expires.
 
 ![fx edit: a hitting core, a cosmetic glow and a cosmetic tail](img/fx-edit.png)
 

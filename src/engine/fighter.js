@@ -467,7 +467,8 @@ class Fighter {
       this.w.shots.push({ x: pt[0], y: pt[1], z: this.z, vx: this.dir * sp * Math.cos(ang), vy: -sp * Math.sin(ang),
         gravity: mo.gravity || 0, bounce: mo.bounce || 0, dir: this.dir, r, k, parts: e.parts, life: e.life ?? 2, t: 0,
         look: e.look || 'ki', owner: this, m, pierce: e.props.pierce || 1, dur: e.props.durability || 1, hits: [], passed: [],
-        k0: k, r0: r, grow: e.props.grow ?? 1, homing: e.props.homing || 0, unblock: !!e.props.unblockable, noClash: !!e.props.noClash });
+        k0: k, r0: r, grow: e.props.grow ?? 1, homing: e.props.homing || 0, unblock: !!e.props.unblockable, noClash: !!e.props.noClash,
+        reflect: e.props.reflect !== false, hitSpark: e.props.hitSpark, endSpark: e.props.endSpark, split: e.props.split || 0, splitSpread: e.props.splitSpread ?? 90 });
     }
     a.hit = true; // fired: not a whiff
   }
