@@ -153,7 +153,7 @@ function start(cfg = config()) {
     delay: cfg.spectateDelay, watchers: Math.min(cfg.maxSpectators, 14) }); // (the relay takes 16 guests at most)
   relay.bots = cfg.bots > 0 ? new Bots({ relay, max: cfg.bots }) : null;
 
-  const mcpHandle = cfg.mcp ? mcp({ relay, ratings, replays, bans, M, reg, cfg, audit, version: VERSION }) : null;
+  const mcpHandle = cfg.mcp ? mcp({ relay, ratings, replays, bans, accounts, M, reg, cfg, audit, version: VERSION }) : null;
 
   // ---------- moderation over HTTP (admin token) ----------
   function admin(req, res, route) {

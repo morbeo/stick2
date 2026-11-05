@@ -346,6 +346,14 @@ test('MCP at /mcp: tools for rooms, matches and ratings for anyone; moderation o
     assert.deepEqual(res, ['stick2://server/rooms', 'stick2://server/leaderboard']);
     assert.equal(JSON.parse((await rpc('resources/read', { uri: 'stick2://server/leaderboard' })).result.contents[0].text).length, 0);
     assert.equal((await rpc('nope')).error.code, -32601);
+    // accounts, for the admin only
+    const a = client(s); await a.next('hello');
+    a.send({ t: 'account', do: 'register', device: 'phone', player: 'kobokobo' }); await a.next('account');
+    assert.match(await tool('list_accounts'), /^Error: unknown tool/);
+    assert.deepEqual((await tool('list_accounts', {}, 'sesame')).map(x => [x.name, x.devices]), [['kobokobo', 1]]);
+    const g = await tool('get_account', { player: 'KOBOKOBO' }, 'sesame'); assert.equal(g.reserved, true); assert.equal(g.ban, null);
+    assert.equal((await tool('relink_account', { player: 'kobokobo', device: 'tablet' }, 'sesame')).devices, 2);
+    assert.match(await tool('get_account', { player: 'nobody' }, 'sesame'), /^Error: no such account/);
     assert.match(await (await get(s, '/metrics')).text(), /stick2_mcp_calls_total\{result="ok",tool="list_rooms"\} 2/);
   });
   const t = await boot({ MCP_TOKEN: 'reader' });

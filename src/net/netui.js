@@ -253,7 +253,8 @@ function netAccountBox() {
   if (a.code) rows.push(h('p', {}, 'on your other device, scan this or type ', h('b', { textContent: a.code }), ` (for ${Math.max(0, Math.round((a.until - Date.now()) / 60000))} minutes)`),
     netQr(netServerLink(a.url, null, false, location.href, a.code), 'Scan with your other device to link it to this account'));
   if (!a.busy && !a.name) rows.push(h('div', { cls: 'bar' }, button(':add: make account', `Keep ${netName()} as your name on this server, for this device and any you link; your rating follows it`, () => netAccount(a.url, 'register'))),
-    h('div', { cls: 'netrow' }, code, button(':link: link', 'Link this device to your account with a code', () => netAccount(a.url, 'claim', { code: code.value }))));
+    h('div', { cls: 'netrow' }, code, button(':link: link', 'Link this device to your account with a code', () => netAccount(a.url, 'claim', { code: code.value }))),
+    h('p', { cls: 'netrules', tip: 'Lost every device and the recovery code? Give this to the server\'s admin: they can link this device to your account' }, 'this device: ', h('code', { textContent: netDevice() })));
   if (!a.busy && a.name) rows.push(h('div', { cls: 'bar' }, button(':link: link a device', 'Show a code (and QR) your other device can use to join this account, for 5 minutes', () => netAccount(a.url, 'link')),
     button(':close: unlink', 'Take this device off the account', () => netAccount(a.url, 'unlink'))));
   return h('div', { cls: 'netrooms' }, ...rows);
