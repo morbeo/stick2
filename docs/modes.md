@@ -354,6 +354,8 @@ Aura, fire, lightning and smoke drawn over the bones. Drawing only: the fight pl
 
 ### Shots: fx edit
 
+The animate side panel has tabs: **move**, **key**, **effect** and **all** (every section, as before; palette `animate tab: …`). The **effect** tab holds the move's shot and beam. A move with neither offers **+ shot** / **+ beam**, which mark the selected key.
+
 A move with a **shoot** key gets the shot rows (look, speed, size, life…) and a **shot parts** group under them. Palette: `fx edit`.
 
 - **Parts:** a shot is one or more shapes, each a **circle** or a **capsule** (a rounded line with a far end). Each part has an x/y offset from the shot's centre, a size, and **hits** on or off.
@@ -361,6 +363,7 @@ A move with a **shoot** key gets the shot rows (look, speed, size, life…) and 
 - **fx edit** shows the shot on the figure where it leaves the striking limbs, with every part outlined and a green arrow for its launch speed and angle. Drag a part's centre to move it, a capsule's far end to aim it.
 - **Dopesheet:** under the bones, a **shot** row (and a **beam** row when the move has one) marks the keys that fire it. Click a key there to toggle it.
 - The boxes view rings each hitting part in a fight.
+- **beam parts:** a beam is one or more stretches, **from** / **to** along its range (0 the muzzle, 1 its far end), each with a **width** multiplier and **hits** on or off. **tip only** makes a cosmetic line that hits only at its far end.
 - **shot special:** **unblockable**, **pass shots** (no clash with opposing shots), **grow** over its life, **homing** toward the nearest foe, **reflectable**, a spark **on hit** or **on end**, and **split** into smaller shots when it expires.
 
 ![fx edit: a hitting core, a cosmetic glow and a cosmetic tail](img/fx-edit.png)

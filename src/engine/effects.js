@@ -29,7 +29,7 @@ function moveEffects(m) {
         unblockable: !!o.unblockable, noClash: !!o.noClash, grow: o.grow ?? 1, homing: o.homing || 0,
         reflect: o.reflect !== false, hitSpark: o.hitSpark || null, endSpark: o.endSpark || null, split: o.split || 0, splitSpread: o.splitSpread ?? 90 } });
   }
-  if (m.beam) out.push({ name: 'beam', kind: 'beam', ...m.beam });
+  if (m.beam || m.keys?.some(k => k.beam)) out.push({ name: 'beam', kind: 'beam', ...m.beam, parts: m.beam?.parts || [{ name: 'core', from: 0, to: 1, w: 1, hits: true }] });
   for (const fx of [m.fx].flat().filter(Boolean)) out.push({ name: fx.look, kind: 'aura', look: fx.look, anchor: fx.on, col: fx.col });
   return out;
 }
@@ -90,4 +90,13 @@ function drawShotPart(ctx, p, look, k, t, dir) {
     for (const [f, a] of [[1, 0.18], [0.7, 0.22], [0.4, 0.3]]) { ctx.fillStyle = `rgba(${rgb},${a})`; ctx.beginPath(); ctx.arc(x, y, r * f, 0, 7); ctx.fill(); }
   } else { ctx.translate(x, y); drawShotLook(ctx, look, r, t, dir); }
   ctx.restore();
+}
+
+// ---------- beam parts: stretches of the beam, from / to as fractions of its range (0 = the muzzle, 1 = its far end), w its width
+// multiplier; only parts with hits collide, so a beam can hit only at its tip, or carry a wide cosmetic glow ----------
+// a live beam's hitting stretches as segments [[x0, y], [x1, y], r], clipped to the arena like the beam itself
+function beamHitShapes(b, lo = 20, hi = 1e9) {
+  const out = [], at = f => Math.min(hi, Math.max(lo, b.x + b.dir * b.range * f));
+  for (const p of b.parts || [{ from: 0, to: 1, w: 1 }]) if (p.hits !== false) out.push([[at(p.from || 0), b.y], [at(p.to ?? 1), b.y], b.w * (p.w ?? 1) / 2]);
+  return out;
 }

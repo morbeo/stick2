@@ -326,7 +326,8 @@ class World {
     const cfg = this.cfg, gone = new Set();
     for (const b of this.beams) { b.t += h; if (b.t > b.dur) gone.add(b); }
     for (const b of this.beams) if (!b.hit) for (const o of this.foes(b.owner)) if (Math.abs(o.z - b.z) <= cfg.zReach && !(b.m.height === 'high' && o.crouching)) {
-      const end = clamp(b.x + b.dir * b.range, 20, W - 20), hit = o.hurtAt([[b.x, b.y], [end, b.y], b.w / 2], false, false);
+      let hit = null; // the nearest overlap of any hitting stretch (beam.parts, effects.js)
+      for (const sh of beamHitShapes(b, 20, W - 20)) { const c = o.hurtAt(sh, false, false); if (c && (!hit || c.d < hit.d)) hit = c; }
       if (!hit) continue;
       const def = o.defend(b, b.m, null), fr = b.owner.freeze; // blocked from the side it comes from; a counter can't catch it
       this.onHit(b.owner, o, hit, b.m, def === 'catch' ? 'block' : def);
@@ -349,14 +350,17 @@ class World {
   drawBeams(ctx) {
     const COL = { laser: '230,60,60' };
     for (const b of this.beams) {
-      const rgb = COL[b.look] || COL.laser, end = clamp(b.x + b.dir * b.range, 20, W - 20);
+      const rgb = COL[b.look] || COL.laser, at = f => clamp(b.x + b.dir * b.range * f, 20, W - 20);
       const a = b.t < b.dur - 0.08 ? 1 : Math.max(0, (b.dur - b.t) / 0.08); // a quick fade as it ends
       ctx.save(); ctx.translate(0, b.z * ZS); ctx.lineCap = 'round';
-      for (const [w, al] of [[b.w * 2.2, 0.25 * a], [b.w, 0.9 * a], [b.w * 0.35, 0.85 * a]]) {
-        ctx.strokeStyle = w === b.w * 0.35 ? `rgba(255,255,255,${al})` : `rgba(${rgb},${al})`;
-        ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(end, b.y); ctx.stroke();
+      for (const p of b.parts || [{}]) { // each stretch: a wide glow, the beam, a white-hot core; a cosmetic one only glows
+        const x0 = at(p.from || 0), x1 = at(p.to ?? 1), bw = b.w * (p.w ?? 1), cos = p.hits === false;
+        for (const [w, al] of cos ? [[bw * 2.2, 0.2 * a], [bw, 0.35 * a]] : [[bw * 2.2, 0.25 * a], [bw, 0.9 * a], [bw * 0.35, 0.85 * a]]) {
+          ctx.strokeStyle = w === bw * 0.35 ? `rgba(255,255,255,${al})` : `rgba(${rgb},${al})`;
+          ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x0, b.y); ctx.lineTo(x1, b.y); ctx.stroke();
+        }
       }
-      if (this.cfg.boxes) { ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = b.w + 7; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(end, b.y); ctx.stroke(); }
+      if (this.cfg.boxes) for (const [p0, p1, r] of beamHitShapes(b, 20, W - 20)) { ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = r * 2 + 7; ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke(); }
       ctx.restore();
     }
   }
