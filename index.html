@@ -45,6 +45,7 @@
   .ic.close { color: #c0392b; }
   button { background: #fbfaf6; border: 1px solid #cfc8bb; border-radius: 3px; padding: 0 6px; height: 22px; line-height: 20px; box-sizing: border-box; cursor: pointer; color: #333; white-space: nowrap; vertical-align: middle; }
   button .ic { font-size: 15px; vertical-align: -3px; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #3a7bd5; outline-offset: 1px; } /* keyboard focus only, never on click */
   button.ico { padding: 0; width: 22px; text-align: center; } /* icon only: a small square */
   button.wide, button:has(canvas), button:has(.d), .card, .movepop button { height: auto; min-height: 22px; line-height: 1.3; white-space: normal; } /* cards, pickers: as tall as they need */
   button.ico.tog { width: auto; padding: 0 4px; }
