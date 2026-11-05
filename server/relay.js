@@ -14,6 +14,7 @@
 //                     { t: 'kick', id, ban? }           (host) send a guest away; ban: not back into this room
 //                     { t: 'lock', locked }             (host) refuse new guests while locked
 //                     { t: 'report', id?, reason, lines? }  report a player (or the room) to the server's admins → { t: 'reported' }
+//                     { t: 'auth', key, sig, device? }  prove an identity key (signs the hello's nonce) → { t: 'authed', id }
 //                     { t: 'bot', level?, char? }         (host) a server bot joins the room (bots.js) → { t: 'bot', player } or { t: 'bot', error }
 //                     { t: 'replay', replay, result?, players? }  (host) the finished match, for the server's replays → { t: 'saved', id },
 //                       then, once the server has played it again (verify.js), { t: 'verified', id, verdict, why? }
@@ -24,6 +25,9 @@
 //                     { t: 'error', error }             a request was refused
 const RELAY = { code: 6, alphabet: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', guests: 16, name: 24, reports: 200, reason: 200, lines: 50 };
 const { nameClean, nameGen } = require('../src/net/names');
+const crypto = require('crypto');
+// an identity key (src/net/identity.js): an ECDSA P-256 public key; its id is the device id it stands for on every server
+const keyId = jwk => 'k' + crypto.createHash('sha256').update(`${jwk.x}.${jwk.y}`).digest('hex').slice(0, 31);
 
 class Relay {
   // limits: { maxRooms }; metrics: the counters and gauges it updates (server.js); rng: () → [0, 1), the tests pass their own
@@ -34,11 +38,32 @@ class Relay {
   }
   // the name a connection plays under on this server: its own if the filter takes it, else the one its device id generates;
   // a #tag only when someone else already has it
+  // the device a message stands for: a proven key (auth) wins over the id a client merely says
+  dev(client, m) { return client.key || String(m.device || client.device || '').slice(0, 64); }
+  // { t: 'auth', key, sig, device? }: the key signs the hello's nonce, so this connection is that key's from now on. The device id the
+  // app used before keys (device) hands over its account and rating to the key, once → { t: 'authed', id } or { t: 'error' }
+  auth(client, m) {
+    const k = m.key;
+    if (client.key || client.player) return this.error(client, 'auth: too late (before anything else, once)');
+    if (!client.nonce || !k || typeof k !== 'object' || k.kty !== 'EC' || k.crv !== 'P-256' || typeof k.x !== 'string' || typeof k.y !== 'string' || typeof m.sig !== 'string') return this.error(client, 'auth: bad key');
+    let ok = false;
+    try { ok = crypto.verify('sha256', Buffer.from('stick2-auth:' + client.nonce), { key: { kty: 'EC', crv: 'P-256', x: k.x, y: k.y }, format: 'jwk', dsaEncoding: 'ieee-p1363' }, Buffer.from(m.sig, 'base64url')); } catch {}
+    if (!ok) return this.error(client, 'auth: the signature does not match');
+    client.key = keyId(k); client.nonce = null;
+    const old = String(m.device || '').slice(0, 64);
+    if (old && old !== client.key) {
+      const A = this.accounts, a = A?.of(old);
+      if (a && !A.of(client.key)) { A.attach(a, client.key); this.audit('account', { action: 'key', name: a.name }); }
+      else if (!a) this.ratings?.move(old, client.key);
+    }
+    this.metrics?.auths?.inc({});
+    client.send({ t: 'authed', id: client.key });
+  }
   claim(client, m) {
     if (client.player) return client.player;
-    const device = String(m.device || '').slice(0, 64), acct = this.accounts?.of(device);
+    const device = this.dev(client, m), acct = this.accounts?.of(device);
     // an account plays under its own name; anyone else can't take a name an account keeps (accounts.js)
-    const base = acct?.name || nameClean(m.player, this.blocklist) || nameGen(String(m.device || client.ip || this.rng()));
+    const base = acct?.name || nameClean(m.player, this.blocklist) || nameGen(String(device || client.ip || this.rng()));
     let name = base;
     for (let i = 2; this.names.has(name.toLowerCase()) || (!acct && this.accounts?.reserved(name, device)); i++) name = `${base}#${i}`;
     this.names.set(name.toLowerCase(), client);
@@ -76,6 +101,7 @@ class Relay {
       case 'quick': return this.quickJoin(client, m);
       case 'unquick': return this.quickLeave(client, true);
       case 'account': return this.account(client, m);
+      case 'auth': return this.auth(client, m);
       case 'bot': return this.bot(client, m);
       default: return this.error(client, 'unknown message');
     }
@@ -300,7 +326,7 @@ class Relay {
   // recovery? (register only, shown once), code?, until? (link) } or an error
   account(client, m) {
     if (!this.accounts) return this.error(client, 'off: this server has no accounts');
-    const device = String(m.device || client.device || '').slice(0, 64), A = this.accounts;
+    const device = this.dev(client, m), A = this.accounts;
     if (!device) return this.error(client, 'no device id');
     const ban = this.bans?.find({ device, ip: client.ip, account: A.of(device)?.id });
     if (ban && m.do !== 'whoami') return this.error(client, `banned: ${ban.reason || 'by the server'}`);

@@ -43,7 +43,13 @@ class ServerLink {
     ws.onmessage = e => {
       this.got++;
       let m; try { m = JSON.parse(e.data); } catch { return; }
-      if (m.t === 'hello') { this.hello = m; this.on.open?.(m); } else this.on.message?.(m);
+      if (m.t === 'hello') {
+        this.hello = m;
+        // an identity key (src/net/identity.js) signs the server's nonce first, so everything after comes from that key
+        if (m.nonce && ServerLink.auth) ServerLink.auth(m.nonce).then(a => { if (a) this.send(a); }, () => {}).finally(() => { if (!this.closed) this.on.open?.(m); });
+        else this.on.open?.(m);
+      } else if (m.t === 'authed') this.identity = ServerLink.identity = m.id; // (the id servers know this key by)
+      else this.on.message?.(m);
     };
     ws.onclose = e => this.close(e.reason || (this.hello ? 'lost the server' : 'could not reach the server'));
     ws.onerror = () => {};
@@ -52,6 +58,10 @@ class ServerLink {
   send(m) { if (this.open) { this.ws.send(JSON.stringify(m)); this.sent++; } }
   close(why = 'closed') { if (this.closed) return; this.closed = true; try { this.ws.close(1000); } catch {} this.on.close?.(why); }
 }
+
+// nonce → the auth message (or null): the app sets it to sign with its identity key (netui.js); none, no auth
+ServerLink.auth = null;
+ServerLink.identity = null;
 
 // ---------- the lobby (src/net/lobby.js) over a server ----------
 // who we are to the server: the name we picked (the server may add a #tag) and this device's id (src/net/names.js), for bans
