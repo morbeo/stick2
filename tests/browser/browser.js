@@ -1447,7 +1447,7 @@ const embedOk = {};
 for (const [p, expr] of Object.entries(EMBED_CHECKS)) embedOk[p] = await shows(`index.html#preset=${p}`, expr);
 const embedFailed = Object.keys(embedOk).filter(p => !embedOk[p]);
 // only an explicit OK passes: anything else in the title (the app's own, empty) means the probe never finished
-if (!/^(OK|ERR)/.test(title)) console.error(`FAIL: the page never finished its checks (title: ${JSON.stringify(title)})`);
+if (!/^(OK|ERR)/.test(title)) console.error(`FAIL: the page never finished its checks (title: ${JSON.stringify(title)})` + logTail());
 console.log(title, docsOk ? '· docs.html OK' : '· docs.html FAILED', randomOk ? '· random.html OK' : '· random.html FAILED', sinkOk ? '· kitchen-sink.html OK' : '· kitchen-sink.html FAILED',
   galleryOk ? '· gallery.html OK' : '· gallery.html FAILED', demoOk ? '· gallery-demo.html OK' : '· gallery-demo.html FAILED',
   embedFailed.length ? `· embed presets FAILED: ${embedFailed.join(', ')}` : '· embed presets OK');
