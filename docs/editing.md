@@ -161,7 +161,7 @@ Next to the stance's key, **fly** makes it hover instead of fall: gravity and th
 
 ## Bone shapes
 
-A bone's **shape** (bone panel, bone table, or the palette's `bone shape:` entries) sets how it is drawn:
+A bone's **shape** (bone panel, bone table, or the palette's `bone shape:` entries; ends via `bone cap:`) sets how it is drawn:
 
 - **line:** a stroke from the parent joint (the default).
 - **circle:** a disc on the joint, radius = length (heads, fists).

@@ -17,7 +17,7 @@ RUN printf '// generated in the image\nconst BUILD = {"commit":"%s","branch":"",
 COPY fonts ./fonts
 COPY profiles ./profiles
 COPY docs ./docs
-COPY tools/lib/engine.js ./tools/lib/
+COPY tools/lib/engine.js tools/lib/mcp-rpc.js ./tools/lib/
 COPY server/*.js server/package.json ./server/
 COPY --from=deps /app/server/node_modules ./server/node_modules
 RUN mkdir -p /data && chown node:node /data
