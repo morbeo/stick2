@@ -131,6 +131,14 @@ With `MAX_REPLAYS=0` the server still verifies (no replay is kept); with `VERIFY
 
 A host on a server can add a **bot**: the game's own AI, played by the server, as a player in the room. In the lobby, the host's row has a level (easy, normal, hard) and **add bot** (or the palette's `netplay: add bot`). The bot joins like a guest, named after its character (`bot hadoo`), picks a character at random, readies itself, and plays every match from its side, on the server's copy of the engine (the host still runs the fight, the bot only sends its inputs). It readies again after each match, so it fits a room's rotation too. **kick** takes it out; it leaves by itself when the room closes. Bots are never rated. `BOTS` caps how many play at once over the whole server; admins can add and remove them over the admin API or MCP.
 
+## Identity keys
+
+The app makes an identity key once (an ECDSA P-256 key pair, kept in the browser, `src/net/identity.js`). On connecting, the server's `hello` carries a fresh nonce. The app signs it (`{ t: 'auth', key, sig }`), and from then on the server knows the connection by the key's id rather than by a device id the app merely says. Accounts, ratings and bans all go by that id. Every server sees the same key, with nothing shared between them, and nobody can pass for you by copying an id.
+
+- **Carrying it.** The account box shows the key's fingerprint, with **copy key** and **paste key** (or the palette's `netplay: copy key` / `netplay: paste key`). Pasting your key on another device makes it the same player on every server at once. Keep the key secret: whoever has it plays as you.
+- **From before keys.** On its first signed connection, the app also sends its old device id once. An account linked to that id gets the key linked too, and a rating without an account moves over to the key.
+- **Pages without Web Crypto** (plain http on a non-local address) have no key, and connect by device id as before.
+
 ## Accounts
 
 No passwords: an account is a name and the devices linked to it (the app's device ids, only stored hashed, in `DB_PATH/accounts.json`). **account** in the netplay section (or the palette's `netplay: account`):
@@ -230,6 +238,7 @@ All prefixed `stick2_`. Labels never carry names, ids or room codes.
 | `match_ends_total{end,side}`, `match_frames` | counter, histogram | Verified fights: `ko`, `double ko` or `time`, won by `p1`, `p2` or `draw`; length in frames |
 | `character_picks_total{char}`, `character_wins_total{char}`, `winner_hp_left` | counter, counter, histogram | Roster characters by name (any other is `custom`), and the winner's health left |
 | `mcp_calls_total{tool,result}`, `mcp_call_seconds` | counter, histogram | MCP tool calls |
+| `identity_auths_total` | counter | Connections that proved an identity key |
 | `account_actions_total{action}`, `accounts` | counter, gauge | Accounts: register, link, claim, relink; how many there are |
 | `rated_matches_total`, `rated_players` | counter, gauge | Matches that moved two ratings, players with a rating |
 | `quick_queue`, `quick_matches_total`, `quick_wait_seconds` | gauge, counter, histogram | Quick match: waiting now, rooms opened, how long players waited |
@@ -238,7 +247,7 @@ All prefixed `stick2_`. Labels never carry names, ids or room codes.
 
 ## Protocol
 
-JSON, one object per WebSocket message. On connecting, the server sends `{ t: 'hello', server, region, version }`.
+JSON, one object per WebSocket message. On connecting, the server sends `{ t: 'hello', server, region, version, nonce }`.
 
 | From | Message | Answer |
 |---|---|---|
@@ -250,6 +259,7 @@ JSON, one object per WebSocket message. On connecting, the server sends `{ t: 'h
 | either | `{ t: 'list' }` | `{ t: 'rooms', rooms }` |
 | host | `{ t: 'kick', id, ban? }` | the guest gets `{ t: 'closed', why }`, the host `{ t: 'gone', id, why }` |
 | host | `{ t: 'lock', locked }` | joins are refused while locked |
+| either | `{ t: 'auth', key, sig, device? }` (first, once) | `{ t: 'authed', id }`: `sig` signs `stick2-auth:<nonce>` from `hello` (see [Identity keys](#identity-keys)) |
 | host | `{ t: 'bot', level?, char? }` | a [bot](#bots) joins the room; `{ t: 'bot', player }`, or `{ t: 'bot', error }` when refused |
 | either | `{ t: 'report', id?, reason, lines? }` | `{ t: 'reported' }` |
 | either | `{ t: 'quick', player?, device? }` (not in a room) | `{ t: 'queued', player, rating, waiting }`; paired: the longer waiting gets `{ t: 'matched', role: 'host', ticket, vs }`, the other `{ t: 'found', vs }` |
