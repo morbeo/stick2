@@ -57,6 +57,14 @@ class Ratings {
     this.save();
     return [Math.round(na.r - pa.r), Math.round(nb.r - pb.r)];
   }
+  // a device's rating moves to its new account (accounts.js: rated as 'acct:<id>' from then on); kept if the account has one already
+  move(from, to) {
+    const a = this.key(from), b = this.key(to), p = this.players.get(a);
+    if (!p || a === b) return false;
+    this.players.delete(a); if (!this.players.has(b)) this.players.set(b, { ...p, id: b });
+    this.save(); return true;
+  }
+  rename(who, name) { const p = this.players.get(this.key(who)); if (p && p.name !== name) { p.name = name; this.save(); } }
   // the ranked players, best first
   board(n = 50) { return [...this.players.values()].map(p => this.view(p)).filter(p => p.ranked).sort((x, y) => y.rating - x.rating).slice(0, n); }
   byName(name) { const k = String(name || '').toLowerCase(); for (const p of this.players.values()) if (p.name.toLowerCase() === k) return this.view(p); return null; }

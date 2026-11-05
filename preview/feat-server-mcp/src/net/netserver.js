@@ -27,9 +27,10 @@ function netServerUrl(text, page = typeof location !== 'undefined' ? location : 
 // the server as people write it (no ws://, no /ws): for links and the name box
 const netServerName = url => url.replace(/^wss:\/\//, '').replace(/^ws:\/\//, 'ws://').replace(/\/ws$/, '');
 // a link that opens the app and joins: the server alone, a room on it, or a room to watch
-function netServerLink(server, room = null, watch = false, base = location.href) {
+function netServerLink(server, room = null, watch = false, base = location.href, link = null) {
   const p = new URLSearchParams({ server: netServerName(server) });
   if (room) p.set('room', room);
+  if (link) p.set('link', link); // a device link code (accounts): opening it links this device
   if (watch) p.set('spectate', '1');
   return base.replace(/#.*$/, '') + '#' + p.toString();
 }
@@ -127,6 +128,17 @@ function netServerQuick(url, name, { device = '', on = {}, WS } = {}) {
   }, WS);
   link.cancel = () => { link.send({ t: 'unquick' }); link.close('cancelled'); };
   return link;
+}
+// an account action on a server (server/accounts.js): req { do: 'whoami' | 'register' | 'link' | 'claim' | 'unlink', device, player?, code? }
+// → a promise of { name, devices, recovery?, code?, until? } (name null: no account), over a connection of its own
+function netServerAccount(url, req, { WS } = {}) {
+  return new Promise((done, fail) => {
+    const link = new ServerLink(url, {
+      open: () => link.send({ t: 'account', ...req }),
+      message: m => { if (m.t === 'account') { done(m); link.close('done'); } else if (m.t === 'error') { fail(new Error(m.error.replace(/^account: /, ''))); link.close('done'); } },
+      close: why => fail(new Error(why)),
+    }, WS);
+  });
 }
 // a server's leaderboard (GET /api/leaderboard) → { server, players: [{ name, rating, rd, games, wins, draws, ranked, last }] }, best first
 async function netServerBoard(url) {
