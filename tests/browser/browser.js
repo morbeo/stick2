@@ -1390,10 +1390,16 @@ try {
     const ac = window.alert, cf = window.confirm, pr = window.prompt, op = window.open; window.alert = () => {}; window.confirm = () => false; window.prompt = () => null; window.open = () => null;
     const kinds = new Set(), failed = [];
     try {
+      // moves (over 2000: one per move of every character) all run the same open-in-animate code: every move of the
+      // current character, then one per other character, or the sweep alone outlasts the page timeout on a slow CI runner
+      const moveOf = new Set();
       for (const e of paletteEntries()) {
         if (e.kind === 'tool' || unsafe.test(e.name) || unsafe.test(e.tip || '')) continue;
+        if (e.kind === 'move') { const c = e.name.match(/ \\(([^)]+)\\)$/)?.[1]; if (c && moveOf.has(c)) continue; if (c) moveOf.add(c); }
         kinds.add(e.kind);
+        console.log('smoke: ⌘K ' + e.kind + ':' + e.name); const t0 = performance.now();
         try { e.run(); panels(); closePop(); } catch (err) { failed.push(e.kind + ':' + e.name + ' (' + err.message + ')'); }
+        if (performance.now() - t0 > 3000) console.log('smoke: slow ⌘K ' + e.name + ' ' + Math.round(performance.now() - t0) + 'ms');
         if (document.body.classList.contains('docspage') || $('docs')) closeDocs();
         if ($('sink')) closeKitchenSink();
       }
