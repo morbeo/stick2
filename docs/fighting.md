@@ -372,7 +372,7 @@ Scenarios: fireball, fireball clash, fireball reflect, grenade, multi shot.
 
 ### Beams
 
-The **beams** setting; key flag **beam**; in animate the beam toggle and the effect tab (look: laser; width, range, duration; parts).
+The **beams** setting; key flag **beam**; in animate the beam toggle and the effect tab (look: laser or fire; width, range, duration, angle, angle to, rehit, follow; parts).
 
 - As the beam key is reached, a straight line holds out from between the striking limbs, as far as its range.
 - It hits once, the moment it touches a foe, with the move's own power, damage, height and stun; it keeps showing for the rest of its duration.
@@ -380,6 +380,7 @@ The **beams** setting; key flag **beam**; in animate the beam toggle and the eff
 - One beam per fighter at a time. Unlike a shot, two beams don't cancel each other.
 - The boxes view rings its hitbox.
 - **parts** (`beam.parts`, in animate's effect tab) splits it into stretches: `from` / `to` along its range (0 the muzzle, 1 its far end), `w` a width multiplier, and `hits` (default on). Only hitting stretches hit, so a beam can hit only at its tip.
+- **look** laser or **fire** (a flickering stream that widens toward its end). **angle** / **angleTo** (degrees above level) aim it and sweep it from one to the other across its duration. **rehit** (seconds) hits again while it keeps touching a foe, for a multi-hit stream. **follow** keeps its muzzle on the striking limbs as the keys after it move them.
 - The stick's library has **laserBeam** (both palms pushed out, a beam between them), not bound to a key by default.
 
 Scenario: laser beam.
