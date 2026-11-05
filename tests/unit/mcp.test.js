@@ -13,11 +13,14 @@ function server() {
   });
   const rpc = (method, params) => new Promise(ok => { wait.set(++id, ok); p.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n'); });
   const call = async (name, args = {}) => {
+    called.add(name);
     const r = (await rpc('tools/call', { name, arguments: args })).result;
     return { ...r, json: r.content[0].type === 'text' && !r.isError && /^[[{"n\d]/.test(r.content[0].text) ? JSON.parse(r.content[0].text) : null };
   };
   return { p, rpc, call, lines, note: (method, params) => p.stdin.write(JSON.stringify({ jsonrpc: '2.0', method, params }) + '\n'), close: () => p.stdin.end() };
 }
+// every tool a test calls: the last test checks that none is left untested (MCP tool coverage)
+const called = new Set();
 const s = server();
 test.after(() => s.close());
 
@@ -305,4 +308,39 @@ test('schema resources describe effects, shot parts and one-fighter scenarios', 
   const ch = JSON.stringify(await read('character')), sc = await read('scenario');
   for (const w of ['effects', 'capsule', 'homing', 'split', "'solid'"]) assert.ok(ch.includes(w), w);
   assert.match(sc.fields.b, /null/);
+});
+
+test('profiles: save_profile writes an everything file that load_profile reads back; revert_character undoes edits', async () => {
+  await s.call('edit_character', { name: 'stick', patch: { look: { outline: 'ink' } } });
+  const file = 'out/mcp-test-profile.json';
+  try {
+    assert.ok(!(await s.call('save_profile', { path: file })).isError);
+    assert.ok(!(await s.call('load_profile', { path: file })).isError);
+    assert.ok((await s.call('load_profile', { path: 'out/no-such-profile.json' })).isError);
+  } finally { fs.rmSync(path.join(__dirname, '..', '..', file), { force: true }); }
+  assert.ok(!(await s.call('revert_character', { name: 'stick' })).isError);
+  assert.equal((await s.call('get_character', { name: 'stick' })).json.look, undefined);
+});
+
+test('git tools: status runs, diff and commit refuse code paths and missing files (nothing is committed)', async () => {
+  assert.ok(!(await s.call('git_status')).isError);
+  assert.ok((await s.call('git_diff', { path: 'src/engine/core.js' })).isError);
+  assert.ok((await s.call('git_diff', { path: 'out/none.json' })).isError);
+  assert.ok((await s.call('git_commit', { files: ['src/engine/core.js'], message: 'x' })).isError);
+  assert.ok((await s.call('git_commit', { files: ['out/none.json'], message: 'x' })).isError);
+  assert.ok((await s.call('git_commit', { files: [], message: 'x' })).isError);
+});
+
+test('search_tools finds tools by words in their name and description', async () => {
+  const r = (await s.call('search_tools', { q: 'look preset' })).json;
+  assert.ok(JSON.stringify(r).includes('apply_look_preset'));
+});
+
+// keep last: tools/list against every tool the tests above called
+test('MCP tool coverage: every tool is called by a test', async () => {
+  const all = (await s.rpc('tools/list')).result.tools.map(t => t.name);
+  const skip = findChrome() ? [] : ['browser_command']; // its test needs Chrome
+  const missing = all.filter(n => !called.has(n) && !skip.includes(n));
+  console.log(`mcp: ${all.length - missing.length}/${all.length} tools called by tests`);
+  assert.deepEqual(missing, [], `tools with no test: ${missing.join(', ')}`);
 });
