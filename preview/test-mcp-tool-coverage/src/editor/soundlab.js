@@ -261,7 +261,8 @@ function movePanel() {
   const bindB = button('', 'Inputs that trigger this move. Click to bind it to other inputs (copies of moves become playable this way).', (e, b) =>
     popup(b, h('div', { cls: 'bar' }, Object.keys(slotsOf(CFG.plane)).map(s => toggle(s, `${SLOT_TIPS[s]} · now: ${curBinds(edChar())[s] || 'none'}`, () => curBinds(edChar())[s] === anim.move, () => toggleBind(s))))));
   reg(bindB, () => { setRich(bindB, boundSlots().join(' ') || 'none (combo only)'); });
-  return [moveHeading(),
+  const t = ANIM_TABS[anim.sideTab] ? anim.sideTab : 'move', on = k => t === 'all' || t === k;
+  return [animTabs(t), ...on('move') ? [moveHeading(),
     m().ref ? slider('mix', { min: 0, max: 1, step: 0.05 }, () => m().mix ?? 1, v => setMove('mix', v === 1 ? undefined : v, 'm.mix'),
       'Layer strength: how much of this layer\'s offsets (its keys minus the procedural pose it was made from) is added on top of the procedural / IK motion in a fight. 0 = off, 1 = as keyed') : null,
     h('div', { cls: 'row', tip: 'Striking bones: each end is a strike (in limb mode the whole bone); with several, the one that lands counts, one hit per target. Shift+click a joint in the editor to pick it, ⌘/Ctrl+Shift+click to add or remove it.' },
@@ -284,8 +285,9 @@ function movePanel() {
     ...(m().throw ? holdOptionsRows() : []),
     counterRow(),
     isThrowTarget() ? holdRow() : null,
-    ...keyPanel(),
-    ...charPanel(),
+    ...charPanel()] : [],
+    ...on('key') ? keyPanel() : [],
+    ...on('effect') ? effectPanel() : [],
   ];
 }
 

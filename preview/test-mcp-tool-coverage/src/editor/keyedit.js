@@ -292,6 +292,29 @@ const SPARK_TIPS = { hit: 'Hit spark: the plain sparks and ring when a strike du
 const SOUND_TIPS = { '': 'No sound as this key is reached (hits and blocks still sound)', whoosh: 'Sound: a whoosh as this key is reached (swings)',
   hit: 'Sound: a slap as this key is reached', thud: 'Sound: a low thud as this key is reached (landings, stomps)', block: 'Sound: a sharp block as this key is reached' };
 const KEY_VARS = [{ k: 'e', opts: Object.keys(EASE) }, { k: 'lunge', min: 0, max: 600, step: 10 }];
+// the effect tab (animate): what a special move puts into the world, its shot and its beam (shotedit.js has their parts and specials)
+function effectRows() {
+  return [
+    ...curMove().keys.some(x => x.shoot) ? [h('div', { cls: 'row', tip: 'The projectile this move shoots (move field shot)' }, h('span', { textContent: 'shot' }), h('span', { cls: 'bar' },
+      seg(Object.keys(SHOT_TIPS), () => curMove().shot?.look || 'ki', v => setMove('shot', { ...curMove().shot, look: v }), SHOT_TIPS))),
+      slider('shot speed', { min: 100, max: 900, step: 20 }, () => curMove().shot?.speed ?? 360, v => setMove('shot', { ...curMove().shot, speed: v }, 'shot.speed'), 'How fast the shot flies (px/s).'),
+      slider('shot size', { min: 4, max: 30, step: 1 }, () => curMove().shot?.size ?? 12, v => setMove('shot', { ...curMove().shot, size: v }, 'shot.size'), 'The shot\'s radius (px): its hitbox and how big it draws.'),
+      slider('shot life', { min: 0.2, max: 4, step: 0.1 }, () => curMove().shot?.life ?? 2, v => setMove('shot', { ...curMove().shot, life: v }, 'shot.life'), 'Seconds before the shot fizzles out (a short one is a close-range blast).'),
+      adv(slider('shot angle', { min: -60, max: 60, step: 5 }, () => curMove().shot?.angle ?? 0, v => setMove('shot', { ...curMove().shot, angle: v || undefined }, 'shot.angle'), 'Launch angle (degrees above level); positive arcs upward.')),
+      adv(slider('shot gravity', { min: 0, max: 2000, step: 50 }, () => curMove().shot?.gravity ?? 0, v => setMove('shot', { ...curMove().shot, gravity: v || undefined }, 'shot.gravity'), 'Pulls the shot down (px/s²); 0 flies dead level forever. With angle, it arcs and falls.')),
+      adv(slider('shot bounce', { min: 0, max: 1, step: 0.05 }, () => curMove().shot?.bounce ?? 0, v => setMove('shot', { ...curMove().shot, bounce: v || undefined }, 'shot.bounce'), 'With gravity: how much speed it keeps bouncing off the floor (0 = pops on landing, 1 = bounces forever).')),
+      adv(slider('shot pierce', { min: 1, max: 6, step: 1 }, () => curMove().shot?.pierce ?? 1, v => setMove('shot', { ...curMove().shot, pierce: v === 1 ? undefined : v }, 'shot.pierce'), 'Foes it can hit before it\'s spent (each only once); 1 pops on the first.')),
+      adv(slider('shot durability', { min: 1, max: 6, step: 1 }, () => curMove().shot?.durability ?? 1, v => setMove('shot', { ...curMove().shot, durability: v === 1 ? undefined : v }, 'shot.durability'), 'Clashes with an opposing shot it survives before popping; the tougher shot punches through.')),
+      adv(slider('shot count', { min: 1, max: 8, step: 1 }, () => curMove().shot?.count ?? 1, v => setMove('shot', { ...curMove().shot, count: v === 1 ? undefined : v }, 'shot.count'), 'How many shots fire at once, fanned evenly across spread.')),
+      adv(slider('shot spread', { min: 0, max: 120, step: 5 }, () => curMove().shot?.spread ?? 0, v => setMove('shot', { ...curMove().shot, spread: v || undefined }, 'shot.spread'), 'Total fan angle (degrees) the count shots spread across, centred on angle.')),
+      adv(slider('shot max alive', { min: 1, max: 8, step: 1 }, () => curMove().shot?.maxAlive ?? 1, v => setMove('shot', { ...curMove().shot, maxAlive: v === 1 ? undefined : v }, 'shot.maxAlive'), 'How many of this fighter\'s shots can be in flight at once before the button does nothing.')), shotPartRows()] : [],
+    ...curMove().keys.some(x => x.beam) ? [h('div', { cls: 'row', tip: 'The beam this move holds out (move field beam)' }, h('span', { textContent: 'beam' }), h('span', { cls: 'bar' },
+      seg(Object.keys(BEAM_TIPS), () => curMove().beam?.look || 'laser', v => setMove('beam', { ...curMove().beam, look: v }), BEAM_TIPS))),
+      slider('beam width', { min: 4, max: 40, step: 1 }, () => curMove().beam?.width ?? 14, v => setMove('beam', { ...curMove().beam, width: v }, 'beam.width'), 'The beam\'s width (px): its hitbox and how thick it draws.'),
+      slider('beam range', { min: 100, max: 900, step: 20 }, () => curMove().beam?.range ?? 500, v => setMove('beam', { ...curMove().beam, range: v }, 'beam.range'), 'How far the beam reaches (px).'),
+      slider('beam duration', { min: 0.05, max: 1, step: 0.05 }, () => curMove().beam?.duration ?? 0.25, v => setMove('beam', { ...curMove().beam, duration: v }, 'beam.duration'), 'Seconds the beam stays out; it hits once, the moment it touches a foe.')] : [],
+  ];
+}
 function keyPanel() {
   const title = heading('', 'The selected key: the pose reached at its end, how long it takes and how it eases. Drag joints in the editor to pose it. Adding, splitting, deleting and retiming keys: the bar above the timeline.',
     'Shift+←/→ prev/next key · , / . step a frame · Enter play/pause · Delete deletes the key');
@@ -352,24 +375,6 @@ function keyPanel() {
         { jump: 'After-images along the jump (the default)', streak: 'A Raiden teleport: the body breaks into sideways streaks that fade where it stood, then it flashes in at the new spot and snaps out to full width' }))] : [],
     subFold(':auto_awesome: key fx', fxRows('The effects from this key on (until a later key changes them): the same as before, none, or its own stack; drawing only, the fight is the same',
       () => k().fx, (e, key) => setKey('fx', e, key), fxOns(edChar()), () => fxAt(curMove(), anim.key - 1))),
-    ...curMove().keys.some(x => x.shoot) ? [h('div', { cls: 'row', tip: 'The projectile this move shoots (move field shot)' }, h('span', { textContent: 'shot' }), h('span', { cls: 'bar' },
-      seg(Object.keys(SHOT_TIPS), () => curMove().shot?.look || 'ki', v => setMove('shot', { ...curMove().shot, look: v }), SHOT_TIPS))),
-      slider('shot speed', { min: 100, max: 900, step: 20 }, () => curMove().shot?.speed ?? 360, v => setMove('shot', { ...curMove().shot, speed: v }, 'shot.speed'), 'How fast the shot flies (px/s).'),
-      slider('shot size', { min: 4, max: 30, step: 1 }, () => curMove().shot?.size ?? 12, v => setMove('shot', { ...curMove().shot, size: v }, 'shot.size'), 'The shot\'s radius (px): its hitbox and how big it draws.'),
-      slider('shot life', { min: 0.2, max: 4, step: 0.1 }, () => curMove().shot?.life ?? 2, v => setMove('shot', { ...curMove().shot, life: v }, 'shot.life'), 'Seconds before the shot fizzles out (a short one is a close-range blast).'),
-      adv(slider('shot angle', { min: -60, max: 60, step: 5 }, () => curMove().shot?.angle ?? 0, v => setMove('shot', { ...curMove().shot, angle: v || undefined }, 'shot.angle'), 'Launch angle (degrees above level); positive arcs upward.')),
-      adv(slider('shot gravity', { min: 0, max: 2000, step: 50 }, () => curMove().shot?.gravity ?? 0, v => setMove('shot', { ...curMove().shot, gravity: v || undefined }, 'shot.gravity'), 'Pulls the shot down (px/s²); 0 flies dead level forever. With angle, it arcs and falls.')),
-      adv(slider('shot bounce', { min: 0, max: 1, step: 0.05 }, () => curMove().shot?.bounce ?? 0, v => setMove('shot', { ...curMove().shot, bounce: v || undefined }, 'shot.bounce'), 'With gravity: how much speed it keeps bouncing off the floor (0 = pops on landing, 1 = bounces forever).')),
-      adv(slider('shot pierce', { min: 1, max: 6, step: 1 }, () => curMove().shot?.pierce ?? 1, v => setMove('shot', { ...curMove().shot, pierce: v === 1 ? undefined : v }, 'shot.pierce'), 'Foes it can hit before it\'s spent (each only once); 1 pops on the first.')),
-      adv(slider('shot durability', { min: 1, max: 6, step: 1 }, () => curMove().shot?.durability ?? 1, v => setMove('shot', { ...curMove().shot, durability: v === 1 ? undefined : v }, 'shot.durability'), 'Clashes with an opposing shot it survives before popping; the tougher shot punches through.')),
-      adv(slider('shot count', { min: 1, max: 8, step: 1 }, () => curMove().shot?.count ?? 1, v => setMove('shot', { ...curMove().shot, count: v === 1 ? undefined : v }, 'shot.count'), 'How many shots fire at once, fanned evenly across spread.')),
-      adv(slider('shot spread', { min: 0, max: 120, step: 5 }, () => curMove().shot?.spread ?? 0, v => setMove('shot', { ...curMove().shot, spread: v || undefined }, 'shot.spread'), 'Total fan angle (degrees) the count shots spread across, centred on angle.')),
-      adv(slider('shot max alive', { min: 1, max: 8, step: 1 }, () => curMove().shot?.maxAlive ?? 1, v => setMove('shot', { ...curMove().shot, maxAlive: v === 1 ? undefined : v }, 'shot.maxAlive'), 'How many of this fighter\'s shots can be in flight at once before the button does nothing.')), shotPartRows()] : [],
-    ...curMove().keys.some(x => x.beam) ? [h('div', { cls: 'row', tip: 'The beam this move holds out (move field beam)' }, h('span', { textContent: 'beam' }), h('span', { cls: 'bar' },
-      seg(Object.keys(BEAM_TIPS), () => curMove().beam?.look || 'laser', v => setMove('beam', { ...curMove().beam, look: v }), BEAM_TIPS))),
-      slider('beam width', { min: 4, max: 40, step: 1 }, () => curMove().beam?.width ?? 14, v => setMove('beam', { ...curMove().beam, width: v }, 'beam.width'), 'The beam\'s width (px): its hitbox and how thick it draws.'),
-      slider('beam range', { min: 100, max: 900, step: 20 }, () => curMove().beam?.range ?? 500, v => setMove('beam', { ...curMove().beam, range: v }, 'beam.range'), 'How far the beam reaches (px).'),
-      slider('beam duration', { min: 0.05, max: 1, step: 0.05 }, () => curMove().beam?.duration ?? 0.25, v => setMove('beam', { ...curMove().beam, duration: v }, 'beam.duration'), 'Seconds the beam stays out; it hits once, the moment it touches a foe.')] : [],
     ...curMove().keys.some(x => x.charge) ? [h('div', { cls: 'row', tip: 'How holding the move\'s button at its charge key powers it up (move field charge)' }, h('span', { textContent: 'charge' })),
       slider('charge duration', { min: 0.1, max: 2, step: 0.05 }, () => curMove().charge?.dur ?? 0.6, v => setMove('charge', { ...curMove().charge, dur: v }, 'charge.dur'), 'Seconds held at the charge key to reach full power.'),
       slider('charge timeout', { min: 0.2, max: 5, step: 0.1 }, () => curMove().charge?.timeout ?? 1.5, v => setMove('charge', { ...curMove().charge, timeout: v }, 'charge.timeout'), 'Seconds it can be held before it fires anyway, at whatever charge it has reached by then.'),
