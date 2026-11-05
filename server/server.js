@@ -22,6 +22,7 @@ const { Verifier } = require('./verify');
 const { Ratings } = require('./ratings');
 const { mcp } = require('./mcp');
 const { Accounts } = require('./accounts');
+const { Bots } = require('./bots');
 
 const num = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 0 ? n : d; };
 function config(env = process.env) {
@@ -47,6 +48,7 @@ function config(env = process.env) {
     mcpToken: env.MCP_TOKEN || '',
     accounts: env.ACCOUNTS !== '0', // accounts: a name kept for a player across devices, no passwords (accounts.js)
     ratings: env.RATINGS !== '0', // Glicko-2 ratings from verified matches (needs VERIFY), a leaderboard and quick match by rating
+    bots: num(env.BOTS, 4), // server bots playing at once (bots.js: a host adds one to its room; 0: off)
     verify: env.VERIFY !== '0', // play every finished match again on the server, for verdicts, gameplay stats and cheat flags
     spectateDelay: num(env.SPECTATE_DELAY, 180), // frames (60 a second) spectators watch behind the players
     maxSpectators: num(env.MAX_SPECTATORS, 14), // people a room may have besides its two fighters (spectators and the queue)
@@ -128,6 +130,7 @@ function start(cfg = config()) {
     picks: reg.counter('character_picks_total', 'Characters played in verified matches (roster names; anything else is custom)'),
     wins: reg.counter('character_wins_total', 'Characters that won verified matches'),
     hpLeft: reg.histogram('winner_hp_left', "The winner's health left at the end of a verified match", [10, 25, 50, 75, 100, 150, 200]),
+    bots: reg.gauge('bots', 'Server bots playing in rooms (BOTS)', () => relay.bots?.list.size || 0),
     spectatorPeak: reg.gauge('spectator_peak', 'Most spectators in rooms at once since the server started', () => relay.spectatorPeak),
   };
   // gameplay stats from a verified match (low cardinality: roster characters by name, every other one as custom)
@@ -148,6 +151,7 @@ function start(cfg = config()) {
   const replays = new Replays({ dir: cfg.dbPath ? path.join(cfg.dbPath, 'replays') : null, max: cfg.maxReplays });
   const relay = new Relay({ maxRooms: cfg.maxRooms, idleMs: cfg.roomIdle * 1000, metrics: M, bans, blocklist: cfg.blocklist, audit, replays: cfg.maxReplays ? replays : null, verifier, ratings, accounts,
     delay: cfg.spectateDelay, watchers: Math.min(cfg.maxSpectators, 14) }); // (the relay takes 16 guests at most)
+  relay.bots = cfg.bots > 0 ? new Bots({ relay, max: cfg.bots }) : null;
 
   const mcpHandle = cfg.mcp ? mcp({ relay, ratings, replays, bans, accounts, M, reg, cfg, audit, version: VERSION }) : null;
 
@@ -161,6 +165,7 @@ function start(cfg = config()) {
       if (route === 'reports') return json(200, { reports: relay.reports });
       if (route === 'bans') return json(200, { bans: bans.active() });
       if (route === 'flags') return json(200, { flags: relay.flags });
+      if (route === 'bots') return json(200, { bots: relay.bots?.view() || [] });
       if (route === 'accounts') return json(200, { accounts: accounts ? [...accounts.list.values()].map(a => accounts.view(a)) : [] });
       return json(404, { error: 'unknown' });
     }
@@ -189,6 +194,11 @@ function start(cfg = config()) {
         if (!accounts) return json(404, { error: 'accounts are off' });
         try { const a = accounts.relink(b.player, String(b.device || '')); M.accounts.inc({ action: 'relink' }); audit('relink', { by: 'admin', player: a.name }); return json(200, { ok: true, account: accounts.view(a) }); }
         catch (e) { return json(400, { error: e.message }); }
+      }
+      if (route === 'bot') {
+        if (!relay.bots) return json(404, { error: 'bots are off' });
+        if (b.remove) { const ok = relay.bots.remove(b.remove); return json(ok ? 200 : 404, { ok }); }
+        try { return json(200, { ok: true, player: relay.bots.add(b.room, { level: b.level || 'normal', char: b.char || null }) }); } catch (e) { return json(400, { error: e.message }); }
       }
       if (route === 'unban') { const ok = bans.remove(b.id); if (ok) audit('unban', { by: 'admin', id: b.id }); return json(ok ? 200 : 404, { ok }); }
       return json(404, { error: 'unknown' });
@@ -309,7 +319,7 @@ function start(cfg = config()) {
         if (playing && Date.now() < until) return;
         clearInterval(check); clearInterval(pinger); clearInterval(sweeper);
         for (const ws of wss.clients) ws.close(1001, 'server restarting');
-        wss.close(); verifier?.close(); server.close(() => done());
+        wss.close(); verifier?.close(); relay.bots?.close(); server.close(() => done());
         setTimeout(done, 2000).unref();
       }, 250);
     });

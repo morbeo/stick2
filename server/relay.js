@@ -14,6 +14,7 @@
 //                     { t: 'kick', id, ban? }           (host) send a guest away; ban: not back into this room
 //                     { t: 'lock', locked }             (host) refuse new guests while locked
 //                     { t: 'report', id?, reason, lines? }  report a player (or the room) to the server's admins → { t: 'reported' }
+//                     { t: 'bot', level?, char? }         (host) a server bot joins the room (bots.js) → { t: 'bot', player } or { t: 'bot', error }
 //                     { t: 'replay', replay, result?, players? }  (host) the finished match, for the server's replays → { t: 'saved', id },
 //                       then, once the server has played it again (verify.js), { t: 'verified', id, verdict, why? }
 //   server → client   { t: 'gone', id, why }            (host) a guest left
@@ -75,6 +76,7 @@ class Relay {
       case 'quick': return this.quickJoin(client, m);
       case 'unquick': return this.quickLeave(client, true);
       case 'account': return this.account(client, m);
+      case 'bot': return this.bot(client, m);
       default: return this.error(client, 'unknown message');
     }
   }
@@ -196,7 +198,7 @@ class Relay {
     }
     // ratings (ratings.js): a fight that played out as recorded, between two devices, that nobody left
     const f = who.fighters || [];
-    if (v.verdict === 'ok' && this.ratings && f.length === 2 && f[0] && f[1] && !(result && result.forfeit !== undefined)) {
+    if (v.verdict === 'ok' && this.ratings && f.length === 2 && f[0] && f[1] && !f[0].bot && !f[1].bot && !(result && result.forfeit !== undefined)) {
       const ch = this.ratings.record(...f.map(c => ({ device: c.who || c.device, name: c.player })), v.stats.winner);
       if (ch) {
         this.metrics?.rated?.inc({});
@@ -207,6 +209,15 @@ class Relay {
     const host = this.rooms.get(who.room)?.host;
     host?.send({ t: 'verified', id: who.id, verdict: v.verdict, ...(v.why ? { why: v.why } : {}) });
     return v;
+  }
+  // { t: 'bot', level?, char? } (host) a server bot (bots.js) joins the room as a guest → { t: 'bot', player } (or { t: 'bot', error })
+  bot(client, m) {
+    const r = client.role === 'host' && this.rooms.get(client.room);
+    if (!r) return this.error(client, 'not hosting');
+    // (a refusal comes back as { t: 'bot', error }, never an error: that would close the host's lobby)
+    if (!this.bots) return client.send({ t: 'bot', error: 'bots: this server has bots off (BOTS=0)' });
+    try { client.send({ t: 'bot', player: this.bots.add(r.code, { level: m.level || 'normal', char: m.char || null }) }); }
+    catch (e) { client.send({ t: 'bot', error: e.message }); }
   }
   // admin: every room with who's in it (names only: no addresses)
   detail() {

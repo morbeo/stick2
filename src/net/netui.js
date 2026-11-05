@@ -168,6 +168,13 @@ function netPhase(e) {
 // take that for a dropped connection
 setInterval(() => net.lobby?.tick(), 1000);
 
+// a server bot into the room we host (server/bots.js): it joins like a guest, picks, readies and fights
+function netAddBot(level = net.botLevel || 'normal') {
+  if (!net.lobby?.host || !net.server?.addBot) return netSay('add a bot: host a room on a stick2 server first');
+  net.server.bot = m => netSay(m.error ? `no bot: ${m.error.replace(/^bots: /, '')}` : `:smart_toy: ${m.player} joins (a server bot, ${level})`);
+  net.server.addBot(level);
+}
+
 // ---------- every animation frame (app.js): the lobby's pings, and the match's frames at a steady 60 a second ----------
 // presses (edges) from frames where no match frame ran wait for the next one, so a quick tap on a fast screen is never lost
 function netFrame(raw, inp) {
@@ -402,7 +409,9 @@ function netDraw() {
           v => L.setRules({ bans: v ? [...st.rules.bans, k] : st.rules.bans.filter(x => x !== k) })))));
       }
       if (st.rules) rows.push(h('p', { cls: 'netrules', tip: 'The room\'s rules (the host sets them in the lobby)' }, netRulesText(st.rules), netSet(st)));
-      if (L.host && net.server?.room) rows.push(h('div', { cls: 'bar' }, toggle(':lock: lock room', 'Turn away anyone new (the people already here stay)', () => !!net.server.locked, v => net.server.lock(v))));
+      if (L.host && net.server?.room) rows.push(h('div', { cls: 'bar' }, toggle(':lock: lock room', 'Turn away anyone new (the people already here stay)', () => !!net.server.locked, v => net.server.lock(v)),
+        h('select', { tip: 'How well a bot you add plays', onchange: e => { net.botLevel = e.target.value; } }, ['easy', 'normal', 'hard'].map(k => h('option', { value: k, textContent: k, selected: k === (net.botLevel || 'normal') }))),
+        button(':smart_toy: add bot', 'Add a bot to the room: the game\'s AI, played on the server, as a player (kick it to take it out)', () => netAddBot())));
       if (st.phase === 'lobby' && me) {
         const pick = h('select', { tip: 'Your character', onchange: e => L.pick(e.target.value) }, Object.keys(CHARS).filter(k => !st.rules?.bans.includes(k)).map(k => h('option', { value: k, textContent: k, selected: k === (me.char || CURRENT) })));
         if (!me.char) setTimeout(() => L.pick(pick.value));
