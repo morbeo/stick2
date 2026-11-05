@@ -9,11 +9,12 @@ const srcFile = name => {
   return path.join(SRC, name + '.js');
 };
 // a group stands for its files, in load order: 'rig' for the rig split over several files (with the base stick in it),
-// 'roster' for objdiff.js (exported characters are diffs), every character file (src/engine/chars/index.json) and roster.js, 'replay' for replay mode
+// 'fighter' for fighter.js and its fighter-*.js parts, 'roster' for objdiff.js (exported characters are diffs), every character file (src/engine/chars/index.json) and roster.js, 'replay' for replay mode
 const CHAR_FILES = JSON.parse(fs.readFileSync(path.join(SRC, 'engine', 'chars', 'index.json'), 'utf8')).map(c => 'engine/chars/' + c);
 const GROUPS = {
   rig: ['engine/rig', 'engine/rig-chars', 'engine/chars/stick', 'engine/rig-weapons', 'engine/rig-pose', 'engine/rig-draw'],
   roster: ['engine/objdiff', ...CHAR_FILES, 'engine/roster'],
+  fighter: ['engine/fighter', 'engine/fighter-legs', 'engine/fighter-rag', 'engine/fighter-draw'],
   replay: ['engine/replay', 'engine/replay-timeline', 'engine/replay-scene', 'engine/replay-footage', 'engine/replay-movie', 'engine/replay-panel'],
 };
 const expand = files => files.flatMap(f => GROUPS[f] || [f]);
