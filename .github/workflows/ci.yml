@@ -54,6 +54,8 @@ jobs:
         run: node tools/dev/build-info.js
       - name: Unit tests with coverage floor
         run: npm run coverage:check
+      - name: Sim perf budget (ms/frame)
+        run: npm run perf:check
 
   server:
     name: Server tests
