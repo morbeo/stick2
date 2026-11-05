@@ -6,9 +6,14 @@ const noSandbox = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
 // each headless page gets at most 5 minutes: a page that hangs (it ran 20 in CI once) fails with a reason instead of the job timing out
 // --timeout: Chrome dumps the page after that much real time even if virtual time stalls (a pending load can stall it)
 const PAGE_MS = 240000;
-const DUMP = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 300000, killSignal: 'SIGKILL' };
-process.on('uncaughtException', e => { console.error(e.code === 'ETIMEDOUT' ? `FAIL: a headless page did not finish within ${DUMP.timeout / 1000}s (${e.spawnargs?.at(-1)})` : 'FAIL: ' + e.stack); process.exit(1); });
-process.on('unhandledRejection', e => { console.error(e?.code === 'ETIMEDOUT' ? `FAIL: a headless page did not finish within ${DUMP.timeout / 1000}s (${e.spawnargs?.at(-1)})` : 'FAIL: ' + (e?.stack || e)); process.exit(1); });
+// Chrome's own log goes to a file, printed (its last lines) when a page hangs: a hang past --timeout is Chrome stuck, not the page
+const chromeLog = path.join(os.tmpdir(), 'stick2-smoke-chrome.log'), logFd = fs.openSync(chromeLog, 'w');
+const DUMP = { encoding: 'utf8', stdio: ['ignore', 'pipe', logFd], timeout: 300000, killSignal: 'SIGKILL' };
+const logTail = () => { try { const l = fs.readFileSync(chromeLog, 'utf8').trim().split('\n').filter(Boolean), steps = l.filter(x => x.includes('"smoke: '));
+  return `\nhow far the page got: ${steps.slice(-3).map(x => x.match(/"(smoke: [^"]*)"/)?.[1]).join(' → ') || 'not past the synchronous checks'}\nChrome's last ${Math.min(20, l.length)} log lines:\n` + l.slice(-20).join('\n'); } catch { return ''; } };
+const hung = e => `FAIL: a headless page did not finish within ${DUMP.timeout / 1000}s (${e.spawnargs?.at(-1)})` + logTail();
+process.on('uncaughtException', e => { console.error(e.code === 'ETIMEDOUT' ? hung(e) : 'FAIL: ' + e.stack); process.exit(1); });
+process.on('unhandledRejection', e => { console.error(e?.code === 'ETIMEDOUT' ? hung(e) : 'FAIL: ' + (e?.stack || e)); process.exit(1); });
 const root = path.join(__dirname, '..', '..'), out = path.join(os.tmpdir(), 'stick2-smoke.html');
 const chrome = process.env.CHROME || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium']
   .find(p => fs.existsSync(p));
@@ -1398,7 +1403,8 @@ try {
   });
 } catch (e) { errs.push(e.message + ' ' + e.stack.split('\\n')[1]); }
 // the async checks one after another (an export waits for the last one)
-Promise.all(later).then(() => afterSync.reduce((p, f) => p.then(f), Promise.resolve())).then(() => { document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK'; }, e => { document.title = 'ERR ' + e.message; });
+console.log('smoke: sync checks done, ' + later.length + ' async + ' + afterSync.length + ' after-sync checks to go');
+Promise.all(later).then(() => { console.log('smoke: async checks done'); return afterSync.reduce((p, f, i) => p.then(() => { console.log('smoke: after-sync check ' + (i + 1) + '/' + afterSync.length + ' ' + String(f).slice(12, 80).replace(/\\s+/g, ' ')); return f(); }), Promise.resolve()); }).then(() => { document.title = errs.length ? 'ERR ' + errs.slice(0, 5).join(' | ') : 'OK'; }, e => { document.title = 'ERR ' + e.message; });
 </script></body>`;
 // the probe must parse: a broken line (a // comment swallowing the rest of a one-line block, say) would otherwise just never run
 try { new vm.Script(probe.replace(/^<script>|<\/script><\/body>$/g, ''), { filename: 'probe' }); }
@@ -1408,7 +1414,7 @@ fs.writeFileSync(out, fs.readFileSync(path.join(root, 'index.html'), 'utf8')
 (async () => {
 // COVERAGE=1: the same page under Chrome's coverage, printed per src file (tests/browser/browser-coverage.js)
 const title = process.env.COVERAGE ? await require('./browser-coverage')(chrome, 'file://' + out, path.join(root, 'src'))
-  : (execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800',
+  : (execFileSync(chrome, ['--headless=new', ...noSandbox, '--disable-gpu', '--allow-file-access-from-files', '--window-size=1400,800', '--enable-logging=stderr', '--v=0',
     '--virtual-time-budget=' + (process.env.BUDGET || 5000), '--timeout=' + PAGE_MS, '--dump-dom', 'file://' + out], DUMP).match(/<title>([^<]*)/) || [])[1] || 'no title';
 // the other entry pages, each in its own Chrome over DevTools in real time: wait (at most a minute) for what it should show.
 // (not --dump-dom with a virtual-time budget: gallery.html's looping previews stalled virtual time in CI, hanging the dump)
