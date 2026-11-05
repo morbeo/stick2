@@ -4,6 +4,8 @@
 
 `tools/mcp/mcp.js` runs stick2 as an [MCP](https://modelcontextprotocol.io) server, so an AI assistant can run fights, read and change settings, characters, scenarios, sounds and fx looks, check moves, play replays and look at frames. It speaks the stdio transport (JSON-RPC 2.0, one message per line) and has no dependencies.
 
+A running game server (`server/`) has its own MCP endpoint for its rooms, matches, ratings and moderation: see [server MCP](server.md#mcp).
+
 ## Register it
 
 The repo has a `.mcp.json`, so Claude Code offers the server when it opens the repo. To add it yourself:
