@@ -172,6 +172,7 @@ function buildTop() {
       button(':zoom_in:', 'Interface scale: the whole page bigger or smaller (not the fight itself, which always fills its own space)', (e, b) => popup(b,
         slider('scale', { min: 0.6, max: 1.8, step: 0.05 }, () => ui.scale, setUiScale, 'The whole interface, zoomed'))),
       button(':keyboard:', 'Keys: rebind any action, set up macros, and help', keysPanel),
+      button(':stadia_controller:', 'Gamepad: bind each button to any action and set the stick dead zone (opens the keys panel)', keysPanel),
       button(':home:', 'Welcome: what stick2 can do and where to go for each activity, shown once on the first visit (also in ⌘K)', openWelcome),
       button(':info:', 'Docs: how everything works, with live demo fights, and every setting, move flag, input and key explained; searchable (also in ⌘K)', () => openDocs()),
       toggle(':help:', 'Hints: the line of mouse and key help under the view and the frame meter\'s colour legend; off, they show for a few seconds on the first visit to each mode (?)', () => ui.hints, toggleHints),
