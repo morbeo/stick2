@@ -1,9 +1,0 @@
-# Prometheus for a self-hosted stick2 server (docker-compose.full.yml): scrapes /metrics every 15 s, with the alert rules next to it
-global: { scrape_interval: 15s, evaluation_interval: 30s }
-rule_files: [/etc/prometheus/alerts.yml]
-scrape_configs:
-  - job_name: stick2
-    metrics_path: /metrics
-    # with METRICS_TOKEN set on the server, put the same token here:
-    # authorization: { credentials: change-me }
-    static_configs: [{ targets: ["stick2:8080"] }]
