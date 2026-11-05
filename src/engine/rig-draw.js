@@ -17,6 +17,14 @@ function drawWeapon(ctx, b, o, e, col, extra = 0) {
 // (else the style's own), oa: opacity, blur: glow softness px. line: 'dashed' or 'sketch' (loose pencil strokes)
 const LOOK_INK = '#111111', LOOK_PAPER = '#f3f0e8';
 const LOOK_OUTLINES = ['halo', 'ink', 'double', 'glow', 'shadow'];
+// named looks (def.look): one click sets the whole look (any row can still be tweaked after); the editor and MCP share them
+const LOOK_PRESETS = { plain: [null, 'No outline, solid lines: the default'],
+  'flash fight': [{ outline: 'double' }, 'Ink rim round a paper gap, solid lines: the classic flash stick-fight look'],
+  'ink comic': [{ outline: 'ink', ow: 2.5, line: 'brush' }, 'Inked rim and swelling brush strokes, like a comic page'],
+  chalk: [{ outline: 'halo', ow: 1.5, line: 'sketch' }, 'Loose pencil strokes on a paper rim, like a chalkboard doodle'],
+  scroll: [{ line: 'calligraphy' }, 'Flat-nib calligraphy strokes, no outline: an ink scroll'],
+  doodle: [{ outline: 'shadow', ow: 3, line: 'hand' }, 'A shaky pen line with a dropped cel shadow: a notebook margin'],
+  aura: [{ outline: 'glow', ow: 3, blur: 12 }, 'A soft glow in the figure\'s own colour: powered up'] };
 function drawOutline(ctx, ch, P, col, lk, mul) {
   const w = lk.ow ?? 2, rim = (c, width) => drawBones(ctx, ch, P, c, c, width, () => c, mul, BRUSHES[lk.line] ? lk.line : null); // the rim follows the brush
   ctx.save(); ctx.globalAlpha *= lk.oa ?? (lk.outline === 'shadow' ? 0.35 : 1);
