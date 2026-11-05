@@ -6,7 +6,7 @@ const fs = require('fs'), path = require('path'), readline = require('readline')
 console.log = console.info = console.debug = console.error; // stdout carries the protocol: nothing else may print there (the engine shares this console)
 const S = require('./session')(), schemas = require('./schemas'), render = require('../render/render'), serve = require('./serve');
 const { execFileSync } = require('child_process');
-const VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
+const { version, listTools: list, checkArgs, asResult, errResult, rpcBody, PARSE_ERROR, str, num, int, bool, obj, arr } = require('../lib/mcp-rpc');
 const OUT = path.join(S.ROOT, 'out');
 
 // ---------- git tools: asset files only, never source - see git_status/git_diff/git_commit below ----------
@@ -31,8 +31,6 @@ function gitStatus() {
 }
 
 // ---------- tools: name → { d: description, p: properties (JSON Schema), req: required, run(args) → value | { content } } ----------
-const str = d => ({ type: 'string', description: d }), num = d => ({ type: 'number', description: d }), int = d => ({ type: 'integer', description: d });
-const bool = d => ({ type: 'boolean', description: d }), obj = d => ({ type: 'object', description: d }), arr = (d, items = {}) => ({ type: 'array', description: d, items });
 const EVENTS = { type: ['object', 'boolean'], description: 'Which events to list (false: none). { types: ["hit", "move", …] (types or kinds: input, move, hit, defence, throw, fall, state, movement, item, meta, combo, say …), who: fighter id, from / to: frames, limit (default 40) }. eventCounts always has the totals.',
   properties: { types: arr('event types or kinds', { type: 'string' }), who: int('fighter id'), from: int('first frame'), to: int('last frame'), limit: int('at most this many (default 40)') } };
 const SIZE = { w: int('width px (default 640, at most 1600)'), h: int('height px (default 360, at most 900)') };
@@ -240,31 +238,17 @@ function readResource(uri) {
 }
 
 // ---------- JSON-RPC ----------
-const listTools = () => Object.entries(TOOLS).map(([name, t]) => ({ name, description: t.d,
-  inputSchema: { type: 'object', properties: t.p || {}, ...(t.req ? { required: t.req } : {}), additionalProperties: false } }));
-// the arguments against the tool's schema: required ones, unknown ones, the basic types
-function checkArgs(t, a) {
-  const bad = [], p = t.p || {}, type = v => v === null ? 'null' : Array.isArray(v) ? 'array' : Number.isInteger(v) ? 'integer' : typeof v;
-  for (const k of t.req || []) if (a[k] === undefined) bad.push(`${k} is required`);
-  for (const [k, v] of Object.entries(a)) {
-    if (!p[k]) { bad.push(`unknown argument ${k} (takes ${Object.keys(p).join(', ') || 'none'})`); continue; }
-    const want = [].concat(p[k].type || []), got = type(v);
-    if (want.length && !want.includes(got) && !(got === 'integer' && want.includes('number'))) bad.push(`${k} should be ${want.join(' or ')}, not ${got}`);
-    if (p[k].enum && !p[k].enum.includes(v)) bad.push(`${k} is one of ${p[k].enum.join(', ')}`);
-  }
-  if (bad.length) throw new Error(bad.join('; '));
-}
+const listTools = () => list(TOOLS);
 async function callTool(name, a = {}) {
   const t = TOOLS[name];
   if (!t) throw Object.assign(new Error(`unknown tool ${name}`), { code: -32602 });
   try {
     checkArgs(t, a);
-    const r = await t.run(a);
-    return r?.content ? r : { content: [{ type: 'text', text: JSON.stringify(r ?? null, null, 2) }] };
-  } catch (e) { return { content: [{ type: 'text', text: `Error: ${e.message}` }], isError: true }; }
+    return asResult(await t.run(a));
+  } catch (e) { return errResult(e); }
 }
 const METHODS = {
-  initialize: p => ({ protocolVersion: VERSIONS.includes(p?.protocolVersion) ? p.protocolVersion : VERSIONS[0], capabilities: { tools: {}, resources: {} },
+  initialize: p => ({ protocolVersion: version(p?.protocolVersion), capabilities: { tools: {}, resources: {} },
     serverInfo: { name: 'stick2', version: `engine-${S.version}` },
     instructions: 'stick2 is a stick-figure fighting game sandbox. Fights are deterministic simulations: simulate a scenario (list_scenarios) with characters (list_characters) and settings (list_settings), then read the stats and events, render frames, or export the replay. The docs are resources (stick2://docs/README.md).' }),
   ping: () => ({}),
@@ -275,21 +259,11 @@ const METHODS = {
   'resources/read': p => ({ contents: [readResource(p?.uri)] }),
 };
 const send = m => process.stdout.write(JSON.stringify(m) + '\n');
-async function handle(m) {
-  if (m && typeof m === 'object' && m.method === undefined && m.id !== undefined) return; // a response: this server sends no requests
-  if (!m || m.jsonrpc !== '2.0' || typeof m.method !== 'string') return { jsonrpc: '2.0', id: m?.id ?? null, error: { code: -32600, message: 'invalid request' } };
-  const f = METHODS[m.method], note = m.id === undefined; // notifications (no id) get no answer
-  if (note) return;
-  if (!f) return { jsonrpc: '2.0', id: m.id, error: { code: -32601, message: `method not found: ${m.method}` } };
-  try { return { jsonrpc: '2.0', id: m.id, result: await f(m.params) }; }
-  catch (e) { console.error(e.stack || e.message); return { jsonrpc: '2.0', id: m.id, error: { code: e.code || -32603, message: e.message } }; }
-}
 async function line(text) {
   if (!text.trim()) return;
   let m;
-  try { m = JSON.parse(text); } catch { return send({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'parse error' } }); }
-  if (Array.isArray(m)) { const out = (await Promise.all(m.map(handle))).filter(Boolean); if (out.length) send(out); return; }
-  const r = await handle(m);
+  try { m = JSON.parse(text); } catch { return send(PARSE_ERROR); }
+  const r = await rpcBody(METHODS, m, null, e => console.error(e.stack || e.message));
   if (r) send(r);
 }
 
