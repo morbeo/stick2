@@ -2,7 +2,7 @@
 // ---------- MCP over Streamable HTTP at POST /mcp: the server's rooms, matches, ratings and moderation as tools for an AI client ----------
 // JSON-RPC 2.0, one JSON answer per request (no streams). Who may call what, by bearer token:
 //   read   everyone, or only MCP_TOKEN holders when it is set: rooms, matches, replays, the leaderboard, health, a metrics summary
-//   admin  ADMIN_TOKEN: kick, ban, unban, close_room, list_reports, list_flags (each call written to the moderation log)
+//   admin  ADMIN_TOKEN: kick, ban, unban, close_room, list_reports, list_flags, add_bot, list_bots, remove_bot (each call written to the moderation log)
 // Resources: stick2://server/rooms, stick2://server/leaderboard, stick2://match/<id>/replay.
 const VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 const str = (d, extra = {}) => ({ type: 'string', description: d, ...extra }), int = (d, extra = {}) => ({ type: 'integer', description: d, ...extra });
@@ -45,6 +45,13 @@ function mcp(ctx) {
     list_bans: { admin: true, d: 'The bans still running.', run: () => bans.active() },
     close_room: { admin: true, d: 'Close a room (everyone in it is told).', p: { room: str('room code') }, need: ['room'],
       run: a => { const ok = relay.close(String(a.room).toUpperCase()); if (ok) audit('close', { by: 'mcp', room: a.room }); return { ok }; } },
+    // bots (bots.js): a server-side player with the game's AI, into any room
+    add_bot: { admin: true, d: 'Put a bot (the game\'s AI, played on the server) into a room as a player. It readies itself and plays every match until it is kicked or the room closes.',
+      p: { room: str('room code'), level: str('how well it plays', { enum: ['easy', 'normal', 'hard'] }), char: str('character name (default: one at random)') }, need: ['room'],
+      run: a => { if (!relay.bots) fail('bots are off on this server (BOTS=0)'); try { return { player: relay.bots.add(a.room, { level: a.level || 'normal', char: a.char || null }) }; } catch (e) { fail(e.message); } } },
+    list_bots: { admin: true, d: 'The bots playing on this server: name, room, level, character, lobby phase.', run: () => relay.bots?.view() || [] },
+    remove_bot: { admin: true, d: 'Take a bot out of its room by name.', p: { player: str('bot name') }, need: ['player'],
+      run: a => { const ok = !!relay.bots?.remove(a.player); if (ok) audit('bot out', { by: 'mcp', player: a.player }); return { ok }; } },
   };
   const RESOURCES = [
     { uri: 'stick2://server/rooms', name: 'rooms', description: 'The public rooms', mimeType: 'application/json', read: () => TOOLS.list_rooms.run({}, false) },

@@ -68,6 +68,7 @@ Environment variables, each with a default:
 | `MCP` | `1` | MCP for AI clients at `POST /mcp` (see [MCP](#mcp)); `0` turns it off |
 | `MCP_TOKEN` | (none) | Set: MCP read tools need it as a bearer token (the admin token works too) |
 | `ACCOUNTS` | `1` | Accounts: a name kept across linked devices, no passwords (see [Accounts](#accounts)); `0` turns them off |
+| `BOTS` | `4` | Server bots that may play at once (see [Bots](#bots)). `0`: off |
 | `RATINGS` | `1` | Glicko-2 ratings from verified matches, the leaderboard, and quick match by rating (see [Quick match and ratings](#quick-match-and-ratings)); needs `VERIFY`. `0`: quick match still pairs, everyone at 1500 |
 | `VERIFY` | `1` | Play every finished match again on the server (see [Verify](#verify)); `0` turns it off |
 | `MAX_REPLAYS` | `200` | Finished matches kept as replays (in `DB_PATH/replays/` if set, else in memory), oldest dropped first; `0` turns them off |
@@ -126,6 +127,10 @@ With `MAX_REPLAYS=0` the server still verifies (no replay is kept); with `VERIFY
 - **Quick match.** **quick match** in the netplay section (or the palette's `netplay: quick match`) waits in the server's queue. Two players pair when their ratings are within 100, a window that widens by 50 every 10 seconds either has waited. The one who waited longer opens a private room by itself, and the other is sent into it: pick, ready, fight. **cancel** leaves the queue. If the host side never opens its room (15 s), the other goes back to the front of the line.
 - **Leaderboard.** **leaderboard** (or `netplay: leaderboard`) lists the server's ranked players.
 
+## Bots
+
+A host on a server can add a **bot**: the game's own AI, played by the server, as a player in the room. In the lobby, the host's row has a level (easy, normal, hard) and **add bot** (or the palette's `netplay: add bot`). The bot joins like a guest, named after its character (`bot hadoo`), picks a character at random, readies itself, and plays every match from its side, on the server's copy of the engine (the host still runs the fight, the bot only sends its inputs). It readies again after each match, so it fits a room's rotation too. **kick** takes it out; it leaves by itself when the room closes. Bots are never rated. `BOTS` caps how many play at once over the whole server; admins can add and remove them over the admin API or MCP.
+
 ## Accounts
 
 No passwords: an account is a name and the devices linked to it (the app's device ids, only stored hashed, in `DB_PATH/accounts.json`). **account** in the netplay section (or the palette's `netplay: account`):
@@ -148,7 +153,7 @@ claude mcp add --transport http stick2-admin http://localhost:8080/mcp --header 
 | Tools | Who |
 |---|---|
 | `server_health`, `get_metrics_summary`, `list_rooms`, `get_room`, `get_leaderboard`, `get_player_stats`, `list_matches`, `get_match`, `export_replay` | Anyone (or `MCP_TOKEN` holders when it is set) |
-| `list_reports`, `list_flags`, `list_bans`, `kick`, `ban`, `unban`, `close_room` | `ADMIN_TOKEN` only; each call goes to the moderation log like the admin API |
+| `list_reports`, `list_flags`, `list_bans`, `kick`, `ban`, `unban`, `close_room`, `add_bot`, `list_bots`, `remove_bot` | `ADMIN_TOKEN` only; each call goes to the moderation log like the admin API |
 
 Resources: `stick2://server/rooms`, `stick2://server/leaderboard`, and `stick2://match/<id>/replay` (a kept match as a replay file). A replay from `export_replay` loads in the game's replay tab, or in the game's own MCP tools (`replay_import`, see [mcp.md](mcp.md)). Calls are counted in `mcp_calls_total{tool,result}` and timed in `mcp_call_seconds`.
 
@@ -193,6 +198,8 @@ Every player has a name on the server. The app sends the name typed in the netpl
 | `POST /api/admin/ban` | `{ player? , device?, reason?, minutes? }` | Ban by name; an online player's device and hashed address too. No `minutes`: permanent |
 | `POST /api/admin/unban` | `{ id }` | Lift a ban |
 | `POST /api/admin/close` | `{ room }` | Close a room |
+| `GET /api/admin/bots` | | The bots playing: name, room, level, character, phase |
+| `POST /api/admin/bot` | `{ room, level?, char? }` or `{ remove: name }` | Put a [bot](#bots) into a room, or take one out |
 
 ```sh
 curl -H "Authorization: Bearer $ADMIN_TOKEN" -d '{"player":"gogili","minutes":60,"reason":"spam"}' http://localhost:8080/api/admin/ban
@@ -227,6 +234,7 @@ All prefixed `stick2_`. Labels never carry names, ids or room codes.
 | `rated_matches_total`, `rated_players` | counter, gauge | Matches that moved two ratings, players with a rating |
 | `quick_queue`, `quick_matches_total`, `quick_wait_seconds` | gauge, counter, histogram | Quick match: waiting now, rooms opened, how long players waited |
 | `rooms_empty` | gauge | Open rooms with nobody in them, waiting out `ROOM_IDLE` |
+| `bots` | gauge | [Bots](#bots) playing in rooms |
 
 ## Protocol
 
@@ -242,6 +250,7 @@ JSON, one object per WebSocket message. On connecting, the server sends `{ t: 'h
 | either | `{ t: 'list' }` | `{ t: 'rooms', rooms }` |
 | host | `{ t: 'kick', id, ban? }` | the guest gets `{ t: 'closed', why }`, the host `{ t: 'gone', id, why }` |
 | host | `{ t: 'lock', locked }` | joins are refused while locked |
+| host | `{ t: 'bot', level?, char? }` | a [bot](#bots) joins the room; `{ t: 'bot', player }`, or `{ t: 'bot', error }` when refused |
 | either | `{ t: 'report', id?, reason, lines? }` | `{ t: 'reported' }` |
 | either | `{ t: 'quick', player?, device? }` (not in a room) | `{ t: 'queued', player, rating, waiting }`; paired: the longer waiting gets `{ t: 'matched', role: 'host', ticket, vs }`, the other `{ t: 'found', vs }` |
 | host | `{ t: 'host', …, quick: ticket }` | as `host`, then the other side gets `{ t: 'matched', role: 'guest', room, vs }` |
