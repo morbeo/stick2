@@ -1,0 +1,4 @@
+{
+  "tip": "The character gallery as a looping showcase: every move and movement of one character, nothing to click.",
+  "cfg": { "tools": ["gallery"], "ui": [], "controls": ["play", "fullscreen", "open"], "input": [] }
+}
