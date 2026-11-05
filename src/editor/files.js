@@ -343,14 +343,6 @@ const LOOK_TIPS = { outline: { none: 'No outline', halo: 'A paper-coloured rim: 
   line: { solid: 'Plain strokes', dashed: 'Dashed strokes (round and pointed ends stay solid)', sketch: 'Loose pencil strokes on every bone, just off it and running past the joints',
     brush: 'A loaded ink brush: each stroke swells in the middle and thins to soft points', calligraphy: 'A flat nib held at 45°: thick across it, hairline along it, so every limb\'s weight follows its direction',
     hand: 'A slightly shaky pen line: width and path wander a little, the same every frame' } };
-// named looks: one click sets the whole look (any row can still be tweaked after)
-const LOOK_PRESETS = { plain: [null, 'No outline, solid lines: the default'],
-  'flash fight': [{ outline: 'double' }, 'Ink rim round a paper gap, solid lines: the classic flash stick-fight look'],
-  'ink comic': [{ outline: 'ink', ow: 2.5, line: 'brush' }, 'Inked rim and swelling brush strokes, like a comic page'],
-  chalk: [{ outline: 'halo', ow: 1.5, line: 'sketch' }, 'Loose pencil strokes on a paper rim, like a chalkboard doodle'],
-  scroll: [{ line: 'calligraphy' }, 'Flat-nib calligraphy strokes, no outline: an ink scroll'],
-  doodle: [{ outline: 'shadow', ow: 3, line: 'hand' }, 'A shaky pen line with a dropped cel shadow: a notebook margin'],
-  aura: [{ outline: 'glow', ow: 3, blur: 12 }, 'A soft glow in the figure\'s own colour: powered up'] };
 const lookPreset = name => edit(def => { const L = LOOK_PRESETS[name][0]; if (L) def.look = { ...L }; else delete def.look; }, 'look');
 const lookIs = name => JSON.stringify(DEFS[CURRENT].look || null) === JSON.stringify(LOOK_PRESETS[name][0]);
 function lookRows() {

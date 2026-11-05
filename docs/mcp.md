@@ -43,6 +43,7 @@ Any other MCP client: run `node tools/mcp/mcp.js` (or `npm run mcp`) from the re
 | `render_gif` | a looping GIF of a stretch of a fight, written to `out/` (needs Chrome) |
 | `list_sounds`, `save_sound`, `reset_sound`, `rename_sound` | the synthesized sounds (noise + tone layers); tune one with a merge patch (built-ins included), revert or delete, rename a custom one |
 | `list_looks`, `save_look`, `delete_look`, `rename_look` | fx looks; built-ins are hand-coded and read-only, a custom one is a generic particle preset, tunable, deletable, renameable |
+| `list_look_presets`, `apply_look_preset` | named character looks (plain, flash fight, ink comic, chalk, scroll, doodle, aura): set a character's whole `look` in one call, undoable |
 | `list_tracks`, `save_track`, `delete_track`, `rename_track` | the tracker: a step sequencer built from the sounds above. No play tool — there's no speaker on the other end of an MCP call |
 | `start_bridge`, `browser_state`, `browser_command` | the live bridge, below |
 | `search_tools` | find a tool by a word or two against its name and description, for when you know roughly what you want but not its exact name |
