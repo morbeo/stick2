@@ -205,6 +205,16 @@ function inside() {
       MCP.defs[n] = def; CHARS[n] = makeCharacter(def);
       return { name: n, bones: CHARS[n].bones.length, moves: Object.keys(CHARS[n].moves).length };
     },
+    listLookPresets: () => Object.fromEntries(Object.entries(LOOK_PRESETS).map(([k, [look, about]]) => [k, { look, about }])),
+    applyLookPreset(n, preset) {
+      if (!(preset in LOOK_PRESETS)) fail(`no look preset "${preset}" (list_look_presets: ${Object.keys(LOOK_PRESETS).join(', ')})`);
+      const def = clone(charOf(n).def), L = LOOK_PRESETS[preset][0];
+      if (L) def.look = clone(L); else delete def.look;
+      checkDef(def);
+      MCP.snap(n);
+      MCP.defs[n] = def; CHARS[n] = makeCharacter(def);
+      return { name: n, look: def.look || null };
+    },
     editMove(n, name, move, mergeIt) {
       const def = clone(charOf(n).def);
       if (move === null) { if (!def.moves[name]) fail(`${n} has no move "${name}"`); delete def.moves[name]; }

@@ -288,3 +288,21 @@ test('the live bridge: the app opened from the server takes fixed commands', { s
     assert.equal((await s.call('get_character', { name: 'synctest' })).json.bones.find(b => b.id === 'thighF').len, 42, 'the browser-side edit came back');
   } finally { page.close(); }
 });
+
+test('look presets: listed with their look, applied to a character, plain removes it, unknown is an error', async () => {
+  const presets = (await s.call('list_look_presets')).json;
+  assert.equal(presets.plain.look, null);
+  assert.equal(presets['ink comic'].look.line, 'brush');
+  const name = 'stick';
+  assert.deepEqual((await s.call('apply_look_preset', { name, preset: 'ink comic' })).json.look, presets['ink comic'].look);
+  assert.equal((await s.call('get_character', { name })).json.look.outline, 'ink');
+  assert.equal((await s.call('apply_look_preset', { name, preset: 'plain' })).json.look, null);
+  assert.ok((await s.call('apply_look_preset', { name, preset: 'nope' })).isError);
+});
+
+test('schema resources describe effects, shot parts and one-fighter scenarios', async () => {
+  const read = async u => JSON.parse((await s.rpc('resources/read', { uri: 'stick2://schema/' + u })).result.contents[0].text);
+  const ch = JSON.stringify(await read('character')), sc = await read('scenario');
+  for (const w of ['effects', 'capsule', 'homing', 'split', "'solid'"]) assert.ok(ch.includes(w), w);
+  assert.match(sc.fields.b, /null/);
+});
