@@ -90,3 +90,42 @@ function shotSpecialRows() {
     slider('split', { min: 0, max: 8, step: 1 }, () => curMove().shot?.split ?? 0, v => setShot('split', v || undefined, 'shot.split'), EFFECT_PROPS.split),
     ...curMove().shot?.split ? [slider('split spread', { min: 0, max: 360, step: 15 }, () => curMove().shot?.splitSpread ?? 90, v => setShot('splitSpread', v === 90 ? undefined : v, 'shot.splitSpread'), EFFECT_PROPS.splitSpread)] : []]);
 }
+
+// ---------- beam parts: stretches along the beam (from / to: 0 the muzzle … 1 its far end), each a width multiplier and hits on/off ----------
+const beamParts = () => curMove().beam?.parts || [{ name: 'core', from: 0, to: 1, w: 1, hits: true }];
+const setBeamParts = (parts, key = null) => setMove('beam', { ...curMove().beam, parts }, key);
+const setBeamPart = (i, patch, key = null) => setBeamParts(beamParts().map((p, j) => j === i ? { ...p, ...patch } : p), key);
+function beamPartRows() {
+  const rows = beamParts().map((p, i) => h('div', { cls: 'fold sub' },
+    h('div', { cls: 'row', tip: 'A stretch of the beam, and whether it hits (cosmetic stretches only glow)' }, h('span', { textContent: p.name || 'part ' + (i + 1) }), h('span', { cls: 'bar' },
+      toggle('hits', 'On: this stretch hits fighters. Off: cosmetic, a glow only', () => beamParts()[i]?.hits !== false, v => setBeamPart(i, { hits: v ? true : false })),
+      button(':delete:', 'Delete this stretch (a beam keeps at least one)', () => { const ps = beamParts(); if (ps.length > 1) setBeamParts(ps.filter((_, j) => j !== i)); }))),
+    slider('from', { min: 0, max: 1, step: 0.05 }, () => beamParts()[i]?.from || 0, v => setBeamPart(i, { from: v }, 'beam.from' + i), 'Where the stretch starts: 0 at the muzzle, 1 at the beam\'s far end'),
+    slider('to', { min: 0, max: 1, step: 0.05 }, () => beamParts()[i]?.to ?? 1, v => setBeamPart(i, { to: v }, 'beam.to' + i), 'Where the stretch ends: 1 at the beam\'s far end'),
+    slider('width', { min: 0.2, max: 4, step: 0.1 }, () => beamParts()[i]?.w ?? 1, v => setBeamPart(i, { w: v }, 'beam.w' + i), 'Width, times the beam\'s width')));
+  return subFold(':grain: beam parts', [
+    h('div', { cls: 'row', tip: 'Stretches of the beam: hit only at the tip, or add a wide cosmetic glow' }, h('span', { textContent: '' }), h('span', { cls: 'bar' },
+      button(':add: part', 'Add a stretch: a wide cosmetic glow along the whole beam to start with', () => setBeamParts([...beamParts(), { name: 'part ' + (beamParts().length + 1), from: 0, to: 1, w: 2.5, hits: false }])),
+      button('tip only', 'Make only the far end hit: the beam becomes a cosmetic line with a hitting tip', () => setBeamParts([{ name: 'line', from: 0, to: 1, w: 0.6, hits: false }, { name: 'tip', from: 0.85, to: 1, w: 1.4, hits: true }])))),
+    ...rows]);
+}
+
+// ---------- animate side panel tabs: move, key, effect, or all of them one under the other ----------
+const ANIM_TABS = { move: 'The move: strike, input, height, what happens on hit', key: 'The selected key: pose timing, easing, flags, key effects',
+  effect: 'What the special move puts into the world: its shot (parts, specials) and its beam', all: 'Every section, one under the other' };
+function animTab(v) { anim.sideTab = v; try { localStorage.setItem('stick2.animTab', v); } catch {}
+  if (v !== 'all') { lay().fold[app.mode + ':' + v] = false; saveLay(); } // a tab shows its section unfolded
+  panels(); }
+try { anim.sideTab = localStorage.getItem('stick2.animTab') || 'all'; } catch { anim.sideTab = 'all'; }
+const animTabs = t => h('div', { cls: 'bar sidetabs' }, seg(Object.keys(ANIM_TABS), () => t, animTab, ANIM_TABS, k => k));
+function effectPanel() {
+  const title = heading('Effect', 'What this special move puts into the world: a shot (a shoot key) and a beam (a beam key). Parts say which pieces hit; specials how it behaves. fx edit shows the shot on the figure.');
+  title.dataset.fold = 'effect';
+  const m = curMove(), shoots = m.keys.some(k => k.shoot), beams = m.keys.some(k => k.beam);
+  const add = (flag, label, tip) => button(label, tip, () => { edit(def => { def.moves[anim.move].keys[anim.key][flag] = true; }); panels(); });
+  return [title,
+    ...!shoots || !beams ? [h('div', { cls: 'row', tip: 'Give the move an effect: the selected key fires it (the dopesheet\'s effect rows move it to another key)' }, h('span', { textContent: 'add' }), h('span', { cls: 'bar' },
+      ...!shoots ? [add('shoot', ':add: shot', 'Fire a shot from the selected key')] : [], ...!beams ? [add('beam', ':add: beam', 'Hold out a beam from the selected key')] : []))] : [],
+    ...effectRows(),
+    ...beams ? [beamPartRows()] : []];
+}
