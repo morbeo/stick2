@@ -132,7 +132,7 @@ No passwords: an account is a name and the devices linked to it (the app's devic
 
 - **make account** keeps your current name on this server. Nobody else can play under it (they get a `#tag`), until it goes unused for 90 days. You see a **recovery code** once: write it down.
 - **link a device** shows a 6-character code and a QR code for 5 minutes. On the other device, scan the QR code (it opens the game and links) or type the code under **account**. That device plays under the account's name from then on.
-- **Lost device:** type the recovery code under **account** on the new one, or ask the server's admin to relink it (`POST /api/admin/relink`).
+- **Lost device:** type the recovery code under **account** on the new one, or ask the server's admin to relink it: give them the **this device** id the account box shows (`POST /api/admin/relink`, or the MCP tool `relink_account`).
 - **unlink** takes this device off the account.
 - **Ratings** follow the account: making one moves the device's rating to it, and every linked device plays under it. **Bans** do too: banning an account's player (by name, or one of its devices) bans every linked device.
 
@@ -148,7 +148,7 @@ claude mcp add --transport http stick2-admin http://localhost:8080/mcp --header 
 | Tools | Who |
 |---|---|
 | `server_health`, `get_metrics_summary`, `list_rooms`, `get_room`, `get_leaderboard`, `get_player_stats`, `list_matches`, `get_match`, `export_replay` | Anyone (or `MCP_TOKEN` holders when it is set) |
-| `list_reports`, `list_flags`, `list_bans`, `kick`, `ban`, `unban`, `close_room` | `ADMIN_TOKEN` only; each call goes to the moderation log like the admin API |
+| `list_reports`, `list_flags`, `list_bans`, `kick`, `ban`, `unban`, `close_room`, `list_accounts`, `get_account`, `relink_account` | `ADMIN_TOKEN` only; each call goes to the moderation log like the admin API |
 
 Resources: `stick2://server/rooms`, `stick2://server/leaderboard`, and `stick2://match/<id>/replay` (a kept match as a replay file). A replay from `export_replay` loads in the game's replay tab, or in the game's own MCP tools (`replay_import`, see [mcp.md](mcp.md)). Calls are counted in `mcp_calls_total{tool,result}` and timed in `mcp_call_seconds`.
 

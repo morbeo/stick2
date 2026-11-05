@@ -149,7 +149,7 @@ function start(cfg = config()) {
   const relay = new Relay({ maxRooms: cfg.maxRooms, idleMs: cfg.roomIdle * 1000, metrics: M, bans, blocklist: cfg.blocklist, audit, replays: cfg.maxReplays ? replays : null, verifier, ratings, accounts,
     delay: cfg.spectateDelay, watchers: Math.min(cfg.maxSpectators, 14) }); // (the relay takes 16 guests at most)
 
-  const mcpHandle = cfg.mcp ? mcp({ relay, ratings, replays, bans, M, reg, cfg, audit, version: VERSION }) : null;
+  const mcpHandle = cfg.mcp ? mcp({ relay, ratings, replays, bans, accounts, M, reg, cfg, audit, version: VERSION }) : null;
 
   // ---------- moderation over HTTP (admin token) ----------
   function admin(req, res, route) {
