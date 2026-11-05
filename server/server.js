@@ -6,7 +6,7 @@
 //   GET /api/rooms   the public rooms, as JSON (the lobby browser)
 //   GET /api/replays  finished matches, newest first; GET /api/replays/<id> one, as a replay file (replays.js)
 //   POST /api/embeds  a short embed link: {hash} -> {id} (embeds.js); GET /e/<id> redirects to the game with that hash
-//   /api/admin/…     moderation, with the ADMIN_TOKEN as a bearer token (off without one): rooms, reports, bans, kick, ban, unban, close
+//   /api/admin/…     moderation, with the ADMIN_TOKEN as a bearer token (off without one): rooms, reports, bans, flags, kick, ban, unban, close
 //   WS  /ws          the relay (relay.js)
 // Configured by environment variables, every one with a default (see docs/server.md):
 const fs = require('fs'), path = require('path'), http = require('http');
@@ -16,6 +16,7 @@ const { Registry } = require('./metrics');
 const { Bans } = require('./moderation');
 const { Embeds, MAX_HASH } = require('./embeds');
 const { Replays } = require('./replays');
+const { Verifier } = require('./verify');
 
 const num = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 0 ? n : d; };
 function config(env = process.env) {
@@ -37,6 +38,7 @@ function config(env = process.env) {
     dbPath: env.DB_PATH || '', // a folder for bans.json and embeds.json; none: they live in memory only
     maxEmbeds: num(env.MAX_EMBEDS, 10000), // short embed links kept (0: short links off)
     maxReplays: num(env.MAX_REPLAYS, 200), // finished matches kept as replays (0: off)
+    verify: env.VERIFY !== '0', // play every finished match again on the server, for verdicts, gameplay stats and cheat flags
     spectateDelay: num(env.SPECTATE_DELAY, 180), // frames (60 a second) spectators watch behind the players
     maxSpectators: num(env.MAX_SPECTATORS, 14), // people a room may have besides its two fighters (spectators and the queue)
     blocklist: (env.NAME_BLOCKLIST || '').split(',').map(w => w.trim()).filter(Boolean),
@@ -44,6 +46,8 @@ function config(env = process.env) {
     log: env.LOG_LEVEL || 'info',
   };
 }
+// the roster's characters (src/engine/chars/index.json, without the kit), the only names a metric label takes
+const CHARS = (() => { try { return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'src', 'engine', 'chars', 'index.json'), 'utf8')).filter(n => !n.startsWith('_')).concat('stick'); } catch { return ['stick']; } })();
 const VERSION = (() => { try { return require('../package.json').version || require('./package.json').version || 'dev'; } catch { return 'dev'; } })();
 const COMMIT = process.env.COMMIT || 'dev';
 
@@ -97,14 +101,32 @@ function start(cfg = config()) {
     replays: reg.counter('replays_saved_total', 'Finished matches saved as replays'),
     handovers: reg.counter('host_handovers_total', 'Rooms handed to a guest when their host left'),
     replayBytes: reg.gauge('replay_storage_bytes', 'Bytes of the saved replays', () => replays.bytes()),
+    verified: reg.counter('verify_total', 'Finished matches the server played again, by verdict (ok, desync, result, version, error)'),
+    verifySeconds: reg.histogram('verify_seconds', 'How long the server takes to play a finished match again', [0.1, 0.25, 0.5, 1, 2, 5, 10, 20]),
+    verifyQueue: reg.gauge('verify_queue', 'Finished matches waiting to be played again', () => verifier?.queued ?? 0),
+    flags: reg.counter('flagged_total', 'Matches whose replay does not add up (desync: the inputs give other checksums; result: another winner than claimed)'),
+    ends: reg.counter('match_ends_total', 'Verified matches, by how they ended (ko, double ko, time) and which side won (p1, p2, draw)'),
+    frames: reg.histogram('match_frames', 'Length of verified matches in frames (60 a second)', [600, 1800, 3600, 5400, 7200, 10800, 18000]),
+    picks: reg.counter('character_picks_total', 'Characters played in verified matches (roster names; anything else is custom)'),
+    wins: reg.counter('character_wins_total', 'Characters that won verified matches'),
+    hpLeft: reg.histogram('winner_hp_left', "The winner's health left at the end of a verified match", [10, 25, 50, 75, 100, 150, 200]),
     spectatorPeak: reg.gauge('spectator_peak', 'Most spectators in rooms at once since the server started', () => relay.spectatorPeak),
   };
+  // gameplay stats from a verified match (low cardinality: roster characters by name, every other one as custom)
+  const ROSTER = new Set(CHARS), char = n => ROSTER.has(n) ? n : 'custom';
+  M.match = st => {
+    M.ends.inc({ end: st.end, side: st.winner === 0 ? 'p1' : st.winner === 1 ? 'p2' : 'draw' });
+    M.frames.observe(st.frames);
+    for (const c of st.chars) M.picks.inc({ char: char(c) });
+    if (st.winner === 0 || st.winner === 1) { M.wins.inc({ char: char(st.chars[st.winner]) }); M.hpLeft.observe(st.hp[st.winner]); }
+  };
+  const verifier = cfg.verify ? new Verifier() : null;
   const bans = new Bans({ file: cfg.dbPath ? path.join(cfg.dbPath, 'bans.json') : null });
   const embeds = new Embeds({ file: cfg.dbPath ? path.join(cfg.dbPath, 'embeds.json') : null, max: cfg.maxEmbeds });
   const embedRate = new Map(); // address -> [window start, count]: 60 short links an hour each
   const audit = (action, detail) => log('info', 'moderation', { action, ...detail });
   const replays = new Replays({ dir: cfg.dbPath ? path.join(cfg.dbPath, 'replays') : null, max: cfg.maxReplays });
-  const relay = new Relay({ maxRooms: cfg.maxRooms, idleMs: cfg.roomIdle * 1000, metrics: M, bans, blocklist: cfg.blocklist, audit, replays: cfg.maxReplays ? replays : null,
+  const relay = new Relay({ maxRooms: cfg.maxRooms, idleMs: cfg.roomIdle * 1000, metrics: M, bans, blocklist: cfg.blocklist, audit, replays: cfg.maxReplays ? replays : null, verifier,
     delay: cfg.spectateDelay, watchers: Math.min(cfg.maxSpectators, 14) }); // (the relay takes 16 guests at most)
 
   // ---------- moderation over HTTP (admin token) ----------
@@ -116,6 +138,7 @@ function start(cfg = config()) {
       if (route === 'rooms') return json(200, { rooms: relay.detail() });
       if (route === 'reports') return json(200, { reports: relay.reports });
       if (route === 'bans') return json(200, { bans: bans.active() });
+      if (route === 'flags') return json(200, { flags: relay.flags });
       return json(404, { error: 'unknown' });
     }
     let body = '';
@@ -252,7 +275,7 @@ function start(cfg = config()) {
         if (playing && Date.now() < until) return;
         clearInterval(check); clearInterval(pinger); clearInterval(sweeper);
         for (const ws of wss.clients) ws.close(1001, 'server restarting');
-        wss.close(); server.close(() => done());
+        wss.close(); verifier?.close(); server.close(() => done());
         setTimeout(done, 2000).unref();
       }, 250);
     });

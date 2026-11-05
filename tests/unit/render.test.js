@@ -46,6 +46,7 @@ test('every projectile look, styled spark and glow draws without NaN', () => {
     w.drawShots(ctx);
     // a beam of stretches: a cosmetic line and a hitting tip (boxes on: only the tip is boxed)
     w.beams.push({ x: 200, y: 250, z: 0, dir: 1, w: 14, range: 400, dur: 0.25, t: 0.2, look: 'laser', parts: [{ from: 0, to: 1, w: 0.6, hits: false }, { from: 0.85, to: 1, w: 1.4 }] });
+    w.beams.push({ x: 200, y: 250, z: 0, dir: -1, w: 20, range: 300, dur: 0.5, t: 0.3, look: 'fire', ang0: 0, ang1: 60 }); // a rising fire stream
     w.drawBeams(ctx);
     for (const s of ['heavy', 'slash', 'blunt']) w.spark(s, [400, 300], 0, 1);
     const kinds = [...new Set(w.parts.map(p => p.t))]; w.drawParticles(ctx);

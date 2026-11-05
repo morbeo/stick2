@@ -139,6 +139,8 @@ function netPhase(e) {
     net.feed = L.host ? new WatchFeed(net.server?.delay || 0) : feeds ? new WatchFeed(0) : null;
     // the host's end of a fight: the result, and the replay for the server
     const over = r => { if (!L.host) return; L.finish(r); net.server?.saveReplay?.(m.replay(), r, L.state.slots.map(s => s?.name)); };
+    // the server plays the fight again: a fight that doesn't add up is said in the room log
+    if (net.server) net.server.verified = v => { if (v.verdict === 'desync' || v.verdict === 'result') netSay(`:gavel: the server played the fight again and it doesn't add up (${v.why}): it's flagged for the admins`); };
     // a spectator (the host too, when it sits out) watches the confirmed frames; a player plays and, if it feeds, passes them on
     const m = net.match = !L.me
       ? new NetWatch({ header: e.header, hooks: { desync, end: r => { netSay(r.winner === null ? 'draw' : `${L.state.slots[r.winner]?.name ?? `P${r.winner + 1}`} wins`); over(r); } } })
@@ -403,12 +405,16 @@ function netRoomList({ url, server, region, rooms, loading }) {
     r.locked ? null : button(':check: join', `Join ${r.name}`, () => netLobby('guest', { url, room: r.room })),
     button(':visibility: watch', `Watch ${r.name}`, () => netLobby('guest', { url, room: r.room, want: 'watch' })))));
 }
+// the server's verdict on a saved fight (server/verify.js): played again and the same, didn't add up, or not checked
+const NET_VERDICT = { ok: ['verified', 'The server played this fight again from its inputs: same fight, same winner'], desync: ['doesn\'t add up', 'Played again on the server, the inputs give another fight: flagged'],
+  result: ['wrong winner', 'Played again on the server, the fight has another winner than the host said: flagged'], version: ['not checked', 'Recorded with another engine version than the server runs'] };
+function netVerdict(v) { const d = v && NET_VERDICT[v.verdict]; return d ? h('span', { cls: 'netverdict ' + v.verdict, tip: d[1] + (v.why ? ` (${v.why})` : ''), textContent: ' · ' + d[0] }) : null; }
 // a server's saved replays, each with watch and save
 function netReplayList({ url, server, replays, loading }) {
   const head = h('p', {}, h('b', { textContent: server || netServerName(url) }), loading ? ' · loading…' : ` · ${replays.length} replay${replays.length === 1 ? '' : 's'}`,
     button(':replay:', 'List the replays again', () => netReplays(url)), button(':close:', 'Hide the replays', () => { net.replays = null; netDraw(); }));
   return h('div', { cls: 'netrooms' }, head, replays.map(r => h('div', { cls: 'netslot' },
-    h('b', { textContent: (r.players || []).join(' vs ') || r.id }), ` · ${r.scenario} · ${Math.round(r.frames / 60)} s · ${netTime(new Date(r.at))}`,
+    h('b', { textContent: (r.players || []).join(' vs ') || r.id }), ` · ${r.scenario} · ${Math.round(r.frames / 60)} s · ${netTime(new Date(r.at))}`, netVerdict(r.verify),
     button(':play_arrow: watch', 'Watch this fight again', () => netReplayOpen(url, r.id, netWatchAgain)),
     button(':save:', 'Save it as a replay file', () => netReplayOpen(url, r.id, rep => download(`netplay-${r.id}.json`, rep))))));
 }

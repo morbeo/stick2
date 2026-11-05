@@ -136,7 +136,7 @@ test('a real lobby and match through the server: both sides fight the same fight
     const ev = { host: [], guest: [] };
     const mk = (role, name) => new Lobby({ role, name, hooks: { event: e => ev[role].push(e), match: m => matches[role]?.receive(m) } });
     const matches = {}, host = mk('host', 'hana'), guest = mk('guest', 'gus');
-    let room; const opened = new Promise(done => run('netServerHost')(host, url, { room: r => { room = r; done(); }, WS: WebSocket }));
+    let room, hl; const opened = new Promise(done => { hl = run('netServerHost')(host, url, { room: r => { room = r; done(); }, WS: WebSocket }); });
     await opened;
     const joined = new Promise(done => { const t = setInterval(() => { if (guest.id) { clearInterval(t); done(); } }, 10); });
     run('netServerJoin')(guest, url, room, 'play', { WS: WebSocket });
@@ -157,6 +157,17 @@ test('a real lobby and match through the server: both sides fight the same fight
     assert.ok(Object.keys(matches.host.sums).length > 0);
     for (const f of Object.keys(matches.guest.sums)) if (matches.host.sums[f] !== undefined) assert.equal(matches.guest.sums[f], matches.host.sums[f]);
     assert.match(await (await get(s, '/metrics')).text(), /stick2_matches_total 1/);
+    // the host's replay, played again on the server: the same fight, the same winner
+    let verdict; hl.verified = v => { verdict = v; };
+    const out = matches.host.outcome();
+    hl.saveReplay(JSON.parse(JSON.stringify(matches.host.replay())), { winner: out.winner }, ['hana', 'gus']);
+    await until(() => verdict, 20000);
+    assert.equal(verdict.verdict, 'ok', verdict.why);
+    assert.equal((await (await get(s, '/api/replays')).json()).replays[0].verify.verdict, 'ok');
+    const text = await (await get(s, '/metrics')).text();
+    assert.match(text, /stick2_verify_total\{verdict="ok"\} 1/);
+    assert.match(text, /stick2_character_picks_total\{char="sneeko"\} 1/);
+    assert.match(text, /stick2_match_ends_total\{end="time",side="(p1|p2|draw)"\} 1/);
   });
 });
 
@@ -209,14 +220,18 @@ test('replays: the host saves its finished match once, /api/replays lists it and
   });
 });
 
-test('replays off: MAX_REPLAYS=0 refuses them', async () => {
-  const s = await boot({ MAX_REPLAYS: '0' });
-  await quiet(s, async () => {
-    const h = client(s); await h.next('hello');
-    h.send({ t: 'host' }); await h.next('room');
-    h.send({ t: 'replay', replay: { format: 'stick2-replay', chars: [], frames: [] } });
-    assert.match((await h.next('error')).error, /^off/);
-  });
+test('replays off: MAX_REPLAYS=0 keeps none but still verifies the match; with VERIFY=0 too, the server refuses them', async () => {
+  for (const [env, want] of [[{ MAX_REPLAYS: '0' }, 'verified'], [{ MAX_REPLAYS: '0', VERIFY: '0' }, 'error']]) {
+    const s = await boot(env);
+    await quiet(s, async () => {
+      const h = client(s); await h.next('hello');
+      h.send({ t: 'host' }); await h.next('room');
+      h.send({ t: 'replay', replay: { format: 'stick2-replay', chars: [], frames: [] } });
+      const m = await h.next(want);
+      if (want === 'error') assert.match(m.error, /^off/); else { assert.equal(m.id, null); assert.equal(m.verdict, 'version'); }
+      assert.match(await (await get(s, '/metrics')).text(), want === 'error' ? /stick2_verify_queue 0/ : /stick2_verify_total\{verdict="version"\} 1/);
+    });
+  }
 });
 
 test('the room browser shows each room\'s rules, queue and longest streak, from the host\'s lobby', async () => {

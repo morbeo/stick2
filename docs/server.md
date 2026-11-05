@@ -35,6 +35,7 @@ Docker (build from the repo root):
 docker build -f server/Dockerfile -t stick2-server .
 docker run -p 8080:8080 -v stick2:/data stick2-server
 docker compose -f server/docker-compose.yml up -d
+docker compose -f server/docker-compose.full.yml up -d   # plus Prometheus and Grafana (see Monitoring)
 ```
 
 Releases publish `ghcr.io/morbeo/stick2-server` for amd64 and arm64 (the `image` job of `.github/workflows/release.yml`). Open `http://<host>:8080/` to play from the server itself. For players on the internet, put it behind HTTPS (Caddy, nginx, Cloudflare) and set `TRUST_PROXY=1`: a game page served over HTTPS can only open `wss://`.
@@ -64,6 +65,7 @@ Environment variables, each with a default:
 | `DB_PATH` | (none; `/data` in the image) | Folder for `bans.json` and `embeds.json`; none: they last until a restart |
 | `SPECTATE_DELAY` | `180` | Frames (60 a second) spectators watch behind the players, so they can't call out what's coming; `0` for live |
 | `MAX_SPECTATORS` | `14` | People a room may have besides its two fighters: spectators and the queue (at most 14; a room holds 16) |
+| `VERIFY` | `1` | Play every finished match again on the server (see [Verify](#verify)); `0` turns it off |
 | `MAX_REPLAYS` | `200` | Finished matches kept as replays (in `DB_PATH/replays/` if set, else in memory), oldest dropped first; `0` turns them off |
 | `MAX_EMBEDS` | `10000` | Short embed links kept ([embed short links](embed.md#short-links)); `0` turns them off |
 | `NAME_BLOCKLIST` | (none) | More words names may not contain, comma separated |
@@ -95,6 +97,33 @@ A server room holds up to 16 people. Two fight, the rest watch and queue, and th
 - **Delay.** The server tells the host `SPECTATE_DELAY` when the room opens. The host holds spectators that many frames behind, catch-up included. The last frames go out when the fight ends.
 - **Replays.** When a fight ends, the host sends its replay (once per match). The netplay section's **replays** lists the server's saved fights, with **watch** (plays it in the play tab) and save. After any online fight, **watch again** plays it back.
 
+## Verify
+
+When a fight ends, the host sends its replay (above). The server plays it again from its inputs, on its own copy of the engine, in a worker thread so rooms don't wait. Its verdict:
+
+| Verdict | Means |
+|---|---|
+| `ok` | The fight plays out as recorded, with the winner the host said |
+| `desync` | The inputs give other checksums: a tampered replay, or a client on another build |
+| `result` | In sync, but the host claimed another winner |
+| `version` | Recorded with another engine version than the server's: not checked |
+| `error` | Not playable, too long (over 15 minutes), the queue is full (50), or it took over 20 s |
+
+The host hears the verdict (`verified`), and the room log says so when a fight doesn't add up. A saved replay keeps its verdict, so **replays** marks each fight **verified**, **doesn't add up**, **wrong winner** or **not checked**. A `desync` or `result` is flagged: a `moderation` log line (`flagged`), `GET /api/admin/flags`, and the `flagged_total` metric. Gameplay metrics (how fights end, characters, length) count only `ok` and `result` fights, so a tampered replay can't skew them.
+
+With `MAX_REPLAYS=0` the server still verifies (no replay is kept); with `VERIFY=0` as well it refuses replays.
+
+## Monitoring
+
+`server/docker-compose.full.yml` runs the server with Prometheus and Grafana, all self-hosted:
+
+- **Prometheus** (http://localhost:9090) scrapes `/metrics` every 15 s, with alert rules in `server/monitoring/alerts.yml`: server down, a desync spike, a wrong result, round trip p95 over 200 ms, a verify backlog. With `METRICS_TOKEN` set, add it to `server/monitoring/prometheus.yml`.
+- **Grafana** (http://localhost:3000, `admin` / `GRAFANA_PASSWORD`) opens on the provisioned **stick2 server** dashboard (light theme): players, rooms, matches an hour, desync-free ratio, verify verdicts and flags, round trip, verify time, match length, character picks and win rates, how fights end.
+
+```sh
+GRAFANA_PASSWORD=pick-one docker compose -f server/docker-compose.full.yml up -d
+```
+
 ## Shutting down
 
 `SIGTERM` (what `docker stop` sends) starts a **graceful drain**: `/healthz` answers 503 so a load balancer stops sending players, new rooms and joins are refused, and running matches get up to `DRAIN_TIMEOUT` to finish. Then every connection closes and the process exits. Set the orchestrator's grace period to match (`stop_grace_period` in compose). A second `SIGINT` exits at once.
@@ -118,6 +147,7 @@ Every player has a name on the server. The app sends the name typed in the netpl
 | `GET /api/admin/rooms` | | Every room, public or not, with its players' names |
 | `GET /api/admin/reports` | | The reports |
 | `GET /api/admin/bans` | | Running bans |
+| `GET /api/admin/flags` | | The last 200 matches that didn't add up ([Verify](#verify)): verdict, why, room, host, players, replay id |
 | `POST /api/admin/kick` | `{ player, reason? }` | Send a player off (a host's room closes) |
 | `POST /api/admin/ban` | `{ player? , device?, reason?, minutes? }` | Ban by name; an online player's device and hashed address too. No `minutes`: permanent |
 | `POST /api/admin/unban` | `{ id }` | Lift a ban |
@@ -147,6 +177,10 @@ All prefixed `stick2_`. Labels never carry names, ids or room codes.
 | `kicks_total{by}`, `bans_total`, `reports_total` | counter | Moderation (`by`: host or admin) |
 | `replays_saved_total`, `replay_storage_bytes`, `spectator_peak` | counter, gauge, gauge | Saved replays, their size, most spectators at once |
 | `host_handovers_total` | counter | Rooms handed to a guest when their host left |
+| `verify_total{verdict}`, `verify_seconds`, `verify_queue` | counter, histogram, gauge | Finished matches played again, how long it took, how many wait |
+| `flagged_total{verdict}` | counter | Matches that didn't add up (`desync`, `result`) |
+| `match_ends_total{end,side}`, `match_frames` | counter, histogram | Verified fights: `ko`, `double ko` or `time`, won by `p1`, `p2` or `draw`; length in frames |
+| `character_picks_total{char}`, `character_wins_total{char}`, `winner_hp_left` | counter, counter, histogram | Roster characters by name (any other is `custom`), and the winner's health left |
 | `rooms_empty` | gauge | Open rooms with nobody in them, waiting out `ROOM_IDLE` |
 
 ## Protocol
@@ -164,7 +198,7 @@ JSON, one object per WebSocket message. On connecting, the server sends `{ t: 'h
 | host | `{ t: 'kick', id, ban? }` | the guest gets `{ t: 'closed', why }`, the host `{ t: 'gone', id, why }` |
 | host | `{ t: 'lock', locked }` | joins are refused while locked |
 | either | `{ t: 'report', id?, reason, lines? }` | `{ t: 'reported' }` |
-| host | `{ t: 'replay', replay, result?, players? }` | `{ t: 'saved', id }`: the finished match, kept for `/api/replays` |
+| host | `{ t: 'replay', replay, result?, players? }` | `{ t: 'saved', id }`: the finished match, kept for `/api/replays`; then `{ t: 'verified', id, verdict, why? }` once the server played it again |
 | server | `{ t: 'error', error }` | a refused request: `full: …`, `no room: …`, `locked: …`, `kicked: …`, `banned: …`, `draining: …`, `bad message`, … |
 
 `m` is a [lobby](netplay.md) or match message, passed on untouched.

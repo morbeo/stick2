@@ -284,7 +284,7 @@ function holdOptionsRows() {
 // what normalize returns to: the built-in move of the same name (copies like jab2: the move they were copied from)
 const builtInMove = () => (CHAR_DEFS[CURRENT] || CHAR_DEFS.stick).moves[anim.move.replace(/\d+$/, '')];
 const SHOT_TIPS = { ki: 'A blue ball of energy', fire: 'A flickering fireball', dark: 'A dark purple orb', wave: 'A crescent wave (sonic boom)', star: 'A spinning shuriken' };
-const BEAM_TIPS = { laser: 'A bright red-hot line' };
+const BEAM_TIPS = { laser: 'A bright red-hot line', fire: 'A flickering stream of flame that widens toward its end' };
 const SPARK_TIPS = { hit: 'Hit spark: the plain sparks and ring when a strike during this key lands', heavy: 'Heavy: a big flash, a wide ring and thick sparks',
   slash: 'Slash: a cut across the point of impact (blades)', blunt: 'Blunt: a flash and chunky bits (clubs, stomps)',
   impact: 'Impact flash: a brighter, wider flash and ring (a dramatic landed hit)', explosion: 'Explosion: a big flash, ring and shower of sparks, with extra screen shake',
