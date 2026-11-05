@@ -1,0 +1,3 @@
+apiVersion: 1
+providers:
+  - { name: stick2, folder: stick2, type: file, options: { path: /etc/grafana/dashboards } }
