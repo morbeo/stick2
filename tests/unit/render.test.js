@@ -44,6 +44,9 @@ test('every projectile look, styled spark and glow draws without NaN', () => {
     // a shot of parts: a hitting ball off-centre, a cosmetic glow and a cosmetic capsule tail (boxes on: rings and a capsule band)
     w.shots.push({ x: 300, y: 200, z: 0, r: 20, k: 1, t: 0.1, dir: 1, look: 'fire', parts: [{ dx: 4, r: 8 }, { r: 20, hits: false }, { shape: 'capsule', dx2: -40, r: 4, hits: false }, { shape: 'capsule', dx2: 20, dy2: 5, r: 3 }] });
     w.drawShots(ctx);
+    // a beam of stretches: a cosmetic line and a hitting tip (boxes on: only the tip is boxed)
+    w.beams.push({ x: 200, y: 250, z: 0, dir: 1, w: 14, range: 400, dur: 0.25, t: 0.2, look: 'laser', parts: [{ from: 0, to: 1, w: 0.6, hits: false }, { from: 0.85, to: 1, w: 1.4 }] });
+    w.drawBeams(ctx);
     for (const s of ['heavy', 'slash', 'blunt']) w.spark(s, [400, 300], 0, 1);
     const kinds = [...new Set(w.parts.map(p => p.t))]; w.drawParticles(ctx);
     w.a.force('charge'); w.a.draw(ctx); // unblockable frames ahead: the striking limbs glow
