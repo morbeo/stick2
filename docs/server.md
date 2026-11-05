@@ -51,6 +51,7 @@ Environment variables, each with a default:
 | `REGION` | (none) | Shown to clients |
 | `STATIC_DIR` | the repo root | The game's files, served at `/`; empty: serve no game |
 | `MAX_ROOMS` | `500` | Rooms open at once |
+| `ROOM_IDLE` | `120` | Seconds an empty room stays open after its last player leaves; the first one to join it then hosts it, with its rules. `0`: a room closes with its last player |
 | `MAX_CONNECTIONS` | `2000` | WebSocket connections at once |
 | `MAX_PER_IP` | `16` | Connections from one address |
 | `MSG_RATE` | `200` | Messages a second per connection (bursts of twice that); a match sends about 60 |
@@ -85,7 +86,7 @@ Environment variables, each with a default:
 
 ## Rooms as pools
 
-A server room holds up to 16 people. Two fight, the rest watch and queue, and the host picks a rotation (winner stays, loser stays, both rotate, or the same two) with an optional streak cap. The host can sit out and still run the room. See [the pool](netplay.md#the-pool-queue-and-rotation). Rooms have rules (best of, fight length, character bans, rollback), and the room browser shows them with the queue and the longest streak; **open** shows only rooms you could fight in soon. A room survives its host: when the host leaves (or its connection drops) and guests are still in it, the guest who has been there longest hosts it now, with the same room code, rules, queue and scores (see [the pool](netplay.md#the-pool-queue-and-rotation), handover). The last one out closes it; an admin close or a drain still closes it at once.
+A server room holds up to 16 people. Two fight, the rest watch and queue, and the host picks a rotation (winner stays, loser stays, both rotate, or the same two) with an optional streak cap. The host can sit out and still run the room. See [the pool](netplay.md#the-pool-queue-and-rotation). Rooms have rules (best of, fight length, character bans, rollback), and the room browser shows them with the queue and the longest streak; **open** shows only rooms you could fight in soon. A room survives its host: when the host leaves (or its connection drops) and guests are still in it, the guest who has been there longest hosts it now, with the same room code, rules, queue and scores (see [the pool](netplay.md#the-pool-queue-and-rotation), handover). When the last one leaves, the room stays open, empty, for `ROOM_IDLE` seconds (2 minutes by default): the room browser shows it as **empty: join to host it**, and the first one to join hosts it with the same code and rules (not bans). A locked room, an admin close or a drain still closes it at once.
 
 ## Spectating and replays
 
@@ -146,6 +147,7 @@ All prefixed `stick2_`. Labels never carry names, ids or room codes.
 | `kicks_total{by}`, `bans_total`, `reports_total` | counter | Moderation (`by`: host or admin) |
 | `replays_saved_total`, `replay_storage_bytes`, `spectator_peak` | counter, gauge, gauge | Saved replays, their size, most spectators at once |
 | `host_handovers_total` | counter | Rooms handed to a guest when their host left |
+| `rooms_empty` | gauge | Open rooms with nobody in them, waiting out `ROOM_IDLE` |
 
 ## Protocol
 
@@ -157,7 +159,7 @@ JSON, one object per WebSocket message. On connecting, the server sends `{ t: 'h
 | guest | `{ t: 'join', room, player?, device? }` | `{ t: 'joined', room, player }`; the host gets `{ t: 'peer', id, player }` |
 | host | `{ t: 'to', id, m }` | that guest gets `{ t: 'msg', m }` |
 | guest | `{ t: 'msg', m }` | the host gets `{ t: 'from', id, m }` |
-| either | `{ t: 'leave' }` | the host gets `{ t: 'gone', id, why }`. If the host leaves a room with guests, the longest-staying guest gets `{ t: 'promoted', room, player, peers, delay, watchers }` and hosts it, and the others get `{ t: 'newhost', player }`; an empty room closes |
+| either | `{ t: 'leave' }` | the host gets `{ t: 'gone', id, why }`. If the host leaves a room with guests, the longest-staying guest gets `{ t: 'promoted', room, player, peers, delay, watchers }` and hosts it, and the others get `{ t: 'newhost', player }`. The last one out leaves the room empty for `ROOM_IDLE`; whoever joins it then gets `{ t: 'promoted', room, player, peers: [], delay, watchers, fresh: true, rules }` instead of `joined` |
 | either | `{ t: 'list' }` | `{ t: 'rooms', rooms }` |
 | host | `{ t: 'kick', id, ban? }` | the guest gets `{ t: 'closed', why }`, the host `{ t: 'gone', id, why }` |
 | host | `{ t: 'lock', locked }` | joins are refused while locked |

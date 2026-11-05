@@ -26,6 +26,7 @@ function config(env = process.env) {
     region: env.REGION || '',
     staticDir: env.STATIC_DIR === '' ? null : path.resolve(env.STATIC_DIR || path.join(__dirname, '..')),
     maxRooms: num(env.MAX_ROOMS, 500),
+    roomIdle: num(env.ROOM_IDLE, 120), // seconds an empty room stays open for someone to come back and host it (0: it closes with its last player)
     maxConns: num(env.MAX_CONNECTIONS, 2000),
     perIp: num(env.MAX_PER_IP, 16),
     msgRate: num(env.MSG_RATE, 200), // messages a second per connection (a match sends ~60)
@@ -72,6 +73,7 @@ function start(cfg = config()) {
     draining: reg.gauge('draining', '1 while the server is shutting down', () => relay.draining ? 1 : 0),
     conns: reg.gauge('connections', 'Open WebSocket connections'),
     rooms: reg.gauge('rooms', 'Open rooms'),
+    emptyRooms: reg.gauge('rooms_empty', 'Open rooms with nobody in them, waiting for someone to host them (ROOM_IDLE)', () => { let n = 0; for (const r of relay.rooms.values()) if (!r.host) n++; return n; }),
     roomPhase: reg.gauge('rooms_by_phase', 'Open rooms by lobby phase', () => Object.fromEntries(Object.entries(relay.phases()).map(([p, n]) => [`phase="${p}"`, n]))),
     players: reg.gauge('players_online', 'Players and spectators in rooms', () => { let n = 0; for (const r of relay.rooms.values()) n += 1 + r.guests.size; return n; }),
     spectators: reg.gauge('spectators', 'Spectators in rooms (as the hosts report them)', () => { let n = 0; for (const r of relay.rooms.values()) n += r.watchers; return n; }),
@@ -102,7 +104,7 @@ function start(cfg = config()) {
   const embedRate = new Map(); // address -> [window start, count]: 60 short links an hour each
   const audit = (action, detail) => log('info', 'moderation', { action, ...detail });
   const replays = new Replays({ dir: cfg.dbPath ? path.join(cfg.dbPath, 'replays') : null, max: cfg.maxReplays });
-  const relay = new Relay({ maxRooms: cfg.maxRooms, metrics: M, bans, blocklist: cfg.blocklist, audit, replays: cfg.maxReplays ? replays : null,
+  const relay = new Relay({ maxRooms: cfg.maxRooms, idleMs: cfg.roomIdle * 1000, metrics: M, bans, blocklist: cfg.blocklist, audit, replays: cfg.maxReplays ? replays : null,
     delay: cfg.spectateDelay, watchers: Math.min(cfg.maxSpectators, 14) }); // (the relay takes 16 guests at most)
 
   // ---------- moderation over HTTP (admin token) ----------
@@ -235,6 +237,7 @@ function start(cfg = config()) {
   });
   // pings find dead connections (and measure the round trip)
   const pinger = setInterval(() => { for (const ws of wss.clients) ws.ping$?.(); }, 15000);
+  const sweeper = setInterval(() => relay.sweep(), 5000); sweeper.unref(); // empty rooms past ROOM_IDLE
 
   // ---------- graceful drain: no new rooms or joins, matches finish, then exit ----------
   let stopping = null;
@@ -247,7 +250,7 @@ function start(cfg = config()) {
       const check = setInterval(() => {
         const playing = [...relay.rooms.values()].some(r => r.phase === 'match' || r.phase === 'sync');
         if (playing && Date.now() < until) return;
-        clearInterval(check); clearInterval(pinger);
+        clearInterval(check); clearInterval(pinger); clearInterval(sweeper);
         for (const ws of wss.clients) ws.close(1001, 'server restarting');
         wss.close(); server.close(() => done());
         setTimeout(done, 2000).unref();

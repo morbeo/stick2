@@ -61,7 +61,7 @@ function netLobby(role, server = null, pin = null) {
       else if (e.type === 'joined') { if (net.inviting === 'connecting') net.inviting = null; net.err = null; netSay(`${e.name} joined`); }
       else if (e.type === 'left') netSay(`${e.name} ${e.why}`);
       else if (e.type === 'error') netSay(':close: ' + e.error);
-      else if (e.type === 'host') netSay('the host left: you host the room now');
+      else if (e.type === 'host') netSay(e.fresh ? 'the room was empty: you host it now' : 'the host left: you host the room now');
       else if (e.type === 'rejoin') netSay('the host left: the room has a new host');
       else if (e.type === 'phase') netPhase(e);
     } } });
@@ -397,7 +397,7 @@ function netRoomList({ url, server, region, rooms, loading }) {
     toggle('open', 'Only rooms you could fight in soon: a free place, or a rotation', () => !!net.roomsOpen, v => { net.roomsOpen = v; netDraw(); }),
     button(':replay:', 'List the rooms again', () => netRooms(url)), button(':close:', 'Hide the room list', () => { net.rooms = null; netDraw(); }));
   return h('div', { cls: 'netrooms' }, head, shown.map(r => h('div', { cls: 'netslot' },
-    h('b', { textContent: r.name }), ` · ${r.room} · ${r.phase} · ${r.players}/2${r.queue ? ` · ${r.queue} in line` : ''}${r.watchers ? ` · ${r.watchers} watching` : ''}${r.locked ? ' · locked' : ''}`,
+    h('b', { textContent: r.name }), ` · ${r.room} · ${r.empty ? 'empty: join to host it' : r.phase} · ${r.players}/2${r.queue ? ` · ${r.queue} in line` : ''}${r.watchers ? ` · ${r.watchers} watching` : ''}${r.locked ? ' · locked' : ''}`,
     r.streak ? ` · ${r.streak.name} on a ${r.streak.streak}-streak` : '',
     r.rules ? h('div', { cls: 'netrules', textContent: netRulesText({ ...r.rules, bans: r.rules.bans ? [`${r.rules.bans} character${r.rules.bans === 1 ? '' : 's'}`] : [] }) }) : null,
     r.locked ? null : button(':check: join', `Join ${r.name}`, () => netLobby('guest', { url, room: r.room })),

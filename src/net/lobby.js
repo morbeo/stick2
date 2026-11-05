@@ -218,8 +218,9 @@ class Lobby {
   // We host from our last snapshot: the old host leaves it, we become 'h', and everyone else is away until they say hello again
   // with their old id (rejoin); anyone still away after the timeout is dropped. A fight the old host was in is its forfeit; one it
   // only watched is called off. (The old host forfeits as 'host': 'h' is us now.)
-  promote() {
-    if (this.host || !this.state || this.phase === 'closed') return false;
+  promote(rules = null) {
+    if (this.host || this.phase === 'closed') return false;
+    if (!this.state) return this.adopt(rules);
     const s = JSON.parse(JSON.stringify(this.state)), me = this.id, played = s.slots.some(x => x?.id === 'h');
     const swap = id => id === me ? 'h' : id;
     s.slots = s.slots.map(x => x?.id === 'h' ? null : x && { ...x, id: swap(x.id) });
@@ -235,6 +236,16 @@ class Lobby {
     if (s.phase === 'sync') this.abort('the host left while the match was starting');
     else if (s.phase === 'match') { if (played) this.finish({ forfeit: 'host', why: 'left' }, false); else { s.phase = 'lobby'; s.error = 'the host left mid-fight: fight called off'; this.emit({ type: 'phase', phase: 'lobby' }); } }
     if (s.phase === 'lobby') this.fill();
+    this.broadcast();
+    return true;
+  }
+  // a guest who walked into an empty server room (ROOM_IDLE): host it from scratch, with the room's last rules (what the server kept of them)
+  adopt(rules = null) {
+    const r = lobbyRules({ ...(rules && typeof rules === 'object' ? rules : {}), bans: [] }); // (the server keeps only how many bans there were)
+    Object.assign(this, { role: 'host', id: 'h', peers: new Map(), defs: {}, toHost: null, waiting: null, lastPing: 0, n: 0, away: new Map(),
+      state: { rev: 0, phase: 'lobby', scenario: 'you vs ai', over: {}, slots: [{ id: 'h', name: this.name, char: null, ready: false, rtt: 0 }, null], watch: [], error: null, result: null,
+        queue: [], rules: r, score: {}, series: {} } });
+    this.emit({ type: 'host', fresh: true });
     this.broadcast();
     return true;
   }
