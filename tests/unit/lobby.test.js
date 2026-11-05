@@ -420,3 +420,16 @@ test('a handover mid-fight: the old host\'s forfeit if it played, else the fight
   assert.notEqual(r.g.phase, 'closed', 'no bye: the server hands the room over');
   assert.equal(r.g.promote(), true);
 });
+
+test('a guest who walks into an empty server room hosts it from scratch, with the rules the server kept (no bans)', () => {
+  const ev = [], g = new Lobby({ role: 'guest', name: 'zed', hooks: { event: e => ev.push(e) } });
+  assert.equal(g.promote({ rotation: 'winner', cap: 3, bestOf: 3, timer: 99999, rollback: false, bans: 2 }), true);
+  assert.equal(g.host, true); assert.equal(g.id, 'h');
+  assert.deepEqual(plain(g.state.slots), [{ id: 'h', name: 'zed', char: null, ready: false, rtt: 0 }, null]);
+  const r = plain(g.state.rules);
+  assert.deepEqual([r.rotation, r.cap, r.bestOf, r.timer, r.rollback, r.bans], ['winner', 3, 3, 0, false, []], 'an unknown timer falls back');
+  assert.ok(ev.some(e => e.type === 'host' && e.fresh));
+  assert.equal(g.promote(), false, 'only once');
+  const h = new Lobby({ role: 'guest', name: 'amy' }); h.promote(null);
+  assert.equal(plain(h.state.rules).rotation, 'off');
+});

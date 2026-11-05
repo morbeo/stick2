@@ -1,5 +1,6 @@
 // the dedicated server (server/): HTTP routes, the relay's rooms, limits, the drain, and a real lobby + match through it
 const test = require('node:test'), assert = require('node:assert/strict'), path = require('path');
+const { Relay } = require('../relay');
 const { start, config } = require('../server');
 const engine = require('../../tools/lib/engine');
 
@@ -63,12 +64,39 @@ test('a host opens a room, a guest joins it, messages pass both ways, leaving te
     h.ws.close(); // a host leaving a room with a guest in it hands it over (see the handover test)
     const pro = await g2.next('promoted');
     assert.deepEqual([pro.room, pro.peers], [room, []]);
-    g2.send({ t: 'leave' }); // the last one out closes it
+    g2.send({ t: 'leave' }); // the last one out: the room stays open, empty, for ROOM_IDLE
+    await new Promise(r => setTimeout(r, 50));
+    assert.deepEqual((await (await get(s, '/api/rooms')).json()).rooms.map(r => [r.room, r.empty, r.host, r.players]), [[room, true, null, 0]]);
+    assert.match(await (await get(s, '/metrics')).text(), /stick2_rooms_empty 1/);
     const g3 = client(s); await g3.next('hello');
-    g3.send({ t: 'join', room });
-    assert.match((await g3.next('error')).error, /^no room/);
+    g3.send({ t: 'join', room, name: 'zed' }); // the first one in hosts it
+    const re = await g3.next('promoted');
+    assert.deepEqual([re.room, re.fresh, re.peers], [room, true, []]);
+    assert.equal((await (await get(s, '/api/rooms')).json()).rooms[0].empty, false);
     g2.ws.close(); g3.ws.close();
   });
+});
+
+test('ROOM_IDLE: 0 closes a room with its last player; otherwise an empty room closes once its time runs out', async () => {
+  const s = await boot({ ROOM_IDLE: '0' });
+  await quiet(s, async () => {
+    const h = client(s); await h.next('hello');
+    h.send({ t: 'host' }); const { room } = await h.next('room');
+    h.send({ t: 'leave' });
+    const g = client(s); await g.next('hello');
+    g.send({ t: 'join', room });
+    assert.match((await g.next('error')).error, /^no room/);
+    g.ws.close(); h.ws.close();
+  });
+  let t = 0; const relay = new Relay({ idleMs: 60000, now: () => t }), sent = [];
+  const c = { send: m => sent.push(m) };
+  relay.receive(c, { t: 'host' }); const room = sent.at(-1).room;
+  relay.receive(c, { t: 'leave' });
+  t = 59999; relay.sweep(); assert.ok(relay.rooms.has(room));
+  t = 60000; relay.sweep(); assert.ok(!relay.rooms.has(room), 'swept');
+  relay.receive(c, { t: 'host', locked: true }); const locked = sent.at(-1).room;
+  relay.rooms.get(locked).locked = true; relay.receive(c, { t: 'leave' });
+  assert.ok(!relay.rooms.has(locked), 'a locked room closes with its last player: nobody could come back in');
 });
 
 test('limits: unknown messages, rooms on a full server, connections per address', async () => {
