@@ -65,6 +65,8 @@ Environment variables, each with a default:
 | `DB_PATH` | (none; `/data` in the image) | Folder for `bans.json` and `embeds.json`; none: they last until a restart |
 | `SPECTATE_DELAY` | `180` | Frames (60 a second) spectators watch behind the players, so they can't call out what's coming; `0` for live |
 | `MAX_SPECTATORS` | `14` | People a room may have besides its two fighters: spectators and the queue (at most 14; a room holds 16) |
+| `MCP` | `1` | MCP for AI clients at `POST /mcp` (see [MCP](#mcp)); `0` turns it off |
+| `MCP_TOKEN` | (none) | Set: MCP read tools need it as a bearer token (the admin token works too) |
 | `ACCOUNTS` | `1` | Accounts: a name kept across linked devices, no passwords (see [Accounts](#accounts)); `0` turns them off |
 | `RATINGS` | `1` | Glicko-2 ratings from verified matches, the leaderboard, and quick match by rating (see [Quick match and ratings](#quick-match-and-ratings)); needs `VERIFY`. `0`: quick match still pairs, everyone at 1500 |
 | `VERIFY` | `1` | Play every finished match again on the server (see [Verify](#verify)); `0` turns it off |
@@ -88,6 +90,7 @@ Environment variables, each with a default:
 | `GET /api/replays/<id>` | One saved match, as a [replay file](fighting.md) |
 | `GET /api/leaderboard` | `{ server, players: [{ name, rating, rd, games, wins, draws, ranked, last }] }`: the 50 best ranked players |
 | `GET /api/players/<name>` | One rated player, by the name they last played under (404: none) |
+| `POST /mcp` | MCP (JSON-RPC over Streamable HTTP) for AI clients, see [MCP](#mcp) |
 | `WS /ws` | The relay |
 
 ## Rooms as pools
@@ -132,6 +135,22 @@ No passwords: an account is a name and the devices linked to it (the app's devic
 - **Lost device:** type the recovery code under **account** on the new one, or ask the server's admin to relink it (`POST /api/admin/relink`).
 - **unlink** takes this device off the account.
 - **Ratings** follow the account: making one moves the device's rating to it, and every linked device plays under it. **Bans** do too: banning an account's player (by name, or one of its devices) bans every linked device.
+
+## MCP
+
+The server speaks [MCP](https://modelcontextprotocol.io) at `POST /mcp` (Streamable HTTP, one JSON answer per request), so an AI client can look at it and moderate it:
+
+```sh
+claude mcp add --transport http stick2-server http://localhost:8080/mcp
+claude mcp add --transport http stick2-admin http://localhost:8080/mcp --header "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+| Tools | Who |
+|---|---|
+| `server_health`, `get_metrics_summary`, `list_rooms`, `get_room`, `get_leaderboard`, `get_player_stats`, `list_matches`, `get_match`, `export_replay` | Anyone (or `MCP_TOKEN` holders when it is set) |
+| `list_reports`, `list_flags`, `list_bans`, `kick`, `ban`, `unban`, `close_room` | `ADMIN_TOKEN` only; each call goes to the moderation log like the admin API |
+
+Resources: `stick2://server/rooms`, `stick2://server/leaderboard`, and `stick2://match/<id>/replay` (a kept match as a replay file). A replay from `export_replay` loads in the game's replay tab, or in the game's own MCP tools (`replay_import`, see [mcp.md](mcp.md)). Calls are counted in `mcp_calls_total{tool,result}` and timed in `mcp_call_seconds`.
 
 ## Monitoring
 
@@ -203,6 +222,7 @@ All prefixed `stick2_`. Labels never carry names, ids or room codes.
 | `flagged_total{verdict}` | counter | Matches that didn't add up (`desync`, `result`) |
 | `match_ends_total{end,side}`, `match_frames` | counter, histogram | Verified fights: `ko`, `double ko` or `time`, won by `p1`, `p2` or `draw`; length in frames |
 | `character_picks_total{char}`, `character_wins_total{char}`, `winner_hp_left` | counter, counter, histogram | Roster characters by name (any other is `custom`), and the winner's health left |
+| `mcp_calls_total{tool,result}`, `mcp_call_seconds` | counter, histogram | MCP tool calls |
 | `account_actions_total{action}`, `accounts` | counter, gauge | Accounts: register, link, claim, relink; how many there are |
 | `rated_matches_total`, `rated_players` | counter, gauge | Matches that moved two ratings, players with a rating |
 | `quick_queue`, `quick_matches_total`, `quick_wait_seconds` | gauge, counter, histogram | Quick match: waiting now, rooms opened, how long players waited |

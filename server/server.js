@@ -8,6 +8,7 @@
 //   GET /api/replays  finished matches, newest first; GET /api/replays/<id> one, as a replay file (replays.js)
 //   POST /api/embeds  a short embed link: {hash} -> {id} (embeds.js); GET /e/<id> redirects to the game with that hash
 //   /api/admin/…     moderation, with the ADMIN_TOKEN as a bearer token (off without one): rooms, reports, bans, flags, accounts, kick, relink, ban, unban, close
+//   POST /mcp        MCP (JSON-RPC) for AI clients: rooms, matches, ratings; moderation with the ADMIN_TOKEN (mcp.js)
 //   WS  /ws          the relay (relay.js)
 // Configured by environment variables, every one with a default (see docs/server.md):
 const fs = require('fs'), path = require('path'), http = require('http');
@@ -19,6 +20,7 @@ const { Embeds, MAX_HASH } = require('./embeds');
 const { Replays } = require('./replays');
 const { Verifier } = require('./verify');
 const { Ratings } = require('./ratings');
+const { mcp } = require('./mcp');
 const { Accounts } = require('./accounts');
 
 const num = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 0 ? n : d; };
@@ -41,6 +43,8 @@ function config(env = process.env) {
     dbPath: env.DB_PATH || '', // a folder for bans.json and embeds.json; none: they live in memory only
     maxEmbeds: num(env.MAX_EMBEDS, 10000), // short embed links kept (0: short links off)
     maxReplays: num(env.MAX_REPLAYS, 200), // finished matches kept as replays (0: off)
+    mcp: env.MCP !== '0', // MCP for AI clients at POST /mcp (mcp.js): read tools for everyone (or MCP_TOKEN holders), admin tools with ADMIN_TOKEN
+    mcpToken: env.MCP_TOKEN || '',
     accounts: env.ACCOUNTS !== '0', // accounts: a name kept for a player across devices, no passwords (accounts.js)
     ratings: env.RATINGS !== '0', // Glicko-2 ratings from verified matches (needs VERIFY), a leaderboard and quick match by rating
     verify: env.VERIFY !== '0', // play every finished match again on the server, for verdicts, gameplay stats and cheat flags
@@ -109,6 +113,8 @@ function start(cfg = config()) {
     verified: reg.counter('verify_total', 'Finished matches the server played again, by verdict (ok, desync, result, version, error)'),
     verifySeconds: reg.histogram('verify_seconds', 'How long the server takes to play a finished match again', [0.1, 0.25, 0.5, 1, 2, 5, 10, 20]),
     verifyQueue: reg.gauge('verify_queue', 'Finished matches waiting to be played again', () => verifier?.queued ?? 0),
+    mcpCalls: reg.counter('mcp_calls_total', 'MCP tool calls, by tool and result'),
+    mcpSeconds: reg.histogram('mcp_call_seconds', 'How long MCP tool calls take', [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1]),
     accounts: reg.counter('account_actions_total', 'Account actions: register, link (a code shown), claim (a device linked), relink (by an admin)'),
     accountCount: reg.gauge('accounts', 'Accounts on this server', () => accounts?.list.size ?? 0),
     rated: reg.counter('rated_matches_total', 'Verified matches that moved two players\' ratings'),
@@ -142,6 +148,8 @@ function start(cfg = config()) {
   const replays = new Replays({ dir: cfg.dbPath ? path.join(cfg.dbPath, 'replays') : null, max: cfg.maxReplays });
   const relay = new Relay({ maxRooms: cfg.maxRooms, idleMs: cfg.roomIdle * 1000, metrics: M, bans, blocklist: cfg.blocklist, audit, replays: cfg.maxReplays ? replays : null, verifier, ratings, accounts,
     delay: cfg.spectateDelay, watchers: Math.min(cfg.maxSpectators, 14) }); // (the relay takes 16 guests at most)
+
+  const mcpHandle = cfg.mcp ? mcp({ relay, ratings, replays, bans, M, reg, cfg, audit, version: VERSION }) : null;
 
   // ---------- moderation over HTTP (admin token) ----------
   function admin(req, res, route) {
@@ -215,6 +223,7 @@ function start(cfg = config()) {
     const adm = url.pathname.match(/^\/api\/admin\/([a-z]+)$/);
     if (adm && (req.method === 'GET' || req.method === 'POST')) return admin(req, res, adm[1]);
     if (url.pathname === '/api/embeds') return shortLink(req, res);
+    if (url.pathname === '/mcp' && mcpHandle) return mcpHandle(req, res, send);
     const short = url.pathname.match(/^\/e\/([\w-]{1,20})$/);
     if (short && req.method === 'GET') {
       const hash = cfg.maxEmbeds ? embeds.get(short[1]) : null;
