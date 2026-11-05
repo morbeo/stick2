@@ -42,7 +42,8 @@ const OPT_ICONS = { cards: 'view_module', list: 'list', table: 'table_rows', inp
   line: 'horizontal_rule', circle: 'circle', ragdoll: 'sports_kabaddi', pose: 'accessibility_new',
   raw: 'grain', tweened: 'animation', spring: 'waves', floaty: 'cloud', juicy: 'auto_awesome', overlay: 'layers', strip: 'theaters' };
 const optLabel = o => OPT_ICONS[o] ? `:${OPT_ICONS[o]}: ${o}` : String(o);
-const icon = (name, tip) => h('span', { cls: name === 'close' ? 'ic close' : 'ic', textContent: String.fromCodePoint(ICONS[name]), tip });
+// icon glyphs are private-use characters: hidden from screen readers (the button's label or aria-label names it)
+const icon = (name, tip) => { const e = h('span', { cls: name === 'close' ? 'ic close' : 'ic', textContent: String.fromCodePoint(ICONS[name]), tip }); e.setAttribute('aria-hidden', 'true'); return e; };
 // the favicon: drawn from the icon font itself (sports_martial_arts), not an image file, once the font is ready
 document.fonts.load('48px Icons').then(() => {
   const cv = Object.assign(document.createElement('canvas'), { width: 64, height: 64 }), c = cv.getContext('2d');
@@ -65,6 +66,12 @@ const setRich = (el, text) => {
   const parts = rich(text), hasIcon = parts.some(p => typeof p !== 'string');
   el.replaceChildren(...(ui.iconOnly && hasIcon ? parts.filter(p => typeof p !== 'string') : parts));
   if (el.tagName === 'BUTTON') el.classList.toggle('ico', hasIcon && (ui.iconOnly || /^\s*:[a-z_]+:\s*$/.test(text)));
+  // no visible words (icon only): a screen reader gets the authored text, else the tip's first words, else the icon's name
+  if (el.tagName === 'BUTTON') {
+    const words = text.replace(/:[a-z_]+:/g, '').trim(), shown = !(ui.iconOnly && hasIcon) && words;
+    if (shown) el.removeAttribute('aria-label');
+    else el.setAttribute('aria-label', words || (el.dataset.tip || '').split(/[:·(.]/)[0].trim() || (text.match(/:([a-z_]+):/)?.[1] || '').replace(/_/g, ' '));
+  }
 };
 
 function h(tag, props = {}, ...kids) {
@@ -87,25 +94,33 @@ function reg(el, f) {
   const s = () => { if (el.isConnected) seen = true; else return seen && syncs.delete(s); f(); };
   syncs.add(s); f();
 }
-function syncAll() { for (const s of [...syncs]) s(); }
+// after a sync, every on/off button (tog, or an option of a seg) tells a screen reader whether it is on, whoever drew it
+const pressedSync = () => { for (const b of document.querySelectorAll('button.tog, .seg > button')) b.setAttribute('aria-pressed', String(b.classList.contains('on'))); };
+function syncAll() { for (const s of [...syncs]) s(); pressedSync(); }
 
 function button(label, tip, fn, cls = '') {
-  const b = h('button', { tip, cls, onclick: e => { const b = e.currentTarget; fn(e, b); b.blur(); syncAll(); } });
+  // a mouse click drops focus (so Space/Enter go back to the game); a keyboard press (detail 0) keeps it, so Tab users stay in place
+  const b = h('button', { tip, cls, onclick: e => { const b = e.currentTarget; fn(e, b); if (e.detail) b.blur(); syncAll(); } });
   setRich(b, label);
+  if (/\btog\b/.test(cls)) b.setAttribute('aria-pressed', String(/\bon\b/.test(cls)));
   return b;
 }
 // one labelled row of a dock (docs/ui.md): a fixed-width muted label, then its controls; '' for an unlabelled row
-function dockRow(label, tip, ...kids) { return h('div', { cls: 'drow', tip }, h('span', { cls: 'dlab', textContent: label }), h('span', { cls: 'dctl' }, ...kids)); }
+function dockRow(label, tip, ...kids) {
+  const r = h('div', { cls: 'drow', tip, role: 'group' }, h('span', { cls: 'dlab', textContent: label }), h('span', { cls: 'dctl' }, ...kids));
+  if (label) r.setAttribute('aria-label', label);
+  return r;
+}
 function toggle(label, tip, get, set) {
   const b = button(label, tip, () => set(!get()), 'tog');
-  reg(b, () => b.classList.toggle('on', !!get()));
+  reg(b, () => { b.classList.toggle('on', !!get()); b.setAttribute('aria-pressed', String(!!get())); });
   return b;
 }
 // one-of-many as a row of buttons (instead of a dropdown). tips: { option: text }
 function seg(opts, get, set, tips = {}, label = optLabel) {
-  return h('span', { cls: 'seg' }, opts.map(o => {
+  return h('span', { cls: 'seg', role: 'group' }, opts.map(o => {
     const b = button(label(o), tips[o], () => set(o));
-    reg(b, () => b.classList.toggle('on', get() === o));
+    reg(b, () => { b.classList.toggle('on', get() === o); b.setAttribute('aria-pressed', String(get() === o)); });
     return b;
   }));
 }
