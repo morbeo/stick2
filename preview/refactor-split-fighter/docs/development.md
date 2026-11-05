@@ -85,7 +85,7 @@ Notes for the itch.io page:
 
 ## Releasing
 
-One click: Actions → **Release · publish & assets** → Run workflow (or `gh workflow run release.yml`, `-f tag=v0.2.0` for a specific version). With the tag blank it takes the next patch after the latest `v*` tag, tags `master`, and publishes the release with notes generated from the merged PRs. Then, in parallel:
+One click: Actions → **Release · publish & assets** → Run workflow (or `gh workflow run release.yml`, `-f tag=v0.2.0` for a specific version). With the tag blank it takes the next patch after the latest `v*` tag, tags `master`, and publishes the release with notes generated from the merged PRs, grouped into New, Fixes, Docs, Tests and CI, Under the hood and Other (`.github/release.yml`). The group comes from a label the CI `label` job puts on every PR from its branch prefix (`feat/` → feature, `fix/`, `docs/`, `test/`, `ci/`, `refactor/`, `perf/`, `chore/`); label a PR `skip-notes` to leave it out. Then, in parallel:
 
 - unit + server tests at the tag (the image and itch.io jobs wait for them);
 - picture notes appended to the release body ([Release notes in pictures](README.md#release-notes-in-pictures));
