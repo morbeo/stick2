@@ -311,3 +311,23 @@ test('quick match through the server: two players queue, one side opens the room
     assert.deepEqual((await (await get(s, '/api/rooms')).json()).rooms, [], 'quick rooms are private');
   });
 });
+
+test('accounts through the server: make one, link a second device by its code, an admin lists and relinks', async () => {
+  const { ctx, run } = engine([...engine.ENGINE, 'lobby', 'netmatch', 'netserver']);
+  ctx.URL = URL;
+  const s = await boot({ ADMIN_TOKEN: 'sesame' });
+  await quiet(s, async () => {
+    const url = run('netServerUrl')(`127.0.0.1:${s.port}`), acc = req => run('netServerAccount')(url, req, { WS: WebSocket });
+    assert.equal((await acc({ do: 'whoami', device: 'phone' })).name, null);
+    const r = await acc({ do: 'register', device: 'phone', player: 'kobokobo' });
+    assert.equal(r.name, 'kobokobo'); assert.ok(r.recovery);
+    const { code } = await acc({ do: 'link', device: 'phone' });
+    assert.equal((await acc({ do: 'claim', device: 'laptop', code })).devices, 2);
+    await assert.rejects(acc({ do: 'claim', device: 'tablet', code }), /wrong or has run out/);
+    const adm = (p, body) => fetch(`http://127.0.0.1:${s.port}/api/admin/${p}`, { method: body ? 'POST' : 'GET', headers: { authorization: 'Bearer sesame' }, body: body && JSON.stringify(body) }).then(x => x.json());
+    assert.deepEqual((await adm('accounts')).accounts.map(a => [a.name, a.devices]), [['kobokobo', 2]]);
+    assert.equal((await adm('relink', { player: 'kobokobo', device: 'tablet' })).account.devices, 3);
+    assert.equal((await acc({ do: 'whoami', device: 'tablet' })).name, 'kobokobo');
+    assert.match(await (await get(s, '/metrics')).text(), /stick2_account_actions_total\{action="register"\} 1/);
+  });
+});

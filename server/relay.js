@@ -28,23 +28,26 @@ class Relay {
   // limits: { maxRooms }; metrics: the counters and gauges it updates (server.js); rng: () → [0, 1), the tests pass their own
   // bans: a Bans (moderation.js) or null; blocklist: more words the name filter refuses; audit(action, detail): the moderation log
   // replays: a Replays (replays.js) or null; delay: frames spectators watch behind (anti-ghosting); watchers: spectators a room may have
-  constructor({ maxRooms = 500, guests = RELAY.guests, metrics = null, rng = Math.random, now = () => Date.now(), bans = null, blocklist = [], audit = () => {}, replays = null, verifier = null, ratings = null, idleMs = 0, delay = 0, watchers = 14 } = {}) {
-    Object.assign(this, { maxRooms, guests, metrics, rng, now, bans, blocklist, audit, replays, verifier, ratings, idleMs, delay, watchers, rooms: new Map(), names: new Map(), reports: [], flags: [], quick: [], tickets: new Map(), draining: false, spectatorPeak: 0 });
+  constructor({ maxRooms = 500, guests = RELAY.guests, metrics = null, rng = Math.random, now = () => Date.now(), bans = null, blocklist = [], audit = () => {}, replays = null, verifier = null, ratings = null, accounts = null, idleMs = 0, delay = 0, watchers = 14 } = {}) {
+    Object.assign(this, { maxRooms, guests, metrics, rng, now, bans, blocklist, audit, replays, verifier, ratings, accounts, idleMs, delay, watchers, rooms: new Map(), names: new Map(), reports: [], flags: [], quick: [], tickets: new Map(), draining: false, spectatorPeak: 0 });
   }
   // the name a connection plays under on this server: its own if the filter takes it, else the one its device id generates;
   // a #tag only when someone else already has it
   claim(client, m) {
     if (client.player) return client.player;
-    const base = nameClean(m.player, this.blocklist) || nameGen(String(m.device || client.ip || this.rng()));
+    const device = String(m.device || '').slice(0, 64), acct = this.accounts?.of(device);
+    // an account plays under its own name; anyone else can't take a name an account keeps (accounts.js)
+    const base = acct?.name || nameClean(m.player, this.blocklist) || nameGen(String(m.device || client.ip || this.rng()));
     let name = base;
-    for (let i = 2; this.names.has(name.toLowerCase()); i++) name = `${base}#${i}`;
+    for (let i = 2; this.names.has(name.toLowerCase()) || (!acct && this.accounts?.reserved(name, device)); i++) name = `${base}#${i}`;
     this.names.set(name.toLowerCase(), client);
-    client.player = name; client.device = String(m.device || '').slice(0, 64);
+    Object.assign(client, { player: name, device, account: acct?.id || null, who: acct ? 'acct:' + acct.id : device });
+    this.accounts?.seen(acct);
     return name;
   }
   release(client) {
     this.quickLeave(client); if (client.player && this.names.get(client.player.toLowerCase()) === client) this.names.delete(client.player.toLowerCase()); }
-  banned(client) { return this.bans?.find({ device: client.device, ip: client.ip, name: client.player }); }
+  banned(client) { return this.bans?.find({ device: client.device, ip: client.ip, name: client.player, account: client.account }); }
   code() {
     for (let tries = 0; tries < 100; tries++) {
       let c = '';
@@ -71,6 +74,7 @@ class Relay {
       case 'replay': return this.replay(client, m);
       case 'quick': return this.quickJoin(client, m);
       case 'unquick': return this.quickLeave(client, true);
+      case 'account': return this.account(client, m);
       default: return this.error(client, 'unknown message');
     }
   }
@@ -193,10 +197,10 @@ class Relay {
     // ratings (ratings.js): a fight that played out as recorded, between two devices, that nobody left
     const f = who.fighters || [];
     if (v.verdict === 'ok' && this.ratings && f.length === 2 && f[0] && f[1] && !(result && result.forfeit !== undefined)) {
-      const ch = this.ratings.record(...f.map(c => ({ device: c.device, name: c.player })), v.stats.winner);
+      const ch = this.ratings.record(...f.map(c => ({ device: c.who || c.device, name: c.player })), v.stats.winner);
       if (ch) {
         this.metrics?.rated?.inc({});
-        const news = f.map((c, i) => ({ name: c.player, ...this.ratings.get(c.device), change: ch[i] }));
+        const news = f.map((c, i) => ({ name: c.player, ...this.ratings.get(c.who || c.device), change: ch[i] }));
         for (const c of f) c.send({ t: 'rated', players: news });
       }
     }
@@ -280,6 +284,40 @@ class Relay {
   }
   // empty rooms whose ROOM_IDLE ran out close (the server calls this every few seconds)
   sweep() { this.matchmake(); for (const r of [...this.rooms.values()]) if (!r.host && this.now() - r.empty >= this.idleMs) this.remove(r); }
+  // ---------- accounts (accounts.js), on a connection outside any room ----------
+  // { t: 'account', do: 'whoami' | 'register' | 'link' | 'claim' | 'unlink', device, player?, code? } → { t: 'account', name, devices?,
+  // recovery? (register only, shown once), code?, until? (link) } or an error
+  account(client, m) {
+    if (!this.accounts) return this.error(client, 'off: this server has no accounts');
+    const device = String(m.device || client.device || '').slice(0, 64), A = this.accounts;
+    if (!device) return this.error(client, 'no device id');
+    const ban = this.bans?.find({ device, ip: client.ip, account: A.of(device)?.id });
+    if (ban && m.do !== 'whoami') return this.error(client, `banned: ${ban.reason || 'by the server'}`);
+    const reply = (a, extra = {}) => client.send({ t: 'account', name: a?.name || null, devices: a?.devices.length || 0, ...extra });
+    try {
+      if (m.do === 'whoami') return reply(A.of(device));
+      if (m.do === 'register') {
+        const name = nameClean(m.player, this.blocklist);
+        if (!name) return this.error(client, 'bad name: pick another one');
+        const holder = this.names.get(name.toLowerCase());
+        if (holder && holder.device !== device) return this.error(client, 'taken: someone is playing under that name now');
+        const { account, recovery } = A.register(device, name);
+        this.ratings?.move(device, 'acct:' + account.id); this.ratings?.rename('acct:' + account.id, name);
+        this.metrics?.accounts?.inc({ action: 'register' });
+        this.audit('account', { action: 'register', name });
+        return reply(account, { recovery });
+      }
+      if (m.do === 'link') { const l = A.linkCode(device); this.metrics?.accounts?.inc({ action: 'link' }); return reply(A.of(device), { code: l.code, until: l.until }); }
+      if (m.do === 'claim') {
+        const a = A.claim(device, m.code);
+        this.metrics?.accounts?.inc({ action: 'claim' });
+        this.audit('account', { action: 'claim', name: a.name });
+        return reply(a);
+      }
+      if (m.do === 'unlink') { A.unlink(device); return reply(null); }
+    } catch (e) { return this.error(client, `account: ${e.message}`); }
+    return this.error(client, 'unknown account action');
+  }
   // ---------- quick match: a queue of players looking for a fight, paired by rating ----------
   // { t: 'quick', player?, device? } → { t: 'queued', rating, waiting }; paired, the one waiting longer gets { t: 'matched', role: 'host',
   // ticket, vs } and opens a room with { t: 'host', quick: ticket }, then the other gets { t: 'matched', role: 'guest', room, vs }
@@ -288,7 +326,7 @@ class Relay {
     if (client.room) return this.error(client, 'already in a room');
     const player = this.claim(client, m), ban = this.banned(client);
     if (ban) return this.error(client, `banned: ${ban.reason || 'by the server'}`);
-    if (!this.quick.some(q => q.client === client)) this.quick.push({ client, rating: this.ratings?.get(client.device)?.rating ?? 1500, at: this.now() });
+    if (!this.quick.some(q => q.client === client)) this.quick.push({ client, rating: this.ratings?.get(client.who || client.device)?.rating ?? 1500, at: this.now() });
     client.send({ t: 'queued', player, rating: this.quick.find(q => q.client === client).rating, waiting: this.quick.length });
     this.matchmake();
   }
@@ -298,7 +336,7 @@ class Relay {
     for (const [k, t] of this.tickets) if (t.b === client) this.tickets.delete(k); // (the host side's quick link closes on purpose: it opens the room on a new one)
     if (say) client.send({ t: 'unqueued' });
   }
-  requeue(c) { if (!this.quick.some(q => q.client === c)) this.quick.unshift({ client: c, rating: this.ratings?.get(c.device)?.rating ?? 1500, at: this.now() - 30000 }); }
+  requeue(c) { if (!this.quick.some(q => q.client === c)) this.quick.unshift({ client: c, rating: this.ratings?.get(c.who || c.device)?.rating ?? 1500, at: this.now() - 30000 }); }
   // how far apart two ratings may be: 100, widening by 50 every 10 s the longer one has waited
   window(q) { return 100 + 50 * Math.floor((this.now() - q.at) / 10000); }
   matchmake() {
