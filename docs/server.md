@@ -62,7 +62,7 @@ Environment variables, each with a default:
 | `TRUST_PROXY` | off | `1`: take the client address from `X-Forwarded-For` |
 | `LOG_LEVEL` | `info` | `debug`, `info` or `quiet`; logs are JSON lines on stdout |
 | `ADMIN_TOKEN` | (none) | Turns on the [admin API](#moderation); requests need `Authorization: Bearer <token>` |
-| `DB_PATH` | (none; `/data` in the image) | Folder for `bans.json` and `embeds.json`; none: they last until a restart |
+| `DB_PATH` | (none; `/data` in the image) | Folder for `bans.json`, `embeds.json`, `accounts.json`, `ratings.json` and `replays/`; none: they last until a restart (see [Backup and restore](#backup-and-restore)) |
 | `SPECTATE_DELAY` | `180` | Frames (60 a second) spectators watch behind the players, so they can't call out what's coming; `0` for live |
 | `MAX_SPECTATORS` | `14` | People a room may have besides its two fighters: spectators and the queue (at most 14; a room holds 16) |
 | `MCP` | `1` | MCP for AI clients at `POST /mcp` (see [MCP](#mcp)); `0` turns it off |
@@ -151,7 +151,7 @@ No passwords: an account is a name and the devices linked to it (the app's devic
 
 ## MCP
 
-The server speaks [MCP](https://modelcontextprotocol.io) at `POST /mcp` (Streamable HTTP, one JSON answer per request), so an AI client can look at it and moderate it:
+The server speaks [MCP](https://modelcontextprotocol.io) at `POST /mcp` (Streamable HTTP, one JSON answer per request), so an AI client can look at it and moderate it: Tool arguments are checked before a tool runs (missing, unknown, wrong type or not one of its choices: an error result), with the same code as the app's MCP server (`tools/lib/mcp-rpc.js`).
 
 ```sh
 claude mcp add --transport http stick2-server http://localhost:8080/mcp
@@ -175,6 +175,19 @@ Resources: `stick2://server/rooms`, `stick2://server/leaderboard`, and `stick2:/
 ```sh
 GRAFANA_PASSWORD=pick-one docker compose -f server/docker-compose.full.yml up -d
 ```
+
+## Backup and restore
+
+`server/backup.js` copies everything under `DB_PATH` (bans, accounts, ratings, embeds, replays) into one JSON file and back:
+
+```sh
+node server/backup.js backup --db /data --out stick2-backup.json   # --db defaults to $DB_PATH, --out to stick2-backup-<date>.json; --out - prints it
+node server/backup.js list stick2-backup.json                      # what it holds
+node server/backup.js restore stick2-backup.json --db /data        # keeps files that exist; --force overwrites them
+docker compose exec -T stick2 node server/backup.js backup --out - > stick2-backup.json   # from the image
+```
+
+Stop the server before a restore: a running one holds its data in memory and writes it back. Restore only writes `.json` files inside the folder; a file that isn't a stick2 backup, or names a path outside it, is refused.
 
 ## Shutting down
 

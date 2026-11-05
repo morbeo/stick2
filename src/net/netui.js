@@ -535,11 +535,16 @@ function netModerate(L, who) {
 }
 // the chat: the log (names, times, the app's own lines apart), a field, and quick lines; keys typed in it never reach the fight
 const NET_QUICK = ['gg', 'one more?', 'nice!', 'brb'];
+// a log line: a leading :icon: of the server's own lines drawn as the icon (chat is shown as typed)
+function netLogText(m) {
+  const k = !m.from && /^:([a-z_]+): /.exec(m.text);
+  return k && ICONS[k[1]] ? [icon(k[1]), ' ' + m.text.slice(k[0].length)] : [m.text];
+}
 function netChat(L) {
   const say = h('input', { cls: 'macro netsay', placeholder: 'chat', maxLength: 200, tip: 'Enter sends; Esc back to the fight', onkeydown: e => { e.stopPropagation();
     if (e.code === 'Enter' && say.value.trim()) { L.chat(say.value); say.value = ''; } else if (e.code === 'Escape') say.blur(); } });
   return h('div', { cls: 'netchat' },
     h('div', { cls: 'netlog' }, net.log.map(m => h('div', { cls: m.from ? '' : 'netsys', tip: netTime(m.at) },
-      h('span', { cls: 'nettime', textContent: netTime(m.at) + ' ' }), m.from ? h('b', { textContent: m.from + ': ' }) : null, m.text))),
+      h('span', { cls: 'nettime', textContent: netTime(m.at) + ' ' }), m.from ? h('b', { textContent: m.from + ': ' }) : null, ...netLogText(m)))),
     say, h('div', { cls: 'bar' }, NET_QUICK.map(q => button(q, `Say "${q}"`, () => L.chat(q)))));
 }
