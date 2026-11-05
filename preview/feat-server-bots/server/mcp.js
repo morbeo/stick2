@@ -7,9 +7,9 @@
 const VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 const str = (d, extra = {}) => ({ type: 'string', description: d, ...extra }), int = (d, extra = {}) => ({ type: 'integer', description: d, ...extra });
 
-// ctx: { relay, ratings, replays, bans, metrics (M), reg (Registry), cfg, audit, version }
+// ctx: { relay, ratings, replays, bans, accounts, metrics (M), reg (Registry), cfg, audit, version }
 function mcp(ctx) {
-  const { relay, ratings, replays, bans, M, reg, cfg, audit } = ctx;
+  const { relay, ratings, replays, bans, accounts, M, reg, cfg, audit } = ctx;
   const fail = (msg, code = -32602) => { const e = new Error(msg); e.code = code; throw e; };
   const room = code => { const r = relay.rooms.get(String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '')); if (!r) fail('no such room'); return r; };
   const roomView = r => ({ room: r.code, name: r.name, public: r.public, locked: r.locked, phase: r.phase, host: r.host?.player || null, players: r.players, watchers: r.watchers,
@@ -43,6 +43,13 @@ function mcp(ctx) {
         M.bans?.inc(); audit('ban', { by: 'mcp', player: a.player, id: b.id }); if (c) relay.kickPlayer(a.player, `banned: ${b.reason || 'by the server'}`); return b; } },
     unban: { admin: true, d: 'Lift a ban by its id (list them with list_bans).', p: { id: int('ban id') }, need: ['id'], run: a => { const ok = bans.remove(a.id); if (ok) audit('unban', { by: 'mcp', id: a.id }); return { ok }; } },
     list_bans: { admin: true, d: 'The bans still running.', run: () => bans.active() },
+    list_accounts: { admin: true, d: 'Accounts on this server (accounts.js): name, how many devices, created, last seen. No device ids.', p: { filter: str('part of a name') },
+      run: a => { if (!accounts) fail('accounts are off on this server'); return [...accounts.list.values()].filter(x => !a.filter || x.name.toLowerCase().includes(String(a.filter).toLowerCase())).map(x => accounts.view(x)); } },
+    get_account: { admin: true, d: 'One account by its name: devices, created, last seen, whether its name is still reserved, its rating and any ban on it.', p: { player: str('account name') }, need: ['player'],
+      run: a => { const x = accounts?.byName(a.player) || fail('no such account');
+        return { ...accounts.view(x), reserved: accounts.reserved(x.name), rating: ratings?.get('acct:' + x.id) || null, ban: bans.find({ account: x.id }) }; } },
+    relink_account: { admin: true, d: 'Link a device to an account (a player who lost every device and the recovery code): the device id the app shows in its account box (netplay section, account).', p: { player: str('account name'), device: str('the device id') }, need: ['player', 'device'],
+      run: a => { if (!accounts) fail('accounts are off on this server'); const x = accounts.relink(a.player, String(a.device)); M.accounts?.inc({ action: 'relink' }); audit('relink', { by: 'mcp', player: x.name }); return accounts.view(x); } },
     close_room: { admin: true, d: 'Close a room (everyone in it is told).', p: { room: str('room code') }, need: ['room'],
       run: a => { const ok = relay.close(String(a.room).toUpperCase()); if (ok) audit('close', { by: 'mcp', room: a.room }); return { ok }; } },
     // bots (bots.js): a server-side player with the game's AI, into any room
