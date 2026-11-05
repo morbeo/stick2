@@ -81,6 +81,7 @@ function netServerHosting(lobby, link, room = () => {}) {
     else if (m.t === 'gone' && ids.has(m.id)) { lobby.unlink(ids.get(m.id).id, m.why === 'left' ? 'left' : m.why); ids.delete(m.id); }
     else if (m.t === 'verified') link.verified?.(m); // the server played the finished match again (server/verify.js)
     else if (m.t === 'rated') link.rated?.(m); // and moved both players' ratings (server/ratings.js)
+    else if (m.t === 'bot') link.bot?.(m); // a bot came in, or was refused (server/bots.js)
     else if (m.t === 'error' || m.t === 'closed') lobby.close(m.error || m.why);
   };
   const sid = lobbyId => [...ids].find(([, v]) => v.id === lobbyId)?.[0];
@@ -89,6 +90,8 @@ function netServerHosting(lobby, link, room = () => {}) {
   link.report = (lobbyId, reason, lines = []) => link.send({ t: 'report', id: sid(lobbyId), reason, lines });
   // a finished match, for the server's replays (GET /api/replays)
   link.saveReplay = (replay, result, players = []) => link.send({ t: 'replay', replay, result, players });
+  // a server bot into the room (server/bots.js): level easy, normal or hard
+  link.addBot = (level = 'normal', char = null) => link.send({ t: 'bot', level, ...char ? { char } : {} });
   link.hosting = true;
   return link;
 }

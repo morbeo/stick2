@@ -95,10 +95,12 @@ const SCHEME_INPUTS = { G6: ['guard+fwd'], G4: ['guard+back'], dd: ['down', 'dow
   qcb: ['down', 'down+back', 'back+special'], dp: ['fwd', 'down', 'down+fwd+special'], bP: ['punch'], bK: ['kick'], b6S: ['fwd+special'], b4S: ['back+special'],
   '7S': ['up+back+special'], '1S': ['down+back+special'] };
 class Brain {
-  constructor(rand) { Object.assign(this, { rand, t: 0, plan: null, q: [], qt: 0, held: null, brk: false, flying: false, tech: false, lying: false, wake: null, blocking: false, out: null, outT: 0 }); }
+  constructor(rand, level = null) { Object.assign(this, { rand, level, t: 0, plan: null, q: [], qt: 0, held: null, brk: false, flying: false, tech: false, lying: false, wake: null, blocking: false, out: null, outT: 0 }); }
+  // level (easy, normal, hard): its own, over the aiLevel setting (a server's bot, server/bots.js)
+  skill(f) { return this.level && AI_LEVELS[this.level] ? { ...AI_LEVELS[this.level], ...f.over.aiSkill } : skillOf(f); }
   input(f, o, h) {
     const inp = { ...NOIN }, dist = Math.abs(o.x - f.x) - (f.ch.extent[1] + o.ch.extent[1] - 38); // the gap as between two sticks (a centaur's body is long)
-    const L = skillOf(f);
+    const L = this.skill(f);
     if (!f.free) this.q = [];
     // a throw: decide once whether to break it, then press P+G after the reaction time
     if (f.heldBy !== this.held) { this.held = f.heldBy; this.brk = !!f.heldBy && this.rand() < L.brk; }
@@ -139,7 +141,7 @@ class Brain {
     this.q = SCHEME_INPUTS[t].slice(); this.qt = 0; return true;
   }
   think(f, o, dist) {
-    const r = this.rand(), L = skillOf(f), S = styleOf(f);
+    const r = this.rand(), L = this.skill(f), S = styleOf(f);
     this.t = this.rand(...L.think); // reaction time
     this.plan = null;
     if (!f.free) return;
