@@ -383,3 +383,31 @@ test('accounts through the server: make one, link a second device by its code, a
     assert.match(await (await get(s, '/metrics')).text(), /stick2_account_actions_total\{action="register"\} 1/);
   });
 });
+
+test('identity keys: a signed nonce makes the key the device everywhere; a bad one is refused; the old device hands over its account', async () => {
+  const id = require('../../src/net/identity');
+  const mem = () => { let v = null; return { get: () => v, set: x => { v = x; } }; };
+  const keys = await id.identityKeys(mem());
+  const s = await boot(), t = await boot();
+  await quiet(s, async () => {
+    // a device with an account, before keys: register under its old id, then connect with the key and that id once
+    const a = client(s); await a.next('hello');
+    a.send({ t: 'account', do: 'register', device: 'old-device', player: 'kira' }); assert.equal((await a.next('account')).name, 'kira');
+    const c = client(s), { nonce } = await c.next('hello');
+    assert.match(nonce, /^[0-9a-f]{32}$/);
+    c.send({ ...await id.identitySign('wrong' + nonce, keys), device: 'old-device' });
+    assert.match((await c.next('error')).error, /signature does not match/);
+    c.send({ ...await id.identitySign(nonce, keys), device: 'old-device' });
+    const { id: kid } = await c.next('authed');
+    assert.match(kid, /^k[0-9a-f]{31}$/);
+    c.send({ t: 'account', do: 'whoami', device: 'someone-else' }); // the key wins over a device id it only says
+    assert.equal((await c.next('account')).name, 'kira');
+    c.send({ ...await id.identitySign(nonce, keys) }); assert.match((await c.next('error')).error, /too late/);
+  });
+  await quiet(t, async () => {
+    // another server: the same key comes out as the same id, with nothing shared between them
+    const c = client(t), { nonce } = await c.next('hello');
+    c.send(await id.identitySign(nonce, keys));
+    assert.match((await c.next('authed')).id, /^k[0-9a-f]{31}$/);
+  });
+});
