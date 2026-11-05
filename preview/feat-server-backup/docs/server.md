@@ -151,7 +151,7 @@ No passwords: an account is a name and the devices linked to it (the app's devic
 
 ## MCP
 
-The server speaks [MCP](https://modelcontextprotocol.io) at `POST /mcp` (Streamable HTTP, one JSON answer per request), so an AI client can look at it and moderate it:
+The server speaks [MCP](https://modelcontextprotocol.io) at `POST /mcp` (Streamable HTTP, one JSON answer per request), so an AI client can look at it and moderate it: Tool arguments are checked before a tool runs (missing, unknown, wrong type or not one of its choices: an error result), with the same code as the app's MCP server (`tools/lib/mcp-rpc.js`).
 
 ```sh
 claude mcp add --transport http stick2-server http://localhost:8080/mcp
