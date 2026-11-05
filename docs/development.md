@@ -16,6 +16,7 @@ How the code is laid out, and the tools that build its generated files.
 - Some scripts come as groups, listed in `tools/lib/engine.js` (`GROUPS`) and loaded in that order:
   - `rig`: `rig.js` (bones, `fromOld`, `attack`), `rig-chars.js` (binds, stances, stats, `makeCharacter`, `CHAR_DEFS`), `chars/stick.js` (the base stick), `rig-weapons.js`, `rig-pose.js` (stance bodies, sampling, frame data, combos, `fk`, `constrain`), `rig-draw.js`.
   - `roster`: `objdiff.js`, then every file in `src/engine/chars/index.json` (`_kit.js` first, then one file per character), then `roster.js` (supers, exported characters, `CHARS`).
+  - `fighter`: `fighter.js` (state, input, moves, hits), then `fighter-legs.js` (walk and air legs, leg IK, planted feet), `fighter-rag.js` (ragdoll) and `fighter-draw.js` (drawing only). Each later part is a class whose methods `addMethods` copies onto `Fighter`.
   - `replay`: `replay.js` (reel, editing, branches, seeking), `replay-timeline.js`, `replay-scene.js`, `replay-footage.js`, `replay-movie.js`, `replay-panel.js`.
 - `npm run chars:sync` (`tools/dev/char-scripts.js`) rewrites the script tags of these groups in every page; `--check` only reports. A unit test fails when a page is out of date.
 - Replay files carry `fv`, the file layout's version (separate from `ENGINE_VERSION`). `readReplay` in `world.js` upgrades older layouts; bump `REPLAY_FV` and add a step to `REPLAY_UPGRADES` when the layout changes.
