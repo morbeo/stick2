@@ -1100,6 +1100,13 @@ try {
     if (readInput().right || readInput().left) errs.push('a focused slider passes keys to the fighter');
     sl.blur(); const b = [...document.querySelectorAll('#global button')][0]; b.focus(); b.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
     if (document.activeElement === b) errs.push('a clicked button keeps focus');
+    b.focus(); b.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+    if (document.activeElement !== b) errs.push('a keyboard-pressed button lost focus'); b.blur();
+    // screen readers: every icon-only button has a name, toggles/segs say whether they are on, dock rows are named groups
+    const unnamed = [...document.querySelectorAll('button.ico')].filter(x => !x.getAttribute('aria-label') && !x.textContent.replace(/[\uE000-\uF8FF]/g, '').trim());
+    if (unnamed.length) errs.push(unnamed.length + ' icon-only buttons without aria-label, e.g. ' + unnamed[0].dataset.rich);
+    if ([...document.querySelectorAll('button.tog, .seg button')].some(x => !x.hasAttribute('aria-pressed'))) errs.push('a toggle or seg button without aria-pressed');
+    if ([...document.querySelectorAll('.drow')].some(r => r.getAttribute('role') !== 'group')) errs.push('a dock row that is not a group');
     if (keyClashes().size) errs.push('default keys clash ' + [...keyClashes()]);
     keymap.onion = ['KeyP']; if (!keyClashes().has('onion') || !keyClashes().has('pause')) errs.push('clash not flagged');
     keymap.onion = ['KeyO']; unbind('KeyJ', 'view'); if (!keymap.punch.includes('KeyJ')) errs.push('a view key took the punch key');
