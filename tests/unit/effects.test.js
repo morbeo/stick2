@@ -80,3 +80,14 @@ test('beam parts: a tip-only beam misses a foe close in and still hits one at it
   assert.ok(go(null, 400).hit > 0, 'default: hits close'), assert.equal(go(null, 400).parts, 1);
   assert.equal(go(tip, 400).hit, 0, 'tip only: the close foe is inside the cosmetic line'), assert.ok(go(tip, 760).hit > 0, 'tip only: hits at the far end');
 });
+
+test('beam motion: rehit hits again during a long beam, angle/angleTo sweeps its far end up, follow keeps it on the limbs, fire look draws', () => {
+  const go = (beam, n = 120) => JSON.parse(run(`(() => { const ch = JSON.parse(JSON.stringify(CHARS.stick)); ch.moves.laserBeam.beam = { ...ch.moves.laserBeam.beam, ...${JSON.stringify(beam)} };
+    const w = new World({ a: ['@laserBeam'], b: 'dummy', ax: 250, bx: 450 }, {}, 7, [ch, CHARS.stick]); w.loop = false; const hp0 = w.b.hp; let ys = [], hits = 0, last = w.b.hp;
+    for (let i = 0; i < ${n}; i++) { w.advance(1/60, NOIN); const b = w.beams[0]; if (b) ys.push(beamPoint(b, 1)[1]); if (w.b.hp < last) { hits++; last = w.b.hp; } }
+    return JSON.stringify({ hits, rise: ys.length ? ys[0] - ys[ys.length - 1] : 0 }); })()`));
+  assert.equal(go({}).hits, 1, 'a plain beam hits once');
+  assert.ok(go({ duration: 0.8, rehit: 0.15 }).hits >= 3, 'rehit: several hits');
+  assert.ok(go({ duration: 0.6, angle: 0, angleTo: 60 }).rise > 150, 'sweeps up');
+  assert.equal(go({ duration: 0.6, follow: true }).hits, 1, 'follow still hits');
+});

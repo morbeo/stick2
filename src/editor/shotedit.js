@@ -127,5 +127,18 @@ function effectPanel() {
     ...!shoots || !beams ? [h('div', { cls: 'row', tip: 'Give the move an effect: the selected key fires it (the dopesheet\'s effect rows move it to another key)' }, h('span', { textContent: 'add' }), h('span', { cls: 'bar' },
       ...!shoots ? [add('shoot', ':add: shot', 'Fire a shot from the selected key')] : [], ...!beams ? [add('beam', ':add: beam', 'Hold out a beam from the selected key')] : []))] : [],
     ...effectRows(),
-    ...beams ? [beamPartRows()] : []];
+    ...beams ? [...beamMotionRows(), beamPartRows()] : []];
+}
+
+// a beam's aim and timing: a sweep from angle to angle-to across its duration, hits again every rehit seconds, follows the limbs
+const setBeam = (k, v, key = null) => setMove('beam', { ...curMove().beam, [k]: v }, key);
+function beamMotionRows() {
+  const b = () => curMove().beam || {};
+  return [
+    slider('beam angle', { min: -60, max: 90, step: 5 }, () => b().angle ?? 0, v => setBeam('angle', v || undefined, 'beam.angle'), 'Aim at the start, degrees above level (negative: down)'),
+    slider('beam angle to', { min: -60, max: 90, step: 5 }, () => b().angleTo ?? b().angle ?? 0, v => setBeam('angleTo', v === (b().angle ?? 0) ? undefined : v, 'beam.angleTo'), 'Aim at the end: the beam sweeps from angle to this across its duration (a rising stream of flame)'),
+    slider('beam rehit', { min: 0, max: 0.5, step: 0.02 }, () => b().rehit ?? 0, v => setBeam('rehit', v || undefined, 'beam.rehit'), 'Seconds between hits while it touches a foe (0: hits once). With a long duration, a multi-hit stream'),
+    h('div', { cls: 'row', tip: 'How the beam is held' }, h('span', { textContent: 'beam hold' }), h('span', { cls: 'bar' },
+      toggle('follow', 'The beam stays on the striking limbs as they move through the keys after it fires (off: it stays where it started)', () => !!b().follow, v => setBeam('follow', v || undefined)))),
+  ];
 }

@@ -472,12 +472,14 @@ class Fighter {
     }
     a.hit = true; // fired: not a whiff
   }
-  // a beam key: a straight line held out from the striking limbs for its duration, hitting once wherever it touches a foe (beams setting)
+  // a beam key: a straight line held out from the striking limbs for its duration, hitting once wherever it touches a foe (beams setting);
+  // beam.angle / angleTo sweep it, beam.rehit hits again every rehit seconds, beam.follow keeps it on the striking limbs as they move
   fireBeam(a) {
     if (!this.c('beams') || this.w.beams.some(b => b.owner === this)) return;
     const k = this.chargeMul(a.m, a.charge), m = this.chargedHit(a.m, a.charge), o = m.beam || {}, P = this.body(), ps = hitIds(m).map(id => P[id]).filter(Boolean);
     const pt = ps.length ? [ps.reduce((s, p) => s + p[0], 0) / ps.length, ps.reduce((s, p) => s + p[1], 0) / ps.length] : [this.x + this.dir * 30, this.groundY + this.y - 60];
-    this.w.beams.push({ x: pt[0], y: pt[1], z: this.z, dir: this.dir, vx: this.dir, w: (o.width ?? 14) * k, range: (o.range ?? 500) * k, dur: o.duration ?? 0.25, t: 0, hit: false, look: o.look || 'laser', owner: this, m, parts: o.parts || null });
+    this.w.beams.push({ x: pt[0], y: pt[1], z: this.z, dir: this.dir, vx: this.dir, w: (o.width ?? 14) * k, range: (o.range ?? 500) * k, dur: o.duration ?? 0.25, t: 0, hit: false, look: o.look || 'laser', owner: this, m, parts: o.parts || null,
+      ang0: o.angle || 0, ang1: o.angleTo ?? o.angle ?? 0, rehit: o.rehit || 0, hitAt: -1, follow: !!o.follow, hitIds: hitIds(m) });
     a.hit = true; // fired: not a whiff
   }
   // reaching for a weapon: it slides and turns on the floor so its handle meets the hand at the grip key; let go if the reach is cut short

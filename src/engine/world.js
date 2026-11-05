@@ -324,14 +324,16 @@ class World {
   // ---------- beams (Fighter.fireBeam): a straight line held out from the muzzle for its duration, hitting once wherever it touches a foe ----------
   updateBeams(h) {
     const cfg = this.cfg, gone = new Set();
-    for (const b of this.beams) { b.t += h; if (b.t > b.dur) gone.add(b); }
-    for (const b of this.beams) if (!b.hit) for (const o of this.foes(b.owner)) if (Math.abs(o.z - b.z) <= cfg.zReach && !(b.m.height === 'high' && o.crouching)) {
+    for (const b of this.beams) { b.t += h; if (b.t > b.dur) gone.add(b);
+      if (b.follow) { const P = b.owner.body(), ps = b.hitIds.map(id => P[id]).filter(Boolean); // beam.follow: the muzzle stays on the striking limbs
+        if (ps.length) { b.x = ps.reduce((s, p) => s + p[0], 0) / ps.length; b.y = ps.reduce((s, p) => s + p[1], 0) / ps.length; } b.dir = b.owner.dir; } }
+    for (const b of this.beams) if (!b.hit || b.rehit && b.t - b.hitAt >= b.rehit) for (const o of this.foes(b.owner)) if (Math.abs(o.z - b.z) <= cfg.zReach && !(b.m.height === 'high' && o.crouching)) {
       let hit = null; // the nearest overlap of any hitting stretch (beam.parts, effects.js)
       for (const sh of beamHitShapes(b, 20, W - 20)) { const c = o.hurtAt(sh, false, false); if (c && (!hit || c.d < hit.d)) hit = c; }
       if (!hit) continue;
       const def = o.defend(b, b.m, null), fr = b.owner.freeze; // blocked from the side it comes from; a counter can't catch it
       this.onHit(b.owner, o, hit, b.m, def === 'catch' ? 'block' : def);
-      b.owner.freeze = fr; b.hit = true; break; // hits once; keeps showing until its duration ends
+      b.owner.freeze = fr; b.hit = true; b.hitAt = b.t; break; // hits once (or again after beam.rehit seconds); keeps showing until its duration ends
     }
     if (gone.size) this.beams = this.beams.filter(b => !gone.has(b));
   }
@@ -347,17 +349,20 @@ class World {
     }
   }
   // looks: laser (a bright red-hot core in a wider glow)
+  // looks: laser (a red-hot line in a glow), fire (a flickering stream of flame that widens toward its end)
   drawBeams(ctx) {
-    const COL = { laser: '230,60,60' };
+    const COL = { laser: '230,60,60', fire: '240,140,30' };
     for (const b of this.beams) {
-      const rgb = COL[b.look] || COL.laser, at = f => clamp(b.x + b.dir * b.range * f, 20, W - 20);
+      const rgb = COL[b.look] || COL.laser, at = f => beamPoint(b, f, 20, W - 20);
       const a = b.t < b.dur - 0.08 ? 1 : Math.max(0, (b.dur - b.t) / 0.08); // a quick fade as it ends
       ctx.save(); ctx.translate(0, b.z * ZS); ctx.lineCap = 'round';
       for (const p of b.parts || [{}]) { // each stretch: a wide glow, the beam, a white-hot core; a cosmetic one only glows
-        const x0 = at(p.from || 0), x1 = at(p.to ?? 1), bw = b.w * (p.w ?? 1), cos = p.hits === false;
+        const f0 = p.from || 0, f1 = p.to ?? 1, bw = b.w * (p.w ?? 1), cos = p.hits === false;
+        if (b.look === 'fire') { drawFireStream(ctx, at, f0, f1, bw, a * (cos ? 0.5 : 1), b.t); continue; }
+        const [x0, y0] = at(f0), [x1, y1] = at(f1);
         for (const [w, al] of cos ? [[bw * 2.2, 0.2 * a], [bw, 0.35 * a]] : [[bw * 2.2, 0.25 * a], [bw, 0.9 * a], [bw * 0.35, 0.85 * a]]) {
           ctx.strokeStyle = w === bw * 0.35 ? `rgba(255,255,255,${al})` : `rgba(${rgb},${al})`;
-          ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x0, b.y); ctx.lineTo(x1, b.y); ctx.stroke();
+          ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
         }
       }
       if (this.cfg.boxes) for (const [p0, p1, r] of beamHitShapes(b, 20, W - 20)) { ctx.strokeStyle = 'rgba(192,57,43,.6)'; ctx.lineWidth = r * 2 + 7; ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke(); }
