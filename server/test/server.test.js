@@ -331,6 +331,14 @@ test('MCP at /mcp: tools for rooms, matches and ratings for anyone; moderation o
     assert.equal((await tool('server_health')).rooms, 1);
     assert.match(await tool('get_metrics_summary', { filter: 'rooms' }), /stick2_rooms 1/);
     assert.match(await tool('get_player_stats', { player: 'nobody' }), /^Error: no rated player/);
+    // a bot into hana's room: it joins as a guest and says hello to her lobby
+    assert.match(await tool('add_bot', { room: 'NOROOM' }, 'sesame'), /^Error: no room/);
+    const { player: bot } = await tool('add_bot', { room, level: 'easy', char: 'hadoo' }, 'sesame');
+    assert.equal((await h.next('peer')).player, bot);
+    assert.deepEqual((await tool('list_bots', {}, 'sesame')).map(b => [b.name, b.room, b.level, b.char]), [[bot, room, 'easy', 'hadoo']]);
+    assert.match(await (await get(s, '/metrics')).text(), /stick2_bots 1/);
+    assert.deepEqual(await tool('remove_bot', { player: bot }, 'sesame'), { ok: true });
+    assert.deepEqual(await tool('list_bots', {}, 'sesame'), []);
     assert.match(await tool('kick', { player: 'hana' }), /^Error: unknown tool/);
     assert.deepEqual(await tool('kick', { player: 'hana', reason: 'test' }, 'sesame'), { ok: true });
     assert.deepEqual(await tool('list_rooms'), [], 'kicking the host closed the room');
