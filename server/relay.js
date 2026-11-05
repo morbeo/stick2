@@ -28,8 +28,8 @@ class Relay {
   // limits: { maxRooms }; metrics: the counters and gauges it updates (server.js); rng: () → [0, 1), the tests pass their own
   // bans: a Bans (moderation.js) or null; blocklist: more words the name filter refuses; audit(action, detail): the moderation log
   // replays: a Replays (replays.js) or null; delay: frames spectators watch behind (anti-ghosting); watchers: spectators a room may have
-  constructor({ maxRooms = 500, guests = RELAY.guests, metrics = null, rng = Math.random, now = () => Date.now(), bans = null, blocklist = [], audit = () => {}, replays = null, verifier = null, idleMs = 0, delay = 0, watchers = 14 } = {}) {
-    Object.assign(this, { maxRooms, guests, metrics, rng, now, bans, blocklist, audit, replays, verifier, idleMs, delay, watchers, rooms: new Map(), names: new Map(), reports: [], flags: [], draining: false, spectatorPeak: 0 });
+  constructor({ maxRooms = 500, guests = RELAY.guests, metrics = null, rng = Math.random, now = () => Date.now(), bans = null, blocklist = [], audit = () => {}, replays = null, verifier = null, ratings = null, idleMs = 0, delay = 0, watchers = 14 } = {}) {
+    Object.assign(this, { maxRooms, guests, metrics, rng, now, bans, blocklist, audit, replays, verifier, ratings, idleMs, delay, watchers, rooms: new Map(), names: new Map(), reports: [], flags: [], quick: [], tickets: new Map(), draining: false, spectatorPeak: 0 });
   }
   // the name a connection plays under on this server: its own if the filter takes it, else the one its device id generates;
   // a #tag only when someone else already has it
@@ -42,7 +42,8 @@ class Relay {
     client.player = name; client.device = String(m.device || '').slice(0, 64);
     return name;
   }
-  release(client) { if (client.player && this.names.get(client.player.toLowerCase()) === client) this.names.delete(client.player.toLowerCase()); }
+  release(client) {
+    this.quickLeave(client); if (client.player && this.names.get(client.player.toLowerCase()) === client) this.names.delete(client.player.toLowerCase()); }
   banned(client) { return this.bans?.find({ device: client.device, ip: client.ip, name: client.player }); }
   code() {
     for (let tries = 0; tries < 100; tries++) {
@@ -68,6 +69,8 @@ class Relay {
       case 'lock': return this.lock(client, m);
       case 'report': return this.report(client, m);
       case 'replay': return this.replay(client, m);
+      case 'quick': return this.quickJoin(client, m);
+      case 'unquick': return this.quickLeave(client, true);
       default: return this.error(client, 'unknown message');
     }
   }
@@ -82,6 +85,8 @@ class Relay {
     Object.assign(client, { room, role: 'host', id: 'h' });
     this.metrics?.rooms.inc({});
     client.send({ t: 'room', room, player, delay: this.delay, watchers: this.watchers });
+    const tk = m.quick && this.tickets.get(String(m.quick));
+    if (tk) { this.tickets.delete(String(m.quick)); this.metrics?.quickMatches?.inc({}); tk.b.send({ t: 'matched', role: 'guest', room, vs: player }); }
   }
   join(client, m) {
     if (this.draining) return this.error(client, 'draining: the server is restarting, try again in a moment');
@@ -166,7 +171,10 @@ class Relay {
     if (this.replays) { try { id = this.replays.add(m.replay, { room: r.code, players: m.players, result: m.result }); } catch (e) { return this.error(client, `bad replay: ${e.message}`); } }
     r.saved = true;
     if (id) { this.metrics?.replays?.inc({}); client.send({ t: 'saved', id }); }
-    this.verify(m.replay, m.result, { id, room: r.code, player: client.player, device: client.device, players: Array.isArray(m.players) ? m.players.slice(0, 2).map(p => String(p ?? '').slice(0, 24)) : [] });
+    const players = Array.isArray(m.players) ? m.players.slice(0, 2).map(p => String(p ?? '').slice(0, 24)) : [];
+    // the two who fought, as the server knows them (the host names them; only someone in the room counts): rated on an ok verdict
+    const inRoom = [r.host, ...r.guests.values()], fighters = players.map(n => inRoom.find(c => c.player && c.player === n) || null);
+    this.verify(m.replay, m.result, { id, room: r.code, player: client.player, device: client.device, players, fighters });
   }
   // the server plays the match again (verify.js): a verdict on the replay, gameplay metrics, and a flag on a host whose match doesn't add up
   async verify(replay, result, who) {
@@ -182,7 +190,17 @@ class Relay {
       this.flags.unshift({ at: new Date(this.now()).toISOString(), verdict: v.verdict, why: v.why, room: who.room, host: who.player, players: who.players, replay: who.id });
       this.flags.length = Math.min(this.flags.length, RELAY.reports);
     }
-    const host = [...this.rooms.values()].find(x => x.code === who.room)?.host;
+    // ratings (ratings.js): a fight that played out as recorded, between two devices, that nobody left
+    const f = who.fighters || [];
+    if (v.verdict === 'ok' && this.ratings && f.length === 2 && f[0] && f[1] && !(result && result.forfeit !== undefined)) {
+      const ch = this.ratings.record(...f.map(c => ({ device: c.device, name: c.player })), v.stats.winner);
+      if (ch) {
+        this.metrics?.rated?.inc({});
+        const news = f.map((c, i) => ({ name: c.player, ...this.ratings.get(c.device), change: ch[i] }));
+        for (const c of f) c.send({ t: 'rated', players: news });
+      }
+    }
+    const host = this.rooms.get(who.room)?.host;
     host?.send({ t: 'verified', id: who.id, verdict: v.verdict, ...(v.why ? { why: v.why } : {}) });
     return v;
   }
@@ -261,7 +279,44 @@ class Relay {
     this.metrics?.roomSeconds.observe((this.now() - r.created) / 1000);
   }
   // empty rooms whose ROOM_IDLE ran out close (the server calls this every few seconds)
-  sweep() { for (const r of [...this.rooms.values()]) if (!r.host && this.now() - r.empty >= this.idleMs) this.remove(r); }
+  sweep() { this.matchmake(); for (const r of [...this.rooms.values()]) if (!r.host && this.now() - r.empty >= this.idleMs) this.remove(r); }
+  // ---------- quick match: a queue of players looking for a fight, paired by rating ----------
+  // { t: 'quick', player?, device? } → { t: 'queued', rating, waiting }; paired, the one waiting longer gets { t: 'matched', role: 'host',
+  // ticket, vs } and opens a room with { t: 'host', quick: ticket }, then the other gets { t: 'matched', role: 'guest', room, vs }
+  quickJoin(client, m) {
+    if (this.draining) return this.error(client, 'draining: the server is restarting, try again in a moment');
+    if (client.room) return this.error(client, 'already in a room');
+    const player = this.claim(client, m), ban = this.banned(client);
+    if (ban) return this.error(client, `banned: ${ban.reason || 'by the server'}`);
+    if (!this.quick.some(q => q.client === client)) this.quick.push({ client, rating: this.ratings?.get(client.device)?.rating ?? 1500, at: this.now() });
+    client.send({ t: 'queued', player, rating: this.quick.find(q => q.client === client).rating, waiting: this.quick.length });
+    this.matchmake();
+  }
+  quickLeave(client, say = false) {
+    const i = this.quick.findIndex(q => q.client === client);
+    if (i >= 0) this.quick.splice(i, 1);
+    for (const [k, t] of this.tickets) if (t.b === client) this.tickets.delete(k); // (the host side's quick link closes on purpose: it opens the room on a new one)
+    if (say) client.send({ t: 'unqueued' });
+  }
+  requeue(c) { if (!this.quick.some(q => q.client === c)) this.quick.unshift({ client: c, rating: this.ratings?.get(c.device)?.rating ?? 1500, at: this.now() - 30000 }); }
+  // how far apart two ratings may be: 100, widening by 50 every 10 s the longer one has waited
+  window(q) { return 100 + 50 * Math.floor((this.now() - q.at) / 10000); }
+  matchmake() {
+    for (const [k, t] of this.tickets) if (this.now() > t.expires) { this.tickets.delete(k); this.requeue(t.b); } // a host that never opened its room
+    const q = this.quick;
+    for (let i = 0; i < q.length; i++) for (let j = i + 1; j < q.length; j++) {
+      const a = q[i], b = q[j];
+      if (a.client.device && a.client.device === b.client.device) continue;
+      if (Math.abs(a.rating - b.rating) > Math.max(this.window(a), this.window(b))) continue;
+      q.splice(j, 1); q.splice(i, 1);
+      const ticket = Math.floor(this.rng() * 2 ** 48).toString(36);
+      this.tickets.set(ticket, { a: a.client, b: b.client, expires: this.now() + 15000 });
+      this.metrics?.quickWait?.observe((this.now() - a.at) / 1000); this.metrics?.quickWait?.observe((this.now() - b.at) / 1000);
+      a.client.send({ t: 'matched', role: 'host', ticket, vs: b.client.player });
+      b.client.send({ t: 'found', vs: a.client.player });
+      i--; break;
+    }
+  }
   list() {
     return [...this.rooms.values()].filter(r => r.public).map(r => ({ room: r.code, name: r.name, host: r.host?.player || null, empty: !r.host, phase: r.phase, players: r.players, watchers: r.watchers, locked: r.locked,
       rules: r.rules || null, queue: r.queue || 0, streak: r.streak || null }));

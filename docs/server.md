@@ -65,6 +65,7 @@ Environment variables, each with a default:
 | `DB_PATH` | (none; `/data` in the image) | Folder for `bans.json` and `embeds.json`; none: they last until a restart |
 | `SPECTATE_DELAY` | `180` | Frames (60 a second) spectators watch behind the players, so they can't call out what's coming; `0` for live |
 | `MAX_SPECTATORS` | `14` | People a room may have besides its two fighters: spectators and the queue (at most 14; a room holds 16) |
+| `RATINGS` | `1` | Glicko-2 ratings from verified matches, the leaderboard, and quick match by rating (see [Quick match and ratings](#quick-match-and-ratings)); needs `VERIFY`. `0`: quick match still pairs, everyone at 1500 |
 | `VERIFY` | `1` | Play every finished match again on the server (see [Verify](#verify)); `0` turns it off |
 | `MAX_REPLAYS` | `200` | Finished matches kept as replays (in `DB_PATH/replays/` if set, else in memory), oldest dropped first; `0` turns them off |
 | `MAX_EMBEDS` | `10000` | Short embed links kept ([embed short links](embed.md#short-links)); `0` turns them off |
@@ -84,6 +85,8 @@ Environment variables, each with a default:
 | `/api/admin/…` | Moderation, with `ADMIN_TOKEN` (404 without one) |
 | `GET /api/replays` | `{ server, replays: [{ id, at, room, players, scenario, frames, winner }] }`, newest first |
 | `GET /api/replays/<id>` | One saved match, as a [replay file](fighting.md) |
+| `GET /api/leaderboard` | `{ server, players: [{ name, rating, rd, games, wins, draws, ranked, last }] }`: the 50 best ranked players |
+| `GET /api/players/<name>` | One rated player, by the name they last played under (404: none) |
 | `WS /ws` | The relay |
 
 ## Rooms as pools
@@ -112,6 +115,12 @@ When a fight ends, the host sends its replay (above). The server plays it again 
 The host hears the verdict (`verified`), and the room log says so when a fight doesn't add up. A saved replay keeps its verdict, so **replays** marks each fight **verified**, **doesn't add up**, **wrong winner** or **not checked**. A `desync` or `result` is flagged: a `moderation` log line (`flagged`), `GET /api/admin/flags`, and the `flagged_total` metric. Gameplay metrics (how fights end, characters, length) count only `ok` and `result` fights, so a tampered replay can't skew them.
 
 With `MAX_REPLAYS=0` the server still verifies (no replay is kept); with `VERIFY=0` as well it refuses replays.
+
+## Quick match and ratings
+
+- **Ratings.** Every verified match (verdict `ok`, see [Verify](#verify)) between two players in the room moves both their ratings, by [Glicko-2](http://www.glicko.net/glicko/glicko2.pdf): a win, a loss or a draw, weighed by how sure each rating is (its deviation, `rd`). A forfeit or a fight that doesn't add up rates nobody. Both fighters hear the change (`rated`), and the room log shows it. A player is a device (the app's device id, only stored hashed) under the name it last played as. New players start at 1500 ± 350. The deviation shrinks with each fight and grows again while a player stays away. **Ranked** (on the leaderboard) once it's under 150, after about ten fights. Kept in `DB_PATH/ratings.json`.
+- **Quick match.** **quick match** in the netplay section (or the palette's `netplay: quick match`) waits in the server's queue. Two players pair when their ratings are within 100, a window that widens by 50 every 10 seconds either has waited. The one who waited longer opens a private room by itself, and the other is sent into it: pick, ready, fight. **cancel** leaves the queue. If the host side never opens its room (15 s), the other goes back to the front of the line.
+- **Leaderboard.** **leaderboard** (or `netplay: leaderboard`) lists the server's ranked players.
 
 ## Monitoring
 
@@ -181,6 +190,8 @@ All prefixed `stick2_`. Labels never carry names, ids or room codes.
 | `flagged_total{verdict}` | counter | Matches that didn't add up (`desync`, `result`) |
 | `match_ends_total{end,side}`, `match_frames` | counter, histogram | Verified fights: `ko`, `double ko` or `time`, won by `p1`, `p2` or `draw`; length in frames |
 | `character_picks_total{char}`, `character_wins_total{char}`, `winner_hp_left` | counter, counter, histogram | Roster characters by name (any other is `custom`), and the winner's health left |
+| `rated_matches_total`, `rated_players` | counter, gauge | Matches that moved two ratings, players with a rating |
+| `quick_queue`, `quick_matches_total`, `quick_wait_seconds` | gauge, counter, histogram | Quick match: waiting now, rooms opened, how long players waited |
 | `rooms_empty` | gauge | Open rooms with nobody in them, waiting out `ROOM_IDLE` |
 
 ## Protocol
@@ -198,6 +209,10 @@ JSON, one object per WebSocket message. On connecting, the server sends `{ t: 'h
 | host | `{ t: 'kick', id, ban? }` | the guest gets `{ t: 'closed', why }`, the host `{ t: 'gone', id, why }` |
 | host | `{ t: 'lock', locked }` | joins are refused while locked |
 | either | `{ t: 'report', id?, reason, lines? }` | `{ t: 'reported' }` |
+| either | `{ t: 'quick', player?, device? }` (not in a room) | `{ t: 'queued', player, rating, waiting }`; paired: the longer waiting gets `{ t: 'matched', role: 'host', ticket, vs }`, the other `{ t: 'found', vs }` |
+| host | `{ t: 'host', …, quick: ticket }` | as `host`, then the other side gets `{ t: 'matched', role: 'guest', room, vs }` |
+| either | `{ t: 'unquick' }` | `{ t: 'unqueued' }`: out of the queue |
+| fighters | (after a verified match) | `{ t: 'rated', players: [{ name, rating, rd, games, wins, draws, ranked, change }] }` |
 | host | `{ t: 'replay', replay, result?, players? }` | `{ t: 'saved', id }`: the finished match, kept for `/api/replays`; then `{ t: 'verified', id, verdict, why? }` once the server played it again |
 | server | `{ t: 'error', error }` | a refused request: `full: …`, `no room: …`, `locked: …`, `kicked: …`, `banned: …`, `draining: …`, `bad message`, … |
 

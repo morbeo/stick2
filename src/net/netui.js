@@ -70,14 +70,16 @@ function netLobby(role, server = null, pin = null) {
   netDraw();
 }
 // through a server: the host opens a room (its code and link show in the section), a guest joins one
-function netServerConnect(role, { url, room = null, want = 'play' }) {
+function netServerConnect(role, { url, room = null, want = 'play', quick = null }) {
   try { url = netServerUrl(url); } catch (e) { net.lobby.close(e.message); return; }
   try { localStorage.setItem(NET_SERVER, netServerName(url)); } catch {}
   const device = netDevice();
   net.server = role === 'host'
-    ? netServerHost(net.lobby, url, { room: code => { netSay(`room ${code} is open${net.public ? ' (listed in the room browser)' : ''}`); netDraw(); }, isPublic: net.public, device })
+    ? netServerHost(net.lobby, url, { room: code => { netSay(`room ${code} is open${!quick && net.public ? ' (listed in the room browser)' : ''}`); netDraw(); }, isPublic: !quick && net.public, device, quick })
     : netServerJoin(net.lobby, url, room, want, { device });
   net.server.url = url;
+  // a rated fight's result: both new ratings, with the change
+  net.server.rated = m => netSay(':bolt: rated: ' + m.players.map(p => `${p.name} ${p.rating} (${p.change >= 0 ? '+' : ''}${p.change})`).join(', '));
   netSay(`connecting to ${netServerName(url)}…`);
 }
 // a #server=…&room=… link (or just #server=…): the play tab, with the server filled in, joining the room if there is one
@@ -203,6 +205,38 @@ function netWatchAgain(r) {
   syncAll(); netDraw();
 }
 // a server's saved replays (GET /api/replays): the newest first, each with watch and save
+// quick match: wait in the server's queue for someone near your rating, then the room opens by itself (one side hosts it)
+function netQuick(server) {
+  let url; try { url = netServerUrl(server); } catch (e) { net.err = e.message; return netDraw(); }
+  try { localStorage.setItem(NET_SERVER, netServerName(url)); } catch {}
+  net.quick?.link.cancel(); net.err = null;
+  const q = net.quick = { url, status: 'connecting…' };
+  q.link = netServerQuick(url, netName(), { device: netDevice(), on: {
+    queued: m => { q.status = `looking for a fight · your rating ${m.rating} · ${m.waiting} waiting`; netDraw(); },
+    found: vs => { q.status = `found ${vs}: opening the room…`; netDraw(); },
+    matched: m => { net.quick = null; if (m.role === 'host') netLobby('host', { url, quick: m.ticket }); else netLobby('guest', { url, room: m.room }); netSay(`quick match: you vs ${m.vs}`); },
+    close: why => { if (net.quick !== q) return; net.quick = null; if (why !== 'cancelled' && why !== 'matched') net.err = `quick match: ${why}`; netDraw(); },
+  } });
+  netDraw();
+}
+function netQuickRow() {
+  return net.quick ? h('div', { cls: 'bar' }, h('span', { textContent: net.quick.status }), button(':close: cancel', 'Stop looking for a fight', () => { net.quick?.link.cancel(); net.quick = null; netDraw(); })) : null;
+}
+// a server's leaderboard: its ranked players, best first
+async function netBoard(server) {
+  let url; try { url = netServerUrl(server); } catch (e) { net.err = e.message; return netDraw(); }
+  net.board = { url, loading: true, players: [] }; netDraw();
+  try { net.board = { url, ...(await netServerBoard(url)) }; net.err = null; } catch (e) { net.board = null; net.err = `couldn't get the leaderboard: ${e.message}`; }
+  netDraw();
+}
+function netBoardList({ url, server, players, loading }) {
+  const me = netName().toLowerCase();
+  const head = h('p', {}, h('b', { textContent: server || netServerName(url) }), loading ? ' · loading…' : ` · ${players.length} ranked`,
+    button(':replay:', 'Get the leaderboard again', () => netBoard(url)), button(':close:', 'Hide the leaderboard', () => { net.board = null; netDraw(); }));
+  return h('div', { cls: 'netrooms' }, head, loading || players.length ? null : h('p', { cls: 'netrules', textContent: 'nobody ranked yet: a player is ranked after a few rated fights' }),
+    ...players.map((p, i) => h('div', { cls: 'netslot' + (p.name.toLowerCase() === me ? ' me' : '') }, `${i + 1}. `, h('b', { textContent: p.name }),
+      ` · ${p.rating} ±${2 * p.rd} · ${p.wins}/${p.games} won`)));
+}
 async function netReplays(server) {
   let url; try { url = netServerUrl(server); } catch (e) { net.err = e.message; return netDraw(); }
   net.replays = { url, loading: true, replays: [] }; netDraw();
@@ -281,6 +315,7 @@ function netDraw() {
         net.p2p ? 'Rooms on the server this page came from' : 'Browser to browser with an invite, or another server', () => { net.p2p = !net.p2p; netDraw(); })));
       if (net.rooms) rows.push(netRoomList(net.rooms));
       if (net.replays) rows.push(netReplayList(net.replays));
+      if (net.board) rows.push(netBoardList(net.board));
     }
   } else {
     const st = L.state, me = L.me;
@@ -369,6 +404,8 @@ function netDraw() {
 function netHomeRows(home) {
   const url = home.url, roomIn = h('input', { cls: 'macro', placeholder: 'room code', tip: 'The room code someone gave you; Enter joins', onkeydown: e => { e.stopPropagation(); if (e.code === 'Enter') netLobby('guest', { url, room: roomIn.value }); } });
   return [h('p', {}, 'playing on ', h('b', { textContent: home.server || netServerName(url) }), home.region ? ` · ${home.region}` : ''),
+    h('div', { cls: 'bar' }, button(':bolt: quick match', 'Fight someone near your rating: wait in the queue and the room opens by itself', () => netQuick(url)),
+      button(':list: leaderboard', 'This server\'s ranked players', () => netBoard(url))), netQuickRow(),
     h('div', { cls: 'bar' }, button(':add: new room', 'Open a room here and share its code, link or QR code', () => netLobby('host', { url })),
       toggle(':visibility: public', 'List the room below for everyone on this server (off: only people with the code or link can join)', () => net.public, v => { net.public = v; }),
       button(':replay: replays', 'This server\'s saved fights: watch one again or save it', () => netReplays(url))),
@@ -388,6 +425,8 @@ function netOtherRows() {
       toggle(':visibility: public', 'List the room in the server\'s room browser (off: only people with the code or link can join)', () => net.public, v => { net.public = v; }),
       button(':list: rooms', 'Browse the server\'s public rooms', () => netRooms(srv.value)),
       button(':replay: replays', 'The server\'s saved fights: watch one again or save it', () => netReplays(srv.value))),
+    h('div', { cls: 'bar' }, button(':bolt: quick match', 'Fight someone near your rating on this server: wait in the queue and the room opens by itself', () => netQuick(srv.value)),
+      button(':list: leaderboard', 'The server\'s ranked players', () => netBoard(srv.value))), netQuickRow(),
     h('div', { cls: 'netrow' }, roomIn, button(':check: join room', 'Join a room on the server by its code', () => netLobby('guest', { url: srv.value, room: roomIn.value })),
       button(':visibility: watch', 'Watch the room\'s fight as a spectator', () => netLobby('guest', { url: srv.value, room: roomIn.value, want: 'watch' })))];
 }
