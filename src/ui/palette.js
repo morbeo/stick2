@@ -27,7 +27,7 @@ function paletteEntries() {
     { kind: 'editor', name: 'fx edit', tip: 'Edit a special move\'s shot on the figure: its parts (hitting red, cosmetic grey) dragged into place, its launch arrow, the parts list and specials (unblockable, pass shots, grow, homing, reflectable, sparks, split) under the shot rows (animate tab; picks a shooting move if the open one has none)', run: () => {
       if (app.mode !== 'animate') setMode('animate');
       if (!curMove().keys.some(k => k.shoot)) { const n = Object.keys(currentChar().moves).find(k => currentChar().moves[k].keys.some(x => x.shoot)); if (n) { anim.move = n; anim.key = 0; } }
-      anim.fxEdit = true; panels();
+      anim.fxEdit = true; if (anim.sideTab !== 'all') animTab('effect'); else panels();
     } },
     { kind: 'editor', name: 'looks', tip: VIEW_TIPS.looks, run: () => setMode('fx') }, // 'sounds'/'tracker' are their own mode entries (above) now that they're fx views
     { kind: 'table', name: 'bone table', tip: 'Every bone of the character in a table over its stage: sort, filter, edit in place, drag to reorder, change parents (in the character tab; the bone tree and Alt+drag on the canvas reparent too)', run: () => {
@@ -67,6 +67,7 @@ function paletteEntries() {
       ['skin: save', 'Save the bones\' current look as a new skin', saveSkin],
       ...Object.keys(DEFS[CURRENT]?.skins || {}).map(n => ['skin: ' + n, `Apply the ${n} skin`, () => applySkin(n)]),
       ['group: save', 'Save the selected bones as a named group', saveGroup],
+      ...Object.keys(ANIM_TABS).map(k => ['animate tab: ' + k, 'Show the animate side panel\'s ' + k + ' tab: ' + ANIM_TABS[k], () => { if (app.mode !== 'animate') setMode('animate'); animTab(k); }]),
       ...Object.keys(SIDE_TABS).map(k => ['side: ' + k, 'Show the side panel\'s ' + k + ' tab: ' + SIDE_TABS[k], () => sideTab(k)]),
       ...Object.keys(LOOK_PRESETS).map(n => ['look: ' + n, LOOK_PRESETS[n][1], () => lookPreset(n)]),
       ...[...LOOK_OUTLINES, 'none'].map(o => ['look: outline ' + o, LOOK_TIPS.outline[o], () => edit(d => { d.look = { ...d.look, outline: o }; if (o === 'none') delete d.look.outline; if (!Object.keys(d.look).length) delete d.look; })]),
