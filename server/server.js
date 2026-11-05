@@ -4,6 +4,7 @@
 //   GET /healthz     200 "ok", or 503 "draining" while shutting down
 //   GET /metrics     Prometheus metrics (a bearer token if METRICS_TOKEN is set)
 //   GET /api/rooms   the public rooms, as JSON (the lobby browser)
+//   GET /api/leaderboard  rated players, best first; GET /api/players/<name> one (ratings.js)
 //   GET /api/replays  finished matches, newest first; GET /api/replays/<id> one, as a replay file (replays.js)
 //   POST /api/embeds  a short embed link: {hash} -> {id} (embeds.js); GET /e/<id> redirects to the game with that hash
 //   /api/admin/…     moderation, with the ADMIN_TOKEN as a bearer token (off without one): rooms, reports, bans, flags, kick, ban, unban, close
@@ -17,6 +18,7 @@ const { Bans } = require('./moderation');
 const { Embeds, MAX_HASH } = require('./embeds');
 const { Replays } = require('./replays');
 const { Verifier } = require('./verify');
+const { Ratings } = require('./ratings');
 
 const num = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 0 ? n : d; };
 function config(env = process.env) {
@@ -38,6 +40,7 @@ function config(env = process.env) {
     dbPath: env.DB_PATH || '', // a folder for bans.json and embeds.json; none: they live in memory only
     maxEmbeds: num(env.MAX_EMBEDS, 10000), // short embed links kept (0: short links off)
     maxReplays: num(env.MAX_REPLAYS, 200), // finished matches kept as replays (0: off)
+    ratings: env.RATINGS !== '0', // Glicko-2 ratings from verified matches (needs VERIFY), a leaderboard and quick match by rating
     verify: env.VERIFY !== '0', // play every finished match again on the server, for verdicts, gameplay stats and cheat flags
     spectateDelay: num(env.SPECTATE_DELAY, 180), // frames (60 a second) spectators watch behind the players
     maxSpectators: num(env.MAX_SPECTATORS, 14), // people a room may have besides its two fighters (spectators and the queue)
@@ -104,6 +107,11 @@ function start(cfg = config()) {
     verified: reg.counter('verify_total', 'Finished matches the server played again, by verdict (ok, desync, result, version, error)'),
     verifySeconds: reg.histogram('verify_seconds', 'How long the server takes to play a finished match again', [0.1, 0.25, 0.5, 1, 2, 5, 10, 20]),
     verifyQueue: reg.gauge('verify_queue', 'Finished matches waiting to be played again', () => verifier?.queued ?? 0),
+    rated: reg.counter('rated_matches_total', 'Verified matches that moved two players\' ratings'),
+    quickQueue: reg.gauge('quick_queue', 'Players waiting in quick match', () => relay.quick.length),
+    quickMatches: reg.counter('quick_matches_total', 'Quick matches that opened a room'),
+    quickWait: reg.histogram('quick_wait_seconds', 'How long players waited in quick match before a pairing', [5, 10, 20, 30, 60, 120, 300]),
+    ratedPlayers: reg.gauge('rated_players', 'Players with a rating', () => ratings?.players.size ?? 0),
     flags: reg.counter('flagged_total', 'Matches whose replay does not add up (desync: the inputs give other checksums; result: another winner than claimed)'),
     ends: reg.counter('match_ends_total', 'Verified matches, by how they ended (ko, double ko, time) and which side won (p1, p2, draw)'),
     frames: reg.histogram('match_frames', 'Length of verified matches in frames (60 a second)', [600, 1800, 3600, 5400, 7200, 10800, 18000]),
@@ -121,12 +129,13 @@ function start(cfg = config()) {
     if (st.winner === 0 || st.winner === 1) { M.wins.inc({ char: char(st.chars[st.winner]) }); M.hpLeft.observe(st.hp[st.winner]); }
   };
   const verifier = cfg.verify ? new Verifier() : null;
+  const ratings = cfg.ratings && cfg.verify ? new Ratings({ file: cfg.dbPath ? path.join(cfg.dbPath, 'ratings.json') : null }) : null;
   const bans = new Bans({ file: cfg.dbPath ? path.join(cfg.dbPath, 'bans.json') : null });
   const embeds = new Embeds({ file: cfg.dbPath ? path.join(cfg.dbPath, 'embeds.json') : null, max: cfg.maxEmbeds });
   const embedRate = new Map(); // address -> [window start, count]: 60 short links an hour each
   const audit = (action, detail) => log('info', 'moderation', { action, ...detail });
   const replays = new Replays({ dir: cfg.dbPath ? path.join(cfg.dbPath, 'replays') : null, max: cfg.maxReplays });
-  const relay = new Relay({ maxRooms: cfg.maxRooms, idleMs: cfg.roomIdle * 1000, metrics: M, bans, blocklist: cfg.blocklist, audit, replays: cfg.maxReplays ? replays : null, verifier,
+  const relay = new Relay({ maxRooms: cfg.maxRooms, idleMs: cfg.roomIdle * 1000, metrics: M, bans, blocklist: cfg.blocklist, audit, replays: cfg.maxReplays ? replays : null, verifier, ratings,
     delay: cfg.spectateDelay, watchers: Math.min(cfg.maxSpectators, 14) }); // (the relay takes 16 guests at most)
 
   // ---------- moderation over HTTP (admin token) ----------
@@ -209,6 +218,9 @@ function start(cfg = config()) {
     if (url.pathname === '/api/replays') return send(res, 200, JSON.stringify({ server: cfg.name, replays: replays.list() }), 'application/json', 'replays');
     const rep = url.pathname.match(/^\/api\/replays\/([\w-]{1,20})$/);
     if (rep) { const text = replays.get(rep[1]); return text ? send(res, 200, text, 'application/json', 'replays') : send(res, 404, 'no such replay\n', undefined, 'replays'); }
+    if (url.pathname === '/api/leaderboard') return send(res, 200, JSON.stringify({ server: cfg.name, players: ratings ? ratings.board(50) : [] }), 'application/json', 'ratings');
+    const pl = url.pathname.match(/^\/api\/players\/([^/]{1,40})$/);
+    if (pl) { let n; try { n = decodeURIComponent(pl[1]); } catch { n = ''; } const p = ratings?.byName(n); return p ? send(res, 200, JSON.stringify(p), 'application/json', 'ratings') : send(res, 404, 'no such player\n', undefined, 'ratings'); }
     if (url.pathname === '/api/rooms') return send(res, 200, JSON.stringify({ server: cfg.name, region: cfg.region, version: VERSION, rooms: relay.list() }), 'application/json', 'api');
     if (!cfg.staticDir) return send(res, 404, 'not found\n');
     let rel;
@@ -247,7 +259,7 @@ function start(cfg = config()) {
       M.bytes.inc({ dir: 'in' }, data.length);
       if (binary) return client.send({ t: 'error', error: 'bad message' });
       let m; try { m = JSON.parse(data); } catch { return client.send({ t: 'error', error: 'bad message' }); }
-      M.msgs.inc({ dir: 'in', type: typeof m?.t === 'string' && /^(host|join|to|msg|leave|list|kick|lock|report|replay)$/.test(m.t) ? m.t : 'other' });
+      M.msgs.inc({ dir: 'in', type: typeof m?.t === 'string' && /^(host|join|to|msg|leave|list|kick|lock|report|replay|quick|unquick)$/.test(m.t) ? m.t : 'other' });
       relay.receive(client, m);
     });
     ws.on('close', code => {
@@ -260,7 +272,7 @@ function start(cfg = config()) {
   });
   // pings find dead connections (and measure the round trip)
   const pinger = setInterval(() => { for (const ws of wss.clients) ws.ping$?.(); }, 15000);
-  const sweeper = setInterval(() => relay.sweep(), 5000); sweeper.unref(); // empty rooms past ROOM_IDLE
+  const sweeper = setInterval(() => relay.sweep(), 2000); sweeper.unref(); // empty rooms past ROOM_IDLE
 
   // ---------- graceful drain: no new rooms or joins, matches finish, then exit ----------
   let stopping = null;

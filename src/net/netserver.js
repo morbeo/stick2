@@ -57,9 +57,9 @@ class ServerLink {
 const netServerWho = (lobby, device) => ({ player: lobby.name, device });
 // host: opens a room; room(code) once the server has given it one. Each guest the server announces is linked like a data channel.
 // The link can kick(lobbyId, ban), lock(on) and report(lobbyId, reason, lines).
-function netServerHost(lobby, url, { room = () => {}, isPublic = false, device = '', WS } = {}) {
+function netServerHost(lobby, url, { room = () => {}, isPublic = false, device = '', quick = null, WS } = {}) {
   const link = new ServerLink(url, {
-    open: () => link.send({ t: 'host', name: '', public: isPublic, ...netServerWho(lobby, device) }),
+    open: () => link.send({ t: 'host', name: '', public: isPublic, ...quick ? { quick } : {}, ...netServerWho(lobby, device) }),
     close: why => lobby.close(why),
   }, WS);
   netServerHosting(lobby, link, room);
@@ -79,6 +79,7 @@ function netServerHosting(lobby, link, room = () => {}) {
     else if (m.t === 'from' && ids.has(m.id)) lobby.receive(ids.get(m.id).id, m.m);
     else if (m.t === 'gone' && ids.has(m.id)) { lobby.unlink(ids.get(m.id).id, m.why === 'left' ? 'left' : m.why); ids.delete(m.id); }
     else if (m.t === 'verified') link.verified?.(m); // the server played the finished match again (server/verify.js)
+    else if (m.t === 'rated') link.rated?.(m); // and moved both players' ratings (server/ratings.js)
     else if (m.t === 'error' || m.t === 'closed') lobby.close(m.error || m.why);
   };
   const sid = lobbyId => [...ids].find(([, v]) => v.id === lobbyId)?.[0];
@@ -100,6 +101,7 @@ function netServerJoin(lobby, url, roomCode, want = 'play', { device = '', WS } 
       // the host left: we host now (from our last snapshot), or someone else does and we say hello to them again
       else if (m.t === 'promoted') { if (lobby.promote(m.fresh ? m.rules : null)) { netServerHosting(lobby, link); link.on.message(m); } else link.send({ t: 'leave' }); }
       else if (m.t === 'newhost') lobby.rejoin();
+      else if (m.t === 'rated') link.rated?.(m);
       else if (m.t === 'closed') lobby.close(m.why);
       else if (m.t === 'error') lobby.close(m.error);
     },
@@ -108,6 +110,29 @@ function netServerJoin(lobby, url, roomCode, want = 'play', { device = '', WS } 
   // a guest can only report the host (or the room)
   link.report = (lobbyId, reason, lines = []) => link.send({ t: 'report', id: lobbyId === 'h' ? 'h' : null, reason, lines });
   return link;
+}
+// quick match: waits in the server's queue for someone of a similar rating. on: { queued({ player, rating, waiting }), found(vs),
+// matched({ role, ticket?, room?, vs }), close(why) }. Paired, the host side opens a room with netServerHost(…, { quick: ticket }),
+// and the other side joins the room it's given.
+function netServerQuick(url, name, { device = '', on = {}, WS } = {}) {
+  const link = new ServerLink(url, {
+    open: () => link.send({ t: 'quick', player: name, device }),
+    message: m => {
+      if (m.t === 'queued') on.queued?.(m);
+      else if (m.t === 'found') on.found?.(m.vs);
+      else if (m.t === 'matched') { link.matched = m; on.matched?.(m); link.close('matched'); }
+      else if (m.t === 'error') link.close(m.error);
+    },
+    close: why => on.close?.(why),
+  }, WS);
+  link.cancel = () => { link.send({ t: 'unquick' }); link.close('cancelled'); };
+  return link;
+}
+// a server's leaderboard (GET /api/leaderboard) → { server, players: [{ name, rating, rd, games, wins, draws, ranked, last }] }, best first
+async function netServerBoard(url) {
+  const u = new URL(url.replace(/^ws/, 'http')); u.pathname = '/api/leaderboard';
+  const r = await fetch(u); if (!r.ok) throw new Error(`the server said ${r.status}`);
+  return r.json();
 }
 // the server this page came from, if a stick2 server serves it (its GET /api/rooms answers): { url, server, region, rooms } or null.
 // A static host (GitHub Pages, a file) answers 404 or nothing, so the app stays as it is there.
