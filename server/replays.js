@@ -23,6 +23,8 @@ class Replays {
     this.save();
     return id;
   }
+  // the server's verdict on a kept replay (verify.js), shown in the list
+  mark(id, verdict) { const e = this.index.find(e => e.id === id); if (!e) return false; e.verify = verdict; this.save(); return true; }
   drop(id) { if (this.dir) try { fs.unlinkSync(path.join(this.dir, id + '.json')); } catch {} else this.mem.delete(id); }
   // the replay file's text, or null
   get(id) {

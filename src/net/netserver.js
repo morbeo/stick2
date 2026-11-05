@@ -78,6 +78,7 @@ function netServerHosting(lobby, link, room = () => {}) {
     else if (m.t === 'peer') add(m.id);
     else if (m.t === 'from' && ids.has(m.id)) lobby.receive(ids.get(m.id).id, m.m);
     else if (m.t === 'gone' && ids.has(m.id)) { lobby.unlink(ids.get(m.id).id, m.why === 'left' ? 'left' : m.why); ids.delete(m.id); }
+    else if (m.t === 'verified') link.verified?.(m); // the server played the finished match again (server/verify.js)
     else if (m.t === 'error' || m.t === 'closed') lobby.close(m.error || m.why);
   };
   const sid = lobbyId => [...ids].find(([, v]) => v.id === lobbyId)?.[0];
@@ -125,7 +126,7 @@ async function netServerRooms(url) {
   const r = await fetch(u); if (!r.ok) throw new Error(`the server said ${r.status}`);
   return r.json();
 }
-// a server's saved replays (GET /api/replays) → { server, replays: [{ id, at, room, players, scenario, frames, winner }] }, newest first;
+// a server's saved replays (GET /api/replays) → { server, replays: [{ id, at, room, players, scenario, frames, winner, verify? }] }, newest first;
 // and one of them, as a replay file (GET /api/replays/<id>)
 async function netServerReplays(url) {
   const u = new URL(url.replace(/^ws/, 'http')); u.pathname = '/api/replays';

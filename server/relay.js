@@ -14,7 +14,8 @@
 //                     { t: 'kick', id, ban? }           (host) send a guest away; ban: not back into this room
 //                     { t: 'lock', locked }             (host) refuse new guests while locked
 //                     { t: 'report', id?, reason, lines? }  report a player (or the room) to the server's admins → { t: 'reported' }
-//                     { t: 'replay', replay, result?, players? }  (host) the finished match, for the server's replays → { t: 'saved', id }
+//                     { t: 'replay', replay, result?, players? }  (host) the finished match, for the server's replays → { t: 'saved', id },
+//                       then, once the server has played it again (verify.js), { t: 'verified', id, verdict, why? }
 //   server → client   { t: 'gone', id, why }            (host) a guest left
 //                     { t: 'promoted', room, player, peers: [{ id, player }], delay, watchers }  (guest) the host left: you host the room now
 //                     { t: 'newhost', player }          (guest) the host left and someone else hosts now: say hello to them
@@ -27,8 +28,8 @@ class Relay {
   // limits: { maxRooms }; metrics: the counters and gauges it updates (server.js); rng: () → [0, 1), the tests pass their own
   // bans: a Bans (moderation.js) or null; blocklist: more words the name filter refuses; audit(action, detail): the moderation log
   // replays: a Replays (replays.js) or null; delay: frames spectators watch behind (anti-ghosting); watchers: spectators a room may have
-  constructor({ maxRooms = 500, guests = RELAY.guests, metrics = null, rng = Math.random, now = () => Date.now(), bans = null, blocklist = [], audit = () => {}, replays = null, delay = 0, watchers = 14 } = {}) {
-    Object.assign(this, { maxRooms, guests, metrics, rng, now, bans, blocklist, audit, replays, delay, watchers, rooms: new Map(), names: new Map(), reports: [], draining: false, spectatorPeak: 0 });
+  constructor({ maxRooms = 500, guests = RELAY.guests, metrics = null, rng = Math.random, now = () => Date.now(), bans = null, blocklist = [], audit = () => {}, replays = null, verifier = null, delay = 0, watchers = 14 } = {}) {
+    Object.assign(this, { maxRooms, guests, metrics, rng, now, bans, blocklist, audit, replays, verifier, delay, watchers, rooms: new Map(), names: new Map(), reports: [], flags: [], draining: false, spectatorPeak: 0 });
   }
   // the name a connection plays under on this server: its own if the filter takes it, else the one its device id generates;
   // a #tag only when someone else already has it
@@ -149,12 +150,32 @@ class Relay {
   replay(client, m) {
     const r = client.role === 'host' && this.rooms.get(client.room);
     if (!r) return this.error(client, 'not hosting');
-    if (!this.replays) return this.error(client, 'off: this server keeps no replays');
+    if (!this.replays && !this.verifier) return this.error(client, 'off: this server keeps no replays');
     if (r.saved) return this.error(client, 'already saved: one replay per match');
-    let id; try { id = this.replays.add(m.replay, { room: r.code, players: m.players, result: m.result }); } catch (e) { return this.error(client, `bad replay: ${e.message}`); }
+    if (m.replay?.format !== 'stick2-replay' || !Array.isArray(m.replay.frames)) return this.error(client, 'bad replay: not a stick2 replay');
+    let id = null;
+    if (this.replays) { try { id = this.replays.add(m.replay, { room: r.code, players: m.players, result: m.result }); } catch (e) { return this.error(client, `bad replay: ${e.message}`); } }
     r.saved = true;
-    this.metrics?.replays?.inc({});
-    client.send({ t: 'saved', id });
+    if (id) { this.metrics?.replays?.inc({}); client.send({ t: 'saved', id }); }
+    this.verify(m.replay, m.result, { id, room: r.code, player: client.player, device: client.device, players: Array.isArray(m.players) ? m.players.slice(0, 2).map(p => String(p ?? '').slice(0, 24)) : [] });
+  }
+  // the server plays the match again (verify.js): a verdict on the replay, gameplay metrics, and a flag on a host whose match doesn't add up
+  async verify(replay, result, who) {
+    if (!this.verifier) return null;
+    const v = await this.verifier.verify(replay, result && typeof result === 'object' ? result : null);
+    this.metrics?.verified?.inc({ verdict: v.verdict });
+    this.metrics?.verifySeconds?.observe(v.seconds);
+    if (v.stats && (v.verdict === 'ok' || v.verdict === 'result')) this.metrics?.match?.(v.stats);
+    if (who.id) this.replays?.mark?.(who.id, { verdict: v.verdict, ...(v.why ? { why: v.why } : {}), ...(v.stats ? { end: v.stats.end, winner: v.stats.winner } : {}) });
+    if (v.verdict === 'desync' || v.verdict === 'result') {
+      this.metrics?.flags?.inc({ verdict: v.verdict });
+      this.audit('flagged', { verdict: v.verdict, why: v.why, room: who.room, host: who.player, replay: who.id });
+      this.flags.unshift({ at: new Date(this.now()).toISOString(), verdict: v.verdict, why: v.why, room: who.room, host: who.player, players: who.players, replay: who.id });
+      this.flags.length = Math.min(this.flags.length, RELAY.reports);
+    }
+    const host = [...this.rooms.values()].find(x => x.code === who.room)?.host;
+    host?.send({ t: 'verified', id: who.id, verdict: v.verdict, ...(v.why ? { why: v.why } : {}) });
+    return v;
   }
   // admin: every room with who's in it (names only: no addresses)
   detail() {
