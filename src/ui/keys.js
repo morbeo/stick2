@@ -203,6 +203,7 @@ function keysContent() {
     search,
     ...groupSecs.map(x => x.sec),
     macroSec, customSec,
+    typeof padContent === 'function' ? subFold('gamepad · buttons and stick', padContent()) : null,
     h('div', { cls: 'bar' },
       button(':restart_alt: reset keys', 'Every key, macro and custom bind back to the defaults (your macros and custom binds are lost)', () => {
         Object.assign(keymap, Object.fromEntries(ACTIONS.map(([a, , k]) => [a, [...k]])));
