@@ -98,7 +98,7 @@ function netServerJoin(lobby, url, roomCode, want = 'play', { device = '', WS } 
       if (m.t === 'joined') { link.room = m.room; link.player = m.player; if (m.player) lobby.name = m.player; lobby.toHost = x => link.send({ t: 'msg', m: x }); lobby.join(want); }
       else if (m.t === 'msg') lobby.receive(null, m.m);
       // the host left: we host now (from our last snapshot), or someone else does and we say hello to them again
-      else if (m.t === 'promoted') { if (lobby.promote()) { netServerHosting(lobby, link); link.on.message(m); } else link.send({ t: 'leave' }); }
+      else if (m.t === 'promoted') { if (lobby.promote(m.fresh ? m.rules : null)) { netServerHosting(lobby, link); link.on.message(m); } else link.send({ t: 'leave' }); }
       else if (m.t === 'newhost') lobby.rejoin();
       else if (m.t === 'closed') lobby.close(m.why);
       else if (m.t === 'error') lobby.close(m.error);

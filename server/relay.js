@@ -28,8 +28,8 @@ class Relay {
   // limits: { maxRooms }; metrics: the counters and gauges it updates (server.js); rng: () → [0, 1), the tests pass their own
   // bans: a Bans (moderation.js) or null; blocklist: more words the name filter refuses; audit(action, detail): the moderation log
   // replays: a Replays (replays.js) or null; delay: frames spectators watch behind (anti-ghosting); watchers: spectators a room may have
-  constructor({ maxRooms = 500, guests = RELAY.guests, metrics = null, rng = Math.random, now = () => Date.now(), bans = null, blocklist = [], audit = () => {}, replays = null, verifier = null, delay = 0, watchers = 14 } = {}) {
-    Object.assign(this, { maxRooms, guests, metrics, rng, now, bans, blocklist, audit, replays, verifier, delay, watchers, rooms: new Map(), names: new Map(), reports: [], flags: [], draining: false, spectatorPeak: 0 });
+  constructor({ maxRooms = 500, guests = RELAY.guests, metrics = null, rng = Math.random, now = () => Date.now(), bans = null, blocklist = [], audit = () => {}, replays = null, verifier = null, idleMs = 0, delay = 0, watchers = 14 } = {}) {
+    Object.assign(this, { maxRooms, guests, metrics, rng, now, bans, blocklist, audit, replays, verifier, idleMs, delay, watchers, rooms: new Map(), names: new Map(), reports: [], flags: [], draining: false, spectatorPeak: 0 });
   }
   // the name a connection plays under on this server: its own if the filter takes it, else the one its device id generates;
   // a #tag only when someone else already has it
@@ -87,12 +87,21 @@ class Relay {
     if (this.draining) return this.error(client, 'draining: the server is restarting, try again in a moment');
     if (client.room) return this.error(client, 'already in a room');
     const r = this.rooms.get(String(m.room || '').toUpperCase().replace(/[^A-Z0-9]/g, ''));
-    if (!r) return this.error(client, 'no room: that room code is unknown or the room has closed');
+    if (r && !r.host && this.now() - r.empty >= this.idleMs) this.remove(r);
+    if (!r || !this.rooms.has(r.code)) return this.error(client, 'no room: that room code is unknown or the room has closed');
     const player = this.claim(client, m), ban = this.banned(client);
     if (ban) return this.error(client, `banned: ${ban.reason || 'by the server'}`);
     if ((client.device && r.banned.has(client.device)) || r.banned.has(client.ip)) return this.error(client, 'kicked: the host sent you away from this room');
     if (r.locked) return this.error(client, 'locked: the host locked the room');
     if (r.guests.size >= this.guests) return this.error(client, 'full: the room has no free places');
+    if (!r.host) { // an empty room, still open (ROOM_IDLE): the first one in hosts it, with the room's last rules
+      Object.assign(client, { room: r.code, role: 'host', id: 'h' });
+      Object.assign(r, { host: client, empty: 0, phase: 'lobby', players: 1, watchers: 0, saved: false });
+      this.metrics?.joins.inc({});
+      client.send({ t: 'promoted', room: r.code, player, peers: [], delay: this.delay, watchers: this.watchers, fresh: true, rules: r.rules || null });
+      this.audit('reopen', { room: r.code, to: player });
+      return;
+    }
     const id = 's' + ++r.n;
     r.guests.set(id, client);
     Object.assign(client, { room: r.code, role: 'guest', id });
@@ -179,12 +188,13 @@ class Relay {
   }
   // admin: every room with who's in it (names only: no addresses)
   detail() {
-    return [...this.rooms.values()].map(r => ({ room: r.code, name: r.name, public: r.public, locked: r.locked, phase: r.phase, host: r.host.player, created: new Date(r.created).toISOString(),
+    return [...this.rooms.values()].map(r => ({ room: r.code, name: r.name, public: r.public, locked: r.locked, phase: r.phase, host: r.host?.player || null, empty: !r.host, created: new Date(r.created).toISOString(),
       guests: [...r.guests].map(([id, g]) => ({ id, player: g.player })) }));
   }
   // admin: close a room, or send one player (by name) off the server's rooms; returns whether anything happened
   close(code, why = 'closed by the server') {
     const r = this.rooms.get(code); if (!r) return false;
+    if (!r.host) { this.remove(r); return true; }
     for (const id of [...r.guests.keys()]) this.drop(r, id, why);
     r.host.send({ t: 'closed', why });
     this.leave(r.host, why, false);
@@ -233,19 +243,27 @@ class Relay {
       this.audit('handover', { room: r.code, from: client.player, to: next.player });
       return;
     }
-    if (client.role === 'host') {
+    if (client.role === 'host' && handover && this.idleMs && !r.locked) { // the last one out: the room stays open, empty, for ROOM_IDLE
+      Object.assign(r, { host: null, empty: this.now(), phase: 'lobby', players: 0, watchers: 0, queue: 0, streak: null });
+      this.audit('empty', { room: r.code, from: client.player });
+    } else if (client.role === 'host') {
       for (const g of r.guests.values()) { g.send({ t: 'closed', why: 'the host closed the room' }); g.room = g.role = g.id = null; }
-      this.rooms.delete(r.code);
-      this.metrics?.rooms.dec({});
-      this.metrics?.roomSeconds.observe((this.now() - r.created) / 1000);
+      this.remove(r);
     } else {
       r.guests.delete(client.id);
       r.host.send({ t: 'gone', id: client.id, why });
     }
     client.room = client.role = client.id = null;
   }
+  remove(r) {
+    if (!this.rooms.delete(r.code)) return;
+    this.metrics?.rooms.dec({});
+    this.metrics?.roomSeconds.observe((this.now() - r.created) / 1000);
+  }
+  // empty rooms whose ROOM_IDLE ran out close (the server calls this every few seconds)
+  sweep() { for (const r of [...this.rooms.values()]) if (!r.host && this.now() - r.empty >= this.idleMs) this.remove(r); }
   list() {
-    return [...this.rooms.values()].filter(r => r.public).map(r => ({ room: r.code, name: r.name, host: r.host.player || null, phase: r.phase, players: r.players, watchers: r.watchers, locked: r.locked,
+    return [...this.rooms.values()].filter(r => r.public).map(r => ({ room: r.code, name: r.name, host: r.host?.player || null, empty: !r.host, phase: r.phase, players: r.players, watchers: r.watchers, locked: r.locked,
       rules: r.rules || null, queue: r.queue || 0, streak: r.streak || null }));
   }
   phases() { const c = {}; for (const r of this.rooms.values()) c[r.phase] = (c[r.phase] || 0) + 1; return c; }
