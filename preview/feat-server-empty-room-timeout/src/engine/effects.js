@@ -95,8 +95,23 @@ function drawShotPart(ctx, p, look, k, t, dir) {
 // ---------- beam parts: stretches of the beam, from / to as fractions of its range (0 = the muzzle, 1 = its far end), w its width
 // multiplier; only parts with hits collide, so a beam can hit only at its tip, or carry a wide cosmetic glow ----------
 // a live beam's hitting stretches as segments [[x0, y], [x1, y], r], clipped to the arena like the beam itself
+// (an angled beam, beam.angle / angleTo: its direction now, degrees above level, swept across its duration)
+const beamAngle = b => (b.ang0 || 0) + ((b.ang1 ?? b.ang0 ?? 0) - (b.ang0 || 0)) * Math.min(1, b.t / (b.dur || 1));
+function beamPoint(b, f, lo = -1e9, hi = 1e9) { const a = beamAngle(b) * Math.PI / 180;
+  return [Math.min(hi, Math.max(lo, b.x + b.dir * Math.cos(a) * b.range * f)), b.y - Math.sin(a) * b.range * f]; }
 function beamHitShapes(b, lo = 20, hi = 1e9) {
-  const out = [], at = f => Math.min(hi, Math.max(lo, b.x + b.dir * b.range * f));
-  for (const p of b.parts || [{ from: 0, to: 1, w: 1 }]) if (p.hits !== false) out.push([[at(p.from || 0), b.y], [at(p.to ?? 1), b.y], b.w * (p.w ?? 1) / 2]);
+  const out = [];
+  for (const p of b.parts || [{ from: 0, to: 1, w: 1 }]) if (p.hits !== false) out.push([beamPoint(b, p.from || 0, lo, hi), beamPoint(b, p.to ?? 1, lo, hi), b.w * (p.w ?? 1) / 2]);
   return out;
+}
+
+// a fire beam's stretch from f0 to f1 (fractions along it, at(f) its point): overlapping puffs that widen and redden toward
+// the end and flicker with time (drawing only: a hash of the puff index and the time, no random numbers)
+function drawFireStream(ctx, at, f0, f1, bw, alpha, t) {
+  const n = Math.max(6, Math.round((f1 - f0) * 60)), fl = (i, k) => Math.sin(i * 12.9898 + t * k) * 0.5 + 0.5;
+  for (let i = n; i >= 0; i--) {
+    const f = f0 + (f1 - f0) * i / n, u = i / n, [x, y] = at(f), r = bw * (0.45 + u * 0.9) * (0.85 + fl(i, 31) * 0.3), j = (fl(i, 17) - 0.5) * bw * 0.5;
+    for (const [m, c, al] of [[1.6, '200,60,20', 0.18], [1, '240,140,30', 0.55], [0.5, '255,220,120', 0.7]]) {
+      ctx.fillStyle = `rgba(${c},${al * alpha * (1 - u * 0.35)})`; ctx.beginPath(); ctx.arc(x, y + j, r * m * 0.6, 0, 7); ctx.fill(); }
+  }
 }
