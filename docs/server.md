@@ -65,6 +65,8 @@ Environment variables, each with a default:
 | `DB_PATH` | (none; `/data` in the image) | Folder for `bans.json` and `embeds.json`; none: they last until a restart |
 | `SPECTATE_DELAY` | `180` | Frames (60 a second) spectators watch behind the players, so they can't call out what's coming; `0` for live |
 | `MAX_SPECTATORS` | `14` | People a room may have besides its two fighters: spectators and the queue (at most 14; a room holds 16) |
+| `MCP` | `1` | MCP for AI clients at `POST /mcp` (see [MCP](#mcp)); `0` turns it off |
+| `MCP_TOKEN` | (none) | Set: MCP read tools need it as a bearer token (the admin token works too) |
 | `RATINGS` | `1` | Glicko-2 ratings from verified matches, the leaderboard, and quick match by rating (see [Quick match and ratings](#quick-match-and-ratings)); needs `VERIFY`. `0`: quick match still pairs, everyone at 1500 |
 | `VERIFY` | `1` | Play every finished match again on the server (see [Verify](#verify)); `0` turns it off |
 | `MAX_REPLAYS` | `200` | Finished matches kept as replays (in `DB_PATH/replays/` if set, else in memory), oldest dropped first; `0` turns them off |
@@ -87,6 +89,7 @@ Environment variables, each with a default:
 | `GET /api/replays/<id>` | One saved match, as a [replay file](fighting.md) |
 | `GET /api/leaderboard` | `{ server, players: [{ name, rating, rd, games, wins, draws, ranked, last }] }`: the 50 best ranked players |
 | `GET /api/players/<name>` | One rated player, by the name they last played under (404: none) |
+| `POST /mcp` | MCP (JSON-RPC over Streamable HTTP) for AI clients, see [MCP](#mcp) |
 | `WS /ws` | The relay |
 
 ## Rooms as pools
@@ -121,6 +124,22 @@ With `MAX_REPLAYS=0` the server still verifies (no replay is kept); with `VERIFY
 - **Ratings.** Every verified match (verdict `ok`, see [Verify](#verify)) between two players in the room moves both their ratings, by [Glicko-2](http://www.glicko.net/glicko/glicko2.pdf): a win, a loss or a draw, weighed by how sure each rating is (its deviation, `rd`). A forfeit or a fight that doesn't add up rates nobody. Both fighters hear the change (`rated`), and the room log shows it. A player is a device (the app's device id, only stored hashed) under the name it last played as. New players start at 1500 ± 350. The deviation shrinks with each fight and grows again while a player stays away. **Ranked** (on the leaderboard) once it's under 150, after about ten fights. Kept in `DB_PATH/ratings.json`.
 - **Quick match.** **quick match** in the netplay section (or the palette's `netplay: quick match`) waits in the server's queue. Two players pair when their ratings are within 100, a window that widens by 50 every 10 seconds either has waited. The one who waited longer opens a private room by itself, and the other is sent into it: pick, ready, fight. **cancel** leaves the queue. If the host side never opens its room (15 s), the other goes back to the front of the line.
 - **Leaderboard.** **leaderboard** (or `netplay: leaderboard`) lists the server's ranked players.
+
+## MCP
+
+The server speaks [MCP](https://modelcontextprotocol.io) at `POST /mcp` (Streamable HTTP, one JSON answer per request), so an AI client can look at it and moderate it:
+
+```sh
+claude mcp add --transport http stick2-server http://localhost:8080/mcp
+claude mcp add --transport http stick2-admin http://localhost:8080/mcp --header "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+| Tools | Who |
+|---|---|
+| `server_health`, `get_metrics_summary`, `list_rooms`, `get_room`, `get_leaderboard`, `get_player_stats`, `list_matches`, `get_match`, `export_replay` | Anyone (or `MCP_TOKEN` holders when it is set) |
+| `list_reports`, `list_flags`, `list_bans`, `kick`, `ban`, `unban`, `close_room` | `ADMIN_TOKEN` only; each call goes to the moderation log like the admin API |
+
+Resources: `stick2://server/rooms`, `stick2://server/leaderboard`, and `stick2://match/<id>/replay` (a kept match as a replay file). A replay from `export_replay` loads in the game's replay tab, or in the game's own MCP tools (`replay_import`, see [mcp.md](mcp.md)). Calls are counted in `mcp_calls_total{tool,result}` and timed in `mcp_call_seconds`.
 
 ## Monitoring
 
@@ -190,6 +209,7 @@ All prefixed `stick2_`. Labels never carry names, ids or room codes.
 | `flagged_total{verdict}` | counter | Matches that didn't add up (`desync`, `result`) |
 | `match_ends_total{end,side}`, `match_frames` | counter, histogram | Verified fights: `ko`, `double ko` or `time`, won by `p1`, `p2` or `draw`; length in frames |
 | `character_picks_total{char}`, `character_wins_total{char}`, `winner_hp_left` | counter, counter, histogram | Roster characters by name (any other is `custom`), and the winner's health left |
+| `mcp_calls_total{tool,result}`, `mcp_call_seconds` | counter, histogram | MCP tool calls |
 | `rated_matches_total`, `rated_players` | counter, gauge | Matches that moved two ratings, players with a rating |
 | `quick_queue`, `quick_matches_total`, `quick_wait_seconds` | gauge, counter, histogram | Quick match: waiting now, rooms opened, how long players waited |
 | `rooms_empty` | gauge | Open rooms with nobody in them, waiting out `ROOM_IDLE` |
