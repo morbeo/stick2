@@ -70,3 +70,13 @@ test('shot.reflect: false: the fireball reflect scenario parries it but it does 
     return JSON.stringify({ back, ahp: w.a.hp }); })()`));
   assert.equal(go(true).back, true, 'reflected as before'), assert.equal(go(false).back, false, 'not reflectable'), assert.equal(go(false).ahp, 100);
 });
+
+test('beam parts: a tip-only beam misses a foe close in and still hits one at its far end; the default beam hits both', () => {
+  const go = (parts, bx) => JSON.parse(run(`(() => { const ch = JSON.parse(JSON.stringify(CHARS.stick)); ch.moves.laserBeam.beam = { ...ch.moves.laserBeam.beam, ${parts ? 'parts: ' + JSON.stringify(parts) : ''} };
+    const w = new World({ a: ['@laserBeam'], b: 'dummy', ax: 250, bx: ${bx} }, {}, 7, [ch, CHARS.stick]); w.loop = false; const hp0 = w.b.hp;
+    for (let i = 0; i < 90; i++) { w.advance(1/60, NOIN); }
+    return JSON.stringify({ hit: hp0 - w.b.hp, parts: moveEffects(ch.moves.laserBeam).find(e => e.kind === 'beam').parts.length }); })()`));
+  const tip = [{ from: 0, to: 1, w: 0.6, hits: false }, { from: 0.85, to: 1, w: 1.4 }];
+  assert.ok(go(null, 400).hit > 0, 'default: hits close'), assert.equal(go(null, 400).parts, 1);
+  assert.equal(go(tip, 400).hit, 0, 'tip only: the close foe is inside the cosmetic line'), assert.ok(go(tip, 760).hit > 0, 'tip only: hits at the far end');
+});
