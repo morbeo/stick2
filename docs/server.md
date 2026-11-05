@@ -67,6 +67,7 @@ Environment variables, each with a default:
 | `MAX_SPECTATORS` | `14` | People a room may have besides its two fighters: spectators and the queue (at most 14; a room holds 16) |
 | `MCP` | `1` | MCP for AI clients at `POST /mcp` (see [MCP](#mcp)); `0` turns it off |
 | `MCP_TOKEN` | (none) | Set: MCP read tools need it as a bearer token (the admin token works too) |
+| `ACCOUNTS` | `1` | Accounts: a name kept across linked devices, no passwords (see [Accounts](#accounts)); `0` turns them off |
 | `RATINGS` | `1` | Glicko-2 ratings from verified matches, the leaderboard, and quick match by rating (see [Quick match and ratings](#quick-match-and-ratings)); needs `VERIFY`. `0`: quick match still pairs, everyone at 1500 |
 | `VERIFY` | `1` | Play every finished match again on the server (see [Verify](#verify)); `0` turns it off |
 | `MAX_REPLAYS` | `200` | Finished matches kept as replays (in `DB_PATH/replays/` if set, else in memory), oldest dropped first; `0` turns them off |
@@ -121,9 +122,19 @@ With `MAX_REPLAYS=0` the server still verifies (no replay is kept); with `VERIFY
 
 ## Quick match and ratings
 
-- **Ratings.** Every verified match (verdict `ok`, see [Verify](#verify)) between two players in the room moves both their ratings, by [Glicko-2](http://www.glicko.net/glicko/glicko2.pdf): a win, a loss or a draw, weighed by how sure each rating is (its deviation, `rd`). A forfeit or a fight that doesn't add up rates nobody. Both fighters hear the change (`rated`), and the room log shows it. A player is a device (the app's device id, only stored hashed) under the name it last played as. New players start at 1500 ± 350. The deviation shrinks with each fight and grows again while a player stays away. **Ranked** (on the leaderboard) once it's under 150, after about ten fights. Kept in `DB_PATH/ratings.json`.
+- **Ratings.** Every verified match (verdict `ok`, see [Verify](#verify)) between two players in the room moves both their ratings, by [Glicko-2](http://www.glicko.net/glicko/glicko2.pdf): a win, a loss or a draw, weighed by how sure each rating is (its deviation, `rd`). A forfeit or a fight that doesn't add up rates nobody. Both fighters hear the change (`rated`), and the room log shows it. A player is their [account](#accounts), or else their device (the app's device id, only stored hashed), under the name they last played as. New players start at 1500 ± 350. The deviation shrinks with each fight and grows again while a player stays away. **Ranked** (on the leaderboard) once it's under 150, after about ten fights. Kept in `DB_PATH/ratings.json`.
 - **Quick match.** **quick match** in the netplay section (or the palette's `netplay: quick match`) waits in the server's queue. Two players pair when their ratings are within 100, a window that widens by 50 every 10 seconds either has waited. The one who waited longer opens a private room by itself, and the other is sent into it: pick, ready, fight. **cancel** leaves the queue. If the host side never opens its room (15 s), the other goes back to the front of the line.
 - **Leaderboard.** **leaderboard** (or `netplay: leaderboard`) lists the server's ranked players.
+
+## Accounts
+
+No passwords: an account is a name and the devices linked to it (the app's device ids, only stored hashed, in `DB_PATH/accounts.json`). **account** in the netplay section (or the palette's `netplay: account`):
+
+- **make account** keeps your current name on this server. Nobody else can play under it (they get a `#tag`), until it goes unused for 90 days. You see a **recovery code** once: write it down.
+- **link a device** shows a 6-character code and a QR code for 5 minutes. On the other device, scan the QR code (it opens the game and links) or type the code under **account**. That device plays under the account's name from then on.
+- **Lost device:** type the recovery code under **account** on the new one, or ask the server's admin to relink it (`POST /api/admin/relink`).
+- **unlink** takes this device off the account.
+- **Ratings** follow the account: making one moves the device's rating to it, and every linked device plays under it. **Bans** do too: banning an account's player (by name, or one of its devices) bans every linked device.
 
 ## MCP
 
@@ -175,6 +186,8 @@ Every player has a name on the server. The app sends the name typed in the netpl
 | `GET /api/admin/rooms` | | Every room, public or not, with its players' names |
 | `GET /api/admin/reports` | | The reports |
 | `GET /api/admin/bans` | | Running bans |
+| `GET /api/admin/accounts` | | Every account: name, how many devices, created, last seen (no device ids) |
+| `POST /api/admin/relink` | `{ player, device }` | Link a device to the account with that name (a player who lost every device and the recovery code) |
 | `GET /api/admin/flags` | | The last 200 matches that didn't add up ([Verify](#verify)): verdict, why, room, host, players, replay id |
 | `POST /api/admin/kick` | `{ player, reason? }` | Send a player off (a host's room closes) |
 | `POST /api/admin/ban` | `{ player? , device?, reason?, minutes? }` | Ban by name; an online player's device and hashed address too. No `minutes`: permanent |
@@ -210,6 +223,7 @@ All prefixed `stick2_`. Labels never carry names, ids or room codes.
 | `match_ends_total{end,side}`, `match_frames` | counter, histogram | Verified fights: `ko`, `double ko` or `time`, won by `p1`, `p2` or `draw`; length in frames |
 | `character_picks_total{char}`, `character_wins_total{char}`, `winner_hp_left` | counter, counter, histogram | Roster characters by name (any other is `custom`), and the winner's health left |
 | `mcp_calls_total{tool,result}`, `mcp_call_seconds` | counter, histogram | MCP tool calls |
+| `account_actions_total{action}`, `accounts` | counter, gauge | Accounts: register, link, claim, relink; how many there are |
 | `rated_matches_total`, `rated_players` | counter, gauge | Matches that moved two ratings, players with a rating |
 | `quick_queue`, `quick_matches_total`, `quick_wait_seconds` | gauge, counter, histogram | Quick match: waiting now, rooms opened, how long players waited |
 | `rooms_empty` | gauge | Open rooms with nobody in them, waiting out `ROOM_IDLE` |
@@ -231,6 +245,7 @@ JSON, one object per WebSocket message. On connecting, the server sends `{ t: 'h
 | either | `{ t: 'report', id?, reason, lines? }` | `{ t: 'reported' }` |
 | either | `{ t: 'quick', player?, device? }` (not in a room) | `{ t: 'queued', player, rating, waiting }`; paired: the longer waiting gets `{ t: 'matched', role: 'host', ticket, vs }`, the other `{ t: 'found', vs }` |
 | host | `{ t: 'host', …, quick: ticket }` | as `host`, then the other side gets `{ t: 'matched', role: 'guest', room, vs }` |
+| either | `{ t: 'account', do, device, player?, code? }` (`do`: `whoami`, `register`, `link`, `claim`, `unlink`) | `{ t: 'account', name, devices, recovery? (register, once), code?, until? (link) }` |
 | either | `{ t: 'unquick' }` | `{ t: 'unqueued' }`: out of the queue |
 | fighters | (after a verified match) | `{ t: 'rated', players: [{ name, rating, rd, games, wins, draws, ranked, change }] }` |
 | host | `{ t: 'replay', replay, result?, players? }` | `{ t: 'saved', id }`: the finished match, kept for `/api/replays`; then `{ t: 'verified', id, verdict, why? }` once the server played it again |

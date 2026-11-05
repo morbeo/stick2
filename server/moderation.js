@@ -1,6 +1,6 @@
 'use strict';
 // ---------- moderation: server bans (by device id, hashed address or name), kept in DB_PATH/bans.json when there is one ----------
-// A ban: { id, device?, ip?, name?, reason, by, at, until? } (until: a ms time; none = permanent). Addresses are only ever hashed
+// A ban: { id, device?, ip?, name?, account?, reason, by, at, until? } (until: a ms time; none = permanent). Addresses are only ever hashed
 // (with a salt kept beside the bans), so the file never holds a real IP.
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 
@@ -28,17 +28,19 @@ class Bans {
     return this.list;
   }
   // the ban that covers this player, if any: { device, ip (hashed), name }
-  find({ device, ip, name } = {}) {
+  find({ device, ip, name, account } = {}) {
     const n = name && String(name).toLowerCase().replace(/#\d+$/, '');
-    return this.active().find(b => (b.device && b.device === device) || (b.ip && b.ip === ip) || (b.name && b.name === n)) || null;
+    return this.active().find(b => (b.device && b.device === device) || (b.ip && b.ip === ip) || (b.name && b.name === n) || (b.account && b.account === account)) || null;
   }
   // minutes: 0 or none = permanent
-  add({ device, ip, name, reason = '', by = 'admin', minutes = 0 }) {
-    if (!device && !ip && !name) throw new Error('a ban needs a device, an address or a name');
+  // account: an account id (accounts.js): the ban covers every device linked to it
+  add({ device, ip, name, account, reason = '', by = 'admin', minutes = 0 }) {
+    if (!device && !ip && !name && !account) throw new Error('a ban needs a device, an address, a name or an account');
     const b = { id: ++this.n, reason: String(reason).slice(0, 200), by, at: new Date(this.now()).toISOString() };
     if (device) b.device = String(device);
     if (ip) b.ip = String(ip);
     if (name) b.name = String(name).toLowerCase().replace(/#\d+$/, '');
+    if (account) b.account = String(account);
     if (minutes > 0) b.until = this.now() + minutes * 60000;
     this.list.push(b); this.save();
     return b;
