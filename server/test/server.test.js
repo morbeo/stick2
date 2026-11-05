@@ -136,10 +136,10 @@ test('a real lobby and match through the server: both sides fight the same fight
     const ev = { host: [], guest: [] };
     const mk = (role, name) => new Lobby({ role, name, hooks: { event: e => ev[role].push(e), match: m => matches[role]?.receive(m) } });
     const matches = {}, host = mk('host', 'hana'), guest = mk('guest', 'gus');
-    let room, hl; const opened = new Promise(done => { hl = run('netServerHost')(host, url, { room: r => { room = r; done(); }, WS: WebSocket }); });
+    let room, hl; const opened = new Promise(done => { hl = run('netServerHost')(host, url, { room: r => { room = r; done(); }, device: 'dev-hana', WS: WebSocket }); });
     await opened;
     const joined = new Promise(done => { const t = setInterval(() => { if (guest.id) { clearInterval(t); done(); } }, 10); });
-    run('netServerJoin')(guest, url, room, 'play', { WS: WebSocket });
+    const gl = run('netServerJoin')(guest, url, room, 'play', { device: 'dev-gus', WS: WebSocket });
     await joined;
     host.pick('stick'); guest.pick('sneeko');
     await new Promise(r => setTimeout(r, 100));
@@ -158,7 +158,7 @@ test('a real lobby and match through the server: both sides fight the same fight
     for (const f of Object.keys(matches.guest.sums)) if (matches.host.sums[f] !== undefined) assert.equal(matches.guest.sums[f], matches.host.sums[f]);
     assert.match(await (await get(s, '/metrics')).text(), /stick2_matches_total 1/);
     // the host's replay, played again on the server: the same fight, the same winner
-    let verdict; hl.verified = v => { verdict = v; };
+    let verdict, rated = []; hl.verified = v => { verdict = v; }; hl.rated = m => rated.push(['h', m]); gl.rated = m => rated.push(['g', m]);
     const out = matches.host.outcome();
     hl.saveReplay(JSON.parse(JSON.stringify(matches.host.replay())), { winner: out.winner }, ['hana', 'gus']);
     await until(() => verdict, 20000);
@@ -168,6 +168,13 @@ test('a real lobby and match through the server: both sides fight the same fight
     assert.match(text, /stick2_verify_total\{verdict="ok"\} 1/);
     assert.match(text, /stick2_character_picks_total\{char="sneeko"\} 1/);
     assert.match(text, /stick2_match_ends_total\{end="time",side="(p1|p2|draw)"\} 1/);
+    // both fighters were in the room under their devices: rated, both told
+    await until(() => rated.length === 2);
+    assert.deepEqual(rated.map(([w, m]) => [w, m.players.map(p => p.name).sort().join()]).sort(), [['g', 'gus,hana'], ['h', 'gus,hana']]);
+    assert.match(text + await (await get(s, '/metrics')).text(), /stick2_rated_matches_total 1/);
+    assert.equal((await get(s, '/api/players/hana')).status, 200);
+    assert.equal((await (await get(s, '/api/players/hana')).json()).games, 1);
+    assert.deepEqual((await (await get(s, '/api/leaderboard')).json()).players, [], 'one fight: not sure enough to rank');
   });
 });
 
@@ -275,5 +282,32 @@ test('a host leaves a room with guests: the longest-staying guest hosts it now, 
     assert.deepEqual(rooms.map(r => [r.room, r.host]), [[room, gus.name]]);
     zed.chat('hi'); await until(() => gus.state.rev > 1000);
     assert.match(await (await get(s, '/metrics')).text(), /stick2_host_handovers_total 1/);
+  });
+});
+
+test('quick match through the server: two players queue, one side opens the room, the other is sent into it', async () => {
+  const { ctx, run } = engine([...engine.ENGINE, 'lobby', 'netmatch', 'netserver']);
+  ctx.URL = URL;
+  const s = await boot();
+  await quiet(s, async () => {
+    const url = run('netServerUrl')(`127.0.0.1:${s.port}`), Lobby = run('Lobby'), got = { amy: [], bob: [] };
+    const until = (fn, ms = 5000) => new Promise((done, fail) => { const t0 = Date.now(), t = setInterval(() => { if (fn()) { clearInterval(t); done(); } else if (Date.now() - t0 > ms) { clearInterval(t); fail(new Error('timed out')); } }, 5); });
+    const q = n => run('netServerQuick')(url, n, { device: 'dev-' + n, WS: WebSocket, on: { queued: m => got[n].push(['queued', m.waiting]), matched: m => got[n].push(['matched', m]) } });
+    q('amy'); await until(() => got.amy.length);
+    q('bob');
+    await until(() => got.amy.some(x => x[0] === 'matched'));
+    const m = got.amy.find(x => x[0] === 'matched')[1]; assert.equal(m.role, 'host');
+    const host = new Lobby({ role: 'host', name: 'amy' }); let room;
+    run('netServerHost')(host, url, { room: r => { room = r; }, device: 'dev-amy', quick: m.ticket, WS: WebSocket });
+    await until(() => got.bob.some(x => x[0] === 'matched'));
+    const mb = got.bob.find(x => x[0] === 'matched')[1];
+    await until(() => room);
+    assert.deepEqual([mb.role, mb.room], ['guest', room]);
+    const g = new Lobby({ role: 'guest', name: 'bob' });
+    run('netServerJoin')(g, url, mb.room, 'play', { device: 'dev-bob', WS: WebSocket });
+    await until(() => host.state.slots[1]?.name === 'bob');
+    const text = await (await get(s, '/metrics')).text();
+    assert.match(text, /stick2_quick_matches_total 1/); assert.match(text, /stick2_quick_queue 0/);
+    assert.deepEqual((await (await get(s, '/api/rooms')).json()).rooms, [], 'quick rooms are private');
   });
 });
