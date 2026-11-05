@@ -1,0 +1,4 @@
+{
+  "tip": "You vs the AI with the HUD and timer, click to play, restart and fullscreen. The default kind of embed.",
+  "cfg": { "scenario": "you vs ai", "ui": ["hud", "timer"], "controls": ["play", "restart", "mute", "fullscreen", "open"] }
+}
