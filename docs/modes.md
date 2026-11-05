@@ -363,6 +363,7 @@ A move with a **shoot** key gets the shot rows (look, speed, size, life…) and 
 - **fx edit** shows the shot on the figure where it leaves the striking limbs, with every part outlined and a green arrow for its launch speed and angle. Drag a part's centre to move it, a capsule's far end to aim it.
 - **Dopesheet:** under the bones, a **shot** row (and a **beam** row when the move has one) marks the keys that fire it. Click a key there to toggle it.
 - The boxes view rings each hitting part in a fight.
+- **beam:** the **fire** look, **angle** / **angle to** (a sweep across its duration), **rehit** (multi-hit) and **follow** (stays on the moving limbs).
 - **beam parts:** a beam is one or more stretches, **from** / **to** along its range (0 the muzzle, 1 its far end), each with a **width** multiplier and **hits** on or off. **tip only** makes a cosmetic line that hits only at its far end.
 - **shot special:** **unblockable**, **pass shots** (no clash with opposing shots), **grow** over its life, **homing** toward the nearest foe, **reflectable**, a spark **on hit** or **on end**, and **split** into smaller shots when it expires.
 
