@@ -83,12 +83,13 @@ function netServerConnect(role, { url, room = null, want = 'play', quick = null 
   netSay(`connecting to ${netServerName(url)}…`);
 }
 // a #server=…&room=… link (or just #server=…): the play tab, with the server filled in, joining the room if there is one
-function netServerFromLink(server, room, watch) {
+function netServerFromLink(server, room, watch, link = null) {
   setTimeout(() => history.replaceState(null, '', location.pathname + location.search));
   try { localStorage.setItem(NET_SERVER, server); } catch {}
   if (mode() !== labMode || lab.mode !== 'play') setMode('play');
   layShow('side:netplay', true); lay().fold['play:netplay'] = false; saveLay();
   if (room) netLobby('guest', { url: server, room, want: watch ? 'watch' : 'play' });
+  else if (link) netAccount(server, 'claim', { code: link });
   panels();
 }
 // the play tab's scenario, if it's one fight between two (waves, survival and rumbles aren't): else the plain one
@@ -222,6 +223,34 @@ function netQuick(server) {
 function netQuickRow() {
   return net.quick ? h('div', { cls: 'bar' }, h('span', { textContent: net.quick.status }), button(':close: cancel', 'Stop looking for a fight', () => { net.quick?.link.cancel(); net.quick = null; netDraw(); })) : null;
 }
+// ---------- accounts (server/accounts.js): this device's name kept on a server, other devices linked to it, no passwords ----------
+// net.account: { url, name, devices, recovery?, code?, until?, busy? }; what = whoami | register | link | claim | unlink
+async function netAccount(server, what = 'whoami', extra = {}) {
+  let url; try { url = netServerUrl(server); } catch (e) { net.err = e.message; return netDraw(); }
+  if (what === 'unlink' && !confirm('Unlink this device from the account? It plays under a name of its own again (link it back with a code).')) return;
+  net.account = { ...net.account?.url === url ? net.account : {}, url, busy: true }; netDraw();
+  try {
+    const a = await netServerAccount(url, { do: what, device: netDevice(), player: netName(), ...extra });
+    net.account = { url, ...a }; net.err = null;
+    if (a.name && a.name !== netName()) { try { localStorage.setItem(NET_NAME, a.name); } catch {} } // the account's name is ours now
+    if (what === 'claim') netSay?.(`this device is linked to ${a.name}`);
+  } catch (e) { net.account = { url, busy: false, name: net.account?.name ?? null }; net.err = `account: ${e.message}`; }
+  netDraw();
+}
+function netAccountBox() {
+  const a = net.account; if (!a) return null;
+  const code = h('input', { cls: 'macro', placeholder: 'link or recovery code', tip: 'The 6-character code another device of yours shows, or your recovery code; Enter links this device', onkeydown: e => { e.stopPropagation(); if (e.code === 'Enter') netAccount(a.url, 'claim', { code: code.value }); } });
+  const rows = [h('p', {}, h('b', { textContent: 'account' }), a.busy ? ' · …' : a.name ? ` · ${a.name} · ${a.devices} device${a.devices === 1 ? '' : 's'}` : ' · none on this server',
+    button(':close:', 'Hide the account', () => { net.account = null; netDraw(); }))];
+  if (a.recovery) rows.push(h('p', { cls: 'netpin', tip: 'Shown only this once: write it down. It links a new device to this account if you lose this one' }, 'recovery code ', h('b', { textContent: a.recovery })));
+  if (a.code) rows.push(h('p', {}, 'on your other device, scan this or type ', h('b', { textContent: a.code }), ` (for ${Math.max(0, Math.round((a.until - Date.now()) / 60000))} minutes)`),
+    netQr(netServerLink(a.url, null, false, location.href, a.code), 'Scan with your other device to link it to this account'));
+  if (!a.busy && !a.name) rows.push(h('div', { cls: 'bar' }, button(':add: make account', `Keep ${netName()} as your name on this server, for this device and any you link; your rating follows it`, () => netAccount(a.url, 'register'))),
+    h('div', { cls: 'netrow' }, code, button(':link: link', 'Link this device to your account with a code', () => netAccount(a.url, 'claim', { code: code.value }))));
+  if (!a.busy && a.name) rows.push(h('div', { cls: 'bar' }, button(':link: link a device', 'Show a code (and QR) your other device can use to join this account, for 5 minutes', () => netAccount(a.url, 'link')),
+    button(':close: unlink', 'Take this device off the account', () => netAccount(a.url, 'unlink'))));
+  return h('div', { cls: 'netrooms' }, ...rows);
+}
 // a server's leaderboard: its ranked players, best first
 async function netBoard(server) {
   let url; try { url = netServerUrl(server); } catch (e) { net.err = e.message; return netDraw(); }
@@ -316,6 +345,7 @@ function netDraw() {
       if (net.rooms) rows.push(netRoomList(net.rooms));
       if (net.replays) rows.push(netReplayList(net.replays));
       if (net.board) rows.push(netBoardList(net.board));
+      if (net.account) rows.push(netAccountBox());
     }
   } else {
     const st = L.state, me = L.me;
@@ -405,7 +435,8 @@ function netHomeRows(home) {
   const url = home.url, roomIn = h('input', { cls: 'macro', placeholder: 'room code', tip: 'The room code someone gave you; Enter joins', onkeydown: e => { e.stopPropagation(); if (e.code === 'Enter') netLobby('guest', { url, room: roomIn.value }); } });
   return [h('p', {}, 'playing on ', h('b', { textContent: home.server || netServerName(url) }), home.region ? ` · ${home.region}` : ''),
     h('div', { cls: 'bar' }, button(':bolt: quick match', 'Fight someone near your rating: wait in the queue and the room opens by itself', () => netQuick(url)),
-      button(':list: leaderboard', 'This server\'s ranked players', () => netBoard(url))), netQuickRow(),
+      button(':list: leaderboard', 'This server\'s ranked players', () => netBoard(url)),
+      button(':person: account', 'Keep your name on this server across devices: make an account, link a device, recover one', () => netAccount(url))), netQuickRow(),
     h('div', { cls: 'bar' }, button(':add: new room', 'Open a room here and share its code, link or QR code', () => netLobby('host', { url })),
       toggle(':visibility: public', 'List the room below for everyone on this server (off: only people with the code or link can join)', () => net.public, v => { net.public = v; }),
       button(':replay: replays', 'This server\'s saved fights: watch one again or save it', () => netReplays(url))),
@@ -426,7 +457,8 @@ function netOtherRows() {
       button(':list: rooms', 'Browse the server\'s public rooms', () => netRooms(srv.value)),
       button(':replay: replays', 'The server\'s saved fights: watch one again or save it', () => netReplays(srv.value))),
     h('div', { cls: 'bar' }, button(':bolt: quick match', 'Fight someone near your rating on this server: wait in the queue and the room opens by itself', () => netQuick(srv.value)),
-      button(':list: leaderboard', 'The server\'s ranked players', () => netBoard(srv.value))), netQuickRow(),
+      button(':list: leaderboard', 'The server\'s ranked players', () => netBoard(srv.value)),
+      button(':person: account', 'Keep your name on this server across devices: make an account, link a device, recover one', () => netAccount(srv.value))), netQuickRow(),
     h('div', { cls: 'netrow' }, roomIn, button(':check: join room', 'Join a room on the server by its code', () => netLobby('guest', { url: srv.value, room: roomIn.value })),
       button(':visibility: watch', 'Watch the room\'s fight as a spectator', () => netLobby('guest', { url: srv.value, room: roomIn.value, want: 'watch' })))];
 }
