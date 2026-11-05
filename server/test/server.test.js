@@ -311,3 +311,39 @@ test('quick match through the server: two players queue, one side opens the room
     assert.deepEqual((await (await get(s, '/api/rooms')).json()).rooms, [], 'quick rooms are private');
   });
 });
+
+test('MCP at /mcp: tools for rooms, matches and ratings for anyone; moderation only with the admin token; MCP_TOKEN locks reading', async () => {
+  const s = await boot({ ADMIN_TOKEN: 'sesame' });
+  await quiet(s, async () => {
+    let n = 0;
+    const rpc = (method, params, token) => fetch(`http://127.0.0.1:${s.port}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', ...token ? { authorization: `Bearer ${token}` } : {} },
+      body: JSON.stringify({ jsonrpc: '2.0', id: ++n, method, params }) }).then(r => r.json());
+    const tool = async (name, args = {}, token) => { const r = (await rpc('tools/call', { name, arguments: args }, token)).result; if (r.isError) return r.content[0].text; try { return JSON.parse(r.content[0].text); } catch { return r.content[0].text; } };
+    const init = (await rpc('initialize', { protocolVersion: '2025-06-18' })).result;
+    assert.equal(init.protocolVersion, '2025-06-18'); assert.ok(init.capabilities.tools);
+    const names = t => t.result.tools.map(x => x.name);
+    assert.ok(!names(await rpc('tools/list')).includes('kick'), 'no admin tools without the token');
+    assert.ok(names(await rpc('tools/list', {}, 'sesame')).includes('kick'));
+    const h = client(s); await h.next('hello');
+    h.send({ t: 'host', name: 'arena', public: true, player: 'hana' }); const { room } = await h.next('room');
+    assert.deepEqual((await tool('list_rooms')).map(r => [r.room, r.host]), [[room, 'hana']]);
+    assert.equal((await tool('get_room', { room: room.toLowerCase() })).name, 'arena');
+    assert.equal((await tool('server_health')).rooms, 1);
+    assert.match(await tool('get_metrics_summary', { filter: 'rooms' }), /stick2_rooms 1/);
+    assert.match(await tool('get_player_stats', { player: 'nobody' }), /^Error: no rated player/);
+    assert.match(await tool('kick', { player: 'hana' }), /^Error: unknown tool/);
+    assert.deepEqual(await tool('kick', { player: 'hana', reason: 'test' }, 'sesame'), { ok: true });
+    assert.deepEqual(await tool('list_rooms'), [], 'kicking the host closed the room');
+    const res = (await rpc('resources/list')).result.resources.map(r => r.uri);
+    assert.deepEqual(res, ['stick2://server/rooms', 'stick2://server/leaderboard']);
+    assert.equal(JSON.parse((await rpc('resources/read', { uri: 'stick2://server/leaderboard' })).result.contents[0].text).length, 0);
+    assert.equal((await rpc('nope')).error.code, -32601);
+    assert.match(await (await get(s, '/metrics')).text(), /stick2_mcp_calls_total\{result="ok",tool="list_rooms"\} 2/);
+  });
+  const t = await boot({ MCP_TOKEN: 'reader' });
+  await quiet(t, async () => {
+    const post = token => fetch(`http://127.0.0.1:${t.port}/mcp`, { method: 'POST', headers: token ? { authorization: `Bearer ${token}` } : {}, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }) });
+    assert.equal((await post()).status, 401);
+    assert.deepEqual((await (await post('reader')).json()).result, {});
+  });
+});
