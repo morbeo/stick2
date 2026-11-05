@@ -7,7 +7,7 @@
 //   GET /api/leaderboard  rated players, best first; GET /api/players/<name> one (ratings.js)
 //   GET /api/replays  finished matches, newest first; GET /api/replays/<id> one, as a replay file (replays.js)
 //   POST /api/embeds  a short embed link: {hash} -> {id} (embeds.js); GET /e/<id> redirects to the game with that hash
-//   /api/admin/…     moderation, with the ADMIN_TOKEN as a bearer token (off without one): rooms, reports, bans, flags, kick, ban, unban, close
+//   /api/admin/…     moderation, with the ADMIN_TOKEN as a bearer token (off without one): rooms, reports, bans, flags, accounts, kick, relink, ban, unban, close
 //   WS  /ws          the relay (relay.js)
 // Configured by environment variables, every one with a default (see docs/server.md):
 const fs = require('fs'), path = require('path'), http = require('http');
@@ -19,6 +19,7 @@ const { Embeds, MAX_HASH } = require('./embeds');
 const { Replays } = require('./replays');
 const { Verifier } = require('./verify');
 const { Ratings } = require('./ratings');
+const { Accounts } = require('./accounts');
 
 const num = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 0 ? n : d; };
 function config(env = process.env) {
@@ -40,6 +41,7 @@ function config(env = process.env) {
     dbPath: env.DB_PATH || '', // a folder for bans.json and embeds.json; none: they live in memory only
     maxEmbeds: num(env.MAX_EMBEDS, 10000), // short embed links kept (0: short links off)
     maxReplays: num(env.MAX_REPLAYS, 200), // finished matches kept as replays (0: off)
+    accounts: env.ACCOUNTS !== '0', // accounts: a name kept for a player across devices, no passwords (accounts.js)
     ratings: env.RATINGS !== '0', // Glicko-2 ratings from verified matches (needs VERIFY), a leaderboard and quick match by rating
     verify: env.VERIFY !== '0', // play every finished match again on the server, for verdicts, gameplay stats and cheat flags
     spectateDelay: num(env.SPECTATE_DELAY, 180), // frames (60 a second) spectators watch behind the players
@@ -107,6 +109,8 @@ function start(cfg = config()) {
     verified: reg.counter('verify_total', 'Finished matches the server played again, by verdict (ok, desync, result, version, error)'),
     verifySeconds: reg.histogram('verify_seconds', 'How long the server takes to play a finished match again', [0.1, 0.25, 0.5, 1, 2, 5, 10, 20]),
     verifyQueue: reg.gauge('verify_queue', 'Finished matches waiting to be played again', () => verifier?.queued ?? 0),
+    accounts: reg.counter('account_actions_total', 'Account actions: register, link (a code shown), claim (a device linked), relink (by an admin)'),
+    accountCount: reg.gauge('accounts', 'Accounts on this server', () => accounts?.list.size ?? 0),
     rated: reg.counter('rated_matches_total', 'Verified matches that moved two players\' ratings'),
     quickQueue: reg.gauge('quick_queue', 'Players waiting in quick match', () => relay.quick.length),
     quickMatches: reg.counter('quick_matches_total', 'Quick matches that opened a room'),
@@ -129,13 +133,14 @@ function start(cfg = config()) {
     if (st.winner === 0 || st.winner === 1) { M.wins.inc({ char: char(st.chars[st.winner]) }); M.hpLeft.observe(st.hp[st.winner]); }
   };
   const verifier = cfg.verify ? new Verifier() : null;
+  const accounts = cfg.accounts ? new Accounts({ file: cfg.dbPath ? path.join(cfg.dbPath, 'accounts.json') : null }) : null;
   const ratings = cfg.ratings && cfg.verify ? new Ratings({ file: cfg.dbPath ? path.join(cfg.dbPath, 'ratings.json') : null }) : null;
   const bans = new Bans({ file: cfg.dbPath ? path.join(cfg.dbPath, 'bans.json') : null });
   const embeds = new Embeds({ file: cfg.dbPath ? path.join(cfg.dbPath, 'embeds.json') : null, max: cfg.maxEmbeds });
   const embedRate = new Map(); // address -> [window start, count]: 60 short links an hour each
   const audit = (action, detail) => log('info', 'moderation', { action, ...detail });
   const replays = new Replays({ dir: cfg.dbPath ? path.join(cfg.dbPath, 'replays') : null, max: cfg.maxReplays });
-  const relay = new Relay({ maxRooms: cfg.maxRooms, idleMs: cfg.roomIdle * 1000, metrics: M, bans, blocklist: cfg.blocklist, audit, replays: cfg.maxReplays ? replays : null, verifier, ratings,
+  const relay = new Relay({ maxRooms: cfg.maxRooms, idleMs: cfg.roomIdle * 1000, metrics: M, bans, blocklist: cfg.blocklist, audit, replays: cfg.maxReplays ? replays : null, verifier, ratings, accounts,
     delay: cfg.spectateDelay, watchers: Math.min(cfg.maxSpectators, 14) }); // (the relay takes 16 guests at most)
 
   // ---------- moderation over HTTP (admin token) ----------
@@ -148,6 +153,7 @@ function start(cfg = config()) {
       if (route === 'reports') return json(200, { reports: relay.reports });
       if (route === 'bans') return json(200, { bans: bans.active() });
       if (route === 'flags') return json(200, { flags: relay.flags });
+      if (route === 'accounts') return json(200, { accounts: accounts ? [...accounts.list.values()].map(a => accounts.view(a)) : [] });
       return json(404, { error: 'unknown' });
     }
     let body = '';
@@ -164,10 +170,17 @@ function start(cfg = config()) {
         // an online player by name takes their device and address too; or a device id, or just a name
         const c = b.player && relay.names.get(String(b.player).toLowerCase());
         let ban;
-        try { ban = bans.add({ device: b.device || c?.device, ip: c?.ip, name: b.player, reason: b.reason, minutes: Number(b.minutes) || 0 }); } catch (e) { return json(400, { error: e.message }); }
+        // an account's ban covers all its devices: the player's (online or not), or the device's
+        const acct = c?.account || accounts?.byName(b.player)?.id || (b.device && accounts?.of(b.device)?.id) || undefined;
+        try { ban = bans.add({ device: b.device || c?.device, ip: c?.ip, name: b.player, account: acct, reason: b.reason, minutes: Number(b.minutes) || 0 }); } catch (e) { return json(400, { error: e.message }); }
         M.bans.inc(); audit('ban', { by: 'admin', player: b.player || null, minutes: Number(b.minutes) || 0, id: ban.id });
         if (c) relay.kickPlayer(b.player, `banned: ${ban.reason || 'by the server'}`);
         return json(200, { ok: true, ban });
+      }
+      if (route === 'relink') {
+        if (!accounts) return json(404, { error: 'accounts are off' });
+        try { const a = accounts.relink(b.player, String(b.device || '')); M.accounts.inc({ action: 'relink' }); audit('relink', { by: 'admin', player: a.name }); return json(200, { ok: true, account: accounts.view(a) }); }
+        catch (e) { return json(400, { error: e.message }); }
       }
       if (route === 'unban') { const ok = bans.remove(b.id); if (ok) audit('unban', { by: 'admin', id: b.id }); return json(ok ? 200 : 404, { ok }); }
       return json(404, { error: 'unknown' });
@@ -259,7 +272,7 @@ function start(cfg = config()) {
       M.bytes.inc({ dir: 'in' }, data.length);
       if (binary) return client.send({ t: 'error', error: 'bad message' });
       let m; try { m = JSON.parse(data); } catch { return client.send({ t: 'error', error: 'bad message' }); }
-      M.msgs.inc({ dir: 'in', type: typeof m?.t === 'string' && /^(host|join|to|msg|leave|list|kick|lock|report|replay|quick|unquick)$/.test(m.t) ? m.t : 'other' });
+      M.msgs.inc({ dir: 'in', type: typeof m?.t === 'string' && /^(host|join|to|msg|leave|list|kick|lock|report|replay|quick|unquick|account)$/.test(m.t) ? m.t : 'other' });
       relay.receive(client, m);
     });
     ws.on('close', code => {
