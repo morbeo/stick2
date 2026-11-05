@@ -118,6 +118,7 @@ function start(cfg = config()) {
     mcpCalls: reg.counter('mcp_calls_total', 'MCP tool calls, by tool and result'),
     mcpSeconds: reg.histogram('mcp_call_seconds', 'How long MCP tool calls take', [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1]),
     accounts: reg.counter('account_actions_total', 'Account actions: register, link (a code shown), claim (a device linked), relink (by an admin)'),
+    auths: reg.counter('identity_auths_total', 'Connections that proved an identity key (src/net/identity.js)'),
     accountCount: reg.gauge('accounts', 'Accounts on this server', () => accounts?.list.size ?? 0),
     rated: reg.counter('rated_matches_total', 'Verified matches that moved two players\' ratings'),
     quickQueue: reg.gauge('quick_queue', 'Players waiting in quick match', () => relay.quick.length),
@@ -291,7 +292,7 @@ function start(cfg = config()) {
       M.bytes.inc({ dir: 'in' }, data.length);
       if (binary) return client.send({ t: 'error', error: 'bad message' });
       let m; try { m = JSON.parse(data); } catch { return client.send({ t: 'error', error: 'bad message' }); }
-      M.msgs.inc({ dir: 'in', type: typeof m?.t === 'string' && /^(host|join|to|msg|leave|list|kick|lock|report|replay|quick|unquick|account)$/.test(m.t) ? m.t : 'other' });
+      M.msgs.inc({ dir: 'in', type: typeof m?.t === 'string' && /^(host|join|to|msg|leave|list|kick|lock|report|replay|quick|unquick|account|auth|bot)$/.test(m.t) ? m.t : 'other' });
       relay.receive(client, m);
     });
     ws.on('close', code => {
@@ -300,7 +301,8 @@ function start(cfg = config()) {
       const n = (perIp.get(ip) || 1) - 1; if (n) perIp.set(ip, n); else perIp.delete(ip);
     });
     ws.on('error', () => {});
-    client.send({ t: 'hello', server: cfg.name, region: cfg.region, version: VERSION });
+    client.nonce = require('crypto').randomBytes(16).toString('hex'); // an identity key signs it (auth)
+    client.send({ t: 'hello', server: cfg.name, region: cfg.region, version: VERSION, nonce: client.nonce });
   });
   // pings find dead connections (and measure the round trip)
   const pinger = setInterval(() => { for (const ws of wss.clients) ws.ping$?.(); }, 15000);

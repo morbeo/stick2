@@ -11,6 +11,8 @@ const netWorld = () => net.match?.world || null;
 // this device's id (for server bans) and its name seed; the name: the one typed, else the seed's generated name (src/net/names.js)
 const netKeep = (key, make) => { try { let v = localStorage.getItem(key); if (!v) localStorage.setItem(key, v = make()); return v; } catch { return net[key] ??= make(); } };
 const netDevice = () => netKeep(NET_DEVICE, () => nameSeed() + nameSeed());
+// the identity key (src/net/identity.js) signs each server's nonce; the old device id goes along once, to hand its account over
+ServerLink.auth = async nonce => { const k = await identityKeys(); return k ? { ...await identitySign(nonce, k), device: netDevice() } : null; };
 const netName = () => { try { const n = localStorage.getItem(NET_NAME); if (n && nameClean(n)) return n; } catch {} return nameGen(netKeep(NET_SEED, nameSeed)); };
 // a new generated name (and forget the typed one)
 function netReroll() { try { localStorage.removeItem(NET_NAME); localStorage.setItem(NET_SEED, nameSeed()); } catch { net[NET_SEED] = nameSeed(); } netSay(`you are ${netName()} now`); }
@@ -254,10 +256,30 @@ function netAccountBox() {
     netQr(netServerLink(a.url, null, false, location.href, a.code), 'Scan with your other device to link it to this account'));
   if (!a.busy && !a.name) rows.push(h('div', { cls: 'bar' }, button(':add: make account', `Keep ${netName()} as your name on this server, for this device and any you link; your rating follows it`, () => netAccount(a.url, 'register'))),
     h('div', { cls: 'netrow' }, code, button(':link: link', 'Link this device to your account with a code', () => netAccount(a.url, 'claim', { code: code.value }))),
-    h('p', { cls: 'netrules', tip: 'Lost every device and the recovery code? Give this to the server\'s admin: they can link this device to your account' }, 'this device: ', h('code', { textContent: netDevice() })));
+    h('p', { cls: 'netrules', tip: 'Lost every device and the recovery code? Give this to the server\'s admin: they can link this device to your account' }, 'this device: ', h('code', { textContent: ServerLink.identity || netDevice() })));
+  rows.push(netIdentityRow());
   if (!a.busy && a.name) rows.push(h('div', { cls: 'bar' }, button(':link: link a device', 'Show a code (and QR) your other device can use to join this account, for 5 minutes', () => netAccount(a.url, 'link')),
     button(':close: unlink', 'Take this device off the account', () => netAccount(a.url, 'unlink'))));
   return h('div', { cls: 'netrooms' }, ...rows);
+}
+// the identity key: its fingerprint (the same on every server), and carrying it to another device
+function netIdentityRow() {
+  identityKeys().then(k => { const p = identityPrint(k); if (p !== net.keyPrint) { net.keyPrint = p; netDraw(); } }, () => {});
+  return h('div', { cls: 'bar' }, h('span', { tip: 'Your identity key: every stick2 server knows you by it (your account and rating there go with it)' }, 'key ', h('code', { textContent: net.keyPrint || '…' })),
+    button(':content_copy: copy key', 'Copy your key, to paste on another device so it plays as you on every server. Keep it secret: whoever has it is you', () => netIdentityCopy()),
+    button(':download: paste key', 'Use a key copied from your other device: this one becomes the same player on every server', () => netIdentityPaste()));
+}
+async function netIdentityCopy() {
+  const k = await identityKeys(); if (!k) return netSay('no key: this page has no Web Crypto (it needs https or localhost)');
+  try { await navigator.clipboard.writeText(identityExport(k)); netSay(':content_copy: key copied: paste it on your other device (account, paste key). Keep it secret'); }
+  catch { prompt('Your key (keep it secret):', identityExport(k)); }
+}
+function netIdentityPaste() {
+  const t = prompt('Paste the key from your other device. This device then plays as that player on every server (its own key is replaced).');
+  if (!t) return;
+  try { const k = identityImport(t); net.keyPrint = identityPrint(k); ServerLink.identity = null; netSay(`key ${net.keyPrint} in use: reconnect to a server to play as it`); }
+  catch (e) { net.err = `key: ${e.message}`; }
+  netDraw();
 }
 // a server's leaderboard: its ranked players, best first
 async function netBoard(server) {
