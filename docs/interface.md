@@ -257,7 +257,11 @@ stick2 runs on a phone or tablet in the browser, nothing to install.
 
 ## Gamepads
 
-A standard-mapping gamepad (Xbox, PlayStation, most USB and Bluetooth pads) plays P1 as soon as it's connected: D-pad or left stick moves, A punch, B kick, X special, Y hop, LB / RB guard, Start pauses. It feeds the same inputs as the keyboard, so replays and macros can't tell them apart.
+A standard-mapping gamepad (Xbox, PlayStation, most USB and Bluetooth pads) plays P1 as soon as it's connected: D-pad or left stick moves, A punch, B kick, X special, Y hop, LB / RB guard, LT rewinds, Start pauses. It feeds the same inputs as the keyboard, so replays, macros and online matches can't tell them apart.
+
+- **Rebind:** the :stadia_controller: button in the menu bar (or **gamepad** in ⌘K) opens the keys panel at its *gamepad* section: pick any key action for each button (fight inputs, pause, restart, rewind, modes, views…) and set the stick dead zone. Saved in this browser; *reset pad* restores the defaults.
+- **Menus:** outside a fight, or while a popup is open, the D-pad / stick moves the focus through the buttons, A presses the focused one and B acts as Esc. These three stay fixed whatever you bind, so a rebind can't lock you out.
+- An embed takes the pad only with `gamepad` in its `input` option.
 
 ## Sound
 
