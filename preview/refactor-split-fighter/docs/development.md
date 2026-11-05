@@ -112,7 +112,7 @@ A release published by hand on GitHub runs the same jobs. Run the workflow with 
 
 ## Branch previews
 
-`.github/workflows/pages.yml` publishes the site to the `gh-pages` branch: `master` at the root (https://morbeo.github.io/stick2/), every other branch at `https://morbeo.github.io/stick2/preview/<branch>/` (characters outside `A-Za-z0-9._-` become `-`). Opening a PR comments its preview link; deleting the branch removes the preview. One-time setup: Settings → Pages → Source "Deploy from a branch", branch `gh-pages`, folder `/ (root)`, after the first run has created that branch.
+`.github/workflows/pages.yml` publishes the site to the `gh-pages` branch: `master` at the root (https://morbeo.github.io/stick2/), every other branch at `https://morbeo.github.io/stick2/preview/<branch>/` (characters outside `A-Za-z0-9._-` become `-`). Each deploy is recorded as a GitHub deployment (environment `github-pages` for master, `preview` for branches), so a PR shows "View deployment" and the repo sidebar lists environments; deleting the branch removes the preview and marks its deployments inactive. One-time setup: Settings → Pages → Source "Deploy from a branch", branch `gh-pages`, folder `/ (root)`, after the first run has created that branch.
 
 ## Any build
 
