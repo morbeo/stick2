@@ -94,12 +94,15 @@ function reg(el, f) {
   const s = () => { if (el.isConnected) seen = true; else return seen && syncs.delete(s); f(); };
   syncs.add(s); f();
 }
-function syncAll() { for (const s of [...syncs]) s(); }
+// after a sync, every on/off button (tog, or an option of a seg) tells a screen reader whether it is on, whoever drew it
+const pressedSync = () => { for (const b of document.querySelectorAll('button.tog, .seg > button')) b.setAttribute('aria-pressed', String(b.classList.contains('on'))); };
+function syncAll() { for (const s of [...syncs]) s(); pressedSync(); }
 
 function button(label, tip, fn, cls = '') {
   // a mouse click drops focus (so Space/Enter go back to the game); a keyboard press (detail 0) keeps it, so Tab users stay in place
   const b = h('button', { tip, cls, onclick: e => { const b = e.currentTarget; fn(e, b); if (e.detail) b.blur(); syncAll(); } });
   setRich(b, label);
+  if (/\btog\b/.test(cls)) b.setAttribute('aria-pressed', String(/\bon\b/.test(cls)));
   return b;
 }
 // one labelled row of a dock (docs/ui.md): a fixed-width muted label, then its controls; '' for an unlabelled row
