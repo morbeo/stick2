@@ -2,7 +2,7 @@
 
 [← docs index](README.md)
 
-`tools/mcp/mcp.js` runs stick2 as an [MCP](https://modelcontextprotocol.io) server, so an AI assistant can run fights, read and change settings, characters, scenarios, sounds and fx looks, check moves, play replays and look at frames. It speaks the stdio transport (JSON-RPC 2.0, one message per line) and has no dependencies.
+`tools/mcp/mcp.js` runs stick2 as an [MCP](https://modelcontextprotocol.io) server, so an AI assistant can run fights, read and change settings, characters, scenarios, sounds and fx looks, check moves, play replays and look at frames. It speaks the stdio transport (JSON-RPC 2.0, one message per line) and has no dependencies. The JSON-RPC framing, schema helpers and argument checks live in `tools/lib/mcp-rpc.js`, shared with the game server's `POST /mcp` (see [server](server.md)), so both check tool arguments the same way (required, unknown, type, enum).
 
 A running game server (`server/`) has its own MCP endpoint for its rooms, matches, ratings and moderation: see [server MCP](server.md#mcp).
 
