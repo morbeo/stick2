@@ -5,5 +5,5 @@
   "main": "server.js",
   "scripts": { "start": "node server.js", "backup": "node backup.js backup", "test": "node --test test/*.test.js" },
   "engines": { "node": ">=22" },
-  "dependencies": { "ws": "^8.18.0" }
+  "dependencies": { "ws": "^8.22.1" }
 }
