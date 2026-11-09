@@ -167,7 +167,9 @@ try {
     if (!qs || !det) errs.push('resonance/detune sliders missing');
     else { qs.value = 8; qs.dispatchEvent(new Event('input')); det.value = 200; det.dispatchEvent(new Event('input'));
       if (SOUNDS.hit.q !== 8 || SOUNDS.hit.detune !== 200) errs.push('resonance/detune ' + JSON.stringify(SOUNDS.hit));
-      let data; try { data = await renderSound(SOUNDS.hit); } catch (e) { errs.push('renderSound threw ' + e.message); }
+      // an offline audio render can stall in headless CI Chrome: give up after 5 s with an error instead of hanging the page
+      let data; try { data = await Promise.race([renderSound(SOUNDS.hit), new Promise((_, no) => setTimeout(() => no(new Error('no result after 5 s')), 5000))]); }
+      catch (e) { errs.push('renderSound: ' + e.message); }
       if (data && [...data].some(v => !Number.isFinite(v))) errs.push('renderSound non-finite');
       resetSound('hit'); }
     setMode('fx'); panels(); });
