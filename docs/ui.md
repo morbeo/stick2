@@ -32,6 +32,6 @@ Rules for controls over the stage and in the side panels, so new tools look and 
 
 ## Checklist for a new control
 
-1. It has a tip and, if it is a feature, a palette entry (`src/ui/palette.js`).
+1. It has a tip and, if it is a feature, a palette entry (`src/ui/palette.js`). The browser smoke test (`npm run test:browser`) fails on any visible button without one.
 2. It sits in an existing dock, bar or panel section, not on its own.
 3. Its docs are updated (the page for its tab, plus the in-app help when it changes how a tab works).
