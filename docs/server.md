@@ -80,7 +80,7 @@ Environment variables, each with a default:
 
 | Route | What |
 |---|---|
-| `GET /` | The game (`STATIC_DIR`). Server code, `tools/`, `tests/`, dependencies and dotfiles are never served |
+| `GET /` | The game (`STATIC_DIR`). Server code, `tools/`, `tests/`, dependencies and dotfiles are never served. Text files go out gzipped (about 1.6 MB of scripts become about 0.55 MB) with an `ETag`, so a revisit is a quick 304 per file; `no-cache` still checks every load, so a new deploy shows at once |
 | `GET /healthz` | `200 ok`, or `503 draining` while shutting down |
 | `GET /metrics` | Prometheus metrics |
 | `GET /api/rooms` | `{ server, region, version, rooms: [{ room, name, host, phase, players, watchers, locked, rules, queue, streak }] }`, public rooms only (the room browser). `rules`: `{ rotation, cap, bestOf, timer, rollback, bans }` (`bans` a count), `queue`: how many are in line, `streak`: `{ name, streak }` of the longest one, from the host's lobby |

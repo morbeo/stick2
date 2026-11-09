@@ -11,7 +11,7 @@
 //   POST /mcp        MCP (JSON-RPC) for AI clients: rooms, matches, ratings; moderation with the ADMIN_TOKEN (mcp.js)
 //   WS  /ws          the relay (relay.js)
 // Configured by environment variables, every one with a default (see docs/server.md):
-const fs = require('fs'), path = require('path'), http = require('http');
+const fs = require('fs'), path = require('path'), http = require('http'), zlib = require('zlib');
 const { WebSocketServer } = require('ws');
 const { Relay } = require('./relay');
 const { Registry } = require('./metrics');
@@ -229,6 +229,26 @@ function start(cfg = config()) {
     res.writeHead(status, { 'content-type': type, 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff' });
     res.end(body);
   };
+  // the game's files: an ETag (size + mtime) so a revisit is a 304, not ~1.5 MB again (no-cache still revalidates every
+  // load, so a new deploy shows at once), and text gzipped once per file version, kept in memory (a few hundred kB)
+  const gz = new Map();
+  const serveStatic = (req, res, file) => fs.stat(file, (err, st) => {
+    if (err || !st.isFile()) return send(res, 404, 'not found\n', undefined, 'static');
+    const type = TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', etag = `"${st.size.toString(36)}-${Math.floor(st.mtimeMs).toString(36)}"`;
+    const head = { 'content-type': type, 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff', etag, vary: 'accept-encoding' };
+    if (req.headers['if-none-match'] === etag) { M.http.inc({ route: 'static', status: 304 }); res.writeHead(304, head); return res.end(); }
+    fs.readFile(file, (err, data) => {
+      if (err) return send(res, 404, 'not found\n', undefined, 'static');
+      let body = data;
+      if (/^(text\/|application\/(json|javascript)|image\/svg)/.test(type) && data.length > 1024 && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
+        const hit = gz.get(file);
+        body = hit?.etag === etag ? hit.body : zlib.gzipSync(data);
+        if (hit?.etag !== etag) gz.set(file, { etag, body });
+        head['content-encoding'] = 'gzip';
+      }
+      M.http.inc({ route: 'static', status: 200 }); res.writeHead(200, { ...head, 'content-length': body.length }); res.end(req.method === 'HEAD' ? '' : body);
+    });
+  });
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
     const adm = url.pathname.match(/^\/api\/admin\/([a-z]+)$/);
@@ -261,7 +281,7 @@ function start(cfg = config()) {
     if (rel.endsWith('/')) rel += 'index.html';
     const file = path.resolve(cfg.staticDir, rel);
     if (!file.startsWith(cfg.staticDir + path.sep) || HIDDEN.test(rel)) return send(res, 404, 'not found\n', undefined, 'static');
-    fs.readFile(file, (err, data) => err ? send(res, 404, 'not found\n', undefined, 'static') : send(res, 200, req.method === 'HEAD' ? '' : data, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', 'static'));
+    serveStatic(req, res, file);
   });
 
   // ---------- WebSocket ----------
