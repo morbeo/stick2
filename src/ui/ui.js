@@ -105,6 +105,8 @@ function button(label, tip, fn, cls = '') {
   if (/\btog\b/.test(cls)) b.setAttribute('aria-pressed', String(/\bon\b/.test(cls)));
   return b;
 }
+// one labelled row of a side panel section (docs/ui.md): the label in the row's 72px column, then its controls
+function sideRow(label, tip, ...kids) { return h('div', { cls: 'row', ...tip && { tip } }, h('span', { textContent: label }), h('div', { cls: 'rowc' }, ...kids)); }
 // one labelled row of a dock (docs/ui.md): a fixed-width muted label, then its controls; '' for an unlabelled row
 function dockRow(label, tip, ...kids) {
   const r = h('div', { cls: 'drow', tip, role: 'group' }, h('span', { cls: 'dlab', textContent: label }), h('span', { cls: 'dctl' }, ...kids));

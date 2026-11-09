@@ -215,11 +215,11 @@ try {
     // every shape has a real colour picker, not just built-in presets
     if (!document.querySelector('.shaperow input[type=color]')) errs.push('prop shape has no colour picker');
     // a custom preview background, per prop; unset by default (the app's own background, not a hardcoded dark one)
-    const bgInput = [...document.querySelectorAll('.bar input[type=color]')].find(i => /preview/.test(i.dataset.tip));
+    const bgInput = [...document.querySelectorAll('.bar input[type=color], .rowc input[type=color]')].find(i => /preview/.test(i.dataset.tip));
     if ('bg' in PROPS.crate) errs.push('crate should have no custom background by default');
     bgInput.value = '#336699'; bgInput.dispatchEvent(new Event('input'));
     if (PROPS.crate.bg !== '#336699') errs.push('prop background field did not set PROPS.crate.bg');
-    [...document.querySelectorAll('.bar button')].find(b => b.dataset.tip === 'Back to the default background').click();
+    [...document.querySelectorAll('.bar button, .rowc button')].find(b => b.dataset.tip === 'Back to the default background').click();
     if ('bg' in PROPS.crate) errs.push('prop background did not revert');
     // the gallery's table view shows the same items, each with its own real-size thumbnail
     [...document.querySelectorAll('#side button')].find(b => b.dataset.tip === 'A compact table').click();
@@ -235,11 +235,11 @@ try {
     // a preview of the weapon held in a character's hand, next to the flat blade-shape thumbnail
     if (document.querySelectorAll('.mtable canvas').length < 2) errs.push('weapon hand preview missing');
     // a custom preview background, per weapon; unset by default
-    const wBgInput = [...document.querySelectorAll('.bar input[type=color]')].find(i => /preview/.test(i.dataset.tip));
+    const wBgInput = [...document.querySelectorAll('.bar input[type=color], .rowc input[type=color]')].find(i => /preview/.test(i.dataset.tip));
     if ('bg' in WEAPONS.sword) errs.push('sword should have no custom background by default');
     wBgInput.value = '#663399'; wBgInput.dispatchEvent(new Event('input'));
     if (WEAPONS.sword.bg !== '#663399') errs.push('weapon background field did not set WEAPONS.sword.bg');
-    [...document.querySelectorAll('.bar button')].find(b => b.dataset.tip === 'Back to the default background').click();
+    [...document.querySelectorAll('.bar button, .rowc button')].find(b => b.dataset.tip === 'Back to the default background').click();
     if ('bg' in WEAPONS.sword) errs.push('weapon background did not revert');
     const lenBase = BASE_WEAPONS.sword.len, lenInput = document.querySelector('.mtable input[type=number]');
     lenInput.value = lenBase + 10; lenInput.dispatchEvent(new Event('change'));
@@ -403,7 +403,7 @@ try {
     if (myTracks[name].rows[0].cells.filter(v => v != null).length !== 4 || [0, 2, 4, 6].some(i => myTracks[name].rows[0].cells[i] == null)) errs.push('tracker cells ' + JSON.stringify(myTracks[name].rows[0].cells));
     cells()[0].dispatchEvent(new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
     if (myTracks[name].rows[0].cells[0] !== 1) errs.push('tracker pitch wheel ' + myTracks[name].rows[0].cells[0]);
-    [...document.querySelectorAll('.mtable .bar')].flatMap(b => [...b.querySelectorAll('.seg button')]).find(b => b.textContent === '8').click();
+    [...document.querySelectorAll('.mtable .bar, .mtable .rowc')].flatMap(b => [...b.querySelectorAll('.seg button')]).find(b => b.textContent === '8').click();
     if (myTracks[name].steps !== 8 || myTracks[name].rows[0].cells.length !== 8) errs.push('tracker steps ' + JSON.stringify(myTracks[name]));
     const rowBtn = ic => [...document.querySelectorAll('.trk button')].find(b => b.dataset.rich === ic);
     rowBtn(':swap_horiz:').click(); // invert: the 4 on steps (incl. the pitched one) go off, the other 4 go on at pitch 0
