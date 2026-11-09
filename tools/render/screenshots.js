@@ -72,14 +72,14 @@ const SHOTS = {
 // every shot also depends on src/ui/ui.js and index.html, which would select all of them, so those are left out
 const PLAY = ['src/editor/lab.js', 'src/engine/'], ANIM = ['src/editor/studio.js', 'src/engine/clip.js', 'src/engine/rig'];
 const TOUCHES = {
-  play: PLAY, animate: ANIM, character: ['src/editor/creator.js', 'src/engine/roster.js', 'src/engine/chars/', 'src/engine/shapes.js', 'src/engine/rig'],
+  play: PLAY, animate: ANIM, character: ['src/editor/creator', 'src/engine/roster.js', 'src/engine/chars/', 'src/engine/shapes.js', 'src/engine/rig'],
   gallery: ['src/engine/roster.js', 'src/engine/chars/', 'gallery.html'], experiment: ['src/editor/lab.js', 'src/editor/matrix.js'], grid: ['src/editor/gridlab.js'],
   fx: ['src/editor/fxlab.js', 'src/engine/fx.js'], tests: ['src/engine/checks.js'], impact: ['src/engine/fighter.js', 'src/engine/world.js'],
-  ragdoll: ['src/engine/fighter.js', 'src/engine/world.js'], hip: ['src/editor/creator.js'], movepicker: ['src/editor/studio.js', 'src/editor/propedit.js'],
+  ragdoll: ['src/engine/fighter.js', 'src/engine/world.js'], hip: ['src/editor/creator'], movepicker: ['src/editor/studio.js', 'src/editor/propedit.js'],
   compare: ['src/editor/compare.js'], effects: ['src/engine/fx.js'], combos: ['src/engine/combos.js'], movetable: ['src/editor/movetable.js', 'src/editor/keyedit.js', 'src/editor/studio.js', 'src/editor/tracker.js'],
-  inputs: ['src/engine/inputs.js'], bonetable: ['src/editor/creator.js', 'src/engine/shapes.js'], builder: ['src/engine/scenarios.js', 'src/engine/brain.js'],
-  stancereq: ['src/editor/creator.js'], fighters: ['src/engine/roster.js', 'src/engine/chars/', 'src/editor/lab.js'], menubar: ['src/ui/layout.js', 'src/ui/app.js'],
-  layout: ['src/ui/layout.js', 'src/ui/panelstate.js'], debug: ['src/ui/app.js'], palette: ['src/ui/palette.js'], statsradar: ['src/editor/creator.js'], keys: ['src/ui/keys.js'],
+  inputs: ['src/engine/inputs.js'], bonetable: ['src/editor/creator', 'src/engine/shapes.js'], builder: ['src/engine/scenarios.js', 'src/engine/brain.js'],
+  stancereq: ['src/editor/creator'], fighters: ['src/engine/roster.js', 'src/engine/chars/', 'src/editor/lab.js'], menubar: ['src/ui/layout.js', 'src/ui/app.js'],
+  layout: ['src/ui/layout.js', 'src/ui/panelstate.js'], debug: ['src/ui/app.js'], palette: ['src/ui/palette.js'], statsradar: ['src/editor/creator'], keys: ['src/ui/keys.js'],
   docspanel: ['src/ui/docs.js'], replay: ['src/engine/replay'], netplay: ['src/net/'], phone: ['src/ui/touch.js'],
 };
 // the shots that show any of the changed files, closest match first (a file named outright beats a whole folder)
