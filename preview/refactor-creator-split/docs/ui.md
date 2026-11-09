@@ -18,6 +18,12 @@ Rules for controls over the stage and in the side panels, so new tools look and 
 - **Choices are a `seg`, on/off is a `toggle`.** A seg shows the picked option dark. A toggle shows a dot: filled is on.
 - **Icon plus word for anything that opens a panel** (`:timeline: dopesheet`), so it can be found without hovering.
 
+## Keyboard and screen readers
+
+- **Tab reaches every control** and shows a blue focus ring (keyboard only, never on click). A click drops focus so game keys go back to the game; Enter or Space on a focused button keeps it, so keyboard users stay in place.
+- **Icon-only buttons get a spoken name** (`aria-label`) from their text, else their tip's first words; icon glyphs are hidden from screen readers.
+- **Toggles and seg buttons say if they are on** (`aria-pressed`); a seg and a dock row (`dockRow`, named by its label) are groups.
+
 ## Panels
 
 - **Start compact.** Show the useful part first and put the rest behind a toggle. Example: the dopesheet lists only the bones the move turns until **all bones** is on.
@@ -26,6 +32,6 @@ Rules for controls over the stage and in the side panels, so new tools look and 
 
 ## Checklist for a new control
 
-1. It has a tip and, if it is a feature, a palette entry (`src/ui/palette.js`).
+1. It has a tip and, if it is a feature, a palette entry (`src/ui/palette.js`). The browser smoke test (`npm run test:browser`) fails on any visible button without one.
 2. It sits in an existing dock, bar or panel section, not on its own.
 3. Its docs are updated (the page for its tab, plus the in-app help when it changes how a tab works).

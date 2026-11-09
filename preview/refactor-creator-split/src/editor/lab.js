@@ -87,7 +87,12 @@ function blow(w, k) {
 }
 
 const bred = () => lab.kind === 'breed' || lab.kind === 'attacks'; // the experiment kinds that breed cells (sweep and compare set settings)
-const bodyKind = () => lab.mode === 'experiment' && lab.kind === 'body'; // vary body: creator.js's own expOn grid, reused as-is
+// the lab's view is lab.mode (play | gallery | experiment) and, in experiment, lab.kind (what the nine cells compare; impact has
+// lab.impact on top). labIs(mode, ...kinds) asks one question of it, so the combinations read the same everywhere.
+const LAB_MODES = ['play', 'gallery', 'experiment'];
+const labIs = (mode, ...kinds) => lab.mode === mode && (!kinds.length || kinds.includes(lab.kind));
+const labRagdoll = () => labIs('experiment', 'impact') && lab.impact === 'ragdoll';
+const bodyKind = () => labIs('experiment', 'body'); // vary body: creator.js's own expOn grid, reused as-is
 // a gallery cell builds its fight when it is needed (scrolled into view) and drops it off screen, so it never runs a stale character
 const lazyCell = (mk, c) => Object.defineProperty(c, 'w', { get() { return this._w ??= mk(); }, enumerable: true });
 function build() {
@@ -96,19 +101,19 @@ function build() {
   // vary body (a character-editor feature) lives here as a kind now; leaving it turns its own expOn flag back off,
   // so a later visit to the character tab itself doesn't still show its grid
   if (!bodyKind()) creator.expOn = false;
-  if (lab.mode === 'play') {
+  if (labIs('play')) {
     const replay = lab.replay && lab.tape?.length && scen.a === 'human';
     lab.cells.push({ w: netWorld() || (lab.branch ? lab.branch.make() : lab.playback ? Object.assign(replayWorld(lab.playback), { loop: app.loop }) : newWorld(withInv(replay ? { ...scen, b: { tape: lab.tape } } : scen), {}, 1, playChars())) }); // an online match's world while it lasts (netui.js)
     lab.cells[0].w.sfx = playSound; lab.cols = 1;
   }
-  else if (lab.mode === 'experiment' && lab.kind === 'impact' && lab.impact === 'ragdoll') { lab.cells.push({ w: ragdollWorld() }); lab.cols = 1; }
-  else if (lab.mode === 'experiment' && lab.kind === 'impact') for (const [k, [tip, s]] of Object.entries(IMPACTS))
+  else if (labRagdoll()) { lab.cells.push({ w: ragdollWorld() }); lab.cols = 1; }
+  else if (labIs('experiment', 'impact')) for (const [k, [tip, s]] of Object.entries(IMPACTS))
     lab.cells.push({ w: newWorld({ b: 'dummy', period: 3, ...s, init: w => { s.init?.(w); w.a.hidden = lab.solo; } }, {}, 7, [CHARS.stick, currentChar()]), label: k, tip });
   else if (bodyKind()) { // nine body variations (creator.js's own buildExp/expPanel; its cells, render and side panel are reused as-is)
     if (!creator.expOn) { creator.expOn = true; creator.exp.kind = 'body'; creator.exp.parent = null; }
     buildExp();
   }
-  else if (lab.mode === 'gallery') {
+  else if (labIs('gallery')) {
     for (const m of galleryMoves()) lab.cells.push(lazyCell(() => newWorld({ ...galleryScen(m, undefined, currentChar().moves[m]), ...GALLERY_TARGETS[lab.target][1] }), { move: m, label: m }));
     for (const [k, [tip, s]] of Object.entries(MOVEMENTS)) lab.cells.push(lazyCell(() => newWorld({ period: 2.4, ...s }), { motion: true, label: k, tip: `${k}: ${tip}` }));
   }
@@ -129,7 +134,7 @@ function build() {
     }
   }
   // extra seeds: the same cell fought again with other random rolls (AI, sparks); the stats average them
-  if (lab.mode === 'experiment' && lab.kind !== 'attacks' && lab.kind !== 'impact' && lab.kind !== 'body' && lab.seeds > 1)
+  if (labIs('experiment') && lab.kind !== 'attacks' && lab.kind !== 'impact' && lab.kind !== 'body' && lab.seeds > 1)
     for (const c of lab.cells) c.extra = Array.from({ length: lab.seeds - 1 }, (_, i) => newWorld(c.w.scen, c.over, 8 + i));
   lab.focus = lab.cells[0];
 }
@@ -142,9 +147,9 @@ function cellRects(n, cols, area, minH = 0, scroll = 0) {
 }
 const fullArea = () => ({ x: 0, y: 0, w: canvas.width, h: canvas.height });
 // the lab's cells; the gallery keeps its cells readable and scrolls (mouse wheel) instead of shrinking them
-const labRects = (n = shown().length) => cellRects(n, lab.zoom ? 1 : lab.cols, fullArea(), lab.mode === 'gallery' && !lab.zoom ? 190 * dpr : 0, lab.zoom ? 0 : lab.scroll);
+const labRects = (n = shown().length) => cellRects(n, lab.zoom ? 1 : lab.cols, fullArea(), labIs('gallery') && !lab.zoom ? 190 * dpr : 0, lab.zoom ? 0 : lab.scroll);
 const maxScroll = () => { const r = labRects(); return r.length ? Math.max(0, r[r.length - 1].y + r[r.length - 1].h + lab.scroll + 4 * dpr - canvas.height) : 0; };
-const shown = () => lab.zoom ? [lab.focus] : lab.mode === 'gallery' && lab.filter.trim() ? lab.cells.filter(c => fuzzy(lab.filter, c.label)) : lab.cells;
+const shown = () => lab.zoom ? [lab.focus] : labIs('gallery') && lab.filter.trim() ? lab.cells.filter(c => fuzzy(lab.filter, c.label)) : lab.cells;
 // the shown cells whose rect is on the canvas: only these are drawn, and in the gallery only these run
 const onScreen = () => { const r = labRects(); return shown().filter((c, i) => r[i].y + r[i].h > 0 && r[i].y < canvas.height); };
 const hitRect = (rects, x, y) => rects.findIndex(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
@@ -223,12 +228,12 @@ function drawInputs(w, x, y, c = ctx) {
 function labRender() {
   clear();
   lab.scroll = clamp(lab.scroll, 0, maxScroll()); // the canvas or the column count may have changed
-  const cells = shown(), play = lab.mode === 'play', onImpact = lab.mode === 'experiment' && lab.kind === 'impact', rag = onImpact && lab.impact === 'ragdoll', rects = labRects(cells.length);
-  if (lab.mode === 'gallery' && !cells.length) text('no move matches the filter', canvas.width / 2, canvas.height / 2, '#999', 13, '', 'center');
+  const cells = shown(), play = labIs('play'), onImpact = labIs('experiment', 'impact'), rag = onImpact && lab.impact === 'ragdoll', rects = labRects(cells.length);
+  if (labIs('gallery') && !cells.length) text('no move matches the filter', canvas.width / 2, canvas.height / 2, '#999', 13, '', 'center');
   cells.forEach((c, i) => !(rects[i].y + rects[i].h > 0 && rects[i].y < canvas.height) ? delete c._w : drawCell(c, rects[i], { full: play || rag, plot: !play && !onImpact, meter: lab.meter,
-    selected: !play && !rag && !lab.zoom && (lab.mode === 'experiment' && bred() ? c.parent && 'parent'
+    selected: !play && !rag && !lab.zoom && (labIs('experiment') && bred() ? c.parent && 'parent'
       : c.over ? Object.entries(c.over).every(([k, v]) => CFG[k] === v) && 'current settings' : c === lab.focus && 'focused') }));
-  if (lab.mode === 'experiment' && lab.kind === 'attacks' && !lab.zoom) cells.forEach((c, i) => { c.btns = null; if (i === lab.hover) drawCellButtons(c, rects[i]); });
+  if (labIs('experiment', 'attacks') && !lab.zoom) cells.forEach((c, i) => { c.btns = null; if (i === lab.hover) drawCellButtons(c, rects[i]); });
   if (play && cells[0]) refreshMovelist(cells[0].w.a); // live: a mid-fight stance switch updates the side panel's movelist, not just on the next click
   if (play && lab.inputs && cells[0].w.ctl[0] === 'human') drawInputs(cells[0].w, 10 * dpr, 60 * dpr);
   if (play && cells[0].w.playback) drawPlayback(cells[0].w);
@@ -591,34 +596,34 @@ function zoomBack() {
   return back;
 }
 function labCtx() {
-  if (lab.mode === 'gallery') return [charStancePicker(),
+  if (labIs('gallery')) return [charStancePicker(),
     grp('target', 'What the moves play against', seg(Object.keys(GALLERY_TARGETS), () => lab.target, v => { lab.target = v; build(); }, mapVals(GALLERY_TARGETS, t => t[0]))),
     grp('filter', 'Fuzzy filter by move name: letters in order match (e.g. "lk" finds lowKick)', h('input', { cls: 'macro', value: lab.filter, placeholder: 'fuzzy filter…',
       oninput: e => { lab.filter = e.target.value; lab.scroll = 0; }, onkeydown: e => e.stopPropagation() })),
     showGrp(['meter', 'boxes', 'ghost', 'hud', 'labels'])];
   const els = [];
-  if (lab.mode === 'play' && lab.branch) els.push(grp('branch', `A branch of the replay "${lab.branch.reel.name}" from ${lab.branch.n} frames in: you play P${lab.branch.side}`,
+  if (labIs('play') && lab.branch) els.push(grp('branch', `A branch of the replay "${lab.branch.reel.name}" from ${lab.branch.n} frames in: you play P${lab.branch.side}`,
     button(':history: keep', 'Keep this branch: back to the replay tab, compared with its reel', keepBranch), button(':close: drop', 'Drop the branch: back to the normal fight', dropBranch)));
-  if (lab.mode === 'experiment') els.push(grp('experiment', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
-  if ((lab.kind !== 'attacks' && lab.kind !== 'impact' && lab.kind !== 'body') || lab.mode === 'play') els.push(grp('scenario', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = lab.branch = null; build(); panels(); })));
-  if (lab.mode === 'play' && !SCENARIOS[lab.scen]?.user) els.push(grp('fighters', 'Who fights: P1 (you), P2 and any extra fighters of the scenario, each any character; unset = the one being edited (P3 on: as P2)',
+  if (labIs('experiment')) els.push(grp('experiment', 'What the nine cells compare', seg(Object.keys(BREED_TIPS), () => lab.kind, v => { lab.kind = v; build(); panels(); }, BREED_TIPS)));
+  if ((lab.kind !== 'attacks' && lab.kind !== 'impact' && lab.kind !== 'body') || labIs('play')) els.push(grp('scenario', 'Who fights', scenButton(k => { lab.scen = k; lab.playback = lab.branch = null; build(); panels(); })));
+  if (labIs('play') && !SCENARIOS[lab.scen]?.user) els.push(grp('fighters', 'Who fights: P1 (you), P2 and any extra fighters of the scenario, each any character; unset = the one being edited (P3 on: as P2)',
     SCENARIOS[lab.scen]?.select ? button(':sports_kabaddi: select screen', 'Open the character-select screen for this scenario', selectScreen) : null,
     fighterPick(0), shieldButton(0), swapFighters(), fighterPick(1), shieldButton(1), Array.from({ length: fighterCount(SCENARIOS[lab.scen]) - 2 }, (_, i) => [fighterPick(i + 2), shieldButton(i + 2)])));
-  if (lab.mode === 'play' && SCENARIOS[lab.scen]?.waves) els.push(grp('waves', SPEC.waves.tip + ' Changing it starts over at wave 1',
+  if (labIs('play') && SCENARIOS[lab.scen]?.waves) els.push(grp('waves', SPEC.waves.tip + ' Changing it starts over at wave 1',
     seg(SPEC.waves.opts, () => CFG.waves, v => { setCfg({ waves: v }); mode().restart(); }, SPEC.waves.optTips),
     toggle(':casino: mixed', SPEC.waveMix.tip, () => CFG.waveMix, v => { setCfg({ waveMix: v }); mode().restart(); })));
-  if (lab.mode === 'play' && SCENARIOS[lab.scen]?.rumble) els.push(grp('rumble', 'How many are in the ring and when a new one runs in; see the Rumble settings for the rest',
+  if (labIs('play') && SCENARIOS[lab.scen]?.rumble) els.push(grp('rumble', 'How many are in the ring and when a new one runs in; see the Rumble settings for the rest',
     toggle(':casino: mixed', SPEC.rumbleMix.tip, () => CFG.rumbleMix, v => { setCfg({ rumbleMix: v }); mode().restart(); })));
-  if (lab.mode === 'experiment' && bred()) els.push(...breedCtx());
-  else if (lab.mode === 'experiment' && lab.kind === 'compare') els.push(grp('sides', 'The settings of the two cells (the compare panel lists what differs)', cmpSource('a'), cmpSource('b')), zoomBack());
+  if (labIs('experiment') && bred()) els.push(...breedCtx());
+  else if (labIs('experiment', 'compare')) els.push(grp('sides', 'The settings of the two cells (the compare panel lists what differs)', cmpSource('a'), cmpSource('b')), zoomBack());
   else if (bodyKind()) { /* its controls are the side panel, expPanel() */ }
-  else if (lab.mode === 'experiment' && lab.kind === 'impact') els.push(
+  else if (labIs('experiment', 'impact')) els.push(
     grp('kind', 'The nine scripted hits, or one body alone to strike', seg(['hits', 'ragdoll'], () => lab.impact, v => { lab.impact = v; build(); panels(); },
       { hits: 'Nine scripted hits on the character, struck by the stick fighter', ragdoll: 'One body alone, no attacker: strike it low, mid, high… with the buttons, or drag on it' },
       v => v === 'hits' ? ':grid_view: hits' : ':accessibility_new: ragdoll')),
     grp('falls', SPEC.falls.tip, seg(SPEC.falls.opts, () => CFG.falls, v => setCfg({ falls: v }), SPEC.falls.optTips)),
     showGrp(['meter', 'boxes', 'hud', 'labels'], lab.impact === 'ragdoll' ? null : toggle(':person_off: no attacker', 'Hide the attacker: only the struck body, its blows still land the same way (and drags strike it unobstructed)', () => lab.solo, v => { lab.solo = v; build(); })), zoomBack());
-  else if (lab.mode === 'experiment') {
+  else if (labIs('experiment')) {
     const adopt = button(':check: use these values', 'Copy the focused cell\'s values into the settings (side panel)', () => setCfg(lab.focus.over));
     const back = zoomBack();
     reg(adopt, () => { adopt.hidden = !lab.zoom; });
@@ -639,14 +644,14 @@ function labCtx() {
         Object.assign(lab.x, { k: 'lastFrame' }); Object.assign(lab.y, { k: 'scenario' }); lab.rows = EDGE_SCENS; build();
       }))))), adopt, back);
   }
-  if (lab.mode === 'experiment' && lab.kind !== 'attacks' && lab.kind !== 'impact' && lab.kind !== 'body') els.push(grp('stats', 'How the cells are measured and ordered',
+  if (labIs('experiment') && lab.kind !== 'attacks' && lab.kind !== 'impact' && lab.kind !== 'body') els.push(grp('stats', 'How the cells are measured and ordered',
     seg([1, 3, 5], () => lab.seeds, v => { lab.seeds = v; build(); }, { 1: 'One fight per cell', 3: 'Each cell fought with 3 seeds; stats averaged (AI fights differ per seed)', 5: '5 seeds per cell, averaged' }, v => `${v} seed${v > 1 ? 's' : ''}`),
     sortButton()));
-  if (!(lab.mode === 'experiment' && lab.kind === 'impact')) els.push(showGrp(['meter', ...lab.mode === 'play' ? ['inputs'] : [], 'boxes', 'ghost', 'hud', 'labels', 'timer']));
+  if (!(labIs('experiment', 'impact'))) els.push(showGrp(['meter', ...labIs('play') ? ['inputs'] : [], 'boxes', 'ghost', 'hud', 'labels', 'timer']));
   // compare settings only in experiment (it drives its own compare kind); play just gets its scenario builder, if it has one
-  const panelNames = [...lab.mode === 'experiment' && lab.kind !== 'impact' && lab.kind !== 'body' ? ['compare'] : [], ...lab.mode === 'play' ? ['builder'] : []];
+  const panelNames = [...labIs('experiment') && lab.kind !== 'impact' && lab.kind !== 'body' ? ['compare'] : [], ...labIs('play') ? ['builder'] : []];
   if (panelNames.length) els.push(panelsGrp(panelNames, { compare: CMP_PANEL_TIP, builder: BUILDER_TIP }));
-  if (lab.mode === 'play') els.push(...trainingCtl(),
+  if (labIs('play')) els.push(...trainingCtl(),
     grp('theater', 'No toolbars, no side panel, just the fight — for streaming or recording (Esc, or the key again, leaves it); health bars, frame meter, timer and labels are set in the show group',
       toggle(':crop_landscape: theater', 'Theater mode: no toolbars, no side panel, just the fight, and tries for fullscreen' + keyTip('theater') + ' (Esc, or the key again, leaves it)',
         () => app.theater, setTheater),
@@ -656,17 +661,17 @@ function labCtx() {
 }
 
 function labClick(x, y, e) {
-  if (lab.mode === 'play') return;
+  if (labIs('play')) return;
   if (lab.zoom) { lab.zoom = false; return; }
   const i = hitRect(labRects(), x, y);
   if (i < 0) return;
   const b = lab.cells[i].btns?.find(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
   if (b) return saveAttack(b.open, lab.cells[i]);
   lab.focus = lab.cells[i];
-  if (lab.mode === 'gallery') followMove(lab.focus.move);
+  if (labIs('gallery')) followMove(lab.focus.move);
   // a pick in a settings experiment also sets those settings (⌘Z undoes it); Shift+click only looks
-  if (lab.mode === 'experiment' && !e.shiftKey && lab.focus.over) setCfg(lab.focus.over);
-  if (lab.mode === 'experiment' && bred() && !e.shiftKey) breedFrom(lab.cells[i]); else lab.zoom = true;
+  if (labIs('experiment') && !e.shiftKey && lab.focus.over) setCfg(lab.focus.over);
+  if (labIs('experiment') && bred() && !e.shiftKey) breedFrom(lab.cells[i]); else lab.zoom = true;
 }
 
 // impact: drag from a point on a body to strike it there; a plain click is a medium blow from the front
@@ -718,20 +723,20 @@ function builderMouse(type, x, y) {
   return true;
 }
 const labMode = {
-  enter(m) { lab.mode = m; build(); },
+  enter(m) { lab.mode = LAB_MODES.includes(m) ? m : 'play'; build(); }, // an unknown tab falls back to play, never a lab.mode nothing draws,
   restart: build,
-  overlay: () => bodyKind() ? [] : stageOpen() === 'compare' ? [compareView()] : stageOpen() === 'builder' && lab.mode === 'play' ? [scenBuilder()] :
-    lab.mode === 'experiment' && lab.kind === 'impact' && lab.impact === 'ragdoll' && lab.cells[0] ? [blowBar(() => lab.cells[0].w, build)] : [],
-  worlds: () => bodyKind() ? creator.exp.cells.map(c => c.w) : (lab.mode === 'gallery' ? onScreen() : lab.cells).flatMap(c => [c.w, ...(c.extra || [])]),
+  overlay: () => bodyKind() ? [] : stageOpen() === 'compare' ? [compareView()] : stageOpen() === 'builder' && labIs('play') ? [scenBuilder()] :
+    labRagdoll() && lab.cells[0] ? [blowBar(() => lab.cells[0].w, build)] : [],
+  worlds: () => bodyKind() ? creator.exp.cells.map(c => c.w) : (labIs('gallery') ? onScreen() : lab.cells).flatMap(c => [c.w, ...(c.extra || [])]),
   clipRects: () => bodyKind() ? creatorMode.clipRects() : (() => { const r = labRects(); return shown().map((c, i) => ({ key: c, r: r[i] })); })(),
   render: () => bodyKind() ? creatorRender() : labRender(),
   ctxBar: labCtx,
   side: () => bodyKind() ? expPanel() : labSide(),
-  get open() { return bodyKind() ? ['body experiment'] : lab.mode === 'gallery' ? ['move', 'key'] : lab.mode === 'play' ? ['netplay', 'presets', 'movelist'] : ['presets']; },
+  get open() { return bodyKind() ? ['body experiment'] : labIs('gallery') ? ['move', 'key'] : labIs('play') ? ['netplay', 'presets', 'movelist'] : ['presets']; },
   mouse(type, x, y, e) {
     if (bodyKind()) return creatorMouse(type, x, y, e);
-    if (lab.mode === 'experiment' && lab.kind === 'impact' && !e.shiftKey && impactMouse(type, x, y)) return;
-    if (lab.mode === 'play' && stageOpen() === 'builder' && builderMouse(type, x, y)) return;
+    if (labIs('experiment', 'impact') && !e.shiftKey && impactMouse(type, x, y)) return;
+    if (labIs('play') && stageOpen() === 'builder' && builderMouse(type, x, y)) return;
     if (type === 'down') labClick(x, y, e);
     lab.hover = hitRect(labRects(), x, y);
     const tip = shown()[lab.hover]?.tip; // a cell's tip (gallery movements, impacts) shows on hover
@@ -744,8 +749,8 @@ const labMode = {
     if (e.code === 'Escape' && lab.zoom) { lab.zoom = false; return true; }
   },
   hint: () => bodyKind() ? 'click a cell: breed around it · Esc: back to sweep'
-    : lab.mode === 'play' && stageOpen() === 'builder' ? 'drag a fighter or a prop on the stage to reposition it · ' + fightHint()
-    : lab.mode === 'play' ? fightHint()
-    : lab.mode === 'experiment' && lab.kind === 'impact' ? 'drag on a body: strike it there (direction and length = the blow, long = knockdown) · click a body: a medium blow · click beside: focus / back · Esc back'
-    : lab.mode === 'experiment' && bred() ? (lab.kind === 'attacks' ? 'click a cell: breed around it · its save / edit buttons: keep that attack · Shift+click: focus · Esc back' : 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back') : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',
+    : labIs('play') && stageOpen() === 'builder' ? 'drag a fighter or a prop on the stage to reposition it · ' + fightHint()
+    : labIs('play') ? fightHint()
+    : labIs('experiment', 'impact') ? 'drag on a body: strike it there (direction and length = the blow, long = knockdown) · click a body: a medium blow · click beside: focus / back · Esc back'
+    : labIs('experiment') && bred() ? (lab.kind === 'attacks' ? 'click a cell: breed around it · its save / edit buttons: keep that attack · Shift+click: focus · Esc back' : 'click a cell: breed around it (and use its values, ⌘Z undoes) · Shift+click: focus · Esc back') : 'click a cell: focus it and use its values (⌘Z undoes) · Shift+click: only focus · Esc back',
 };
