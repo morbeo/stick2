@@ -11,11 +11,12 @@ How the code is laid out, and the tools that build its generated files.
 - Tests live in `tests/`, see [Testing](testing.md).
 - The scripts share one global scope, so a new top-level name must not exist in any other `src/` file (a repeated `const` stops the later script).
 - Panel and mode state: `src/ui/panelstate.js` holds which tab a mode belongs to (`VIEWS`, `tabOf`) and the rules for the stage panel a tab shows (`panelInit`, `panelNext`, `panelSet`); `src/ui/layout.js` keeps the panel in the tab's layout. Change panel behaviour there, not in a mode.
-- The editors are split by job: `studio.js` (definitions, undo) + `files.js` (export / import), `lab.js` (fight modes) + `labpanel.js` (side panel, movelist, debug), `editor.js` (animate: layout, posing, preview, mouse) + `keyedit.js` (key and move edits) + `movetable.js` (move table) + `soundlab.js` (sounds, looks, tracker editors), `creator.js` (character: posing, bone panel, side tabs) + `creator-stats.js` (radar, stats, walk & idle, shadow) + `creator-bones.js` (bone table, parts, bones panel).
+- The editors are split by job: `studio.js` (definitions, undo) + `files.js` (export / import), `lab.js` (fight modes) + `labpanel.js` (side panel, movelist, debug), `editor.js` (animate: layout, posing, preview, mouse) + `keyedit.js` (key and move edits) + `movetable.js` (move table) + `soundlab.js` (sounds, looks, tracker editors), `creator.js` (character: posing, bone panel, side tabs) + `creator-stats.js` (radar, stats, walk & idle, shadow) + `creator-bones.js` (bone table, parts, bones panel). In `lab.js` the view is `lab.mode` (`LAB_MODES`: play, gallery, experiment) plus `lab.kind` in experiment: ask it with `labIs(mode, ...kinds)` and `labRagdoll()`, not by comparing the strings.
 - The engine runs without a page too: `tools/lib/engine.js` loads the scripts that need no DOM (core, shapes, the rig group, fx, the roster group, fighter, world, stage, brain, checks, events) into a Node vm context. The tests and the MCP server use it.
 - Some scripts come as groups, listed in `tools/lib/engine.js` (`GROUPS`) and loaded in that order:
   - `rig`: `rig.js` (bones, `fromOld`, `attack`), `rig-chars.js` (binds, stances, stats, `makeCharacter`, `CHAR_DEFS`), `chars/stick.js` (the base stick), `rig-weapons.js`, `rig-pose.js` (stance bodies, sampling, frame data, combos, `fk`, `constrain`), `rig-draw.js`.
   - `roster`: `objdiff.js`, then every file in `src/engine/chars/index.json` (`_kit.js` first, then one file per character), then `roster.js` (supers, exported characters, `CHARS`).
+  - `fighter`: `fighter.js` (state, input, moves, hits), then `fighter-legs.js` (walk and air legs, leg IK, planted feet), `fighter-rag.js` (ragdoll) and `fighter-draw.js` (drawing only). Each later part is a class whose methods `addMethods` copies onto `Fighter`.
   - `replay`: `replay.js` (reel, editing, branches, seeking), `replay-timeline.js`, `replay-scene.js`, `replay-footage.js`, `replay-movie.js`, `replay-panel.js`.
 - `npm run chars:sync` (`tools/dev/char-scripts.js`) rewrites the script tags of these groups in every page; `--check` only reports. A unit test fails when a page is out of date.
 - Replay files carry `fv`, the file layout's version (separate from `ENGINE_VERSION`). `readReplay` in `world.js` upgrades older layouts; bump `REPLAY_FV` and add a step to `REPLAY_UPGRADES` when the layout changes.
@@ -84,7 +85,7 @@ Notes for the itch.io page:
 
 ## Releasing
 
-One click: Actions → **Release · publish & assets** → Run workflow (or `gh workflow run release.yml`, `-f tag=v0.2.0` for a specific version). With the tag blank it takes the next patch after the latest `v*` tag, tags `master`, and publishes the release with notes generated from the merged PRs. Then, in parallel:
+One click: Actions → **Release · publish & assets** → Run workflow (or `gh workflow run release.yml`, `-f tag=v0.2.0` for a specific version). With the tag blank it takes the next patch after the latest `v*` tag, tags `master`, and publishes the release with notes generated from the merged PRs, grouped into New, Fixes, Docs, Tests and CI, Under the hood and Other (`.github/release.yml`). The group comes from a label the CI `label` job puts on every PR from its branch prefix (`feat/` → feature, `fix/`, `docs/`, `test/`, `ci/`, `refactor/`, `perf/`, `chore/`); label a PR `skip-notes` to leave it out. Then, in parallel:
 
 - unit + server tests at the tag (the image and itch.io jobs wait for them);
 - picture notes appended to the release body ([Release notes in pictures](README.md#release-notes-in-pictures));
@@ -111,7 +112,7 @@ A release published by hand on GitHub runs the same jobs. Run the workflow with 
 
 ## Branch previews
 
-`.github/workflows/pages.yml` publishes the site to the `gh-pages` branch: `master` at the root (https://morbeo.github.io/stick2/), every other branch at `https://morbeo.github.io/stick2/preview/<branch>/` (characters outside `A-Za-z0-9._-` become `-`). Opening a PR comments its preview link; deleting the branch removes the preview. One-time setup: Settings → Pages → Source "Deploy from a branch", branch `gh-pages`, folder `/ (root)`, after the first run has created that branch.
+`.github/workflows/pages.yml` publishes the site to the `gh-pages` branch: `master` at the root (https://morbeo.github.io/stick2/), every other branch at `https://morbeo.github.io/stick2/preview/<branch>/` (characters outside `A-Za-z0-9._-` become `-`). Each deploy is recorded as a GitHub deployment (environment `github-pages` for master, `preview` for branches), so a PR shows "View deployment" and the repo sidebar lists environments; deleting the branch removes the preview and marks its deployments inactive. One-time setup: Settings → Pages → Source "Deploy from a branch", branch `gh-pages`, folder `/ (root)`, after the first run has created that branch.
 
 ## Any build
 

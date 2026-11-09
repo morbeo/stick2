@@ -67,7 +67,7 @@ function shapeList(shapes, onChange, weapon) {
 // name/badge, read from each entry directly (p => p.field or a formatter); both views show a real-size thumbnail
 // (thumb), so a tiny prop and a tall one are visibly different, not squeezed into the same apparent box
 function pickerList(view, names, sel, onPick, thumb, isBuilt, cols) {
-  if (view === 'cards') return h('div', { cls: 'cards' }, names.map(n => h('button', { cls: 'card' + (sel === n ? ' on' : ''), onclick: () => onPick(n) },
+  if (view === 'cards') return h('div', { cls: 'cards' }, names.map(n => h('button', { cls: 'card' + (sel === n ? ' on' : ''), tip: `Pick ${n} to edit it`, onclick: () => onPick(n) },
     thumb(n), h('span', { textContent: n }), h('span', { cls: 'gbadge', textContent: isBuilt(n) ? 'built-in' : 'custom' }))));
   return h('div', { cls: 'mtable' }, h('table', {}, h('thead', {}, h('tr', {}, h('th', {}), h('th', {}), ...cols.map(([, label]) => h('th', { textContent: label })))),
     h('tbody', {}, names.map(n => h('tr', { cls: sel === n ? 'on' : '', onclick: () => onPick(n) },

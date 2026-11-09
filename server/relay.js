@@ -25,6 +25,7 @@
 //                     { t: 'error', error }             a request was refused
 const RELAY = { code: 6, alphabet: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', guests: 16, name: 24, reports: 200, reason: 200, lines: 50 };
 const { nameClean, nameGen } = require('../src/net/names');
+const { LOBBY_PHASES } = require('../src/net/lobby'); // the lobby's phase table: only these show in the room list
 const crypto = require('crypto');
 // an identity key (src/net/identity.js): an ECDSA P-256 public key; its id is the device id it stands for on every server
 const keyId = jwk => 'k' + crypto.createHash('sha256').update(`${jwk.x}.${jwk.y}`).digest('hex').slice(0, 31);
@@ -281,8 +282,8 @@ class Relay {
     r.streak = best;
     let n = 0; for (const x of this.rooms.values()) n += x.watchers;
     this.spectatorPeak = Math.max(this.spectatorPeak, n);
-    if (s.phase === was) return;
-    r.phase = String(s.phase);
+    if (s.phase === was || !Object.hasOwn(LOBBY_PHASES, s.phase)) return; // an unknown phase (a buggy or hostile host) is ignored
+    r.phase = s.phase;
     if (r.phase === 'match') { r.started = this.now(); r.saved = false; this.metrics?.matches.inc({}); }
     if (was === 'match' && r.phase === 'post') { this.metrics?.finished.inc({}); this.metrics?.matchSeconds.observe((this.now() - r.started) / 1000); }
   }

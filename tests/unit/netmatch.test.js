@@ -194,11 +194,16 @@ test('a spectator sees the very same fight as the players, to the same end, and 
 test('a spectator waits for a small cushion, then catches up when it falls behind', () => {
   const NetWatch = run('NetWatch'), w = new NetWatch({ header: header() });
   w.receive({ t: 'watch', f: 0, a: [0, 0], b: [0, 0] });
-  assert.equal(w.tick(), 0, 'started before the cushion');
+  assert.equal(w.tick(), 0, 'started before the cushion'); assert.equal(w.watchState, 'buffering');
   w.receive({ t: 'watch', f: 2, a: Array(30).fill(0), b: Array(30).fill(0) });
-  assert.equal(w.tick(), 3, 'far behind: catches up');
+  assert.equal(w.tick(), 3, 'far behind: catches up'); assert.equal(w.watchState, 'catching up');
   while (w.behind > 12) w.tick();
-  assert.equal(w.tick(), 1, 'close: one frame a tick');
+  assert.equal(w.tick(), 1, 'close: one frame a tick'); assert.equal(w.watchState, 'playing');
+  while (w.behind) w.tick();
+  assert.equal(w.watchState, 'waiting');
+  w.receive({ t: 'watch', f: 32, a: Array(100).fill(0), b: Array(100).fill(0) }); assert.equal(w.watchState, 'jumping');
+  assert.ok(run('NETWATCH_STATES').includes(w.watchState));
+  w.result = { winner: 0 }; assert.equal(w.watchState, 'over');
 });
 
 test('a spectator far behind fast-forwards, silently', () => {

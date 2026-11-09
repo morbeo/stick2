@@ -62,7 +62,7 @@ Environment variables, each with a default:
 | `TRUST_PROXY` | off | `1`: take the client address from `X-Forwarded-For` |
 | `LOG_LEVEL` | `info` | `debug`, `info` or `quiet`; logs are JSON lines on stdout |
 | `ADMIN_TOKEN` | (none) | Turns on the [admin API](#moderation); requests need `Authorization: Bearer <token>` |
-| `DB_PATH` | (none; `/data` in the image) | Folder for `bans.json` and `embeds.json`; none: they last until a restart |
+| `DB_PATH` | (none; `/data` in the image) | Folder for `bans.json`, `embeds.json`, `accounts.json`, `ratings.json` and `replays/`; none: they last until a restart (see [Backup and restore](#backup-and-restore)) |
 | `SPECTATE_DELAY` | `180` | Frames (60 a second) spectators watch behind the players, so they can't call out what's coming; `0` for live |
 | `MAX_SPECTATORS` | `14` | People a room may have besides its two fighters: spectators and the queue (at most 14; a room holds 16) |
 | `MCP` | `1` | MCP for AI clients at `POST /mcp` (see [MCP](#mcp)); `0` turns it off |
@@ -124,7 +124,7 @@ With `MAX_REPLAYS=0` the server still verifies (no replay is kept); with `VERIFY
 ## Quick match and ratings
 
 - **Ratings.** Every verified match (verdict `ok`, see [Verify](#verify)) between two players in the room moves both their ratings, by [Glicko-2](http://www.glicko.net/glicko/glicko2.pdf): a win, a loss or a draw, weighed by how sure each rating is (its deviation, `rd`). A forfeit or a fight that doesn't add up rates nobody. Both fighters hear the change (`rated`), and the room log shows it. A player is their [account](#accounts), or else their device (the app's device id, only stored hashed), under the name they last played as. New players start at 1500 ± 350. The deviation shrinks with each fight and grows again while a player stays away. **Ranked** (on the leaderboard) once it's under 150, after about ten fights. Kept in `DB_PATH/ratings.json`.
-- **Quick match.** **quick match** in the netplay section (or the palette's `netplay: quick match`) waits in the server's queue. Two players pair when their ratings are within 100, a window that widens by 50 every 10 seconds either has waited. The one who waited longer opens a private room by itself, and the other is sent into it: pick, ready, fight. **cancel** leaves the queue. If the host side never opens its room (15 s), the other goes back to the front of the line.
+- **Quick match.** **quick match** in the netplay section (or the palette's `netplay: quick match`) waits in the server's queue. Two players pair when their ratings are within 100, a window that widens by 50 every 10 seconds either has waited. The one who waited longer opens a private room by itself, and the other is sent into it: pick, ready, fight. **cancel** leaves the queue. The client side's steps are `QUICK_STATES` in `src/net/netserver.js` (connecting → queued → found → matched, or closed from any); a step out of order is ignored. If the host side never opens its room (15 s), the other goes back to the front of the line.
 - **Leaderboard.** **leaderboard** (or `netplay: leaderboard`) lists the server's ranked players.
 
 ## Bots
@@ -175,6 +175,19 @@ Resources: `stick2://server/rooms`, `stick2://server/leaderboard`, and `stick2:/
 ```sh
 GRAFANA_PASSWORD=pick-one docker compose -f server/docker-compose.full.yml up -d
 ```
+
+## Backup and restore
+
+`server/backup.js` copies everything under `DB_PATH` (bans, accounts, ratings, embeds, replays) into one JSON file and back:
+
+```sh
+node server/backup.js backup --db /data --out stick2-backup.json   # --db defaults to $DB_PATH, --out to stick2-backup-<date>.json; --out - prints it
+node server/backup.js list stick2-backup.json                      # what it holds
+node server/backup.js restore stick2-backup.json --db /data        # keeps files that exist; --force overwrites them
+docker compose exec -T stick2 node server/backup.js backup --out - > stick2-backup.json   # from the image
+```
+
+Stop the server before a restore: a running one holds its data in memory and writes it back. Restore only writes `.json` files inside the folder; a file that isn't a stick2 backup, or names a path outside it, is refused.
 
 ## Shutting down
 

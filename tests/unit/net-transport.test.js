@@ -159,3 +159,22 @@ test('two lobbies through a relay server: the host gets a room code, the guest j
   assert.ok(await settle(() => run('g3.phase') === 'closed'));
   assert.equal(run('g3.state.error'), 'no such room');
 });
+
+test('quick match steps along QUICK_STATES: a late queued after found is ignored, the status line follows the state', async () => {
+  const run = context();
+  run(`var qs = [], QWS = class { constructor() { this.readyState = 0; qws = this; setTimeout(() => { this.readyState = 1; this.onopen?.(); this.deliver({ t: 'hello', server: 'fake' }); }); }
+    deliver(m) { setTimeout(() => this.readyState === 1 && this.onmessage?.({ data: JSON.stringify(m) })); } send(d) { qs.push(JSON.parse(d)); }
+    close() { if (this.readyState === 3) return; this.readyState = 3; setTimeout(() => this.onclose?.({ reason: '' })); } }, qws, got = [];
+    var ql = netServerQuick('ws://x/ws', 'ann', { WS: QWS, on: { found: vs => got.push('found ' + vs), close: w => got.push('close ' + w) } });`);
+  assert.equal(run('ql.state'), 'connecting'); assert.equal(run('quickStatus(ql)'), 'connecting…');
+  await flush(); await flush();
+  run(`qws.deliver({ t: 'queued', rating: 1500, waiting: 2 })`); await flush();
+  assert.equal(run('ql.state'), 'queued'); assert.match(run('quickStatus(ql)'), /rating 1500 · 2 waiting/);
+  run(`qws.deliver({ t: 'found', vs: 'bo' })`); await flush();
+  run(`qws.deliver({ t: 'queued', rating: 1500, waiting: 9 })`); await flush();
+  assert.equal(run('ql.state'), 'found'); assert.equal(run('quickStatus(ql)'), 'found bo: opening the room…');
+  run(`qws.deliver({ t: 'matched', role: 'guest', room: 'R1', vs: 'bo' })`); await flush(); await flush();
+  assert.equal(run('ql.state'), 'closed'); assert.equal(run('quickStatus(ql)'), '');
+  assert.deepEqual(plain(run('got')), ['found bo', 'close matched']);
+  assert.equal(run(`quickStatus(null)`), '');
+});

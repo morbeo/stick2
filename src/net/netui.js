@@ -5,7 +5,7 @@
 // a fixed 60 frames a second, and leaves it out of everything that would change it locally (rewind, scrub, loop, macros).
 const NET_NAME = 'stick2-netname', NET_SEED = 'stick2-nameseed', NET_DEVICE = 'stick2-device';
 const net = { public: true, home: null, p2p: false, rooms: null, replays: null, feed: null, bans: false, peers: [], server: null, lobby: null, sig: null, pin: null, match: null, code: null, codeKind: null, inviting: null, pending: null, err: null, log: [], box: null, status: null, acc: 0, edges: {} };
-const netStatus = () => { const m = net.match; if (m.watching) return `watching · frame ${m.f} · ${m.behind} behind${m.desync !== null ? ' · DESYNC' : ''}`; return `frame ${m.f} · delay ${m.delay}${m.roll ? ` · rollbacks ${m.rollbacks}` : ''} · waits ${m.stalls}${m.desync !== null ? ' · DESYNC' : ''}`; };
+const netStatus = () => { const m = net.match; if (m.watching) return `watching · ${m.watchState} · frame ${m.f} · ${m.behind} behind${m.desync !== null ? ' · DESYNC' : ''}`; return `frame ${m.f} · delay ${m.delay}${m.roll ? ` · rollbacks ${m.rollbacks}` : ''} · waits ${m.stalls}${m.desync !== null ? ' · DESYNC' : ''}`; };
 const ownWorlds = () => mode().worlds().filter(w => !w.net); // the fights only this page runs
 const netWorld = () => net.match?.world || null;
 // this device's id (for server bans) and its name seed; the name: the one typed, else the seed's generated name (src/net/names.js)
@@ -220,17 +220,17 @@ function netQuick(server) {
   let url; try { url = netServerUrl(server); } catch (e) { net.err = e.message; return netDraw(); }
   try { localStorage.setItem(NET_SERVER, netServerName(url)); } catch {}
   net.quick?.link.cancel(); net.err = null;
-  const q = net.quick = { url, status: 'connecting…' };
+  const q = net.quick = { url };
   q.link = netServerQuick(url, netName(), { device: netDevice(), on: {
-    queued: m => { q.status = `looking for a fight · your rating ${m.rating} · ${m.waiting} waiting`; netDraw(); },
-    found: vs => { q.status = `found ${vs}: opening the room…`; netDraw(); },
+    queued: () => netDraw(),
+    found: () => netDraw(),
     matched: m => { net.quick = null; if (m.role === 'host') netLobby('host', { url, quick: m.ticket }); else netLobby('guest', { url, room: m.room }); netSay(`quick match: you vs ${m.vs}`); },
     close: why => { if (net.quick !== q) return; net.quick = null; if (why !== 'cancelled' && why !== 'matched') net.err = `quick match: ${why}`; netDraw(); },
   } });
   netDraw();
 }
 function netQuickRow() {
-  return net.quick ? h('div', { cls: 'bar' }, h('span', { textContent: net.quick.status }), button(':close: cancel', 'Stop looking for a fight', () => { net.quick?.link.cancel(); net.quick = null; netDraw(); })) : null;
+  return net.quick ? h('div', { cls: 'bar' }, h('span', { textContent: quickStatus(net.quick.link) }), button(':close: cancel', 'Stop looking for a fight', () => { net.quick?.link.cancel(); net.quick = null; netDraw(); })) : null;
 }
 // ---------- accounts (server/accounts.js): this device's name kept on a server, other devices linked to it, no passwords ----------
 // net.account: { url, name, devices, recovery?, code?, until?, busy? }; what = whoami | register | link | claim | unlink
@@ -268,6 +268,12 @@ function netIdentityRow() {
   return h('div', { cls: 'bar' }, h('span', { tip: 'Your identity key: every stick2 server knows you by it (your account and rating there go with it)' }, 'key ', h('code', { textContent: net.keyPrint || '…' })),
     button(':content_copy: copy key', 'Copy your key, to paste on another device so it plays as you on every server. Keep it secret: whoever has it is you', () => netIdentityCopy()),
     button(':download: paste key', 'Use a key copied from your other device: this one becomes the same player on every server', () => netIdentityPaste()));
+}
+// the lobby's phase, what it may do next and how it got here (lobby.inspect), copied as JSON for a bug report; null when not in one
+function netLobbyState() {
+  const st = net.lobby ? net.lobby.inspect() : null;
+  navigator.clipboard?.writeText(JSON.stringify(st, null, 1)).catch(() => {});
+  return st;
 }
 async function netIdentityCopy() {
   const k = await identityKeys(); if (!k) return netSay('no key: this page has no Web Crypto (it needs https or localhost)');

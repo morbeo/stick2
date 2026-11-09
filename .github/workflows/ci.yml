@@ -17,6 +17,26 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }} # a new push supersedes the PR's older run
 
 jobs:
+  label:
+    name: Label PR from its branch
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      pull-requests: write # add the label
+      issues: write # create the label the first time
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BRANCH: ${{ github.head_ref }}
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      # feat/x → feature, fix/x → fix, docs/ test/ ci/ refactor/ perf/ chore/ → the same word; the release notes group by these (.github/release.yml)
+      - name: Label from branch prefix
+        run: |
+          prefix="${BRANCH%%/*}"
+          case "$prefix" in feat) label=feature ;; fix|docs|test|ci|refactor|perf|chore) label=$prefix ;; *) echo "no label for '$prefix/'"; exit 0 ;; esac
+          gh label create "$label" --repo "$GITHUB_REPOSITORY" --color ededed --description "release notes section" 2>/dev/null || true
+          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label "$label"
   unit:
     name: Unit tests + coverage floor
     runs-on: ubuntu-latest
@@ -33,7 +53,14 @@ jobs:
       - name: Build info
         run: node tools/dev/build-info.js
       - name: Unit tests with coverage floor
-        run: npm run coverage:check
+        run: npm run coverage:check | tee coverage.txt
+        shell: bash # pipefail: the floor still fails the step
+      - name: Sim perf budget (ms/frame)
+        run: npm run perf:check
+      - name: Result in the run summary
+        if: always()
+        run: |
+          echo "Unit tests: ${{ job.status }} · $(grep -o 'coverage: .*' coverage.txt 2>/dev/null || echo 'coverage not run')" >> "$GITHUB_STEP_SUMMARY"
 
   server:
     name: Server tests
@@ -48,6 +75,10 @@ jobs:
           node-version: 22
       - name: Run server tests
         run: npm run test:server
+      - name: Result in the run summary
+        if: always()
+        run: |
+          echo "Server tests: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
 
   browser:
     name: Browser smoke test
@@ -70,6 +101,10 @@ jobs:
         run: npm run test:editor
         env:
           CHROME: /usr/bin/google-chrome
+      - name: Result in the run summary
+        if: always()
+        run: |
+          echo "Browser smoke test: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
 
   netplay:
     name: Two-browser netplay
@@ -90,3 +125,7 @@ jobs:
         run: npm run test:netplay
       - name: Through the relay server
         run: npm run test:server-browser
+      - name: Result in the run summary
+        if: always()
+        run: |
+          echo "Two-browser netplay: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
