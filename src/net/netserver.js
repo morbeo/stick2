@@ -127,20 +127,29 @@ function netServerJoin(lobby, url, roomCode, want = 'play', { device = '', WS } 
 }
 // quick match: waits in the server's queue for someone of a similar rating. on: { queued({ player, rating, waiting }), found(vs),
 // matched({ role, ticket?, room?, vs }), close(why) }. Paired, the host side opens a room with netServerHost(…, { quick: ticket }),
-// and the other side joins the room it's given.
+// and the other side joins the room it's given. link.state moves only along QUICK_STATES (a late 'queued' after 'found' is ignored);
+// quickStatus(link) is the line the netplay section shows.
+const QUICK_STATES = { connecting: ['queued', 'closed'], queued: ['queued', 'found', 'matched', 'closed'], found: ['matched', 'closed'], matched: ['closed'], closed: [] };
 function netServerQuick(url, name, { device = '', on = {}, WS } = {}) {
+  const go = to => { if (!QUICK_STATES[link.state].includes(to)) return false; link.state = to; return true; };
   const link = new ServerLink(url, {
     open: () => link.send({ t: 'quick', player: name, device }),
     message: m => {
-      if (m.t === 'queued') on.queued?.(m);
-      else if (m.t === 'found') on.found?.(m.vs);
-      else if (m.t === 'matched') { link.matched = m; on.matched?.(m); link.close('matched'); }
+      if (m.t === 'queued') { if (go('queued')) { link.info = m; on.queued?.(m); } }
+      else if (m.t === 'found') { if (go('found')) { link.vs = m.vs; on.found?.(m.vs); } }
+      else if (m.t === 'matched') { if (go('matched')) { link.matched = m; on.matched?.(m); link.close('matched'); } }
       else if (m.t === 'error') link.close(m.error);
     },
-    close: why => on.close?.(why),
+    close: why => { go('closed'); link.why = why; on.close?.(why); },
   }, WS);
+  link.state = 'connecting';
   link.cancel = () => { link.send({ t: 'unquick' }); link.close('cancelled'); };
   return link;
+}
+function quickStatus(link) {
+  const st = link?.state, m = link?.info || {};
+  return st === 'connecting' ? 'connecting…' : st === 'queued' ? `looking for a fight · your rating ${m.rating} · ${m.waiting} waiting`
+    : st === 'found' ? `found ${link.vs}: opening the room…` : st === 'matched' ? `matched with ${link.matched?.vs}` : '';
 }
 // an account action on a server (server/accounts.js): req { do: 'whoami' | 'register' | 'link' | 'claim' | 'unlink', device, player?, code? }
 // → a promise of { name, devices, recovery?, code?, until? } (name null: no account), over a connection of its own
