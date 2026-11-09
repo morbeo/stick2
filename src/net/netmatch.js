@@ -149,6 +149,9 @@ class NetMatch {
 // further behind, and checks its own state hashes against the host's. Far behind (a spectator who joined mid-match and got every
 // frame so far at once) it fast-forwards, silently, up to NETWATCH.jumpMax frames a tick.
 const NETWATCH = { buffer: 4, catchUp: 3, far: 12, jump: 60, jumpMax: 600 };
+// buffering: not started, under NETWATCH.buffer frames in hand · playing: one frame a tick · catching up: over far behind, catchUp a tick ·
+// jumping: over jump behind, fast-forward (silent) · waiting: started, no frame in hand (the host is slow) · over: the result is in
+const NETWATCH_STATES = ['buffering', 'playing', 'catching up', 'jumping', 'waiting', 'over'];
 class NetWatch {
   constructor({ header, hooks = {} }) {
     const w = this.world = new World({ ...SCENARIOS[header.scenario], ...header.scen }, header.cfg, header.seed, header.chars.map(makeCharacter));
@@ -159,6 +162,13 @@ class NetWatch {
   }
   unmask(m) { return Object.fromEntries(this.keys.map((k, i) => [k, !!(m >> i & 1)])); }
   get behind() { return this.p1.length - this.f; } // frames received but not yet played
+  // where the playback is, by the same tests tick() makes (NETWATCH_STATES; shown in the netplay status line)
+  get watchState() {
+    if (this.result) return 'over';
+    if (!this.started) return 'buffering';
+    const b = this.behind;
+    return b > NETWATCH.jump ? 'jumping' : b > NETWATCH.far ? 'catching up' : b > 0 ? 'playing' : 'waiting';
+  }
   receive(m) {
     if (m.t !== 'watch') return;
     m.a.forEach((x, i) => { this.p1[m.f + i] = x | 0; this.p2[m.f + i] = m.b[i] | 0; });

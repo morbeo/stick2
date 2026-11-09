@@ -5,7 +5,7 @@
 // a fixed 60 frames a second, and leaves it out of everything that would change it locally (rewind, scrub, loop, macros).
 const NET_NAME = 'stick2-netname', NET_SEED = 'stick2-nameseed', NET_DEVICE = 'stick2-device';
 const net = { public: true, home: null, p2p: false, rooms: null, replays: null, feed: null, bans: false, peers: [], server: null, lobby: null, sig: null, pin: null, match: null, code: null, codeKind: null, inviting: null, pending: null, err: null, log: [], box: null, status: null, acc: 0, edges: {} };
-const netStatus = () => { const m = net.match; if (m.watching) return `watching · frame ${m.f} · ${m.behind} behind${m.desync !== null ? ' · DESYNC' : ''}`; return `frame ${m.f} · delay ${m.delay}${m.roll ? ` · rollbacks ${m.rollbacks}` : ''} · waits ${m.stalls}${m.desync !== null ? ' · DESYNC' : ''}`; };
+const netStatus = () => { const m = net.match; if (m.watching) return `watching · ${m.watchState} · frame ${m.f} · ${m.behind} behind${m.desync !== null ? ' · DESYNC' : ''}`; return `frame ${m.f} · delay ${m.delay}${m.roll ? ` · rollbacks ${m.rollbacks}` : ''} · waits ${m.stalls}${m.desync !== null ? ' · DESYNC' : ''}`; };
 const ownWorlds = () => mode().worlds().filter(w => !w.net); // the fights only this page runs
 const netWorld = () => net.match?.world || null;
 // this device's id (for server bans) and its name seed; the name: the one typed, else the seed's generated name (src/net/names.js)
