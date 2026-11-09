@@ -14,6 +14,7 @@ The full reference behind the [landing page](../README.md). The app has its own 
 | [UI standards](ui.md) | how docks, bars, buttons and panels look and behave, with a checklist for new controls |
 | [Testing](testing.md) | `npm test`, snapshots, replays, the browser test, seeds, the move matrix, fuzzing |
 | [Netplay](netplay.md) | online play with no server: connection, invite codes, the lobby; what's built and what's next |
+| [State machines](state-machines.md) | diagrams of the lobby phase, spectator playback, quick match and lab view: states, moves, where each lives |
 | [Server](server.md) | the dedicated server: rooms through a relay, no codes; running it (Node, Docker), settings, `/healthz`, Prometheus metrics, the protocol |
 | [Embedding](embed.md) | stick2 in any page: the embed builder, every option, presets, replays with jump-in and branches, the postMessage API, short links |
 | [MCP server](mcp.md) | stick2 as an MCP server: fights, settings, characters, replays and pictures for an AI assistant; the live bridge; the Discord bot |
