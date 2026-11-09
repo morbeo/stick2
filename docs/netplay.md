@@ -91,6 +91,8 @@ lobby → sync → match → post
 | `post` | Result shown. The host calls a rematch, or **next** when the room rotates. |
 | `closed` | We left, were turned away, or lost the host. `state.error` says which. |
 
+The allowed moves are one table, `LOBBY_PHASES` in `src/net/lobby.js`; the host changes phase only through `lobby.go(to, why)`, which refuses anything else. `match → lobby` is only a new host calling off a fight that never began. Every change (the host's own or a snapshot's) is kept in `lobby.trail` (the last 20, `{ from, to, why, at }`), and `lobby.inspect()` returns phase, next phases and trail as plain data: **netplay: lobby state** in ⌘K copies it. The server reads the same table and ignores a phase it doesn't list, so its room list, metrics and MCP tools only show these.
+
 **The snapshot:** `{ rev, phase, scenario, over, slots: [{ id, name, char, ready, rtt }, …], watch: [{ id, name }], queue: [id, …], rules: { rotation, cap, bestOf, timer, bans, rollback }, score: { id: { wins, streak } }, series: { id: wins }, last, error, result }`. The host's id is `h` and guests are `g1`, `g2`, …. There are two slots; anyone after that, or anyone who asks to, watches (up to 6 browser to browser, 14 on a server).
 
 ### The pool: queue and rotation

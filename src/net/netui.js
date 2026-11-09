@@ -269,6 +269,12 @@ function netIdentityRow() {
     button(':content_copy: copy key', 'Copy your key, to paste on another device so it plays as you on every server. Keep it secret: whoever has it is you', () => netIdentityCopy()),
     button(':download: paste key', 'Use a key copied from your other device: this one becomes the same player on every server', () => netIdentityPaste()));
 }
+// the lobby's phase, what it may do next and how it got here (lobby.inspect), copied as JSON for a bug report; null when not in one
+function netLobbyState() {
+  const st = net.lobby ? net.lobby.inspect() : null;
+  navigator.clipboard?.writeText(JSON.stringify(st, null, 1)).catch(() => {});
+  return st;
+}
 async function netIdentityCopy() {
   const k = await identityKeys(); if (!k) return netSay('no key: this page has no Web Crypto (it needs https or localhost)');
   try { await navigator.clipboard.writeText(identityExport(k)); netSay(':content_copy: key copied: paste it on your other device (account, paste key). Keep it secret'); }

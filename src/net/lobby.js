@@ -7,6 +7,18 @@
 const NET_PROTO = 1; // the lobby protocol's version: a hello with another one is turned away
 const LOBBY = { slots: 2, watchers: 6, cap: 20, rotations: ['off', 'winner', 'loser', 'round'], bestOf: [1, 3, 5, 7], timers: [0, 30, 45, 60, 90, 99], bans: 40, pingMs: 1000, timeoutMs: 10000, name: 24, char: 40, chat: 200 };
 
+// the lobby's phases and where each may go next: the one place that says it (docs/netplay.md draws it). The host moves only along
+// these (go); a guest just takes the host's snapshots, and the server (server/relay.js) shows only these phases in its room list.
+const LOBBY_PHASES = {
+  joining: ['lobby', 'sync', 'match', 'post', 'closed'], // a guest before the host's first snapshot (it may arrive mid-match)
+  lobby: ['sync', 'closed'],                             // picking characters, ready; the host starts
+  sync: ['match', 'lobby', 'closed'],                    // every peer builds the fight and checks its hash; a mismatch or a leave aborts
+  match: ['post', 'lobby', 'closed'],                    // fighting; lobby only when a new host calls a fight off that never began
+  post: ['lobby', 'closed'],                             // the result; rematch goes back to the lobby
+  closed: [],                                            // left, rejected, timed out
+};
+const LOBBY_TRAIL = 20; // how many phase changes a lobby remembers (lobby.trail, for the netplay: lobby state command)
+
 class Lobby {
   // role: 'host' | 'guest'; name: ours; send (guest): message → the host; now: a ms clock (the tests pass their own)
   // hooks: change(lobby) on every new snapshot; event(e) for chat, errors and phase changes (the match's carries its header); match(m) the match's messages;
@@ -14,7 +26,7 @@ class Lobby {
   //        catchup(id): a spectator joined mid-match (it has the header already): send it the fight so far
   // watchers: how many may watch (a server can set fewer)
   constructor({ role, name = 'player', send = null, hooks = {}, now = () => Date.now(), engine = typeof ENGINE_VERSION !== 'undefined' ? ENGINE_VERSION : 0, watchers = LOBBY.watchers }) {
-    Object.assign(this, { role, name: lobbyClip(name, LOBBY.name), toHost: send, hooks, now, engine, watchers, header: null, id: null, peers: new Map(), n: 0, defs: {}, lastPing: 0, heard: now() });
+    Object.assign(this, { role, name: lobbyClip(name, LOBBY.name), toHost: send, hooks, now, engine, watchers, header: null, id: null, trail: [], peers: new Map(), n: 0, defs: {}, lastPing: 0, heard: now() });
     if (role === 'host') {
       this.id = 'h';
       this.state = { rev: 0, phase: 'lobby', scenario: 'you vs ai', over: {}, slots: [{ id: 'h', name: this.name, char: null, ready: false, rtt: 0 }, null], watch: [], error: null, result: null,
@@ -25,6 +37,17 @@ class Lobby {
   get phase() { return this.state?.phase ?? 'joining'; }
   get me() { return this.state?.slots.find(s => s?.id === this.id) || null; }
   emit(e) { this.hooks.event?.(e); }
+  // the record of a phase change, whoever made it (ours or a snapshot's)
+  note(from, to, why) { if (from === to) return; this.trail.push({ from, to, why: why || null, at: this.now() }); if (this.trail.length > LOBBY_TRAIL) this.trail.shift(); }
+  // the host's one way to change phase: false (and nothing changes) when the table doesn't allow it
+  go(to, why) {
+    const from = this.phase;
+    if (!LOBBY_PHASES[from]?.includes(to)) return false;
+    this.state.phase = to; this.note(from, to, why);
+    return true;
+  }
+  // phase, the trail and what the table allows next, as plain data (for bug reports, the debug tools and agents)
+  inspect() { return { role: this.role, id: this.id, phase: this.phase, next: LOBBY_PHASES[this.phase] || [], rev: this.state?.rev ?? null, error: this.state?.error ?? null, trail: this.trail.map(x => ({ ...x })) }; }
 
   // ---------- host: links ----------
   // a new guest's link; their hello comes through receive(id, …). Returns the id to receive with.
@@ -62,7 +85,7 @@ class Lobby {
     switch (m.t) {
       case 'welcome': this.id = m.id; break;
       case 'reject': this.close(m.reason); break;
-      case 'lobby': if (!this.state || m.state.rev > this.state.rev) { const was = this.phase; this.state = m.state; if (was !== m.state.phase) this.emit({ type: 'phase', phase: m.state.phase, ...m.state.phase === 'match' ? { header: this.header } : {} }); this.hooks.change?.(this); } break;
+      case 'lobby': if (!this.state || m.state.rev > this.state.rev) { const was = this.phase; this.state = m.state; this.note(was, this.phase, 'host'); if (was !== m.state.phase) this.emit({ type: 'phase', phase: m.state.phase, ...m.state.phase === 'match' ? { header: this.header } : {} }); this.hooks.change?.(this); } break;
       case 'start': { this.header = m.header; let hash; try { hash = this.verify(m.header); } catch (e) { hash = 'error: ' + e.message; }
         this.toHost?.({ t: 'synced', hash }); break; }
       case 'chat': this.emit({ type: 'chat', from: m.from, name: m.name, text: m.text }); break;
@@ -234,7 +257,7 @@ class Lobby {
       n: Math.max(0, ...ids.map(x => +String(x).slice(1) || 0)), away: new Map(ids.filter(x => x !== 'h').map(x => [x, this.now()])) });
     this.emit({ type: 'host' });
     if (s.phase === 'sync') this.abort('the host left while the match was starting');
-    else if (s.phase === 'match') { if (played) this.finish({ forfeit: 'host', why: 'left' }, false); else { s.phase = 'lobby'; s.error = 'the host left mid-fight: fight called off'; this.emit({ type: 'phase', phase: 'lobby' }); } }
+    else if (s.phase === 'match') { if (played) this.finish({ forfeit: 'host', why: 'left' }, false); else { this.go('lobby', 'host left'); s.error = 'the host left mid-fight: fight called off'; this.emit({ type: 'phase', phase: 'lobby' }); } }
     if (s.phase === 'lobby') this.fill();
     this.broadcast();
     return true;
@@ -251,7 +274,7 @@ class Lobby {
   }
   // a guest whose host left: hello again, to whoever hosts now, as who we were
   rejoin() { if (this.host || !this.id) return; this.emit({ type: 'rejoin' }); this.heard = this.now(); this.helloAt = this.now(); this.toHost?.({ t: 'hello', proto: NET_PROTO, engine: this.engine, name: this.name, want: this.want, rejoin: this.id }); }
-  close(why) { if (this.phase === 'closed') return; this.state = { ...(this.state || { rev: 0, slots: [], watch: [] }), phase: 'closed', error: why }; this.emit({ type: 'phase', phase: 'closed', why }); this.hooks.change?.(this); }
+  close(why) { if (this.phase === 'closed') return; this.note(this.phase, 'closed', why); this.state = { ...(this.state || { rev: 0, slots: [], watch: [] }), phase: 'closed', error: why }; this.emit({ type: 'phase', phase: 'closed', why }); this.hooks.change?.(this); }
 
   // ---------- host: the match ----------
   // any change to what's being played clears every ready, so nobody starts on settings they didn't see
@@ -270,7 +293,7 @@ class Lobby {
     catch (e) { s.error = 'could not build the match: ' + e.message; this.broadcast(); return false; }
     this.hash = this.verify(this.header);
     this.waiting = new Set([...s.slots, ...s.watch].filter(x => x && x.id !== 'h').map(x => x.id));
-    Object.assign(s, { phase: 'sync', error: null, result: null });
+    this.go('sync', 'start'); Object.assign(s, { error: null, result: null });
     for (const id of [...this.waiting]) this.sendTo(id, { t: 'start', header: this.header });
     this.emit({ type: 'phase', phase: 'sync' });
     this.broadcast();
@@ -281,22 +304,22 @@ class Lobby {
     if (hash !== this.hash) return this.abort(`${this.nameOf(id)} built a different fight (hash ${hash}, host ${this.hash})`);
     this.waiting.delete(id);
     if (this.waiting.size) return;
-    this.state.phase = 'match';
+    this.go('match', 'synced');
     this.broadcast(); // first, so a guest is in the match before any of the match's own messages reach it
     this.emit({ type: 'phase', phase: 'match', header: this.header });
   }
-  abort(error) { Object.assign(this.state, { phase: 'lobby', error }); this.waiting = null; for (const sl of this.state.slots) if (sl) sl.ready = false; this.emit({ type: 'error', error }); this.broadcast(); }
+  abort(error) { this.go('lobby', 'abort'); this.state.error = error; this.waiting = null; for (const sl of this.state.slots) if (sl) sl.ready = false; this.emit({ type: 'error', error }); this.broadcast(); }
   // the match is over: result is whatever the match layer reports (winner, K.O., a forfeit)
   finish(result, send = true) {
     if (!this.host || this.state.phase !== 'match') return;
-    Object.assign(this.state, { phase: 'post', result });
+    this.go('post', 'finish'); this.state.result = result;
     this.tally(result);
     this.emit({ type: 'phase', phase: 'post', result });
     if (send) this.broadcast();
   }
   rematch() {
     const s = this.state; if (!this.host || s.phase !== 'post') return;
-    Object.assign(s, { phase: 'lobby', result: null });
+    this.go('lobby', 'rematch'); s.result = null;
     for (const sl of s.slots) if (sl) sl.ready = false;
     this.emit({ type: 'phase', phase: 'lobby' });
     this.broadcast();
@@ -367,3 +390,5 @@ function lobbyHash(header) {
   for (let i = 0; i < txt.length; i++) h = Math.imul(h ^ txt.charCodeAt(i), 16777619);
   return (h >>> 0).toString(36) + ':' + w.stateHash();
 }
+
+if (typeof module !== 'undefined') module.exports = { LOBBY_PHASES };
