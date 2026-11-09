@@ -35,6 +35,12 @@ try {
       }
     }
   }
+  // docs/ui.md: every visible button in every mode has a tip (named what it does), so new tools can't drift from the standard
+  { const untipped = new Set();
+    for (const m of Object.keys(MODES)) { setMode(m); syncAll();
+      for (const b of document.querySelectorAll('button')) if (b.offsetParent && !b.dataset.tip?.trim() && !b.closest('#welcome'))
+        untipped.add(m + ': ' + (b.textContent.trim().slice(0, 20) || b.className || '?') + ' in ' + (b.parentElement?.className || b.parentElement?.id || '?')); }
+    if (untipped.size) errs.push('buttons with no tip (docs/ui.md): ' + [...untipped].slice(0, 12).join(' | ')); }
   // touch: the on-screen pad (forced on, the smoke test has no touch screen) holds a direction and a button like keys do
   { setMode('play'); ui.touchPad = true; tpad.hidden = false; const pd = o => new PointerEvent('pointerdown', { pointerId: 7, bubbles: true, ...o }), pu = () => new PointerEvent('pointerup', { pointerId: 7, bubbles: true });
     const b = document.querySelector('.tpunch'); b.setPointerCapture = () => {}; b.dispatchEvent(pd({})); const on = keys.has('punch') && pressed.has('punch'); b.dispatchEvent(pu());
