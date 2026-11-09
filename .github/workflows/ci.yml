@@ -53,9 +53,14 @@ jobs:
       - name: Build info
         run: node tools/dev/build-info.js
       - name: Unit tests with coverage floor
-        run: npm run coverage:check
+        run: npm run coverage:check | tee coverage.txt
+        shell: bash # pipefail: the floor still fails the step
       - name: Sim perf budget (ms/frame)
         run: npm run perf:check
+      - name: Result in the run summary
+        if: always()
+        run: |
+          echo "Unit tests: ${{ job.status }} · $(grep -o 'coverage: .*' coverage.txt 2>/dev/null || echo 'coverage not run')" >> "$GITHUB_STEP_SUMMARY"
 
   server:
     name: Server tests
@@ -70,6 +75,10 @@ jobs:
           node-version: 22
       - name: Run server tests
         run: npm run test:server
+      - name: Result in the run summary
+        if: always()
+        run: |
+          echo "Server tests: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
 
   browser:
     name: Browser smoke test
@@ -92,6 +101,10 @@ jobs:
         run: npm run test:editor
         env:
           CHROME: /usr/bin/google-chrome
+      - name: Result in the run summary
+        if: always()
+        run: |
+          echo "Browser smoke test: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
 
   netplay:
     name: Two-browser netplay
@@ -112,3 +125,7 @@ jobs:
         run: npm run test:netplay
       - name: Through the relay server
         run: npm run test:server-browser
+      - name: Result in the run summary
+        if: always()
+        run: |
+          echo "Two-browser netplay: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
