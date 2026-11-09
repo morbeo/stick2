@@ -470,35 +470,42 @@ function netDraw() {
 }
 // the page came from a stick2 server: its rooms first, nothing to type but a room code
 function netHomeRows(home) {
-  const url = home.url, roomIn = h('input', { cls: 'macro', placeholder: 'room code', tip: 'The room code someone gave you; Enter joins', onkeydown: e => { e.stopPropagation(); if (e.code === 'Enter') netLobby('guest', { url, room: roomIn.value }); } });
+  const url = home.url, roomIn = h('input', { cls: 'macro', placeholder: 'code', tip: 'The room code someone gave you; Enter joins', onkeydown: e => { e.stopPropagation(); if (e.code === 'Enter') netLobby('guest', { url, room: roomIn.value }); } });
   return [h('p', {}, 'playing on ', h('b', { textContent: home.server || netServerName(url) }), home.region ? ` · ${home.region}` : ''),
-    h('div', { cls: 'bar' }, button(':bolt: quick match', 'Fight someone near your rating: wait in the queue and the room opens by itself', () => netQuick(url)),
-      button(':list: leaderboard', 'This server\'s ranked players', () => netBoard(url)),
-      button(':person: account', 'Keep your name on this server across devices: make an account, link a device, recover one', () => netAccount(url))), netQuickRow(),
-    h('div', { cls: 'bar' }, button(':add: new room', 'Open a room here and share its code, link or QR code', () => netLobby('host', { url })),
-      toggle(':visibility: public', 'List the room below for everyone on this server (off: only people with the code or link can join)', () => net.public, v => { net.public = v; }),
-      button(':replay: replays', 'This server\'s saved fights: watch one again or save it', () => netReplays(url))),
-    h('div', { cls: 'netrow' }, roomIn, button(':check: join', 'Join a room by its code', () => netLobby('guest', { url, room: roomIn.value })),
-      button(':visibility: watch', 'Watch the room\'s fight as a spectator', () => netLobby('guest', { url, room: roomIn.value, want: 'watch' })))];
+    h('div', { cls: 'dock' },
+      dockRow('ranked', 'Rated fights on this server', button(':bolt: quick match', 'Fight someone near your rating: wait in the queue and the room opens by itself', () => netQuick(url), 'mini'),
+        button(':list: leaderboard', 'This server\'s ranked players', () => netBoard(url), 'mini'),
+        button(':person: account', 'Keep your name on this server across devices: make an account, link a device, recover one', () => netAccount(url), 'mini')),
+      dockRow('host', 'Open your own room here', button(':add: new room', 'Open a room here and share its code, link or QR code', () => netLobby('host', { url }), 'mini'),
+        toggle(':visibility: public', 'List the room below for everyone on this server (off: only people with the code or link can join)', () => net.public, v => { net.public = v; })),
+      dockRow('join', 'Join or watch a room by its code', roomIn, button(':check: join', 'Join a room by its code', () => netLobby('guest', { url, room: roomIn.value }), 'mini'),
+        button(':visibility: watch', 'Watch the room\'s fight as a spectator', () => netLobby('guest', { url, room: roomIn.value, want: 'watch' }), 'mini')),
+      dockRow('browse', 'What this server keeps', button(':replay: replays', 'This server\'s saved fights: watch one again or save it', () => netReplays(url), 'mini'))),
+    netQuickRow()];
 }
-// browser to browser (an invite and its PIN), or any server by its address
+// browser to browser (an invite and its PIN), or any server by its address; one dock per way (docs/ui.md)
 function netOtherRows() {
   const srv = h('input', { cls: 'macro', value: netServerSaved(), placeholder: 'server address', tip: 'A stick2 server (see docs/server.md), e.g. play.example.org, or localhost (port 8080 unless you type one)', onkeydown: e => e.stopPropagation() });
-  const roomIn = h('input', { cls: 'macro', placeholder: 'room code', tip: 'The room code the host gave you; Enter joins', onkeydown: e => { e.stopPropagation(); if (e.code === 'Enter') netLobby('guest', { url: srv.value, room: roomIn.value }); } });
-  return [h('div', { cls: 'bar' }, button(':link: host', 'Open a lobby and make an invite to send to the other player', () => netLobby('host'))),
-    h('p', { textContent: 'or join with the invite you got:' }),
-    ...netCodeField('paste an invite link or code', 'The link or code the host sent you; it joins as soon as it\'s all here', t => netEnter(t)),
+  const roomIn = h('input', { cls: 'macro', placeholder: 'code', tip: 'The room code the host gave you; Enter joins', onkeydown: e => { e.stopPropagation(); if (e.code === 'Enter') netLobby('guest', { url: srv.value, room: roomIn.value }); } });
+  const [code, codeBar] = netCodeField('paste an invite link or code', 'The link or code the host sent you; it joins as soon as it\'s all here', t => netEnter(t));
+  return [h('h4', { textContent: 'browser to browser' }),
+    h('div', { cls: 'dock' },
+      dockRow('host', 'Make an invite to send the other player', button(':link: host', 'Open a lobby and make an invite to send to the other player', () => netLobby('host'), 'mini')),
+      dockRow('join', 'Join with the invite you got', code.firstChild, ...codeBar.children)),
     // or through a dedicated server: no codes, just a room code
-    h('p', { textContent: 'or through a server:' }), h('div', { cls: 'netrow' }, srv),
-    h('div', { cls: 'bar' }, button(':link: host on server', 'Open a room on the server and share its code or link', () => netLobby('host', { url: srv.value })),
-      toggle(':visibility: public', 'List the room in the server\'s room browser (off: only people with the code or link can join)', () => net.public, v => { net.public = v; }),
-      button(':list: rooms', 'Browse the server\'s public rooms', () => netRooms(srv.value)),
-      button(':replay: replays', 'The server\'s saved fights: watch one again or save it', () => netReplays(srv.value))),
-    h('div', { cls: 'bar' }, button(':bolt: quick match', 'Fight someone near your rating on this server: wait in the queue and the room opens by itself', () => netQuick(srv.value)),
-      button(':list: leaderboard', 'The server\'s ranked players', () => netBoard(srv.value)),
-      button(':person: account', 'Keep your name on this server across devices: make an account, link a device, recover one', () => netAccount(srv.value))), netQuickRow(),
-    h('div', { cls: 'netrow' }, roomIn, button(':check: join room', 'Join a room on the server by its code', () => netLobby('guest', { url: srv.value, room: roomIn.value })),
-      button(':visibility: watch', 'Watch the room\'s fight as a spectator', () => netLobby('guest', { url: srv.value, room: roomIn.value, want: 'watch' })))];
+    h('h4', { textContent: 'through a server' }),
+    h('div', { cls: 'dock' },
+      dockRow('server', 'Which server', srv),
+      dockRow('host', 'Open your own room there', button(':link: host on server', 'Open a room on the server and share its code or link', () => netLobby('host', { url: srv.value }), 'mini'),
+        toggle(':visibility: public', 'List the room in the server\'s room browser (off: only people with the code or link can join)', () => net.public, v => { net.public = v; })),
+      dockRow('join', 'Join or watch a room by its code', roomIn, button(':check: join room', 'Join a room on the server by its code', () => netLobby('guest', { url: srv.value, room: roomIn.value }), 'mini'),
+        button(':visibility: watch', 'Watch the room\'s fight as a spectator', () => netLobby('guest', { url: srv.value, room: roomIn.value, want: 'watch' }), 'mini')),
+      dockRow('ranked', 'Rated fights on the server', button(':bolt: quick match', 'Fight someone near your rating on this server: wait in the queue and the room opens by itself', () => netQuick(srv.value), 'mini'),
+        button(':list: leaderboard', 'The server\'s ranked players', () => netBoard(srv.value), 'mini'),
+        button(':person: account', 'Keep your name on this server across devices: make an account, link a device, recover one', () => netAccount(srv.value), 'mini')),
+      dockRow('browse', 'What the server has', button(':list: rooms', 'Browse the server\'s public rooms', () => netRooms(srv.value), 'mini'),
+        button(':replay: replays', 'The server\'s saved fights: watch one again or save it', () => netReplays(srv.value), 'mini'))),
+    netQuickRow()];
 }
 // a server's public rooms, each with join and watch
 function netRoomList({ url, server, region, rooms, loading }) {
