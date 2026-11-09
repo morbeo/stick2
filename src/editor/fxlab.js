@@ -143,12 +143,12 @@ function fxPreviewSide() {
   const ch = fxChar(), parts = fxParts(ch);
   return [
     heading('Preview', 'What the gallery and the zoomed preview draw the look on, and a preview-only background colour (never saved with the look).', ''),
-    h('div', { cls: 'bar' }, h('span', { textContent: 'on' }),
+    sideRow('on', '',
       seg(parts, () => fxState.part, v => { fxState.part = v; panels(); }, // panels(): the character row only shows for a non-segment part
         { segment: 'A plain fixed line, no character (the classic preview)', body: 'The whole body', arm: 'The arms', leg: 'The legs', head: 'The head', tail: 'The tails', weapon: 'The weapon' })),
-    fxState.part !== 'segment' ? h('div', { cls: 'bar' }, h('span', { textContent: 'character' }), fxCharButton()) : null,
-    fxState.part !== 'segment' ? h('div', { cls: 'bar' }, h('span', { textContent: 'plays' }), fxAnimButton()) : null,
-    h('div', { cls: 'bar' }, h('span', { textContent: 'background' }),
+    fxState.part !== 'segment' ? sideRow('character', '', fxCharButton()) : null,
+    fxState.part !== 'segment' ? sideRow('plays', '', fxAnimButton()) : null,
+    sideRow('background', '',
       colorInput(fxState.bg, v => { fxState.bg = v; }, 'Preview-only background colour (not saved with the look)'),
       ...['#f3f0e8', '#ffffff', '#222222', '#17304a'].map(c => {
         // setRich (ui.js) auto-toggles .ico based on the label being a pure icon code; an empty label doesn't match

@@ -21,15 +21,15 @@ function shapeRows(s, set, weapon) {
   if (s.kind === 'line') rows.push(
     h('div', { cls: 'bar' }, h('span', { textContent: weapon ? 'from' : 'x1,y1' }), field('x1', weapon ? 'Distance along the blade, from the grip' : 'x'), field('y1', weapon ? 'Perpendicular offset' : 'y')),
     h('div', { cls: 'bar' }, h('span', { textContent: weapon ? 'to' : 'x2,y2' }), field('x2', weapon ? 'Distance along the blade (or len / len-4 to reach the tip)' : 'x'), field('y2', weapon ? 'Perpendicular offset' : 'y')),
-    h('div', { cls: 'bar' }, h('span', { textContent: 'width' }), num('w', 'Line width'), col()),
+    sideRow('width', '', num('w', 'Line width'), col()),
     !weapon ? h('div', { cls: 'bar' }, toggle(':swap_horiz: sways', 'This line leans when the prop is struck (moveable must be on too) — its own px of lean', () => !!s.sway, v => set({ sway: v ? 22 : undefined })),
       s.sway ? num('sway', 'How far it leans, in px') : null) : null);
   else if (s.kind === 'circle') rows.push(
-    h('div', { cls: 'bar' }, h('span', { textContent: 'centre' }), field('cx', 'Centre'), field('cy', 'Centre')),
-    h('div', { cls: 'bar' }, h('span', { textContent: 'radius' }), num('rx', 'Horizontal radius'), num('ry', 'Vertical radius (same as horizontal: a circle)'), col()));
+    sideRow('centre', '', field('cx', 'Centre'), field('cy', 'Centre')),
+    sideRow('radius', '', num('rx', 'Horizontal radius'), num('ry', 'Vertical radius (same as horizontal: a circle)'), col()));
   else if (s.kind === 'box') rows.push(
-    h('div', { cls: 'bar' }, h('span', { textContent: 'from' }), field('x', 'Top-left corner'), field('y', 'Top-left corner')),
-    h('div', { cls: 'bar' }, h('span', { textContent: 'size' }), num('w', 'Width'), num('h', 'Height'), col()),
+    sideRow('from', '', field('x', 'Top-left corner'), field('y', 'Top-left corner')),
+    sideRow('size', '', num('w', 'Width'), num('h', 'Height'), col()),
     h('div', { cls: 'bar' }, toggle('cross', 'A diagonal cross through it (a crate\'s planks)', () => !!s.cross, v => set({ cross: v }))));
   else rows.push( // polygon
     ...s.pts.map((pt, i) => h('div', { cls: 'bar' }, h('span', { textContent: 'point ' + (i + 1) }),
@@ -170,10 +170,10 @@ function propFields(name, refill) {
     built ? assetDiffBlock(BASE_PROPS[name], p, 'prop') : null,
     propEditCanvas(p.shapes, () => set({ shapes: p.shapes }), p.bg),
     h('p', { cls: 'note', textContent: 'drag a dot to reposition or resize a shape' }),
-    h('div', { cls: 'bar' }, h('span', { textContent: 'preview background' }), colorInput(p.bg || '#f3f0e8', v => set({ bg: v }), 'Background behind this prop\'s own preview (cosmetic only)'),
+    sideRow('background', '', colorInput(p.bg || '#f3f0e8', v => set({ bg: v }), 'Background behind this prop\'s own preview (cosmetic only)'),
       p.bg ? button(':restart_alt:', 'Back to the default background', () => set({ bg: undefined }), 'mini') : null),
-    h('div', { cls: 'bar' }, h('span', { textContent: 'size / height' }), numInput(p.size, v => set({ size: v }), 'Hit-test half-width'), numInput(p.h, v => set({ h: v }), 'Collidable height from the floor')),
-    h('div', { cls: 'bar' }, h('span', { textContent: 'layer' }), seg(['back', 'mid', 'front'], () => p.layer || 'mid', v => set({ layer: v === 'mid' ? undefined : v }),
+    sideRow('size, height', '', numInput(p.size, v => set({ size: v }), 'Hit-test half-width'), numInput(p.h, v => set({ h: v }), 'Collidable height from the floor')),
+    sideRow('layer', '', seg(['back', 'mid', 'front'], () => p.layer || 'mid', v => set({ layer: v === 'mid' ? undefined : v }),
       { back: 'Behind everything', mid: 'Where fighters are (default)', front: 'In front of everything' })),
     h('div', { cls: 'bar' }, toggle(':sync_alt: moveable', 'Sways on a strike (a shape opts in with its own "sways" toggle), bounces a thrown weapon back, and can be picked up and thrown itself', () => !!p.moveable, v => set({ moveable: v })),
       toggle('breakable', 'Has hit points; destroyed once they run out, dropping debris usable as a weapon', () => !!p.breakable, v => set({ breakable: v })),
@@ -226,11 +226,11 @@ function weaponFields(name, refill) {
         () => { resetWeapon(name); if (!built) weaponSel = null; refill(); })),
     built ? assetDiffBlock(BASE_WEAPONS[name], w, 'weapon') : null,
     h('div', { cls: 'bar' }, weaponCanvas(name), weaponHandPreview(name)),
-    h('div', { cls: 'bar' }, h('span', { textContent: 'preview background' }), colorInput(w.bg || '#f3f0e8', v => set({ bg: v }), 'Background behind this weapon\'s own preview (cosmetic only)'),
+    sideRow('background', '', colorInput(w.bg || '#f3f0e8', v => set({ bg: v }), 'Background behind this weapon\'s own preview (cosmetic only)'),
       w.bg ? button(':restart_alt:', 'Back to the default background', () => set({ bg: undefined }), 'mini') : null),
-    h('div', { cls: 'bar' }, h('span', { textContent: 'class' }), seg(Object.keys(WEAPON_CLASSES), () => w.cls, v => set({ cls: v }), mapVals(WEAPON_CLASSES, c => c.tip))),
-    h('div', { cls: 'bar' }, h('span', { textContent: 'length / weight' }), numInput(w.len, v => set({ len: v }), 'How long it is, in px'), numInput(w.weight, v => set({ weight: v }), 'Heavier hits harder but swings slower')),
-    h('div', { cls: 'bar' }, h('span', { textContent: 'grip angle' }), numInput(w.a, v => set({ a: v }), 'Angle in the hand, relative to the fist'),
+    sideRow('class', '', seg(Object.keys(WEAPON_CLASSES), () => w.cls, v => set({ cls: v }), mapVals(WEAPON_CLASSES, c => c.tip))),
+    sideRow('length, weight', '', numInput(w.len, v => set({ len: v }), 'How long it is, in px'), numInput(w.weight, v => set({ weight: v }), 'Heavier hits harder but swings slower')),
+    sideRow('grip angle', '', numInput(w.a, v => set({ a: v }), 'Angle in the hand, relative to the fist'),
       numInput(w.back ?? 0, v => set({ back: v || undefined }), 'Length held behind the hand (a staff)')),
     h('div', { cls: 'bar' }, toggle(':sync_alt: two-handed (chain)', 'Two segments on a loose joint (nunchucks); unrelated to the 2h class', () => !!w.chain, v => set({ chain: v || undefined })),
       numInput(w.grip2 ?? 0, v => set({ grip2: v || undefined }), 'Two-handed: where the back hand grips, from the front hand (− behind)')),

@@ -26,6 +26,8 @@ Rules for controls over the stage and in the side panels, so new tools look and 
 
 ## Panels
 
+- **Side panel rows use `sideRow(label, tip, ...controls)`** (`src/ui/ui.js`): the label in the row's 72px column, controls beside it, like the sliders. Don't put a label span inside a `bar`; it breaks the column.
+
 - **Start compact.** Show the useful part first and put the rest behind a toggle. Example: the dopesheet lists only the bones the move turns until **all bones** is on.
 - **Give height limits.** A panel over the stage takes at most about a quarter to a third of the stage height and scrolls inside.
 - **Close with ×, Esc or the button that opened it.**
