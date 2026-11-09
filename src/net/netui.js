@@ -220,17 +220,17 @@ function netQuick(server) {
   let url; try { url = netServerUrl(server); } catch (e) { net.err = e.message; return netDraw(); }
   try { localStorage.setItem(NET_SERVER, netServerName(url)); } catch {}
   net.quick?.link.cancel(); net.err = null;
-  const q = net.quick = { url, status: 'connecting…' };
+  const q = net.quick = { url };
   q.link = netServerQuick(url, netName(), { device: netDevice(), on: {
-    queued: m => { q.status = `looking for a fight · your rating ${m.rating} · ${m.waiting} waiting`; netDraw(); },
-    found: vs => { q.status = `found ${vs}: opening the room…`; netDraw(); },
+    queued: () => netDraw(),
+    found: () => netDraw(),
     matched: m => { net.quick = null; if (m.role === 'host') netLobby('host', { url, quick: m.ticket }); else netLobby('guest', { url, room: m.room }); netSay(`quick match: you vs ${m.vs}`); },
     close: why => { if (net.quick !== q) return; net.quick = null; if (why !== 'cancelled' && why !== 'matched') net.err = `quick match: ${why}`; netDraw(); },
   } });
   netDraw();
 }
 function netQuickRow() {
-  return net.quick ? h('div', { cls: 'bar' }, h('span', { textContent: net.quick.status }), button(':close: cancel', 'Stop looking for a fight', () => { net.quick?.link.cancel(); net.quick = null; netDraw(); })) : null;
+  return net.quick ? h('div', { cls: 'bar' }, h('span', { textContent: quickStatus(net.quick.link) }), button(':close: cancel', 'Stop looking for a fight', () => { net.quick?.link.cancel(); net.quick = null; netDraw(); })) : null;
 }
 // ---------- accounts (server/accounts.js): this device's name kept on a server, other devices linked to it, no passwords ----------
 // net.account: { url, name, devices, recovery?, code?, until?, busy? }; what = whoami | register | link | claim | unlink
