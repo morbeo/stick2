@@ -1,0 +1,7 @@
+src/build.js
+out/
+dist/
+CLAUDE.md
+node_modules/
+.env.discord-bot
+release-notes/
