@@ -83,6 +83,8 @@ jobs:
           else
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes --title "$TAG"
             echo "Published \`$TAG\` from \`${GITHUB_SHA::7}\`" >> "$GITHUB_STEP_SUMMARY"
+            # the whole game as one page (npm run single), only on a new release: a re-run's checkout may not be the tag
+            node tools/dev/single-file.js && gh release upload "$TAG" dist/stick2.html --clobber --repo "$GITHUB_REPOSITORY"
           fi
 
   test:

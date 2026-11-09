@@ -35,6 +35,7 @@ How the code is laid out, and the tools that build its generated files.
 | `node tools/mcp/mcp.js [--serve PORT]` | the MCP server (`npm run mcp`): fights, settings, characters, scenarios, sounds, fx looks, the tracker, replays and pictures over MCP; `--serve` also serves the app for the live bridge (see [MCP server](mcp.md)) |
 | `DISCORD_BOT_TOKEN=... node tools/discord/discord-bot.js` | the Discord fight bot (`npm run discord-bot`); `tools/discord/deploy-bot.sh` installs it as a systemd user service (see [MCP server → The Discord bot](mcp.md#the-discord-bot)) |
 | `npm run discord-stickers [name …]` | renders flashy special-move/transformation clips to `out/discord-stickers/*.png`, animated and sized for Discord's sticker upload (320×320, under 500 KB; no name = every sticker) |
+| `npm run single` | writes `dist/stick2.html`: the whole game as one page (every script and the icon font inlined, ~1.6 MB) that runs from a double-clicked file or any static host; attached to each new release |
 | `npm run itch` | packs `dist/stick2-itch.zip` for itch.io: `index.html`, `docs.html`, `src/`, `fonts/` and `LICENSE` (see [Publishing on itch.io](#publishing-on-itchio)) |
 | `npm run itch:push` | runs the tests, packs the zip and uploads it with butler to `morbeo/stick2:html`, versioned by the commit (refuses uncommitted changes) |
 | `npm run itch:assets` | writes a cover, banner, page/embed backgrounds, a favicon and a logo to `out/itch/`, drawn from the app's own code (see [Publishing on itch.io](#publishing-on-itchio)) |
@@ -91,7 +92,8 @@ One click: Actions → **Release · publish & assets** → Run workflow (or `gh 
 - picture notes appended to the release body ([Release notes in pictures](README.md#release-notes-in-pictures));
 - the fight GIF attached as `fight.gif` and the release posted to Discord;
 - the server image pushed to `ghcr.io/morbeo/stick2-server` as `<tag>`, `sha-<commit>` and `latest` (amd64 + arm64);
-- the build pushed to itch.io (`morbeo/stick2:html`, versioned by the tag).
+- the build pushed to itch.io (`morbeo/stick2:html`, versioned by the tag);
+- `stick2.html` attached: the whole game in one file (`npm run single`), on a new release only.
 
 A release published by hand on GitHub runs the same jobs. Run the workflow with an existing tag to redo some of them: untick the rest (e.g. only `gif` to backfill a missing GIF).
 
