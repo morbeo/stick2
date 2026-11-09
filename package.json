@@ -5,6 +5,7 @@
     "build-info": "node tools/dev/build-info.js",
     "embed-presets": "node tools/dev/embed-presets.js",
     "itch": "node tools/itch/itch.js",
+    "single": "node tools/dev/single-file.js",
     "itch:assets": "node tools/itch/itch-assets.js",
     "mcp": "node tools/mcp/mcp.js",
     "discord-bot": "node tools/discord/discord-bot.js",
