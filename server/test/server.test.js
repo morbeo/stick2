@@ -33,6 +33,19 @@ test('health, rooms, metrics and the game\'s static files; server files stay hid
   });
 });
 
+test('static files: gzipped for clients that take it, and an ETag makes a revisit a 304', async () => {
+  const s = await boot();
+  await quiet(s, async () => {
+    const a = await get(s, '/src/engine/world.js', { 'accept-encoding': 'gzip' });
+    assert.equal(a.status, 200); assert.equal(a.headers.get('content-encoding'), 'gzip'); assert.match(await a.text(), /World/);
+    const etag = a.headers.get('etag'); assert.ok(etag);
+    const b = await get(s, '/src/engine/world.js', { 'if-none-match': etag });
+    assert.equal(b.status, 304); assert.equal(await b.text(), '');
+    const c = await get(s, '/src/engine/world.js', { 'accept-encoding': 'identity' });
+    assert.equal(c.headers.get('content-encoding'), null); assert.equal(c.headers.get('etag'), etag);
+  });
+});
+
 test('a metrics token keeps /metrics private', async () => {
   const s = await boot({ METRICS_TOKEN: 'sekrit' });
   await quiet(s, async () => {
