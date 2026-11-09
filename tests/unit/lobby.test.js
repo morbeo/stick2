@@ -433,3 +433,19 @@ test('a guest who walks into an empty server room hosts it from scratch, with th
   const h = new Lobby({ role: 'guest', name: 'amy' }); h.promote(null);
   assert.equal(plain(h.state.rules).rotation, 'off');
 });
+
+test('phases move only along LOBBY_PHASES; every change is in the trail, and inspect() shows it', () => {
+  const PH = run('LOBBY_PHASES'), r = room();
+  for (const [from, to] of Object.entries(PH)) for (const t of to) assert.ok(PH[t], `${from} → ${t} names a phase`);
+  assert.equal(r.host.go('match', 'skip'), false); assert.equal(r.host.phase, 'lobby'); // lobby can't jump to match
+  ready(r); r.host.start(3); r.flush();
+  r.host.finish({ winner: 'h' }); r.flush(); r.host.rematch(); r.flush();
+  const path = st => plain(st.trail).map(x => `${x.from}>${x.to}:${x.why}`);
+  assert.deepEqual(path(r.host.inspect()), ['lobby>sync:start', 'sync>match:synced', 'match>post:finish', 'post>lobby:rematch']);
+  assert.deepEqual(plain(r.host.inspect().next), ['sync', 'closed']);
+  assert.ok(path(r.g.inspect()).includes('match>post:host')); // a guest notes the host's snapshots
+  r.g.leave(); r.flush();
+  assert.equal(r.g.inspect().trail.at(-1).to, 'closed'); assert.deepEqual(plain(r.g.inspect().next), []);
+  for (let i = 0; i < 30; i++) r.host.note('lobby', 'sync', 'x');
+  assert.equal(r.host.trail.length, 20);
+});
