@@ -8,11 +8,16 @@
 // trick as jabbo's rushFlurry), and wrapSqueeze coils three around the foe for a throw
 const OTKO_TENTACLES = [['tentacle1F', -160], ['tentacle2B', -115], ['tentacle3F', -70], ['tentacle4B', -25],
   ['tentacle5F', 25], ['tentacle6B', 70], ['tentacle7F', 115], ['tentacle8B', 160]];
-const tentacle = (id, a) => { const side = id.endsWith('F') ? 'f' : 'b'; return [
-  { id, parent: 'chest', len: 22, a, role: 'tail', side, hurt: 4, thick: 6, lag: 0.6, dangle: 0.3, stretch: 0.15, min: -140, max: 140 },
-  { id: id + 'Mid', parent: id, len: 18, role: 'tail', side, hurt: 2.5, thick: 4.5, lag: 1.3, dangle: 0.5, stretch: 0.2, min: -110, max: 110 },
-  { id: id + 'End', parent: id + 'Mid', len: 13, role: 'tail', side, hurt: 0, thick: 3, lag: 2.1, dangle: 0.7, stretch: 0.3, min: -110, max: 110 },
-  { id: id + 'Tip', parent: id + 'End', len: 8, role: 'tail', side, hurt: 0, thick: 1.8, lag: 3, dangle: 0.9, stretch: 0.35, min: -110, max: 110 }]; };
+// each tentacle is drawn as one smooth tapered spline through its four joints (shape spline on the root, taper to a
+// point), and every joint follows the one above it a little (follow), so a turn at the root rolls down the tentacle
+// as a wave instead of the chain swinging stiff. The four lower ones also walk (also: leg, see OTKO_WALKERS)
+const OTKO_WALKERS = ['tentacle1F', 'tentacle2B', 'tentacle7F', 'tentacle8B'];
+const tentacle = (id, a) => { const side = id.endsWith('F') ? 'f' : 'b', seg = { role: 'tail', side, followMix: 0.35, min: -110, max: 110 }; return [
+  { id, parent: 'chest', len: 22, a, role: 'tail', side, shape: 'spline', taper: 0.85, cap: 'point', hurt: 4, thick: 7, lag: 0.6, dangle: 0.3, stretch: 0.15, min: -140, max: 140,
+    ...OTKO_WALKERS.includes(id) && { also: ['leg'] } },
+  { id: id + 'Mid', parent: id, len: 18, ...seg, follow: id, hurt: 1.5, thick: 4.5, lag: 1.3, dangle: 0.5, stretch: 0.2, sway: 1.6 },
+  { id: id + 'End', parent: id + 'Mid', len: 13, ...seg, follow: id + 'Mid', hurt: 0, thick: 3, lag: 2.1, dangle: 0.7, stretch: 0.3, sway: 2 },
+  { id: id + 'Tip', parent: id + 'End', len: 8, ...seg, follow: id + 'End', hurt: 0, thick: 1.8, lag: 3, dangle: 0.9, stretch: 0.35, sway: 2.4 }]; };
 // the resting fan: every tentacle curls the same shape, mirrored every other one so they don't all bend the same way
 const OTKO_POSE = Object.fromEntries(OTKO_TENTACLES.flatMap(([id], i) => {
   const s = i % 2 ? -1 : 1;
@@ -23,14 +28,28 @@ const OTKO_TIPS = OTKO_TENTACLES.map(([id]) => id + 'Tip');
 // the stick's moves, played by tentacles: its limbs are hidden (no length, no hurtbox, no hitbox), so each limb chain is
 // handed to one tentacle, which takes the limb's angles (a leg's re-based from the hip to the chest) and its hit.
 // Without this every inherited punch and kick hit with a bone that isn't there and never connected
-const OTKO_LIMBS = { F: { arm: 'tentacle5F', leg: 'tentacle7F' }, B: { arm: 'tentacle4B', leg: 'tentacle2B' } };
-const OTKO_HIT = Object.fromEntries(Object.entries(OTKO_LIMBS).flatMap(([S, { arm, leg }]) => [
+// Each step down a combo chain (jab → cross → …) hands the limbs to the next set of tentacles, so a combo lashes out
+// with a different tentacle every hit instead of the same one three times
+const OTKO_ARMS = [['tentacle5F', 'tentacle4B'], ['tentacle3F', 'tentacle6B'], ['tentacle4B', 'tentacle5F'], ['tentacle6B', 'tentacle3F']];
+const OTKO_LEGS = [['tentacle7F', 'tentacle2B'], ['tentacle1F', 'tentacle8B'], ['tentacle2B', 'tentacle7F'], ['tentacle8B', 'tentacle1F']];
+const otkoLimbs = i => { const [aF, aB] = OTKO_ARMS[i % 4], [lF, lB] = OTKO_LEGS[i % 4]; return { F: { arm: aF, leg: lF }, B: { arm: aB, leg: lB } }; };
+const otkoHit = L => Object.fromEntries(Object.entries(L).flatMap(([S, { arm, leg }]) => [
   ['uarm' + S, arm + 'Mid'], ['farm' + S, arm + 'End'], ['hand' + S, arm + 'Tip'],
   ['thigh' + S, leg + 'Mid'], ['shin' + S, leg + 'End'], ['foot' + S, leg + 'Tip']]));
-const otkoKey = (p, last) => {
+// how far each move sits down a combo chain: 0 for a move nothing links into (or that starts a loop of links), 1 for
+// what can follow it, and so on, counting the shortest way in
+const comboDepth = moves => {
+  const d = {}, linked = new Set(Object.values(moves).flatMap(m => Object.values(m.next || {})));
+  const from = roots => { const q = roots.filter(k => !(k in d)); q.forEach(k => { d[k] = 0; });
+    while (q.length) { const k = q.shift(); for (const t of Object.values(moves[k].next || {})) if (moves[t] && !(t in d)) { d[t] = d[k] + 1; q.push(t); } } };
+  from(Object.keys(moves).filter(k => !linked.has(k)));
+  for (const k in moves) from([k]);
+  return d;
+};
+const otkoKey = (p, last, L) => {
   if (!p) return p;
   const q = { ...p }, spine = (p.waist ?? last.waist ?? 180) + (p.chest ?? last.chest ?? 0);
-  for (const [S, { arm, leg }] of Object.entries(OTKO_LIMBS)) {
+  for (const [S, { arm, leg }] of Object.entries(L)) {
     if ('uarm' + S in p) q[arm] = p['uarm' + S];
     if ('farm' + S in p) q[arm + 'Mid'] = p['farm' + S];
     if ('hand' + S in p) q[arm + 'End'] = p['hand' + S];
@@ -47,20 +66,33 @@ const tentacleX = o => mapVals(o, m => ({ ...m, keys: m.keys.map(k => {
   const x = Object.fromEntries(Object.entries(k.p).filter(([id]) => id.startsWith('tentacle')));
   return { ...k, p: Object.fromEntries(Object.entries(k.p).filter(([id]) => !(id in x))), x: { ...k.x, ...x } };
 }) }));
-const otkoMove = m => {
+const otkoMove = (m, depth = 0) => {
   if (!m.keys || !m.hit) return m;
+  const L = otkoLimbs(depth), HIT = otkoHit(L);
   let last = {};
-  const keys = m.keys.map(k => { const p = otkoKey(k.p, last); if (k.p) last = { ...last, ...k.p }; return p === k.p ? k : { ...k, p }; });
-  const hit = Array.isArray(m.hit) ? m.hit.map(h => OTKO_HIT[h] ?? h) : OTKO_HIT[m.hit] ?? m.hit;
+  const keys = m.keys.map(k => { const p = otkoKey(k.p, last, L); if (k.p) last = { ...last, ...k.p }; return p === k.p ? k : { ...k, p }; });
+  const hit = Array.isArray(m.hit) ? m.hit.map(h => HIT[h] ?? h) : HIT[m.hit] ?? m.hit;
   return { ...m, hit, keys };
 };
-CHAR_DEFS.otkopod = { ...stick, name: 'otkopod', speed: 1, weight: 1, jump: 0.85, airDodge: 1.1, springs: 1.25, health: 1.35,
+const otkoMoves = moves => { const d = comboDepth(moves); return Object.fromEntries(Object.entries(moves).map(([k, m]) => [k, otkoMove(m, d[k])])); };
+// walk: the four lower tentacles step in a rolling wave (one after another, a quarter cycle apart) while the upper four
+// ripple; idle: every tentacle drifts in a slow wave, each a beat behind the one before. One cycle = 2 steps
+const otkoWave = (amp, ids, ph) => Object.fromEntries(ids.flatMap((id, i) => {
+  const q = Math.sin(ph + i * Math.PI / 2) * amp, s = OTKO_TENTACLES.findIndex(([t]) => t === id) % 2 ? -1 : 1;
+  return [[id, OTKO_TENTACLES.find(([t]) => t === id)[1] + q], [id + 'Mid', (45 + q * 0.8) * s], [id + 'End', (40 - q * 0.6) * s]];
+}));
+const OTKO_UPPER = OTKO_TENTACLES.map(([id]) => id).filter(id => !OTKO_WALKERS.includes(id));
+// a loop starts with a near-instant key on its first pose, so each cycle ends exactly where the next one begins
+const otkoLoop = (n, d, f) => ({ keys: [{ d: 0.001, p: f(0) }, ...Array.from({ length: n }, (_, i) => ({ d, e: 'linear', p: f((i + 1) / n * 2 * Math.PI) }))] });
+CHAR_DEFS.otkopod = { ...stick, name: 'otkopod', speed: 1, weight: 1, jump: 0.85, airDodge: 1.1, springs: 1.25, health: 1.5,
   bones: [...STICK_BONES.map(b => b.id === 'chest' ? { ...b, len: 10 } : b.id === 'waist' ? { ...b, len: 8 } : OTKO_HIDE.includes(b.id) ? { ...b, hidden: true } : b),
     ...OTKO_TENTACLES.flatMap(([id, a]) => tentacle(id, a))],
   poses: { ...stick.poses, stance: OTKO_POSE },
-  moves: { ...mapVals(retimed(1), otkoMove), ...sig(tentacleX({
+  moves: { walk: otkoLoop(8, 0.09, ph => ({ ...otkoWave(28, OTKO_WALKERS, ph), ...otkoWave(10, OTKO_UPPER, ph + 1) })),
+    idle: otkoLoop(8, 0.35, ph => otkoWave(8, OTKO_TENTACLES.map(([id]) => id), ph)),
+    ...otkoMoves(retimed(1)), ...sig(tentacleX({
     // P: a single tentacle snaps forward, fast
-    tentacleJab: attack({ power: 1, damage: 6, hit: 'tentacle5FTip', height: 'mid', knock: 120, stun: 0.3 },
+    tentacleJab: attack({ power: 1, damage: 7, hit: 'tentacle5FTip', height: 'mid', knock: 120, stun: 0.3 },
       [0.06, { tentacle5F: -150, tentacle5FMid: 60, tentacle5FEnd: 40 }],
       [0.05, { tentacle5F: -85, tentacle5FMid: 0, tentacle5FEnd: 0, tentacle5FTip: 0 }], 0.06, 0.18),
     // K: a low double sweep, two tentacles at once (simultaneous multi-limb hit)
