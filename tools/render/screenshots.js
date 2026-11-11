@@ -63,6 +63,14 @@ const SHOTS = {
       net.box.querySelectorAll('textarea').forEach(t => t.value = t.value.replace(/^file:.*?#/, site + '#'));
       q?.replaceWith(Object.assign(netQr(netInviteLink(net.code, site, net.pin), q.dataset.tip), { className: 'netqr site' }));
       $('side').scrollTop = net.box.offsetTop - 60; }, 100);`, [600, 40, 800, 760]],
+  // the rig tools column beside the character: mode, pose, selection, groups, constraints
+  rigtools: [`setMode('character'); panels(); ${run(30)}`, [0, 60, 640, 390]],
+  // a look preset (ink comic) on hadoo, with the side panel's character tab
+  look: [`setMode('character'); pickChar('hadoo'); lookPreset('ink comic'); creator.sideTab = 'character'; panels(); ${run(30)}`, [0, 60, 1400, 490]],
+  // the parts picker (appendages library) opened from the bones panel
+  parts: [`setMode('character'); panels(); ${run(30)} [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('parts')).click();`, [0, 540, 730, 210]],
+  // the dopesheet docked above the timeline: which bones each key moves
+  dopesheet: [`setMode('animate'); anim.move = 'roundhouse'; animMode.enter(); lay('animate').panel = 'dope'; panels(); anim.t = 0.35; anim.playing = false; previewAt(anim.t); mode().render();`, [0, 410, 640, 350]],
   // a phone held upright: the mobile layout with the on-screen pad
   phone: [`closeWelcome(); touchPad(true); lab.scen = 'you vs ai'; setMode('play'); build(); panels(); ${run(60)} tpSync?.();`, [0, 0, 390, 844], [390, 844]],
 };
@@ -78,7 +86,7 @@ const TOUCHES = {
   inputs: ['src/engine/inputs.js'], bonetable: ['src/editor/creator', 'src/engine/shapes.js'], builder: ['src/engine/scenarios.js', 'src/engine/brain.js'],
   stancereq: ['src/editor/creator'], fighters: ['src/engine/roster.js', 'src/engine/chars/', 'src/editor/lab.js'], menubar: ['src/ui/layout.js', 'src/ui/app.js'],
   layout: ['src/ui/layout.js', 'src/ui/panelstate.js'], debug: ['src/ui/app.js'], palette: ['src/ui/palette.js'], statsradar: ['src/editor/creator'], keys: ['src/ui/keys.js'],
-  docspanel: ['src/ui/docs.js'], replay: ['src/engine/replay'], netplay: ['src/net/'], phone: ['src/ui/touch.js'],
+  docspanel: ['src/ui/docs.js'], rigtools: ['src/editor/creator', 'src/editor/rig'], look: ['src/editor/files.js', 'src/engine/rig-draw.js'], parts: ['src/editor/creator-bones.js', 'src/editor/studio'], dopesheet: ['src/editor/movetable.js'], replay: ['src/engine/replay'], netplay: ['src/net/'], phone: ['src/ui/touch.js'],
 };
 // the shots that show any of the changed files, closest match first (a file named outright beats a whole folder)
 const affected = files => Object.keys(SHOTS).map(n => [n, Math.max(0, ...(TOUCHES[n] || []).filter(t => files.some(f => f.startsWith(t))).map(t => t.length))])
