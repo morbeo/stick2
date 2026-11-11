@@ -3,19 +3,20 @@
 // off the shoulders and two for each leg off the hip, so at rest it stands like a person, only wobbly. The stick's
 // skeleton stays underneath, its limbs hidden (no length, hurtbox or hitbox), so walking, IK and every inherited stick
 // move keep a working rig: each limb's angles go to its pair of tentacles (otkoKey), the second trailing the first.
-// The tentacles are soft: low spring stiffness and damping, rising lag, whip and dangle toward the tip, and each
-// joint follows the one above it, so a turn at the root rolls down the tentacle as a wave. Each one is drawn as a single
+// The tentacles are fluid rather than floppy: well damped springs (no overshoot, no whip), lag rising toward the tip
+// for a smooth follow-through, and each joint following the one above it, so a turn at the root flows down the
+// tentacle as one wave. Each one is drawn as a single
 // tapered spline to a point. The S+G stance, splayed, drops the act and fans all eight out like a real octopus
 const OTKO_LIMBS = [['armF', 'chest', 'arm', 'f'], ['armB', 'chest', 'arm', 'b'], ['legF', null, 'leg', 'f'], ['legB', null, 'leg', 'b']];
 // one tentacle (4 joints) of a pair; the second of a pair (n 2) is a little thinner and has no hurtbox of its own: it
 // lies along the first, so the pair's hurtbox is the one drawn line it reads as
 const tentacle = (id, parent, role, side, n, leg) => {
-  const k = leg ? 0.9 : 0.8, hurt = n === 1, seg = { role, side, stiff: 0.75, damp: 0.95, followMix: 0.4, min: -120, max: 120 };
+  const k = leg ? 0.9 : 0.8, hurt = n === 1, seg = { role, side, stiff: 0.9, damp: 1.7, followMix: 0.6, min: -120, max: 120 };
   return [
-    { id, parent, len: Math.round(22 * k), role, side, shape: 'spline', taper: 0.85, cap: 'point', thick: n === 1 ? 6 : 5, hurt: hurt ? 4 : 0, lag: 0.7, stiff: 0.7, damp: 0.7, dangle: 0.2, stretch: 0.15 },
-    { id: id + 'Mid', parent: id, len: Math.round(20 * k), ...seg, follow: id, thick: 4, hurt: hurt ? 3 : 0, lag: 1.5, dangle: 0.45, whip: 0.12, stretch: 0.2, sway: 1.6 },
-    { id: id + 'End', parent: id + 'Mid', len: Math.round(16 * k), ...seg, follow: id + 'Mid', thick: 3, hurt: 0, lag: 2.3, dangle: 0.5, whip: 0.2, stretch: 0.3, sway: 2 },
-    { id: id + 'Tip', parent: id + 'End', len: Math.round(10 * k), ...seg, follow: id + 'End', thick: 1.8, hurt: 0, lag: 3.2, dangle: 0.6, whip: 0.3, stretch: 0.35, sway: 2.4 }];
+    { id, parent, len: Math.round(22 * k), role, side, shape: 'spline', taper: 0.85, cap: 'point', thick: n === 1 ? 6 : 5, hurt: hurt ? 4 : 0, lag: 0.6, stiff: 1, damp: 1.5, dangle: 0.1, stretch: 0.08 },
+    { id: id + 'Mid', parent: id, len: Math.round(20 * k), ...seg, follow: id, thick: 4, hurt: hurt ? 3 : 0, lag: 1.3, dangle: 0.2, stretch: 0.1, sway: 1.1 },
+    { id: id + 'End', parent: id + 'Mid', len: Math.round(16 * k), ...seg, follow: id + 'Mid', thick: 3, hurt: 0, lag: 1.9, dangle: 0.25, stretch: 0.12, sway: 1.3 },
+    { id: id + 'Tip', parent: id + 'End', len: Math.round(10 * k), ...seg, follow: id + 'End', thick: 1.8, hurt: 0, lag: 2.5, dangle: 0.3, stretch: 0.15, sway: 1.5 }];
 };
 // bone order sets chain order: F1, B1, F2, B2, so the walk (legs alternate by index) steps both front tentacles together
 const OTKO_BONES = [1, 2].flatMap(n => OTKO_LIMBS.flatMap(([id, parent, role, side]) => tentacle(id + n, parent, role, side, n, role === 'leg')));
@@ -72,14 +73,14 @@ const FRONT_ARM = -95, BACK_ARM = 95, FRONT_LEG = 85, BACK_LEG = -85;
 // splayed: the act dropped, all eight fanned out round the body like a real octopus, arms high, legs wide
 const SPLAYED = { ...otkoEach(OTKO_ARMS, (id, i) => ({ [id]: [-60, -25, 60, 25][i], [id + 'Mid']: [35, 50, -35, -50][i], [id + 'End']: [30, 40, -30, -40][i] })),
   ...otkoEach(OTKO_LEGS, (id, i) => ({ [id]: [55, 30, -55, -30][i], [id + 'Mid']: [-40, -30, 40, 30][i], [id + 'End']: [-30, -40, 30, 40][i] })), waist: 180, chest: 0 };
-CHAR_DEFS.otkopod = { ...stick, name: 'otkopod', speed: 1, weight: 1, jump: 0.85, airDodge: 1.1, springs: 1.4, health: 1.5,
-  gait: { idle: 'sway', idleAmt: 2.2, lean: 0.8, stride: 1.1, lift: 1.3, armSwing: 1.6, breath: 1.3 },
+CHAR_DEFS.otkopod = { ...stick, name: 'otkopod', speed: 1, weight: 1, jump: 0.85, airDodge: 1.1, springs: 1.1, health: 0.95,
+  gait: { idle: 'sway', idleAmt: 1.2, lean: 0.5, stride: 1.05, lift: 0.9, armSwing: 0.9, breath: 1 },
   bones: [...STICK_BONES.map(b => OTKO_HIDE.includes(b.id) ? { ...b, hidden: true } : b), ...OTKO_BONES],
   // every stick pose (stance, crouch, air, fall, lie) with the tentacles taking the limbs' place: human-shaped
   poses: mapVals(stick.poses, otkoKey),
   moves: { ...otkoMoves(retimed(1)),
     // P: the front arm's lead tentacle snaps out straight, fast
-    tentacleJab: { power: 1, damage: 7, hit: 'armF1Tip', height: 'mid', knock: 120, stun: 0.3, keys: [
+    tentacleJab: { power: 1, damage: 6, hit: 'armF1Tip', height: 'mid', knock: 120, stun: 0.3, keys: [
       { d: 0.06, e: 'outQuad', p: { armF1: -150, armF1Mid: 70, armF1End: 50 } },
       { d: 0.05, e: 'outExpo', p: { armF1: -88, armF1Mid: 0, armF1End: 0, armF1Tip: 0 }, active: true },
       { d: 0.06, p: { armF1: -88, armF1Mid: 0, armF1End: 0, armF1Tip: 0 }, active: true },
@@ -134,6 +135,6 @@ CHAR_DEFS.otkopod = { ...stick, name: 'otkopod', speed: 1, weight: 1, jump: 0.85
   },
   ...bind({ punch: 'tentacleJab', kick: 'tentacleSweep', fwdSpecial: 'tentacleFlurry', upSpecial: 'eightArmSlam',
     downSpecial: 'inkBurst', special: 'windmill', throw: 'wrapSqueeze' }),
-  // S+G: splayed. The act drops: all eight fan out, a wider and wobblier target that reaches all round; its specials thrash
-  stances: [{ name: 'splayed', pose: SPLAYED, body: { stats: { tough: 0.9, springs: 1.6, speed: 0.85 } },
+  // S+G: splayed. The act drops: all eight fan out, a wider target that reaches all round; its specials thrash
+  stances: [{ name: 'splayed', pose: SPLAYED, body: { stats: { tough: 0.9, springs: 1.2, speed: 0.85 } },
     ...bind({ special: 'thrash', downSpecial: 'thrash' }) }] };
