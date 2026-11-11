@@ -43,7 +43,7 @@ The character panel shows a grid of drawings, all at one scale.
 | gloomo | the boss demon | horns, wings, tail, four arms, dark orb, psycho dash, warp claw, skull dive |
 | centaur | the trampling horse | a horizontal horse body: tramples forward, a donkey kick, rears up to headbutt, or to box with its forelegs |
 | houndo | the hound | fights posed on all fours: a tackle, a low claw rake, rears up to bite, a hind-leg kick, a howl |
-| otkopod | the tentacled pod-creature | eight tapered tentacles that ripple, walk on the lower four and take turns through a combo: a sequential four-tentacle flurry, all eight slamming down at once, an ink burst and a coiling wrap throw |
+| otkopod | the octopus passing as a person | two wobbly tentacles for each arm and leg, standing like a person (S+G splays all eight out): a windmill and a splayed thrash that hit front and back several times, a four-tentacle flurry, an overhead slam to both sides, an ink burst and a coiling wrap throw |
 | clampo | the wrestler | huge and slow: a bear hug into a slam (a combo throw), a leg-lock ankle twist, a running tackle, a diving splash |
 
 ### Your own
