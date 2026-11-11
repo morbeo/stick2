@@ -10,8 +10,9 @@ const run = n => `for (let i = 0; i < ${n}; i++) { mode().tick?.(1 / 60); for (c
 // crop: [x, y, w, h] in page px of a 1400 × 800 window; an optional third [w, h] sets another page size (a phone)
 const SHOTS = {
   play: [`lab.scen = 'ai vs ai'; setMode('play'); lab.meter = true; build(); panels(); ${run(150)}`, [0, 400, 1100, 370]],
-  // the itch.io cover image (630 × 500)
-  cover: [`lab.scen = 'ai vs ai'; setMode('play'); lab.meter = true; build(); panels(); ${run(150)}`, [440, 268, 630, 500]],
+  // the itch.io cover image (630 × 500): a free-for-all of four roster characters, three with effect looks
+  cover: [`lab.scen = 'ai free-for-all'; lab.chars = ['hadoo', 'centaur', 'otkopod', 'gogili']; setMode('play'); setTheater(true); build(); panels(); ${run(30)}
+    lab.cells[0].w.fighters.forEach((f, i) => { const look = ['fire', 'lightning', null, 'aura'][i]; if (look) f.ch = { ...f.ch, bones: f.ch.bones.map(b => ({ ...b, fx: { look } })) }; f.x = [-260, -90, 90, 260][i]; }); ${run(140)}`, [110, 200, 630, 500]],
   animate: [`setMode('animate'); anim.move = 'roundhouse'; animMode.enter(); panels(); anim.t = 0.35; anim.playing = false; previewAt(anim.t); mode().render();`, [0, 80, 1100, 720]],
   character: [`setMode('character'); panels(); ${run(30)}`, [0, 80, 1400, 720]],
   gallery: [`setMode('gallery'); panels(); ${run(40)}`, [0, 80, 1100, 600]],
@@ -34,23 +35,20 @@ const SHOTS = {
   combos: [`setMode('animate'); lay('animate').panel = 'combos'; setLink('jab', 'fwdSpecial', 'shoulderCharge'); panels(); mode().render();`, [0, 80, 1100, 600]],
   movetable: [`setMode('animate'); lay('animate').panel = 'table'; panels(); mode().render();`, [0, 80, 1100, 600]],
   inputs: [`setMode('animate'); lay('animate').panel = 'inputs'; panels(); mode().render();`, [0, 80, 1100, 600]],
-  bonetable: [`setMode('character'); lay('character').panel = 'bones'; panels(); ${run(10)}`, [0, 80, 1100, 600]],
+  bonetable: [`setMode('character'); creator.boneView = 'table'; lay('character').panel = 'bones'; panels(); ${run(10)}`, [0, 430, 1100, 370]],
   // P2 set to AI to show the style / skill / limits row (otherwise only a human or dummy controller shows)
   builder: [`setMode('play'); newScen(); ${run(10)}
     [...document.querySelector('[data-p="1"]').querySelectorAll('button')].find(b => b.textContent.trim() === 'AI').click(); ${run(20)}`, [0, 440, 1100, 400]],
-  // a stance's requirements, fly and transition rows, scrolled into view in the side panel
-  stancereq: [`setMode('character'); pickChar('stick'); studio.stance = 1; lay().fold['character:stance pose'] = false; panels(); ${run(5)}
-    [...document.querySelectorAll('#side h3')].find(el => el.textContent.toLowerCase().includes('stance pose')).scrollIntoView();`, [1080, 60, 320, 740]],
-  fighters: [`lab.scen = 'ai 2v2'; setMode('play'); build(); panels(); ${run(30)} document.querySelectorAll('.fpick')[2].click();`, [0, 0, 1000, 700]],
+  // a stance's key, requirements and transition rows: the side panel's stance tab
+  stancereq: [`setMode('character'); pickChar('stick'); studio.stance = 1; creator.sideTab = 'stance'; panels(); ${run(5)}`, [1100, 60, 300, 740]],
+  fighters: [`lab.scen = 'ai 2v2'; setMode('play'); build(); panels(); ${run(30)} document.querySelectorAll('.fpick')[2].click();`, [300, 0, 1100, 700]],
   menubar: [`setMode('play'); panels(); ${run(30)} [...document.querySelectorAll('#global button')].find(b => b.dataset.tip?.startsWith('Export')).click();`, [0, 0, 1400, 160]],
   // a popup is placed to fit the small capture window: put it back where it opens in the full page
   layout: [`setMode('play'); panels(); ${run(30)} $('global').querySelector('button[data-tip^="Layout:"]').click(); Object.assign(pop.style, { left: '560px', top: '32px', maxHeight: 'none' });`, [540, 20, 460, 540]],
   debug: [`setMode('play'); panels(); ${run(90)} debugBtn().click(); Object.assign(pop.style, { left: '955px', top: '32px', maxHeight: 'none' }); dbgT = 0; drawDebug();`, [940, 20, 400, 540]],
   palette: [`setMode('play'); panels(); ${run(30)} openPalette(); const i = document.querySelector('#palette input'); i.value = 'table'; i.dispatchEvent(new Event('input'));`, [250, 0, 900, 520]],
-  // the stats radar, scrolled into view in the side panel
-  statsradar: [`setMode('character'); pickChar('stick'); panels(); ${run(5)}
-    const sec = [...document.querySelectorAll('#side .fold')].find(s => s.querySelector('h3')?.textContent.toLowerCase().includes('radar'));
-    sec.classList.remove('shut'); sec.querySelector('canvas').scrollIntoView({ block: 'start' });`, [1080, 330, 320, 310]],
+  // the stats radar in the bones panel, another character overlaid
+  statsradar: [`setMode('character'); pickChar('stick'); creator.boneView = 'radar'; radar.chars.add('hadoo'); panels(); ${run(5)}`, [0, 430, 1100, 330]],
   keys: [`setMode('play'); panels(); ${run(30)} const b = [...document.querySelectorAll('#global button')].find(x => x.dataset.tip?.startsWith('Keys:')); keysPanel(null, b);
     Object.assign(pop.style, { left: '680px', top: '32px', maxHeight: 'none' });`, [660, 20, 400, 700]],
   docspanel: [`setMode('play'); panels(); openDocs('specials'); docsFrame(); docsFrame();`, [0, 0, 1400, 800]],
@@ -91,17 +89,19 @@ function shoot(names = Object.keys(SHOTS), { root = here, out = path.join(here, 
   const chrome = findChrome();
   if (!chrome) throw new Error('no Chrome found (set CHROME=/path/to/chrome)');
   fs.mkdirSync(out, { recursive: true });
-  const page = path.join(os.tmpdir(), 'stick2-shot.html'), done = [];
+  const page = path.join(os.tmpdir(), 'stick2-shot.html'), frame = path.join(os.tmpdir(), 'stick2-frame.html'), done = [];
   for (const name of names) {
     if (!SHOTS[name]) throw new Error(`unknown shot ${name} (one of: ${Object.keys(SHOTS).join(', ')})`);
     const [code, [x, y, w, h], [pw, ph] = [1400, 800]] = SHOTS[name];
-    // the page keeps its layout (1400 × 800 unless the shot sets one) and slides up-left so the crop lands in a window of the crop's size
+    // the app runs in an iframe of the page size (1400 × 800 unless the shot sets one), slid up-left so the crop lands in a window of
+    // the crop's size: the app's media queries see the iframe, not the narrow window (under 761 px wide it would switch to the phone layout)
     fs.writeFileSync(page, fs.readFileSync(path.join(root, 'index.html'), 'utf8').replace(/(src|fonts)\//g, `file://${root}/$1/`).replace('</body>',
-      `<script>localStorage.clear(); setTimeout(() => { document.documentElement.style.cssText = 'width:${pw}px;height:${ph}px;overflow:hidden;transform:translate(-${x}px,-${y}px)';
-        dispatchEvent(new Event('resize')); try { closeWelcome(); } catch {} ${code}; app.speed = 0; }, 300);</script></body>`));
+      `<script>localStorage.clear(); setTimeout(() => { dispatchEvent(new Event('resize')); try { closeWelcome(); } catch {} ${code}; app.speed = 0; }, 300);</script></body>`));
+    fs.writeFileSync(frame, `<!doctype html><html style="margin:0;overflow:hidden"><body style="margin:0"><iframe src="file://${page}" style="position:absolute;border:0;
+      left:-${x}px;top:-${y}px;width:${pw}px;height:${ph}px"></iframe></body></html>`);
     const file = path.join(out, name + '.png');
     execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--allow-file-access-from-files', '--hide-scrollbars', `--window-size=${w},${h}`,
-      '--virtual-time-budget=6000', `--screenshot=${file}`, 'file://' + page], { stdio: 'ignore' });
+      '--virtual-time-budget=6000', `--screenshot=${file}`, 'file://' + frame], { stdio: 'ignore' });
     done.push(file);
   }
   return done;
