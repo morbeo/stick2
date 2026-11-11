@@ -415,6 +415,8 @@ The move table, input table and combos are on the [Editing](editing.md) page.
 
 The dopesheet shows which bones each key moves. Open it with the **dopesheet** button on the timeline bar, **dopesheet** in the toolbar's panels group (it may sit under **more** on narrow screens), or `dopesheet` in the palette. It docks above the timeline, so the character and the preview stay in view.
 
+![The dopesheet over the timeline: a dot per bone a key moves](img/dopesheet.png)
+
 - It starts compact, listing only the bones the move turns. Turn on **all bones** to list the still ones too.
 - **Hover a row** to light that bone up on the figure.
 - **Hover a cell** while paused to show that key's pose on the character.
