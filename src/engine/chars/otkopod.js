@@ -80,17 +80,40 @@ CHAR_DEFS.otkopod = { ...stick, name: 'otkopod', speed: 1, weight: 1, jump: 0.85
   poses: mapVals(stick.poses, otkoKey),
   moves: { ...otkoMoves(retimed(1)),
     // P: the front arm's lead tentacle snaps out straight, fast
-    tentacleJab: { power: 1, damage: 6, hit: 'armF1Tip', height: 'mid', knock: 120, stun: 0.3, keys: [
+    tentacleJab: { power: 1, damage: 6, hit: 'armF1Tip', height: 'mid', knock: 120, stun: 0.3, next: { punch: 'backLash', kick: 'tentacleSweep' }, keys: [
       { d: 0.06, e: 'outQuad', p: { armF1: -150, armF1Mid: 70, armF1End: 50 } },
       { d: 0.05, e: 'outExpo', p: { armF1: -88, armF1Mid: 0, armF1End: 0, armF1Tip: 0 }, active: true },
       { d: 0.06, p: { armF1: -88, armF1Mid: 0, armF1End: 0, armF1Tip: 0 }, active: true },
       { d: 0.18, e: 'inOutCubic', p: null }] },
     // K: one leg tentacle of each leg sweeps low, one in front and one behind at once
-    tentacleSweep: { power: 1.2, damage: 8, hit: ['legF1Tip', 'legB1Tip'], height: 'low', knock: 160, stun: 0.4, keys: [
+    tentacleSweep: { power: 1.2, damage: 8, hit: ['legF1Tip', 'legB1Tip'], height: 'low', knock: 160, stun: 0.4, next: { kick: 'highWhip' }, keys: [
       { d: 0.08, e: 'outQuad', p: { waist: 165, legF1: 30, legF1Mid: -30, legB1: -30, legB1Mid: 30 } },
       { d: 0.08, e: 'outExpo', p: { waist: 165, ...otkoAll(['legF1'], FRONT_LEG, -5), ...otkoAll(['legB1'], BACK_LEG, 5) }, active: true },
       { d: 0.08, p: { waist: 165, ...otkoAll(['legF1'], FRONT_LEG, -5), ...otkoAll(['legB1'], BACK_LEG, 5) }, active: true },
       { d: 0.22, e: 'inOutCubic', p: null }] },
+    // the P and K chains: every hit a different tentacle. P: jab (armF1) → backLash (armB1) → twinLash (both second
+    // tentacles, a launcher). K: sweep (legF1 + legB1, low) → highWhip (legF2, high) → legSpin (all four legs, front and
+    // back, a knockdown). The jab can also start the K chain, and highWhip can finish on twinLash
+    backLash: { power: 1.1, damage: 7, hit: 'armB1Tip', height: 'high', knock: 140, stun: 0.34, next: { punch: 'twinLash' }, keys: [
+      { d: 0.06, e: 'outQuad', p: { waist: 176, armB1: -175, armB1Mid: 80, armB1End: 50 } },
+      { d: 0.05, e: 'outExpo', p: { waist: 162, ...otkoAll(['armB1'], -95, -5), armF1: -160 }, active: true, lunge: 60 },
+      { d: 0.06, p: { waist: 162, ...otkoAll(['armB1'], -95, -5), armF1: -160 }, active: true },
+      { d: 0.2, e: 'inOutCubic', p: null }] },
+    twinLash: { power: 1.5, damage: 11, hit: ['armF2Tip', 'armB2Tip'], height: 'mid', knock: 180, launch: 420, kd: true, keys: [
+      { d: 0.1, e: 'outQuad', p: { waist: 190, ...otkoAll(['armF2', 'armB2'], 170, -40, -30) } },
+      { d: 0.07, e: 'outExpo', p: { waist: 165, ...otkoAll(['armF2', 'armB2'], -40, -20, -10) }, active: true, lunge: 80 },
+      { d: 0.08, p: { waist: 165, ...otkoAll(['armF2', 'armB2'], -20, -10) }, active: true },
+      { d: 0.28, e: 'inOutCubic', p: null }] },
+    highWhip: { power: 1.2, damage: 8, hit: 'legF2Tip', height: 'high', knock: 170, stun: 0.38, next: { kick: 'legSpin', punch: 'twinLash' }, keys: [
+      { d: 0.07, e: 'outQuad', p: { waist: 195, legF2: 60, legF2Mid: -80, legF2End: -40 } },
+      { d: 0.06, e: 'outExpo', p: { waist: 205, ...otkoAll(['legF2'], 140, 10, 10) }, active: true },
+      { d: 0.07, p: { waist: 205, ...otkoAll(['legF2'], 140, 10, 10) }, active: true },
+      { d: 0.24, e: 'inOutCubic', p: null }] },
+    legSpin: { power: 1.6, damage: 12, hit: OTKO_LEGS.map(id => id + 'Tip'), height: 'low', knock: 260, launch: 120, kd: true, keys: [
+      { d: 0.1, e: 'outQuad', p: { waist: 170, ...otkoAll(OTKO_LEGS, 0, 60, 40) } },
+      { d: 0.07, e: 'outExpo', p: { waist: 170, ...otkoAll(['legF1', 'legF2'], FRONT_LEG, -10), ...otkoAll(['legB1', 'legB2'], BACK_LEG, 10) }, active: true, shake: 0.25 },
+      { d: 0.1, p: { waist: 170, ...otkoAll(['legF1', 'legF2'], FRONT_LEG, -10), ...otkoAll(['legB1', 'legB2'], BACK_LEG, 10) }, active: true },
+      { d: 0.3, e: 'inOutCubic', p: null }] },
     // → S: the four arm tentacles whip forward one after another (four hits, each key a different tentacle)
     tentacleFlurry: { power: 1, damage: 4, hit: OTKO_ARMS.map(id => id + 'Tip'), height: 'high', knock: 90, stun: 0.4, special: true, keys: [
       { d: 0.06, e: 'outQuad', p: otkoAll(OTKO_ARMS, -170, 60, 40) },
