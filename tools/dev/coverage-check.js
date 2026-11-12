@@ -1,12 +1,12 @@
 // the coverage gate CI runs: the unit tests with V8 coverage of src/, failing if line coverage drops below the floor
 // overall, or below 100% for any file listed in FULL (small modules kept fully covered; add one once it gets there)
-// usage: node tools/dev/coverage-check.js [--floor 85]
+// usage: node tools/dev/coverage-check.js [--floor 90]
 const { spawnSync } = require('child_process'), fs = require('fs'), os = require('os'), path = require('path');
 const ROOT = path.join(__dirname, '..', '..');
-const FLOOR = 85;
+const FLOOR = 90;
 const FULL = ['engine/brain', 'engine/checks', 'engine/core', 'engine/effects', 'engine/events', 'engine/objdiff', 'engine/roster', 'engine/shapes', 'engine/stage',
   'net/netmatch', 'net/netplay', 'editor/tracker', 'ui/sound', 'ui/panelstate',
-  'engine/rig', 'engine/rig-pose', 'engine/rig-chars', 'net/names', 'engine/replay-movie', 'engine/replay-panel',
+  'engine/rig', 'engine/rig-pose', 'engine/rig-chars', 'net/names', 'engine/replay-movie', 'engine/replay-panel', 'net/netserver',
   // every character file (not the shared _kit), so a new one joins on arrival
   ...fs.readdirSync(path.join(ROOT, 'src', 'engine', 'chars')).filter(f => /^[a-z]\w*\.js$/.test(f)).map(f => `engine/chars/${f.slice(0, -3)}`)];
 
