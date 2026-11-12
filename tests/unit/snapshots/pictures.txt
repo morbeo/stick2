@@ -1942,6 +1942,10 @@ otkopod pickUp 990 619407f865ca
 otkopod weaponThrow 990 0574f4f08b7b
 otkopod tentacleJab 990 81f239d842f2
 otkopod tentacleSweep 990 37cb0927a79d
+otkopod backLash 990 c3c0a6e54b1b
+otkopod twinLash 990 affa29037894
+otkopod highWhip 990 888421152837
+otkopod legSpin 990 bf257a9929a6
 otkopod tentacleFlurry 990 e6102bcf4250
 otkopod eightArmSlam 990 145501124baa
 otkopod inkBurst 990 e9840ba15935
