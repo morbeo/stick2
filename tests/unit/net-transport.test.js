@@ -178,3 +178,128 @@ test('quick match steps along QUICK_STATES: a late queued after found is ignored
   assert.deepEqual(plain(run('got')), ['found bo', 'close matched']);
   assert.equal(run(`quickStatus(null)`), '');
 });
+
+// a scripted server socket: records what the app sends; the test delivers what the server says
+const SCRIPT_WS = `var sent = [], sock = null, SWS = class { constructor(url) { this.url = url; this.readyState = 0; sock = this; setTimeout(() => { this.readyState = 1; this.deliver({ t: 'hello', server: 'fake', nonce: 'n1' }); }); }
+  deliver(m) { setTimeout(() => this.readyState === 1 && this.onmessage?.({ data: typeof m === 'string' ? m : JSON.stringify(m) })); } send(d) { sent.push(JSON.parse(d)); }
+  close() { if (this.readyState === 3) return; this.readyState = 3; setTimeout(() => this.onclose?.({ reason: '' })); } };`;
+
+test('a hosting link: the server\'s rules, a promoted room\'s peers, verify / rate / bot callbacks, its tools, and an error closes the lobby', async () => {
+  const run = context();
+  run(`${SCRIPT_WS} var code = null, got = [];
+    var host = new Lobby({ role: 'host', name: 'hana', now: () => 0 }), hl = netServerHost(host, 'wss://fake/ws', { room: c => { code = c; }, isPublic: true, quick: 'T1', device: 'd1', WS: SWS });
+    hl.verified = m => got.push('verified ' + m.ok); hl.rated = m => got.push('rated ' + m.d); hl.bot = m => got.push('bot ' + m.level);`);
+  assert.ok(await settle(() => run('sent.length') === 1));
+  assert.deepEqual(plain(run('sent[0]')), { t: 'host', name: '', public: true, quick: 'T1', player: 'hana', device: 'd1' });
+  run(`sock.deliver({ t: 'room', room: 'AB12', player: 'hana#2', delay: 30, watchers: 4 })`);
+  assert.ok(await settle(() => run('code') === 'AB12'));
+  assert.deepEqual(plain(run('[hl.room, hl.player, hl.delay, host.watchers, host.name, host.state.slots[0].name]')), ['AB12', 'hana#2', 30, 4, 'hana#2', 'hana#2']);
+  run(`sock.deliver({ t: 'promoted', room: 'AB12', peers: [{ id: 'u1' }] }); sock.deliver({ t: 'peer', id: 'u2' });
+    sock.deliver({ t: 'verified', ok: true }); sock.deliver({ t: 'rated', d: 12 }); sock.deliver({ t: 'bot', level: 'hard' })`);
+  assert.ok(await settle(() => run('got.length') === 3));
+  assert.deepEqual(plain(run('got')), ['verified true', 'rated 12', 'bot hard']);
+  // the host's tools, on the server's ids
+  run(`var gid = [...host.peers.keys()][0]; sent.length = 0;
+    hl.kick(gid, true); hl.kick('nobody'); hl.lock(1); hl.report(gid, 'rude', ['l1']); hl.saveReplay({ f: 1 }, 'p1', ['a', 'b']); hl.addBot(); hl.addBot('easy', 'stick');`);
+  assert.deepEqual(plain(run('sent')), [{ t: 'kick', id: 'u1', ban: true }, { t: 'lock', locked: true }, { t: 'report', id: 'u1', reason: 'rude', lines: ['l1'] },
+    { t: 'replay', replay: { f: 1 }, result: 'p1', players: ['a', 'b'] }, { t: 'bot', level: 'normal' }, { t: 'bot', level: 'easy', char: 'stick' }]);
+  assert.equal(run('hl.locked'), true);
+  run(`sock.deliver('not json'); sock.deliver({ t: 'error', error: 'room full' })`);
+  assert.ok(await settle(() => run('host.phase') === 'closed'));
+  assert.equal(run('host.state.error'), 'room full');
+});
+
+test('a guest link: the host leaving promotes it or sends it to the new host; rated, error and a lost server close it', async () => {
+  const run = context();
+  run(`${SCRIPT_WS} var got = [];
+    var g = new Lobby({ role: 'guest', name: 'gus', now: () => 0 }), gl = netServerJoin(g, 'wss://fake/ws', 'AB12', 'watch', { device: 'd2', WS: SWS }); gl.rated = m => got.push(m.d);`);
+  assert.ok(await settle(() => run('sent.length') === 1));
+  assert.deepEqual(plain(run('sent[0]')), { t: 'join', room: 'AB12', player: 'gus', device: 'd2' });
+  run(`sock.deliver({ t: 'joined', room: 'AB12', player: 'gus#3' })`);
+  assert.ok(await settle(() => run('gl.player') === 'gus#3'));
+  assert.equal(run('g.name'), 'gus#3');
+  run(`var rejoined = 0; g.rejoin = () => rejoined++; sock.deliver({ t: 'newhost' }); sock.deliver({ t: 'rated', d: -4 })`);
+  assert.ok(await settle(() => run('rejoined') === 1 && run('got.length') === 1));
+  // promoted: a lobby that cannot take over leaves; one that can hosts the room from here
+  run(`g.promote = () => false; sent.length = 0; sock.deliver({ t: 'promoted', room: 'AB12', peers: [] })`);
+  assert.ok(await settle(() => run('sent.length') === 1));
+  assert.deepEqual(plain(run('sent[0]')), { t: 'leave' });
+  run(`g.promote = () => true; sock.deliver({ t: 'promoted', fresh: true, rules: {}, room: 'AB12', player: 'gus#3', peers: [{ id: 'u9' }] })`);
+  assert.ok(await settle(() => run('gl.hosting') === true));
+  assert.equal(run('typeof gl.kick'), 'function');
+  run(`sent.length = 0; gl.report('h', 'cheat'); gl.report('x', 'spam')`);
+  run(`var g2 = new Lobby({ role: 'guest', name: 'b', now: () => 0 }), gl2 = netServerJoin(g2, 'wss://fake/ws', 'AB12', 'play', { WS: SWS }), s2 = sock;`);
+  await settle(() => run('gl2.hello') !== null);
+  run(`s2.deliver({ t: 'error', error: 'banned' })`);
+  assert.ok(await settle(() => run('g2.phase') === 'closed'));
+  assert.equal(run('g2.state.error'), 'banned');
+  run(`var g3 = new Lobby({ role: 'guest', name: 'c', now: () => 0 }), gl3 = netServerJoin(g3, 'wss://fake/ws', 'AB12', 'play', { WS: SWS }), s3 = sock;`);
+  await settle(() => run('gl3.hello') !== null);
+  run(`s3.deliver({ t: 'closed', why: 'the host left' })`);
+  assert.ok(await settle(() => run('g3.phase') === 'closed'));
+  run(`var g4 = new Lobby({ role: 'guest', name: 'd', now: () => 0 }), gl4 = netServerJoin(g4, 'wss://fake/ws', 'AB12', 'play', { WS: SWS }); gl4.close();`);
+  assert.ok(await settle(() => run('g4.phase') === 'closed'));
+  assert.equal(run('g4.state.error'), 'lost the server');
+});
+
+test('an identity key signs the server\'s nonce before the lobby opens; the server says which id it knows the key by', async () => {
+  const run = context();
+  run(`${SCRIPT_WS} var opened = 0; ServerLink.auth = async nonce => ({ t: 'auth', sig: 'signed ' + nonce });
+    var link = new ServerLink('wss://fake/ws', { open: () => opened++ }, SWS);`);
+  assert.ok(await settle(() => run('opened') === 1));
+  assert.deepEqual(plain(run('sent')), [{ t: 'auth', sig: 'signed n1' }]);
+  run(`sock.deliver({ t: 'authed', id: 'k42' })`);
+  assert.ok(await settle(() => run('link.identity') === 'k42'));
+  assert.equal(run('ServerLink.identity'), 'k42');
+  // a refused signature still opens; a closed link does not
+  run(`ServerLink.auth = async () => { throw new Error('no key'); }; var l2 = new ServerLink('wss://fake/ws', { open: () => opened++ }, SWS);`);
+  assert.ok(await settle(() => run('opened') === 2));
+  run(`ServerLink.auth = async () => null; var l3 = new ServerLink('wss://fake/ws', { open: () => opened++ }, SWS); setTimeout(() => l3.close());`);
+  for (let i = 0; i < 10; i++) await flush();
+  assert.equal(run('opened'), 2);
+  run('ServerLink.auth = null; ServerLink.identity = null;');
+});
+
+test('quick match: an error closes it with the reason; cancel leaves the queue', async () => {
+  const run = context();
+  run(`${SCRIPT_WS} var why = [];
+    var q1 = netServerQuick('wss://fake/ws', 'ann', { WS: SWS, on: { close: w => why.push(w) } }), s1 = sock;`);
+  await settle(() => run('q1.hello') !== null);
+  run(`s1.deliver({ t: 'error', error: 'no quick match here' })`);
+  assert.ok(await settle(() => run('why.length') === 1));
+  assert.deepEqual(plain(run('[why[0], q1.state, q1.why]')), ['no quick match here', 'closed', 'no quick match here']);
+  run(`var q2 = netServerQuick('wss://fake/ws', 'bo', { WS: SWS, on: { close: w => why.push(w) } });`);
+  await settle(() => run('q2.hello') !== null);
+  run(`sent.length = 0; q2.cancel()`);
+  assert.deepEqual(plain(run('[sent, why[1], q2.state]')), [[{ t: 'unquick' }], 'cancelled', 'closed']);
+});
+
+test('account actions: the answer resolves, an error rejects without its prefix, a lost connection rejects', async () => {
+  const run = context();
+  run(SCRIPT_WS);
+  const p1 = run(`netServerAccount('wss://fake/ws', { do: 'whoami', device: 'd1' }, { WS: SWS })`);
+  assert.ok(await settle(() => run('sent.length') === 1));
+  assert.deepEqual(plain(run('sent[0]')), { t: 'account', do: 'whoami', device: 'd1' });
+  run(`sock.deliver({ t: 'account', name: 'ann', devices: 2 })`);
+  assert.deepEqual(plain(await p1), { t: 'account', name: 'ann', devices: 2 });
+  const p2 = run(`netServerAccount('wss://fake/ws', { do: 'claim', device: 'd1', player: 'x' }, { WS: SWS })`);
+  await settle(() => run('sent.length') === 2);
+  run(`sock.deliver({ t: 'error', error: 'account: name taken' })`);
+  await assert.rejects(p2, { message: 'name taken' });
+  const p3 = run(`netServerAccount('wss://fake/ws', { do: 'whoami', device: 'd1' }, { WS: SWS })`);
+  await settle(() => run('sent.length') === 3);
+  run('sock.close()');
+  await assert.rejects(p3, { message: 'lost the server' });
+});
+
+test('the server\'s HTTP API: leaderboard, rooms, replays and one replay from its ws address; an error status throws', async () => {
+  const run = context();
+  run(`var asked = [], status = 200, fetch = async u => { asked.push(String(u)); return { ok: status === 200, status, json: async () => ({ path: new URL(u).pathname }) }; };`);
+  const calls = ['netServerBoard(\'wss://play.example.org/ws\')', 'netServerRooms(\'ws://localhost:8080/ws\')', 'netServerReplays(\'wss://play.example.org/ws\')', 'netServerReplay(\'wss://play.example.org/ws\', \'a b\')'];
+  const paths = [];
+  for (const c of calls) paths.push(plain(await run(c)).path);
+  assert.deepEqual(paths, ['/api/leaderboard', '/api/rooms', '/api/replays', '/api/replays/a%20b']);
+  assert.deepEqual(plain(run('asked')), ['https://play.example.org/api/leaderboard', 'http://localhost:8080/api/rooms', 'https://play.example.org/api/replays', 'https://play.example.org/api/replays/a%20b']);
+  run('status = 503');
+  for (const c of calls) await assert.rejects(run(c), { message: 'the server said 503' });
+});
