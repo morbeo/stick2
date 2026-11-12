@@ -192,6 +192,8 @@ A bone can never hang from its own subtree.
 
 ## Rig tools
 
+![The rig tools beside the character: mode, pose, selection, groups, constraints](img/rigtools.png)
+
 A column docked at the right edge of the character view, for posing and rigging. Show or hide it with the toolbar's **rig** button, or with `rig tools` in the palette (⌘K). On screens narrower than 700 px it becomes a sheet at the bottom of the stage. It is hidden while the experiment grid is open.
 
 Every tool is also in the palette as `rig: …`, and every change is undoable (⌘Z).
@@ -298,6 +300,8 @@ Example: on a centaur, save `horse` (the four horse legs and the barrel) and `ri
 
 ### Parts (appendages library)
 
+![The parts picker: size, joints, mirror, hit and the parts to add](img/parts.png)
+
 **parts** in the bones panel head adds a ready-made part: **arm**, **leg**, **head**, **tail**, **tentacle**, **wing**, **horn** or **socket** (an invisible attach point: a held weapon goes on the first socket instead of the front hand), or one of your own saved parts. A part becomes plain bones, so you can edit, recolour, constrain, skin and group it like any other bone afterwards.
 
 | Option | What it does |
@@ -316,6 +320,8 @@ Example: on a centaur, save `horse` (the four horse legs and the barrel) and `ri
 Example: select `chest`, pick **L** and **pair**, then **wing**. Select `head` and add **horn**. Add a **tentacle** with **joints 8** at the hips for a long, floppy tail.
 
 ### Character look
+
+![hadoo with the ink comic look preset, and the look rows in the character tab](img/look.png)
 
 The **character** tab of the side panel has look rows under the colour. They're drawing only, so they never change a fight or a replay.
 
