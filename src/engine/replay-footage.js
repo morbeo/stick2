@@ -179,7 +179,7 @@ const exportHighlights = () => hlSegs().length ? renderSegments(hlSegs()) : noti
 // the footage: the in–out range with its slow motion, camera and labels
 const exportReel = () => { const [a, b] = footRange(); return renderSegments([{ a, b, rate: f => rateAt(f, true), shot: (w, f) => shotAt(w, f, true), title: f => spanAt('label', f)?.text }]); };
 function exportPop(e, b) {
-  const o = expSet(), set = clipSet(), row = (label, tip, ...els) => h('div', { cls: 'row', tip }, h('span', { textContent: label }), ...els);
+  const set = clipSet(), row = (label, tip, ...els) => h('div', { cls: 'row', tip }, h('span', { textContent: label }), ...els);
   const info = h('p', { cls: 'note' });
   reg(info, () => { const [w, ht] = expSize(W / H), segs = rp.expWhat === 'highlights' ? hlSegs() : [{ a: footRange()[0], b: footRange()[1], rate: f => rateAt(f, true) }];
     let t = 0; for (const sg of segs) for (let f = sg.a; f < sg.b; f++) t += rp.frames[f][0] / sg.rate(f);

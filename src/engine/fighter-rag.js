@@ -46,7 +46,7 @@ class FighterRag {
         for (const b of [...ch.bones].reverse()) kin[b.id] = [b, ...b.kids.flatMap(k => kin[k.id])]; // each bone and all it carries
         for (const b of ch.bones) {
           if (b === ref) continue;
-          const pb = ch.by[b.parent], pid = pb ? pb.id : ref.id, a = r.p[b.parent || 'hip'], e = r.p[b.id], far = r.p[pb ? pb.parent || 'hip' : ref.id];
+          const pb = ch.by[b.parent], pid = pb ? pb.id : ref.id, a = r.p[b.parent || 'hip'], far = r.p[pb ? pb.parent || 'hip' : ref.id];
           const rel = A[b.id] - (pb ? A[pid] : A[pid] - ref.restW), tgt = pb ? tw[b.id] - tw[pb.id] : tw[b.id] - (tw[ref.id] - ref.restW);
           const om = Om[b.id] - Om[pid];
           let k = K, f = K * wrap180(tgt - rel) * R;
