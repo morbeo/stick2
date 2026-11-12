@@ -5,7 +5,7 @@ var FAKE = { regs: [], pop: null, notices: [], saved: [], asks: [], pick: null, 
 var el = (tag, props = {}, kids = []) => {
   const e = { tag, children: [], listeners: {}, style: {}, dataset: {}, isConnected: true, hidden: false, disabled: false, value: '', textContent: '',
     scrollTop: 0, clientWidth: 120, clientHeight: 400, files: [],
-    classList: { set: new Set(), toggle(c, on) { this.set[on ? 'add' : 'delete'](c); }, contains(c) { return this.set.has(c); } },
+    classList: { set: new Set(), add(c) { this.set.add(c); }, toggle(c, on) { this.set[on ? 'add' : 'delete'](c); }, contains(c) { return this.set.has(c); } },
     append(...k) { this.children.push(...flat(k)); }, replaceChildren(...k) { this.children = flat(k); },
     addEventListener(t, fn) { (this.listeners[t] ||= []).push(fn); },
     // runs the listeners and the on<type> handler; returns what they returned (an async handler's promise)
