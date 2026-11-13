@@ -1,4 +1,0 @@
-{
-  "tip": "Watch a replay with its timeline; scrub anywhere and jump in as P1 or P2. Every jump-in is a branch you can return to. Add replay=<url>.",
-  "cfg": { "tools": ["replay", "play"], "ui": ["hud", "timer", "toolbar"], "controls": ["play", "restart", "speed", "mute", "jumpin", "branches", "fullscreen", "share", "open"], "branch": true }
-}
