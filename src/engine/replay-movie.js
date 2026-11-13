@@ -105,7 +105,7 @@ function mvTick(dt) {
   }
   m.t += dt * m.rate;
   while (!m.freeze && m.n < m.N && m.T[m.n - m.a + 1] <= m.t + 1e-9) mvStepOnce();
-  if (m.n >= m.N) { const img = mvSnapshot(); if (!mvLoad(m.shotI + 1, img)) app.paused = true; }
+  if (!m.freeze && m.n >= m.N) { const img = mvSnapshot(); if (!mvLoad(m.shotI + 1, img)) app.paused = true; } // a freeze on the last frame holds first
 }
 function setPlayMovie(v) { rp.playMovie = v; rp.mv = null; if (v) mvLoad(0); app.paused = false; }
 // export: each shot's own reel rendered in turn, cut to cut (a shot's own fx and the transition between shots are a later phase)
