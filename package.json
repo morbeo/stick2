@@ -33,11 +33,11 @@
     "test:editor": "node tests/browser/editor-flow.js"
   },
   "dependencies": {
-    "discord.js": "^14.16.0"
+    "discord.js": "^14.28.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.5",
-    "eslint": "^9.39.5",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
     "globals": "^17.14.0"
   }
 }
