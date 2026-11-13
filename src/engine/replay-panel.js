@@ -1,7 +1,7 @@
 'use strict';
 // ---------- toolbar, side panel ----------
 function reelFromPlay() {
-  const w = lab.mode === 'play' && lab.cells[0]?.w;
+  const w = lab.mode === 'play' ? lab.cells[0]?.w : null;
   if (!w?.log.length) return notice('No play fight yet', 'Fight a while in play first, then take it here.');
   loadReel(makeReplay(w, lab.playback?.scenario || lab.scen)); app.paused = true;
   if (app.mode !== 'replay') setMode('replay'); else panels();
