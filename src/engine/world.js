@@ -159,7 +159,6 @@ class World {
   updateItems(h) {
     const cfg = this.cfg;
     for (const it of this.items) if (!it.rest) {
-      const w = WEAPONS[it.type];
       it.vy += (it.live ? 600 : cfg.gravity) * h; it.x += it.vx * h; it.y += it.vy * h; it.rot += it.spin * h;
       if (it.x < 20 || it.x > W - 20) { it.x = clamp(it.x, 20, W - 20); it.vx *= -0.4; it.live = false; }
       if (it.y >= this.groundY - 2) { // bounce, then lie flat

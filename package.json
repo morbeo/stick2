@@ -14,6 +14,7 @@
     "coverage": "node --test --experimental-test-coverage --test-coverage-include='src/**' tests/unit/*.test.js",
     "coverage:check": "node tools/dev/coverage-check.js",
     "perf:check": "node tools/dev/perf-budget.js",
+    "lint": "eslint .",
     "lint:src": "node tools/dev/no-test-hooks.js",
     "chars:sync": "node tools/dev/char-scripts.js",
     "char:add": "node tools/dev/char-add.js",
@@ -33,5 +34,10 @@
   },
   "dependencies": {
     "discord.js": "^14.16.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^17.14.0"
   }
 }

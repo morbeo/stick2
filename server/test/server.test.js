@@ -1,5 +1,5 @@
 // the dedicated server (server/): HTTP routes, the relay's rooms, limits, the drain, and a real lobby + match through it
-const test = require('node:test'), assert = require('node:assert/strict'), path = require('path');
+const test = require('node:test'), assert = require('node:assert/strict');
 const { Relay } = require('../relay');
 const { start, config } = require('../server');
 const engine = require('../../tools/lib/engine');

@@ -70,7 +70,7 @@ class Lobby {
   broadcast() {
     const s = this.state; s.rev++;
     for (const sl of s.slots) if (sl && sl.id !== 'h') sl.rtt = this.peers.get(sl.id)?.rtt ?? 0;
-    for (const [id, p] of this.peers) if (p.hello) p.send({ t: 'lobby', state: s });
+    for (const p of this.peers.values()) if (p.hello) p.send({ t: 'lobby', state: s });
     this.hooks.change?.(this);
   }
   nameOf(id) { return [...this.state.slots, ...this.state.watch].find(x => x?.id === id)?.name ?? id; }

@@ -9,7 +9,7 @@ const QR_M = [null, [26, 10, 1, 16, 0], [44, 16, 1, 28, 0], [70, 26, 1, 44, 0], 
   [581, 24, 4, 40, 5], [655, 24, 5, 41, 5], [733, 28, 7, 45, 3], [815, 28, 10, 46, 1], [901, 26, 9, 43, 4], [991, 26, 3, 44, 11], [1085, 26, 3, 41, 13]];
 const QR_ALIGN = [null, [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50], [6, 30, 54], [6, 32, 58],
   [6, 34, 62], [6, 26, 46, 66], [6, 26, 48, 70], [6, 26, 50, 74], [6, 30, 54, 78], [6, 30, 56, 82], [6, 30, 58, 86], [6, 34, 62, 90]];
-const qrDataCw = v => { const [, ec, b1, d1, b2] = QR_M[v]; return b1 * d1 + b2 * (d1 + 1); };
+const qrDataCw = v => { const [, , b1, d1, b2] = QR_M[v]; return b1 * d1 + b2 * (d1 + 1); };
 
 // GF(256) arithmetic (polynomial 0x11D) and the Reed-Solomon remainder of the data by the generator of the given degree
 function qrMul(x, y) { let z = 0; for (let i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >>> 7) * 0x11d); z ^= ((y >>> i) & 1) * x; } return z; }

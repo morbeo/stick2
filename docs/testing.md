@@ -13,6 +13,7 @@ The engine tests run in Node with no dependencies. A headless Chrome test covers
 | `npm run test:browser` | loads the page in headless Chrome and goes through every mode, character and stance, checking for errors |
 | `npm run test:server` | the relay server's tests (installs `server/` dependencies first) |
 | `npm run coverage:check` | unit tests that fail if line coverage of `src/` drops below 85%, or any file kept at 100% loses a line (CI runs this) |
+| `npm run lint` | ESLint (`eslint.config.mjs`) over `src/`, `tools/`, `tests/` and `server/`; needs `npm install` first |
 | `npm run lint:src` | fails if `src/` branches on being under test (`process.env.CI`, `isTest`…) |
 | `npm run test:editor` | the character editor in headless Chrome: make, edit, add, undo / redo, revert, all kept across a page reload |
 | `npm run test:netplay` | two headless browsers, peer to peer: lobby, synced match, spectator, forfeit |
@@ -151,7 +152,7 @@ seed 10: frame 75, gogili: a position, speed or health became NaN
 
 ## CI
 
-`.github/workflows/ci.yml` (**CI · lint, coverage & browser**) runs on every PR and on master: `lint:src`, `coverage:check`, `test:server`, `test:browser`, `test:editor`, `test:netplay` and `test:server-browser`. The coverage floor (85%) and the files kept at 100% (`FULL`) live in `tools/dev/coverage-check.js`; raise the floor and add files as coverage grows, never lower it or drop one to get green.
+`.github/workflows/ci.yml` (**CI · lint, coverage & browser**) runs on every PR and on master: `lint`, `lint:src`, `coverage:check`, `test:server`, `test:browser`, `test:editor`, `test:netplay` and `test:server-browser`. The coverage floor (85%) and the files kept at 100% (`FULL`) live in `tools/dev/coverage-check.js`; raise the floor and add files as coverage grows, never lower it or drop one to get green.
 
 ## Pictures and rig fuzz
 
