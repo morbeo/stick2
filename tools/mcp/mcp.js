@@ -220,7 +220,7 @@ const TOOLS = {
 const DOCS = path.join(S.ROOT, 'docs');
 function resources() {
   const docs = fs.readdirSync(DOCS).filter(f => f.endsWith('.md')).map(f => ({ uri: `stick2://docs/${f}`, name: `docs/${f}`, mimeType: 'text/markdown',
-    description: (fs.readFileSync(path.join(DOCS, f), 'utf8').match(/^# (.+)/m) || [, f])[1] }));
+    description: (fs.readFileSync(path.join(DOCS, f), 'utf8').match(/^# (.+)/m) || [null, f])[1] }));
   return [...docs,
     { uri: 'stick2://schema/settings', name: 'settings schema', mimeType: 'application/json', description: 'Every setting: groups [title, about, keys] then { k, v (default), min, max, step | opts, tip }' },
     { uri: 'stick2://schema/character', name: 'character schema', mimeType: 'application/json', description: 'The shape of a character definition: bones, poses, moves, keys' },

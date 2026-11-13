@@ -516,7 +516,7 @@ class Fighter {
     // 2D: J / K with ↑ held in the jump squat is an up attack instead of a jump
     if (this.buffer && this.squatT > 0 && inp.up && this.buffer.b !== 'stance' && this.c('plane') === '2d') this.squatT = 0;
     if (this.buffer && this.free && this.squatT <= 0 && this.face * this.dir > 0 && this.dodgeT <= 0) { // not mid turn or air dodge
-      const { b, motion } = this.buffer, fresh = !a0 || a0.m.hurt;
+      const { b } = this.buffer;
       if (b === 'throw' && !a0 && this.grounded && this.w.items && this.weaponGrab()) this.buffer = null;
     }
     if (this.buffer && this.free && this.squatT <= 0 && this.face * this.dir > 0 && this.dodgeT <= 0) {

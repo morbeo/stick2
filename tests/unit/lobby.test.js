@@ -1,5 +1,5 @@
 // the netplay lobby (src/net/lobby.js) over fake links, and the invite codes (src/net/netplay.js); the WebRTC part is tools/dev/netplay-test.js
-const test = require('node:test'), assert = require('node:assert/strict'), fs = require('fs'), path = require('path'), vm = require('vm');
+const test = require('node:test'), assert = require('node:assert/strict'), fs = require('fs'), vm = require('vm');
 const engine = require('../../tools/lib/engine');
 const { run } = engine([...engine.ENGINE, 'lobby']);
 const Lobby = run('Lobby'), VER = run('ENGINE_VERSION');
@@ -33,7 +33,7 @@ test('a guest joins: gets the second slot, and its view is the host\'s snapshot'
 
 test('two players with the same name get told apart', () => {
   const host = new Lobby({ role: 'host', name: 'player', now: () => 0 });
-  for (const n of [1, 2]) host.receive(host.link(() => {}), { t: 'hello', proto: 1, engine: VER, name: 'player' });
+  for (let i = 0; i < 2; i++) host.receive(host.link(() => {}), { t: 'hello', proto: 1, engine: VER, name: 'player' });
   assert.deepEqual(plain([...host.state.slots, ...host.state.watch].map(s => s.name)), ['player', 'player 2', 'player 3']);
 });
 
@@ -378,7 +378,7 @@ test('best of 3: the same two until one has 2 wins (draws don\'t count), then th
 // ---------- a handover: the host left, a guest hosts from its snapshot, the others rejoin ----------
 test('a guest takes over: it becomes h, the old host leaves the state, the others rejoin under their old ids; no-shows are dropped', () => {
   const r = room({ guests: 3, want: ['play', 'play', 'watch'] });
-  const { host, gs, flush, clock } = r;
+  const { host, gs, flush } = r;
   host.state.score = { h: { wins: 2, streak: 2 }, g2: { wins: 1, streak: 0 } }; host.broadcast(); flush();
   const [g1, g2, g3] = gs, rev = g2.state.rev;
   assert.equal(g2.promote(), true);

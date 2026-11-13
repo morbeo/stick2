@@ -46,7 +46,7 @@ function keyFrames(delta) {
 }
 function addKey() {
   edit(def => {
-    const keys = def.moves[anim.move].keys, k = keys[anim.key];
+    const keys = def.moves[anim.move].keys;
     keys.splice(anim.key + 1, 0, { d: 4 / 60, e: 'outQuad', p: clone(keyPose(edChar(), curMove(), anim.key)) });
   });
   selectKey(anim.key + 1);
