@@ -9,11 +9,13 @@ test('the roster: the stick and seventeen fighters, each with a second stance', 
   for (const n of ROSTER) assert.ok(json(`CHARS.${n}.stances.length`) >= 2, n);
 });
 
-test('each fighter has at least four signature moves of its own, every one reachable from an input', () => {
+test('each fighter has at least four signature moves of its own, every one reachable from an input (a bind, a combo link or a throw)', () => {
   for (const n of ROSTER) {
     const r = json(`(() => { const ch = CHARS.${n}, lib = CHAR_DEFS.stick.moves, bound = new Set(ch.stances.flatMap(s => [...Object.values(s.binds), ...Object.values(s.binds25)]));
       const own = Object.keys(CHAR_DEFS.${n}.moves).filter(k => !lib[k] && ch.moves[k].keys.some(x => x.active || x.shoot || x.warp));
       const throwsTo = new Set(Object.values(ch.moves).flatMap(m => [m.throw, m.counter]).filter(Boolean)); // throws and counters start these
+      // a combo link is an input too: a move follows its chain (next) from a bound move
+      for (const q = [...bound]; q.length;) for (const t of Object.values(ch.moves[q.pop()]?.next || {})) if (!bound.has(t)) { bound.add(t); q.push(t); }
       return { own, unbound: own.filter(k => !bound.has(k) && !throwsTo.has(k)) }; })()`);
     assert.ok(r.own.length >= 4, `${n}: ${r.own}`);
     assert.deepEqual(r.unbound, [], `${n}: signature moves with no input`);

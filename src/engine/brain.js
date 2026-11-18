@@ -350,7 +350,7 @@ const SIGNATURE_MOVES = {
   noodo: ['yogaFire', 'drillKick', 'yogaWarp', 'longJab'], gogili: ['rollingBall', 'verticalBall', 'electricity', 'biteGrab'],
   honky: ['swingGrab', 'waistLock', 'dropkick', 'plancha'], gloomo: ['darkOrb', 'psychoDash', 'warpClaw', 'skullDive'],
   centaur: ['trample', 'donkeyKick', 'rearButt', 'rearStrike'], houndo: ['tackle', 'clawSwipe', 'bite', 'hindKick'],
-  otkopod: ['tentacleFlurry', 'eightArmSlam', 'inkBurst', 'wrapSqueeze'], clampo: ['bearHug', 'legLock', 'tackle', 'splash'],
+  otkopod: ['windmill', 'tentacleFlurry', 'eightArmSlam', 'wrapSqueeze'], clampo: ['bearHug', 'legLock', 'tackle', 'splash'],
   bonko: ['boneThrow', 'rattleRush', 'skullBash', 'boneSlam'],
 };
 // every character's showcase also ends on its super (src/engine/roster.js addSuper), forced the same '@' way as the rest
