@@ -77,6 +77,7 @@ The build info is shown in the debug popup (the chart button in the menu bar), n
 | `tests/unit/determinism.test.js` | the same seed plays the same AI fight frame for frame (also in a fresh engine); another seed plays another |
 | `tests/browser/browser.js` | headless Chrome: every mode, character and stance, no errors |
 | `tests/unit/small-modules.test.js` | shapes, stages and props, looks, sounds and the tracker against stand-in canvas, storage and WebAudio |
+| `tests/unit/editor-logic.test.js` | the animate tab's pure parts (key timing, IK, hip drag, frame layout, move groups, loop/layer authoring) and the key and move edits (add, split, move, delete, retime, multipliers, hit bones, copy, delete, binds, export), with `src/editor/editor.js` and `keyedit.js` loaded headless and a few UI helpers stubbed |
 | `tests/unit/replay-timeline.test.js` | the replay editor's input edits, timeline window, jumps, and timeline drawing and mouse on a stand-in canvas |
 | `tests/unit/replay-panel.test.js` | the replay editor's toolbar, side panel, event table, footage, movie, export and scene, built with `tests/unit/ui-stub.js` (a stand-in for the DOM toolkit): every control clicked, each area checked |
 | `tests/browser/browser-coverage.js` | the browser test under Chrome's coverage (`npm run coverage:browser`) |
