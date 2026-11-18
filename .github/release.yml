@@ -1,5 +1,5 @@
 # Sections for the release notes GitHub writes from merged PRs (gh release create --generate-notes in
-# workflows/release.yml). PRs get their label from the branch prefix (feat/, fix/ …) by the ci.yml "label" job.
+# workflows/release.yml). PRs get their label from the branch prefix (feat/, fix/ …) by workflows/pr-label.yml.
 changelog:
   exclude:
     labels: [skip-notes]

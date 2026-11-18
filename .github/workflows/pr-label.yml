@@ -1,0 +1,35 @@
+name: PR · label from branch
+run-name: "Label PR #${{ github.event.pull_request.number }}"
+
+# Labels each PR from its branch prefix; the release notes group by these labels (.github/release.yml).
+on:
+  pull_request:
+    types: [opened, reopened]
+
+permissions: {} # granted per job
+
+jobs:
+  label:
+    name: Label PR from its branch
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      pull-requests: write # add the label
+      issues: write # create the label the first time
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BRANCH: ${{ github.head_ref }}
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      # feat/x → feature, fix/x → fix, docs/ test/ ci/ refactor/ perf/ chore/ → the same word; the release notes group by these (.github/release.yml)
+      - name: Label from branch prefix
+        run: |
+          prefix="${BRANCH%%/*}"
+          case "$prefix" in feat) label=feature ;; fix|docs|test|ci|refactor|perf|chore) label=$prefix ;; *) echo "no label for '$prefix/'"; exit 0 ;; esac
+          gh label create "$label" --repo "$GITHUB_REPOSITORY" --color ededed --description "release notes section" 2>/dev/null || true
+          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label "$label"
+      - name: Result in the run summary
+        if: always()
+        run: |
+          echo "PR label: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"

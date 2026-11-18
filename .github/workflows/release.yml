@@ -98,9 +98,7 @@ jobs:
         with:
           ref: ${{ needs.publish.outputs.tag }}
       - name: Set up Node
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
+        uses: ./.github/actions/setup-node
       - name: Run unit tests
         run: npm test
       - name: Run server tests
@@ -122,9 +120,7 @@ jobs:
           ref: ${{ needs.publish.outputs.tag }}
           fetch-depth: 0 # the merges since the last tag, and a worktree of it
       - name: Set up Node
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
+        uses: ./.github/actions/setup-node
       - name: Set up Chrome
         uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4 # v2.2.0
         id: chrome
@@ -257,9 +253,7 @@ jobs:
           ref: ${{ needs.publish.outputs.tag }}
           fetch-depth: 0 # build-info reads the commit history
       - name: Set up Node
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
+        uses: ./.github/actions/setup-node
       - name: Pack
         run: npm run build-info && npm run itch
       - name: Keep the zip

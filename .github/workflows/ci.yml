@@ -1,9 +1,9 @@
-name: CI · lint, coverage & browser
+name: CI · tests
 run-name: "CI on ${{ github.head_ref || github.ref_name }}"
 
-# Every push and PR: unit tests with a line-coverage floor, the server's tests, the headless-Chrome
-# smoke test, two-browser netplay (peer to peer, and through the relay server), and a check that src/ has no test-only branches. Raise the floor in tools/dev/coverage-check.js
-# (coverage:check) as coverage grows; never lower it to get green.
+# Every push to master and every PR: lint, unit tests with a line-coverage floor and the sim perf budget,
+# the server's tests, the headless-Chrome smoke test and two-browser netplay (peer to peer and through the relay).
+# Raise the floor in tools/dev/coverage-check.js (coverage:check) as coverage grows; never lower it to get green.
 on:
   push:
     branches: [master]
@@ -17,26 +17,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }} # a new push supersedes the PR's older run
 
 jobs:
-  label:
-    name: Label PR from its branch
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    permissions:
-      pull-requests: write # add the label
-      issues: write # create the label the first time
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      BRANCH: ${{ github.head_ref }}
-      PR: ${{ github.event.pull_request.number }}
-    steps:
-      # feat/x → feature, fix/x → fix, docs/ test/ ci/ refactor/ perf/ chore/ → the same word; the release notes group by these (.github/release.yml)
-      - name: Label from branch prefix
-        run: |
-          prefix="${BRANCH%%/*}"
-          case "$prefix" in feat) label=feature ;; fix|docs|test|ci|refactor|perf|chore) label=$prefix ;; *) echo "no label for '$prefix/'"; exit 0 ;; esac
-          gh label create "$label" --repo "$GITHUB_REPOSITORY" --color ededed --description "release notes section" 2>/dev/null || true
-          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label "$label"
   unit:
     name: Unit tests + coverage floor
     runs-on: ubuntu-latest
@@ -45,9 +25,7 @@ jobs:
       - name: Check out repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Node
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
+        uses: ./.github/actions/setup-node
       - name: Install dev tools
         run: npm ci --no-audit --no-fund
       - name: ESLint
@@ -74,9 +52,7 @@ jobs:
       - name: Check out repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Node
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
+        uses: ./.github/actions/setup-node
       - name: Run server tests
         run: npm run test:server
       - name: Result in the run summary
@@ -92,9 +68,7 @@ jobs:
       - name: Check out repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Node
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
+        uses: ./.github/actions/setup-node
       - name: Build info
         run: node tools/dev/build-info.js
       - name: Smoke test in headless Chrome
@@ -120,9 +94,7 @@ jobs:
       - name: Check out repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Node
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
+        uses: ./.github/actions/setup-node
       - name: Build info
         run: node tools/dev/build-info.js
       - name: Peer to peer, through the lobby to a synced match
