@@ -155,7 +155,7 @@ seed 10: frame 75, gogili: a position, speed or health became NaN
 
 ## CI
 
-`.github/workflows/ci.yml` (**CI · lint, coverage & browser**) runs on every PR and on master: `lint`, `lint:src`, `coverage:check`, `test:server`, `test:browser`, `test:editor`, `test:netplay` and `test:server-browser`. The coverage floor (85%) and the files kept at 100% (`FULL`) live in `tools/dev/coverage-check.js`; raise the floor and add files as coverage grows, never lower it or drop one to get green.
+`.github/workflows/ci.yml` (**CI · tests**) runs on every PR and on master: `lint`, `lint:src`, `coverage:check`, `perf:check`, `test:server`, `test:browser`, `test:editor`, `test:netplay` and `test:server-browser`. The coverage floor (85%) and the files kept at 100% (`FULL`) live in `tools/dev/coverage-check.js`; raise the floor and add files as coverage grows, never lower it or drop one to get green.
 
 ## Pictures and rig fuzz
 
