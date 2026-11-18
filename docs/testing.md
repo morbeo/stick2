@@ -79,6 +79,7 @@ The build info is shown in the debug popup (the chart button in the menu bar), n
 | `tests/unit/scenario-builder.test.js` | the scenario builder panel (`src/engine/scenarios.js`) against the DOM stand-in: every fighter, prop, weapon, setting, select-screen and header control, the team, skill and limits popups, export / import, embed links and the showcase replay |
 | `tests/unit/net-server-edge.test.js` | the relay-server client (`src/net/netserver.js`) on a scriptable WebSocket and a recording lobby: signed hello, bad JSON, every way a link ends, each host and guest message, host tools, promotion, quick-match errors, account requests and the HTTP helpers |
 | `tests/unit/small-modules.test.js` | shapes, stages and props, looks, sounds and the tracker against stand-in canvas, storage and WebAudio |
+| `tests/unit/editor-logic.test.js` | the animate tab's pure parts (key timing, IK, hip drag, frame layout, move groups, loop/layer authoring) and the key and move edits (add, split, move, delete, retime, multipliers, hit bones, copy, delete, binds, export), with `src/editor/editor.js` and `keyedit.js` loaded headless and a few UI helpers stubbed |
 | `tests/unit/replay-timeline.test.js` | the replay editor's input edits, timeline window, jumps, and timeline drawing and mouse on a stand-in canvas |
 | `tests/unit/replay-panel.test.js` | the replay editor's toolbar, side panel, event table, footage, movie, export and scene, built with `tests/unit/ui-stub.js` (a stand-in for the DOM toolkit): every control clicked, each area checked |
 | `tests/browser/browser-coverage.js` | the browser test under Chrome's coverage (`npm run coverage:browser`) |
@@ -154,7 +155,7 @@ seed 10: frame 75, gogili: a position, speed or health became NaN
 
 ## CI
 
-`.github/workflows/ci.yml` (**CI · lint, coverage & browser**) runs on every PR and on master: `lint`, `lint:src`, `coverage:check`, `test:server`, `test:browser`, `test:editor`, `test:netplay` and `test:server-browser`. The coverage floor (85%) and the files kept at 100% (`FULL`) live in `tools/dev/coverage-check.js`; raise the floor and add files as coverage grows, never lower it or drop one to get green.
+`.github/workflows/ci.yml` (**CI · tests**) runs on every PR and on master: `lint`, `lint:src`, `coverage:check`, `perf:check`, `test:server`, `test:browser`, `test:editor`, `test:netplay` and `test:server-browser`. The coverage floor (85%) and the files kept at 100% (`FULL`) live in `tools/dev/coverage-check.js`; raise the floor and add files as coverage grows, never lower it or drop one to get green.
 
 ## Pictures and rig fuzz
 
