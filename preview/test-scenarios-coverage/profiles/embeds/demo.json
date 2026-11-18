@@ -1,0 +1,4 @@
+{
+  "tip": "A passive AI vs AI loop for a landing page: no input, no keys taken, only play/pause and mute.",
+  "cfg": { "scenario": "ai vs ai", "ui": ["hud"], "controls": ["play", "mute"], "input": [], "watermark": true }
+}
