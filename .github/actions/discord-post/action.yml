@@ -1,0 +1,35 @@
+name: Post to Discord
+description: Sends a Discord webhook message (an embed payload, optionally with the fight GIF attached), retries once, and notes it in the run summary. Skips with a warning when the webhook is empty.
+inputs:
+  webhook:
+    description: Discord webhook URL (pass a secret)
+    required: true
+  payload:
+    description: Webhook JSON, e.g. {"embeds":[...]}; reference an attached GIF as attachment://fight.gif
+    required: true
+  gif:
+    description: Path of a GIF to attach as fight.gif (blank for none)
+    default: ''
+  summary:
+    description: Line written to the run summary after posting
+    default: Posted to Discord
+runs:
+  using: composite
+  steps:
+    - name: Send webhook
+      shell: bash
+      env:
+        WEBHOOK: ${{ inputs.webhook }}
+        PAYLOAD: ${{ inputs.payload }}
+        GIF: ${{ inputs.gif }}
+        SUMMARY: ${{ inputs.summary }}
+      run: |
+        [ -n "$WEBHOOK" ] || { echo "::warning::No Discord webhook secret; skipped the post"; exit 0; }
+        # --fail-with-body so a Discord-side error (bad webhook, rate limit) fails loudly; one retry covers a transient 5xx
+        send() { if [ -n "$GIF" ]; then
+            curl -sS --fail-with-body -F "payload_json=$PAYLOAD" -F "files[0]=@${GIF};filename=fight.gif" "$WEBHOOK"
+          else
+            curl -sS --fail-with-body -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK"
+          fi; }
+        send || { echo "::warning::First attempt failed, retrying in 5s"; sleep 5; send; }
+        echo "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"

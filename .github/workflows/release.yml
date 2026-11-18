@@ -165,27 +165,32 @@ jobs:
         env:
           GIF_PATH: ${{ steps.gif.outputs.path }}
         run: gh release upload "$TAG" "$GIF_PATH#fight.gif" --clobber --repo "$GITHUB_REPOSITORY"
-      - name: Post release to Discord
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-          GIF_PATH: ${{ steps.gif.outputs.path }}
+      - name: Build embed
+        id: embed
         run: |
-          [ -n "$DISCORD_WEBHOOK" ] || { echo "::warning::No DISCORD_WEBHOOK secret; skipped the post"; exit 0; }
           rel=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json name,body,url,author)
-          PAYLOAD=$(jq -n --argjson r "$rel" --arg tag "$TAG" '{
-            embeds: [{
-              title: "stick2 \($r.name // $tag) is out!",
-              url: $r.url,
-              description: ($r.body | .[0:3500]),
-              color: 5793266,
-              author: { name: $r.author.login },
-              fields: [{ name: "Release", value: $tag, inline: true }],
-              image: { url: "attachment://fight.gif" }
-            }]
-          }')
-          send() { curl -sS --fail-with-body -F "payload_json=$PAYLOAD" -F "files[0]=@${GIF_PATH};filename=fight.gif" "$DISCORD_WEBHOOK"; }
-          send || { echo "::warning::First attempt failed, retrying in 5s"; sleep 5; send; }
-          echo "Attached fight.gif to \`$TAG\` and posted it to Discord" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo 'payload<<EOF'
+            jq -nc --argjson r "$rel" --arg tag "$TAG" '{
+              embeds: [{
+                title: "stick2 \($r.name // $tag) is out!",
+                url: $r.url,
+                description: ($r.body | .[0:3500]),
+                color: 5793266,
+                author: { name: $r.author.login },
+                fields: [{ name: "Release", value: $tag, inline: true }],
+                image: { url: "attachment://fight.gif" }
+              }]
+            }'
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+      - name: Post release to Discord
+        uses: ./.github/actions/discord-post
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          payload: ${{ steps.embed.outputs.payload }}
+          gif: ${{ steps.gif.outputs.path }}
+          summary: "Attached fight.gif to `${{ needs.publish.outputs.tag }}` and posted it to Discord"
 
   image:
     name: Build and push server image
