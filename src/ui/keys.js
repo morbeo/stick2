@@ -78,7 +78,7 @@ const keyTip = a => { const k = keymap[a][0], g = groupOf(a); if (!k) return '';
 const fightHint = () => { const k = a => keyLabel(keymap[a][0] || '—');
   return `${k('left')}/${k('right')} move · ${(mode().worlds()[0]?.cfg ?? CFG).plane === '2d' ? `${k('up')} jump · ${k('down')} crouch` : `${k('up')}/${k('down')} depth · ${k('hop')} jump`} · ${k('punch')} punch · ${k('kick')} kick · ${k('special')} special · ${k('guard')} guard (tap: parry) · ⇧ + letter: shortcuts (⇧P pause) · keys: rebind, macros`; };
 const macroFor = e => macros.find(m => m.key === combo(e) || m.key === e.code);
-const keyLabel = k => k.replace('Shift+', '⇧').replace('Alt+', '⌥').replace(/^Key|^Digit/, '')
+const keyLabel = k => k.replace('Shift+', '⇧').replace('Alt+', '⌥').replace(/(?:Key|Digit)(?=\w$)/, '')
   .replace(/Arrow(Left|Right|Up|Down)/, (_, d) => ({ Left: '←', Right: '→', Up: '↑', Down: '↓' })[d]).replace('Comma', ',').replace('Period', '.');
 
 // a macro plays in every world the keyboard controls (merged with the keys held), see World.step
