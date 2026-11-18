@@ -76,6 +76,7 @@ The build info is shown in the debug popup (the chart button in the menu bar), n
 | `tests/unit/fuzz.test.js` | 25 AI fights (10 s each) between random characters with 8 random settings each (any value the side panel allows): nothing throws, nothing becomes NaN, health stays within 0 … its maximum, nobody leaves the stage |
 | `tests/unit/determinism.test.js` | the same seed plays the same AI fight frame for frame (also in a fresh engine); another seed plays another |
 | `tests/browser/browser.js` | headless Chrome: every mode, character and stance, no errors |
+| `tests/unit/scenario-builder.test.js` | the scenario builder panel (`src/engine/scenarios.js`) against the DOM stand-in: every fighter, prop, weapon, setting, select-screen and header control, the team, skill and limits popups, export / import, embed links and the showcase replay |
 | `tests/unit/small-modules.test.js` | shapes, stages and props, looks, sounds and the tracker against stand-in canvas, storage and WebAudio |
 | `tests/unit/replay-timeline.test.js` | the replay editor's input edits, timeline window, jumps, and timeline drawing and mouse on a stand-in canvas |
 | `tests/unit/replay-panel.test.js` | the replay editor's toolbar, side panel, event table, footage, movie, export and scene, built with `tests/unit/ui-stub.js` (a stand-in for the DOM toolkit): every control clicked, each area checked |
