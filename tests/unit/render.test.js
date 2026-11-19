@@ -257,3 +257,30 @@ test('shade, taper, caps, z, socket, fill and aim: draw without NaN, keep fights
   assert.ok(r.aims); assert.ok(r.same, 'deterministic');
   assert.equal(r.mix, '#808080'); assert.equal(r.named, 'red');
 });
+
+test('every look preset, outline and line style draws without NaN, differently from plain, and the same each time', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => {
+    const looks = [...Object.values(LOOK_PRESETS).map(p => p[0]), ...LOOK_OUTLINES.map(outline => ({ outline, oc: '#c00', oa: 0.5 })), { line: 'dashed' },
+      { outline: 'ink', line: 'hand' }, { outline: 'glow', ow: 1 }, { outline: 'shadow', line: 'calligraphy' }];
+    const w = new World(SCENARIOS[Object.keys(SCENARIOS)[0]], {}, 7); w.loop = false; for (let i = 0; i < 30; i++) w.advance(1/60, NOIN);
+    const ch = w.a.ch, keep = ch.look, bones = ch.bones;
+    // a curved bone, a circle, a hidden one and a socket, so every branch of the sketch and bone drawing runs
+    ch.bones = bones.map((b, i) => i === 1 ? { ...b, curve: 0.3 } : i === 2 ? { ...b, hidden: true } : i === 3 ? { ...b, shape: 'socket' } : i === 4 ? { ...b, shape: 'circle' } : b);
+    const draw = lk => { ch.look = lk; const { ctx, st } = stubCtx(); w.a.draw(ctx); return st; };
+    const out = looks.map(lk => { const a = draw(lk), b = draw(lk); return { calls: a.calls, same: a.calls === b.calls, bad: a.bad }; });
+    ch.look = keep; ch.bones = bones; return { plain: out[0].calls, out };
+  })())`));
+  for (const [i, o] of r.out.entries()) { assert.deepEqual(o.bad, [], `look ${i}`); assert.ok(o.same, `look ${i} draws the same twice`); }
+  assert.ok(r.out.slice(1).every(o => o.calls > r.plain), JSON.stringify(r.out.map(o => o.calls)));
+});
+
+test('a severed limb keeps its segments relative to the cut, from the root bone to every leaf', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => {
+    const w = new World(SCENARIOS[Object.keys(SCENARIOS)[0]], {}, 7), ch = w.a.ch, P = w.a.pose ? w.a.pose() : null;
+    const L = P || Object.fromEntries(ch.bones.map((b, i) => [b.id, [i * 3, i * 2]]).concat([['hip', [0, 0]]]));
+    const root = ch.bones.find(b => ch.bones.some(k => k.parent === b.id) && b.parent), s = collectLimbSegments(ch, root, L, '#123');
+    const below = (id, n = 0) => 1 + ch.bones.filter(k => k.parent === id).reduce((a, k) => a + below(k.id), 0);
+    return { n: s.segs.length, want: below(root.id), at: [s.x, s.y], root: L[root.id], end: s.segs[0].slice(2, 4), col: s.col };
+  })())`));
+  assert.equal(r.n, r.want); assert.deepEqual(r.at, r.root); assert.deepEqual(r.end, [0, 0], 'the root bone ends at the cut'); assert.equal(r.col, '#123');
+});

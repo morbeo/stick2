@@ -96,3 +96,25 @@ test('the timeline and preview draw, and the mouse and wheel pick, scrub, select
   assert.ok(r.scrubbed && r.zoomed && r.step);
   assert.equal(r.above, false);
 });
+
+test('the preview draws the movie (shot, transition, freeze, reversed, ended, empty), A / B side by side and overlaid, and dragged inputs', () => {
+  const r = JSON.parse(run(`JSON.stringify((() => {
+    var document = globalThis.document = { createElement: () => ({ width: 0, height: 0, getContext: () => fake() }) };
+    loadReel(REPS[0]); const sh = rp.movie.shots[0]; Object.assign(sh, { fx: { shake: 2 }, props: [{ kind: 'box' }], pose: {} });
+    const draws = []; const at = () => { calls = 0; rpRender(); draws.push(calls); };
+    rp.playMovie = true; mvLoad(0); at();
+    rp.mv.trans = { t: 1, dur: 4, from: null, to: null, kind: 'fade' }; at(); rp.mv.trans = null;
+    rp.mv.freeze = { img: null, zoom: 1, text: 'x' }; at(); rp.mv.freeze = null;
+    rp.mv.rev = { imgs: [{ img: {} }], i: 0 }; at(); rp.mv.rev = null;
+    rp.mv = null; at(); const shots = rp.movie.shots; rp.movie.shots = []; at(); rp.movie.shots = shots; rp.playMovie = false;
+    loadCmp({ rep: REPS[1], name: 'b' }); rp.cmpView = 'side'; at(); rp.cmpView = 'overlay'; at(); at(); loadCmp(null);
+    rebuildEvents(); const e = rp.events.find(e => e.type === 'input' && e.kind !== 'macro' && e.end !== undefined) || rp.events.find(e => e.type === 'input');
+    rp.sel = new Set([e.i]); const plain = evFrames(e);
+    rp.drag = { move: true, d: 3 }; const both = evFrames(e); rp.drag.edge = 'end'; const end = evFrames(e); rp.drag.edge = 'start'; const start = evFrames(e); rp.drag = null;
+    return { draws, plain, both, end, start, span: e.end !== undefined };
+  })())`));
+  // the ended and empty movie only write a line of text (stubbed here): every other picture draws
+  assert.ok(r.draws.filter((n, i) => i !== 4 && i !== 5).every(n => n > 0), r.draws.join());
+  assert.equal(r.both[0], r.plain[0] + 3); assert.equal(r.end[0], r.plain[0], 'dragging the end leaves the start');
+  if (r.span) { assert.equal(r.both[1], r.plain[1] + 3); assert.equal(r.start[1], r.plain[1], 'dragging the start leaves the end'); }
+});
