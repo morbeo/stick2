@@ -3,7 +3,7 @@
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('fs'), path = require('path'), vm = require('vm'), { execFileSync } = require('child_process');
 const root = path.join(__dirname, '..', '..');
 const ctx = vm.createContext({ Buffer, URLSearchParams, console, JSON, Math, Object, Array, String, Number, encodeURIComponent, decodeURIComponent, escape, unescape });
-for (const f of ['src/ui/embed-schema.js', 'src/ui/embed-presets.js']) vm.runInContext(fs.readFileSync(path.join(root, f), 'utf8'), ctx, { filename: f });
+for (const f of ['src/ui/embed-schema.js', 'src/ui/embed-presets.js']) vm.runInContext(fs.readFileSync(path.join(root, f), 'utf8'), ctx, { filename: path.join(root, f) }); // (absolute filename: counted by coverage)
 const run = code => vm.runInContext(code, ctx);
 const runJ = code => JSON.parse(run(`JSON.stringify(${code})`));
 const parse = hash => JSON.parse(run(`JSON.stringify(parseEmbed(new URLSearchParams(${JSON.stringify(hash)}), EMBED_PRESETS))`));
