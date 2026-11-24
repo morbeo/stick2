@@ -8,6 +8,11 @@ on:
 
 permissions: {} # granted per job
 
+# Only the latest run per PR applies labels.
+concurrency:
+  group: pr-label-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   label:
     name: Label PR from its branch
