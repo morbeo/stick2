@@ -1,0 +1,4 @@
+{
+  "tip": "Drop the visitor into a replay at a frame, on one side, to win the round from there. Add replay=<url>&at=<frame>&side=1.",
+  "cfg": { "tools": ["replay", "play"], "ui": ["hud", "timer"], "controls": ["restart", "mute", "share", "open"], "challenge": true, "side": "1" }
+}
