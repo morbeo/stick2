@@ -1,5 +1,5 @@
 'use strict';
-// Fighter, part 2 of 4 (after fighter.js): feet and legs. Walk and air leg poses over the IK below, the floor under each foot, planted feet
+// Fighter, part 4 of 6 (after fighter-hits.js): feet and legs. Walk and air leg poses over the IK below, the floor under each foot, planted feet
 // two-bone IK: thigh th and shin a turn so a's end reaches (tx, ty), in the unflipped rig space of L / wa (fk of P); the
 // knee bends the way it bends now. P is changed in place
 // fk of a stance's own pose, per character (stance bodies share a pose object but not their lengths): the walk's rest
