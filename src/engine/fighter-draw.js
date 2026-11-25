@@ -1,5 +1,5 @@
 'use strict';
-// Fighter, part 4 of 4: drawing only (never read by the fight). Trails, hit and hurt boxes, the figure itself, the streak warp and the hit flash colour
+// Fighter, part 6 of 6 (after fighter-rag.js): drawing only (never read by the fight). Trails, hit and hurt boxes, the figure itself, the streak warp and the hit flash colour
 // the streak teleport's look: the old body as sideways streaks that stretch away and fade (first 35%), then a flash at the new spot
 function drawWarp(ctx, f, wf, u) {
   const out = clamp(u / 0.35, 0, 1), col = f.col[0];
