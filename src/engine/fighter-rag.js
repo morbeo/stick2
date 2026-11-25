@@ -1,5 +1,5 @@
 'use strict';
-// Fighter, part 3 of 4: the ragdoll. Going limp, taking hits while limp, and the verlet step that moves the limp body
+// Fighter, part 5 of 6 (after fighter-legs.js): the ragdoll. Going limp, taking hits while limp, and the verlet step that moves the limp body
 class FighterRag {
   // ---------- ragdoll (falls setting): a knocked-down body as point masses joined by its bones ----------
   // it starts from the drawn joints; ragStep simulates it and writes the bone angles back, so drawing and hit tests stay as they are

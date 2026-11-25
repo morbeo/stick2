@@ -14,7 +14,7 @@ const CHAR_FILES = JSON.parse(fs.readFileSync(path.join(SRC, 'engine', 'chars', 
 const GROUPS = {
   rig: ['engine/rig', 'engine/rig-chars', 'engine/chars/stick', 'engine/rig-weapons', 'engine/rig-pose', 'engine/rig-draw'],
   roster: ['engine/objdiff', ...CHAR_FILES, 'engine/roster'],
-  fighter: ['engine/fighter', 'engine/fighter-legs', 'engine/fighter-rag', 'engine/fighter-draw'],
+  fighter: ['engine/fighter', 'engine/fighter-moves', 'engine/fighter-hits', 'engine/fighter-legs', 'engine/fighter-rag', 'engine/fighter-draw'],
   replay: ['engine/replay', 'engine/replay-timeline', 'engine/replay-scene', 'engine/replay-footage', 'engine/replay-movie', 'engine/replay-panel'],
 };
 const expand = files => files.flatMap(f => GROUPS[f] || [f]);
